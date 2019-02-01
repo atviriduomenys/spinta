@@ -1,0 +1,227 @@
+[[package]]
+category = "main"
+description = "File support for asyncio."
+name = "aiofiles"
+optional = false
+python-versions = "*"
+version = "0.4.0"
+
+[[package]]
+category = "main"
+description = "An asyncio PosgtreSQL driver"
+name = "asyncpg"
+optional = false
+python-versions = ">=3.5.0"
+version = "0.18.3"
+
+[[package]]
+category = "dev"
+description = "Atomic file writes."
+name = "atomicwrites"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+version = "1.2.1"
+
+[[package]]
+category = "dev"
+description = "Classes Without Boilerplate"
+name = "attrs"
+optional = false
+python-versions = "*"
+version = "18.2.0"
+
+[[package]]
+category = "dev"
+description = "Cross-platform colored terminal text."
+marker = "sys_platform == \"win32\""
+name = "colorama"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+version = "0.4.1"
+
+[[package]]
+category = "main"
+description = "A collection of framework independent HTTP protocol utils."
+name = "httptools"
+optional = false
+python-versions = "*"
+version = "0.0.11"
+
+[[package]]
+category = "main"
+description = "An implementation of JSON Schema validation for Python"
+name = "jsonschema"
+optional = false
+python-versions = "*"
+version = "2.6.0"
+
+[[package]]
+category = "dev"
+description = "More routines for operating on iterables, beyond itertools"
+name = "more-itertools"
+optional = false
+python-versions = "*"
+version = "5.0.0"
+
+[package.dependencies]
+six = ">=1.0.0,<2.0.0"
+
+[[package]]
+category = "main"
+description = "multidict implementation"
+name = "multidict"
+optional = false
+python-versions = ">=3.4.1"
+version = "4.5.2"
+
+[[package]]
+category = "main"
+description = ""
+name = "open-data-manifest"
+optional = false
+python-versions = "^3.6"
+version = "0.1.0"
+
+[package.dependencies]
+jsonschema = "^2.6"
+"ruamel.yaml" = "^0.15.83"
+
+[package.source]
+reference = ""
+type = "directory"
+url = "../manifest"
+
+[[package]]
+category = "dev"
+description = "plugin and hook calling mechanisms for python"
+name = "pluggy"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+version = "0.8.1"
+
+[[package]]
+category = "dev"
+description = "A short alias for the pprintpp or pprint module"
+name = "pp-ez"
+optional = false
+python-versions = "*"
+version = "0.2.0"
+
+[[package]]
+category = "dev"
+description = "A drop-in replacement for pprint that's actually pretty"
+name = "pprintpp"
+optional = false
+python-versions = "*"
+version = "0.4.0"
+
+[[package]]
+category = "dev"
+description = "library with cross-python path, ini-parsing, io, code, log facilities"
+name = "py"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+version = "1.7.0"
+
+[[package]]
+category = "dev"
+description = "pytest: simple powerful testing with Python"
+name = "pytest"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+version = "4.1.1"
+
+[package.dependencies]
+atomicwrites = ">=1.0"
+attrs = ">=17.4.0"
+colorama = "*"
+more-itertools = ">=4.0.0"
+pluggy = ">=0.7"
+py = ">=1.5.0"
+setuptools = "*"
+six = ">=1.10.0"
+
+[[package]]
+category = "main"
+description = "ruamel.yaml is a YAML parser/emitter that supports roundtrip preservation of comments, seq/map flow style, and map key order"
+name = "ruamel.yaml"
+optional = false
+python-versions = "*"
+version = "0.15.87"
+
+[[package]]
+category = "main"
+description = "A microframework based on uvloop, httptools, and learnings of flask"
+name = "sanic"
+optional = false
+python-versions = "*"
+version = "18.12.0"
+
+[package.dependencies]
+aiofiles = ">=0.3.0"
+httptools = ">=0.0.10"
+multidict = ">=4.0,<5.0"
+ujson = ">=1.35"
+uvloop = ">=0.5.3"
+websockets = ">=6.0,<7.0"
+
+[[package]]
+category = "dev"
+description = "Python 2 and 3 compatibility utilities"
+name = "six"
+optional = false
+python-versions = ">=2.6, !=3.0.*, !=3.1.*"
+version = "1.12.0"
+
+[[package]]
+category = "main"
+description = "Ultra fast JSON encoder and decoder for Python"
+marker = "sys_platform != \"win32\" and implementation_name == \"cpython\""
+name = "ujson"
+optional = false
+python-versions = "*"
+version = "1.35"
+
+[[package]]
+category = "main"
+description = "Fast implementation of asyncio event loop on top of libuv"
+marker = "sys_platform != \"win32\" and implementation_name == \"cpython\""
+name = "uvloop"
+optional = false
+python-versions = "*"
+version = "0.12.0"
+
+[[package]]
+category = "main"
+description = "An implementation of the WebSocket Protocol (RFC 6455 & 7692)"
+name = "websockets"
+optional = false
+python-versions = ">=3.4"
+version = "6.0"
+
+[metadata]
+content-hash = "6f31819b682875fc26f2dfbe9d2e6d55764eeadea9b110e80ed91fcf1cee1921"
+python-versions = "^3.7"
+
+[metadata.hashes]
+aiofiles = ["021ea0ba314a86027c166ecc4b4c07f2d40fc0f4b3a950d1868a0f2571c2bbee", "1e644c2573f953664368de28d2aa4c89dfd64550429d0c27c4680ccd3aa4985d"]
+asyncpg = ["0677714b26b48d63db728867b812ef365ec3879d2be6fa1c9cf4328503f9a464", "2dee4fb251139f1c1ee4bd9959d516f930f4da37a2f33b07c2b902b837a76666", "378a7ef11ce7b35f11eb816e5252bc1e779119f7583a872233b45a76effac02e", "4539bc2e63600a1ee999086bbb59bf717ab32ea771ac20b5b792a2234633b5fb", "4a779a85302241782bed8ed0f2bcb38544805b3e107b16ee7489c5818d8f4228", "51a3d67a3fa43112b17ec510338723932e1e0611ad99a146acc9960d32210196", "58a5eccaac60fd326e32683226efe1046bfea558fa043360bdd1708e0e812c67", "814343dc2baa489a11521ff9fad68f337a05c9ae0461fdf9f1ec7ac3541c13a9", "84084f7dfed0b2d397a0c2fd7eaf29b01904c74f4320e5fe95ad3042042cf188", "89e727fdba05d90a0156d9d18932fd44a2baa84e90e3368573f432a308ad8fd7", "ab8b9d367e3ef48f35a059642940714a2bda7a7fce8b017b21bfbc4f8fbf8f5f", "c1fe1f0ef848f0f17bf63b90a4c3f446a14e4c899d8531ea988109cc0de014e5", "cc7aa61bf41273ee5d4c11e0e72c0d9340e9c4dbf752464ae2b6816abadaabce", "d5450bdf8631fa1200c08a2e70cab06c2e8c09ef608629908531513444d12858", "fd2d13da29f55c2c71b1acc9d9f107c7a5176fffb3f62ff503f2b300f7ecd74e", "fd35a8082b97d5b97d26bcd1b010fdd65a56311d7a02bf2a7e2c56810b9961a7"]
+atomicwrites = ["0312ad34fcad8fac3704d441f7b317e50af620823353ec657a53e981f92920c0", "ec9ae8adaae229e4f8446952d204a3e4b5fdd2d099f9be3aaf556120135fb3ee"]
+attrs = ["10cbf6e27dbce8c30807caf056c8eb50917e0eaafe86347671b57254006c3e69", "ca4be454458f9dec299268d472aaa5a11f67a4ff70093396e1ceae9c76cf4bbb"]
+colorama = ["05eed71e2e327246ad6b38c540c4a3117230b19679b875190486ddd2d721422d", "f8ac84de7840f5b9c4e3347b3c1eaa50f7e49c2b07596221daec5edaabbd7c48"]
+httptools = ["04c7703bbef0e8ca28b09811547352b8c7c20549eab70dc24e536bb24fd2b7c5"]
+jsonschema = ["000e68abd33c972a5248544925a0cae7d1125f9bf6c58280d37546b946769a08", "6ff5f3180870836cae40f06fa10419f557208175f13ad7bc26caa77beb1f6e02"]
+more-itertools = ["38a936c0a6d98a38bcc2d03fdaaedaba9f412879461dd2ceff8d37564d6522e4", "c0a5785b1109a6bd7fac76d6837fd1feca158e54e521ccd2ae8bfe393cc9d4fc", "fe7a7cae1ccb57d33952113ff4fa1bc5f879963600ed74918f1236e212ee50b9"]
+multidict = ["024b8129695a952ebd93373e45b5d341dbb87c17ce49637b34000093f243dd4f", "041e9442b11409be5e4fc8b6a97e4bcead758ab1e11768d1e69160bdde18acc3", "045b4dd0e5f6121e6f314d81759abd2c257db4634260abcfe0d3f7083c4908ef", "047c0a04e382ef8bd74b0de01407e8d8632d7d1b4db6f2561106af812a68741b", "068167c2d7bbeebd359665ac4fff756be5ffac9cda02375b5c5a7c4777038e73", "148ff60e0fffa2f5fad2eb25aae7bef23d8f3b8bdaf947a65cdbe84a978092bc", "1d1c77013a259971a72ddaa83b9f42c80a93ff12df6a4723be99d858fa30bee3", "1d48bc124a6b7a55006d97917f695effa9725d05abe8ee78fd60d6588b8344cd", "31dfa2fc323097f8ad7acd41aa38d7c614dd1960ac6681745b6da124093dc351", "34f82db7f80c49f38b032c5abb605c458bac997a6c3142e0d6c130be6fb2b941", "3d5dd8e5998fb4ace04789d1d008e2bb532de501218519d70bb672c4c5a2fc5d", "4a6ae52bd3ee41ee0f3acf4c60ceb3f44e0e3bc52ab7da1c2b2aa6703363a3d1", "4b02a3b2a2f01d0490dd39321c74273fed0568568ea0e7ea23e02bd1fb10a10b", "4b843f8e1dd6a3195679d9838eb4670222e8b8d01bc36c9894d6c3538316fa0a", "5de53a28f40ef3c4fd57aeab6b590c2c663de87a5af76136ced519923d3efbb3", "61b2b33ede821b94fa99ce0b09c9ece049c7067a33b279f343adfe35108a4ea7", "6a3a9b0f45fd75dc05d8e93dc21b18fc1670135ec9544d1ad4acbcf6b86781d0", "76ad8e4c69dadbb31bad17c16baee61c0d1a4a73bed2590b741b2e1a46d3edd0", "7ba19b777dc00194d1b473180d4ca89a054dd18de27d0ee2e42a103ec9b7d014", "7c1b7eab7a49aa96f3db1f716f0113a8a2e93c7375dd3d5d21c4941f1405c9c5", "7fc0eee3046041387cbace9314926aa48b681202f8897f8bff3809967a049036", "8ccd1c5fff1aa1427100ce188557fc31f1e0a383ad8ec42c559aabd4ff08802d", "8e08dd76de80539d613654915a2f5196dbccc67448df291e69a88712ea21e24a", "c18498c50c59263841862ea0501da9f2b3659c00db54abfbf823a80787fde8ce", "c49db89d602c24928e68c0d510f4fcf8989d77defd01c973d6cbe27e684833b1", "ce20044d0317649ddbb4e54dab3c1bcc7483c78c27d3f58ab3d0c7e6bc60d26a", "d1071414dd06ca2eafa90c85a079169bfeb0e5f57fd0b45d44c092546fcd6fd9", "d3be11ac43ab1a3e979dac80843b42226d5d3cccd3986f2e03152720a4297cd7", "db603a1c235d110c860d5f39988ebc8218ee028f07a7cbc056ba6424372ca31b"]
+open-data-manifest = []
+pluggy = ["8ddc32f03971bfdf900a81961a48ccf2fb677cf7715108f85295c67405798616", "980710797ff6a041e9a73a5787804f848996ecaa6f8a1b1e08224a5894f2074a"]
+pp-ez = ["554dc28eff8b2df864fcd3326bd5fa0ec3f2b85bc9590fd96771a7c49e45c121", "87b9e5a0fdd7ced5b46d1b61706113cac9ec1670a76b10d308334db44c20cc29"]
+pprintpp = ["b6b4dcdd0c0c0d75e4d7b2f21a9e933e5b2ce62b26e1a54537f9651ae5a5c01d", "ea826108e2c7f49dc6d66c752973c3fc9749142a798d6b254e1e301cfdbc6403"]
+py = ["bf92637198836372b520efcba9e020c330123be8ce527e535d185ed4b6f45694", "e76826342cefe3c3d5f7e8ee4316b80d1dd8a300781612ddbc765c17ba25a6c6"]
+pytest = ["41568ea7ecb4a68d7f63837cf65b92ce8d0105e43196ff2b26622995bb3dc4b2", "c3c573a29d7c9547fb90217ece8a8843aa0c1328a797e200290dc3d0b4b823be"]
+"ruamel.yaml" = ["18078354bfcf00d51bcc17984aded80840379aed36036f078479e191b59bc059", "211e6ef2530f44fc3197c713892678e7fbfbc40a1db6741179d6981514be1674", "2e8f7cee12a2372cec4480fe81086b1fdab163f4b56e58b5592a105c52973b78", "48cc8e948a7ec4917bf94adff2cc1255e98f1eef5e1961889886acc4ff3a7194", "4a0c7f970aa0e30bc541f690fbd14aca19de1cab70787180de5083b902ec40b5", "5dd0ea7c5c703e8675f3caf2898a50b4dadaa52838f8e104637a452a05e03030", "612fb4833f1978ceb7fd7a24d86a5ebd103bcc408394f3af621293194658cf1b", "61c421a7a2b8e2886a94fbe29866df6b99451998abaa1584b9fdc9c10c33e40b", "6483416847980aa7090b697d177a8754c4f340683cc84abd38da7b850826687d", "6622f3b0cae7ed6fe5d3d6a6d8d8cb9413a05b408d69a789a57b77a616bb6562", "80b2acde0d1b9d25e5c041960a9149480c15c6d9f4c24b8ddb381b14e9e70ea4", "8f9ed94be17f306485df8fd0274a30f130a73f127798657d4dc65b1f89ec7a36", "9a6b94cc9b6e738036426498ac9fe8ca05afea4249fb9dec1be32ce4823d5756", "a4b11dfe421a9836c723107a4ccc9cab9674de611ba60b8212e85526ea8bf254", "a55e55c6ecb5725ba472f9b811940e8d258a32fb36f5793dbc38582d6f377f3f", "a736ab1d8c2d5566254a1a2ee38e7c5460520bcccd4a8f0feb25a4463735e5a7", "c29d0a3cffa5a25f5259bfeac06ffdc5e7d1fd38a0a26a6664d160192730434f", "c33458217a8c352b59c86065c4f05f3f1ac28b01c3e1a422845c306237446bf3", "cc9bd3c3fa8a928f7b6e19fe8de13a61deb91f257eccbe0d16114ce8c54cdc81", "d63b7c828a7358ce5b03a3e2c2a3e5a7058a954f8919334cb09b3d8541d1fff6", "fbd301680a3563e84d667042dac1c5d50ef402ecf1f4b1763507a6877b8181ad", "fc67e79e2f5083be6fd1000c4646e13a891585772a503f56f51f845b547fe621"]
+sanic = ["4ce5ffd9588557caff844da0f4b478d263d0e836fa0204480a2a17958b333fe0", "e1f291cfc44627baad7e0855512c821fe3dbfe23f7d2a26561abb808d4511f14"]
+six = ["3350809f0555b11f552448330d0b52d5f24c91a322ea4a15ef22629740f3761c", "d16a0141ec1a18405cd4ce8b4613101da75da0e9a7aec5bdd4fa804d0e0eba73"]
+ujson = ["f66073e5506e91d204ab0c614a148d5aa938bdbf104751be66f8ad7a222f5f86"]
+uvloop = ["0ff2e67b693f7d2007466952dbe312075098e8f15364fda27d16e8a7f266d74d", "2d0029314dc87312ff8d46c3724363d847e5235403eced5d3f98da80a87f4828", "32dcc003e1973f3db303494f5f63db11091c86a146053773d81ac5484b10c416", "4301871418f967d0b13409f1bd10ecc7825a7f183282dcc9e19d08532e6cb2e9", "7639188ff4466d86cfd4418cd784d1198a8cc913279fb8798a4b12a4d42ad341", "a73649cd043f5d3e3ae471667c790a7ee2295b22fac7bedcae8705158f8ba111", "afdf34bf507090e4c7f5108a17240982760356b8aae4edd37180ec4f94c36cbb", "bd7a6db5dbfae0c93e27cb200bb2b9513e21a90a2d4a259b39a9b5446c4d5aa3", "cc27e903da274f76826848832f62e1ec410a43602e1e0cd4f8db8c619b1ee93e", "ec521d14ddcdd9f8d0075d7d1f82e9d8806f7f0a047d2e5bc737e9eddf7f930d"]
+websockets = ["0e2f7d6567838369af074f0ef4d0b802d19fa1fee135d864acc656ceefa33136", "2a16dac282b2fdae75178d0ed3d5b9bc3258dabfae50196cbb30578d84b6f6a6", "5a1fa6072405648cb5b3688e9ed3b94be683ce4a4e5723e6f5d34859dee495c1", "5c1f55a1274df9d6a37553fef8cff2958515438c58920897675c9bc70f5a0538", "669d1e46f165e0ad152ed8197f7edead22854a6c90419f544e0f234cc9dac6c4", "695e34c4dbea18d09ab2c258994a8bf6a09564e762655408241f6a14592d2908", "6b2e03d69afa8d20253455e67b64de1a82ff8612db105113cccec35d3f8429f0", "79ca7cdda7ad4e3663ea3c43bfa8637fc5d5604c7737f19a8964781abbd1148d", "7fd2dd9a856f72e6ed06f82facfce01d119b88457cd4b47b7ae501e8e11eba9c", "82c0354ac39379d836719a77ee360ef865377aa6fdead87909d50248d0f05f4d", "8f3b956d11c5b301206382726210dc1d3bee1a9ccf7aadf895aaf31f71c3716c", "91ec98640220ae05b34b79ee88abf27f97ef7c61cf525eec57ea8fcea9f7dddb", "952be9540d83dba815569d5cb5f31708801e0bbfc3a8c5aef1890b57ed7e58bf", "99ac266af38ba1b1fe13975aea01ac0e14bb5f3a3200d2c69f05385768b8568e", "9fa122e7adb24232247f8a89f2d9070bf64b7869daf93ac5e19546b409e47e96", "a0873eadc4b8ca93e2e848d490809e0123eea154aa44ecd0109c4d0171869584", "cb998bd4d93af46b8b49ecf5a72c0a98e5cc6d57fdca6527ba78ad89d6606484", "e02e57346f6a68523e3c43bbdf35dde5c440318d1f827208ae455f6a2ace446d", "e79a5a896bcee7fff24a788d72e5c69f13e61369d055f28113e71945a7eb1559", "ee55eb6bcf23ecc975e6b47c127c201b913598f38b6a300075f84eeef2d3baff", "f1414e6cbcea8d22843e7eafdfdfae3dd1aba41d1945f6ca66e4806c07c4f454"]

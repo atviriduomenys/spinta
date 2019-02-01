@@ -1,0 +1,22 @@
+---
+name: dataset.openness
+type: model
+properties:
+  dataset: {type: ref, object: dataset}
+  feature:
+    type: string
+    enum:
+      - complete
+      - primary
+      - timely
+      - accessible
+      - machine_processable
+      - non-discriminatory
+      - non-proprietary
+      - license-free
+      - online_and_free
+      - permanent
+      - trusted
+      - presumption_of_openness
+      - documented
+      - safe_to_open

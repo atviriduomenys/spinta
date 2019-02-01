@@ -1,0 +1,12 @@
+---
+name: property
+type: model
+properties:
+  type: {type: string}
+  name: {type: string, required: true}
+  title: {type: string}
+  description: {type: string}
+  link: {type: string}
+  enum: {type: backref, object: enum}
+  required: {type: boolean, default: false}
+  default: {type: any}

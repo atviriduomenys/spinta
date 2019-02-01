@@ -1,0 +1,12 @@
+---
+name: project
+type: model
+properties:
+  name: {type: string, required: true, unique: true}
+  title: {type: string}
+  description: {type: string}
+  type: {const: model}
+  version: {type: integer}
+  date: {type: date}
+  link: {type: string}
+  properties: {type: backref, object: model/property}

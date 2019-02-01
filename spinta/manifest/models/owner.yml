@@ -1,0 +1,16 @@
+---
+name: owner
+type: model
+properties:
+  name: {type: string, unique: True}
+  title: {type: string}
+  type: {const: model}
+  sector:
+    type: string
+    enum:
+      - public
+      - private
+  logo:
+    type: string
+    check:
+      - path.exists: media/owners/{self.name}/{self.logo}

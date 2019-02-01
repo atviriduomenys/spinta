@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "spinta"
+version = "0.1.0"
+description = ""
+authors = ["Mantas <sirexas@gmail.com>"]
+license = "MIT"
+packages = [
+    {include = "spinta"},
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+sanic = "^18.12"
+asyncpg = "^0.18.3"
+"ruamel.yaml" = "^0.15.87"
+open-data-manifest = {path = "../manifest"}
+setuptools = "^40.7"
+
+[tool.poetry.dev-dependencies]
+pytest = "^4.1"
+pprintpp = "^0.4.0"
+pp-ez = "^0.2.0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
