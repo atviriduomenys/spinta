@@ -1,18 +1,14 @@
+from spinta.types import Function, NA
 from spinta.types import Type, LoadType
+from spinta.types import Serialize
 
 
 class Object(Type):
     metadata = {
         'name': 'object',
         'properties': {
-            'properties': {'type': 'object'},
+            'properties': {'type': 'object', 'default': {}},
         },
-    }
-
-
-class Model(Object):
-    metadata = {
-        'name': 'model',
     }
 
 
@@ -21,26 +17,30 @@ class LoadObject(LoadType):
     types = ('object',)
 
     def execute(self, data):
-        data = super().execute(data)
-        if not isinstance(data['properties'], dict):
-            data['properties'] = {}
-        for name, prop in data['properties'].items():
-            data['properties'][name] = self.manifest.load(prop)
-        return data
+        super().execute(data)
+        assert isinstance(self.schema.properties, dict)
+        for name, prop in self.schema.properties.items():
+            prop = {'name': name, **prop}
+            type = self.manifest.get_type(prop)
+            self.run(type, {'load': prop})
+            self.schema.properties[name] = type
 
 
-class LoadManifestObject(LoadObject):
-    name = 'load'
-    types = ('model', 'dataset', 'project', 'owner')
+class LinkTypesFunction(Function):
+    name = 'link'
+    types = ['object']
 
-    def execute(self, data):
-        data = super().execute(data)
+    def execute(self):
+        for prop in self.schema.properties.values():
+            self.run(prop, {'link': NA}, optional=True)
 
-        if data['type'] not in self.manifest.objects:
-            self.manifest.objects[data['type']] = {}
 
-        if data['name'] in self.manifest.objects[data['type']]:
-            raise Exception(f"Object {self.obj['type']} with name {self.obj['name']} already exist.")
+class SerializeObject(Serialize):
+    name = 'serialize'
+    types = ['object']
 
-        self.manifest.objects[data['type']][data['name']] = data
-        return data
+    def execute(self):
+        output = super().execute()
+        for k, v in output['properties'].items():
+            output['properties'][k] = self.run(v, {'serialize': NA})
+        return output

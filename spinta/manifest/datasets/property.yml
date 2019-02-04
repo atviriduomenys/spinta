@@ -3,5 +3,5 @@ name: dataset.property
 type: model
 properties:
   object: {type: ref, object: dataset.object}
-  source: {type: object, check: spinta.call}
+  source: {type: object}
   stars: {type: integer}

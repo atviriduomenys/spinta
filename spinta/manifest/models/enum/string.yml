@@ -3,6 +3,6 @@ name: enum.string
 type: model
 properties:
   enum: {type: ref, object: enum}
-  value: {type: string}
+  value:
     type: generic
     model: self.model

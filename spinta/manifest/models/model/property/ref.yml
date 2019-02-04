@@ -7,8 +7,6 @@ properties:
   secondary:
     type: ref
     object: model
-    prepare: spinta.secondary
   object:
     type: ref
     object: model
-    source: self.property.model

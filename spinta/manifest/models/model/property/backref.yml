@@ -1,5 +1,5 @@
 ---
-name: model.property.ref
+name: model.property.backref
 type: model
 extends: model.property
 properties:
@@ -7,11 +7,9 @@ properties:
   secondary:
     type: ref
     object: model
-    prepare: spinta.secondary
   object:
     type: ref
     object: model
-    source: self.property.model
   property:
     type: ref
     object: property

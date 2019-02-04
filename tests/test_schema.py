@@ -2,8 +2,10 @@ import inspect
 import importlib
 from pathlib import Path
 
+import pp
 import pkg_resources as pres
 from ruamel.yaml import YAML
+from ruamel.yaml.parser import ParserError
 
 from spinta.types import Type, Function, NA
 
@@ -19,14 +21,19 @@ def find_subclasses(Class, modules):
                 yield obj
 
 
-class Manifest:
+class Manifest(Type):
+    metadata = {
+        'name': 'manifest',
+    }
 
     def __init__(self):
         self.modules = [
+            __name__,
             'spinta.types',
-            'spinta.types.property',
-            'spinta.types.string',
             'spinta.types.object',
+            'spinta.types.model',
+            'spinta.types.dataset',
+            'spinta.types.property',
         ]
         self.types = {}
         self.functions = {}
@@ -53,7 +60,32 @@ class Manifest:
 
         return self
 
-    def load(self, data):
+    def run(self, type, call, backend=None, optional=False, stack=()):
+        Func, args = self.get_function(type, call)
+
+        if Func is None:
+            if optional:
+                return
+            if stack:
+                stack[-1].error(f"Function {call!r} not found for {type}.")
+            else:
+                raise Exception(f"Function {call!r} not found for {type}.")
+
+        func = Func(self, type, stack)
+        if args is NA:
+            return func.execute()
+        else:
+            return func.execute(args)
+
+    def get_function(self, type, call):
+        bases = [cls.metadata.name for cls in type.metadata.bases] + [()]
+        for name, args in call.items():
+            for base in bases:
+                if (name, base) in self.functions:
+                    return self.functions[(name, base)], args
+        return None, None
+
+    def get_type(self, data):
         assert isinstance(data, dict)
         data = dict(data)
         if 'const' in data and 'type' not in data:
@@ -62,36 +94,55 @@ class Manifest:
             else:
                 raise Exception(f"Unknown data type of {data['const']!r} constant.")
         assert 'type' in data
-        assert data['type'] in self.types
+        if data['type'] not in self.types:
+            raise Exception(f"Unknown type: {data['type']!r}.")
         Type = self.types[data['type']]
-        obj = Type(data)
-        return self.run(obj, {'load': NA})
+        return Type()
 
-    def run(self, obj, expr, backend=None):
-        for name, args in expr.items():
-            types = [cls.name for cls in obj.parents()[:-1]] + [()]
-            for type in types:
-                if (name, type) in self.functions:
-                    Func = self.functions[(name, type)]
-                    func = Func(self, obj)
-                    if args is NA:
-                        return func.execute()
-                    else:
-                        return func.execute(args)
-        raise Exception(f"Function {expr!r} not found.")
+
+class LoadManifest(Function):
+    name = 'load'
+    types = ['manifest']
+
+    def execute(self, path: str):
+        for file in Path(path).glob('**/*.yml'):
+            try:
+                data = yaml.load(file.read_text())
+            except ParserError as e:
+                self.error(f"{file}: {e}.")
+            if not isinstance(data, dict):
+                self.error(f"{file}: expected dict got {data.__class__.__name__}.")
+            data['path'] = file
+            type = self.manifest.get_type(data)
+            self.run(type, {'load': data})
+
+
+class LinkTypes(Function):
+    name = 'link'
+    types = ['manifest']
+
+    def execute(self):
+        for objects in self.manifest.objects.values():
+            for obj in objects.values():
+                self.run(obj, {'link': NA}, optional=True)
+
+
+class Serialize(Function):
+    name = 'serialize'
+    types = ['manifest']
+
+    def execute(self):
+        output = {}
+        for object_type, objects in self.manifest.objects.items():
+            output[object_type] = {}
+            for name, obj in objects.items():
+                output[object_type][name] = self.run(obj, {'serialize': NA})
+        return output
 
 
 def test_schema_loader():
-    path = Path(pres.resource_filename('spinta', 'manifest'))
-    data = yaml.load((path / 'models/model.yml').read_text())
-
-    import pp
-    pp(data)
-
     manifest = Manifest().discover()
-    manifest.load(data)
-
-    pp(manifest.objects)
-    pp(data)
-
+    manifest.run(manifest, {'load': pres.resource_filename('spinta', 'manifest')})
+    manifest.run(manifest, {'link': NA})
+    pp(manifest.run(manifest, {'serialize': NA}))
     assert False
