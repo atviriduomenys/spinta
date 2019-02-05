@@ -15,6 +15,8 @@ asyncpg = "^0.18.3"
 "ruamel.yaml" = "^0.15.87"
 open-data-manifest = {path = "../manifest"}
 setuptools = "^40.7"
+sqlalchemy = "^1.2"
+psycopg2-binary = "^2.7"
 
 [tool.poetry.dev-dependencies]
 pytest = "^4.1"

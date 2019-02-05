@@ -51,6 +51,7 @@ class TypeMeta(type):
 
 
 class Type(metaclass=TypeMeta):
+    name = None
     metadata = {
         'name': None,
         'properties': {
@@ -62,7 +63,7 @@ class Type(metaclass=TypeMeta):
     }
 
     def __repr__(self):
-        return f"<{self.name}: {self.type} <{self.__class__.__module__}.{self.__class__.__name__}>>"
+        return f"<{self.name}: {self.metadata.name} <{self.__class__.__module__}.{self.__class__.__name__}>>"
 
 
 class Function:
@@ -72,9 +73,14 @@ class Function:
     # List of types for which this function is applicable.
     types = ()
 
-    def __init__(self, manifest, schema: Type, stack: tuple = ()):
+    # Specify a backend name if this function applies only to a specific
+    # backend.
+    backend = None
+
+    def __init__(self, manifest, schema: Type, backend, stack: tuple = ()):
         self.manifest = manifest
         self.schema = schema
+        self.backend = backend
         self.stack = stack
 
     def execute(self, *args, **kwargs):
@@ -92,7 +98,7 @@ class Function:
 
 
 class LoadType(Function):
-    name = 'load'
+    name = 'manifest.load'
 
     def execute(self, data: dict):
         assert isinstance(data, dict)

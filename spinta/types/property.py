@@ -20,6 +20,12 @@ class Any(Property):
     }
 
 
+class PrimaryKey(Property):
+    metadata = {
+        'name': 'pk',
+    }
+
+
 class Date(Property):
     metadata = {
         'name': 'date',

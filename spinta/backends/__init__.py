@@ -1,0 +1,2 @@
+class Backend:
+    name = None

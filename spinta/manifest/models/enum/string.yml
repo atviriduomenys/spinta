@@ -1,8 +1,0 @@
----
-name: enum.string
-type: model
-properties:
-  enum: {type: ref, object: enum}
-  value:
-    type: generic
-    model: self.model

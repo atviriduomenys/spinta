@@ -8,12 +8,13 @@ class Model(Object):
             'path': {'type': 'path', 'required': True},
             'unique': {'type': 'array', 'default': []},
             'extends': {'type': 'string'},
+            'backend': {'type': 'string', 'default': 'default'},
         },
     }
 
 
 class LoadManifestObject(LoadObject):
-    name = 'load'
+    name = 'manifest.load'
     types = ('model', 'dataset', 'project', 'owner')
 
     def execute(self, data):

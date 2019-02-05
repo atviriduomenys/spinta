@@ -13,7 +13,7 @@ class Object(Type):
 
 
 class LoadObject(LoadType):
-    name = 'load'
+    name = 'manifest.load'
     types = ('object',)
 
     def execute(self, data):
@@ -22,17 +22,17 @@ class LoadObject(LoadType):
         for name, prop in self.schema.properties.items():
             prop = {'name': name, **prop}
             type = self.manifest.get_type(prop)
-            self.run(type, {'load': prop})
+            self.run(type, {'manifest.load': prop})
             self.schema.properties[name] = type
 
 
-class LinkTypesFunction(Function):
-    name = 'link'
+class LinkTypes(Function):
+    name = 'manifest.link'
     types = ['object']
 
     def execute(self):
         for prop in self.schema.properties.values():
-            self.run(prop, {'link': NA}, optional=True)
+            self.run(prop, {'manifest.link': NA}, optional=True)
 
 
 class SerializeObject(Serialize):

@@ -4,10 +4,7 @@ type: model
 unique:
   - [name, version]
 properties:
+  id: {type: pk}
   name: {type: string, required: True, unique: True}
-  title: {type: string}
-  description: {type: string}
-  type: {const: model}
-  version: {type: integer}
   date: {type: date}
-  properties: {type: backref, object: model.property}
+  version: {type: integer}
