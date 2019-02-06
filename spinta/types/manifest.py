@@ -124,7 +124,7 @@ class Manifest(Type):
                     return self.functions[key], args
         return None, None
 
-    def get_type(self, data):
+    def get_obj(self, data):
         assert isinstance(data, dict)
         data = dict(data)
         if 'const' in data and 'type' not in data:
@@ -160,18 +160,18 @@ class LoadManifest(Function):
             if not isinstance(data, dict):
                 self.error(f"{file}: expected dict got {data.__class__.__name__}.")
             data['path'] = file
-            type = self.manifest.get_type(data)
-            self.run(type, {'manifest.load': data})
+            obj = self.manifest.get_obj(data)
+            self.run(obj, {'manifest.load': data})
 
 
-class LinkTypes(Function):
-    name = 'manifest.link'
+class CheckManifest(Function):
+    name = 'manifest.check'
     types = ['manifest']
 
     def execute(self):
         for objects in self.manifest.objects[self.ns].values():
             for obj in objects.values():
-                self.run(obj, {'manifest.link': NA}, optional=True)
+                self.run(obj, {'manifest.check': None}, optional=True)
 
 
 class Serialize(Function):
@@ -193,4 +193,4 @@ class PrepareBackend(Function):
 
     def execute(self):
         for backend in self.manifest.config['backends'].keys():
-            self.run(self.schema, {'backend.prepare': NA}, backend=backend)
+            self.run(self.obj, {self.name: None}, backend=backend)

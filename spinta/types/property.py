@@ -63,6 +63,15 @@ class Ref(Property):
     }
 
 
+class RefManifestCheck(Function):
+    name = 'manifest.check'
+    types = ['ref']
+
+    def execute(self):
+        if self.obj.object not in self.manifest.objects[self.ns]['model']:
+            self.error(f"Unknown model {self.obj.object}.")
+
+
 class BackRef(Property):
     metadata = {
         'name': 'backref',
@@ -80,12 +89,3 @@ class Generic(Property):
             'enum': {'type': 'array'},
         },
     }
-
-
-class LinkTypesFunction(Function):
-    name = 'link_types'
-    types = ['backref']
-
-    def execute(self):
-        self.schema.object = self.manifest.objects[self.ns]['model'][self.schema.object]
-        print('It worked!')

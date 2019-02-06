@@ -1,4 +1,4 @@
-from spinta.types.object import Object, LoadObject
+from spinta.types.object import Object, ManifestLoadObject
 
 
 class Model(Object):
@@ -9,21 +9,23 @@ class Model(Object):
             'unique': {'type': 'array', 'default': []},
             'extends': {'type': 'string'},
             'backend': {'type': 'string', 'default': 'default'},
+            'version': {'type': 'integer', 'required': True},
+            'date': {'type': 'date', 'required': True},
         },
     }
 
 
-class LoadManifestObject(LoadObject):
+class ManifestLoadModel(ManifestLoadObject):
     name = 'manifest.load'
     types = ('model', 'dataset', 'project', 'owner')
 
     def execute(self, data):
         super().execute(data)
 
-        if self.schema.type not in self.manifest.objects[self.ns]:
-            self.manifest.objects[self.ns][self.schema.type] = {}
+        if self.obj.type not in self.manifest.objects[self.ns]:
+            self.manifest.objects[self.ns][self.obj.type] = {}
 
-        if self.schema.name in self.manifest.objects[self.ns][self.schema.type]:
-            raise Exception(f"Object {self.schema.type} with name {self.schema.name} already exist.")
+        if self.obj.name in self.manifest.objects[self.ns][self.obj.type]:
+            raise Exception(f"Object {self.obj.type} with name {self.obj.name} already exist.")
 
-        self.manifest.objects[self.ns][self.schema.type][self.schema.name] = self.schema
+        self.manifest.objects[self.ns][self.obj.type][self.obj.name] = self.obj

@@ -1,5 +1,5 @@
 from spinta.types import Function, NA
-from spinta.types import Type, LoadType
+from spinta.types import Type, ManifestLoad
 from spinta.types import Serialize
 
 
@@ -12,27 +12,42 @@ class Object(Type):
     }
 
 
-class LoadObject(LoadType):
+class ManifestLoadObject(ManifestLoad):
     name = 'manifest.load'
-    types = ('object',)
+    types = ['object']
 
     def execute(self, data):
         super().execute(data)
-        assert isinstance(self.schema.properties, dict)
-        for name, prop in self.schema.properties.items():
+        assert isinstance(self.obj.properties, dict)
+        for name, prop in self.obj.properties.items():
             prop = {'name': name, **prop}
-            type = self.manifest.get_type(prop)
-            self.run(type, {'manifest.load': prop})
-            self.schema.properties[name] = type
+            obj = self.manifest.get_obj(prop)
+            self.run(obj, {'manifest.load': prop})
+            self.obj.properties[name] = obj
 
 
-class LinkTypes(Function):
-    name = 'manifest.link'
+class ManifestCheck(Function):
+    name = 'manifest.check'
     types = ['object']
 
     def execute(self):
-        for prop in self.schema.properties.values():
-            self.run(prop, {'manifest.link': NA}, optional=True)
+        self.check_properties()
+        self.check_primary_key()
+
+    def check_properties(self):
+        for prop in self.obj.properties.values():
+            self.run(prop, {'manifest.check': None}, optional=True)
+
+    def check_primary_key(self):
+        primary_keys = []
+        for prop in self.obj.properties.values():
+            if prop.type == 'pk':
+                primary_keys.append(prop)
+        n_pkeys = len(primary_keys)
+        if n_pkeys > 1:
+            self.error(f"Only one primary key is allowed, found {n_pkeys}")
+        elif n_pkeys == 0:
+            self.error(f"At leas one primary key must be defined for model.")
 
 
 class SerializeObject(Serialize):

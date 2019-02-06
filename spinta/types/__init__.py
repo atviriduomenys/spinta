@@ -77,9 +77,9 @@ class Function:
     # backend.
     backend = None
 
-    def __init__(self, manifest, schema: Type, backend, ns='default', stack: tuple = ()):
+    def __init__(self, manifest, obj: Type, backend, ns='default', stack: tuple = ()):
         self.manifest = manifest
-        self.schema = schema
+        self.obj = obj
         self.backend = backend
         self.stack = stack
         self.ns = ns
@@ -94,35 +94,44 @@ class Function:
 
     def error(self, message):
         for func in reversed(self.stack):
-            if hasattr(func.schema, 'path'):
-                path = func.schema.path
+            if hasattr(func.obj, 'path'):
+                path = func.obj.path
                 raise Exception(f"{path}: {message}")
         raise Exception(message)
 
 
-class LoadType(Function):
+class ManifestLoad(Function):
     name = 'manifest.load'
 
     def execute(self, data: dict):
         assert isinstance(data, dict)
 
-        for name, params in self.schema.metadata.properties.items():
+        for name, params in self.obj.metadata.properties.items():
             if name in data and data[name] is not NA:
                 value = data[name]
             else:
+                # Get default value.
                 default = params.get('default', NA)
                 if isinstance(default, (list, dict)):
                     value = copy.deepcopy(default)
                 else:
                     value = default
-            setattr(self.schema, name, value)
 
-        unknown_keys = set(data.keys()) - set(self.schema.metadata.properties.keys())
+                # Check if value is required.
+                if params.get('required', False) and value is NA:
+                    self.error(f"Parameter {name} is required.")
+
+                # If value is not given, set it to None.
+                if value is NA:
+                    value = None
+
+            # Set parameter on the spec object.
+            setattr(self.obj, name, value)
+
+        unknown_keys = set(data.keys()) - set(self.obj.metadata.properties.keys())
         if unknown_keys:
             keys = ', '.join(unknown_keys)
-            self.error(
-                f"{self.schema} does not have following attributes: {keys}."
-            )
+            self.error(f"{self.obj} does not have following parameters: {keys}.")
 
 
 class Serialize(Function):
@@ -130,8 +139,8 @@ class Serialize(Function):
 
     def execute(self):
         output = {}
-        for k, v in self.schema.metadata.properties.items():
-            v = getattr(self.schema, k, v)
+        for k, v in self.obj.metadata.properties.items():
+            v = getattr(self.obj, k, v)
             if v is NA:
                 continue
             if isinstance(v, Type):
