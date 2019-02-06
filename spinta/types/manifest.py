@@ -6,7 +6,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
 
 from spinta.types import Type, NA
-from spinta.commands import Command
+from spinta.commands import Command, AVAILABLE_COMMANDS
 from spinta.backends import Backend
 
 yaml = YAML(typ='safe')
@@ -68,6 +68,7 @@ class Manifest(Type):
 
         # Find all commands.
         for Class in find_subclasses(Command, modules or self.modules):
+            assert Class.metadata.name in AVAILABLE_COMMANDS, Class.metadata.name
             for type in Class.metadata.type:
                 key = (Class.metadata.name, type, Class.metadata.backend)
                 if key in self.commands:

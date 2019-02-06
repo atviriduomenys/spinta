@@ -35,4 +35,7 @@ def test_schema_loader():
 
     pp(manifest.objects)
 
+    for cmd in manifest.commands.values():
+        print(cmd.metadata.name)
+
     assert False
