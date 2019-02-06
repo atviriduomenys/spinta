@@ -87,5 +87,5 @@ class LinkTypesFunction(Function):
     types = ['backref']
 
     def execute(self):
-        self.schema.object = self.manifest.objects['model'][self.schema.object]
+        self.schema.object = self.manifest.objects[self.ns]['model'][self.schema.object]
         print('It worked!')

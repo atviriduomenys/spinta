@@ -23,7 +23,7 @@ class Prepare(Function):
     backend = 'postgresql'
 
     def execute(self):
-        for model_name, model in self.manifest.objects['model'].items():
+        for model_name, model in self.manifest.objects[self.ns]['model'].items():
             if self.manifest.config['backends'][model.backend]['type'] == self.backend.type:
                 columns = []
                 for prop_name, prop in model.properties.items():

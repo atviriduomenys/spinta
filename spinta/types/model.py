@@ -20,10 +20,10 @@ class LoadManifestObject(LoadObject):
     def execute(self, data):
         super().execute(data)
 
-        if self.schema.type not in self.manifest.objects:
-            self.manifest.objects[self.schema.type] = {}
+        if self.schema.type not in self.manifest.objects[self.ns]:
+            self.manifest.objects[self.ns][self.schema.type] = {}
 
-        if self.schema.name in self.manifest.objects[self.schema.type]:
+        if self.schema.name in self.manifest.objects[self.ns][self.schema.type]:
             raise Exception(f"Object {self.schema.type} with name {self.schema.name} already exist.")
 
-        self.manifest.objects[self.schema.type][self.schema.name] = self.schema
+        self.manifest.objects[self.ns][self.schema.type][self.schema.name] = self.schema

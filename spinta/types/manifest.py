@@ -39,11 +39,15 @@ class Manifest(Type):
             'spinta.types',
             'spinta.backends',
         ]
+        self.namespaces = [
+            'internal',
+            'default',
+        ]
         self.types = {}
         self.functions = {}
         self.backends = {}
         self.connections = {}
-        self.objects = {}
+        self.objects = {ns: {} for ns in self.namespaces}
         self.config = {
             'backends': {
                 'default': {
@@ -81,7 +85,7 @@ class Manifest(Type):
 
         return self
 
-    def run(self, type, call, backend=None, optional=False, stack=()):
+    def run(self, type, call, backend=None, ns='default', optional=False, stack=()):
         assert len(stack) < 10
 
         Func, args = self.find_function(type, call, backend)
@@ -103,9 +107,9 @@ class Manifest(Type):
         else:
             backend = None
 
-        func = Func(self, type, backend, stack)
+        func = Func(self, type, backend, ns, stack)
 
-        if args is NA:
+        if args is None or args is NA:
             return func.execute()
         else:
             return func.execute(args)
@@ -165,7 +169,7 @@ class LinkTypes(Function):
     types = ['manifest']
 
     def execute(self):
-        for objects in self.manifest.objects.values():
+        for objects in self.manifest.objects[self.ns].values():
             for obj in objects.values():
                 self.run(obj, {'manifest.link': NA}, optional=True)
 
@@ -176,7 +180,7 @@ class Serialize(Function):
 
     def execute(self):
         output = {}
-        for object_type, objects in self.manifest.objects.items():
+        for object_type, objects in self.manifest.objects[self.ns].items():
             output[object_type] = {}
             for name, obj in objects.items():
                 output[object_type][name] = self.run(obj, {'serialize': NA})

@@ -77,17 +77,20 @@ class Function:
     # backend.
     backend = None
 
-    def __init__(self, manifest, schema: Type, backend, stack: tuple = ()):
+    def __init__(self, manifest, schema: Type, backend, ns='default', stack: tuple = ()):
         self.manifest = manifest
         self.schema = schema
         self.backend = backend
         self.stack = stack
+        self.ns = ns
 
     def execute(self, *args, **kwargs):
         raise NotImplementedError
 
     def run(self, *args, **kwargs):
-        return self.manifest.run(*args, **kwargs, stack=self.stack + (self,))
+        kwargs.setdefault('ns', self.ns)
+        kwargs.setdefault('stack', self.stack + (self,))
+        return self.manifest.run(*args, **kwargs)
 
     def error(self, message):
         for func in reversed(self.stack):
