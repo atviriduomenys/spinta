@@ -65,8 +65,10 @@ class Ref(Property):
 
 
 class RefManifestCheck(Command):
-    name = 'manifest.check'
-    types = ['ref']
+    metadata = {
+        'name': 'manifest.check',
+        'type': 'ref',
+    }
 
     def execute(self):
         if self.obj.object not in self.manifest.objects[self.ns]['model']:

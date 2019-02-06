@@ -13,8 +13,10 @@ class Object(Type):
 
 
 class ManifestLoadObject(ManifestLoad):
-    name = 'manifest.load'
-    types = ['object']
+    metadata = {
+        'name': 'manifest.load',
+        'type': 'object',
+    }
 
     def execute(self, data):
         super().execute(data)
@@ -27,8 +29,10 @@ class ManifestLoadObject(ManifestLoad):
 
 
 class ManifestCheck(Command):
-    name = 'manifest.check'
-    types = ['object']
+    metadata = {
+        'name': 'manifest.check',
+        'type': 'object',
+    }
 
     def execute(self):
         self.check_properties()
@@ -51,8 +55,10 @@ class ManifestCheck(Command):
 
 
 class SerializeObject(Serialize):
-    name = 'serialize'
-    types = ['object']
+    metadata = {
+        'name': 'serialize',
+        'type': 'object',
+    }
 
     def execute(self):
         output = super().execute()

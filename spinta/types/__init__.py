@@ -7,7 +7,7 @@ class _NA:
 NA = _NA()
 
 
-class TypeMetaData:
+class MetaData:
 
     def __init__(self, cls):
         self.cls = cls
@@ -35,18 +35,18 @@ class TypeMetaData:
         return properties
 
 
-class TypeMetaClass(type):
+class MetaClass(type):
 
     def __new__(cls, name, bases, attrs):
         assert 'metadata' in attrs
-        assert isinstance(attrs['metadata'], (dict, TypeMetaData))
+        assert isinstance(attrs['metadata'], (dict, MetaData))
         assert isinstance(attrs['metadata'], dict) and 'name' in attrs['metadata']
         cls = super().__new__(cls, name, bases, attrs)
-        cls.metadata = TypeMetaData(cls)
+        cls.metadata = MetaData(cls)
         return cls
 
 
-class Type(metaclass=TypeMetaClass):
+class Type(metaclass=MetaClass):
     name = None
     metadata = {
         'name': None,

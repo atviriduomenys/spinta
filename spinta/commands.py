@@ -1,13 +1,26 @@
-class Command:
-    # Command name in {'name': ...} expression.
-    name = None
+class MetaData:
 
-    # List of types for which this command is applicable.
-    types = ()
+    def __init__(self, cls):
+        self.name = cls.metadata['name']
+        self.type = cls.metadata.get('type', None)
+        if not isinstance(self.type, tuple):
+            self.type = (self.type,)
+        self.backend = cls.metadata.get('backend', None)
 
-    # Specify a backend name if this command applies only to a specific
-    # backend.
-    backend = None
+
+class MetaClass(type):
+
+    def __new__(cls, name, bases, attrs):
+        assert 'metadata' in attrs
+        assert isinstance(attrs['metadata'], (dict, MetaData))
+        assert isinstance(attrs['metadata'], dict) and 'name' in attrs['metadata']
+        cls = super().__new__(cls, name, bases, attrs)
+        cls.metadata = MetaData(cls)
+        return cls
+
+
+class Command(metaclass=MetaClass):
+    metadata = {'name': None, 'type': None, 'backend': None}
 
     def __init__(self, manifest, obj, backend, ns='default', stack: tuple = ()):
         self.manifest = manifest

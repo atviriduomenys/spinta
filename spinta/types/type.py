@@ -6,7 +6,9 @@ from spinta.commands import Command
 
 
 class ManifestLoad(Command):
-    name = 'manifest.load'
+    metadata = {
+        'name': 'manifest.load',
+    }
 
     def execute(self, data: dict):
         assert isinstance(data, dict)
@@ -40,7 +42,9 @@ class ManifestLoad(Command):
 
 
 class Serialize(Command):
-    name = 'serialize'
+    metadata = {
+        'name': 'serialize',
+    }
 
     def execute(self):
         output = {}

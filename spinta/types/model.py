@@ -16,8 +16,10 @@ class Model(Object):
 
 
 class ManifestLoadModel(ManifestLoadObject):
-    name = 'manifest.load'
-    types = ('model', 'dataset', 'project', 'owner')
+    metadata = {
+        'name': 'manifest.load',
+        'type': ('model', 'dataset', 'project', 'owner'),
+    }
 
     def execute(self, data):
         super().execute(data)

@@ -68,13 +68,12 @@ class Manifest(Type):
 
         # Find all commands.
         for Class in find_subclasses(Command, modules or self.modules):
-            types = Class.types if Class.types else ((),)
-            for type in types:
-                key = (Class.name, type, Class.backend)
+            for type in Class.metadata.type:
+                key = (Class.metadata.name, type, Class.metadata.backend)
                 if key in self.commands:
                     old = self.commands[key].__module__ + '.' + self.commands[key].__name__
                     new = Class.__module__ + '.' + Class.__name__
-                    raise Exception(f"Command {new} named {Class.name!r} with {type!r} type is already assigned to {old!r}.")
+                    raise Exception(f"Command {new} named {Class.metadata.name!r} with {type!r} type is already assigned to {old!r}.")
                 self.commands[key] = Class
 
         # Find all backends.
@@ -117,7 +116,7 @@ class Manifest(Type):
 
     def find_command(self, obj, call, backend):
         backend = self.config['backends'][backend]['type'] if backend else None
-        bases = [cls.metadata.name for cls in obj.metadata.bases] + [()]
+        bases = [cls.metadata.name for cls in obj.metadata.bases] + [None]
         for name, args in call.items():
             for base in bases:
                 key = name, base, backend
@@ -149,8 +148,10 @@ class Manifest(Type):
 
 
 class LoadManifest(Command):
-    name = 'manifest.load'
-    types = ['manifest']
+    metadata = {
+        'name': 'manifest.load',
+        'type': 'manifest',
+    }
 
     def execute(self, path: str):
         for file in Path(path).glob('**/*.yml'):
@@ -166,8 +167,10 @@ class LoadManifest(Command):
 
 
 class CheckManifest(Command):
-    name = 'manifest.check'
-    types = ['manifest']
+    metadata = {
+        'name': 'manifest.check',
+        'type': 'manifest',
+    }
 
     def execute(self):
         for objects in self.manifest.objects[self.ns].values():
@@ -176,8 +179,10 @@ class CheckManifest(Command):
 
 
 class Serialize(Command):
-    name = 'serialize'
-    types = ['manifest']
+    metadata = {
+        'name': 'serialize',
+        'type': 'manifest',
+    }
 
     def execute(self):
         output = {}
@@ -189,8 +194,10 @@ class Serialize(Command):
 
 
 class PrepareBackend(Command):
-    name = 'backend.prepare'
-    types = ['manifest']
+    metadata = {
+        'name': 'backend.prepare',
+        'type': 'manifest',
+    }
 
     def execute(self):
         for backend in self.manifest.config['backends'].keys():

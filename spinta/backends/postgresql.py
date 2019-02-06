@@ -60,9 +60,11 @@ class PostgreSQL(Backend):
 
 
 class Prepare(Command):
-    name = 'backend.prepare'
-    types = ['manifest']
-    backend = 'postgresql'
+    metadata = {
+        'name': 'backend.prepare',
+        'type': 'manifest',
+        'backend': 'postgresql',
+    }
 
     def execute(self):
         for model_name, model in self.manifest.objects[self.ns]['model'].items():
@@ -142,24 +144,30 @@ class Prepare(Command):
 
 
 class PrepareInternal(Prepare):
-    name = 'backend.prepare.internal'
-    types = ['manifest']
-    backend = 'postgresql'
+    metadata = {
+        'name': 'backend.prepare.internal',
+        'type': 'manifest',
+        'backend': 'postgresql',
+    }
 
     def get_table_name(self, model):
         return model.name
 
 
 class Migrate(Command):
-    name = 'backend.migrate'
-    types = ['manifest']
-    backend = 'postgresql'
+    metadata = {
+        'name': 'backend.migrate',
+        'type': 'manifest',
+        'backend': 'postgresql',
+    }
 
     def execute(self):
         self.backend.schema.create_all(checkfirst=True)
 
 
 class MigrateInternal(Migrate):
-    name = 'backend.migrate.internal'
-    types = ['manifest']
-    backend = 'postgresql'
+    metadata = {
+        'name': 'backend.migrate.internal',
+        'type': 'manifest',
+        'backend': 'postgresql',
+    }
