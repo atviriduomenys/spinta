@@ -1,6 +1,6 @@
-from spinta.types import Function, NA
-from spinta.types import Type, ManifestLoad
-from spinta.types import Serialize
+from spinta.types import Type, NA
+from spinta.types.type import ManifestLoad, Serialize
+from spinta.commands import Command
 
 
 class Object(Type):
@@ -26,7 +26,7 @@ class ManifestLoadObject(ManifestLoad):
             self.obj.properties[name] = obj
 
 
-class ManifestCheck(Function):
+class ManifestCheck(Command):
     name = 'manifest.check'
     types = ['object']
 

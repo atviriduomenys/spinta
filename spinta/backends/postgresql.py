@@ -6,7 +6,8 @@ import re
 import unidecode
 import sqlalchemy as sa
 
-from spinta.types import Function, NA
+from spinta.types import NA
+from spinta.commands import Command
 from spinta.backends import Backend
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
@@ -58,7 +59,7 @@ class PostgreSQL(Backend):
             raise Exception("Multiple rows were found.")
 
 
-class Prepare(Function):
+class Prepare(Command):
     name = 'backend.prepare'
     types = ['manifest']
     backend = 'postgresql'
@@ -149,7 +150,7 @@ class PrepareInternal(Prepare):
         return model.name
 
 
-class Migrate(Function):
+class Migrate(Command):
     name = 'backend.migrate'
     types = ['manifest']
     backend = 'postgresql'

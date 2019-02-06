@@ -1,4 +1,5 @@
-from spinta.types import Type, Function
+from spinta.types import Type
+from spinta.commands import Command
 
 
 class Property(Type):
@@ -9,7 +10,7 @@ class Property(Type):
             'unique': {'type': 'boolean', 'default': False},
             'const': {'type': 'any'},
             'default': {'type': 'any'},
-            'check': {'type': 'function'},
+            'check': {'type': 'command'},
         },
     }
 
@@ -63,7 +64,7 @@ class Ref(Property):
     }
 
 
-class RefManifestCheck(Function):
+class RefManifestCheck(Command):
     name = 'manifest.check'
     types = ['ref']
 

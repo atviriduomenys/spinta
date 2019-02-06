@@ -5,7 +5,8 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
 
-from spinta.types import Type, Function, NA
+from spinta.types import Type, NA
+from spinta.commands import Command
 from spinta.backends import Backend
 
 yaml = YAML(typ='safe')
@@ -44,7 +45,7 @@ class Manifest(Type):
             'default',
         ]
         self.types = {}
-        self.functions = {}
+        self.commands = {}
         self.backends = {}
         self.connections = {}
         self.objects = {ns: {} for ns in self.namespaces}
@@ -65,16 +66,16 @@ class Manifest(Type):
                 raise Exception(f"Type {Class.__name__!r} named {Class.metadata.name!r} is already assigned to {type!r}.")
             self.types[Class.metadata.name] = Class
 
-        # Find all functions.
-        for Class in find_subclasses(Function, modules or self.modules):
+        # Find all commands.
+        for Class in find_subclasses(Command, modules or self.modules):
             types = Class.types if Class.types else ((),)
             for type in types:
                 key = (Class.name, type, Class.backend)
-                if key in self.functions:
-                    old = self.functions[key].__module__ + '.' + self.functions[key].__name__
+                if key in self.commands:
+                    old = self.commands[key].__module__ + '.' + self.commands[key].__name__
                     new = Class.__module__ + '.' + Class.__name__
-                    raise Exception(f"Function {new} named {Class.name!r} with {type!r} type is already assigned to {old!r}.")
-                self.functions[key] = Class
+                    raise Exception(f"Command {new} named {Class.name!r} with {type!r} type is already assigned to {old!r}.")
+                self.commands[key] = Class
 
         # Find all backends.
         for Class in find_subclasses(Backend, modules or self.modules):
@@ -85,18 +86,18 @@ class Manifest(Type):
 
         return self
 
-    def run(self, type, call, backend=None, ns='default', optional=False, stack=()):
+    def run(self, obj, call, backend=None, ns='default', optional=False, stack=()):
         assert len(stack) < 10
 
-        Func, args = self.find_function(type, call, backend)
+        Cmd, args = self.find_command(obj, call, backend)
 
-        if Func is None:
+        if Cmd is None:
             if optional:
                 return
             if backend:
-                message = f"Function {call!r} not found for {type} and {backend}."
+                message = f"Command {call!r} not found for {obj} and {backend}."
             else:
-                message = f"Function {call!r} not found for {type}."
+                message = f"Command {call!r} not found for {obj}."
             if stack:
                 stack[-1].error(message)
             else:
@@ -107,21 +108,21 @@ class Manifest(Type):
         else:
             backend = None
 
-        func = Func(self, type, backend, ns, stack)
+        cmd = Cmd(self, obj, backend, ns, stack)
 
         if args is None or args is NA:
-            return func.execute()
+            return cmd.execute()
         else:
-            return func.execute(args)
+            return cmd.execute(args)
 
-    def find_function(self, type, call, backend):
+    def find_command(self, obj, call, backend):
         backend = self.config['backends'][backend]['type'] if backend else None
-        bases = [cls.metadata.name for cls in type.metadata.bases] + [()]
+        bases = [cls.metadata.name for cls in obj.metadata.bases] + [()]
         for name, args in call.items():
             for base in bases:
                 key = name, base, backend
-                if key in self.functions:
-                    return self.functions[key], args
+                if key in self.commands:
+                    return self.commands[key], args
         return None, None
 
     def get_obj(self, data):
@@ -147,7 +148,7 @@ class Manifest(Type):
         return self.connections[name]
 
 
-class LoadManifest(Function):
+class LoadManifest(Command):
     name = 'manifest.load'
     types = ['manifest']
 
@@ -164,7 +165,7 @@ class LoadManifest(Function):
             self.run(obj, {'manifest.load': data})
 
 
-class CheckManifest(Function):
+class CheckManifest(Command):
     name = 'manifest.check'
     types = ['manifest']
 
@@ -174,7 +175,7 @@ class CheckManifest(Function):
                 self.run(obj, {'manifest.check': None}, optional=True)
 
 
-class Serialize(Function):
+class Serialize(Command):
     name = 'serialize'
     types = ['manifest']
 
@@ -187,7 +188,7 @@ class Serialize(Function):
         return output
 
 
-class PrepareBackend(Function):
+class PrepareBackend(Command):
     name = 'backend.prepare'
     types = ['manifest']
 
