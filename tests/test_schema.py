@@ -26,6 +26,23 @@ def test_schema_loader():
     store.configure(config)
     store.prepare()
     store.migrate()
+    result = store.push([
+        {
+            'type': 'country',
+            '<id>': 1,
+            'code': 'lt',
+            'title': 'Lithuania',
+        },
+        {
+            'type': 'org',
+            '<id>': 1,
+            'title': 'My Org',
+            'govid': '0042',
+            'country': {'type': 'country', '<id>': 1},
+        },
+    ])
+
+    pp(result)
 
     pp(store.objects)
 

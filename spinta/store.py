@@ -23,6 +23,8 @@ class Store:
             'manifest.check',
             'manifest.load',
             'serialize',
+            'check',
+            'push',
         }
         self.types = None
         self.commands = None
@@ -141,6 +143,24 @@ class Store:
         for name, manifest in self.config.manifests.items():
             self.run(manifest, {'backend.migrate': None}, ns=name)
 
+    def push(self, stream, backend='default', ns='default'):
+        result = []
+        client_supplied_ids = ClientSuppliedIDs()
+        with self.config.backends[backend].transaction() as connection:
+            for data in stream:
+                data = dict(data)
+                model = self.objects[ns]['model'][data.pop('type')]
+                client_id = client_supplied_ids.replace(model, data)
+                self.run(model, {'check': {'connection': connection, 'data': data}}, backend=backend, ns=ns)
+                inserted_id = self.run(model, {'push': {'connection': connection, 'data': data}}, backend=backend, ns=ns)
+                result.append(
+                    client_supplied_ids.update(client_id, {
+                        'type': model.name,
+                        'id': inserted_id,
+                    })
+                )
+        return result
+
 
 def find_subclasses(Class, modules):
     for module_path in modules:
@@ -158,3 +178,29 @@ def find_subclasses(Class, modules):
                 obj = getattr(module, obj_name)
                 if inspect.isclass(obj) and issubclass(obj, Class) and obj is not Class and obj.__module__ == module_path:
                     yield obj
+
+
+class ClientSuppliedIDs:
+
+    def __init__(self):
+        self.ids = {}
+
+    def replace(self, model, data):
+        client_id = data.pop('<id>', None)
+        for k, v in data.items():
+            if not isinstance(v, dict):
+                continue
+            if set(v.keys()) == {'type', '<id>'}:
+                if self.ids[(v['type'], v['<id>'])]:
+                    data[k] = self.ids[(v['type'], v['<id>'])]
+                else:
+                    raise Exception(f"Can't find ID {v['<id>']!r} for {k} property of {model.name}.")
+            elif '<id>' in v:
+                raise Exception(f"ID replacement works with {{type=x, <id>=y}}, but instead got {data!r}")
+        return client_id
+
+    def update(self, client_id, data):
+        if client_id is not None:
+            self.ids[(data['type'], client_id)] = data['id']
+            return {'<id>': client_id, **data}
+        return data

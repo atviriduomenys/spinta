@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import hashlib
 import itertools
@@ -32,16 +33,19 @@ class PostgreSQL(Backend):
     schema = None
     tables = None
 
-    def get(self, columns, condition, default=NA):
-        assert self.engine is not None, "Run 'manifest.load' command first."
+    @contextlib.contextmanager
+    def transaction(self):
+        with self.engine.begin() as connection:
+            yield connection
 
+    def get(self, connection, columns, condition, default=NA):
         if isinstance(columns, list):
             scalar = False
         else:
             scalar = True
             columns = [columns]
 
-        result = self.engine.execute(
+        result = connection.execute(
             sa.select(columns).where(condition)
         )
         result = list(itertools.islice(result, 2))
@@ -135,7 +139,7 @@ class Prepare(Command):
 
     def get_table_name(self, model):
         table = self.backend.tables['model']
-        model_id = self.backend.get(table.c.id, table.c.name == model.name, default=None)
+        model_id = self.backend.get(self.backend.engine, table.c.id, table.c.name == model.name, default=None)
         if model_id is None:
             result = self.backend.engine.execute(
                 table.insert(),
@@ -187,3 +191,57 @@ class MigrateInternal(Migrate):
         'type': 'manifest',
         'backend': 'postgresql',
     }
+
+
+class Check(Command):
+    metadata = {
+        'name': 'check',
+        'type': 'model',
+        'backend': 'postgresql',
+    }
+
+    def execute(self, args):
+        connection = args['connection']
+        data = args['data']
+        table = self.backend.tables[self.obj.name]
+
+        for name, prop in self.obj.properties.items():
+            if prop.required and name not in data:
+                raise Exception(f"{name!r} is required for {self.obj}.")
+
+            if prop.unique:
+                na = object()
+                result = self.backend.get(connection, table.c[prop.name], table.c[prop.name] == data[prop.name], default=na)
+                if result is not na:
+                    raise Exception(f"{name!r} is unique for {self.obj} and a duplicate value is found in database.")
+
+
+class Push(Command):
+    metadata = {
+        'name': 'push',
+        'type': 'model',
+        'backend': 'postgresql',
+    }
+
+    def execute(self, args):
+        connection = args['connection']
+        data = args['data']
+        table = self.backend.tables[self.obj.name]
+
+        if 'id' in data:
+            result = connection.execute(
+                table.update().
+                where(table.c.id == data['id']).
+                values(data)
+            )
+            if result.rowcount == 1:
+                return data['id']
+            elif result.rowcount == 0:
+                raise Exception("Update failed, {self.obj} with {data['id']} not found.")
+            else:
+                raise Exception("Update failed, {self.obj} with {data['id']} has found and update {result.rowcount} rows.")
+        else:
+            result = connection.execute(
+                table.insert().values(data),
+            )
+            return result.inserted_primary_key[0]
