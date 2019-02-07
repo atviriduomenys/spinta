@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from spinta.types import NA
 from spinta.commands import Command
 from spinta.backends import Backend
+from spinta.types.type import ManifestLoad
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -20,18 +21,20 @@ PG_CLEAN_NAME_RE = re.compile(r'[^a-z0-9]+', re.IGNORECASE)
 
 
 class PostgreSQL(Backend):
-    type = 'postgresql'
-    name = None
+    metadata = {
+        'name': 'postgresql',
+        'properties': {
+            'dsn': {'type': 'string', 'required': True},
+        },
+    }
 
-    def __init__(self, name, config):
-        assert isinstance(config, dict)
-        assert config['type'] == self.type
-        self.name = name
-        self.engine = sa.create_engine(config['dsn'], echo=True)
-        self.schema = sa.MetaData(self.engine)
-        self.tables = {}  # populated by backend.prepare and backend.prepare.internal
+    engine = None
+    schema = None
+    tables = None
 
     def get(self, columns, condition, default=NA):
+        assert self.engine is not None, "Run 'manifest.load' command first."
+
         if isinstance(columns, list):
             scalar = False
         else:
@@ -59,6 +62,19 @@ class PostgreSQL(Backend):
             raise Exception("Multiple rows were found.")
 
 
+class ManifestLoadBackend(ManifestLoad):
+    metadata = {
+        'name': 'manifest.load',
+        'type': 'postgresql',
+    }
+
+    def execute(self, data):
+        super().execute(data)
+        self.obj.engine = sa.create_engine(self.obj.dsn, echo=True)
+        self.obj.schema = sa.MetaData(self.obj.engine)
+        self.obj.tables = {}
+
+
 class Prepare(Command):
     metadata = {
         'name': 'backend.prepare',
@@ -68,7 +84,7 @@ class Prepare(Command):
 
     def execute(self):
         for model_name, model in self.store.objects[self.ns]['model'].items():
-            if self.store.config['backends'][model.backend]['type'] == self.backend.type:
+            if self.store.config.backends[model.backend].type == self.backend.type:
                 columns = []
                 for prop_name, prop in model.properties.items():
                     if prop.type == 'pk':

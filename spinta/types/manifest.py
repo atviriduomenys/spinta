@@ -64,12 +64,23 @@ class Serialize(Command):
         return output
 
 
-class PrepareBackend(Command):
+class BackendPrepare(Command):
     metadata = {
         'name': 'backend.prepare',
         'type': 'manifest',
     }
 
     def execute(self):
-        for backend in self.store.config['backends'].keys():
-            self.run(self.obj, {self.name: None}, backend=backend)
+        for backend in self.store.config.backends.keys():
+            self.run(self.obj, {'backend.prepare': None}, backend=backend)
+
+
+class BackendMigrate(Command):
+    metadata = {
+        'name': 'backend.migrate',
+        'type': 'manifest',
+    }
+
+    def execute(self):
+        for backend in self.store.config.backends.keys():
+            self.run(self.obj, {'backend.migrate': None}, backend=backend)

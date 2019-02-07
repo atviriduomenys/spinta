@@ -43,14 +43,3 @@ class Command(metaclass=MetaClass):
                 path = cmd.obj.path
                 raise Exception(f"{path}: {message}")
         raise Exception(message)
-
-
-AVAILABLE_COMMANDS = {
-    'backend.migrate',
-    'backend.migrate.internal',
-    'backend.prepare',
-    'backend.prepare.internal',
-    'manifest.check',
-    'manifest.load',
-    'serialize',
-}
