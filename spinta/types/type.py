@@ -32,13 +32,30 @@ class ManifestLoad(Command):
                 if value is NA:
                     value = None
 
+            if params.get('type') == 'path' and isinstance(value, str):
+                value = pathlib.Path(value)
+
             # Set parameter on the spec object.
-            setattr(self.obj, name, value)
+            self.obj[name] = value
 
         unknown_keys = set(data.keys()) - set(self.obj.metadata.properties.keys())
         if unknown_keys:
             keys = ', '.join(unknown_keys)
             self.error(f"{self.obj} does not have following parameters: {keys}.")
+
+    def get_object(self, data):
+        type = data.get('type')
+
+        if 'const' in data and type is None:
+            if isinstance(data['const'], str):
+                type = 'string'
+            else:
+                self.error(f"Unknown data type of {data['const']!r} constant.")
+
+        if type is None:
+            self.error(f"Required parameter 'type' is not set.")
+
+        return self.store.get_object(type)
 
 
 class Serialize(Command):

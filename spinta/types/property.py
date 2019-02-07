@@ -71,7 +71,7 @@ class RefManifestCheck(Command):
     }
 
     def execute(self):
-        if self.obj.object not in self.manifest.objects[self.ns]['model']:
+        if self.obj.object not in self.store.objects[self.ns]['model']:
             self.error(f"Unknown model {self.obj.object}.")
 
 

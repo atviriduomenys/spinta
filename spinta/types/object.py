@@ -23,7 +23,7 @@ class ManifestLoadObject(ManifestLoad):
         assert isinstance(self.obj.properties, dict)
         for name, prop in self.obj.properties.items():
             prop = {'name': name, **prop}
-            obj = self.manifest.get_obj(prop)
+            obj = self.get_object(prop)
             self.run(obj, {'manifest.load': prop})
             self.obj.properties[name] = obj
 
@@ -65,3 +65,15 @@ class SerializeObject(Serialize):
         for k, v in output['properties'].items():
             output['properties'][k] = self.run(v, {'serialize': NA})
         return output
+
+
+class Project(Object):
+    metadata = {
+        'name': 'project',
+    }
+
+
+class Owner(Object):
+    metadata = {
+        'name': 'owner',
+    }

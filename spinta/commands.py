@@ -22,8 +22,8 @@ class MetaClass(type):
 class Command(metaclass=MetaClass):
     metadata = {'name': None, 'type': None, 'backend': None}
 
-    def __init__(self, manifest, obj, backend, ns='default', stack: tuple = ()):
-        self.manifest = manifest
+    def __init__(self, store, obj, backend, ns='default', stack: tuple = ()):
+        self.store = store
         self.obj = obj
         self.backend = backend
         self.stack = stack
@@ -35,7 +35,7 @@ class Command(metaclass=MetaClass):
     def run(self, *args, **kwargs):
         kwargs.setdefault('ns', self.ns)
         kwargs.setdefault('stack', self.stack + (self,))
-        return self.manifest.run(*args, **kwargs)
+        return self.store.run(*args, **kwargs)
 
     def error(self, message):
         for cmd in reversed(self.stack):

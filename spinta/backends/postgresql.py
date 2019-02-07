@@ -67,8 +67,8 @@ class Prepare(Command):
     }
 
     def execute(self):
-        for model_name, model in self.manifest.objects[self.ns]['model'].items():
-            if self.manifest.config['backends'][model.backend]['type'] == self.backend.type:
+        for model_name, model in self.store.objects[self.ns]['model'].items():
+            if self.store.config['backends'][model.backend]['type'] == self.backend.type:
                 columns = []
                 for prop_name, prop in model.properties.items():
                     if prop.type == 'pk':
@@ -97,7 +97,7 @@ class Prepare(Command):
                 self.backend.tables[model_name] = sa.Table(table_name, self.backend.schema, *columns)
 
     def get_model(self, model_name):
-        return self.manifest.objects[self.ns]['model'][model_name]
+        return self.store.objects[self.ns]['model'][model_name]
 
     def get_foreign_key(self, model, prop):
         ref_model = self.get_model(prop.object)

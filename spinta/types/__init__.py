@@ -60,3 +60,9 @@ class Type(metaclass=MetaClass):
 
     def __repr__(self):
         return f"<{self.name}: {self.metadata.name} <{self.__class__.__module__}.{self.__class__.__name__}>>"
+
+    def __setattr__(self, name, value):
+        assert name in self.metadata.properties
+        super().__setattr__(name, value)
+
+    __setitem__ = __setattr__
