@@ -22,14 +22,22 @@ class MetaClass(type):
 class Command(metaclass=MetaClass):
     metadata = {'name': None, 'type': None, 'backend': None}
 
-    def __init__(self, store, obj, backend, ns='default', stack: tuple = ()):
+    def __init__(self, store, obj, args, backend, ns='default', stack: tuple = ()):
         self.store = store
         self.obj = obj
         self.backend = backend
         self.stack = stack
         self.ns = ns
+        self.args = Args(args)
+        self.ctx = {}
 
-    def execute(self, *args, **kwargs):
+    def initialize(self):
+        pass
+
+    def condition(self):
+        return True
+
+    def execute(self):
         raise NotImplementedError
 
     def run(self, *args, **kwargs):
@@ -37,9 +45,25 @@ class Command(metaclass=MetaClass):
         kwargs.setdefault('stack', self.stack + (self,))
         return self.store.run(*args, **kwargs)
 
+    def load_object(self, *args, **kwargs):
+        kwargs.setdefault('ns', self.ns)
+        return self.store.load_object(*args, **kwargs)
+
     def error(self, message):
         for cmd in reversed(self.stack):
             if hasattr(cmd.obj, 'path'):
                 path = cmd.obj.path
                 raise Exception(f"{path}: {message}")
         raise Exception(message)
+
+
+class Args:
+
+    def __init__(self, args):
+        self.args = args or {}
+
+    def __getattr__(self, key):
+        return self.args[key]
+
+    def __call__(self, **kwargs):
+        return {**self.args, **kwargs}

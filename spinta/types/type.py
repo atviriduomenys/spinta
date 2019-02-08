@@ -10,12 +10,12 @@ class ManifestLoad(Command):
         'name': 'manifest.load',
     }
 
-    def execute(self, data: dict):
-        assert isinstance(data, dict)
+    def execute(self):
+        assert isinstance(self.args.data, dict)
 
         for name, params in self.obj.metadata.properties.items():
-            if name in data and data[name] is not NA:
-                value = data[name]
+            if name in self.args.data and self.args.data[name] is not NA:
+                value = self.args.data[name]
             else:
                 # Get default value.
                 default = params.get('default', NA)
@@ -43,27 +43,21 @@ class ManifestLoad(Command):
             # Set parameter on the spec object.
             setattr(self.obj, name, value)
 
-        unknown_keys = set(data.keys()) - set(self.obj.metadata.properties.keys())
+        unknown_keys = set(self.args.data.keys()) - set(self.obj.metadata.properties.keys())
         if unknown_keys:
             keys = ', '.join(map(repr, unknown_keys))
             self.error(f"{self.obj} does not have following parameters: {keys}.")
 
-    def get_object(self, data):
-        type = data.get('type')
 
-        if 'const' in data and type is None:
-            if isinstance(data['const'], str):
-                type = 'string'
-            else:
-                self.error(f"Unknown data type of {data['const']!r} constant.")
+class Serialize:
 
-        if type is None:
-            self.error(f"Required parameter 'type' is not set.")
-
-        return self.store.get_object(type)
+    def condition(self):
+        if self.args.level > self.args.limit:
+            return False
+        return True
 
 
-class Serialize(Command):
+class SerializeType(Serialize, Command):
     metadata = {
         'name': 'serialize',
     }
@@ -75,7 +69,7 @@ class Serialize(Command):
             if v is NA:
                 continue
             if isinstance(v, Type):
-                v = self.run(v, {'serialize': NA})
+                v = self.run(v, {'serialize': self.args(level=self.args.level + 1)})
             if isinstance(v, pathlib.Path):
                 v = str(v)
             output[k] = v

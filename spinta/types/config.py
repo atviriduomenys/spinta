@@ -17,8 +17,8 @@ class ManifestLoadConfig(ManifestLoadObject):
         'type': 'config',
     }
 
-    def execute(self, data):
-        super().execute(data)
+    def execute(self):
+        super().execute()
 
         if self.ns != 'internal':
             self.error("Configuration can be loaded only on 'internal' namespace.")
@@ -35,9 +35,7 @@ class ManifestLoadConfig(ManifestLoadObject):
             self.error("'default' backend must be set in the configuration.")
 
         for name, backend in self.obj.backends.items():
-            obj = self.get_object(backend)
-            self.run(obj, {'manifest.load': {'name': name, **backend}})
-            self.obj.backends[name] = obj
+            self.obj.backends[name] = self.load_object({'name': name, **backend})
 
     def load_manifests(self):
         if 'default' not in self.obj.manifests:
@@ -47,8 +45,5 @@ class ManifestLoadConfig(ManifestLoadObject):
             self.error("'internal' manifest can't be used in configuration, it is reserved for internal purposes.")
 
         for name, manifest in self.obj.manifests.items():
-            manifest = {'type': 'manifest', 'name': name, **manifest}
             self.store.objects[name] = {}
-            obj = self.get_object(manifest)
-            self.run(obj, {'manifest.load': manifest}, ns=name)
-            self.obj.manifests[name] = obj
+            self.obj.manifests[name] = self.load_object({'type': 'manifest', 'name': name, **manifest})

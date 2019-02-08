@@ -1,16 +1,14 @@
 import pathlib
 
-import pp
-
 from spinta.store import Store
 
 
-def test_schema_loader():
+def test_schema_loader(postgresql):
     config = {
         'backends': {
             'default': {
                 'type': 'postgresql',
-                'dsn': 'postgresql:///spinta',
+                'dsn': postgresql,
             },
         },
         'manifests': {
@@ -24,8 +22,16 @@ def test_schema_loader():
     store.add_types()
     store.add_commands()
     store.configure(config)
+
+    import pp; pp(store.serialize(level=3))
+
+    assert store.serialize() == {}
+
+    store.prepare(internal=True)
+    store.migrate(internal=True)
     store.prepare()
     store.migrate()
+
     result = store.push([
         {
             'type': 'country',
@@ -42,8 +48,14 @@ def test_schema_loader():
         },
     ])
 
-    pp(result)
-
-    pp(store.objects)
-
-    assert False
+    result = {x.pop('type'): x for x in result}
+    assert result == {
+        'country': {
+            '<id>': 1,
+            'id': result['country']['id'],
+        },
+        'org': {
+            '<id>': 1,
+            'id': result['org']['id'],
+        },
+    }

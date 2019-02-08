@@ -2,8 +2,8 @@ from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
 
 from spinta.commands import Command
-from spinta.types import Type, NA
-from spinta.types.type import ManifestLoad
+from spinta.types import Type
+from spinta.types.type import ManifestLoad, Serialize
 
 yaml = YAML(typ='safe')
 
@@ -23,8 +23,8 @@ class ManifestLoadManifest(ManifestLoad):
         'type': 'manifest',
     }
 
-    def execute(self, data):
-        super().execute(data)
+    def execute(self):
+        super().execute()
 
         for file in self.obj.path.glob('**/*.yml'):
             try:
@@ -33,8 +33,7 @@ class ManifestLoadManifest(ManifestLoad):
                 self.error(f"{file}: {e}.")
             if not isinstance(data, dict):
                 self.error(f"{file}: expected dict got {data.__class__.__name__}.")
-            data['path'] = file
-            self.run(self.get_object(data), {'manifest.load': data})
+            self.load_object({'path': file, **data})
 
 
 class CheckManifest(Command):
@@ -49,7 +48,7 @@ class CheckManifest(Command):
                 self.run(obj, {'manifest.check': None}, optional=True)
 
 
-class Serialize(Command):
+class SerializeManifest(Serialize, Command):
     metadata = {
         'name': 'serialize',
         'type': 'manifest',
@@ -60,7 +59,7 @@ class Serialize(Command):
         for object_type, objects in self.store.objects[self.ns].items():
             output[object_type] = {}
             for name, obj in objects.items():
-                output[object_type][name] = self.run(obj, {'serialize': NA})
+                output[object_type][name] = self.run(obj, {'serialize': self.args(level=self.args.level + 1)})
         return output
 
 

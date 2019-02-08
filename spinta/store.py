@@ -4,7 +4,7 @@ import pathlib
 
 import pkg_resources as pres
 
-from spinta.types import Type, NA
+from spinta.types import Type
 from spinta.commands import Command
 
 
@@ -84,17 +84,16 @@ class Store:
         else:
             backend = None
 
-        cmd = Cmd(self, obj, backend, ns, stack)
+        cmd = Cmd(self, obj, args, backend, ns, stack)
 
-        if args is None or args is NA:
+        if cmd.condition():
             return cmd.execute()
-        else:
-            return cmd.execute(args)
 
     def get_command(self, obj, call, backend):
         assert self.commands is not None, "Run add_commands first."
+        assert isinstance(obj, Type), obj
         backend = self.config.backends[backend].type if backend else None
-        bases = [cls.metadata.name for cls in obj.metadata.bases] + [None]
+        bases = [cls.metadata.name for cls in obj.metadata.bases if issubclass(cls, Type)] + [None]
         for name, args in call.items():
             for base in bases:
                 key = name, base, backend
@@ -102,46 +101,75 @@ class Store:
                     return self.commands[key], args
         return None, None
 
-    def get_object(self, type):
+    def load_object(self, data: dict, ns: str = 'default'):
         assert self.types is not None, "Run add_types first."
-        if type not in self.types:
-            raise Exception(f"Unknown type {type!r}.")
-        Type = self.types[type]
-        return Type()
+        assert isinstance(data, dict)
+
+        type_name = data.get('type')
+
+        if 'const' in data and type_name is None:
+            if isinstance(data['const'], str):
+                type_name = 'string'
+            else:
+                raise Exception(f"Unknown data type of {data['const']!r} constant.")
+
+        if type_name is None:
+            raise Exception(f"Required parameter 'type' is not set.")
+
+        if type_name not in self.types:
+            raise Exception(f"Unknown type {type_name!r}.")
+
+        Type = self.types[type_name]
+        obj = Type()
+        self.run(obj, {'manifest.load': {'data': data}}, ns=ns)
+        return obj
 
     def configure(self, config):
         # Configure and check intrnal manifest.
         assert self.manifest is None, "Store is already configured!"
-        self.manifest = self.get_object('manifest')
         self.objects['internal'] = {}
-        self.run(self.manifest, {
-            'manifest.load': {
-                'type': 'manifest',
-                'name': 'internal',
-                'path': pres.resource_filename('spinta', 'manifest'),
-            },
+        self.manifest = self.load_object({
+            'type': 'manifest',
+            'name': 'internal',
+            'path': pres.resource_filename('spinta', 'manifest'),
         }, ns='internal')
         self.run(self.manifest, {'manifest.check': None}, ns='internal')
 
         # Load configuration, manifests, backends and etc...
-        self.config = self.get_object('config')
-        self.run(self.config, {'manifest.load': {'type': 'config', 'name': 'config', **config}}, ns='internal')
+        self.config = self.load_object({'type': 'config', 'name': 'config', **config}, ns='internal')
 
         # Check loaded manifests.
         for name, manifest in self.config.manifests.items():
             self.run(manifest, {'manifest.check': None}, ns=name)
 
-    def prepare(self):
-        assert self.manifest is not None, "Run configure first."
-        self.run(self.manifest, {'backend.prepare.internal': None}, backend='default', ns='internal')
-        for name, manifest in self.config.manifests.items():
-            self.run(manifest, {'backend.prepare': None}, ns=name)
+    def serialize(self, objects=None, ns=None, level=1, limit=99):
+        result = {}
+        objects = self.objects if objects is None else objects
+        for k, v in objects.items():
+            _ns = k if ns is None else ns
+            if isinstance(v, Type):
+                result[k] = self.run(v, {'serialize': {'level': level + 1, 'limit': limit}}, ns=_ns)
+            elif isinstance(v, dict):
+                result[k] = self.serialize(v, _ns, level + 1, limit)
+            else:
+                result[k] = v
+        return result
 
-    def migrate(self):
+    def prepare(self, internal=False):
         assert self.manifest is not None, "Run configure first."
-        self.run(self.manifest, {'backend.migrate.internal': None}, backend='default', ns='internal')
-        for name, manifest in self.config.manifests.items():
-            self.run(manifest, {'backend.migrate': None}, ns=name)
+        if internal:
+            self.run(self.manifest, {'backend.prepare.internal': None}, backend='default', ns='internal')
+        else:
+            for name, manifest in self.config.manifests.items():
+                self.run(manifest, {'backend.prepare': None}, ns=name)
+
+    def migrate(self, internal=False):
+        assert self.manifest is not None, "Run configure first."
+        if internal:
+            self.run(self.manifest, {'backend.migrate.internal': None}, backend='default', ns='internal')
+        else:
+            for name, manifest in self.config.manifests.items():
+                self.run(manifest, {'backend.migrate': None}, ns=name)
 
     def push(self, stream, backend='default', ns='default'):
         result = []

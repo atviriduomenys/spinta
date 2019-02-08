@@ -1,5 +1,5 @@
-from spinta.types import Type, NA
-from spinta.types.type import ManifestLoad, Serialize
+from spinta.types import Type
+from spinta.types.type import ManifestLoad, SerializeType
 from spinta.commands import Command
 
 
@@ -18,14 +18,11 @@ class ManifestLoadObject(ManifestLoad):
         'type': 'object',
     }
 
-    def execute(self, data):
-        super().execute(data)
+    def execute(self):
+        super().execute()
         assert isinstance(self.obj.properties, dict)
         for name, prop in self.obj.properties.items():
-            prop = {'name': name, **prop}
-            obj = self.get_object(prop)
-            self.run(obj, {'manifest.load': prop})
-            self.obj.properties[name] = obj
+            self.obj.properties[name] = self.load_object({'name': name, **prop})
 
 
 class ManifestCheck(Command):
@@ -54,7 +51,7 @@ class ManifestCheck(Command):
             self.error(f"At leas one primary key must be defined for model.")
 
 
-class SerializeObject(Serialize):
+class SerializeObject(SerializeType):
     metadata = {
         'name': 'serialize',
         'type': 'object',
@@ -63,7 +60,7 @@ class SerializeObject(Serialize):
     def execute(self):
         output = super().execute()
         for k, v in output['properties'].items():
-            output['properties'][k] = self.run(v, {'serialize': NA})
+            output['properties'][k] = self.run(v, {'serialize': self.args(level=self.args.level + 1)})
         return output
 
 

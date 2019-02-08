@@ -72,8 +72,8 @@ class ManifestLoadBackend(ManifestLoad):
         'type': 'postgresql',
     }
 
-    def execute(self, data):
-        super().execute(data)
+    def execute(self):
+        super().execute()
         self.obj.engine = sa.create_engine(self.obj.dsn, echo=True)
         self.obj.schema = sa.MetaData(self.obj.engine)
         self.obj.tables = {}
@@ -200,9 +200,9 @@ class Check(Command):
         'backend': 'postgresql',
     }
 
-    def execute(self, args):
-        connection = args['connection']
-        data = args['data']
+    def execute(self):
+        connection = self.args.connection
+        data = self.args.data
         table = self.backend.tables[self.obj.name]
 
         for name, prop in self.obj.properties.items():
@@ -223,9 +223,9 @@ class Push(Command):
         'backend': 'postgresql',
     }
 
-    def execute(self, args):
-        connection = args['connection']
-        data = args['data']
+    def execute(self):
+        connection = self.args.connection
+        data = self.args.data
         table = self.backend.tables[self.obj.name]
 
         if 'id' in data:

@@ -21,8 +21,8 @@ class ManifestLoadModel(ManifestLoadObject):
         'type': ('model', 'dataset', 'project', 'owner'),
     }
 
-    def execute(self, data):
-        super().execute(data)
+    def execute(self):
+        super().execute()
 
         if self.obj.type not in self.store.objects[self.ns]:
             self.store.objects[self.ns][self.obj.type] = {}

@@ -185,7 +185,7 @@ uvloop = ">=0.5.3"
 websockets = ">=6.0,<7.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Python 2 and 3 compatibility utilities"
 name = "six"
 optional = false
@@ -199,6 +199,18 @@ name = "sqlalchemy"
 optional = false
 python-versions = "*"
 version = "1.2.17"
+
+[[package]]
+category = "main"
+description = "Various utility functions for SQLAlchemy."
+name = "sqlalchemy-utils"
+optional = false
+python-versions = "*"
+version = "0.33.11"
+
+[package.dependencies]
+SQLAlchemy = ">=1.0"
+six = "*"
 
 [[package]]
 category = "main"
@@ -235,7 +247,7 @@ python-versions = ">=3.4"
 version = "6.0"
 
 [metadata]
-content-hash = "1f2617c7d7a45bd079ffa969b57ceef70d8e27a8671338bda715dcfac8856127"
+content-hash = "25a166a70553dcef871c19ecba68f5539223071f13c91a6c249f515a2e0dd247"
 python-versions = "^3.7"
 
 [metadata.hashes]
@@ -260,6 +272,7 @@ pytest-mock = ["4d0d06d173eecf172703219a71dbd4ade0e13904e6bbce1ce660e2e0dc78b5c4
 sanic = ["4ce5ffd9588557caff844da0f4b478d263d0e836fa0204480a2a17958b333fe0", "e1f291cfc44627baad7e0855512c821fe3dbfe23f7d2a26561abb808d4511f14"]
 six = ["3350809f0555b11f552448330d0b52d5f24c91a322ea4a15ef22629740f3761c", "d16a0141ec1a18405cd4ce8b4613101da75da0e9a7aec5bdd4fa804d0e0eba73"]
 sqlalchemy = ["52a42dbf02d0562d6e90e7af59f177f1cc027e72833cc29c3a821eefa009c71d"]
+sqlalchemy-utils = ["3f1cb542cf0549a0de508d4919f3ad693a36230bf4cd13fdd6253549fec71182"]
 ujson = ["f66073e5506e91d204ab0c614a148d5aa938bdbf104751be66f8ad7a222f5f86"]
 unidecode = ["092cdf7ad9d1052c50313426a625b717dab52f7ac58f859e09ea020953b1ad8f", "8b85354be8fd0c0e10adbf0675f6dc2310e56fda43fa8fe049123b6c475e52fb"]
 uvloop = ["0ff2e67b693f7d2007466952dbe312075098e8f15364fda27d16e8a7f266d74d", "2d0029314dc87312ff8d46c3724363d847e5235403eced5d3f98da80a87f4828", "32dcc003e1973f3db303494f5f63db11091c86a146053773d81ac5484b10c416", "4301871418f967d0b13409f1bd10ecc7825a7f183282dcc9e19d08532e6cb2e9", "7639188ff4466d86cfd4418cd784d1198a8cc913279fb8798a4b12a4d42ad341", "a73649cd043f5d3e3ae471667c790a7ee2295b22fac7bedcae8705158f8ba111", "afdf34bf507090e4c7f5108a17240982760356b8aae4edd37180ec4f94c36cbb", "bd7a6db5dbfae0c93e27cb200bb2b9513e21a90a2d4a259b39a9b5446c4d5aa3", "cc27e903da274f76826848832f62e1ec410a43602e1e0cd4f8db8c619b1ee93e", "ec521d14ddcdd9f8d0075d7d1f82e9d8806f7f0a047d2e5bc737e9eddf7f930d"]
