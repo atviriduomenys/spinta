@@ -23,9 +23,28 @@ def test_schema_loader(postgresql):
     store.add_commands()
     store.configure(config)
 
-    import pp; pp(store.serialize(level=3))
-
-    assert store.serialize() == {}
+    assert store.serialize(limit=3) == {
+        'internal': {
+            'config': {
+                'backends': None,
+                'description': None,
+                'manifests': None,
+                'name': None,
+                'properties': None,
+                'title': None,
+                'type': None,
+            },
+            'model': {
+                'model': None,
+            },
+        },
+        'default': {
+            'model': {
+                'country': None,
+                'org': None,
+            },
+        },
+    }
 
     store.prepare(internal=True)
     store.migrate(internal=True)

@@ -49,15 +49,7 @@ class ManifestLoad(Command):
             self.error(f"{self.obj} does not have following parameters: {keys}.")
 
 
-class Serialize:
-
-    def condition(self):
-        if self.args.level > self.args.limit:
-            return False
-        return True
-
-
-class SerializeType(Serialize, Command):
+class Serialize(Command):
     metadata = {
         'name': 'serialize',
     }
@@ -65,12 +57,8 @@ class SerializeType(Serialize, Command):
     def execute(self):
         output = {}
         for k, v in self.obj.metadata.properties.items():
-            v = getattr(self.obj, k, v)
+            v = getattr(self.obj, k, NA)
             if v is NA:
                 continue
-            if isinstance(v, Type):
-                v = self.run(v, {'serialize': self.args(level=self.args.level + 1)})
-            if isinstance(v, pathlib.Path):
-                v = str(v)
             output[k] = v
         return output

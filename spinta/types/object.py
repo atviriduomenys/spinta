@@ -1,5 +1,5 @@
 from spinta.types import Type
-from spinta.types.type import ManifestLoad, SerializeType
+from spinta.types.type import ManifestLoad
 from spinta.commands import Command
 
 
@@ -49,19 +49,6 @@ class ManifestCheck(Command):
             self.error(f"Only one primary key is allowed, found {n_pkeys}")
         elif n_pkeys == 0:
             self.error(f"At leas one primary key must be defined for model.")
-
-
-class SerializeObject(SerializeType):
-    metadata = {
-        'name': 'serialize',
-        'type': 'object',
-    }
-
-    def execute(self):
-        output = super().execute()
-        for k, v in output['properties'].items():
-            output['properties'][k] = self.run(v, {'serialize': self.args(level=self.args.level + 1)})
-        return output
 
 
 class Project(Object):

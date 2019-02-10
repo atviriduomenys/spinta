@@ -34,9 +34,6 @@ class Command(metaclass=MetaClass):
     def initialize(self):
         pass
 
-    def condition(self):
-        return True
-
     def execute(self):
         raise NotImplementedError
 

@@ -46,4 +46,4 @@ class ManifestLoadConfig(ManifestLoadObject):
 
         for name, manifest in self.obj.manifests.items():
             self.store.objects[name] = {}
-            self.obj.manifests[name] = self.load_object({'type': 'manifest', 'name': name, **manifest})
+            self.obj.manifests[name] = self.load_object({'type': 'manifest', 'name': name, **manifest}, ns=name)

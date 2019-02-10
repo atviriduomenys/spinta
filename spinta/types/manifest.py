@@ -3,7 +3,7 @@ from ruamel.yaml.parser import ParserError
 
 from spinta.commands import Command
 from spinta.types import Type
-from spinta.types.type import ManifestLoad, Serialize
+from spinta.types.type import ManifestLoad
 
 yaml = YAML(typ='safe')
 
@@ -46,21 +46,6 @@ class CheckManifest(Command):
         for objects in self.store.objects[self.ns].values():
             for obj in objects.values():
                 self.run(obj, {'manifest.check': None}, optional=True)
-
-
-class SerializeManifest(Serialize, Command):
-    metadata = {
-        'name': 'serialize',
-        'type': 'manifest',
-    }
-
-    def execute(self):
-        output = {}
-        for object_type, objects in self.store.objects[self.ns].items():
-            output[object_type] = {}
-            for name, obj in objects.items():
-                output[object_type][name] = self.run(obj, {'serialize': self.args(level=self.args.level + 1)})
-        return output
 
 
 class BackendPrepare(Command):

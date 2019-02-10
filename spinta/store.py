@@ -48,9 +48,9 @@ class Store:
         backends = {Type.metadata.name for Type in self.types.values() if issubclass(Type, Backend)}
         for Class in find_subclasses(Command, self.modules):
             if Class.metadata.name not in self.available_commands:
-                raise Exception(f"Unknown command {Class.metadata.name} used by {Class.__module__}.{Class.__name__}.")
+                raise Exception(f"Unknown command {Class.metadata.name!r} used by {Class.__module__}.{Class.__name__}.")
             if Class.metadata.backend and Class.metadata.backend not in backends:
-                raise Exception(f"Unknown backend {Class.metadata.backend} used by {Class.__module__}.{Class.__name__}.")
+                raise Exception(f"Unknown backend {Class.metadata.backend!r} used by {Class.__module__}.{Class.__name__}.")
             for type in Class.metadata.type:
                 if type and type not in self.types:
                     raise Exception(f"Unknown type {type} used by {Class.__module__}.{Class.__name__}.")
@@ -61,7 +61,7 @@ class Store:
                     raise Exception(f"Command {new} named {Class.metadata.name!r} with {type!r} type is already assigned to {old!r}.")
                 self.commands[key] = Class
 
-    def run(self, obj, call, backend=None, ns='default', optional=False, stack=()):
+    def run(self, obj, call, *, backend=None, ns='default', optional=False, stack=()):
         assert self.commands is not None, "Run add_commands first."
         assert len(stack) < 10
 
@@ -86,20 +86,24 @@ class Store:
 
         cmd = Cmd(self, obj, args, backend, ns, stack)
 
-        if cmd.condition():
-            return cmd.execute()
+        return cmd.execute()
 
     def get_command(self, obj, call, backend):
         assert self.commands is not None, "Run add_commands first."
         assert isinstance(obj, Type), obj
         backend = self.config.backends[backend].type if backend else None
         bases = [cls.metadata.name for cls in obj.metadata.bases if issubclass(cls, Type)] + [None]
-        for name, args in call.items():
+        Cmd = None
+        args = None
+        for name, value in call.items():
+            if Cmd is not None:
+                raise Exception(f"Got more than one command in {call!r}.")
             for base in bases:
                 key = name, base, backend
                 if key in self.commands:
-                    return self.commands[key], args
-        return None, None
+                    Cmd, args = self.commands[key], value
+                    break
+        return Cmd, args
 
     def load_object(self, data: dict, ns: str = 'default'):
         assert self.types is not None, "Run add_types first."
@@ -142,18 +146,35 @@ class Store:
         for name, manifest in self.config.manifests.items():
             self.run(manifest, {'manifest.check': None}, ns=name)
 
-    def serialize(self, objects=None, ns=None, level=1, limit=99):
-        result = {}
-        objects = self.objects if objects is None else objects
-        for k, v in objects.items():
-            _ns = k if ns is None else ns
-            if isinstance(v, Type):
-                result[k] = self.run(v, {'serialize': {'level': level + 1, 'limit': limit}}, ns=_ns)
-            elif isinstance(v, dict):
-                result[k] = self.serialize(v, _ns, level + 1, limit)
-            else:
-                result[k] = v
-        return result
+    def serialize(self, value=None, ns=None, level=0, limit=99):
+        if level > limit:
+            return
+
+        if ns is None:
+            return {
+                k: self.serialize(v, k, level + 1, limit)
+                for k, v in self.objects.items()
+            }
+
+        if isinstance(value, dict):
+            return {
+                k: self.serialize(v, ns, level + 1, limit)
+                for k, v in value.items()
+            }
+
+        if isinstance(value, list):
+            return [
+                self.serialize(v, ns, level + 1, limit)
+                for v in value
+            ]
+
+        if isinstance(value, Type):
+            return self.serialize(self.run(value, {'serialize': None}, ns=ns), ns, level + 1, limit)
+
+        if isinstance(value, pathlib.Path):
+            return str(value)
+
+        return value
 
     def prepare(self, internal=False):
         assert self.manifest is not None, "Run configure first."
