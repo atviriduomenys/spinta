@@ -25,6 +25,7 @@ class Store:
             'serialize',
             'check',
             'push',
+            'get',
         }
         self.types = None
         self.commands = None
@@ -209,6 +210,11 @@ class Store:
                     })
                 )
         return result
+
+    def get(self, model_name: str, object_id, backend='default', ns='default'):
+        with self.config.backends[backend].transaction() as connection:
+            model = self.objects[ns]['model'][model_name]
+            return self.run(model, {'get': {'connection': connection, 'id': object_id}}, backend=backend, ns=ns)
 
 
 def find_subclasses(Class, modules):

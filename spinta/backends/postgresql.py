@@ -39,11 +39,9 @@ class PostgreSQL(Backend):
             yield connection
 
     def get(self, connection, columns, condition, default=NA):
-        if isinstance(columns, list):
-            scalar = False
-        else:
-            scalar = True
-            columns = [columns]
+        print(type(columns))
+        scalar = isinstance(columns, sa.Column)
+        columns = columns if isinstance(columns, list) else [columns]
 
         result = connection.execute(
             sa.select(columns).where(condition)
@@ -245,3 +243,21 @@ class Push(Command):
                 table.insert().values(data),
             )
             return result.inserted_primary_key[0]
+
+    def inverse(self):
+        # TODO
+        raise NotImplementedError
+
+
+class Get(Command):
+    metadata = {
+        'name': 'get',
+        'type': 'model',
+        'backend': 'postgresql',
+    }
+
+    def execute(self):
+        connection = self.args.connection
+        table = self.backend.tables[self.obj.name]
+        result = self.backend.get(connection, table, table.c.id == self.args.id)
+        return dict(result)

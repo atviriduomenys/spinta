@@ -31,10 +31,11 @@ class Command(metaclass=MetaClass):
         self.args = Args(args)
         self.ctx = {}
 
-    def initialize(self):
-        pass
-
     def execute(self):
+        raise NotImplementedError
+
+    def inverse(self):
+        # Undo everything, that was done with `execute`.
         raise NotImplementedError
 
     def run(self, *args, **kwargs):

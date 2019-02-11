@@ -4,6 +4,7 @@ from spinta.store import Store
 
 
 def test_schema_loader(postgresql):
+    # Configure data store.
     config = {
         'backends': {
             'default': {
@@ -46,6 +47,7 @@ def test_schema_loader(postgresql):
         },
     }
 
+    # Prepare database, run schema migrations.
     store.prepare(internal=True)
     store.migrate(internal=True)
     store.prepare()
@@ -67,6 +69,7 @@ def test_schema_loader(postgresql):
         },
     ])
 
+    # Add few objects to database.
     result = {x.pop('type'): x for x in result}
     assert result == {
         'country': {
@@ -77,4 +80,18 @@ def test_schema_loader(postgresql):
             '<id>': 1,
             'id': result['org']['id'],
         },
+    }
+
+    # Read those objects from database.
+    assert store.get('org', result['org']['id']) == {
+        'id': result['org']['id'],
+        'govid': '0042',
+        'title': 'My Org',
+        'country': result['country']['id'],
+    }
+
+    assert store.get('country', result['country']['id']) == {
+        'id': result['country']['id'],
+        'code': 'lt',
+        'title': 'Lithuania',
     }
