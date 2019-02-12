@@ -1,4 +1,5 @@
-from spinta.types.object import Object, ManifestLoadObject
+from spinta.commands import Command
+from spinta.types.object import Object
 
 
 class Model(Object):
@@ -15,19 +16,20 @@ class Model(Object):
     }
 
 
-class ManifestLoadModel(ManifestLoadObject):
+class ManifestCheckModel(Command):
     metadata = {
-        'name': 'manifest.load',
-        'type': ('model', 'dataset', 'project', 'owner'),
+        'name': 'manifest.check',
+        'type': 'model',
     }
 
     def execute(self):
         super().execute()
-
-        if self.obj.type not in self.store.objects[self.ns]:
-            self.store.objects[self.ns][self.obj.type] = {}
-
-        if self.obj.name in self.store.objects[self.ns][self.obj.type]:
-            raise Exception(f"Object {self.obj.type} with name {self.obj.name} already exist.")
-
-        self.store.objects[self.ns][self.obj.type][self.obj.name] = self.obj
+        primary_keys = []
+        for prop in self.obj.properties.values():
+            if prop.type == 'pk':
+                primary_keys.append(prop)
+        n_pkeys = len(primary_keys)
+        if n_pkeys > 1:
+            self.error(f"Only one primary key is allowed, found {n_pkeys}")
+        elif n_pkeys == 0:
+            self.error(f"At leas one primary key must be defined for model.")

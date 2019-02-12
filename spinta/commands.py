@@ -22,16 +22,20 @@ class MetaClass(type):
 class Command(metaclass=MetaClass):
     metadata = {'name': None, 'type': None, 'backend': None}
 
-    def __init__(self, store, obj, args, backend, ns='default', stack: tuple = ()):
+    def __init__(self, store, obj, name, args, *, base=0, backend=None, ns='default', stack: tuple = ()):
         self.store = store
         self.obj = obj
-        self.backend = backend
-        self.stack = stack
-        self.ns = ns
+        self.name = name
         self.args = Args(args)
-        self.ctx = {}
+        self.base = base
+        self.backend = backend
+        self.ns = ns
+        self.stack = stack
 
     def execute(self):
+        base = self.base + 1
+        if len(self.obj.metadata.bases) > base:
+            return self.run(self.obj, {self.name: self.args.args}, base=base)
         raise NotImplementedError
 
     def inverse(self):
@@ -43,9 +47,9 @@ class Command(metaclass=MetaClass):
         kwargs.setdefault('stack', self.stack + (self,))
         return self.store.run(*args, **kwargs)
 
-    def load_object(self, *args, **kwargs):
+    def load(self, *args, **kwargs):
         kwargs.setdefault('ns', self.ns)
-        return self.store.load_object(*args, **kwargs)
+        return self.store.load(*args, **kwargs)
 
     def error(self, message):
         for cmd in reversed(self.stack):

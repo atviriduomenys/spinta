@@ -6,7 +6,7 @@ from spinta.backends.postgresql import Prepare
 def test_get_table_name():
     backend = MagicMock()
     backend.get.return_value = 42
-    cmd = Prepare(None, None, None, backend)
+    cmd = Prepare(None, None, None, None, backend=backend)
     model = Mock()
 
     model.name = 'org'

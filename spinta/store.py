@@ -4,7 +4,7 @@ import pathlib
 
 import pkg_resources as pres
 
-from spinta.types import Type
+from spinta.types import Type, NA
 from spinta.commands import Command
 
 
@@ -14,6 +14,7 @@ class Store:
         self.modules = [
             'spinta.types',
             'spinta.backends',
+            'spinta.datasets',
         ]
         self.available_commands = {
             'backend.migrate',
@@ -25,7 +26,10 @@ class Store:
             'serialize',
             'check',
             'push',
+            'pull',
             'get',
+            'getall',
+            'csv',
         }
         self.types = None
         self.commands = None
@@ -62,51 +66,63 @@ class Store:
                     raise Exception(f"Command {new} named {Class.metadata.name!r} with {type!r} type is already assigned to {old!r}.")
                 self.commands[key] = Class
 
-    def run(self, obj, call, *, backend=None, ns='default', optional=False, stack=()):
+    def run(self, obj, call, *, base=0, backend=None, ns='default', optional=False, stack=()):
         assert self.commands is not None, "Run add_commands first."
         assert len(stack) < 10
+        assert isinstance(obj, Type), obj
+        assert isinstance(call, dict) and len(call) == 1
 
-        Cmd, args = self.get_command(obj, call, backend)
+        command, args = next(iter(call.items()))
+        backend = self.config.backends[backend] if backend else None
+        backend_type = backend.type if backend else None
+        bases = [cls.metadata.name for cls in obj.metadata.bases[base:] if issubclass(cls, Type)] + [None]
 
-        if Cmd is None:
-            if optional:
-                return
-            if backend:
-                message = f"Command {call!r} not found for {obj} and {backend}."
-            else:
-                message = f"Command {call!r} not found for {obj}."
-            if stack:
-                stack[-1].error(message)
-            else:
-                raise Exception(message)
+        for base, base_name in enumerate(bases, base):
+            key = command, base_name, backend_type
+            if key in self.commands:
+                Cmd = self.commands[key]
+                cmd = Cmd(self, obj, command, args, base=base, backend=backend, ns=ns, stack=stack)
+                return cmd.execute()
+
+        if optional:
+            return
 
         if backend:
-            backend = self.config.backends[backend]
-        else:
-            backend = None
-
-        cmd = Cmd(self, obj, args, backend, ns, stack)
-
-        return cmd.execute()
-
-    def get_command(self, obj, call, backend):
-        assert self.commands is not None, "Run add_commands first."
-        assert isinstance(obj, Type), obj
-        backend = self.config.backends[backend].type if backend else None
-        bases = [cls.metadata.name for cls in obj.metadata.bases if issubclass(cls, Type)] + [None]
-        Cmd = None
-        args = None
-        for name, value in call.items():
+            message = f"Command {call!r} not found for {obj} and {backend!r} backend."
+            Cmd, args = self._get_command(obj, call, None)
             if Cmd is not None:
-                raise Exception(f"Got more than one command in {call!r}.")
-            for base in bases:
-                key = name, base, backend
-                if key in self.commands:
-                    Cmd, args = self.commands[key], value
-                    break
-        return Cmd, args
+                message = f"{message} But there is a command that runs without backend, maybe you want to set backend to None?"
+        else:
+            message = f"Command {call!r} not found for {obj}."
 
-    def load_object(self, data: dict, ns: str = 'default'):
+        if stack:
+            stack[-1].error(message)
+        else:
+            raise Exception(message)
+
+    def configure(self, config):
+        # Configure and check intrnal manifest.
+        assert self.manifest is None, "Store is already configured!"
+        self.objects['internal'] = {}
+        self.manifest = self.load({
+            'type': 'manifest',
+            'name': 'internal',
+            'path': pres.resource_filename('spinta', 'manifest'),
+        }, ns='internal')
+        self.run(self.manifest, {'manifest.check': None}, ns='internal')
+
+        # Load configuration, manifests, backends and etc...
+        self.config = self.load({
+            'type': 'config',
+            'name': 'config',
+            **config,
+        }, ns='internal')
+
+        # Check loaded manifests.
+        for name, manifest in self.config.manifests.items():
+            self.run(manifest, {'manifest.check': None}, ns=name)
+
+    def load(self, data: dict, ns: str = 'default'):
         assert self.types is not None, "Run add_types first."
         assert isinstance(data, dict)
 
@@ -126,26 +142,8 @@ class Store:
 
         Type = self.types[type_name]
         obj = Type()
-        self.run(obj, {'manifest.load': {'data': data}}, ns=ns)
+        self.run(obj, {'manifest.load': {'data': data}}, ns=ns, optional=True)
         return obj
-
-    def configure(self, config):
-        # Configure and check intrnal manifest.
-        assert self.manifest is None, "Store is already configured!"
-        self.objects['internal'] = {}
-        self.manifest = self.load_object({
-            'type': 'manifest',
-            'name': 'internal',
-            'path': pres.resource_filename('spinta', 'manifest'),
-        }, ns='internal')
-        self.run(self.manifest, {'manifest.check': None}, ns='internal')
-
-        # Load configuration, manifests, backends and etc...
-        self.config = self.load_object({'type': 'config', 'name': 'config', **config}, ns='internal')
-
-        # Check loaded manifests.
-        for name, manifest in self.config.manifests.items():
-            self.run(manifest, {'manifest.check': None}, ns=name)
 
     def serialize(self, value=None, ns=None, level=0, limit=99):
         if level > limit:
@@ -211,10 +209,20 @@ class Store:
                 )
         return result
 
+    def pull(self, dataset_name, backend='default', ns='default'):
+        dataset = self.objects[ns]['dataset'][dataset_name]
+        data = self.run(dataset, {'pull': None}, backend=None, ns=ns)
+        return self.push(data, backend=backend, ns=ns)
+
     def get(self, model_name: str, object_id, backend='default', ns='default'):
         with self.config.backends[backend].transaction() as connection:
             model = self.objects[ns]['model'][model_name]
             return self.run(model, {'get': {'connection': connection, 'id': object_id}}, backend=backend, ns=ns)
+
+    def getall(self, model_name: str, backend='default', ns='default'):
+        with self.config.backends[backend].transaction() as connection:
+            model = self.objects[ns]['model'][model_name]
+            yield from self.run(model, {'getall': {'connection': connection}}, backend=backend, ns=ns)
 
 
 def find_subclasses(Class, modules):

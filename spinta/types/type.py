@@ -1,7 +1,7 @@
 import copy
 import pathlib
 
-from spinta.types import NA, Type
+from spinta.types import NA
 from spinta.commands import Command
 
 

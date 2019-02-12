@@ -44,6 +44,9 @@ def test_schema_loader(postgresql):
                 'country': None,
                 'org': None,
             },
+            'dataset': {
+                'csv': None,
+            },
         },
     }
 

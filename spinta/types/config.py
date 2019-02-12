@@ -1,4 +1,5 @@
-from spinta.types.object import Object, ManifestLoadObject
+from spinta.commands import Command
+from spinta.types.object import Object
 
 
 class Config(Object):
@@ -11,7 +12,7 @@ class Config(Object):
     }
 
 
-class ManifestLoadConfig(ManifestLoadObject):
+class LoadConfig(Command):
     metadata = {
         'name': 'manifest.load',
         'type': 'config',
@@ -35,7 +36,7 @@ class ManifestLoadConfig(ManifestLoadObject):
             self.error("'default' backend must be set in the configuration.")
 
         for name, backend in self.obj.backends.items():
-            self.obj.backends[name] = self.load_object({'name': name, **backend})
+            self.obj.backends[name] = self.load({'name': name, **backend})
 
     def load_manifests(self):
         if 'default' not in self.obj.manifests:
@@ -46,4 +47,4 @@ class ManifestLoadConfig(ManifestLoadObject):
 
         for name, manifest in self.obj.manifests.items():
             self.store.objects[name] = {}
-            self.obj.manifests[name] = self.load_object({'type': 'manifest', 'name': name, **manifest}, ns=name)
+            self.obj.manifests[name] = self.load({'type': 'manifest', 'name': name, **manifest}, ns=name)

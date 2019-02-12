@@ -39,7 +39,6 @@ class PostgreSQL(Backend):
             yield connection
 
     def get(self, connection, columns, condition, default=NA):
-        print(type(columns))
         scalar = isinstance(columns, sa.Column)
         columns = columns if isinstance(columns, list) else [columns]
 
@@ -72,7 +71,7 @@ class ManifestLoadBackend(ManifestLoad):
 
     def execute(self):
         super().execute()
-        self.obj.engine = sa.create_engine(self.obj.dsn, echo=True)
+        self.obj.engine = sa.create_engine(self.obj.dsn, echo=False)
         self.obj.schema = sa.MetaData(self.obj.engine)
         self.obj.tables = {}
 
@@ -261,3 +260,22 @@ class Get(Command):
         table = self.backend.tables[self.obj.name]
         result = self.backend.get(connection, table, table.c.id == self.args.id)
         return dict(result)
+
+
+class GetAll(Command):
+    metadata = {
+        'name': 'getall',
+        'type': 'model',
+        'backend': 'postgresql',
+    }
+
+    def execute(self):
+        connection = self.args.connection
+        table = self.backend.tables[self.obj.name]
+
+        result = connection.execute(
+            sa.select([table])
+        )
+
+        for row in result:
+            yield dict(row)

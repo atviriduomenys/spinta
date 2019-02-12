@@ -1,0 +1,11 @@
+---
+name: csv
+type: dataset
+objects:
+  country:
+    source: {csv: 'http://example.com/countries.csv'}
+    identity: 'kodas'
+    properties:
+      code: {source: 'kodas'}
+      title: {source: 'šalis'}
+

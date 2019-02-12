@@ -3,9 +3,14 @@ from ruamel.yaml.parser import ParserError
 
 from spinta.commands import Command
 from spinta.types import Type
-from spinta.types.type import ManifestLoad
 
 yaml = YAML(typ='safe')
+
+
+class Path(Type):
+    metadata = {
+        'name': 'path',
+    }
 
 
 class Manifest(Type):
@@ -17,7 +22,7 @@ class Manifest(Type):
     }
 
 
-class ManifestLoadManifest(ManifestLoad):
+class ManifestLoadManifest(Command):
     metadata = {
         'name': 'manifest.load',
         'type': 'manifest',
@@ -25,7 +30,6 @@ class ManifestLoadManifest(ManifestLoad):
 
     def execute(self):
         super().execute()
-
         for file in self.obj.path.glob('**/*.yml'):
             try:
                 data = yaml.load(file.read_text())
@@ -33,7 +37,16 @@ class ManifestLoadManifest(ManifestLoad):
                 self.error(f"{file}: {e}.")
             if not isinstance(data, dict):
                 self.error(f"{file}: expected dict got {data.__class__.__name__}.")
-            self.load_object({'path': file, **data})
+
+            obj = self.load({'path': file, **data})
+
+            if obj.type not in self.store.objects[self.ns]:
+                self.store.objects[self.ns][obj.type] = {}
+
+            if obj.name in self.store.objects[self.ns][obj.type]:
+                raise Exception(f"Object {obj.type} with name {obj.name} already exist.")
+
+            self.store.objects[self.ns][obj.type][obj.name] = obj
 
 
 class CheckManifest(Command):
