@@ -263,6 +263,14 @@ SQLAlchemy = ">=1.0"
 six = "*"
 
 [[package]]
+category = "dev"
+description = "Implements a topological sort algorithm."
+name = "toposort"
+optional = false
+python-versions = "*"
+version = "1.5"
+
+[[package]]
 category = "main"
 description = "Ultra fast JSON encoder and decoder for Python"
 marker = "sys_platform != \"win32\" and implementation_name == \"cpython\""
@@ -305,7 +313,7 @@ python-versions = ">=3.4"
 version = "6.0"
 
 [metadata]
-content-hash = "4e81b1e583aa9b01334bfce0bd40cb8a660dd0861eecd429dc6d5e7046b8f070"
+content-hash = "ebb1b24ec0351a2871f44cbc863c9abba9a91bc6b3e15b0a17a0f82ddc272ac3"
 python-versions = "^3.7"
 
 [metadata.hashes]
@@ -336,6 +344,7 @@ sanic = ["4ce5ffd9588557caff844da0f4b478d263d0e836fa0204480a2a17958b333fe0", "e1
 six = ["3350809f0555b11f552448330d0b52d5f24c91a322ea4a15ef22629740f3761c", "d16a0141ec1a18405cd4ce8b4613101da75da0e9a7aec5bdd4fa804d0e0eba73"]
 sqlalchemy = ["52a42dbf02d0562d6e90e7af59f177f1cc027e72833cc29c3a821eefa009c71d"]
 sqlalchemy-utils = ["3f1cb542cf0549a0de508d4919f3ad693a36230bf4cd13fdd6253549fec71182"]
+toposort = ["d80128b83b411d503b0cdb4a8f172998bc1d3b434b6402a349b8ebd734d51a80", "dba5ae845296e3bf37b042c640870ffebcdeb8cd4df45adaa01d8c5476c557dd"]
 ujson = ["f66073e5506e91d204ab0c614a148d5aa938bdbf104751be66f8ad7a222f5f86"]
 unidecode = ["092cdf7ad9d1052c50313426a625b717dab52f7ac58f859e09ea020953b1ad8f", "8b85354be8fd0c0e10adbf0675f6dc2310e56fda43fa8fe049123b6c475e52fb"]
 urllib3 = ["61bf29cada3fc2fbefad4fdf059ea4bd1b4a86d2b6d15e1c7c0b582b9752fe39", "de9529817c93f27c8ccbfead6985011db27bd0ddfcdb2d86f3f663385c6a9c22"]

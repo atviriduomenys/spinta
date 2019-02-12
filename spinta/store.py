@@ -29,6 +29,7 @@ class Store:
             'pull',
             'get',
             'getall',
+            'wipe',
             'csv',
         }
         self.types = None
@@ -215,14 +216,19 @@ class Store:
         return self.push(data, backend=backend, ns=ns)
 
     def get(self, model_name: str, object_id, backend='default', ns='default'):
+        model = self.objects[ns]['model'][model_name]
         with self.config.backends[backend].transaction() as connection:
-            model = self.objects[ns]['model'][model_name]
             return self.run(model, {'get': {'connection': connection, 'id': object_id}}, backend=backend, ns=ns)
 
     def getall(self, model_name: str, backend='default', ns='default'):
+        model = self.objects[ns]['model'][model_name]
         with self.config.backends[backend].transaction() as connection:
-            model = self.objects[ns]['model'][model_name]
             yield from self.run(model, {'getall': {'connection': connection}}, backend=backend, ns=ns)
+
+    def wipe(self, model_name: str, backend='default', ns='default'):
+        model = self.objects[ns]['model'][model_name]
+        with self.config.backends[backend].transaction() as connection:
+            self.run(model, {'wipe': {'connection': connection}}, backend=backend, ns=ns)
 
 
 def find_subclasses(Class, modules):

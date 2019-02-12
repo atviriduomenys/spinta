@@ -1,29 +1,4 @@
-import pathlib
-
-from spinta.store import Store
-
-
-def test_schema_loader(postgresql):
-    # Configure data store.
-    config = {
-        'backends': {
-            'default': {
-                'type': 'postgresql',
-                'dsn': postgresql,
-            },
-        },
-        'manifests': {
-            'default': {
-                'path': pathlib.Path(__file__).parent / 'manifest',
-            },
-        },
-    }
-
-    store = Store()
-    store.add_types()
-    store.add_commands()
-    store.configure(config)
-
+def test_schema_loader(store):
     assert store.serialize(limit=3) == {
         'internal': {
             'config': {
@@ -49,12 +24,6 @@ def test_schema_loader(postgresql):
             },
         },
     }
-
-    # Prepare database, run schema migrations.
-    store.prepare(internal=True)
-    store.migrate(internal=True)
-    store.prepare()
-    store.migrate()
 
     result = store.push([
         {

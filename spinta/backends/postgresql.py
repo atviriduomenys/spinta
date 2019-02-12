@@ -279,3 +279,16 @@ class GetAll(Command):
 
         for row in result:
             yield dict(row)
+
+
+class Wipe(Command):
+    metadata = {
+        'name': 'wipe',
+        'type': 'model',
+        'backend': 'postgresql',
+    }
+
+    def execute(self):
+        connection = self.args.connection
+        table = self.backend.tables[self.obj.name]
+        connection.execute(table.delete())
