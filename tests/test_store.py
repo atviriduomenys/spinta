@@ -11,6 +11,7 @@ def test_schema_loader(store):
                 'type': None,
             },
             'model': {
+                'transaction': None,
                 'model': None,
             },
         },

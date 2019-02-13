@@ -15,6 +15,12 @@ class Model(Object):
         },
     }
 
+    def get_primary_key(self):
+        for prop in self.properties.values():
+            if prop.type == 'pk':
+                return prop
+        raise Exception(f"{self} does not have a primary key.")
+
 
 class ManifestCheckModel(Command):
     metadata = {

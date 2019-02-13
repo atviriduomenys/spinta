@@ -48,6 +48,8 @@ def store(postgresql):
             if model:
                 store.wipe(model)
 
+    store.wipe('transaction', ns='internal')
+
 
 @pytest.fixture(scope='session')
 def postgresql():

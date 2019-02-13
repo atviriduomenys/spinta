@@ -3,14 +3,17 @@ import datetime
 import hashlib
 import itertools
 import re
+import typing
 
 import unidecode
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.sql.expression import FunctionElement
 
 from spinta.types import NA
 from spinta.commands import Command
 from spinta.backends import Backend
-from spinta.types.type import ManifestLoad
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -19,6 +22,9 @@ NAMEDATALEN = 63
 
 
 PG_CLEAN_NAME_RE = re.compile(r'[^a-z0-9]+', re.IGNORECASE)
+
+MAIN_TABLE = 'M'
+CHANGES_TABLE = 'C'
 
 
 class PostgreSQL(Backend):
@@ -34,9 +40,22 @@ class PostgreSQL(Backend):
     tables = None
 
     @contextlib.contextmanager
-    def transaction(self):
+    def transaction(self, write=False):
         with self.engine.begin() as connection:
-            yield connection
+            if write:
+                table = self.tables['transaction']
+                result = self.engine.execute(
+                    table.main.insert().values(
+                        datetime=utcnow(),
+                        client_type='',
+                        client_id='',
+                        errors=0,
+                    )
+                )
+                transaction_id = result.inserted_primary_key[0]
+                yield WriteTransaction(connection, transaction_id)
+            else:
+                yield ReadTransaction(connection)
 
     def get(self, connection, columns, condition, default=NA):
         scalar = isinstance(columns, sa.Column)
@@ -63,7 +82,21 @@ class PostgreSQL(Backend):
             raise Exception("Multiple rows were found.")
 
 
-class ManifestLoadBackend(ManifestLoad):
+class ReadTransaction:
+
+    def __init__(self, connection):
+        self.connection = connection
+
+
+class WriteTransaction(ReadTransaction):
+
+    def __init__(self, connection, id):
+        super().__init__(connection)
+        self.id = id
+        self.errors = 0
+
+
+class LoadBackend(Command):
     metadata = {
         'name': 'manifest.load',
         'type': 'postgresql',
@@ -84,7 +117,7 @@ class Prepare(Command):
     }
 
     def execute(self):
-        for model_name, model in self.store.objects[self.ns]['model'].items():
+        for model in self.store.objects[self.ns]['model'].values():
             if self.store.config.backends[model.backend].type == self.backend.type:
                 columns = []
                 for prop_name, prop in model.properties.items():
@@ -94,11 +127,15 @@ class Prepare(Command):
                         )
                     elif prop.type == 'string':
                         columns.append(
-                            sa.Column(prop_name, sa.String(255))
+                            sa.Column(prop_name, sa.Text)
                         )
                     elif prop.type == 'date':
                         columns.append(
                             sa.Column(prop_name, sa.Date)
+                        )
+                    elif prop.type == 'datetime':
+                        columns.append(
+                            sa.Column(prop_name, sa.DateTime)
                         )
                     elif prop.type == 'integer':
                         columns.append(
@@ -110,8 +147,30 @@ class Prepare(Command):
                         )
                     else:
                         self.error(f"Unknown property type {prop.type}.")
-                table_name = self.get_table_name(model)
-                self.backend.tables[model_name] = sa.Table(table_name, self.backend.schema, *columns)
+                self.create_model_tables(model, columns)
+
+    def create_model_tables(self, model, columns):
+        # Create main table.
+        main_table_name = self.get_table_name(model, MAIN_TABLE)
+        main_table = sa.Table(
+            main_table_name, self.backend.schema,
+            sa.Column('_transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
+            *columns,
+        )
+
+        # Create changes table.
+        changes_table_name = self.get_table_name(model, CHANGES_TABLE)
+        changes_table = sa.Table(
+            changes_table_name, self.backend.schema,
+            sa.Column('change_id', sa.Integer, primary_key=True),
+            sa.Column('transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
+            sa.Column('id', sa.Integer),  # reference to main table
+            sa.Column('datetime', sa.DateTime),
+            sa.Column('action', sa.String(8)),  # insert, update, delete
+            sa.Column('change', JSONB),
+        )
+
+        self.backend.tables[model.name] = ModelTables(main_table, changes_table)
 
     def get_model(self, model_name):
         return self.store.objects[self.ns]['model'][model_name]
@@ -119,7 +178,7 @@ class Prepare(Command):
     def get_foreign_key(self, model, prop):
         ref_model = self.get_model(prop.object)
         table_name = self.get_table_name(ref_model)
-        pkey_name = self.get_model_primary_key(ref_model).name
+        pkey_name = ref_model.get_primary_key().name
         return [
             sa.Column(prop.name, sa.Integer),
             sa.ForeignKeyConstraint(
@@ -128,14 +187,11 @@ class Prepare(Command):
             )
         ]
 
-    def get_model_primary_key(self, model):
-        for prop in model.properties.values():
-            if prop.type == 'pk':
-                return prop
-        raise Exception(f"{model} does not have a primary key.")
-
-    def get_table_name(self, model):
-        table = self.backend.tables['model']
+    def get_table_name(self, model, table_type=MAIN_TABLE):
+        assert isinstance(table_type, str)
+        assert len(table_type) == 1
+        assert table_type.isupper()
+        table = self.backend.tables['model'].main
         model_id = self.backend.get(self.backend.engine, table.c.id, table.c.name == model.name, default=None)
         if model_id is None:
             result = self.backend.engine.execute(
@@ -148,9 +204,9 @@ class Prepare(Command):
         name = unidecode.unidecode(model.name)
         name = PG_CLEAN_NAME_RE.sub('_', name)
         name = name.upper()
-        name = name[:NAMEDATALEN - 5]
+        name = name[:NAMEDATALEN - 6]
         name = name.rstrip('_')
-        return f"{name}_{model_id:04d}"
+        return f"{name}_{model_id:04d}{table_type}"
 
     def get_pg_name(self, name):
         if len(name) > NAMEDATALEN:
@@ -167,8 +223,17 @@ class PrepareInternal(Prepare):
         'backend': 'postgresql',
     }
 
-    def get_table_name(self, model):
-        return model.name
+    def get_table_name(self, model, table_type=MAIN_TABLE):
+        if table_type == MAIN_TABLE:
+            # Don not use table type suffix for the main table.
+            return model.name
+        else:
+            return f'{model.name}_{table_type}'
+
+
+class ModelTables(typing.NamedTuple):
+    main: sa.Table
+    changes: sa.Table = None
 
 
 class Migrate(Command):
@@ -198,17 +263,25 @@ class Check(Command):
     }
 
     def execute(self):
-        connection = self.args.connection
+        connection = self.args.transaction.connection
         data = self.args.data
-        table = self.backend.tables[self.obj.name]
+        table = self.backend.tables[self.obj.name].main
+        action = 'update' if 'id' in data else 'insert'
 
         for name, prop in self.obj.properties.items():
             if prop.required and name not in data:
                 raise Exception(f"{name!r} is required for {self.obj}.")
 
-            if prop.unique:
+            if prop.unique and prop.name in data:
+                if action == 'update':
+                    condition = sa.and_(
+                        table.c[prop.name] == data[prop.name],
+                        table.c['id'] != data['id'],
+                    )
+                else:
+                    condition = table.c[prop.name] == data[prop.name]
                 na = object()
-                result = self.backend.get(connection, table.c[prop.name], table.c[prop.name] == data[prop.name], default=na)
+                result = self.backend.get(connection, table.c[prop.name], condition, default=na)
                 if result is not na:
                     raise Exception(f"{name!r} is unique for {self.obj} and a duplicate value is found in database.")
 
@@ -221,31 +294,46 @@ class Push(Command):
     }
 
     def execute(self):
-        connection = self.args.connection
+        transaction = self.args.transaction
+        connection = transaction.connection
         data = self.args.data
         table = self.backend.tables[self.obj.name]
 
+        # Update existing row.
         if 'id' in data:
+            action = 'update'
             result = connection.execute(
-                table.update().
-                where(table.c.id == data['id']).
+                table.main.update().
+                where(table.main.c.id == data['id']).
                 values(data)
             )
             if result.rowcount == 1:
-                return data['id']
+                row_id = data['id']
             elif result.rowcount == 0:
                 raise Exception("Update failed, {self.obj} with {data['id']} not found.")
             else:
                 raise Exception("Update failed, {self.obj} with {data['id']} has found and update {result.rowcount} rows.")
-        else:
-            result = connection.execute(
-                table.insert().values(data),
-            )
-            return result.inserted_primary_key[0]
 
-    def inverse(self):
-        # TODO
-        raise NotImplementedError
+        # Insert new row.
+        else:
+            action = 'insert'
+            result = connection.execute(
+                table.main.insert().values(data),
+            )
+            row_id = result.inserted_primary_key[0]
+
+        # Track changes.
+        connection.execute(
+            table.changes.insert().values(
+                transaction_id=transaction.id,
+                id=row_id,
+                datetime=utcnow(),
+                action=action,
+                change={k: v for k, v in data.items() if k not in {'id'}},
+            ),
+        )
+
+        return row_id
 
 
 class Get(Command):
@@ -256,10 +344,10 @@ class Get(Command):
     }
 
     def execute(self):
-        connection = self.args.connection
-        table = self.backend.tables[self.obj.name]
+        connection = self.args.transaction.connection
+        table = self.backend.tables[self.obj.name].main
         result = self.backend.get(connection, table, table.c.id == self.args.id)
-        return dict(result)
+        return {k: v for k, v in result.items() if not k.startswith('_')}
 
 
 class GetAll(Command):
@@ -270,15 +358,15 @@ class GetAll(Command):
     }
 
     def execute(self):
-        connection = self.args.connection
-        table = self.backend.tables[self.obj.name]
+        connection = self.args.transaction.connection
+        table = self.backend.tables[self.obj.name].main
 
         result = connection.execute(
             sa.select([table])
         )
 
         for row in result:
-            yield dict(row)
+            yield {k: v for k, v in row.items() if not k.startswith('_')}
 
 
 class Wipe(Command):
@@ -289,6 +377,19 @@ class Wipe(Command):
     }
 
     def execute(self):
-        connection = self.args.connection
-        table = self.backend.tables[self.obj.name]
-        connection.execute(table.delete())
+        connection = self.args.transaction.connection
+
+        changes = self.backend.tables[self.obj.name].changes
+        connection.execute(changes.delete())
+
+        main = self.backend.tables[self.obj.name].main
+        connection.execute(main.delete())
+
+
+class utcnow(FunctionElement):
+    type = sa.DateTime()
+
+
+@compiles(utcnow, 'postgresql')
+def pg_utcnow(element, compiler, **kw):
+    return "TIMEZONE('utc', CURRENT_TIMESTAMP)"

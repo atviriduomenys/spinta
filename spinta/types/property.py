@@ -33,6 +33,12 @@ class Date(Property):
     }
 
 
+class DateTime(Property):
+    metadata = {
+        'name': 'datetime',
+    }
+
+
 class String(Property):
     metadata = {
         'name': 'string',

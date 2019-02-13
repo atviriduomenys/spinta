@@ -195,13 +195,13 @@ class Store:
     def push(self, stream, backend='default', ns='default'):
         result = []
         client_supplied_ids = ClientSuppliedIDs()
-        with self.config.backends[backend].transaction() as connection:
+        with self.config.backends[backend].transaction(write=True) as transaction:
             for data in stream:
                 data = dict(data)
                 model = self.objects[ns]['model'][data.pop('type')]
                 client_id = client_supplied_ids.replace(model, data)
-                self.run(model, {'check': {'connection': connection, 'data': data}}, backend=backend, ns=ns)
-                inserted_id = self.run(model, {'push': {'connection': connection, 'data': data}}, backend=backend, ns=ns)
+                self.run(model, {'check': {'transaction': transaction, 'data': data}}, backend=backend, ns=ns)
+                inserted_id = self.run(model, {'push': {'transaction': transaction, 'data': data}}, backend=backend, ns=ns)
                 result.append(
                     client_supplied_ids.update(client_id, {
                         'type': model.name,
@@ -217,18 +217,18 @@ class Store:
 
     def get(self, model_name: str, object_id, backend='default', ns='default'):
         model = self.objects[ns]['model'][model_name]
-        with self.config.backends[backend].transaction() as connection:
-            return self.run(model, {'get': {'connection': connection, 'id': object_id}}, backend=backend, ns=ns)
+        with self.config.backends[backend].transaction() as transaction:
+            return self.run(model, {'get': {'transaction': transaction, 'id': object_id}}, backend=backend, ns=ns)
 
     def getall(self, model_name: str, backend='default', ns='default'):
         model = self.objects[ns]['model'][model_name]
-        with self.config.backends[backend].transaction() as connection:
-            yield from self.run(model, {'getall': {'connection': connection}}, backend=backend, ns=ns)
+        with self.config.backends[backend].transaction() as transaction:
+            yield from self.run(model, {'getall': {'transaction': transaction}}, backend=backend, ns=ns)
 
     def wipe(self, model_name: str, backend='default', ns='default'):
         model = self.objects[ns]['model'][model_name]
-        with self.config.backends[backend].transaction() as connection:
-            self.run(model, {'wipe': {'connection': connection}}, backend=backend, ns=ns)
+        with self.config.backends[backend].transaction() as transaction:
+            self.run(model, {'wipe': {'transaction': transaction}}, backend=backend, ns=ns)
 
 
 def find_subclasses(Class, modules):
