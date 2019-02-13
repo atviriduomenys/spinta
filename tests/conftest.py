@@ -1,3 +1,4 @@
+import os
 import collections
 import pathlib
 
@@ -53,11 +54,14 @@ def store(postgresql):
 
 @pytest.fixture(scope='session')
 def postgresql():
-    dsn = 'postgresql:///spinta_tests'
-    assert not su.database_exists(dsn), 'Test database already exists. Aborting tests.'
-    su.create_database(dsn)
-    yield dsn
-    su.drop_database(dsn)
+    if 'SPINTA_TEST_DATABASE' in os.environ:
+        yield os.environ['SPINTA_TEST_DATABASE']
+    else:
+        dsn = 'postgresql:///spinta_tests'
+        assert not su.database_exists(dsn), 'Test database already exists. Aborting tests.'
+        su.create_database(dsn)
+        yield dsn
+        su.drop_database(dsn)
 
 
 @pytest.fixture

@@ -1,11 +1,22 @@
 dist: xenial
 language: python
 python: 3.7
+
+services:
+  - postgresql
+
 env:
   - PATH=$HOME/.poetry/bin:$PATH
+  - SPINTA_TEST_DATABASE=postgresql://localhost/spinta
+
 before_install:
   - curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py | python
+
 install:
   - poetry install
+
+before_script:
+  - psql -c 'create database spinta;' -U postgres
+
 script:
   - poetry run py.test -vvra --tb=native --cov-report=term-missing --cov=spinta tests
