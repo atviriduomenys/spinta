@@ -28,8 +28,8 @@ def test_changes(store):
     store.push([{**data, 'code': 'lv', 'title': "Latvia"}])
 
     backend = store.config.backends['default']
-    txn = backend.tables['transaction'].main
-    changes = backend.tables['country'].changes
+    txn = backend.tables['internal']['transaction'].main
+    changes = backend.tables['default']['country'].changes
     with backend.transaction() as transaction:
         c = transaction.connection
         assert len(c.execute(sa.select([txn.c.id])).fetchall()) == 3

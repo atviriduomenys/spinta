@@ -43,7 +43,7 @@ class PostgreSQL(Backend):
     def transaction(self, write=False):
         with self.engine.begin() as connection:
             if write:
-                table = self.tables['transaction']
+                table = self.tables['internal']['transaction']
                 result = self.engine.execute(
                     table.main.insert().values(
                         datetime=utcnow(),
@@ -117,6 +117,8 @@ class Prepare(Command):
     }
 
     def execute(self):
+        if self.ns not in self.backend.tables:
+            self.backend.tables[self.ns] = {}
         for model in self.store.objects[self.ns]['model'].values():
             if self.store.config.backends[model.backend].type == self.backend.type:
                 columns = []
@@ -170,7 +172,7 @@ class Prepare(Command):
             sa.Column('change', JSONB),
         )
 
-        self.backend.tables[model.name] = ModelTables(main_table, changes_table)
+        self.backend.tables[self.ns][model.name] = ModelTables(main_table, changes_table)
 
     def get_model(self, model_name):
         return self.store.objects[self.ns]['model'][model_name]
@@ -191,7 +193,7 @@ class Prepare(Command):
         assert isinstance(table_type, str)
         assert len(table_type) == 1
         assert table_type.isupper()
-        table = self.backend.tables['model'].main
+        table = self.backend.tables['internal']['model'].main
         model_id = self.backend.get(self.backend.engine, table.c.id, table.c.name == model.name, default=None)
         if model_id is None:
             result = self.backend.engine.execute(
@@ -265,7 +267,7 @@ class Check(Command):
     def execute(self):
         connection = self.args.transaction.connection
         data = self.args.data
-        table = self.backend.tables[self.obj.name].main
+        table = self.backend.tables[self.ns][self.obj.name].main
         action = 'update' if 'id' in data else 'insert'
 
         for name, prop in self.obj.properties.items():
@@ -297,7 +299,7 @@ class Push(Command):
         transaction = self.args.transaction
         connection = transaction.connection
         data = self.args.data
-        table = self.backend.tables[self.obj.name]
+        table = self.backend.tables[self.ns][self.obj.name]
 
         # Update existing row.
         if 'id' in data:
@@ -345,7 +347,7 @@ class Get(Command):
 
     def execute(self):
         connection = self.args.transaction.connection
-        table = self.backend.tables[self.obj.name].main
+        table = self.backend.tables[self.ns][self.obj.name].main
         result = self.backend.get(connection, table, table.c.id == self.args.id)
         return {k: v for k, v in result.items() if not k.startswith('_')}
 
@@ -359,7 +361,7 @@ class GetAll(Command):
 
     def execute(self):
         connection = self.args.transaction.connection
-        table = self.backend.tables[self.obj.name].main
+        table = self.backend.tables[self.ns][self.obj.name].main
 
         result = connection.execute(
             sa.select([table])
@@ -379,10 +381,10 @@ class Wipe(Command):
     def execute(self):
         connection = self.args.transaction.connection
 
-        changes = self.backend.tables[self.obj.name].changes
+        changes = self.backend.tables[self.ns][self.obj.name].changes
         connection.execute(changes.delete())
 
-        main = self.backend.tables[self.obj.name].main
+        main = self.backend.tables[self.ns][self.obj.name].main
         connection.execute(main.delete())
 
 
