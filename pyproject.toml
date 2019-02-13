@@ -27,6 +27,7 @@ pytest-mock = "^1.10"
 sqlalchemy-utils = "^0.33.11"
 responses = "^0.10.5"
 toposort = "^1.5"
+pytest-cov = "^2.6"
 
 [build-system]
 requires = ["poetry>=0.12"]
