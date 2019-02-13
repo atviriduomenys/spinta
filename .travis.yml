@@ -6,8 +6,7 @@ services:
   - postgresql
 
 env:
-  - PATH=$HOME/.poetry/bin:$PATH
-  - SPINTA_TEST_DATABASE=postgresql://localhost/spinta
+  - PATH=$HOME/.poetry/bin:$PATH SPINTA_TEST_DATABASE=postgresql://localhost/spinta
 
 before_install:
   - curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py | python
