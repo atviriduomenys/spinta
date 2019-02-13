@@ -1,7 +1,10 @@
 This data store allows you to take full control of your data.
 
 .. image:: https://travis-ci.com/atviriduomenys/spinta.svg?branch=master
-    :target: https://travis-ci.com/atviriduomenys/spinta
+   :target: https://travis-ci.com/atviriduomenys/spinta
+
+.. image:: https://codecov.io/gh/atviriduomenys/spinta/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/atviriduomenys/spinta
 
 
 Features

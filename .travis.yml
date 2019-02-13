@@ -20,3 +20,6 @@ before_script:
 
 script:
   - poetry run py.test -vvra --tb=native --cov-report=term-missing --cov=spinta tests
+
+after_script:
+  - poetry run codecov
