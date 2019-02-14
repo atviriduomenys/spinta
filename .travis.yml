@@ -9,7 +9,7 @@ env:
   - SPINTA_TEST_DATABASE=postgresql://localhost/spinta
 
 install:
-  - pip install -r requirements-dev.txt
+  - pip install -r requirements-dev.txt -e .
 
 before_script:
   - psql -c 'create database spinta;' -U postgres
