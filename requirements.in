@@ -1,0 +1,7 @@
+asyncpg
+click
+psycopg2-binary
+ruamel.yaml
+setuptools
+sqlalchemy
+unidecode
