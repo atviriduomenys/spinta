@@ -1,5 +1,6 @@
 from spinta.commands import Command
 from spinta.types import Type
+from spinta.types.object import Object
 
 
 class Project(Type):
@@ -31,13 +32,15 @@ class Impact(Type):
     }
 
 
-class Model(Type):
+class Model(Object):
     metadata = {
         'name': 'project.model',
         'properties': {
             'properties': {'type': 'object', 'default': {}},
         },
     }
+
+    property_type = 'project.property'
 
 
 class Property(Type):
@@ -47,23 +50,6 @@ class Property(Type):
             'enum': {'type': 'array'},
         },
     }
-
-
-class LoadProject(Command):
-    metadata = {
-        'name': 'manifest.load',
-        'type': 'project',
-    }
-
-    def execute(self):
-        super().execute()
-        assert isinstance(self.obj.objects, dict)
-        for name, obj in self.obj.objects.items():
-            self.obj.objects[name] = self.load({
-                'type': 'project.model',
-                'name': name,
-                **(obj or {}),
-            })
 
 
 class LoadModel(Command):

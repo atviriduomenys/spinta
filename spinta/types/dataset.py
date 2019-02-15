@@ -1,5 +1,6 @@
 from spinta.commands import Command
 from spinta.types import Type
+from spinta.types.object import Object
 
 
 class Dataset(Type):
@@ -18,7 +19,7 @@ class Dataset(Type):
     }
 
 
-class Model(Type):
+class Model(Object):
     metadata = {
         'name': 'dataset.model',
         'properties': {
@@ -29,6 +30,8 @@ class Model(Type):
             'local': {'type': 'boolean'},
         },
     }
+
+    property_type = 'dataset.property'
 
 
 class Property(Type):
@@ -58,23 +61,6 @@ class LoadDataset(Command):
                 'type': 'dataset.model',
                 'name': name,
                 **(obj or {}),
-            })
-
-
-class LoadModel(Command):
-    metadata = {
-        'name': 'manifest.load',
-        'type': 'dataset.model',
-    }
-
-    def execute(self):
-        super().execute()
-        assert isinstance(self.obj.properties, dict)
-        for name, prop in self.obj.properties.items():
-            self.obj.properties[name] = self.load({
-                'type': 'dataset.property',
-                'name': name,
-                **(prop or {}),
             })
 
 

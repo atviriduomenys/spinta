@@ -10,6 +10,8 @@ class Object(Type):
         },
     }
 
+    property_type = 'property'
+
 
 class LoadObject(Command):
     metadata = {
@@ -21,7 +23,11 @@ class LoadObject(Command):
         super().execute()
         assert isinstance(self.obj.properties, dict)
         for name, prop in self.obj.properties.items():
-            self.obj.properties[name] = self.load({'name': name, **prop})
+            self.obj.properties[name] = self.load({
+                'type': self.obj.property_type,
+                'name': name,
+                **(prop or {}),
+            })
 
 
 class CheckObject(Command):
