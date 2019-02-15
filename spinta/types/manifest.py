@@ -1,6 +1,8 @@
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
+from ruamel.yaml.scanner import ScannerError
 
+from spinta.utils.path import is_ignored
 from spinta.commands import Command
 from spinta.types import Type
 
@@ -30,21 +32,25 @@ class ManifestLoadManifest(Command):
 
     def execute(self):
         super().execute()
+
         for file in self.obj.path.glob('**/*.yml'):
+            if is_ignored(self.store.config.ignore, self.obj.path, file):
+                continue
+
             try:
                 data = yaml.load(file.read_text())
-            except ParserError as e:
+            except (ParserError, ScannerError) as e:
                 self.error(f"{file}: {e}.")
             if not isinstance(data, dict):
                 self.error(f"{file}: expected dict got {data.__class__.__name__}.")
 
-            obj = self.load({'path': file, **data})
+            obj = self.load({'path': file, 'manifest': self.obj, **data})
 
             if obj.type not in self.store.objects[self.ns]:
                 self.store.objects[self.ns][obj.type] = {}
 
             if obj.name in self.store.objects[self.ns][obj.type]:
-                raise Exception(f"Object {obj.type} with name {obj.name} already exist.")
+                self.error(f"Object {obj.type} with name {obj.name} already exist.")
 
             self.store.objects[self.ns][obj.type][obj.name] = obj
 

@@ -7,11 +7,13 @@ class Model(Object):
         'name': 'model',
         'properties': {
             'path': {'type': 'path', 'required': True},
+            'manifest': {'type': 'manifest', 'required': True},
             'unique': {'type': 'array', 'default': []},
             'extends': {'type': 'string'},
             'backend': {'type': 'string', 'default': 'default'},
             'version': {'type': 'integer', 'required': True},
             'date': {'type': 'date', 'required': True},
+            'link': {'type': 'string'},
         },
     }
 
@@ -22,7 +24,7 @@ class Model(Object):
         raise Exception(f"{self} does not have a primary key.")
 
 
-class ManifestCheckModel(Command):
+class CheckModel(Command):
     metadata = {
         'name': 'manifest.check',
         'type': 'model',
@@ -30,12 +32,20 @@ class ManifestCheckModel(Command):
 
     def execute(self):
         super().execute()
-        primary_keys = []
-        for prop in self.obj.properties.values():
-            if prop.type == 'pk':
-                primary_keys.append(prop)
-        n_pkeys = len(primary_keys)
+        self.check_primary_key()
+        self.check_reserved_names()
+
+    def check_primary_key(self):
+        pkeys = {name for name, prop in self.obj.properties.items() if prop.type == 'pk'}
+        n_pkeys = len(pkeys)
         if n_pkeys > 1:
-            self.error(f"Only one primary key is allowed, found {n_pkeys}")
-        elif n_pkeys == 0:
-            self.error(f"At leas one primary key must be defined for model.")
+            self.error("Only one primary key is allowed, found {n_pkeys}.")
+        if n_pkeys == 0:
+            self.error("Primary key is required, add `id: {type: pk}` to the model.")
+        pkey = next(iter(pkeys))
+        if pkey != 'id':
+            self.error("Primary key must be named 'id', but a primary key named {pkey!r} is found. Change it to 'id'.")
+
+    def check_reserved_names(self):
+        if 'type' in self.obj.properties:
+            self.error("'type' is a reserved name, and cannot by used as property name.")

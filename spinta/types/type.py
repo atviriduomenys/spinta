@@ -45,8 +45,8 @@ class ManifestLoad(Command):
 
         unknown_keys = set(self.args.data.keys()) - set(self.obj.metadata.properties.keys())
         if unknown_keys:
-            keys = ', '.join(map(repr, unknown_keys))
-            self.error(f"{self.obj} does not have following parameters: {keys}.")
+            keys = '\n  - '.join(unknown_keys)
+            self.error(f"Unknown parameters:\n  - {keys}")
 
 
 class Serialize(Command):

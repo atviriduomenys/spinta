@@ -49,14 +49,26 @@ class Command(metaclass=MetaClass):
 
     def load(self, *args, **kwargs):
         kwargs.setdefault('ns', self.ns)
+        kwargs.setdefault('stack', self.stack + (self,))
         return self.store.load(*args, **kwargs)
 
     def error(self, message):
-        for cmd in reversed(self.stack):
-            if hasattr(cmd.obj, 'path'):
-                path = cmd.obj.path
-                raise Exception(f"{path}: {message}")
-        raise Exception(message)
+        stack = []
+        for func in self.stack + (self,):
+            params = [
+                ('type', getattr(func.obj, 'type', None) or '(unknown)'),
+                ('  name', getattr(func.obj, 'name', None)),
+                ('  path', getattr(func.obj, 'path', None)),
+                ('  class', f'{func.obj.__class__.__module__}.{func.obj.__class__.__name__}'),
+                ('command', func.metadata.name or '(unknown)'),
+                ('  class', f'{func.__class__.__module__}.{func.__class__.__name__}'),
+                ('  backend', func.metadata.backend),
+            ]
+            stack.append('- ' + '\n  '.join(
+                [f'{k}: {v}' for k, v in params if v]
+            ) + '\n')
+        stack = '\n'.join(filter(None, stack))
+        raise CommandError(f"Command error:\n\n{stack}\n{message}")
 
 
 class Args:
@@ -69,3 +81,7 @@ class Args:
 
     def __call__(self, **kwargs):
         return {**self.args, **kwargs}
+
+
+class CommandError(Exception):
+    pass

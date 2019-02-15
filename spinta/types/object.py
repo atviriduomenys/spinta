@@ -33,15 +33,3 @@ class CheckObject(Command):
     def execute(self):
         for prop in self.obj.properties.values():
             self.run(prop, {'manifest.check': None}, optional=True)
-
-
-class Project(Object):
-    metadata = {
-        'name': 'project',
-    }
-
-
-class Owner(Object):
-    metadata = {
-        'name': 'owner',
-    }

@@ -4,7 +4,7 @@ import pathlib
 
 import pkg_resources as pres
 
-from spinta.types import Type, NA
+from spinta.types import Type
 from spinta.commands import Command
 
 
@@ -23,6 +23,8 @@ class Store:
             'backend.prepare.internal',
             'manifest.check',
             'manifest.load',
+            'manifest.load.backends',
+            'manifest.load.manifests',
             'serialize',
             'check',
             'push',
@@ -88,22 +90,21 @@ class Store:
         if optional:
             return
 
-        if backend:
-            message = f"Command {call!r} not found for {obj} and {backend!r} backend."
-            Cmd, args = self._get_command(obj, call, None)
-            if Cmd is not None:
-                message = f"{message} But there is a command that runs without backend, maybe you want to set backend to None?"
-        else:
-            message = f"Command {call!r} not found for {obj}."
-
-        if stack:
-            stack[-1].error(message)
-        else:
-            raise Exception(message)
+        keys = []
+        for base, base_name in enumerate(bases, base):
+            keys.append(f'{command}, type: {base_name}, backend: {backend_type}')
+        keys = '\n  - ' + '\n  - '.join(keys)
+        message = f"Can't find command {command!r} for {obj.type}. Tried to look for these commands:{keys}"
+        cmd = Command(self, obj, command, args, base=base, backend=backend, ns=ns, stack=stack)
+        cmd.error(message)
 
     def configure(self, config):
+        assert self.config is None, "Store is already configured!"
+
+        # Load configuration, manifests, backends and etc...
+        self.config = self.load({'type': 'config', 'name': 'config', **config}, ns='internal')
+
         # Configure and check intrnal manifest.
-        assert self.manifest is None, "Store is already configured!"
         self.objects['internal'] = {}
         self.manifest = self.load({
             'type': 'manifest',
@@ -112,18 +113,15 @@ class Store:
         }, ns='internal')
         self.run(self.manifest, {'manifest.check': None}, ns='internal')
 
-        # Load configuration, manifests, backends and etc...
-        self.config = self.load({
-            'type': 'config',
-            'name': 'config',
-            **config,
-        }, ns='internal')
+        # Load backends and manifests.
+        self.run(self.config, {'manifest.load.backends': None}, ns='internal')
+        self.run(self.config, {'manifest.load.manifests': None}, ns='internal')
 
         # Check loaded manifests.
         for name, manifest in self.config.manifests.items():
             self.run(manifest, {'manifest.check': None}, ns=name)
 
-    def load(self, data: dict, ns: str = 'default'):
+    def load(self, data: dict, ns: str = 'default', stack=()):
         assert self.types is not None, "Run add_types first."
         assert isinstance(data, dict)
 
@@ -133,18 +131,25 @@ class Store:
             if isinstance(data['const'], str):
                 type_name = 'string'
             else:
-                raise Exception(f"Unknown data type of {data['const']!r} constant.")
+                self._load_error(data, ns, stack, f"Unknown data type of {data['const']!r} constant.")
 
         if type_name is None:
-            raise Exception(f"Required parameter 'type' is not set.")
+            self._load_error(data, ns, stack, f"Required parameter 'type' is not set.")
 
         if type_name not in self.types:
-            raise Exception(f"Unknown type {type_name!r}.")
+            self._load_error(data, ns, stack, f"Unknown type {type_name!r}.")
 
         Type = self.types[type_name]
         obj = Type()
-        self.run(obj, {'manifest.load': {'data': data}}, ns=ns, optional=True)
+        self.run(obj, {'manifest.load': {'data': data}}, ns=ns, stack=stack, optional=True)
         return obj
+
+    def _load_error(self, data, ns, stack, message):
+        obj = Type()
+        for name in ('type', 'name', 'path'):
+            setattr(obj, name, data.get(name) if isinstance(data, dict) else None)
+        cmd = Command(self, obj, 'manifest.load', {'data': data}, ns=ns, stack=stack)
+        cmd.error(message)
 
     def serialize(self, value=None, ns=None, level=0, limit=99):
         if level > limit:

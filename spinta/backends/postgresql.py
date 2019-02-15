@@ -185,7 +185,7 @@ class Prepare(Command):
             sa.Column(prop.name, sa.Integer),
             sa.ForeignKeyConstraint(
                 [prop.name], [f'{table_name}.{pkey_name}'],
-                name=self.get_pg_name(f'fk_{table_name}_{pkey_name}'),
+                name=self.get_pg_name(f'fk_{model.name}_{prop.name}'),
             )
         ]
 

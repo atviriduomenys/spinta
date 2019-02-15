@@ -7,8 +7,13 @@ class Dataset(Type):
         'name': 'dataset',
         'properties': {
             'path': {'type': 'path', 'required': True},
-            'source': {'type': 'object'},
+            'manifest': {'type': 'manifest', 'required': True},
+            'source': {'type': ['object', 'string', 'array']},
             'objects': {'type': 'object', 'default': {}},
+            'version': {'type': 'integer', 'required': True},
+            'date': {'type': 'date', 'required': True},
+            'owner': {'type': 'string'},
+            'stars': {'type': 'integer'},
         },
     }
 
@@ -17,9 +22,11 @@ class Model(Type):
     metadata = {
         'name': 'dataset.model',
         'properties': {
-            'source': {'type': 'object'},
+            'source': {'type': 'command'},
             'identity': {'type': ['string', 'object']},
             'properties': {'type': 'object', 'default': {}},
+            'stars': {'type': 'integer'},
+            'local': {'type': 'boolean'},
         },
     }
 
@@ -29,6 +36,10 @@ class Property(Type):
         'name': 'dataset.property',
         'properties': {
             'source': {'type': ['string', 'object']},
+            'local': {'type': 'boolean'},
+            'stars': {'type': 'integer'},
+            'const': {'type': 'any'},
+            'enum': {'type': 'array'},
         },
     }
 
@@ -46,7 +57,7 @@ class LoadDataset(Command):
             self.obj.objects[name] = self.load({
                 'type': 'dataset.model',
                 'name': name,
-                **obj,
+                **(obj or {}),
             })
 
 
@@ -63,7 +74,7 @@ class LoadModel(Command):
             self.obj.properties[name] = self.load({
                 'type': 'dataset.property',
                 'name': name,
-                **prop,
+                **(prop or {}),
             })
 
 

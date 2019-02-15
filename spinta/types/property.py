@@ -11,6 +11,7 @@ class Property(Type):
             'const': {'type': 'any'},
             'default': {'type': 'any'},
             'check': {'type': 'command'},
+            'link': {'type': 'string'},
         },
     }
 
@@ -54,9 +55,27 @@ class Integer(Property):
     }
 
 
+class Number(Property):
+    metadata = {
+        'name': 'number',
+    }
+
+
 class Boolean(Property):
     metadata = {
         'name': 'boolean',
+    }
+
+
+class Image(Property):
+    metadata = {
+        'name': 'image',
+    }
+
+
+class Spatial(Property):
+    metadata = {
+        'name': 'spatial',
     }
 
 
@@ -86,6 +105,8 @@ class BackRef(Property):
         'name': 'backref',
         'properties': {
             'object': {'type': 'string'},
+            'property': {'type': 'string'},
+            'secondary': {'type': ['string', 'boolean']},
         },
     }
 

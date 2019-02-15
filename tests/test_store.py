@@ -1,15 +1,6 @@
 def test_schema_loader(store):
     assert store.serialize(limit=3) == {
         'internal': {
-            'config': {
-                'backends': None,
-                'description': None,
-                'manifests': None,
-                'name': None,
-                'properties': None,
-                'title': None,
-                'type': None,
-            },
             'model': {
                 'transaction': None,
                 'model': None,

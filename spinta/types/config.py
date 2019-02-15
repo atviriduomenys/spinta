@@ -8,6 +8,7 @@ class Config(Object):
         'properties': {
             'backends': {'type': 'object', 'required': True},
             'manifests': {'type': 'object', 'required': True},
+            'ignore': {'type': 'array', 'default': []},
         },
     }
 
@@ -19,26 +20,32 @@ class LoadConfig(Command):
     }
 
     def execute(self):
-        super().execute()
-
         if self.ns != 'internal':
             self.error("Configuration can be loaded only on 'internal' namespace.")
+        super().execute()
 
-        if 'config' in self.store.objects[self.ns]:
-            self.error("Config has been alread loaded.")
-        self.store.objects[self.ns]['config'] = self.obj
 
-        self.load_backends()
-        self.load_manifests()
+class LoadBackends(Command):
+    metadata = {
+        'name': 'manifest.load.backends',
+        'type': 'config',
+    }
 
-    def load_backends(self):
+    def execute(self):
         if 'default' not in self.obj.backends:
             self.error("'default' backend must be set in the configuration.")
 
         for name, backend in self.obj.backends.items():
             self.obj.backends[name] = self.load({'name': name, **backend})
 
-    def load_manifests(self):
+
+class LoadManifests(Command):
+    metadata = {
+        'name': 'manifest.load.manifests',
+        'type': 'config',
+    }
+
+    def execute(self):
         if 'default' not in self.obj.manifests:
             self.error("'default' manifest must be set in the configuration.")
 

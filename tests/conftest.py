@@ -24,6 +24,7 @@ def store(postgresql):
                 'path': pathlib.Path(__file__).parent / 'manifest',
             },
         },
+        'ignore': [],
     }
 
     store = Store()
