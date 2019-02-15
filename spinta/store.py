@@ -26,6 +26,7 @@ class Store:
             'manifest.load.backends',
             'manifest.load.manifests',
             'serialize',
+            'prepare',
             'check',
             'push',
             'pull',
@@ -121,8 +122,12 @@ class Store:
         for name, manifest in self.config.manifests.items():
             self.run(manifest, {'manifest.check': None}, ns=name)
 
-    def load(self, data: dict, ns: str = 'default', stack=()):
+    def load(self, data, ns: str = 'default', bare=False, stack=()):
         assert self.types is not None, "Run add_types first."
+
+        if isinstance(data, str):
+            data = {'type': data}
+
         assert isinstance(data, dict)
 
         type_name = data.get('type')
@@ -141,7 +146,11 @@ class Store:
 
         Type = self.types[type_name]
         obj = Type()
-        self.run(obj, {'manifest.load': {'data': data}}, ns=ns, stack=stack, optional=True)
+        if bare:
+            for name, params in obj.metadata.properties.items():
+                setattr(obj, name, data.get(name) or params.get('default'))
+        else:
+            self.run(obj, {'manifest.load': {'data': data}}, ns=ns, stack=stack, optional=True)
         return obj
 
     def _load_error(self, data, ns, stack, message):

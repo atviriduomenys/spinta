@@ -1,3 +1,5 @@
+import datetime
+
 from spinta.types import Type
 from spinta.commands import Command
 
@@ -32,6 +34,25 @@ class Date(Property):
     metadata = {
         'name': 'date',
     }
+
+
+class PrepareDate(Command):
+    metadata = {
+        'name': 'prepare',
+        'type': 'date',
+    }
+
+    def execute(self):
+        value = super().execute()
+
+        if isinstance(value, datetime.date):
+            return value
+
+        if value is not None:
+            try:
+                return datetime.datetime.strptime(value, '%Y-%m-%d').date()
+            except ValueError as e:
+                self.error(str(e))
 
 
 class DateTime(Property):

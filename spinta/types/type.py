@@ -1,8 +1,14 @@
 import copy
 import pathlib
 
-from spinta.types import NA
+from spinta.types import Type, NA
 from spinta.commands import Command
+
+
+class Array(Type):
+    metadata = {
+        'name': 'array',
+    }
 
 
 class ManifestLoad(Command):
@@ -40,6 +46,9 @@ class ManifestLoad(Command):
             if value_type == 'object' and value is not None and not isinstance(value, dict):
                 self.error(f"Expected 'dict' type for {name!r}, got {value.__class__.__name__!r}.")
 
+            if value_type:
+                value = self.run(self.load(value_type, bare=True), {'prepare': {'value': value}})
+
             # Set parameter on the spec object.
             setattr(self.obj, name, value)
 
@@ -62,3 +71,12 @@ class Serialize(Command):
                 continue
             output[k] = v
         return output
+
+
+class Prepare(Command):
+    metadata = {
+        'name': 'prepare',
+    }
+
+    def execute(self):
+        return self.args.value
