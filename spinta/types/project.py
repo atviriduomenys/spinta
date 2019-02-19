@@ -8,7 +8,6 @@ class Project(Type):
         'name': 'project',
         'properties': {
             'path': {'type': 'path', 'required': True},
-            'manifest': {'type': 'manifest', 'required': True},
             'version': {'type': 'integer', 'required': True},
             'date': {'type': 'date', 'required': True},
             'objects': {'type': 'object', 'default': {}},

@@ -14,7 +14,7 @@ class Store:
         self.modules = [
             'spinta.types',
             'spinta.backends',
-            'spinta.datasets',
+            'spinta.commands',
         ]
         self.available_commands = {
             'backend.migrate',
@@ -35,6 +35,18 @@ class Store:
             'getall',
             'wipe',
             'csv',
+            'html',
+            'xml',
+            'replace',
+            'hint',
+            'self',
+            'url',
+            'xlsx',
+            'chain',
+            'json',
+            'all',
+            'denormalize',
+            'unstack',
         }
         self.types = None
         self.commands = None

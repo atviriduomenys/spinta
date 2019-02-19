@@ -7,7 +7,6 @@ class Owner(Type):
         'name': 'owner',
         'properties': {
             'path': {'type': 'path', 'required': True},
-            'manifest': {'type': 'manifest', 'required': True},
             'sector': {'type': 'string'},
             'logo': {'type': 'path'},
             'parent': {'type': 'manifest'},
@@ -26,6 +25,6 @@ class CheckOwner(Command):
 
     def check_logo(self):
         if self.obj.logo:
-            path = self.obj.manifest.path / 'media/owners' / self.obj.name / self.obj.logo
+            path = self.obj.parent.path / 'media/owners' / self.obj.name / self.obj.logo
             if not path.exists():
                 self.error("Can't find media file %s.", path)

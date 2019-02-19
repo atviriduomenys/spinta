@@ -89,6 +89,12 @@ class Boolean(Property):
     }
 
 
+class URL(Property):
+    metadata = {
+        'name': 'url',
+    }
+
+
 class Image(Property):
     metadata = {
         'name': 'image',
@@ -128,7 +134,7 @@ class BackRef(Property):
         'properties': {
             'object': {'type': 'string'},
             'property': {'type': 'string'},
-            'secondary': {'type': ['string', 'boolean']},
+            'secondary': {'type': 'string'},
         },
     }
 

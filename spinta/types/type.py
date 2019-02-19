@@ -68,6 +68,8 @@ class PrepareType(Command):
             value = getattr(self.obj, name)
             type = params.get('type')
             if type:
+                if type not in self.store.types:
+                    self.error(f"Unknown type {type!r} for {name!r}.")
                 value = self.run(self.load(type, bare=True), {
                     'prepare': {
                         'obj': self.obj,

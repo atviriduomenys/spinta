@@ -27,9 +27,10 @@ class Prepare(Command):
             if not isinstance(cmd, dict):
                 parent_cmd = self.find_parent_command()
                 if parent_cmd is None:
-                    self.error(f"Can't find parent command for {self.args.prop!r}, command is {cmd!r}.")
-                name, _ = next(iter(parent_cmd.items()))
-                cmd = {name: {'source': cmd}}
+                    cmd = {'url': {'source': cmd}}
+                else:
+                    name, _ = next(iter(parent_cmd.items()))
+                    cmd = {name: {'source': cmd}}
 
             if not isinstance(cmd, dict):
                 self.error(f"Commands must be objects in {{command: {{argument: value}}}} form. Got: {cmd!r}.")
