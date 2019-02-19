@@ -36,7 +36,11 @@ class LoadBackends(Command):
             self.error("'default' backend must be set in the configuration.")
 
         for name, backend in self.obj.backends.items():
-            self.obj.backends[name] = self.load({'name': name, **backend})
+            self.obj.backends[name] = self.load({
+                'name': name,
+                'parent': self.obj,
+                **backend,
+            })
 
 
 class LoadManifests(Command):
@@ -54,4 +58,21 @@ class LoadManifests(Command):
 
         for name, manifest in self.obj.manifests.items():
             self.store.objects[name] = {}
-            self.obj.manifests[name] = self.load({'type': 'manifest', 'name': name, **manifest}, ns=name)
+            self.obj.manifests[name] = self.load({
+                'type': 'manifest',
+                'name': name,
+                'parent': self.obj,
+                **manifest,
+            }, ns=name)
+
+
+class PrepareConfig(Command):
+    metadata = {
+        'name': 'prepare.type',
+        'type': 'config',
+    }
+
+    def execute(self):
+        super().execute()
+        for name, manifest in self.obj.manifests.items():
+            self.run(manifest, {'prepare.type': None}, ns=name)

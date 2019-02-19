@@ -16,7 +16,7 @@ class CsvModel(Command):
         return self.read_csv()
 
     def read_csv(self):
-        with closing(requests.get(self.args.args, stream=True)) as r:
+        with closing(requests.get(self.args.source, stream=True)) as r:
             if r.encoding is None:
                 r.encoding = 'utf-8'
             lines = r.iter_lines(decode_unicode=True)
@@ -31,4 +31,4 @@ class CsvProperty(Command):
     }
 
     def execute(self):
-        return self.args.source[self.args.name]
+        return self.args.data[self.args.source]

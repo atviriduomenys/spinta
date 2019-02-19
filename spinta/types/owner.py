@@ -10,6 +10,7 @@ class Owner(Type):
             'manifest': {'type': 'manifest', 'required': True},
             'sector': {'type': 'string'},
             'logo': {'type': 'path'},
+            'parent': {'type': 'manifest'},
         },
     }
 

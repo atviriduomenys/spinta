@@ -53,7 +53,8 @@ class Type(metaclass=MetaClass):
             'type': {'type': 'string', 'required': True},
             'name': {'type': 'string', 'required': True},
             'title': {'type': 'string'},
-            'description': {'default': ''},
+            'description': {'type': 'string', 'default': ''},
+            'parent': {'type': None},
         },
     }
 

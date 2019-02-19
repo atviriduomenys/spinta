@@ -25,6 +25,7 @@ class Store:
             'manifest.load',
             'manifest.load.backends',
             'manifest.load.manifests',
+            'prepare.type',
             'serialize',
             'prepare',
             'check',
@@ -72,14 +73,18 @@ class Store:
 
     def run(self, obj, call, *, base=0, backend=None, ns='default', optional=False, stack=()):
         assert self.commands is not None, "Run add_commands first."
-        assert len(stack) < 10
         assert isinstance(obj, Type), obj
-        assert isinstance(call, dict) and len(call) == 1
+        assert isinstance(call, dict) and len(call) == 1, call
 
         command, args = next(iter(call.items()))
         backend = self.config.backends[backend] if backend else None
         backend_type = backend.type if backend else None
         bases = [cls.metadata.name for cls in obj.metadata.bases[base:] if issubclass(cls, Type)] + [None]
+
+        max_call_depth = 10
+        if len(stack) >= max_call_depth:
+            cmd = Command(self, obj, command, args, base=bases[-1], backend=backend, ns=ns, stack=stack)
+            cmd.error(f"Max depth {max_call_depth} of nested command calls has been reached, aborting.")
 
         for base, base_name in enumerate(bases, base):
             key = command, base_name, backend_type
@@ -95,7 +100,7 @@ class Store:
         for base, base_name in enumerate(bases, base):
             keys.append(f'{command}, type: {base_name}, backend: {backend_type}')
         keys = '\n  - ' + '\n  - '.join(keys)
-        message = f"Can't find command {command!r} for {obj.type}. Tried to look for these commands:{keys}"
+        message = f"Can't find command {command!r} for {obj.type}. Tried these options:{keys}"
         cmd = Command(self, obj, command, args, base=base, backend=backend, ns=ns, stack=stack)
         cmd.error(message)
 
@@ -118,6 +123,9 @@ class Store:
         self.run(self.config, {'manifest.load.backends': None}, ns='internal')
         self.run(self.config, {'manifest.load.manifests': None}, ns='internal')
 
+        # Prepare all types.
+        self.run(self.config, {'prepare.type': None}, ns='internal')
+
         # Check loaded manifests.
         for name, manifest in self.config.manifests.items():
             self.run(manifest, {'manifest.check': None}, ns=name)
@@ -128,7 +136,7 @@ class Store:
         if isinstance(data, str):
             data = {'type': data}
 
-        assert isinstance(data, dict)
+        assert isinstance(data, dict), data
 
         type_name = data.get('type')
 

@@ -40,14 +40,14 @@ class ManifestLoad(Command):
 
             value_type = params.get('type')
 
+            if value_type is not None and not isinstance(value_type, str):
+                self.error(f"Unknown data type: {value_type!r} of {name!r} property.")
+
             if value_type == 'path' and isinstance(value, str):
                 value = pathlib.Path(value)
 
             if value_type == 'object' and value is not None and not isinstance(value, dict):
                 self.error(f"Expected 'dict' type for {name!r}, got {value.__class__.__name__!r}.")
-
-            if value_type:
-                value = self.run(self.load(value_type, bare=True), {'prepare': {'value': value}})
 
             # Set parameter on the spec object.
             setattr(self.obj, name, value)
@@ -56,6 +56,35 @@ class ManifestLoad(Command):
         if unknown_keys:
             keys = '\n  - '.join(unknown_keys)
             self.error(f"Unknown parameters:\n  - {keys}")
+
+
+class PrepareType(Command):
+    metadata = {
+        'name': 'prepare.type',
+    }
+
+    def execute(self):
+        for name, params in self.obj.metadata.properties.items():
+            value = getattr(self.obj, name)
+            type = params.get('type')
+            if type:
+                value = self.run(self.load(type, bare=True), {
+                    'prepare': {
+                        'obj': self.obj,
+                        'prop': name,
+                        'value': value,
+                    },
+                })
+                setattr(self.obj, name, value)
+
+
+class Prepare(Command):
+    metadata = {
+        'name': 'prepare',
+    }
+
+    def execute(self):
+        return self.args.value
 
 
 class Serialize(Command):
@@ -71,12 +100,3 @@ class Serialize(Command):
                 continue
             output[k] = v
         return output
-
-
-class Prepare(Command):
-    metadata = {
-        'name': 'prepare',
-    }
-
-    def execute(self):
-        return self.args.value

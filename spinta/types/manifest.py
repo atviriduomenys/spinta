@@ -20,6 +20,7 @@ class Manifest(Type):
         'name': 'manifest',
         'properties': {
             'path': {'type': 'path', 'required': True},
+            'parent': {'type': 'config'},
         },
     }
 
@@ -44,7 +45,11 @@ class ManifestLoadManifest(Command):
             if not isinstance(data, dict):
                 self.error(f"{file}: expected dict got {data.__class__.__name__}.")
 
-            obj = self.load({'path': file, 'manifest': self.obj, **data})
+            obj = self.load({
+                'path': file,
+                'parent': self.obj,
+                **data,
+            })
 
             if obj.type not in self.store.objects[self.ns]:
                 self.store.objects[self.ns][obj.type] = {}
@@ -53,6 +58,19 @@ class ManifestLoadManifest(Command):
                 self.error(f"Object {obj.type} with name {obj.name} already exist.")
 
             self.store.objects[self.ns][obj.type][obj.name] = obj
+
+
+class PrepareManifest(Command):
+    metadata = {
+        'name': 'prepare.type',
+        'type': 'manifest',
+    }
+
+    def execute(self):
+        super().execute()
+        for objects in self.store.objects[self.ns].values():
+            for obj in objects.values():
+                self.run(obj, {'prepare.type': None}, optional=True)
 
 
 class CheckManifest(Command):

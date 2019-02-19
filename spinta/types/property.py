@@ -14,6 +14,7 @@ class Property(Type):
             'default': {'type': 'any'},
             'check': {'type': 'command'},
             'link': {'type': 'string'},
+            'parent': {'type': 'model'},
         },
     }
 

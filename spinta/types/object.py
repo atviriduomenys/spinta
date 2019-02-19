@@ -26,8 +26,21 @@ class LoadObject(Command):
             self.obj.properties[name] = self.load({
                 'type': self.obj.property_type,
                 'name': name,
+                'parent': self.obj,
                 **(prop or {}),
             })
+
+
+class PrepareObject(Command):
+    metadata = {
+        'name': 'prepare.type',
+        'type': 'object',
+    }
+
+    def execute(self):
+        super().execute()
+        for prop in self.obj.properties.values():
+            self.run(prop, {'prepare.type': None})
 
 
 class CheckObject(Command):

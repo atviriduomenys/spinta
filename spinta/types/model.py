@@ -7,13 +7,13 @@ class Model(Object):
         'name': 'model',
         'properties': {
             'path': {'type': 'path', 'required': True},
-            'manifest': {'type': 'manifest', 'required': True},
             'unique': {'type': 'array', 'default': []},
             'extends': {'type': 'string'},
             'backend': {'type': 'string', 'default': 'default'},
             'version': {'type': 'integer', 'required': True},
             'date': {'type': 'date', 'required': True},
             'link': {'type': 'string'},
+            'parent': {'type': 'manifest'},
         },
     }
 

@@ -16,6 +16,7 @@ class Project(Type):
             'url': {'type': 'url'},
             'source_code': {'type': 'url'},
             'owner': {'type': 'string'},
+            'parent': {'type': 'manifest'},
         },
     }
 
@@ -28,6 +29,7 @@ class Impact(Type):
             'users': {'type': 'integer'},
             'revenue': {'type': 'number'},
             'employees': {'type': 'integer'},
+            'parent': {'type': 'project'},
         },
     }
 
@@ -37,6 +39,7 @@ class Model(Object):
         'name': 'project.model',
         'properties': {
             'properties': {'type': 'object', 'default': {}},
+            'parent': {'type': 'project'},
         },
     }
 
@@ -48,25 +51,39 @@ class Property(Type):
         'name': 'project.property',
         'properties': {
             'enum': {'type': 'array'},
+            'parent': {'type': 'project.model'},
         },
     }
 
 
-class LoadModel(Command):
+class LoadProject(Command):
     metadata = {
         'name': 'manifest.load',
-        'type': 'project.model',
+        'type': 'project',
     }
 
     def execute(self):
         super().execute()
-        assert isinstance(self.obj.properties, dict)
-        for name, prop in self.obj.properties.items():
-            self.obj.properties[name] = self.load({
-                'type': 'project.property',
+        assert isinstance(self.obj.objects, dict)
+        for name, obj in self.obj.objects.items():
+            self.obj.objects[name] = self.load({
+                'type': 'project.model',
                 'name': name,
-                **(prop or {}),
+                'parent': self.obj,
+                **(obj or {}),
             })
+
+
+class PrepareProject(Command):
+    metadata = {
+        'name': 'prepare.type',
+        'type': 'project',
+    }
+
+    def execute(self):
+        super().execute()
+        for model in self.obj.objects.values():
+            self.run(model, {'prepare.type': None})
 
 
 class CheckProject(Command):

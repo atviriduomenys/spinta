@@ -8,13 +8,13 @@ class Dataset(Type):
         'name': 'dataset',
         'properties': {
             'path': {'type': 'path', 'required': True},
-            'manifest': {'type': 'manifest', 'required': True},
-            'source': {'type': ['object', 'string', 'array']},
+            'source': {'type': 'command'},
             'objects': {'type': 'object', 'default': {}},
             'version': {'type': 'integer', 'required': True},
             'date': {'type': 'date', 'required': True},
             'owner': {'type': 'string'},
             'stars': {'type': 'integer'},
+            'parent': {'type': 'manifest'},
         },
     }
 
@@ -24,10 +24,11 @@ class Model(Object):
         'name': 'dataset.model',
         'properties': {
             'source': {'type': 'command'},
-            'identity': {'type': ['string', 'object']},
+            'identity': {'type': 'array'},
             'properties': {'type': 'object', 'default': {}},
             'stars': {'type': 'integer'},
             'local': {'type': 'boolean'},
+            'parent': {'type': 'dataset'},
         },
     }
 
@@ -38,11 +39,12 @@ class Property(Type):
     metadata = {
         'name': 'dataset.property',
         'properties': {
-            'source': {'type': ['string', 'object']},
+            'source': {'type': 'command'},
             'local': {'type': 'boolean'},
             'stars': {'type': 'integer'},
             'const': {'type': 'any'},
             'enum': {'type': 'array'},
+            'parent': {'type': 'dataset.model'},
         },
     }
 
@@ -60,8 +62,21 @@ class LoadDataset(Command):
             self.obj.objects[name] = self.load({
                 'type': 'dataset.model',
                 'name': name,
+                'parent': self.obj,
                 **(obj or {}),
             })
+
+
+class PrepareDataset(Command):
+    metadata = {
+        'name': 'prepare.type',
+        'type': 'dataset',
+    }
+
+    def execute(self):
+        super().execute()
+        for model in self.obj.objects.values():
+            self.run(model, {'prepare.type': None})
 
 
 class Pull(Command):
@@ -72,14 +87,18 @@ class Pull(Command):
 
     def execute(self):
         for model in self.obj.objects.values():
-            source = self.run(model, model.source)
+            assert model.source is None or isinstance(model.source, list)
+            source = None
+            for cmd in model.source:
+                command, args = next(iter(cmd.items()))
+                args.setdefault('source', source)
+                source = self.run(model, {command: args})
             for row in source:
                 data = {'type': model.name}
                 for prop_name, prop in model.properties.items():
-                    if isinstance(prop.source, str):
-                        command, _ = next(iter(model.source.items()))
-                        args = {'name': prop.source}
-                    else:
-                        command, args = next(iter(prop.source.items()))
-                    data[prop_name] = self.run(prop, {command: {**args, 'source': row}})
+                    value = row
+                    for cmd in prop.source:
+                        command, args = next(iter(cmd.items()))
+                        value = self.run(prop, {command: {**args, 'data': value}})
+                    data[prop_name] = value
                 yield data
