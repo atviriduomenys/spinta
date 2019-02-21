@@ -38,11 +38,6 @@ def test_xlsx(store, responses):
             'numeris': 0,
             'pavadinimas': 'Balsai, suskaičiuoti apygardos rinkimų komisijoje',
         },
-        {
-            'id': ['1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai', 1, 2, 3],
-            'numeris': 3,
-            'pavadinimas': 'Apylinkė Nr. 3',
-        },
     ]
     assert list(store.getall('kandidatas/:source/xlsx')) == [
         {

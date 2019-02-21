@@ -55,7 +55,7 @@ objects:
       xlsx:
         source: 'http://example.com/data.xlsx'
         skip: 8
-        limit: 20
+        limit: 10
     properties:
       id:
         source:
