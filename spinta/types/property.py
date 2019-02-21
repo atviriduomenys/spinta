@@ -12,6 +12,7 @@ class Property(Type):
             'unique': {'type': 'boolean', 'default': False},
             'const': {'type': 'any'},
             'default': {'type': 'any'},
+            'null': {'type': 'boolean'},
             'check': {'type': 'command'},
             'link': {'type': 'string'},
             'parent': {'type': 'model'},

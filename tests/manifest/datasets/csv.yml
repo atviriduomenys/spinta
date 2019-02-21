@@ -6,9 +6,7 @@ date: "2019-02-15"
 objects:
   country:
     source: {csv: 'http://example.com/countries.csv'}
-    identity:
-      - code
     properties:
+      id: {source: 'kodas'}
       code: {source: 'kodas'}
       title: {source: 'šalis'}
-

@@ -15,6 +15,7 @@ class Dataset(Type):
             'owner': {'type': 'string'},
             'stars': {'type': 'integer'},
             'parent': {'type': 'manifest'},
+            'backend': {'type': 'string', 'default': 'default'},
         },
     }
 
@@ -24,11 +25,12 @@ class Model(Object):
         'name': 'dataset.model',
         'properties': {
             'source': {'type': 'command'},
-            'identity': {'type': 'array'},
+            'identity': {'type': 'array', 'required': False},
             'properties': {'type': 'object', 'default': {}},
             'stars': {'type': 'integer'},
             'local': {'type': 'boolean'},
             'parent': {'type': 'dataset'},
+            'backend': {'type': 'string', 'default': 'default', 'inherit': True},
         },
     }
 
@@ -94,7 +96,7 @@ class Pull(Command):
                 args.setdefault('source', source)
                 source = self.run(model, {command: args})
             for row in source:
-                data = {'type': model.name}
+                data = {'type': f'{model.name}/:source/{self.obj.name}'}
                 for prop_name, prop in model.properties.items():
                     value = row
                     for cmd in prop.source:

@@ -10,7 +10,7 @@ class Object(Type):
         },
     }
 
-    property_type = 'property'
+    property_type = None
 
 
 class LoadObject(Command):
@@ -23,12 +23,14 @@ class LoadObject(Command):
         super().execute()
         assert isinstance(self.obj.properties, dict)
         for name, prop in self.obj.properties.items():
-            self.obj.properties[name] = self.load({
-                'type': self.obj.property_type,
+            data = {
                 'name': name,
                 'parent': self.obj,
                 **(prop or {}),
-            })
+            }
+            if self.obj.property_type is not None:
+                data['type'] = self.obj.property_type
+            self.obj.properties[name] = self.load(data)
 
 
 class PrepareObject(Command):

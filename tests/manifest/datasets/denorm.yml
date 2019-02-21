@@ -1,0 +1,18 @@
+---
+name: denorm
+type: dataset
+version: 1
+date: "2019-02-19"
+objects:
+  org:
+    source: {csv: 'http://example.com/orgs.csv'}
+    properties:
+      id: {source: 'govid'}
+      title: {source: 'org'}
+      country: {source: 'kodas'}
+  country:
+    source: {csv: 'http://example.com/orgs.csv'}
+    properties:
+      id: {source: 'kodas'}
+      code: {source: 'kodas'}
+      title: {source: 'šalis'}

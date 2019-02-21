@@ -1,0 +1,8 @@
+---
+type: model
+name: table
+version: 1
+date: "2019-02-06"
+properties:
+  id: {type: pk}
+  name: {type: string, required: True, unique: true}

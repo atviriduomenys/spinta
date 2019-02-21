@@ -1,25 +1,20 @@
 import sqlalchemy as sa
 
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock
 
-from spinta.backends.postgresql import Prepare
+from spinta.backends.postgresql import get_table_name
 
 
 def test_get_table_name():
+    ns = 'default'
     backend = MagicMock()
     backend.get.return_value = 42
-    cmd = Prepare(None, None, None, None, backend=backend)
-    model = Mock()
 
-    model.name = 'org'
-    assert cmd.get_table_name(model) == 'ORG_0042M'
-
-    model.name = 'a' * 100
-    assert len(cmd.get_table_name(model)) == 63
-    assert cmd.get_table_name(model)[-10:] == 'AAAA_0042M'
-
-    model.name = 'some_/name/hėrę!'
-    assert cmd.get_table_name(model) == 'SOME_NAME_HERE_0042M'
+    assert get_table_name(backend, 'internal', 'org') == 'org'
+    assert get_table_name(backend, ns, 'org') == 'ORG_0042M'
+    assert len(get_table_name(backend, ns, 'a' * 100)) == 63
+    assert get_table_name(backend, ns, 'a' * 100)[-10:] == 'AAAA_0042M'
+    assert get_table_name(backend, ns, 'some_/name/hėrę!') == 'SOME_NAME_HERE_0042M'
 
 
 def test_changes(store):

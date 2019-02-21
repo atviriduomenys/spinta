@@ -213,7 +213,7 @@ class Store:
     def prepare(self, internal=False):
         assert self.manifest is not None, "Run configure first."
         if internal:
-            self.run(self.manifest, {'backend.prepare.internal': None}, backend='default', ns='internal')
+            self.run(self.manifest, {'backend.prepare': None}, backend='default', ns='internal')
         else:
             for name, manifest in self.config.manifests.items():
                 self.run(manifest, {'backend.prepare': None}, ns=name)
@@ -221,7 +221,7 @@ class Store:
     def migrate(self, internal=False):
         assert self.manifest is not None, "Run configure first."
         if internal:
-            self.run(self.manifest, {'backend.migrate.internal': None}, backend='default', ns='internal')
+            self.run(self.manifest, {'backend.migrate': None}, backend='default', ns='internal')
         else:
             for name, manifest in self.config.manifests.items():
                 self.run(manifest, {'backend.migrate': None}, ns=name)
@@ -232,13 +232,15 @@ class Store:
         with self.config.backends[backend].transaction(write=True) as transaction:
             for data in stream:
                 data = dict(data)
-                model = self.objects[ns]['model'][data.pop('type')]
-                client_id = client_supplied_ids.replace(model, data)
+                model_name = data.pop('type', None)
+                assert model_name is not None, data
+                model = get_model_by_name(self, ns, model_name)
+                client_id = client_supplied_ids.replace(model_name, data)
                 self.run(model, {'check': {'transaction': transaction, 'data': data}}, backend=backend, ns=ns)
                 inserted_id = self.run(model, {'push': {'transaction': transaction, 'data': data}}, backend=backend, ns=ns)
                 result.append(
                     client_supplied_ids.update(client_id, {
-                        'type': model.name,
+                        'type': model_name,
                         'id': inserted_id,
                     })
                 )
@@ -250,17 +252,17 @@ class Store:
         return self.push(data, backend=backend, ns=ns)
 
     def get(self, model_name: str, object_id, backend='default', ns='default'):
-        model = self.objects[ns]['model'][model_name]
+        model = get_model_by_name(self, ns, model_name)
         with self.config.backends[backend].transaction() as transaction:
             return self.run(model, {'get': {'transaction': transaction, 'id': object_id}}, backend=backend, ns=ns)
 
     def getall(self, model_name: str, backend='default', ns='default'):
-        model = self.objects[ns]['model'][model_name]
+        model = get_model_by_name(self, ns, model_name)
         with self.config.backends[backend].transaction() as transaction:
             yield from self.run(model, {'getall': {'transaction': transaction}}, backend=backend, ns=ns)
 
     def wipe(self, model_name: str, backend='default', ns='default'):
-        model = self.objects[ns]['model'][model_name]
+        model = get_model_by_name(self, ns, model_name)
         with self.config.backends[backend].transaction() as transaction:
             self.run(model, {'wipe': {'transaction': transaction}}, backend=backend, ns=ns)
 
@@ -288,7 +290,7 @@ class ClientSuppliedIDs:
     def __init__(self):
         self.ids = {}
 
-    def replace(self, model, data):
+    def replace(self, model_name, data):
         client_id = data.pop('<id>', None)
         for k, v in data.items():
             if not isinstance(v, dict):
@@ -297,7 +299,7 @@ class ClientSuppliedIDs:
                 if self.ids[(v['type'], v['<id>'])]:
                     data[k] = self.ids[(v['type'], v['<id>'])]
                 else:
-                    raise Exception(f"Can't find ID {v['<id>']!r} for {k} property of {model.name}.")
+                    raise Exception(f"Can't find ID {v['<id>']!r} for {k} property of {model_name}.")
             elif '<id>' in v:
                 raise Exception(f"ID replacement works with {{type=x, <id>=y}}, but instead got {data!r}")
         return client_id
@@ -307,3 +309,11 @@ class ClientSuppliedIDs:
             self.ids[(data['type'], client_id)] = data['id']
             return {'<id>': client_id, **data}
         return data
+
+
+def get_model_by_name(store, ns, name):
+    if '/:source/' in name:
+        model, dataset = name.split('/:source/')
+        return store.objects[ns]['dataset'][dataset].objects[model]
+    else:
+        return store.objects[ns]['model'][name]

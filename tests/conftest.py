@@ -50,6 +50,10 @@ def store(postgresql):
             if model:
                 store.wipe(model)
 
+    for dataset in store.objects['default']['dataset'].values():
+        for model in dataset.objects.values():
+            store.wipe(f'{model.name}/:source/{dataset.name}')
+
     store.wipe('transaction', ns='internal')
 
 

@@ -2,8 +2,8 @@ def test_schema_loader(store):
     assert store.serialize(limit=3) == {
         'internal': {
             'model': {
+                'table': None,
                 'transaction': None,
-                'model': None,
             },
         },
         'default': {
@@ -13,6 +13,7 @@ def test_schema_loader(store):
             },
             'dataset': {
                 'csv': None,
+                'denorm': None,
             },
         },
     }

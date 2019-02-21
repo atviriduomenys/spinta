@@ -1,5 +1,4 @@
 import contextlib
-import datetime
 import hashlib
 import itertools
 import re
@@ -7,7 +6,7 @@ import typing
 
 import unidecode
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, BIGINT
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
@@ -119,41 +118,60 @@ class Prepare(Command):
     def execute(self):
         if self.ns not in self.backend.tables:
             self.backend.tables[self.ns] = {}
+        self.prepare_models()
+        self.prepare_datasets()
+
+    def prepare_models(self, args=None):
         for model in self.store.objects[self.ns]['model'].values():
             if self.store.config.backends[model.backend].type == self.backend.type:
-                columns = []
-                for prop_name, prop in model.properties.items():
-                    if prop.type == 'pk':
-                        columns.append(
-                            sa.Column(prop_name, sa.Integer, primary_key=True)
-                        )
-                    elif prop.type == 'string':
-                        columns.append(
-                            sa.Column(prop_name, sa.Text)
-                        )
-                    elif prop.type == 'date':
-                        columns.append(
-                            sa.Column(prop_name, sa.Date)
-                        )
-                    elif prop.type == 'datetime':
-                        columns.append(
-                            sa.Column(prop_name, sa.DateTime)
-                        )
-                    elif prop.type == 'integer':
-                        columns.append(
-                            sa.Column(prop_name, sa.Integer)
-                        )
-                    elif prop.type == 'ref':
-                        columns.extend(
-                            self.get_foreign_key(model, prop)
-                        )
-                    else:
-                        self.error(f"Unknown property type {prop.type}.")
-                self.create_model_tables(model, columns)
+                self.run(model, {'backend.prepare': args}, backend=self.backend.name)
 
-    def create_model_tables(self, model, columns):
+    def prepare_datasets(self):
+        for dataset in self.store.objects[self.ns].get('dataset', {}).values():
+            for model in dataset.objects.values():
+                if self.store.config.backends[model.backend].type == self.backend.type:
+                    self.run(model, {'backend.prepare': None}, backend=self.backend.name)
+
+
+class PrepareModel(Command):
+    metadata = {
+        'name': 'backend.prepare',
+        'type': 'model',
+        'backend': 'postgresql',
+    }
+
+    def execute(self):
+        columns = []
+        for prop_name, prop in self.obj.properties.items():
+            if prop.type == 'pk':
+                columns.append(
+                    sa.Column(prop_name, BIGINT, primary_key=True)
+                )
+            elif prop.type == 'string':
+                columns.append(
+                    sa.Column(prop_name, sa.Text)
+                )
+            elif prop.type == 'date':
+                columns.append(
+                    sa.Column(prop_name, sa.Date)
+                )
+            elif prop.type == 'datetime':
+                columns.append(
+                    sa.Column(prop_name, sa.DateTime)
+                )
+            elif prop.type == 'integer':
+                columns.append(
+                    sa.Column(prop_name, sa.Integer)
+                )
+            elif prop.type == 'ref':
+                columns.extend(
+                    self.get_foreign_key(self.obj, prop)
+                )
+            else:
+                self.error(f"Unknown property type {prop.type}.")
+
         # Create main table.
-        main_table_name = self.get_table_name(model, MAIN_TABLE)
+        main_table_name = get_table_name(self.backend, self.ns, self.obj.name, MAIN_TABLE)
         main_table = sa.Table(
             main_table_name, self.backend.schema,
             sa.Column('_transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
@@ -161,10 +179,10 @@ class Prepare(Command):
         )
 
         # Create changes table.
-        changes_table_name = self.get_table_name(model, CHANGES_TABLE)
+        changes_table_name = get_table_name(self.backend, self.ns, self.obj.name, CHANGES_TABLE)
         changes_table = sa.Table(
             changes_table_name, self.backend.schema,
-            sa.Column('change_id', sa.Integer, primary_key=True),
+            sa.Column('change_id', BIGINT, primary_key=True),
             sa.Column('transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
             sa.Column('id', sa.Integer),  # reference to main table
             sa.Column('datetime', sa.DateTime),
@@ -172,14 +190,11 @@ class Prepare(Command):
             sa.Column('change', JSONB),
         )
 
-        self.backend.tables[self.ns][model.name] = ModelTables(main_table, changes_table)
-
-    def get_model(self, model_name):
-        return self.store.objects[self.ns]['model'][model_name]
+        self.backend.tables[self.ns][self.obj.name] = ModelTables(main_table, changes_table)
 
     def get_foreign_key(self, model, prop):
-        ref_model = self.get_model(prop.object)
-        table_name = self.get_table_name(ref_model)
+        ref_model = self.store.objects[self.ns]['model'][prop.object]
+        table_name = get_table_name(self.backend, self.ns, ref_model.name)
         pkey_name = ref_model.get_primary_key().name
         return [
             sa.Column(prop.name, sa.Integer),
@@ -189,48 +204,12 @@ class Prepare(Command):
             )
         ]
 
-    def get_table_name(self, model, table_type=MAIN_TABLE):
-        assert isinstance(table_type, str)
-        assert len(table_type) == 1
-        assert table_type.isupper()
-        table = self.backend.tables['internal']['model'].main
-        model_id = self.backend.get(self.backend.engine, table.c.id, table.c.name == model.name, default=None)
-        if model_id is None:
-            result = self.backend.engine.execute(
-                table.insert(),
-                name=model.name,
-                date=datetime.datetime.utcnow(),
-                version=model.version,
-            )
-            model_id = result.inserted_primary_key[0]
-        name = unidecode.unidecode(model.name)
-        name = PG_CLEAN_NAME_RE.sub('_', name)
-        name = name.upper()
-        name = name[:NAMEDATALEN - 6]
-        name = name.rstrip('_')
-        return f"{name}_{model_id:04d}{table_type}"
-
     def get_pg_name(self, name):
         if len(name) > NAMEDATALEN:
             name_hash = hashlib.sha256(name.encode()).hexdigest()
             return name[:NAMEDATALEN - 7] + '_' + name_hash[-6:]
         else:
             return name
-
-
-class PrepareInternal(Prepare):
-    metadata = {
-        'name': 'backend.prepare.internal',
-        'type': 'manifest',
-        'backend': 'postgresql',
-    }
-
-    def get_table_name(self, model, table_type=MAIN_TABLE):
-        if table_type == MAIN_TABLE:
-            # Don not use table type suffix for the main table.
-            return model.name
-        else:
-            return f'{model.name}_{table_type}'
 
 
 class ModelTables(typing.NamedTuple):
@@ -249,15 +228,7 @@ class Migrate(Command):
         self.backend.schema.create_all(checkfirst=True)
 
 
-class MigrateInternal(Migrate):
-    metadata = {
-        'name': 'backend.migrate.internal',
-        'type': 'manifest',
-        'backend': 'postgresql',
-    }
-
-
-class Check(Command):
+class CheckModel(Command):
     metadata = {
         'name': 'check',
         'type': 'model',
@@ -395,3 +366,32 @@ class utcnow(FunctionElement):
 @compiles(utcnow, 'postgresql')
 def pg_utcnow(element, compiler, **kw):
     return "TIMEZONE('utc', CURRENT_TIMESTAMP)"
+
+
+def get_table_name(backend, ns, name, table_type=MAIN_TABLE):
+    assert isinstance(table_type, str)
+    assert len(table_type) == 1
+    assert table_type.isupper()
+
+    # Table name construction depends on internal tables, so we must construct
+    # internal table names differently.
+    if ns == 'internal':
+        if table_type == MAIN_TABLE:
+            return name
+        else:
+            return f'{name}_{table_type}'
+
+    table = backend.tables['internal']['table'].main
+    table_id = backend.get(backend.engine, table.c.id, table.c.name == name, default=None)
+    if table_id is None:
+        result = backend.engine.execute(
+            table.insert(),
+            name=name,
+        )
+        table_id = result.inserted_primary_key[0]
+    name = unidecode.unidecode(name)
+    name = PG_CLEAN_NAME_RE.sub('_', name)
+    name = name.upper()
+    name = name[:NAMEDATALEN - 6]
+    name = name.rstrip('_')
+    return f"{name}_{table_id:04d}{table_type}"
