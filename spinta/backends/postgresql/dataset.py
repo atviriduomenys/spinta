@@ -1,4 +1,5 @@
 import hashlib
+import datetime
 
 import msgpack
 import sqlalchemy as sa
@@ -55,12 +56,17 @@ class Push(Command):
         transaction = self.args.transaction
         connection = transaction.connection
         table = _get_table(self)
-        data = self.args.data
+        data = self.serialize(self.args.data)
 
         if isinstance(data['id'], list):
+            for x in data['id']:
+                if x is None:
+                    return
             key = msgpack.dumps(data['id'], use_bin_type=True)
             key = hashlib.sha1(key).hexdigest()
         else:
+            if data['id'] is None:
+                return
             key = data['id']
 
         connection.execute(
@@ -73,6 +79,15 @@ class Push(Command):
         )
 
         return key
+
+    def serialize(self, value):
+        if isinstance(value, dict):
+            return {k: self.serialize(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self.serialize(v) for v in value]
+        if isinstance(value, datetime.datetime):
+            return value.isoformat()
+        return value
 
 
 class GetAll(Command):

@@ -1,0 +1,95 @@
+---
+name: xlsx
+type: dataset
+version: 1
+date: "2019-02-21"
+objects:
+
+  rinkimai:
+    source:
+      xlsx:
+        source: 'http://example.com/data.xlsx'
+        skip: 8
+        limit: 10
+    properties:
+      id:
+        source:
+          list:
+            - 'Rinkimai'
+      rusis: {source: 'Rinkimų rūšis'}
+      pavadinimas: {source: 'Rinkimai'}
+      data: {source: 'Rinkimų data'}
+
+  turas:
+    source:
+      xlsx:
+        source: 'http://example.com/data.xlsx'
+        skip: 8
+        limit: 10
+    properties:
+      id:
+        source:
+          list:
+            - 'Rinkimai'
+            - 'Turas'
+      turas: {source: 'Turas'}
+
+  apygarda:
+    source:
+      xlsx:
+        source: 'http://example.com/data.xlsx'
+        skip: 8
+        limit: 10
+    properties:
+      id:
+        source:
+          list:
+            - 'Rinkimai'
+            - 'Turas'
+            - 'Apygardos Nr.'
+      numeris: {source: 'Apygardos Nr.'}
+      pavadinimas: {source: 'Apygardos pavadinimas'}
+
+  apylinke:
+    source:
+      xlsx:
+        source: 'http://example.com/data.xlsx'
+        skip: 8
+        limit: 20
+    properties:
+      id:
+        source:
+          list:
+            - 'Rinkimai'
+            - 'Turas'
+            - 'Apygardos Nr.'
+            - 'Apylinkės Nr.'
+      numeris: {source: 'Apylinkės Nr.'}
+      pavadinimas: {source: 'Apylinkės pavadinimas'}
+
+  kandidatas:
+    source:
+      xlsx:
+        source: 'http://example.com/data.xlsx'
+        skip: 8
+        limit: 1
+    properties:
+      id:
+        source:
+          list:
+            - 'Rinkimai'
+            - 'Turas'
+            - 'Apygardos Nr.'
+            - 'Apylinkės Nr.'
+            - 'Kandidato vardas'
+            - 'Kandidato pavardė'
+            - 'Gimimo data'
+      vardas: {source: 'Kandidato vardas'}
+      pavarde: {source: 'Kandidato pavardė'}
+      lytis: {source: 'Lytis'}
+      tautybe: {source: 'Tautybė'}
+      gimimo_data: {source: 'Gimimo data'}
+      kas_iskele_kandidata: {source: 'Kas iškėlė kandidatą'}
+      gauti_balsai_is_viso: {source: 'Gauti balsai (iš viso)'}
+      gauti_balsai_rinkimu_diena: {source: 'Gauti balsai (rinkimų dieną)'}
+      gauti_balsai_is_anksto: {source: 'Gauti balsai (iš anksto)'}

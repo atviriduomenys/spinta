@@ -16,6 +16,7 @@ ruamel.yaml==0.15.88
 sqlalchemy==1.2.17
 unidecode==1.0.23
 urllib3==1.24.1           # via requests
+xlrd==1.2.0
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

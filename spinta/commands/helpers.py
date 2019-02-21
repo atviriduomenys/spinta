@@ -48,3 +48,17 @@ class Unstack(Command):
 
     def execute(self):
         return None
+
+
+class List(Command):
+    metadata = {'name': 'list'}
+
+    def execute(self):
+        result = []
+        for commands in self.args.source:
+            for command in commands:
+                name, args = next(iter(command.items()))
+                result.append(
+                    self.run(self.obj, {name: {**self.args.args, **args}})
+                )
+        return result

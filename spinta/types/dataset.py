@@ -90,7 +90,7 @@ class Pull(Command):
     def execute(self):
         for model in self.obj.objects.values():
             assert model.source is None or isinstance(model.source, list)
-            source = None
+            source = []
             for cmd in model.source:
                 command, args = next(iter(cmd.items()))
                 args.setdefault('source', source)
@@ -103,4 +103,14 @@ class Pull(Command):
                         command, args = next(iter(cmd.items()))
                         value = self.run(prop, {command: {**args, 'data': value}})
                     data[prop_name] = value
-                yield data
+                if self.check_key(data.get('id')):
+                    yield data
+
+    def check_key(self, key):
+        if isinstance(key, list):
+            for k in key:
+                if k is None:
+                    return False
+        elif key is None:
+            return False
+        return True

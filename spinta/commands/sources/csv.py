@@ -1,5 +1,4 @@
 import csv
-from contextlib import closing
 
 import requests
 
@@ -16,7 +15,7 @@ class CsvModel(Command):
         return self.read_csv()
 
     def read_csv(self):
-        with closing(requests.get(self.args.source, stream=True)) as r:
+        with requests.get(self.args.source, stream=True) as r:
             if r.encoding is None:
                 r.encoding = 'utf-8'
             lines = r.iter_lines(decode_unicode=True)

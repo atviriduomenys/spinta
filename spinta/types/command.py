@@ -43,6 +43,15 @@ class Prepare(Command):
             if not isinstance(args, dict):
                 args = {'source': args}
 
+            if name == 'list':
+                args['source'] = [
+                    self.run(self.obj, {'prepare': {
+                        **self.args.args,
+                        'value': x,
+                    }})
+                    for x in args['source']
+                ]
+
             value[i] = {name: args}
 
         return value

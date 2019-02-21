@@ -45,6 +45,7 @@ class Store:
             'chain',
             'json',
             'all',
+            'list',
             'denormalize',
             'unstack',
         }
