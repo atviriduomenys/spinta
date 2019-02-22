@@ -17,37 +17,63 @@ class Store:
             'spinta.commands',
         ]
         self.available_commands = {
-            'backend.migrate',
-            'backend.migrate.internal',
-            'backend.prepare',
-            'backend.prepare.internal',
-            'manifest.check',
-            'manifest.load',
-            'manifest.load.backends',
-            'manifest.load.manifests',
-            'prepare.type',
-            'serialize',
-            'prepare',
-            'check',
-            'push',
-            'pull',
-            'get',
-            'getall',
-            'wipe',
-            'csv',
-            'html',
-            'xml',
-            'replace',
-            'hint',
-            'self',
-            'url',
-            'xlsx',
-            'chain',
-            'json',
-            'all',
-            'list',
-            'denormalize',
-            'unstack',
+            'backend.migrate': {},
+            'backend.migrate.internal': {},
+            'backend.prepare': {},
+            'backend.prepare.internal': {},
+            'manifest.check': {},
+            'manifest.load': {},
+            'manifest.load.backends': {},
+            'manifest.load.manifests': {},
+            'prepare.type': {},
+            'serialize': {},
+            'prepare': {},
+            'check': {},
+            'push': {},
+            'pull': {},
+            'get': {},
+            'getall': {},
+            'wipe': {},
+            'csv': {
+                'argument': 'source',
+                'arguments': {
+                    'source': {'type': 'string'},
+                },
+            },
+            'html': {},
+            'xml': {},
+            'replace': {},
+            'hint': {},
+            'self': {},
+            'xlsx': {},
+            'chain': {},
+            'json': {
+                'argument': 'source',
+                'arguments': {
+                    'source': {'type': 'string'},
+                },
+            },
+            'all': {},
+            'list': {
+                'argument': 'commands',
+                'arguments': {
+                    'commands': {'type': 'array', 'items': 'command'},
+                },
+            },
+            'denormalize': {},
+            'unstack': {},
+            'url': {
+                'argument': 'url',
+                'arguments': {
+                    'url': {'type': 'string'},
+                },
+            },
+            'getitem': {
+                'argument': 'name',
+                'arguments': {
+                    'name': {'type': 'string'},
+                },
+            }
         }
         self.types = None
         self.commands = None
@@ -84,7 +110,7 @@ class Store:
                     raise Exception(f"Command {new} named {Class.metadata.name!r} with {type!r} type is already assigned to {old!r}.")
                 self.commands[key] = Class
 
-    def run(self, obj, call, *, base=0, backend=None, ns='default', optional=False, stack=()):
+    def run(self, obj, call, *, value=None, base=0, backend=None, ns='default', optional=False, stack=()):
         assert self.commands is not None, "Run add_commands first."
         assert isinstance(obj, Type), obj
         assert isinstance(call, dict) and len(call) == 1, call
@@ -96,14 +122,14 @@ class Store:
 
         max_call_depth = 10
         if len(stack) >= max_call_depth:
-            cmd = Command(self, obj, command, args, base=bases[-1], backend=backend, ns=ns, stack=stack)
+            cmd = Command(self, obj, command, args, value=value, base=bases[-1], backend=backend, ns=ns, stack=stack)
             cmd.error(f"Max depth {max_call_depth} of nested command calls has been reached, aborting.")
 
         for base, base_name in enumerate(bases, base):
             key = command, base_name, backend_type
             if key in self.commands:
                 Cmd = self.commands[key]
-                cmd = Cmd(self, obj, command, args, base=base, backend=backend, ns=ns, stack=stack)
+                cmd = Cmd(self, obj, command, args, value=value, base=base, backend=backend, ns=ns, stack=stack)
                 return cmd.execute()
 
         if optional:
@@ -114,7 +140,7 @@ class Store:
             keys.append(f'{command}, type: {base_name}, backend: {backend_type}')
         keys = '\n  - ' + '\n  - '.join(keys)
         message = f"Can't find command {command!r} for {obj.type}. Tried these options:{keys}"
-        cmd = Command(self, obj, command, args, base=base, backend=backend, ns=ns, stack=stack)
+        cmd = Command(self, obj, command, args, value=value, base=base, backend=backend, ns=ns, stack=stack)
         cmd.error(message)
 
     def configure(self, config):

@@ -8,7 +8,7 @@ objects:
   rinkimai:
     source:
       xlsx:
-        source: 'http://example.com/data.xlsx'
+        url: 'http://example.com/data.xlsx'
         skip: 8
         limit: 10
     properties:

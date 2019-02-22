@@ -30,4 +30,4 @@ class CsvProperty(Command):
     }
 
     def execute(self):
-        return self.args.data[self.args.source]
+        return self.value[self.args.source]

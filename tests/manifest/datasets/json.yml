@@ -1,0 +1,14 @@
+---
+name: json
+type: dataset
+version: 1
+date: "2019-02-22"
+objects:
+
+  rinkimai:
+    source:
+      - json: 'http://example.com/data.json'
+      - getitem: 'response'
+    properties:
+      id: {source: 'id'}
+      pavadinimas: {source: 'label'}

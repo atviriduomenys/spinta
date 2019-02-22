@@ -70,7 +70,7 @@ class PrepareType(Command):
             if type:
                 if type not in self.store.types:
                     self.error(f"Unknown type {type!r} for {name!r}.")
-                value = self.run(self.load(type, bare=True), {
+                value = self.run(self.load({'type': type, 'parent': self.obj}, bare=True), {
                     'prepare': {
                         'obj': self.obj,
                         'prop': name,

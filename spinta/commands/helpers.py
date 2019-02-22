@@ -55,10 +55,17 @@ class List(Command):
 
     def execute(self):
         result = []
-        for commands in self.args.source:
+        for commands in self.args.commands:
             for command in commands:
                 name, args = next(iter(command.items()))
                 result.append(
                     self.run(self.obj, {name: {**self.args.args, **args}})
                 )
         return result
+
+
+class Url(Command):
+    metadata = {'name': 'url'}
+
+    def execute(self):
+        return None

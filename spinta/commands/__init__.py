@@ -22,11 +22,12 @@ class MetaClass(type):
 class Command(metaclass=MetaClass):
     metadata = {'name': None, 'type': None, 'backend': None}
 
-    def __init__(self, store, obj, name, args, *, base=0, backend=None, ns='default', stack: tuple = ()):
+    def __init__(self, store, obj, name, args, *, value=None, base=0, backend=None, ns='default', stack: tuple = ()):
         self.store = store
         self.obj = obj
         self.name = name
         self.args = Args(args)
+        self.value = value
         self.base = base
         self.backend = backend
         self.ns = ns
@@ -46,6 +47,11 @@ class Command(metaclass=MetaClass):
         kwargs.setdefault('ns', self.ns)
         kwargs.setdefault('stack', self.stack + (self,))
         return self.store.run(*args, **kwargs)
+
+    def compose(self, obj, commands, value=None):
+        for command in commands:
+            value = self.run(obj, command, value=value)
+        return value
 
     def load(self, *args, **kwargs):
         kwargs.setdefault('ns', self.ns)

@@ -89,20 +89,14 @@ class Pull(Command):
 
     def execute(self):
         for model in self.obj.objects.values():
-            assert model.source is None or isinstance(model.source, list)
-            source = []
-            for cmd in model.source:
-                command, args = next(iter(cmd.items()))
-                args.setdefault('source', source)
-                source = self.run(model, {command: args})
+            if model.source is None:
+                continue
+            assert isinstance(model.source, list)
+            source = self.compose(model, model.source, [])
             for row in source:
                 data = {'type': f'{model.name}/:source/{self.obj.name}'}
                 for prop_name, prop in model.properties.items():
-                    value = row
-                    for cmd in prop.source:
-                        command, args = next(iter(cmd.items()))
-                        value = self.run(prop, {command: {**args, 'data': value}})
-                    data[prop_name] = value
+                    data[prop_name] = self.compose(prop, prop.source, value=row)
                 if self.check_key(data.get('id')):
                     yield data
 
