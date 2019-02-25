@@ -48,11 +48,6 @@ class Command(metaclass=MetaClass):
         kwargs.setdefault('stack', self.stack + (self,))
         return self.store.run(*args, **kwargs)
 
-    def compose(self, obj, commands, value=None):
-        for command in commands:
-            value = self.run(obj, command, value=value)
-        return value
-
     def load(self, *args, **kwargs):
         kwargs.setdefault('ns', self.ns)
         kwargs.setdefault('stack', self.stack + (self,))

@@ -14,8 +14,7 @@ objects:
     properties:
       id:
         source:
-          list:
-            - 'Rinkimai'
+          - 'Rinkimai'
       rusis: {source: 'Rinkimų rūšis'}
       pavadinimas: {source: 'Rinkimai'}
       data: {source: 'Rinkimų data'}
@@ -23,67 +22,63 @@ objects:
   turas:
     source:
       xlsx:
-        source: 'http://example.com/data.xlsx'
+        url: 'http://example.com/data.xlsx'
         skip: 8
         limit: 10
     properties:
       id:
         source:
-          list:
-            - 'Rinkimai'
-            - 'Turas'
+          - 'Rinkimai'
+          - 'Turas'
       turas: {source: 'Turas'}
 
   apygarda:
     source:
       xlsx:
-        source: 'http://example.com/data.xlsx'
+        url: 'http://example.com/data.xlsx'
         skip: 8
         limit: 10
     properties:
       id:
         source:
-          list:
-            - 'Rinkimai'
-            - 'Turas'
-            - 'Apygardos Nr.'
+          - 'Rinkimai'
+          - 'Turas'
+          - 'Apygardos Nr.'
       numeris: {source: 'Apygardos Nr.'}
       pavadinimas: {source: 'Apygardos pavadinimas'}
 
   apylinke:
     source:
       xlsx:
-        source: 'http://example.com/data.xlsx'
+        url: 'http://example.com/data.xlsx'
         skip: 8
         limit: 10
     properties:
       id:
         source:
-          list:
-            - 'Rinkimai'
-            - 'Turas'
-            - 'Apygardos Nr.'
-            - 'Apylinkės Nr.'
+          - 'Rinkimai'
+          - 'Turas'
+          - 'Apygardos Nr.'
+          - 'Apylinkės Nr.'
       numeris: {source: 'Apylinkės Nr.'}
       pavadinimas: {source: 'Apylinkės pavadinimas'}
 
   kandidatas:
     source:
       xlsx:
-        source: 'http://example.com/data.xlsx'
+        url: 'http://example.com/data.xlsx'
         skip: 8
         limit: 1
     properties:
       id:
         source:
-          list:
-            - 'Rinkimai'
-            - 'Turas'
-            - 'Apygardos Nr.'
-            - 'Apylinkės Nr.'
-            - 'Kandidato vardas'
-            - 'Kandidato pavardė'
-            - 'Gimimo data'
+          - 'Rinkimai'
+          - 'Turas'
+          - 'Apygardos Nr.'
+          - 'Apylinkės Nr.'
+          - 'Kandidato vardas'
+          - 'Kandidato pavardė'
+          - 'Gimimo data'
       vardas: {source: 'Kandidato vardas'}
       pavarde: {source: 'Kandidato pavardė'}
       lytis: {source: 'Lytis'}

@@ -45,7 +45,12 @@ class Store:
             'replace': {},
             'hint': {},
             'self': {},
-            'xlsx': {},
+            'xlsx': {
+                'argument': 'url',
+                'arguments': {
+                    'url': {'type': 'string'},
+                },
+            },
             'chain': {},
             'json': {
                 'argument': 'source',

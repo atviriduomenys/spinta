@@ -22,7 +22,7 @@ class XlsxDataset(Command):
             # We can't read data directly from stream, because openpyxl uses
             # seek on file-like object, so we need to download data to a
             # temporary file.
-            with requests.get(self.args.source, stream=True) as r:
+            with requests.get(self.args.url, stream=True) as r:
                 for chunk in filter(None, r.iter_content(chunk_size=8192)):
                     f.write(chunk)
             f.seek(0)
@@ -39,16 +39,6 @@ class XlsxDataset(Command):
                     if i in cols:
                         data[cols[i]] = value
                 yield data
-
-
-class XlsxProperty(Command):
-    metadata = {
-        'name': 'xlsx',
-        'type': 'dataset.property',
-    }
-
-    def execute(self):
-        return self.args.data.get(self.args.source)
 
 
 def read_excel(filename):

@@ -1,3 +1,4 @@
+import operator
 import pathlib
 
 from responses import GET
@@ -11,5 +12,13 @@ def test_json(store, responses):
     )
 
     assert len(store.pull('json')) == 10
-    assert list(store.getall('rinkimai/:source/json')) == [
+    assert sorted(store.getall('rinkimai/:source/json'), key=operator.itemgetter('id'))[:2] == [
+        {
+            'id': '101',
+            'pavadinimas': '2015 m. birželio 21 d. pakartotiniai Šilutės rajono savivaldybės tarybos rinkimai\n',
+        },
+        {
+            'id': '102',
+            'pavadinimas': '2015 m. birželio 7 d. nauji rinkimai į Lietuvos Respublikos Seimą vienmandatėje Varėnos–Eišiškių rinkimų apygardoje Nr. 70\n',
+        },
     ]

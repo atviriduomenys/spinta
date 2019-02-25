@@ -7,8 +7,9 @@ objects:
 
   rinkimai:
     source:
-      - json: 'http://example.com/data.json'
-      - getitem: 'response'
+      json:
+        url: 'http://example.com/data.json'
+        items: 'response'
     properties:
       id: {source: 'id'}
       pavadinimas: {source: 'label'}

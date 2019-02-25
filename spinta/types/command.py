@@ -8,6 +8,44 @@ class CommandType(Type):
     }
 
 
+class CommandListType(Type):
+    metadata = {
+        'name': 'command_list',
+    }
+
+
+class PrepareCommandList(Command):
+    metadata = {
+        'name': 'prepare',
+        'type': 'command_list',
+        'arguments': {
+            'obj': {'type': None},
+            'prop': {'type': 'string'},
+            'value': {'type': None},
+        }
+    }
+
+    def execute(self):
+        value = super().execute()
+
+        if value is None:
+            return value
+
+        if not isinstance(value, list):
+            value = [value]
+
+        obj = self.load({'type': 'command', 'parent': self.obj}, bare=True)
+        value = [
+            self.run(obj, {'prepare': {
+                **self.args.args,
+                'value': command,
+            }})
+            for command in value
+        ]
+
+        return value
+
+
 class Prepare(Command):
     metadata = {
         'name': 'prepare',
@@ -25,48 +63,16 @@ class Prepare(Command):
         if value is None:
             return value
 
-        if not isinstance(value, list):
-            value = [value]
+        if not isinstance(value, dict):
+            self.error("{self.args.prop!r} must be a dict.")
 
-        # Find previous command name.
-        if self.obj.parent and hasattr(self.obj.parent, self.args.prop):
-            parent = getattr(self.obj.parent, self.args.prop)
-            cmd = getattr(self.obj.parent, self.args.prop)[-1]
-            previous_command_name, _ = next(iter(cmd.items()))
-        else:
-            previous_command_name = 'url'
+        name, args = next(iter(value.items()))
 
-        if value == ['label']:
-            print(self.args.prop)
-            print(self.obj)
-            print(self.obj.parent)
-            print(previous_command_name)
+        if name not in self.store.available_commands:
+            self.error(f"Unknown command {name!r}.")
 
-        for i, cmd in enumerate(value):
-            if isinstance(cmd, dict):
-                name, args = next(iter(cmd.items()))
-            else:
-                name = previous_command_name
-                args = cmd
+        if isinstance(args, str):
+            argument = self.store.available_commands[name]['argument']
+            args = {argument: args}
 
-            if name not in self.store.available_commands:
-                self.error(f"Unknown command {name!r}.")
-
-            if not isinstance(args, dict):
-                if 'argument' not in self.store.available_commands[name]:
-                    self.error(f"Command {name!r} does not define single argument name you must set it in available_commands.")
-                args = {self.store.available_commands[name]['argument']: args}
-
-            if name == 'list':
-                args['commands'] = [
-                    self.run(self.obj, {'prepare': {
-                        **self.args.args,
-                        'value': x,
-                    }})
-                    for x in args['commands']
-                ]
-
-            value[i] = {name: args}
-            previous_command_name = name
-
-        return value
+        return {name: args}

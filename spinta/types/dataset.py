@@ -24,7 +24,7 @@ class Model(Object):
     metadata = {
         'name': 'dataset.model',
         'properties': {
-            'source': {'type': 'command'},
+            'source': {'type': 'command_list'},
             'identity': {'type': 'array', 'required': False},
             'properties': {'type': 'object', 'default': {}},
             'stars': {'type': 'integer'},
@@ -41,7 +41,7 @@ class Property(Type):
     metadata = {
         'name': 'dataset.property',
         'properties': {
-            'source': {'type': 'command'},
+            'source': {'type': 'string'},
             'local': {'type': 'boolean'},
             'stars': {'type': 'integer'},
             'const': {'type': 'any'},
@@ -91,14 +91,22 @@ class Pull(Command):
         for model in self.obj.objects.values():
             if model.source is None:
                 continue
-            assert isinstance(model.source, list)
-            source = self.compose(model, model.source, [])
-            for row in source:
-                data = {'type': f'{model.name}/:source/{self.obj.name}'}
-                for prop_name, prop in model.properties.items():
-                    data[prop_name] = self.compose(prop, prop.source, value=row)
-                if self.check_key(data.get('id')):
-                    yield data
+            for source in model.source:
+                rows = self.run(model, source)
+                for row in rows:
+                    data = {'type': f'{model.name}/:source/{self.obj.name}'}
+                    for prop in model.properties.values():
+                        if isinstance(prop.source, list):
+                            data[prop.name] = [
+                                row[name]
+                                for name in prop.source
+                                if name in row
+                            ]
+                        else:
+                            if prop.source in row:
+                                data[prop.name] = row[prop.source]
+                    if self.check_key(data.get('id')):
+                        yield data
 
     def check_key(self, key):
         if isinstance(key, list):
