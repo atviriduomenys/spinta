@@ -47,7 +47,7 @@ async def homepage(request):
     # Resolve a dataset
     datasets = []
     if path in datasets_by_object:
-        for name in datasets_by_object[path].keys():
+        for name in sorted(datasets_by_object[path].keys()):
             datasets.append((
                 name,
                 ('/' if path else '') + path + '/' + name,
