@@ -32,7 +32,7 @@ def test_app(app):
             ('turas', '/rinkimai/turas'),
         ],
         'datasets': [
-            ('xlsx', '/rinkimai/xlsx'),
             ('json', '/rinkimai/json'),
+            ('xlsx', '/rinkimai/xlsx'),
         ],
     }
