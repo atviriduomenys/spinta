@@ -12,7 +12,11 @@ chardet==3.0.4            # via requests
 click==7.0
 codecov==2.0.15
 coverage==4.5.2           # via codecov, pytest-cov
+h11==0.8.1                # via uvicorn
+httptools==0.0.13         # via uvicorn
 idna==2.8                 # via requests
+jinja2==2.10
+markupsafe==1.1.1         # via jinja2
 more-itertools==6.0.0     # via pytest
 msgpack==0.6.1
 pluggy==0.8.1             # via pytest
@@ -29,9 +33,14 @@ ruamel.yaml==0.15.88
 six==1.12.0               # via pytest, responses, sqlalchemy-utils
 sqlalchemy-utils==0.33.11
 sqlalchemy==1.2.17
+starlette==0.11.2
 toposort==1.5
+ujson==1.35
 unidecode==1.0.23
 urllib3==1.24.1           # via requests
+uvicorn==0.4.6
+uvloop==0.12.1            # via uvicorn
+websockets==7.0           # via uvicorn
 xlrd==1.2.0
 
 # The following packages are considered to be unsafe in a requirements file:

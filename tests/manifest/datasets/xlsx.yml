@@ -19,7 +19,7 @@ objects:
       pavadinimas: {source: 'Rinkimai'}
       data: {source: 'Rinkimų data'}
 
-  turas:
+  rinkimai/turas:
     source:
       xlsx:
         url: 'http://example.com/data.xlsx'
@@ -32,7 +32,7 @@ objects:
           - 'Turas'
       turas: {source: 'Turas'}
 
-  apygarda:
+  rinkimai/apygarda:
     source:
       xlsx:
         url: 'http://example.com/data.xlsx'
@@ -47,7 +47,7 @@ objects:
       numeris: {source: 'Apygardos Nr.'}
       pavadinimas: {source: 'Apygardos pavadinimas'}
 
-  apylinke:
+  rinkimai/apylinke:
     source:
       xlsx:
         url: 'http://example.com/data.xlsx'
@@ -63,7 +63,7 @@ objects:
       numeris: {source: 'Apylinkės Nr.'}
       pavadinimas: {source: 'Apylinkės pavadinimas'}
 
-  kandidatas:
+  rinkimai/kandidatas:
     source:
       xlsx:
         url: 'http://example.com/data.xlsx'

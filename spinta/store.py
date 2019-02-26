@@ -40,10 +40,26 @@ class Store:
                     'source': {'type': 'string'},
                 },
             },
-            'html': {},
-            'xml': {},
+            'html': {
+                'argument': 'url',
+                'arguments': {
+                    'url': {'type': 'string'},
+                },
+            },
+            'xml': {
+                'argument': 'url',
+                'arguments': {
+                    'url': {'type': 'string', 'required': True},
+                    'items': {'type': 'string', 'required': True},
+                },
+            },
             'replace': {},
-            'hint': {},
+            'hint': {
+                'argument': 'source',
+                'arguments': {
+                    'source': {'type': 'string', 'required': True},
+                },
+            },
             'self': {},
             'xlsx': {
                 'argument': 'url',
@@ -55,7 +71,8 @@ class Store:
             'json': {
                 'argument': 'source',
                 'arguments': {
-                    'source': {'type': 'string'},
+                    'source': {'type': 'string', 'required': True},
+                    'items': {'type': 'string', 'required': True},
                 },
             },
             'all': {},

@@ -59,3 +59,10 @@ def migrate(ctx):
     store.migrate(internal=True)
     store.prepare()
     store.migrate()
+
+
+@main.command()
+@click.pass_context
+def run(ctx):
+    import spinta.api
+    spinta.api.run(ctx.obj['store'])

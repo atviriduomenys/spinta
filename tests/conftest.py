@@ -6,7 +6,9 @@ import pytest
 import sqlalchemy_utils as su
 from responses import RequestsMock
 from toposort import toposort
+from starlette.testclient import TestClient
 
+from spinta import api
 from spinta.store import Store
 
 
@@ -73,3 +75,9 @@ def postgresql():
 def responses():
     with RequestsMock() as mock:
         yield mock
+
+
+@pytest.fixture
+def app(store, mocker):
+    mocker.patch('spinta.api.store', store)
+    return TestClient(api.app)

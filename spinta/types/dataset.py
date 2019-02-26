@@ -47,6 +47,7 @@ class Property(Type):
             'const': {'type': 'any'},
             'enum': {'type': 'array'},
             'parent': {'type': 'dataset.model'},
+            'replace': {'type': 'object'},
         },
     }
 

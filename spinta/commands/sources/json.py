@@ -9,6 +9,7 @@ class Json(Command):
         'type': 'dataset.model',
         'arguments': {
             'source': {'type': 'url', 'required': True},
+            'items': {'type': 'string', 'required': True},
         }
     }
 

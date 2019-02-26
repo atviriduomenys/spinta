@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+        <title>Spinta</title>
+    </head>
+    <body>
+        <p>
+        {% for name, link in location %}
+            {% if link %}
+                <a href="{{ link }}">{{ name }}</a>
+            {% else %}
+                <strong>{{ name }}</strong>
+            {% endif %}
+            {% if not loop.last %}/{% endif %}
+        {% endfor %}
+        </p>
+
+        {% if items %}
+        <strong>Containers:</strong>
+        <ul>
+            {% for name, link in items %}
+            <li><a href="{{ link }}">{{ name }}</a></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if datasets %}
+        <strong>Datasets:</strong>
+        <ul>
+            {% for name, link in datasets %}
+            <li><a href="{{ link }}">{{ name }}</a></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </body>
+</html>

@@ -1,10 +1,14 @@
 asyncpg
 click
+jinja2
+msgpack
 psycopg2-binary
 requests
 ruamel.yaml
 setuptools
 sqlalchemy
+starlette
+ujson
 unidecode
-msgpack
+uvicorn
 xlrd

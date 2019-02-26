@@ -64,7 +64,7 @@ class Prepare(Command):
             return value
 
         if not isinstance(value, dict):
-            self.error("{self.args.prop!r} must be a dict.")
+            self.error(f"{self.args.prop!r} must be a dict.")
 
         name, args = next(iter(value.items()))
 
@@ -72,6 +72,8 @@ class Prepare(Command):
             self.error(f"Unknown command {name!r}.")
 
         if isinstance(args, str):
+            if 'argument' not in self.store.available_commands[name]:
+                self.error(f"Command {name!r} does not have a default argument.")
             argument = self.store.available_commands[name]['argument']
             args = {argument: args}
 

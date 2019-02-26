@@ -19,27 +19,27 @@ def test_xlsx(store, responses):
             'pavadinimas': '1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai',
         },
     ]
-    assert list(store.getall('turas/:source/xlsx')) == [
+    assert list(store.getall('rinkimai/turas/:source/xlsx')) == [
         {
             'id': ['1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai', 1],
             'turas': 1,
         },
     ]
-    assert list(store.getall('apygarda/:source/xlsx')) == [
+    assert list(store.getall('rinkimai/apygarda/:source/xlsx')) == [
         {
             'id': ['1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai', 1, 2],
             'numeris': 2,
             'pavadinimas': 'Senamiesčio',
         },
     ]
-    assert list(store.getall('apylinke/:source/xlsx')) == [
+    assert list(store.getall('rinkimai/apylinke/:source/xlsx')) == [
         {
             'id': ['1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai', 1, 2, 0],
             'numeris': 0,
             'pavadinimas': 'Balsai, suskaičiuoti apygardos rinkimų komisijoje',
         },
     ]
-    assert list(store.getall('kandidatas/:source/xlsx')) == [
+    assert list(store.getall('rinkimai/kandidatas/:source/xlsx')) == [
         {
             'id': ['1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai', 1, 2, 0, 'NIJOLĖ', 'VAITIEKŪNIENĖ', '1954-03-31T00:00:00'],
             'vardas': 'NIJOLĖ',
