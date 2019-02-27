@@ -12,7 +12,7 @@ def test_json(store, responses):
     )
 
     assert len(store.pull('json')) == 10
-    assert sorted(store.getall('rinkimai/:source/json'), key=operator.itemgetter('id'))[:2] == [
+    assert sorted(store.getall('rinkimai', {'source': 'json'}), key=operator.itemgetter('id'))[:2] == [
         {
             'id': '101',
             'pavadinimas': '2015 m. birželio 21 d. pakartotiniai Šilutės rajono savivaldybės tarybos rinkimai\n',

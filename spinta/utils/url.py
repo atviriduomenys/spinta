@@ -1,59 +1,90 @@
-SCHEMA = {
+def sort_key(value):
+    if value.startswith('-'):
+        return {
+            'name': value[1:],
+            'ascending': False,
+        }
+    else:
+        return {
+            'name': value,
+            'ascending': True,
+        }
+
+
+RULES = {
     'path': {
-        'multiple': False,
-        'args': None,
+        'reduce': '/'.join,
     },
     'id': {
-        'multiple': False,
-        'args': 1,
+        'maxargs': 1,
+        'cast': int,
     },
     'source': {
-        'multiple': False,
-        'args': 1,
+        'reduce': '/'.join,
+    },
+    'sort': {
+        'cast': sort_key,
+    },
+    'limit': {
+        'maxargs': 1,
+        'cast': int,
+    },
+    'offset': {
+        'maxargs': 1,
+        'cast': int,
     },
 }
 
 
 def parse_url_path(path):
-    result = {'path': []}
+    data = []
     name = 'path'
-    params = SCHEMA[name]
+    value = []
     for part in path.split('/'):
         if part.startswith(':'):
+            data.append((name, value))
             name = part[1:]
-            if name not in SCHEMA:
-                raise Exception(f"Unknown URl parameter {name!r}.")
-            params = SCHEMA[name]
-            if params['args'] == 1:
-                if params['multiple']:
-                    result[name] = []
-                elif name in result:
-                    raise Exception(f"URL parameter {name!r} can't be used more than once.")
-            else:
-                if name not in result:
-                    result[name] = []
-                elif params['multiple'] is False:
-                    raise Exception(f"URL parameter {name!r} can't be used more than once.")
-                if params['multiple']:
-                    result[name].append([])
-        elif name is None:
-            raise Exception(f"Expected URL path /:parameter, got {part!r}.")
-        elif name == 'path' and part.isdigit():
-            result['id'] = int(part)
-            name = None
+            value = []
+        elif not data and part.isdigit():
+            data.append((name, value))
+            name = 'id'
+            value = [part]
         else:
-            if params['args'] == 1:
-                if params['multiple']:
-                    result[name].append(part)
-                else:
-                    result[name] = part
-            else:
-                if params['multiple']:
-                    args = result[name][-1]
-                else:
-                    args = result[name]
-                args.append(part)
-                if params['args'] is not None and len(args) > params['args']:
-                    raise Exception(f"URL parameter {name!r} can only have {params['args']} arguments.")
-    result['path'] = '/'.join(result['path'])
-    return result
+            value.append(part)
+    data.append((name, value))
+
+    params = {}
+    for name, value in data:
+
+        rules = RULES.get(name)
+        if rules is None:
+            raise Exception(f"Unknown URl parameter {name!r}.")
+
+        minargs = rules.get('minargs', 1)
+        if len(value) < minargs:
+            raise Exception(f"At least {minargs} argument is required for {name!r} URL parameter.")
+
+        maxargs = rules.get('maxargs')
+        if maxargs is not None and len(value) > maxargs:
+            raise Exception(f"URL parameter {name!r} can only have {maxargs} arguments.")
+
+        if 'cast' in rules:
+            value = list(map(rules['cast'], value))
+
+        if minargs == 1 and maxargs == 1:
+            value = value[0]
+
+        if 'reduce' in rules:
+            value = rules['reduce'](value)
+
+        multiple = rules.get('multiple', False)
+        if multiple:
+            if name not in params:
+                params[name] = []
+            params[name].append(value)
+        elif name in params:
+            raise Exception(f"Multiple values for {name!r} URL parameter are not allowed.")
+        else:
+            params[name] = value
+
+    return params

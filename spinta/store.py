@@ -305,10 +305,17 @@ class Store:
         with self.config.backends[backend].transaction() as transaction:
             return self.run(model, {'get': {'transaction': transaction, 'id': object_id}}, backend=backend, ns=ns)
 
-    def getall(self, model_name: str, backend='default', ns='default'):
-        model = get_model_by_name(self, ns, model_name)
+    def getall(self, model_name: str, params: dict = None, *, backend='default', ns='default'):
+        params = params or {}
+        model = get_model_from_params(self, ns, model_name, params)
         with self.config.backends[backend].transaction() as transaction:
-            yield from self.run(model, {'getall': {'transaction': transaction}}, backend=backend, ns=ns)
+            params = {
+                'transaction': transaction,
+                'sort': params.get('sort', [{'name': 'id', 'ascending': True}]),
+                'limit': params.get('limit'),
+                'offset': params.get('offset'),
+            }
+            yield from self.run(model, {'getall': params}, backend=backend, ns=ns)
 
     def wipe(self, model_name: str, backend='default', ns='default'):
         model = get_model_by_name(self, ns, model_name)
@@ -364,5 +371,12 @@ def get_model_by_name(store, ns, name):
     if '/:source/' in name:
         model, dataset = name.split('/:source/')
         return store.objects[ns]['dataset'][dataset].objects[model]
+    else:
+        return store.objects[ns]['model'][name]
+
+
+def get_model_from_params(store, ns, name, params):
+    if 'source' in params:
+        return store.objects[ns]['dataset'][params['source']].objects[name]
     else:
         return store.objects[ns]['model'][name]

@@ -9,6 +9,7 @@ class Config(Object):
             'backends': {'type': 'object', 'required': True},
             'manifests': {'type': 'object', 'required': True},
             'ignore': {'type': 'array', 'default': []},
+            'debug': {'type': 'boolean', 'default': False},
         },
     }
 

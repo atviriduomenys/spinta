@@ -17,7 +17,7 @@ def test_csv(store, responses):
     assert len(store.pull('csv')) == 3
 
     assert sorted([(x['code'], x['title']) for x in store.getall('country')]) == []
-    assert sorted([(x['code'], x['title']) for x in store.getall('country/:source/csv')]) == [
+    assert sorted([(x['code'], x['title']) for x in store.getall('country', {'source': 'csv'})]) == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
@@ -40,13 +40,13 @@ def test_denorm(store, responses):
     assert len(store.pull('denorm')) == 6
 
     assert list(store.getall('country')) == []
-    assert sorted([(x['id'], x['title']) for x in store.getall('country/:source/denorm')]) == [
+    assert sorted([(x['id'], x['title']) for x in store.getall('country', {'source': 'denorm'})]) == [
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
     ]
 
     assert list(store.getall('org')) == []
-    assert sorted([(x['id'], x['title'], x['country']) for x in store.getall('org/:source/denorm')]) == [
+    assert sorted([(x['id'], x['title'], x['country']) for x in store.getall('org', {'source': 'denorm'})]) == [
         ('1', 'Org1', 'lt'),
         ('2', 'Org2', 'lt'),
         ('3', 'Org3', 'lv'),

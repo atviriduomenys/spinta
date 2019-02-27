@@ -1,40 +1,14 @@
-import pathlib
-
 import click
 
 from spinta.store import Store
-from spinta.utils.cli import update_config_from_cli
+from spinta.config import get_config
 
 
 @click.group()
 @click.option('--option', '-o', multiple=True, help='Set configuration option, example: `-o option.name=value`.')
 @click.pass_context
 def main(ctx, option):
-    config = {
-        'backends': {
-            'default': {
-                'type': 'postgresql',
-                'dsn': 'postgresql:///spinta',
-            },
-        },
-        'manifests': {
-            'default': {
-                'path': pathlib.Path(),
-            },
-        },
-        'ignore': [
-            '.travis.yml',
-            '/prefixes.yml',
-            '/schema/',
-            '/env/',
-        ],
-    }
-    custom = {
-        ('backends',): 'default',
-        ('manifests',): 'default',
-    }
-
-    update_config_from_cli(config, custom, option)
+    config = get_config(option)
 
     store = Store()
     store.add_types()
@@ -59,6 +33,16 @@ def migrate(ctx):
     store.migrate(internal=True)
     store.prepare()
     store.migrate()
+
+
+@main.command(help='Pull data from an external dataset.')
+@click.argument('source')
+@click.pass_context
+def pull(ctx, source):
+    store = ctx.obj['store']
+    store.prepare(internal=True)
+    store.prepare()
+    store.pull(source)
 
 
 @main.command()

@@ -34,5 +34,23 @@
             {% endfor %}
         </ul>
         {% endif %}
+
+        {% if data %}
+            <table>
+                {% for row in data %}
+                <tr>
+                    {% if loop.first %}
+                        {% for value in row %}
+                        <th>{{ value }}</th>
+                        {% endfor %}
+                    {% else %}
+                        {% for value in row %}
+                        <td>{{ value }}</td>
+                        {% endfor %}
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </table>
+        {% endif %}
     </body>
 </html>

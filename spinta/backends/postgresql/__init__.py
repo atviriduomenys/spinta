@@ -163,10 +163,27 @@ class PrepareModel(Command):
                 columns.append(
                     sa.Column(prop_name, sa.Integer)
                 )
+            elif prop.type == 'number':
+                columns.append(
+                    sa.Column(prop_name, sa.Float)
+                )
+            elif prop.type == 'boolean':
+                columns.append(
+                    sa.Column(prop_name, sa.Boolean)
+                )
+            elif prop.type in ('spatial', 'image'):
+                # TODO: these property types currently are not implemented
+                columns.append(
+                    sa.Column(prop_name, sa.Text)
+                )
             elif prop.type == 'ref':
                 columns.extend(
                     self.get_foreign_key(self.obj, prop)
                 )
+            elif prop.type == 'backref':
+                pass
+            elif prop.type == 'generic':
+                pass
             else:
                 self.error(f"Unknown property type {prop.type}.")
 

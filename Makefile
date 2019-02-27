@@ -25,3 +25,7 @@ test: env
 .PHONY: dist
 dist: env/bin/pip
 	env/bin/python setup.py sdist bdist_wheel
+
+.PHONY: run
+run: env
+	env/bin/uvicorn spinta.asgi:app --debug

@@ -112,10 +112,45 @@ class GetAll(Command):
             select_from(table.join(agg, table.c.id == agg.c.id))
         )
 
+        query = self.order_by(query, table)
+        query = self.limit(query)
+        query = self.offset(query)
+
         result = connection.execute(query)
 
         for row in result:
-            yield row[table.c.data]
+            yield {**row[table.c.data], 'id': row[table.c.key]}
+
+    def order_by(self, query, table):
+        if self.args.sort:
+            db_sort_keys = []
+            for sort_key in self.args.sort:
+                if sort_key['name'] == 'id':
+                    column = table.c.id
+                else:
+                    column = table.c.data[sort_key['name']]
+
+                if sort_key['ascending']:
+                    column = column.asc()
+                else:
+                    column = column.desc()
+
+                db_sort_keys.append(column)
+            return query.order_by(*db_sort_keys)
+        else:
+            return query
+
+    def limit(self, query):
+        if self.args.limit:
+            return query.limit(self.args.limit)
+        else:
+            return query
+
+    def offset(self, query):
+        if self.args.offset:
+            return query.offset(self.args.offset)
+        else:
+            return query
 
 
 class Wipe(Command):
