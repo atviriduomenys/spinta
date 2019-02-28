@@ -16,6 +16,7 @@ def test_app(app):
         'datasets': [],
         'header': [],
         'data': [],
+        'formats': [],
     }
 
 
@@ -41,6 +42,7 @@ def test_directory(app):
         ],
         'header': [],
         'data': [],
+        'formats': [],
     }
 
 
@@ -68,6 +70,10 @@ def test_dataset(store, app):
         'header': ['id', 'pavadinimas'],
         'data': [
             ['df6b9e04', 'Rinkimai 1'],
+        ],
+        'formats': [
+            ('CSV', '/rinkimai/:source/json/:format/csv'),
+            ('JSON', '/rinkimai/:source/json/:format/json'),
         ],
     }
 
@@ -99,5 +105,9 @@ def test_nested_dataset(store, app):
         'header': ['id', 'name'],
         'data': [
             ['e2ff1ff0', 'Nested One'],
+        ],
+        'formats': [
+            ('CSV', '/deeply/nested/model/name/:source/nested/dataset/name/:format/csv'),
+            ('JSON', '/deeply/nested/model/name/:source/nested/dataset/name/:format/json'),
         ],
     }

@@ -31,10 +31,6 @@ async def homepage(request):
     fmt = params.get('format', 'html')
 
     if fmt == 'html':
-        formats = [
-            ('CSV', '/' + url_path + '/:format/csv'),
-            ('JSON', '/' + url_path + '/:format/json'),
-        ]
         loc = get_current_location(path, params)
         if 'source' in params:
             items = []
@@ -42,6 +38,10 @@ async def homepage(request):
             data = get_data(store, params)
             header = next(data)
             data = list(data)
+            formats = [
+                ('CSV', '/' + url_path + '/:format/csv'),
+                ('JSON', '/' + url_path + '/:format/json'),
+            ]
 
         else:
             datasets_by_object = get_datasets_by_object(store)
@@ -53,6 +53,7 @@ async def homepage(request):
             datasets = list(get_directory_datasets(datasets_by_object, path))
             header = []
             data = []
+            formats = []
 
         return templates.TemplateResponse('base.html', {
             'request': request,
