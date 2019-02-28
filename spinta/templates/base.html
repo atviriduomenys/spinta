@@ -55,7 +55,7 @@
         {% endif %}
 
         {% if datasets %}
-        <strong>Datasets:</strong>
+        <strong>Data sources:</strong>
         <ul>
             {% for name, link in datasets %}
             <li><a href="{{ link }}">{{ name }}</a></li>
@@ -64,6 +64,14 @@
         {% endif %}
 
         {% if data %}
+        <p>
+            Formats:
+            <strong>HTML</strong>,
+            {% for fmt, link in formats %}
+            <a href="{{ link }}">{{ fmt }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </p>
+
         <table class="table">
             <thead>
                 <tr>

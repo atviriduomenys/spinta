@@ -1,5 +1,6 @@
 import inspect
 import importlib
+import itertools
 import pathlib
 
 import pkg_resources as pres
@@ -95,7 +96,19 @@ class Store:
                 'arguments': {
                     'name': {'type': 'string'},
                 },
-            }
+            },
+            'export.csv': {
+                'arguments': {
+                    'cols': {'type': 'array', 'items': {'type': 'string'}},
+                    'rows': {'type': 'generator', 'items': {'type': 'dict'}},
+                },
+            },
+            'export.json': {
+                'arguments': {
+                    'cols': {'type': 'array', 'items': {'type': 'string'}},
+                    'rows': {'type': 'generator', 'items': {'type': 'dict'}},
+                },
+            },
         }
         self.types = None
         self.commands = None
@@ -316,6 +329,17 @@ class Store:
                 'offset': params.get('offset'),
             }
             yield from self.run(model, {'getall': params}, backend=backend, ns=ns)
+
+    def export(self, fmt, model_name: str, params: dict = None, *, backend='default', ns='default'):
+        command = f'export.{fmt}'
+        if command not in self.available_commands:
+            raise Exception(f"Unknonwn format {fmt}.")
+        model = get_model_from_params(self, ns, model_name, params)
+        rows = self.getall(model_name, params, backend=backend, ns=ns)
+        peek = next(rows)
+        cols = list(peek.keys())
+        rows = itertools.chain([peek], rows)
+        yield from self.run(model, {command: {'cols': cols, 'rows': rows}}, backend=None, ns=ns)
 
     def wipe(self, model_name: str, backend='default', ns='default'):
         model = get_model_by_name(self, ns, model_name)

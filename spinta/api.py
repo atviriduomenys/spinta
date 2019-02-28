@@ -5,6 +5,8 @@ import uvicorn
 
 from starlette.applications import Starlette
 from starlette.templating import Jinja2Templates
+from starlette.exceptions import HTTPException
+from starlette.responses import StreamingResponse
 
 from spinta.utils.url import parse_url_path
 from spinta.utils.tree import build_path_tree
@@ -22,37 +24,60 @@ store = None
 async def homepage(request):
     global store
 
-    path = request.path_params['path'].strip('/')
-    params = parse_url_path(path)
+    url_path = request.path_params['path'].strip('/')
+    params = parse_url_path(url_path)
     path = params['path']
-    loc = get_current_location(path, params)
 
-    if 'source' in params:
-        items = []
-        datasets = []
-        data = get_data(store, params)
-        header = next(data)
-        data = list(data)
+    fmt = params.get('format', 'html')
+
+    if fmt == 'html':
+        formats = [
+            ('CSV', '/' + url_path + '/:format/csv'),
+            ('JSON', '/' + url_path + '/:format/json'),
+        ]
+        loc = get_current_location(path, params)
+        if 'source' in params:
+            items = []
+            datasets = []
+            data = get_data(store, params)
+            header = next(data)
+            data = list(data)
+
+        else:
+            datasets_by_object = get_datasets_by_object(store)
+            tree = build_path_tree(
+                store.objects['default'].get('model', {}).keys(),
+                datasets_by_object.keys(),
+            )
+            items = get_directory_content(tree, path) if path in tree else []
+            datasets = list(get_directory_datasets(datasets_by_object, path))
+            header = []
+            data = []
+
+        return templates.TemplateResponse('base.html', {
+            'request': request,
+            'location': loc,
+            'formats': formats,
+            'items': items,
+            'datasets': datasets,
+            'header': header,
+            'data': data,
+        })
+
+    elif fmt in ('csv', 'json'):
+        async def generator():
+            for data in store.export(fmt, path, params):
+                yield data
+
+        media_types = {
+            'csv': 'text/csv',
+            'json': 'application/json',
+        }
+
+        return StreamingResponse(generator(), media_type=media_types[fmt])
 
     else:
-        datasets_by_object = get_datasets_by_object(store)
-        tree = build_path_tree(
-            store.objects['default'].get('model', {}).keys(),
-            datasets_by_object.keys(),
-        )
-        items = get_directory_content(tree, path) if path in tree else []
-        datasets = list(get_directory_datasets(datasets_by_object, path))
-        header = []
-        data = []
-
-    return templates.TemplateResponse('base.html', {
-        'request': request,
-        'location': loc,
-        'items': items,
-        'datasets': datasets,
-        'header': header,
-        'data': data,
-    })
+        raise HTTPException(status_code=404)
 
 
 def run(store):

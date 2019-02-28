@@ -33,6 +33,9 @@ RULES = {
         'maxargs': 1,
         'cast': int,
     },
+    'format': {
+        'maxargs': 1,
+    },
 }
 
 
