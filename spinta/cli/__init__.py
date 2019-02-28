@@ -22,7 +22,7 @@ def main(ctx, option):
 @main.command()
 @click.pass_context
 def check(ctx):
-    click.echo("It works, the check.")
+    click.echo("OK")
 
 
 @main.command()

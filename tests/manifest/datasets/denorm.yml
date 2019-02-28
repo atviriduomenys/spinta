@@ -9,7 +9,7 @@ objects:
     properties:
       id: {source: 'govid'}
       title: {source: 'org'}
-      country: {source: 'kodas'}
+      country: {source: 'kodas', ref: country}
   country:
     source: {csv: 'http://example.com/orgs.csv'}
     properties:

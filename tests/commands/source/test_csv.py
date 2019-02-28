@@ -1,3 +1,5 @@
+from operator import itemgetter
+
 from responses import GET
 
 
@@ -39,15 +41,18 @@ def test_denorm(store, responses):
     assert len(store.pull('denorm')) == 6
     assert len(store.pull('denorm')) == 6
 
+    lt = '552c4c243ec8c98c313255ea9bf16ee286591f8c'
+    lv = 'b5dcb86880816fb966cdfbbacd1f3406739464f4'
+
     assert list(store.getall('country')) == []
     assert sorted([(x['id'], x['title']) for x in store.getall('country', {'source': 'denorm'})]) == [
-        ('lt', 'Lietuva'),
-        ('lv', 'Latvija'),
+        (lt, 'Lietuva'),
+        (lv, 'Latvija'),
     ]
 
     assert list(store.getall('org')) == []
-    assert sorted([(x['id'], x['title'], x['country']) for x in store.getall('org', {'source': 'denorm'})]) == [
-        ('1', 'Org1', 'lt'),
-        ('2', 'Org2', 'lt'),
-        ('3', 'Org3', 'lv'),
+    assert sorted([(x['id'], x['title'], x['country']) for x in store.getall('org', {'source': 'denorm'})], key=itemgetter(1)) == [
+        ('23fcdb953846e7c709d2967fb549de67d975c010', 'Org1', lt),
+        ('6f9f652eb6dae29e4406f1737dd6043af6142090', 'Org2', lt),
+        ('11a0764da48b674ce0c09982e7c43002b510d5b5', 'Org3', lv),
     ]

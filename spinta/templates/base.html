@@ -4,6 +4,34 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width">
         <title>Spinta</title>
+        <style>
+        /* Table style generated using https://divtable.com/table-styler/ */
+        table.table {
+            width: 100%;
+            text-align: left;
+            border-collapse: collapse;
+        }
+        table.table td, table.table th {
+            border: 1px solid #000000;
+            padding: 5px 4px;
+        }
+        table.table tbody td {
+            font-size: 13px;
+        }
+        table.table thead {
+            background: #E8E8E8;
+            border-bottom: 3px solid #000000;
+        }
+        table.table thead th {
+            font-size: 15px;
+            font-weight: bold;
+            color: #000000;
+            text-align: left;
+        }
+        table.table tfoot td {
+            font-size: 14px;
+        }
+        </style>
     </head>
     <body>
         <p>
@@ -36,21 +64,24 @@
         {% endif %}
 
         {% if data %}
-            <table>
+        <table class="table">
+            <thead>
+                <tr>
+                    {% for column in header %}
+                    <th>{{ column }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
                 {% for row in data %}
                 <tr>
-                    {% if loop.first %}
-                        {% for value in row %}
-                        <th>{{ value }}</th>
-                        {% endfor %}
-                    {% else %}
-                        {% for value in row %}
-                        <td>{{ value }}</td>
-                        {% endfor %}
-                    {% endif %}
+                    {% for value in row %}
+                    <td>{{ value }}</td>
+                    {% endfor %}
                 </tr>
                 {% endfor %}
-            </table>
+            </tbody>
+        </table>
         {% endif %}
     </body>
 </html>

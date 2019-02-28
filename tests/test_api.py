@@ -14,6 +14,7 @@ def test_app(app):
             ('rinkimai', '/rinkimai'),
         ],
         'datasets': [],
+        'header': [],
         'data': [],
     }
 
@@ -38,6 +39,7 @@ def test_directory(app):
             ('json', '/rinkimai/:source/json'),
             ('xlsx', '/rinkimai/:source/xlsx'),
         ],
+        'header': [],
         'data': [],
     }
 
@@ -63,9 +65,9 @@ def test_dataset(store, app):
         ],
         'items': [],
         'datasets': [],
+        'header': ['id', 'pavadinimas'],
         'data': [
-            ['id', 'pavadinimas'],
-            ['Rinkimai 1', 'Rinkimai 1'],
+            ['df6b9e04', 'Rinkimai 1'],
         ],
     }
 
@@ -94,8 +96,8 @@ def test_nested_dataset(store, app):
         ],
         'items': [],
         'datasets': [],
+        'header': ['id', 'name'],
         'data': [
-            ['id', 'name'],
-            ['42', 'Nested One'],
+            ['e2ff1ff0', 'Nested One'],
         ],
     }

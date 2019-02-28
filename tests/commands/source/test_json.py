@@ -14,11 +14,13 @@ def test_json(store, responses):
     assert len(store.pull('json')) == 10
     assert sorted(store.getall('rinkimai', {'source': 'json'}), key=operator.itemgetter('id'))[:2] == [
         {
-            'id': '101',
-            'pavadinimas': '2015 m. birželio 21 d. pakartotiniai Šilutės rajono savivaldybės tarybos rinkimai\n',
+            'id': '1b704eeff5f38eeeb84ebcecdddb989e53a4a709',
+            'pavadinimas': '2017 m. balandžio 23 d. nauji savivaldybių tarybų narių – merų rinkimai '
+                           'Jonavos ir Šakių rajonų savivaldybėse',
         },
         {
-            'id': '102',
-            'pavadinimas': '2015 m. birželio 7 d. nauji rinkimai į Lietuvos Respublikos Seimą vienmandatėje Varėnos–Eišiškių rinkimų apygardoje Nr. 70\n',
+            'id': '2a9d25cbf1e8ee6402433d6fc5535f79b5701481',
+            'pavadinimas': '2017 m. balandžio 23 d. nauji rinkimai į Lietuvos Respublikos Seimą vienmandatėje '
+                           'Anykščių-Panevėžio rinkimų apygardoje Nr. 49',
         },
     ]

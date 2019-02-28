@@ -30,9 +30,9 @@ async def homepage(request):
     if 'source' in params:
         items = []
         datasets = []
-        data = list(get_data(store, params))
-        if len(data) == 1:
-            data = []
+        data = get_data(store, params)
+        header = next(data)
+        data = list(data)
 
     else:
         datasets_by_object = get_datasets_by_object(store)
@@ -42,6 +42,7 @@ async def homepage(request):
         )
         items = get_directory_content(tree, path) if path in tree else []
         datasets = list(get_directory_datasets(datasets_by_object, path))
+        header = []
         data = []
 
     return templates.TemplateResponse('base.html', {
@@ -49,6 +50,7 @@ async def homepage(request):
         'location': loc,
         'items': items,
         'datasets': datasets,
+        'header': header,
         'data': data,
     })
 
@@ -116,5 +118,15 @@ def get_data(store, params):
     for data in rows:
         row = []
         for prop in props:
-            row.append(data.get(prop.name))
+            value = data.get(prop.name)
+
+            if prop.name == 'id' and value:
+                value = value[:8]
+            elif prop.ref and value:
+                value = value[:8]
+
+            if isinstance(value, str) and len(value) > 42:
+                value = value[:42] + '...'
+
+            row.append(value)
         yield row
