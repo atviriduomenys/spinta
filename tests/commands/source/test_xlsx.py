@@ -10,10 +10,15 @@ def test_xlsx(store, responses):
         body=(pathlib.Path(__file__).parents[2] / 'data/data.xlsx').read_bytes(),
     )
 
+    rinkimai = '2e12c8b9c3e6028b6712fe308876f0321578db4c'
+    turas = '1c89290ef09005b332e84dcaba7873951c19216f'
+    apygarda = '025685077bbcf6e434a95b65b9a6f5fcef046861'
+    apylinke = '629f0976c1a04dbe6cf3e71b3085ec555d3f63bf'
+
     assert len(store.pull('xlsx')) > 0
     assert list(store.getall('rinkimai', {'source': 'xlsx'})) == [
         {
-            'id': '2e12c8b9c3e6028b6712fe308876f0321578db4c',
+            'id': rinkimai,
             'data': '1992-10-25T00:00:00',
             'rusis': 'Seimo rinkimai',
             'pavadinimas': '1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai',
@@ -21,22 +26,28 @@ def test_xlsx(store, responses):
     ]
     assert list(store.getall('rinkimai/turas', {'source': 'xlsx'})) == [
         {
-            'id': '1c89290ef09005b332e84dcaba7873951c19216f',
+            'id': turas,
             'turas': 1,
+            'rinkimai': rinkimai,
         },
     ]
     assert list(store.getall('rinkimai/apygarda', {'source': 'xlsx'})) == [
         {
-            'id': 'cad571c819cc351a70bf3d3ab3594c70e43ac75d',
+            'id': apygarda,
             'numeris': 2,
             'pavadinimas': 'Senamiesčio',
+            'rinkimai': rinkimai,
+            'turas': turas,
         },
     ]
     assert list(store.getall('rinkimai/apylinke', {'source': 'xlsx'})) == [
         {
-            'id': 'b131042cce400ef19ad7fc7c66c66370fc7fedfb',
+            'id': apylinke,
             'numeris': 0,
             'pavadinimas': 'Balsai, suskaičiuoti apygardos rinkimų komisijoje',
+            'rinkimai': rinkimai,
+            'turas': turas,
+            'apygarda': apygarda,
         },
     ]
     assert list(store.getall('rinkimai/kandidatas', {'source': 'xlsx'})) == [
@@ -51,5 +62,9 @@ def test_xlsx(store, responses):
             'gauti_balsai_is_viso': 243,
             'gauti_balsai_rinkimu_diena': 0,
             'gimimo_data': '1954-03-31T00:00:00',
+            'rinkimai': rinkimai,
+            'turas': turas,
+            'apygarda': apygarda,
+            'apylinke': apylinke,
         },
     ]

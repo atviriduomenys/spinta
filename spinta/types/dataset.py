@@ -1,6 +1,7 @@
 from spinta.commands import Command
 from spinta.types import Type
 from spinta.types.object import Object
+from spinta.utils.refs import get_ref_id
 
 
 class Dataset(Type):
@@ -48,6 +49,7 @@ class Property(Type):
             'enum': {'type': 'array'},
             'parent': {'type': 'dataset.model'},
             'replace': {'type': 'object'},
+            'ref': {'type': 'string'},
         },
     }
 
@@ -82,6 +84,19 @@ class PrepareDataset(Command):
             self.run(model, {'prepare.type': None})
 
 
+class CheckProperty(Command):
+    metadata = {
+        'name': 'manifest.check',
+        'type': 'dataset',
+    }
+
+    def execute(self):
+        for model in self.obj.objects.values():
+            for prop in model.properties.values():
+                if prop.ref and prop.ref not in self.obj.objects:
+                    self.error(f"{model.name}.{prop.name} referenced an unknown object {prop.ref!r}.")
+
+
 class Pull(Command):
     metadata = {
         'name': 'pull',
@@ -106,6 +121,8 @@ class Pull(Command):
                         else:
                             if prop.source in row:
                                 data[prop.name] = row[prop.source]
+                        if prop.ref and prop.name in data:
+                            data[prop.name] = get_ref_id(data[prop.name])
                     if self.check_key(data.get('id')):
                         yield data
 

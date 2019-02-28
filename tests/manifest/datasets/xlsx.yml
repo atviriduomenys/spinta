@@ -12,9 +12,7 @@ objects:
         skip: 8
         limit: 10
     properties:
-      id:
-        source:
-          - 'Rinkimai'
+      id: {source: ['Rinkimai']}
       rusis: {source: 'Rinkimų rūšis'}
       pavadinimas: {source: 'Rinkimai'}
       data: {source: 'Rinkimų data'}
@@ -26,11 +24,9 @@ objects:
         skip: 8
         limit: 10
     properties:
-      id:
-        source:
-          - 'Rinkimai'
-          - 'Turas'
+      id: {source: ['Rinkimai', 'Turas']}
       turas: {source: 'Turas'}
+      rinkimai: {source: ['Rinkimai'], ref: rinkimai}
 
   rinkimai/apygarda:
     source:
@@ -39,13 +35,11 @@ objects:
         skip: 8
         limit: 10
     properties:
-      id:
-        source:
-          - 'Rinkimai'
-          - 'Turas'
-          - 'Apygardos Nr.'
+      id: {source: ['Apygardos Nr.']}
       numeris: {source: 'Apygardos Nr.'}
       pavadinimas: {source: 'Apygardos pavadinimas'}
+      rinkimai: {source: ['Rinkimai'], ref: rinkimai}
+      turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
 
   rinkimai/apylinke:
     source:
@@ -54,14 +48,12 @@ objects:
         skip: 8
         limit: 10
     properties:
-      id:
-        source:
-          - 'Rinkimai'
-          - 'Turas'
-          - 'Apygardos Nr.'
-          - 'Apylinkės Nr.'
+      id: {source: ['Apygardos Nr.', 'Apylinkės Nr.']}
       numeris: {source: 'Apylinkės Nr.'}
       pavadinimas: {source: 'Apylinkės pavadinimas'}
+      rinkimai: {source: ['Rinkimai'], ref: rinkimai}
+      turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
+      apygarda: {source: ['Apygardos Nr.'], ref: rinkimai/apygarda}
 
   rinkimai/kandidatas:
     source:
@@ -88,3 +80,7 @@ objects:
       gauti_balsai_is_viso: {source: 'Gauti balsai (iš viso)'}
       gauti_balsai_rinkimu_diena: {source: 'Gauti balsai (rinkimų dieną)'}
       gauti_balsai_is_anksto: {source: 'Gauti balsai (iš anksto)'}
+      rinkimai: {source: ['Rinkimai'], ref: rinkimai}
+      turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
+      apygarda: {source: ['Apygardos Nr.'], ref: rinkimai/apygarda}
+      apylinke: {source: ['Apygardos Nr.', 'Apylinkės Nr.'], ref: rinkimai/apylinke}

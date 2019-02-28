@@ -1,7 +1,5 @@
-import hashlib
 import datetime
 
-import msgpack
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT
 
@@ -11,6 +9,7 @@ from spinta.backends.postgresql import utcnow
 from spinta.backends.postgresql import get_table_name
 from spinta.backends.postgresql import MAIN_TABLE
 from spinta.backends.postgresql import ModelTables
+from spinta.utils.refs import get_ref_id
 
 
 class Prepare(Command):
@@ -57,17 +56,7 @@ class Push(Command):
         connection = transaction.connection
         table = _get_table(self)
         data = self.serialize(self.args.data)
-
-        if isinstance(data['id'], list):
-            for x in data['id']:
-                if x is None:
-                    return
-            key = msgpack.dumps(data['id'], use_bin_type=True)
-            key = hashlib.sha1(key).hexdigest()
-        else:
-            if data['id'] is None:
-                return
-            key = data['id']
+        key = get_ref_id(data['id'])
 
         connection.execute(
             table.main.insert().values(
