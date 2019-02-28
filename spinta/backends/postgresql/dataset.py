@@ -1,4 +1,5 @@
 import datetime
+import itertools
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT
@@ -79,6 +80,47 @@ class Push(Command):
         return value
 
 
+class Get(Command):
+    metadata = {
+        'name': 'get',
+        'type': 'dataset.model',
+        'backend': 'postgresql',
+    }
+
+    def execute(self):
+        connection = self.args.transaction.connection
+        table = _get_table(self).main
+
+        agg = (
+            sa.select([table.c.key, sa.func.max(table.c.id).label('id')]).
+            where(table.c.key == self.args.id).
+            group_by(table.c.key).
+            alias()
+        )
+
+        query = (
+            sa.select([table]).
+            select_from(table.join(agg, table.c.id == agg.c.id))
+        )
+
+        result = connection.execute(query)
+        result = list(itertools.islice(result, 2))
+
+        if len(result) == 1:
+            row = result[0]
+            return {
+                **row[table.c.data],
+                'id': row[table.c.key],
+                'type': _get_table_name(self),
+            }
+
+        elif len(result) == 0:
+            return None
+
+        else:
+            self.error(f"Multiple rows were found, key={self.args.id}.")
+
+
 class GetAll(Command):
     metadata = {
         'name': 'getall',
@@ -108,7 +150,11 @@ class GetAll(Command):
         result = connection.execute(query)
 
         for row in result:
-            yield {**row[table.c.data], 'id': row[table.c.key]}
+            yield {
+                **row[table.c.data],
+                'id': row[table.c.key],
+                'type': _get_table_name(self),
+            }
 
     def order_by(self, query, table):
         if self.args.sort:

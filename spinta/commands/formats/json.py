@@ -23,7 +23,9 @@ class Csv(Command):
     }
 
     def execute(self):
-        yield '{"data":['
+        if self.args.wrap:
+            yield '{"data":['
         for i, row in enumerate(self.args.rows):
             yield (',' if i > 0 else '') + json.dumps(row)
-        yield ']}'
+        if self.args.wrap:
+            yield ']}'

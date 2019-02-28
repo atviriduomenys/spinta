@@ -313,8 +313,9 @@ class Store:
         data = self.run(dataset, {'pull': None}, backend=None, ns=ns)
         return self.push(data, backend=backend, ns=ns)
 
-    def get(self, model_name: str, object_id, backend='default', ns='default'):
-        model = get_model_by_name(self, ns, model_name)
+    def get(self, model_name: str, object_id, params: dict = None, backend='default', ns='default'):
+        params = params or {}
+        model = get_model_from_params(self, ns, model_name, params)
         with self.config.backends[backend].transaction() as transaction:
             return self.run(model, {'get': {'transaction': transaction, 'id': object_id}}, backend=backend, ns=ns)
 
@@ -335,11 +336,16 @@ class Store:
         if command not in self.available_commands:
             raise Exception(f"Unknonwn format {fmt}.")
         model = get_model_from_params(self, ns, model_name, params)
-        rows = self.getall(model_name, params, backend=backend, ns=ns)
-        peek = next(rows)
-        cols = list(peek.keys())
-        rows = itertools.chain([peek], rows)
-        yield from self.run(model, {command: {'cols': cols, 'rows': rows}}, backend=None, ns=ns)
+        if 'key' in params:
+            row = self.get(model_name, params['key'], params, backend=backend, ns=ns)
+            cols = list(row.keys())
+            yield from self.run(model, {command: {'cols': cols, 'rows': [row], 'wrap': False}}, backend=None, ns=ns)
+        else:
+            rows = self.getall(model_name, params, backend=backend, ns=ns)
+            peek = next(rows)
+            cols = list(peek.keys())
+            rows = itertools.chain([peek], rows)
+            yield from self.run(model, {command: {'cols': cols, 'rows': rows, 'wrap': True}}, backend=None, ns=ns)
 
     def wipe(self, model_name: str, backend='default', ns='default'):
         model = get_model_by_name(self, ns, model_name)

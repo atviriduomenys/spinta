@@ -83,9 +83,44 @@
             <tbody>
                 {% for row in data %}
                 <tr>
-                    {% for value in row %}
-                    <td>{{ value }}</td>
+                    {% for cell in row %}
+                    <td>
+                        {% if cell.link %}
+                        <a href="{{ cell.link }}">{{ cell.value }}</a>
+                        {% else %}
+                        {{ cell.value }}
+                        {% endif %}
+                    </td>
                     {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if row %}
+        <p>
+            Formats:
+            <strong>HTML</strong>,
+            {% for fmt, link in formats %}
+            <a href="{{ link }}">{{ fmt }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </p>
+
+        <table class="table">
+            <tbody>
+                {% for column, cell in row %}
+                <tr>
+                    <th>{{ column }}</th>
+                    <td>
+                        {% if column in ('id', 'type') %}
+                        <strong>{{ cell.value }}</strong>
+                        {% elif cell.link %}
+                        <a href="{{ cell.link }}">{{ cell.value }}</a>
+                        {% else %}
+                        {{ cell.value }}
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

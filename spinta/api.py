@@ -8,7 +8,7 @@ from starlette.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 from starlette.responses import StreamingResponse
 
-from spinta.utils.url import parse_url_path
+from spinta.utils.url import parse_url_path, build_url_path
 from spinta.utils.tree import build_path_tree
 from spinta.store import get_model_from_params
 
@@ -31,17 +31,26 @@ async def homepage(request):
     fmt = params.get('format', 'html')
 
     if fmt == 'html':
+        header = []
+        data = []
+        formats = []
+        items = []
+        datasets = []
+        row = []
         loc = get_current_location(path, params)
+
         if 'source' in params:
-            items = []
-            datasets = []
-            data = get_data(store, params)
-            header = next(data)
-            data = list(data)
             formats = [
                 ('CSV', '/' + url_path + '/:format/csv'),
                 ('JSON', '/' + url_path + '/:format/json'),
             ]
+
+            if 'key' in params:
+                row = list(get_row(store, params))
+            else:
+                data = get_data(store, params)
+                header = next(data)
+                data = list(data)
 
         else:
             datasets_by_object = get_datasets_by_object(store)
@@ -51,9 +60,6 @@ async def homepage(request):
             )
             items = get_directory_content(tree, path) if path in tree else []
             datasets = list(get_directory_datasets(datasets_by_object, path))
-            header = []
-            data = []
-            formats = []
 
         return templates.TemplateResponse('base.html', {
             'request': request,
@@ -63,6 +69,7 @@ async def homepage(request):
             'datasets': datasets,
             'header': header,
             'data': data,
+            'row': row,
         })
 
     elif fmt in ('csv', 'json'):
@@ -99,10 +106,17 @@ def get_current_location(path, params):
     loc = [('root', '/')]
 
     if 'source' in params:
-        loc += (
-            [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-            [(':source/' + params['source'], None)]
-        )
+        if 'key' in params:
+            loc += (
+                [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
+                [(':source/' + params['source'], '/' + '/'.join(parts + [':source', params['source']]))] +
+                [(params['key'][:8], None)]
+            )
+        else:
+            loc += (
+                [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
+                [(':source/' + params['source'], None)]
+            )
     else:
         loc += (
             [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
@@ -144,15 +158,43 @@ def get_data(store, params):
     for data in rows:
         row = []
         for prop in props:
-            value = data.get(prop.name)
-
-            if prop.name == 'id' and value:
-                value = value[:8]
-            elif prop.ref and value:
-                value = value[:8]
-
-            if isinstance(value, str) and len(value) > 42:
-                value = value[:42] + '...'
-
-            row.append(value)
+            if prop.name == 'type':
+                continue
+            row.append(get_cell(params, prop, data.get(prop.name), shorten=True))
         yield row
+
+
+def get_row(store, params):
+    model = get_model_from_params(store, 'default', params['path'], params)
+    row = store.get(params['path'], params['key'], params)
+    for prop in model.properties.values():
+        yield prop.name, get_cell(params, prop, row.get(prop.name))
+
+
+def get_cell(params, prop, value, shorten=False):
+    link = None
+
+    if prop.name == 'id' and value:
+        link = '/' + build_url_path({
+            'path': params['path'],
+            'key': value,
+            'source': params['source'],
+        })
+        if shorten:
+            value = value[:8]
+    elif prop.ref and value:
+        link = '/' + build_url_path({
+            'path': prop.ref,
+            'key': value,
+            'source': params['source'],
+        })
+        if shorten:
+            value = value[:8]
+
+    if shorten and isinstance(value, str) and len(value) > 42:
+        value = value[:42] + '...'
+
+    return {
+        'value': value,
+        'link': link,
+    }

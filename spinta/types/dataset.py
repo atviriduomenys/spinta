@@ -37,6 +37,9 @@ class Model(Object):
 
     property_type = 'dataset.property'
 
+    def get_type_value(self):
+        return f'{self.name}/:source/{self.parent.name}'
+
 
 class Property(Type):
     metadata = {

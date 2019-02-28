@@ -17,6 +17,9 @@ class Model(Object):
         },
     }
 
+    def get_type_value(self):
+        return self.name
+
     def get_primary_key(self):
         for prop in self.properties.values():
             if prop.type == 'pk':
@@ -33,7 +36,6 @@ class CheckModel(Command):
     def execute(self):
         super().execute()
         self.check_primary_key()
-        self.check_reserved_names()
 
     def check_primary_key(self):
         pkeys = {name for name, prop in self.obj.properties.items() if prop.type == 'pk'}
@@ -45,7 +47,3 @@ class CheckModel(Command):
         pkey = next(iter(pkeys))
         if pkey != 'id':
             self.error("Primary key must be named 'id', but a primary key named {pkey!r} is found. Change it to 'id'.")
-
-    def check_reserved_names(self):
-        if 'type' in self.obj.properties:
-            self.error("'type' is a reserved name, and cannot by used as property name.")

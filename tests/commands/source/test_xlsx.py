@@ -18,6 +18,7 @@ def test_xlsx(store, responses):
     assert len(store.pull('xlsx')) > 0
     assert list(store.getall('rinkimai', {'source': 'xlsx'})) == [
         {
+            'type': 'rinkimai/:source/xlsx',
             'id': rinkimai,
             'data': '1992-10-25T00:00:00',
             'rusis': 'Seimo rinkimai',
@@ -26,6 +27,7 @@ def test_xlsx(store, responses):
     ]
     assert list(store.getall('rinkimai/turas', {'source': 'xlsx'})) == [
         {
+            'type': 'rinkimai/turas/:source/xlsx',
             'id': turas,
             'turas': 1,
             'rinkimai': rinkimai,
@@ -33,6 +35,7 @@ def test_xlsx(store, responses):
     ]
     assert list(store.getall('rinkimai/apygarda', {'source': 'xlsx'})) == [
         {
+            'type': 'rinkimai/apygarda/:source/xlsx',
             'id': apygarda,
             'numeris': 2,
             'pavadinimas': 'Senamiesčio',
@@ -42,6 +45,7 @@ def test_xlsx(store, responses):
     ]
     assert list(store.getall('rinkimai/apylinke', {'source': 'xlsx'})) == [
         {
+            'type': 'rinkimai/apylinke/:source/xlsx',
             'id': apylinke,
             'numeris': 0,
             'pavadinimas': 'Balsai, suskaičiuoti apygardos rinkimų komisijoje',
@@ -52,6 +56,7 @@ def test_xlsx(store, responses):
     ]
     assert list(store.getall('rinkimai/kandidatas', {'source': 'xlsx'})) == [
         {
+            'type': 'rinkimai/kandidatas/:source/xlsx',
             'id': '8159cf47118c31114c71a75ed06aa66b0476ad7a',
             'vardas': 'NIJOLĖ',
             'pavarde': 'VAITIEKŪNIENĖ',

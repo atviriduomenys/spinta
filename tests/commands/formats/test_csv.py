@@ -15,7 +15,7 @@ def test_export_csv(store, app):
     ])
 
     assert app.get('country/:source/csv/:format/csv').text == (
-        'id,code,title\r\n'
-        '69a33b149af7a7eeb25026c8cdc09187477ffe21,lt,Lithuania\r\n'
-        '025685077bbcf6e434a95b65b9a6f5fcef046861,lv,Latvia\r\n'
+        'id,code,title,type\r\n'
+        '69a33b149af7a7eeb25026c8cdc09187477ffe21,lt,Lithuania,country/:source/csv\r\n'
+        '025685077bbcf6e434a95b65b9a6f5fcef046861,lv,Latvia,country/:source/csv\r\n'
     )
