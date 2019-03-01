@@ -1,5 +1,6 @@
 asyncpg
 click
+gunicorn
 jinja2
 msgpack
 psycopg2-binary

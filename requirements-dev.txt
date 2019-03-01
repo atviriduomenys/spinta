@@ -12,6 +12,7 @@ chardet==3.0.4            # via requests
 click==7.0
 codecov==2.0.15
 coverage==4.5.2           # via codecov, pytest-cov
+gunicorn==19.9.0
 h11==0.8.1                # via uvicorn
 httptools==0.0.13         # via uvicorn
 idna==2.8                 # via requests

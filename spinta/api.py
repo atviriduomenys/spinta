@@ -151,15 +151,13 @@ def get_data(store, params):
     model = get_model_from_params(store, 'default', params['path'], params)
     rows = store.getall(params['path'], {'limit': 100, **params})
 
-    props = list(model.properties.values())
+    props = [p for p in model.properties.values() if p.name != 'type']
 
     yield [prop.name for prop in props]
 
     for data in rows:
         row = []
         for prop in props:
-            if prop.name == 'type':
-                continue
             row.append(get_cell(params, prop, data.get(prop.name), shorten=True))
         yield row
 

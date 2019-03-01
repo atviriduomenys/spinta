@@ -8,6 +8,7 @@ asyncpg==0.18.3
 certifi==2018.11.29       # via requests
 chardet==3.0.4            # via requests
 click==7.0
+gunicorn==19.9.0
 h11==0.8.1                # via uvicorn
 httptools==0.0.13         # via uvicorn
 idna==2.8                 # via requests
