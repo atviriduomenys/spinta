@@ -69,7 +69,7 @@ def test_dataset(store, app):
         ],
         'items': [],
         'datasets': [],
-        'header': ['type', 'id', 'pavadinimas'],
+        'header': ['id', 'pavadinimas'],
         'data': [
             [
                 {'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json', 'value': 'df6b9e04'},
@@ -108,7 +108,7 @@ def test_nested_dataset(store, app):
         ],
         'items': [],
         'datasets': [],
-        'header': ['type', 'id', 'name'],
+        'header': ['id', 'name'],
         'data': [
             [
                 {'link': '/deeply/nested/model/name/e2ff1ff0f7d663344abe821582b0908925e5b366/:source/nested/dataset/name', 'value': 'e2ff1ff0'},
