@@ -4,6 +4,7 @@ import pathlib
 
 import pytest
 import sqlalchemy_utils as su
+import sqlalchemy.exc
 from responses import RequestsMock
 from toposort import toposort
 from starlette.testclient import TestClient

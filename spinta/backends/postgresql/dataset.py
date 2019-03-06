@@ -2,7 +2,8 @@ import datetime
 import itertools
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB, BIGINT
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from spinta.commands import Command
 
@@ -25,10 +26,10 @@ class Prepare(Command):
         table_name = get_table_name(self.backend, self.ns, name, MAIN_TABLE)
         table = sa.Table(
             table_name, self.backend.schema,
-            sa.Column('id', BIGINT, primary_key=True),
-            sa.Column('key', sa.String(40), index=True),
+            sa.Column('key', sa.String(40), primary_key=True),
             sa.Column('data', JSONB),
             sa.Column('created', sa.DateTime),
+            sa.Column('updated', sa.DateTime),
             sa.Column('transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
         )
         self.backend.tables[self.ns][name] = ModelTables(table)
@@ -57,16 +58,28 @@ class Push(Command):
         connection = transaction.connection
         table = _get_table(self)
         data = self.serialize(self.args.data)
-        key = get_ref_id(data['id'])
+        key = get_ref_id(data.pop('id'))
 
-        connection.execute(
-            table.main.insert().values(
-                key=key,
-                data=data,
-                created=utcnow(),
-                transaction_id=transaction.id,
-            )
+        values = {
+            'data': data,
+            'updated': utcnow(),
+            'transaction_id': transaction.id,
+        }
+
+        # Try to insert first.
+
+        stmt = pg_insert(table.main).values(
+            key=key,
+            created=utcnow(),
+            **values,
         )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[table.main.c.key],
+            set_=values,
+        )
+
+        result = connection.execute(stmt)
+        assert result.is_insert or result.rowcount == 1
 
         return key
 
@@ -91,16 +104,9 @@ class Get(Command):
         connection = self.args.transaction.connection
         table = _get_table(self).main
 
-        agg = (
-            sa.select([table.c.key, sa.func.max(table.c.id).label('id')]).
-            where(table.c.key == self.args.id).
-            group_by(table.c.key).
-            alias()
-        )
-
         query = (
             sa.select([table]).
-            select_from(table.join(agg, table.c.id == agg.c.id))
+            where(table.c.key == self.args.id)
         )
 
         result = connection.execute(query)
@@ -108,11 +114,7 @@ class Get(Command):
 
         if len(result) == 1:
             row = result[0]
-            return {
-                **row[table.c.data],
-                'id': row[table.c.key],
-                'type': _get_table_name(self),
-            }
+            return _get_data_from_row(self, table, row)
 
         elif len(result) == 0:
             return None
@@ -132,17 +134,7 @@ class GetAll(Command):
         connection = self.args.transaction.connection
         table = _get_table(self).main
 
-        agg = (
-            sa.select([table.c.key, sa.func.max(table.c.id).label('id')]).
-            group_by(table.c.key).
-            alias()
-        )
-
-        query = (
-            sa.select([table]).
-            select_from(table.join(agg, table.c.id == agg.c.id))
-        )
-
+        query = sa.select([table])
         query = self.order_by(query, table)
         query = self.limit(query)
         query = self.offset(query)
@@ -150,18 +142,14 @@ class GetAll(Command):
         result = connection.execute(query)
 
         for row in result:
-            yield {
-                **row[table.c.data],
-                'id': row[table.c.key],
-                'type': _get_table_name(self),
-            }
+            yield _get_data_from_row(self, table, row)
 
     def order_by(self, query, table):
         if self.args.sort:
             db_sort_keys = []
             for sort_key in self.args.sort:
                 if sort_key['name'] == 'id':
-                    column = table.c.id
+                    column = table.c.key
                 else:
                     column = table.c.data[sort_key['name']]
 
@@ -207,3 +195,15 @@ def _get_table(cmd):
 
 def _get_table_name(cmd):
     return f'{cmd.obj.name}/:source/{cmd.obj.parent.name}'
+
+
+def _get_data_from_row(cmd, table, row):
+    row = {
+        **row[table.c.data],
+        'id': row[table.c.key],
+    }
+    data = {}
+    for prop in cmd.obj.properties.values():
+        data[prop.name] = row.get(prop.name)
+    data['type'] = _get_table_name(cmd)
+    return data
