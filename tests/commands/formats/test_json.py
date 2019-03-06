@@ -1,4 +1,4 @@
-def test_export_csv(store, app):
+def test_export_json(store, app):
     store.push([
         {
             'type': 'country/:source/csv',

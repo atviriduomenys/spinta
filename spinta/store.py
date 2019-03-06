@@ -34,6 +34,7 @@ class Store:
             'pull': {},
             'get': {},
             'getall': {},
+            'changes': {},
             'wipe': {},
             'csv': {
                 'argument': 'source',
@@ -331,13 +332,24 @@ class Store:
             }
             yield from self.run(model, {'getall': params}, backend=backend, ns=ns)
 
+    def changes(self, params: dict, *, backend='default', ns='default'):
+        model = get_model_from_params(self, ns, params['path'], params)
+        with self.config.backends[backend].transaction() as transaction:
+            params = {
+                'transaction': transaction,
+                'limit': params.get('limit'),
+                'offset': params['changes'],
+                'id': params.get('id', {}).get('value'),
+            }
+            yield from self.run(model, {'changes': params}, backend=backend, ns=ns)
+
     def export(self, fmt, model_name: str, params: dict = None, *, backend='default', ns='default'):
         command = f'export.{fmt}'
         if command not in self.available_commands:
             raise Exception(f"Unknonwn format {fmt}.")
         model = get_model_from_params(self, ns, model_name, params)
-        if 'key' in params:
-            row = self.get(model_name, params['key'], params, backend=backend, ns=ns)
+        if 'id' in params:
+            row = self.get(model_name, params['id']['value'], params, backend=backend, ns=ns)
             cols = list(row.keys())
             yield from self.run(model, {command: {'cols': cols, 'rows': [row], 'wrap': False}}, backend=None, ns=ns)
         else:

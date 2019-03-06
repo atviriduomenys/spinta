@@ -25,6 +25,10 @@ PG_CLEAN_NAME_RE = re.compile(r'[^a-z0-9]+', re.IGNORECASE)
 MAIN_TABLE = 'M'
 CHANGES_TABLE = 'C'
 
+# Change actions
+INSERT_ACTION = 'insert'
+UPDATE_ACTION = 'update'
+
 
 class PostgreSQL(Backend):
     metadata = {
@@ -197,15 +201,7 @@ class PrepareModel(Command):
 
         # Create changes table.
         changes_table_name = get_table_name(self.backend, self.ns, self.obj.name, CHANGES_TABLE)
-        changes_table = sa.Table(
-            changes_table_name, self.backend.schema,
-            sa.Column('change_id', BIGINT, primary_key=True),
-            sa.Column('transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
-            sa.Column('id', sa.Integer),  # reference to main table
-            sa.Column('datetime', sa.DateTime),
-            sa.Column('action', sa.String(8)),  # insert, update, delete
-            sa.Column('change', JSONB),
-        )
+        changes_table = get_changes_table(self.backend, self.obj, self.ns, changes_table_name, sa.Integer)
 
         self.backend.tables[self.ns][self.obj.name] = ModelTables(main_table, changes_table)
 
@@ -291,7 +287,7 @@ class Push(Command):
 
         # Update existing row.
         if 'id' in data:
-            action = 'update'
+            action = UPDATE_ACTION
             result = connection.execute(
                 table.main.update().
                 where(table.main.c.id == data['id']).
@@ -306,7 +302,7 @@ class Push(Command):
 
         # Insert new row.
         else:
-            action = 'insert'
+            action = INSERT_ACTION
             result = connection.execute(
                 table.main.insert().values(data),
             )
@@ -412,3 +408,16 @@ def get_table_name(backend, ns, name, table_type=MAIN_TABLE):
     name = name[:NAMEDATALEN - 6]
     name = name.rstrip('_')
     return f"{name}_{table_id:04d}{table_type}"
+
+
+def get_changes_table(backend, obj, ns, table_name, id_type):
+    table = sa.Table(
+        table_name, backend.schema,
+        sa.Column('change_id', BIGINT, primary_key=True),
+        sa.Column('transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
+        sa.Column('id', id_type),  # reference to main table
+        sa.Column('datetime', sa.DateTime),
+        sa.Column('action', sa.String(8)),  # insert, update, delete
+        sa.Column('change', JSONB),
+    )
+    return table

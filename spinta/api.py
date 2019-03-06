@@ -1,4 +1,5 @@
 import collections
+import datetime
 
 import pkg_resources as pres
 import uvicorn
@@ -18,6 +19,11 @@ templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'template
 app = Starlette()
 
 store = None
+
+COLORS = {
+    'change': '#B2E2AD',
+    'null': '#C1C1C1',
+}
 
 
 @app.route('/{path:path}')
@@ -41,16 +47,21 @@ async def homepage(request):
 
         if 'source' in params:
             formats = [
-                ('CSV', '/' + url_path + '/:format/csv'),
-                ('JSON', '/' + url_path + '/:format/json'),
+                ('CSV', '/' + build_url_path({**params, 'format': 'csv'})),
+                ('JSON', '/' + build_url_path({**params, 'format': 'json'})),
             ]
 
-            if 'key' in params:
-                row = list(get_row(store, params))
-            else:
-                data = get_data(store, params)
+            if 'changes' in params:
+                data = get_changes(store, params)
                 header = next(data)
                 data = list(data)
+            else:
+                if 'id' in params:
+                    row = list(get_row(store, params))
+                else:
+                    data = get_data(store, params)
+                    header = next(data)
+                    data = list(data)
 
         else:
             datasets_by_object = get_datasets_by_object(store)
@@ -106,12 +117,30 @@ def get_current_location(path, params):
     loc = [('root', '/')]
 
     if 'source' in params:
-        if 'key' in params:
-            loc += (
-                [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                [(':source/' + params['source'], '/' + '/'.join(parts + [':source', params['source']]))] +
-                [(params['key'][:8], None)]
-            )
+        if 'id' in params:
+            if 'changes' in params:
+                loc += (
+                    [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
+                    [(':source/' + params['source'], '/' + '/'.join(parts + [':source', params['source']]))] +
+                    [(params['id']['value'][:8], '/' + build_url_path({
+                        'path': path,
+                        'id': params['id'],
+                        'source': params['source'],
+                    }))] +
+                    [(':changes', None)]
+                )
+            else:
+                loc += (
+                    [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
+                    [(':source/' + params['source'], '/' + '/'.join(parts + [':source', params['source']]))] +
+                    [(params['id']['value'][:8], None)] +
+                    [(':changes', '/' + build_url_path({
+                        'path': path,
+                        'id': params['id'],
+                        'source': params['source'],
+                        'changes': None,
+                    }))]
+                )
         else:
             loc += (
                 [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
@@ -164,18 +193,18 @@ def get_data(store, params):
 
 def get_row(store, params):
     model = get_model_from_params(store, 'default', params['path'], params)
-    row = store.get(params['path'], params['key'], params)
+    row = store.get(params['path'], params['id']['value'], params)
     for prop in model.properties.values():
         yield prop.name, get_cell(params, prop, row.get(prop.name))
 
 
-def get_cell(params, prop, value, shorten=False):
+def get_cell(params, prop, value, shorten=False, color=None):
     link = None
 
     if prop.name == 'id' and value:
         link = '/' + build_url_path({
             'path': params['path'],
-            'key': value,
+            'id': {'value': value, 'type': None},
             'source': params['source'],
         })
         if shorten:
@@ -183,11 +212,14 @@ def get_cell(params, prop, value, shorten=False):
     elif prop.ref and value:
         link = '/' + build_url_path({
             'path': prop.ref,
-            'key': value,
+            'id': {'value': value, 'type': None},
             'source': params['source'],
         })
         if shorten:
             value = value[:8]
+
+    if isinstance(value, datetime.datetime):
+        value = value.isoformat()
 
     if shorten and isinstance(value, str) and len(value) > 42:
         value = value[:42] + '...'
@@ -195,4 +227,37 @@ def get_cell(params, prop, value, shorten=False):
     return {
         'value': value,
         'link': link,
+        'color': COLORS[color] if color else None,
     }
+
+
+def get_changes(store, params):
+    model = get_model_from_params(store, 'default', params['path'], params)
+    rows = store.changes({'limit': 100, **params})
+
+    props = [p for p in model.properties.values() if p.name not in ('id', 'type')]
+
+    yield (
+        ['change_id', 'transaction_id', 'datetime', 'action', 'id'] +
+        [prop.name for prop in props]
+    )
+
+    current = {}
+    for data in rows:
+        current.update(data['change'])
+        row = [
+            {'color': None, 'value': data['change_id'], 'link': None},
+            {'color': None, 'value': data['transaction_id'], 'link': None},
+            {'color': None, 'value': data['datetime'].isoformat(), 'link': None},
+            {'color': None, 'value': data['action'], 'link': None},
+            get_cell(params, model.properties['id'], data['id'], shorten=True),
+        ]
+        for prop in props:
+            if prop.name in data['change']:
+                color = 'change'
+            elif prop.name not in current:
+                color = 'null'
+            else:
+                color = None
+            row.append(get_cell(params, prop, current.get(prop.name), shorten=True, color=color))
+        yield row

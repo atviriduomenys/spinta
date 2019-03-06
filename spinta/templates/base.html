@@ -84,7 +84,7 @@
                 {% for row in data %}
                 <tr>
                     {% for cell in row %}
-                    <td>
+                    <td{% if cell.color %} style="background-color: {{ cell.color }}"{% endif %}>
                         {% if cell.link %}
                         <a href="{{ cell.link }}">{{ cell.value }}</a>
                         {% else %}
@@ -112,7 +112,7 @@
                 {% for column, cell in row %}
                 <tr>
                     <th>{{ column }}</th>
-                    <td>
+                    <td{% if cell.color %} style="background-color: {{ cell.color }}"{% endif %}>
                         {% if column in ('id', 'type') %}
                         <strong>{{ cell.value }}</strong>
                         {% elif cell.link %}

@@ -1,81 +1,136 @@
 import re
 
 
-def sort_key_to_native(value):
-    if value.startswith('-'):
-        return {
-            'name': value[1:],
-            'ascending': False,
-        }
-    else:
-        return {
-            'name': value,
-            'ascending': True,
-        }
+class Cast:
+
+    def __init__(self, to_params=None, to_string=None, each=False):
+        self._to_params = to_params
+        self._to_string = to_string
+        self._each = each
+
+    def to_params(self, value):
+        if self._each:
+            return list(map(self.to_params_item, value))
+        else:
+            return self.to_params_item(value)
+
+    def to_string(self, value):
+        if self._each:
+            return list(map(self.to_string_item, value))
+        else:
+            return [] if value is None else [self.to_string_item(value)]
+
+    def to_params_item(self, value):
+        return self._to_params(value) if self._to_params else value
+
+    def to_string_item(self, value):
+        return self._to_string(value) if self._to_string else value
 
 
-def sort_key_to_path(value):
-    if value['ascending']:
-        return value['name']
-    else:
-        return '-' + value['name']
+class SortKey(Cast):
+
+    def to_params_item(self, value):
+        if value.startswith('-'):
+            return {
+                'name': value[1:],
+                'ascending': False,
+            }
+        else:
+            return {
+                'name': value,
+                'ascending': True,
+            }
+
+    def to_string_item(self, value):
+        if value['ascending']:
+            return value['name']
+        else:
+            return '-' + value['name']
+
+
+class Id(Cast):
+
+    key_re = re.compile(r'^[0-9a-f]{40}$')
+
+    def match(self, value):
+        if value.isdigit():
+            return {'value': int(value), 'type': 'integer'}
+        if self.key_re.match(value):
+            return {'value': value, 'type': 'sha1'}
+
+    def to_params(self, value):
+        return value
+
+    def to_string(self, value):
+        return [] if value['value'] is None else [str(value['value'])]
+
+
+class Path(Cast):
+
+    def to_params(self, value):
+        return '/'.join(value)
 
 
 RULES = {
     'path': {
-        'reduce': '/'.join,
+        'cast': Path(),
+        'name': False,
     },
     'id': {
         'maxargs': 1,
-        'cast': (int, int),
-    },
-    'key': {
-        'maxargs': 1,
+        'cast': Id(),
+        'name': False,
     },
     'source': {
-        'reduce': '/'.join,
+        'cast': Path(),
+    },
+    'changes': {
+        'minargs': 0,
+        'maxargs': 1,
+        'cast': Cast(int, str),
     },
     'sort': {
-        'cast': (sort_key_to_native, sort_key_to_path),
+        'cast': SortKey(each=True),
     },
     'limit': {
         'maxargs': 1,
-        'cast': (int, str),
+        'cast': Cast(int, str),
     },
     'offset': {
         'maxargs': 1,
-        'cast': (int, str),
+        'cast': Cast(int, str),
     },
     'format': {
         'maxargs': 1,
     },
 }
 
-key_re = re.compile(r'^[0-9a-f]{40}$')
-
 
 def parse_url_path(path):
     data = []
     name = 'path'
     value = []
+    params = {}
+
     for part in path.split('/'):
         if part.startswith(':'):
             data.append((name, value))
             name = part[1:]
             value = []
-        elif not data and part.isdigit():
-            data.append((name, value))
-            name = 'id'
-            value = [part]
-        elif not data and key_re.match(part):
-            data.append((name, value))
-            name = 'key'
-            value = [part]
-        else:
-            value.append(part)
+            continue
+
+        if not data:
+            id = RULES['id']['cast'].match(part)
+            if id is not None:
+                data.append((name, value))
+                name = 'id'
+                value = [id]
+                continue
+
+        value.append(part)
+
     data.append((name, value))
 
-    params = {}
     for name, value in data:
 
         rules = RULES.get(name)
@@ -90,14 +145,13 @@ def parse_url_path(path):
         if maxargs is not None and len(value) > maxargs:
             raise Exception(f"URL parameter {name!r} can only have {maxargs} arguments.")
 
-        if 'cast' in rules:
-            value = list(map(rules['cast'][0], value))
-
         if minargs == 1 and maxargs == 1:
             value = value[0]
+        elif minargs == 0 and maxargs == 1:
+            value = value[0] if value else None
 
-        if 'reduce' in rules:
-            value = rules['reduce'](value)
+        if 'cast' in rules and value is not None:
+            value = rules['cast'].to_params(value)
 
         multiple = rules.get('multiple', False)
         if multiple:
@@ -115,18 +169,28 @@ def parse_url_path(path):
 def build_url_path(params):
     params = dict(params)
     parts = []
-    if 'path' in params:
-        parts.append(params.pop('path'))
-    if 'id' in params:
-        parts.append(str(params.pop('id')))
-    if 'key' in params:
-        parts.append(params.pop('key'))
-    if 'source' in params:
-        parts.append(':source')
-        parts.append(params.pop('source'))
-    for k, v in params.items():
+    sort_by = list(RULES.keys())
+
+    def sort_key(value):
+        if value not in sort_by:
+            sort_by.append(value)
+        return sort_by.index(value)
+
+    for k, v in sorted(params.items(), key=sort_key):
         rules = RULES.get(k)
+        if rules is None:
+            raise Exception(f"Unknown URl parameter {k!r}.")
+
         if 'cast' in rules:
-            v = rules['cast'][1](v)
-        parts.extend([f':{k}', v])
+            v = rules['cast'].to_string(v)
+        else:
+            v = [] if v is None else [v]
+
+        assert isinstance(v, list), v
+
+        if rules.get('name', True):
+            parts.extend([f':{k}'] + v)
+        else:
+            parts.extend(v)
+
     return '/'.join(parts)
