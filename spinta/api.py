@@ -224,6 +224,11 @@ def get_cell(params, prop, value, shorten=False, color=None):
     if shorten and isinstance(value, str) and len(value) > 42:
         value = value[:42] + '...'
 
+    if value is None:
+        value = ''
+        if color is None:
+            color = 'null'
+
     return {
         'value': value,
         'link': link,
