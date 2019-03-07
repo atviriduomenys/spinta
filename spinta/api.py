@@ -253,7 +253,7 @@ def get_cell(params, prop, value, shorten=False, color=None):
 
 def get_changes(store, params):
     model = get_model_from_params(store, 'default', params['path'], params)
-    rows = store.changes({'limit': 100, 'offset': params['changes'] or -10, **params})
+    rows = store.changes({'limit': 100, 'changes': params['changes'] or -10, **params})
 
     props = [p for p in model.properties.values() if p.name not in ('id', 'type')]
 

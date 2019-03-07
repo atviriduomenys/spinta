@@ -1,6 +1,8 @@
 import csv
+import itertools
 
 from spinta.commands import Command
+from spinta.utils.nestedstruct import flatten
 
 
 class IterableFile:
@@ -23,9 +25,18 @@ class Csv(Command):
     }
 
     def execute(self):
+        rows = flatten(self.args.rows)
+        peek = next(rows, None)
+
+        if peek is None:
+            return
+
+        cols = list(peek.keys())
+        rows = itertools.chain([peek], rows)
+
         stream = IterableFile()
-        writer = csv.DictWriter(stream, fieldnames=self.args.cols)
+        writer = csv.DictWriter(stream, fieldnames=cols)
         writer.writeheader()
-        for row in self.args.rows:
+        for row in rows:
             writer.writerow(row)
             yield from stream

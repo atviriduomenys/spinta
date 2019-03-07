@@ -338,7 +338,7 @@ class Store:
             params = {
                 'transaction': transaction,
                 'limit': params.get('limit'),
-                'offset': params.get('offset'),
+                'offset': params['changes'],
                 'id': params.get('id', {}).get('value'),
             }
             yield from self.run(model, {'changes': params}, backend=backend, ns=ns)
@@ -348,16 +348,15 @@ class Store:
         if command not in self.available_commands:
             raise Exception(f"Unknonwn format {fmt}.")
         model = get_model_from_params(self, ns, model_name, params)
-        if 'id' in params:
+        if 'changes' in params:
+            rows = self.changes(params, backend=backend, ns=ns)
+            yield from self.run(model, {command: {'rows': rows, 'wrap': True}}, backend=None, ns=ns)
+        elif 'id' in params:
             row = self.get(model_name, params['id']['value'], params, backend=backend, ns=ns)
-            cols = list(row.keys())
-            yield from self.run(model, {command: {'cols': cols, 'rows': [row], 'wrap': False}}, backend=None, ns=ns)
+            yield from self.run(model, {command: {'rows': [row], 'wrap': False}}, backend=None, ns=ns)
         else:
             rows = self.getall(model_name, params, backend=backend, ns=ns)
-            peek = next(rows)
-            cols = list(peek.keys())
-            rows = itertools.chain([peek], rows)
-            yield from self.run(model, {command: {'cols': cols, 'rows': rows, 'wrap': True}}, backend=None, ns=ns)
+            yield from self.run(model, {command: {'rows': rows, 'wrap': True}}, backend=None, ns=ns)
 
     def wipe(self, model_name: str, backend='default', ns='default'):
         model = get_model_by_name(self, ns, model_name)
