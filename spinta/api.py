@@ -54,7 +54,7 @@ async def homepage(request):
             if 'changes' in params:
                 data = get_changes(store, params)
                 header = next(data)
-                data = list(data)
+                data = list(reversed(list(data)))
             else:
                 if 'id' in params:
                     row = list(get_row(store, params))
@@ -142,10 +142,25 @@ def get_current_location(path, params):
                     }))]
                 )
         else:
-            loc += (
-                [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                [(':source/' + params['source'], None)]
-            )
+            if 'changes' in params:
+                loc += (
+                    [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
+                    [(':source/' + params['source'], '/' + build_url_path({
+                        'path': path,
+                        'source': params['source'],
+                    }))] +
+                    [(':changes', None)]
+                )
+            else:
+                loc += (
+                    [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
+                    [(':source/' + params['source'], None)] +
+                    [(':changes', '/' + build_url_path({
+                        'path': path,
+                        'source': params['source'],
+                        'changes': None,
+                    }))]
+                )
     else:
         loc += (
             [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
@@ -238,7 +253,7 @@ def get_cell(params, prop, value, shorten=False, color=None):
 
 def get_changes(store, params):
     model = get_model_from_params(store, 'default', params['path'], params)
-    rows = store.changes({'limit': 100, **params})
+    rows = store.changes({'limit': 100, 'offset': params['changes'] or -10, **params})
 
     props = [p for p in model.properties.values() if p.name not in ('id', 'type')]
 
@@ -249,7 +264,9 @@ def get_changes(store, params):
 
     current = {}
     for data in rows:
-        current.update(data['change'])
+        if data['id'] not in current:
+            current[data['id']] = {}
+        current[data['id']].update(data['change'])
         row = [
             {'color': None, 'value': data['change_id'], 'link': None},
             {'color': None, 'value': data['transaction_id'], 'link': None},
@@ -264,5 +281,5 @@ def get_changes(store, params):
                 color = 'null'
             else:
                 color = None
-            row.append(get_cell(params, prop, current.get(prop.name), shorten=True, color=color))
+            row.append(get_cell(params, prop, current[data['id']].get(prop.name), shorten=True, color=color))
         yield row

@@ -266,7 +266,16 @@ class Changes(Command):
 
     def offset(self, table, query):
         if self.args.offset:
-            return query.where(table.c.change_id > self.args.offset)
+            if self.args.offset > 0:
+                offset = self.args.offset
+            else:
+                offset = (
+                    query.with_only_columns([
+                        sa.func.max(table.c.change_id) - abs(self.args.offset),
+                    ]).
+                    order_by(None).alias()
+                )
+            return query.where(table.c.change_id > offset)
         else:
             return query
 

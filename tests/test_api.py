@@ -69,6 +69,7 @@ def test_dataset(store, app):
             ('root', '/'),
             ('rinkimai', '/rinkimai'),
             (':source/json', None),
+            (':changes', '/rinkimai/:source/json/:changes'),
         ],
         'items': [],
         'datasets': [],
@@ -108,6 +109,7 @@ def test_nested_dataset(store, app):
             ('model', '/deeply/nested/model'),
             ('name', '/deeply/nested/model/name'),
             (':source/nested/dataset/name', None),
+            (':changes', '/deeply/nested/model/name/:source/nested/dataset/name/:changes'),
         ],
         'items': [],
         'datasets': [],
@@ -167,7 +169,7 @@ def test_dataset_key(store, app):
     }
 
 
-def test_changes(store, app, mocker):
+def test_changes_single_object(store, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
     store.push([
@@ -216,17 +218,82 @@ def test_changes(store, app, mocker):
                 {'color': None, 'link': None, 'value': resp.context['data'][0][0]['value']},
                 {'color': None, 'link': None, 'value': resp.context['data'][0][1]['value']},
                 {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
-                {'color': None, 'link': None, 'value': 'insert'},
+                {'color': None, 'link': None, 'value': 'update'},
                 {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json', 'value': 'df6b9e04'},
-                {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 1'},
+                {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
             ],
             [
                 {'color': None, 'link': None, 'value': resp.context['data'][1][0]['value']},
                 {'color': None, 'link': None, 'value': resp.context['data'][1][1]['value']},
                 {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
+                {'color': None, 'link': None, 'value': 'insert'},
+                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json', 'value': 'df6b9e04'},
+                {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 1'},
+            ],
+        ],
+        'row': [],
+    }
+
+
+def test_changes_object_list(store, app, mocker):
+    mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
+
+    store.push([
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 'Rinkimai 1',
+            'pavadinimas': 'Rinkimai 1',
+        },
+    ])
+    store.push([
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 'Rinkimai 1',
+            'pavadinimas': 'Rinkimai 2',
+        },
+    ])
+
+    resp = app.get('/rinkimai/:source/json/:changes')
+    assert resp.status_code == 200
+
+    resp.context.pop('request')
+    assert resp.context == {
+        'location': [
+            ('root', '/'),
+            ('rinkimai', '/rinkimai'),
+            (':source/json', '/rinkimai/:source/json'),
+            (':changes', None),
+        ],
+        'formats': [
+            ('CSV', '/rinkimai/:source/json/:changes/:format/csv'),
+            ('JSON', '/rinkimai/:source/json/:changes/:format/json'),
+        ],
+        'datasets': [],
+        'items': [],
+        'header': [
+            'change_id',
+            'transaction_id',
+            'datetime',
+            'action',
+            'id',
+            'pavadinimas',
+        ],
+        'data': [
+            [
+                {'color': None, 'link': None, 'value': resp.context['data'][0][0]['value']},
+                {'color': None, 'link': None, 'value': resp.context['data'][0][1]['value']},
+                {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
                 {'color': None, 'link': None, 'value': 'update'},
                 {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json', 'value': 'df6b9e04'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
+            ],
+            [
+                {'color': None, 'link': None, 'value': resp.context['data'][1][0]['value']},
+                {'color': None, 'link': None, 'value': resp.context['data'][1][1]['value']},
+                {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
+                {'color': None, 'link': None, 'value': 'insert'},
+                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json', 'value': 'df6b9e04'},
+                {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 1'},
             ],
         ],
         'row': [],

@@ -338,7 +338,7 @@ class Store:
             params = {
                 'transaction': transaction,
                 'limit': params.get('limit'),
-                'offset': params['changes'],
+                'offset': params.get('offset'),
                 'id': params.get('id', {}).get('value'),
             }
             yield from self.run(model, {'changes': params}, backend=backend, ns=ns)
