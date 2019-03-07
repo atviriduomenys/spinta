@@ -1,0 +1,16 @@
+---
+name: xml
+type: dataset
+version: 1
+date: "2019-03-07"
+objects:
+  tenure:
+    source:
+      xml:
+        url: 'http://example.com/data.xml'
+        root: '/SeimoInformacija/SeimoKadencija'
+    properties:
+      id: {source: '@kadencijos_id'}
+      title: {source: '@pavadinimas'}
+      since: {source: '@data_nuo'}
+      until: {source: '@data_iki'}

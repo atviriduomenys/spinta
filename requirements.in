@@ -2,6 +2,7 @@ asyncpg
 click
 gunicorn
 jinja2
+lxml
 msgpack
 psycopg2-binary
 requests

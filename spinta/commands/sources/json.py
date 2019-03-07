@@ -21,3 +21,13 @@ class Json(Command):
                 yield from data
             else:
                 yield data
+
+
+class JsonDatasetProperty(Command):
+    metadata = {
+        'name': 'json',
+        'type': 'dataset.property',
+    }
+
+    def execute(self):
+        return self.args.value.get(self.args.source)

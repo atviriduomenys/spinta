@@ -13,6 +13,7 @@ h11==0.8.1                # via uvicorn
 httptools==0.0.13         # via uvicorn
 idna==2.8                 # via requests
 jinja2==2.10
+lxml==4.3.2
 markupsafe==1.1.1         # via jinja2
 msgpack==0.6.1
 psycopg2-binary==2.7.7

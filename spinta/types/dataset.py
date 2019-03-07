@@ -111,21 +111,23 @@ class Pull(Command):
             if model.source is None:
                 continue
             for source in model.source:
+                command = next(iter(source.keys()), None)
                 rows = self.run(model, source)
                 for row in rows:
                     data = {'type': f'{model.name}/:source/{self.obj.name}'}
                     for prop in model.properties.values():
                         if isinstance(prop.source, list):
                             data[prop.name] = [
-                                row[name]
-                                for name in prop.source
-                                if name in row
+                                self.run(prop, {command: {'source': prop_source, 'value': row}})
+                                for prop_source in prop.source
                             ]
-                        else:
-                            if prop.source in row:
-                                data[prop.name] = row[prop.source]
+
+                        elif prop.source:
+                            data[prop.name] = self.run(prop, {command: {'source': prop.source, 'value': row}})
+
                         if prop.ref and prop.name in data:
                             data[prop.name] = get_ref_id(data[prop.name])
+
                     if self.check_key(data.get('id')):
                         yield data
 

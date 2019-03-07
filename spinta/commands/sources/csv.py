@@ -21,3 +21,13 @@ class CsvModel(Command):
             lines = r.iter_lines(decode_unicode=True)
             reader = csv.DictReader(lines)
             yield from reader
+
+
+class CsvDatasetProperty(Command):
+    metadata = {
+        'name': 'csv',
+        'type': 'dataset.property',
+    }
+
+    def execute(self):
+        return self.args.value.get(self.args.source)

@@ -15,6 +15,7 @@ def test_schema_loader(store):
                 'csv': None,
                 'denorm': None,
                 'xlsx': None,
+                'xml': None,
                 'json': None,
                 'nested/dataset/name': None,
             },

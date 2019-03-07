@@ -15,6 +15,7 @@ def test_app(app):
             ('deeply', '/deeply'),
             ('org', '/org'),
             ('rinkimai', '/rinkimai'),
+            ('tenure', '/tenure'),
         ],
         'datasets': [],
         'header': [],

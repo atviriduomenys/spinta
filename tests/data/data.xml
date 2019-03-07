@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SeimoInformacija pavadinimas="Seimo kadencijos" suformavimo_laikas="2019-03-07 13:41:23" šaltinis="www.lrs.lt" tiekėjas="Seimo kanceliarija">
+  <SeimoKadencija kadencijos_id="1" pavadinimas="1990–1992 metų kadencija" data_nuo="1990-03-10" data_iki="1992-11-22"/>
+  <SeimoKadencija kadencijos_id="2" pavadinimas="1992–1996 metų kadencija" data_nuo="1992-11-24" data_iki="1996-11-22"/>
+  <SeimoKadencija kadencijos_id="3" pavadinimas="1996–2000 metų kadencija" data_nuo="1996-11-25" data_iki="2000-10-18"/>
+  <SeimoKadencija kadencijos_id="4" pavadinimas="2000–2004 metų kadencija" data_nuo="2000-10-19" data_iki="2004-11-14"/>
+  <SeimoKadencija kadencijos_id="5" pavadinimas="2004–2008 metų kadencija" data_nuo="2004-11-15" data_iki="2008-11-16"/>
+  <SeimoKadencija kadencijos_id="6" pavadinimas="2008–2012 metų kadencija" data_nuo="2008-11-17" data_iki="2012-11-16"/>
+  <SeimoKadencija kadencijos_id="7" pavadinimas="2012–2016 metų kadencija" data_nuo="2012-11-16" data_iki="2016-11-14"/>
+  <SeimoKadencija kadencijos_id="8" pavadinimas="2016–2020 metų kadencija" data_nuo="2016-11-14" data_iki=""/>
+</SeimoInformacija>

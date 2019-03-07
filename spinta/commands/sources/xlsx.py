@@ -41,6 +41,16 @@ class XlsxDataset(Command):
                 yield data
 
 
+class XlsxDatasetProperty(Command):
+    metadata = {
+        'name': 'xlsx',
+        'type': 'dataset.property',
+    }
+
+    def execute(self):
+        return self.args.value.get(self.args.source)
+
+
 def read_excel(filename):
     wb = xlrd.open_workbook(filename)
     ws = wb.sheet_by_index(0)
