@@ -35,6 +35,7 @@ ruamel.yaml==0.15.88
 six==1.12.0               # via pytest, responses, sqlalchemy-utils
 sqlalchemy-utils==0.33.11
 sqlalchemy==1.2.17
+sqlparse==0.2.4
 starlette==0.11.2
 toposort==1.5
 ujson==1.35

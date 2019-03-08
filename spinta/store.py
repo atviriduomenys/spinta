@@ -329,6 +329,7 @@ class Store:
                 'sort': params.get('sort', [{'name': 'id', 'ascending': True}]),
                 'limit': params.get('limit'),
                 'offset': params.get('offset'),
+                'show': params.get('show'),
             }
             yield from self.run(model, {'getall': params}, backend=backend, ns=ns)
 

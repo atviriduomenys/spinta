@@ -32,6 +32,7 @@ class Model(Object):
             'local': {'type': 'boolean'},
             'parent': {'type': 'dataset'},
             'backend': {'type': 'string', 'default': 'default', 'inherit': True},
+            'dependencies': {'type': 'object'}
         },
     }
 
@@ -110,26 +111,52 @@ class Pull(Command):
         for model in self.obj.objects.values():
             if model.source is None:
                 continue
-            for source in model.source:
-                command = next(iter(source.keys()), None)
-                rows = self.run(model, source)
-                for row in rows:
-                    data = {'type': f'{model.name}/:source/{self.obj.name}'}
-                    for prop in model.properties.values():
-                        if isinstance(prop.source, list):
-                            data[prop.name] = [
-                                self.run(prop, {command: {'source': prop_source, 'value': row}})
-                                for prop_source in prop.source
-                            ]
 
-                        elif prop.source:
-                            data[prop.name] = self.run(prop, {command: {'source': prop.source, 'value': row}})
+            for dependency in self.dependencies(model.dependencies):
+                for source in model.source:
+                    command = next(iter(source.keys()), None)
+                    rows = self.run(model, source)
+                    for row in rows:
+                        data = {'type': f'{model.name}/:source/{self.obj.name}'}
+                        for prop in model.properties.values():
+                            if isinstance(prop.source, list):
+                                data[prop.name] = [
+                                    self.run(prop, {command: {'source': prop_source, 'value': row}})
+                                    for prop_source in prop.source
+                                ]
 
-                        if prop.ref and prop.name in data:
-                            data[prop.name] = get_ref_id(data[prop.name])
+                            elif prop.source:
+                                data[prop.name] = self.run(prop, {command: {'source': prop.source, 'value': row}})
 
-                    if self.check_key(data.get('id')):
-                        yield data
+                            if prop.ref and prop.name in data:
+                                data[prop.name] = get_ref_id(data[prop.name])
+
+                        if self.check_key(data.get('id')):
+                            yield data
+
+    def dependencies(self, deps):
+        if deps:
+            model_names = set()
+            prop_names = []
+            prop_name_mapping = {}
+            for name, dep in deps.items():
+                if '.' not in dep:
+                    self.error(f"Dependency must be in 'model/name.property' form, got: {dep}.")
+                model_name, prop_name = dep.split('.', 1)
+                model_names.add(model_name)
+                prop_names.append(prop_name)
+                prop_name_mapping[prop_name] = name
+            if len(model_names) > 1:
+                names = ', '.join(sorted(model_names))
+                self.error(f"Dependencies are allowed only from single model, but more than one model found: {names}.")
+            model_name = list(model_names)[0]
+            for row in self.store.getall(model_name, {'show': prop_names}):
+                yield {
+                    prop_name_mapping[k]: v
+                    for k, v in row
+                }
+        else:
+            yield {}
 
     def check_key(self, key):
         if isinstance(key, list):

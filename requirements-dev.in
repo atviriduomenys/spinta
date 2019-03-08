@@ -6,4 +6,5 @@ pytest-cov
 pytest-mock
 responses
 sqlalchemy-utils
+sqlparse
 toposort

@@ -39,3 +39,36 @@ def test_changes(store):
             {'id': data['id'], 'action': 'update', 'change': {'title': 'Lietuva'}},
             {'id': data['id'], 'action': 'update', 'change': {'code': 'lv', 'title': 'Latvia'}},
         ]
+
+
+def test_show_with_joins(store):
+    store.push([
+        {
+            'type': 'continent/:source/dependencies',
+            'id': '1',
+            'title': 'Europe',
+        },
+        {
+            'type': 'country/:source/dependencies',
+            'id': 1,
+            'title': 'Lithuania',
+            'continent': '1',
+        },
+        {
+            'type': 'capital/:source/dependencies',
+            'id': 1,
+            'title': 'Vilnius',
+            'country': '1',
+        },
+    ])
+
+    result = store.getall('capital', {
+        'source': 'dependencies',
+        'show': [
+            'title',
+            'country.title',
+            'country.continent.title',
+        ],
+    })
+
+    assert list(result) == []

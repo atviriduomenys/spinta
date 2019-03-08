@@ -23,7 +23,7 @@ class Prepare(Command):
     }
 
     def execute(self):
-        name = _get_table_name(self)
+        name = _get_table_name(self.obj)
         table_name = get_table_name(self.backend, self.ns, name, MAIN_TABLE)
         table = sa.Table(
             table_name, self.backend.schema,
@@ -188,7 +188,42 @@ class GetAll(Command):
         connection = self.args.transaction.connection
         table = _get_table(self).main
 
-        query = sa.select([table])
+        # title
+        # country.title
+        # country.continent.title
+
+        continent = _get_table(
+            self,
+            self._get_column()
+            self.obj.parent.objects[
+                self.obj.parent.objects[
+                    self.obj.properties['country'].ref
+                ].properties['continent'].ref
+            ]
+        ).main
+        country = _get_table(
+            self,
+            self.obj.parent.objects[
+                self.obj.properties['country'].ref
+            ]
+        ).main
+        qry = (
+            sa.select([
+                self._get_column('title'),
+                self._get_column('country.title'),
+                self._get_column('country.continent.title'),
+            ]).
+            select_from(
+                table.
+                outerjoin(country, table.c.data['country'] == country.c.id).
+                outerjoin(continent, country.c.data['continent'] == continent.c.id)
+            )
+        )
+        sql = str(qry) % qry.compile().params
+        import sqlparse
+        print(sqlparse.format(sql, reindent=True, keyword_case='upper'))
+
+        query = sa.select(self.show(table))
         query = self.order_by(query, table)
         query = self.offset(query)
         query = self.limit(query)
@@ -197,6 +232,56 @@ class GetAll(Command):
 
         for row in result:
             yield _get_data_from_row(self, table, row)
+
+    def _get_column(self, tables, name):
+        if '.' in name:
+            *refs, name = name.split('.')
+            obj = self.obj
+            for ref in refs:
+                obj = self.obj.parent.objects[obj.properties(ref).ref]
+        else:
+            refs = ()
+
+        if refs not in tables:
+            tables[refs] = _get_table(self, obj)
+
+        return tables[refs].main.c.data[name]
+
+    def _get_joins(self, tables):
+        if () not in tables:
+            tables[()] = _get_table(self)
+
+        join = tables[()]
+
+    def _get_joins_recursive(self, tables, join):
+        pass
+
+
+    def show(self, table):
+        if not self.args.show:
+            return [table]
+
+        joins = {}
+        cols = []
+        for name in self.args.show:
+            if '.' not in name:
+                cols.append(table.c.data[name].label(name))
+            else:
+                *relation, rel_col_name = name.split('.')
+                relation = tuple(relation)
+                if relation not in joins:
+                    rel = self._find_table_to_join(relation)
+                    joins[relation] = table.join(rel).alias()
+                join = joins[relation]
+                cols.append(join.c.data[rel_col_name].label(name))
+
+        return cols
+
+    def _find_table_to_join(self, relation):
+        obj = self.obj
+        for name in relation:
+            obj = self.obj.parent.objects[obj.properties[name].ref]
+        return _get_table(self, obj)
 
     def order_by(self, query, table):
         if self.args.sort:
@@ -300,23 +385,27 @@ class Wipe(Command):
         connection.execute(table.main.delete())
 
 
-def _get_table(cmd):
-    return cmd.backend.tables[cmd.ns][_get_table_name(cmd)]
+def _get_table(cmd, obj=None):
+    obj = obj or cmd.obj
+    return cmd.backend.tables[cmd.ns][_get_table_name(obj)]
 
 
-def _get_table_name(cmd):
-    return f'{cmd.obj.name}/:source/{cmd.obj.parent.name}'
+def _get_table_name(obj):
+    return f'{obj.name}/:source/{obj.parent.name}'
 
 
 def _get_data_from_row(cmd, table, row):
-    row = {
-        **row[table.c.data],
-        'id': row[table.c.id],
-    }
-    data = {}
-    for prop in cmd.obj.properties.values():
-        data[prop.name] = row.get(prop.name)
-    data['type'] = _get_table_name(cmd)
+    if cmd.args.show:
+        data = dict(row)
+    else:
+        row = {
+            **row[table.c.data],
+            'id': row[table.c.id],
+        }
+        data = {}
+        for prop in cmd.obj.properties.values():
+            data[prop.name] = row.get(prop.name)
+        data['type'] = _get_table_name(cmd.obj)
     return data
 
 
