@@ -17,3 +17,30 @@ Features
 - Change history, you can restore and view historical data.
 
 - Import data from external data sources.
+
+
+Development environment
+=======================
+
+Create database::
+
+   createdb spinta
+
+Create configuration files::
+
+   SPINTA_BACKENDS_DEFAULT_DSN=postgresql:///spinta
+   SPINTA_MANIFESTS_DEFAULT_PATH=path/to/manifest
+
+Prepare environment::
+
+   make
+
+Run database migrations::
+
+   env/bin/spinta migrate
+
+
+Import some datasets::
+
+   env/bin/spinta pull gov/vrk/rinkejopuslapis.lt/kandidatai
+   env/bin/spinta pull gov/lrs/ad

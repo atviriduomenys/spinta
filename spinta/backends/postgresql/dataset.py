@@ -194,7 +194,7 @@ class GetAll(Command):
 
         continent = _get_table(
             self,
-            self._get_column()
+            self._get_column(),
             self.obj.parent.objects[
                 self.obj.parent.objects[
                     self.obj.properties['country'].ref
