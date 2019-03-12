@@ -14,6 +14,7 @@ def test_schema_loader(store):
             'dataset': {
                 'csv': None,
                 'denorm': None,
+                'dependencies': None,
                 'xlsx': None,
                 'xml': None,
                 'json': None,

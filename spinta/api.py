@@ -209,6 +209,8 @@ def get_data(store, params):
 def get_row(store, params):
     model = get_model_from_params(store, 'default', params['path'], params)
     row = store.get(params['path'], params['id']['value'], params)
+    if row is None:
+        raise HTTPException(status_code=404)
     for prop in model.properties.values():
         yield prop.name, get_cell(params, prop, row.get(prop.name))
 

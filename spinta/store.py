@@ -1,6 +1,5 @@
 import inspect
 import importlib
-import itertools
 import pathlib
 
 import pkg_resources as pres
@@ -309,16 +308,25 @@ class Store:
                 )
         return result
 
-    def pull(self, dataset_name, backend='default', ns='default'):
+    def pull(self, dataset_name, params: dict = None, *, backend='default', ns='default'):
+        params = params or {}
         dataset = self.objects[ns]['dataset'][dataset_name]
-        data = self.run(dataset, {'pull': None}, backend=None, ns=ns)
+        params = {
+            'models': params.get('models'),
+        }
+        data = self.run(dataset, {'pull': params}, backend=None, ns=ns)
         return self.push(data, backend=backend, ns=ns)
 
     def get(self, model_name: str, object_id, params: dict = None, backend='default', ns='default'):
         params = params or {}
         model = get_model_from_params(self, ns, model_name, params)
         with self.config.backends[backend].transaction() as transaction:
-            return self.run(model, {'get': {'transaction': transaction, 'id': object_id}}, backend=backend, ns=ns)
+            params = {
+                'transaction': transaction,
+                'id': object_id,
+                'show': params.get('show'),
+            }
+            return self.run(model, {'get': params}, backend=backend, ns=ns)
 
     def getall(self, model_name: str, params: dict = None, *, backend='default', ns='default'):
         params = params or {}

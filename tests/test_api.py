@@ -11,6 +11,8 @@ def test_app(app):
             ('root', '/'),
         ],
         'items': [
+            ('capital', '/capital'),
+            ('continent', '/continent'),
             ('country', '/country'),
             ('deeply', '/deeply'),
             ('org', '/org'),

@@ -10,22 +10,24 @@ objects:
     properties:
       id: {source: 'id'}
       title: {source: 'continent'}
+      continent_id: {source: 'id'}
 
   country:
     source: {csv: "http://example.com/continents/{continent}/countries.csv"}
     dependencies:
-      continent: continent.id
+      continent: continent.continent_id
     properties:
       id: {source: 'id'}
       title: {source: 'country'}
-      continent: {source: 'continent', ref: continent}
+      continent: {source: 'continent', ref: continent, dependency: true}
+      country_id: {source: 'id'}
 
   capital:
     source: {csv: "http://example.com/continents/{continent}/countries/{country}/captials.csv"}
     dependencies:
-      continent: country.continent.id
-      country: country.id
+      continent: country.continent.continent_id
+      country: country.country_id
     properties:
       id: {source: 'id'}
       title: {source: 'capital'}
-      country: {source: 'country', ref: country}
+      country: {source: 'country', ref: country, dependency: true}

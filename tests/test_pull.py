@@ -20,14 +20,32 @@ def test_csv(store, responses):
         body='id,capital\n1,Vilnius\n',
     )
 
-    assert len(store.pull('dependencies')) == 3
+    assert len(store.pull('dependencies', {'models': ['continent']})) == 1
+    assert len(store.pull('dependencies', {'models': ['country']})) == 1
+    assert len(store.pull('dependencies', {'models': ['capital']})) == 1
 
     assert sorted(store.getall('continent', {'source': 'dependencies'})) == [
-        ('1', 'Europe'),
+        {
+            'type': 'continent/:source/dependencies',
+            'id': '23fcdb953846e7c709d2967fb549de67d975c010',
+            'title': 'Europe',
+            'continent_id': '1',
+        },
     ]
     assert sorted(store.getall('country', {'source': 'dependencies'})) == [
-        ('1', 'Lithuania'),
+        {
+            'type': 'country/:source/dependencies',
+            'id': '23fcdb953846e7c709d2967fb549de67d975c010',
+            'title': 'Lithuania',
+            'continent': '23fcdb953846e7c709d2967fb549de67d975c010',
+            'country_id': '1',
+        },
     ]
     assert sorted(store.getall('capital', {'source': 'dependencies'})) == [
-        ('1', 'Vilnius'),
+        {
+            'type': 'capital/:source/dependencies',
+            'id': '23fcdb953846e7c709d2967fb549de67d975c010',
+            'title': 'Vilnius',
+            'country': '23fcdb953846e7c709d2967fb549de67d975c010',
+        },
     ]

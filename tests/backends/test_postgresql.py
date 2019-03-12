@@ -65,10 +65,18 @@ def test_show_with_joins(store):
     result = store.getall('capital', {
         'source': 'dependencies',
         'show': [
+            'id',
             'title',
             'country.title',
             'country.continent.title',
         ],
     })
 
-    assert list(result) == []
+    assert list(result) == [
+        {
+            'country.continent.title': 'Europe',
+            'country.title': 'Lithuania',
+            'title': 'Vilnius',
+            'id': '69a33b149af7a7eeb25026c8cdc09187477ffe21',
+        },
+    ]

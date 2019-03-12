@@ -54,6 +54,7 @@ class Property(Type):
             'parent': {'type': 'dataset.model'},
             'replace': {'type': 'object'},
             'ref': {'type': 'string'},
+            'dependency': {'type': 'boolean'},
         },
     }
 
@@ -112,21 +113,24 @@ class Pull(Command):
             if model.source is None:
                 continue
 
+            if self.args.models and model.name not in self.args.models:
+                continue
+
             for dependency in self.dependencies(model.dependencies):
                 for source in model.source:
-                    command = next(iter(source.keys()), None)
-                    rows = self.run(model, source)
+                    command, args = next(iter(source.items()), None)
+                    rows = self.run(model, {command: {**args, 'dependency': dependency}})
                     for row in rows:
                         data = {'type': f'{model.name}/:source/{self.obj.name}'}
                         for prop in model.properties.values():
                             if isinstance(prop.source, list):
                                 data[prop.name] = [
-                                    self.run(prop, {command: {'source': prop_source, 'value': row}})
+                                    self.get_value_from_source(prop, command, prop_source, row, dependency)
                                     for prop_source in prop.source
                                 ]
 
                             elif prop.source:
-                                data[prop.name] = self.run(prop, {command: {'source': prop.source, 'value': row}})
+                                data[prop.name] = self.get_value_from_source(prop, command, prop.source, row, dependency)
 
                             if prop.ref and prop.name in data:
                                 data[prop.name] = get_ref_id(data[prop.name])
@@ -141,7 +145,7 @@ class Pull(Command):
             prop_name_mapping = {}
             for name, dep in deps.items():
                 if '.' not in dep:
-                    self.error(f"Dependency must be in 'model/name.property' form, got: {dep}.")
+                    self.error(f"Dependency must be in 'object/name.property' form, got: {dep}.")
                 model_name, prop_name = dep.split('.', 1)
                 model_names.add(model_name)
                 prop_names.append(prop_name)
@@ -150,10 +154,10 @@ class Pull(Command):
                 names = ', '.join(sorted(model_names))
                 self.error(f"Dependencies are allowed only from single model, but more than one model found: {names}.")
             model_name = list(model_names)[0]
-            for row in self.store.getall(model_name, {'show': prop_names}):
+            for row in self.store.getall(model_name, {'show': prop_names, 'source': self.obj.name}):
                 yield {
                     prop_name_mapping[k]: v
-                    for k, v in row
+                    for k, v in row.items()
                 }
         else:
             yield {}
@@ -166,3 +170,9 @@ class Pull(Command):
         elif key is None:
             return False
         return True
+
+    def get_value_from_source(self, prop, command, source, value, dependency):
+        if prop.dependency:
+            return dependency.get(source)
+        else:
+            return self.run(prop, {command: {'source': source, 'value': value}})

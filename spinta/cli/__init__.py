@@ -37,12 +37,13 @@ def migrate(ctx):
 
 @main.command(help='Pull data from an external dataset.')
 @click.argument('source')
+@click.option('--model', '-m', multiple=True, help='Pull only specified modles.')
 @click.pass_context
-def pull(ctx, source):
+def pull(ctx, source, model):
     store = ctx.obj['store']
     store.prepare(internal=True)
     store.prepare()
-    store.pull(source)
+    store.pull(source, {'models': model})
 
 
 @main.command()

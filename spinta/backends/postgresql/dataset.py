@@ -177,6 +177,48 @@ class Get(Command):
             self.error(f"Multiple rows were found, id={self.args.id}.")
 
 
+class JoinManager:
+    """
+    This class is responsible for keeping track of joins.
+
+    Client can provide field names in a foo.bar.baz form, where baz is the
+    column name, and foo.baz are references.
+
+    So in foo.bar.baz example, following joins will be produced:
+
+        FROM table
+        LEFT OUTER JOIN foo AS foo_1 ON table.data->foo = foo_1.id
+        LEFT OUTER JOIN bar AS bar_1 ON foo_1.data->bar = bar_1.id
+
+    Basically for every reference a join is created.
+
+    """
+
+    def __init__(self, cmd, table):
+        self.cmd = cmd
+        self.left = table
+        self.aliases = {(): table}
+
+    def __call__(self, name):
+        *refs, name = name.split('.')
+        refs = tuple(refs)
+        obj = self.cmd.obj
+        for i in range(len(refs)):
+            ref = refs[i]
+            left_ref = refs[:i]
+            right_ref = refs[:i] + (ref,)
+            obj = self.cmd.obj.parent.objects[obj.properties[ref].ref]
+            if right_ref not in self.aliases:
+                self.aliases[right_ref] = _get_table(self.cmd, obj).main.alias()
+                left = self.aliases[left_ref]
+                right = self.aliases[right_ref]
+                self.left = self.left.outerjoin(right, left.c.data[ref] == right.c.id)
+        if name == 'id':
+            return self.aliases[refs].c.id
+        else:
+            return self.aliases[refs].c.data[name]
+
+
 class GetAll(Command):
     metadata = {
         'name': 'getall',
@@ -187,44 +229,10 @@ class GetAll(Command):
     def execute(self):
         connection = self.args.transaction.connection
         table = _get_table(self).main
+        jm = JoinManager(self, table)
 
-        # title
-        # country.title
-        # country.continent.title
-
-        continent = _get_table(
-            self,
-            self._get_column(),
-            self.obj.parent.objects[
-                self.obj.parent.objects[
-                    self.obj.properties['country'].ref
-                ].properties['continent'].ref
-            ]
-        ).main
-        country = _get_table(
-            self,
-            self.obj.parent.objects[
-                self.obj.properties['country'].ref
-            ]
-        ).main
-        qry = (
-            sa.select([
-                self._get_column('title'),
-                self._get_column('country.title'),
-                self._get_column('country.continent.title'),
-            ]).
-            select_from(
-                table.
-                outerjoin(country, table.c.data['country'] == country.c.id).
-                outerjoin(continent, country.c.data['continent'] == continent.c.id)
-            )
-        )
-        sql = str(qry) % qry.compile().params
-        import sqlparse
-        print(sqlparse.format(sql, reindent=True, keyword_case='upper'))
-
-        query = sa.select(self.show(table))
-        query = self.order_by(query, table)
+        query = sa.select(self.show(table, jm))
+        query = self.order_by(query, table, jm)
         query = self.offset(query)
         query = self.limit(query)
 
@@ -233,64 +241,20 @@ class GetAll(Command):
         for row in result:
             yield _get_data_from_row(self, table, row)
 
-    def _get_column(self, tables, name):
-        if '.' in name:
-            *refs, name = name.split('.')
-            obj = self.obj
-            for ref in refs:
-                obj = self.obj.parent.objects[obj.properties(ref).ref]
-        else:
-            refs = ()
-
-        if refs not in tables:
-            tables[refs] = _get_table(self, obj)
-
-        return tables[refs].main.c.data[name]
-
-    def _get_joins(self, tables):
-        if () not in tables:
-            tables[()] = _get_table(self)
-
-        join = tables[()]
-
-    def _get_joins_recursive(self, tables, join):
-        pass
-
-
-    def show(self, table):
+    def show(self, table, jm):
         if not self.args.show:
             return [table]
 
-        joins = {}
-        cols = []
-        for name in self.args.show:
-            if '.' not in name:
-                cols.append(table.c.data[name].label(name))
-            else:
-                *relation, rel_col_name = name.split('.')
-                relation = tuple(relation)
-                if relation not in joins:
-                    rel = self._find_table_to_join(relation)
-                    joins[relation] = table.join(rel).alias()
-                join = joins[relation]
-                cols.append(join.c.data[rel_col_name].label(name))
+        return [jm(name).label(name) for name in self.args.show]
 
-        return cols
-
-    def _find_table_to_join(self, relation):
-        obj = self.obj
-        for name in relation:
-            obj = self.obj.parent.objects[obj.properties[name].ref]
-        return _get_table(self, obj)
-
-    def order_by(self, query, table):
+    def order_by(self, query, table, jm):
         if self.args.sort:
             db_sort_keys = []
             for sort_key in self.args.sort:
                 if sort_key['name'] == 'id':
                     column = table.c.id
                 else:
-                    column = table.c.data[sort_key['name']]
+                    column = jm(sort_key['name'])
 
                 if sort_key['ascending']:
                     column = column.asc()

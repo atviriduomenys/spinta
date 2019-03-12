@@ -11,7 +11,8 @@ class XmlDatasetModel(Command):
     }
 
     def execute(self):
-        with requests.get(self.args.url, stream=True) as r:
+        url = self.args.url.format(**self.args.dependency)
+        with requests.get(url, stream=True) as r:
             r.raw.decode_content = True
             tag = self.args.root.split('/')[-1]
             context = etree.iterparse(r.raw, tag=tag)
