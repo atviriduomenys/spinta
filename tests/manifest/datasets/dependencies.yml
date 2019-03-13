@@ -15,7 +15,7 @@ objects:
   country:
     source: {csv: "http://example.com/continents/{continent}/countries.csv"}
     dependencies:
-      continent: continent.continent_id
+      continent: continent/:source/dependencies.continent_id
     properties:
       id: {source: 'id'}
       title: {source: 'country'}
@@ -25,8 +25,8 @@ objects:
   capital:
     source: {csv: "http://example.com/continents/{continent}/countries/{country}/captials.csv"}
     dependencies:
-      continent: country.continent.continent_id
-      country: country.country_id
+      continent: country/:source/dependencies.continent.continent_id
+      country: country/:source/dependencies.country_id
     properties:
       id: {source: 'id'}
       title: {source: 'capital'}

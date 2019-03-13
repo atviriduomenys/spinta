@@ -103,6 +103,9 @@ RULES = {
     'format': {
         'maxargs': 1,
     },
+    'count': {
+        'maxargs': 0,
+    },
 }
 
 
@@ -137,11 +140,11 @@ def parse_url_path(path):
         if rules is None:
             raise Exception(f"Unknown URl parameter {name!r}.")
 
-        minargs = rules.get('minargs', 1)
+        maxargs = rules.get('maxargs')
+        minargs = rules.get('minargs', 0 if maxargs is 0 else 1)
         if len(value) < minargs:
             raise Exception(f"At least {minargs} argument is required for {name!r} URL parameter.")
 
-        maxargs = rules.get('maxargs')
         if maxargs is not None and len(value) > maxargs:
             raise Exception(f"URL parameter {name!r} can only have {maxargs} arguments.")
 
@@ -184,7 +187,8 @@ def build_url_path(params):
         if 'cast' in rules:
             v = rules['cast'].to_string(v)
         else:
-            v = [] if v is None else [v]
+            v = [] if v is None else v
+            v = v if isinstance(v, list) else [v]
 
         assert isinstance(v, list), v
 
@@ -193,4 +197,4 @@ def build_url_path(params):
         else:
             parts.extend(v)
 
-    return '/'.join(parts)
+    return '/'.join(parts) if parts else None

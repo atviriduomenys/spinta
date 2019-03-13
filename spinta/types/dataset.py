@@ -2,6 +2,7 @@ from spinta.commands import Command
 from spinta.types import Type
 from spinta.types.object import Object
 from spinta.utils.refs import get_ref_id
+from spinta.utils.url import parse_url_path
 
 
 class Dataset(Type):
@@ -139,49 +140,73 @@ class Pull(Command):
             if self.args.models and model.name not in self.args.models:
                 continue
 
-            for dependency in self.dependencies(model.dependencies):
+            for dependency in self.dependencies(model, model.dependencies):
                 for source in model.source:
-                    command, args = next(iter(source.items()), None)
-                    rows = self.run(model, {command: {**args, 'dependency': dependency}})
-                    for row in rows:
-                        data = {'type': f'{model.name}/:source/{self.obj.name}'}
-                        for prop in model.properties.values():
-                            if isinstance(prop.source, list):
-                                data[prop.name] = [
-                                    self.get_value_from_source(prop, command, prop_source, row, dependency)
-                                    for prop_source in prop.source
-                                ]
+                    try:
+                        yield from self.pull_model(model, source, dependency)
+                    except Exception as e:
+                        self.error(f"Error while pulling model {model.name!r}, with dependency: {dependency!r} and source: {source!r}. Error: {e}")
 
-                            elif prop.source:
-                                data[prop.name] = self.get_value_from_source(prop, command, prop.source, row, dependency)
+    def pull_model(self, model, source, dependency):
+        command, args = next(iter(source.items()), None)
+        rows = self.run(model, {command: {**args, 'dependency': dependency}})
+        for row in rows:
+            data = {'type': f'{model.name}/:source/{self.obj.name}'}
+            for prop in model.properties.values():
+                if isinstance(prop.source, list):
+                    data[prop.name] = [
+                        self.get_value_from_source(prop, command, prop_source, row, dependency)
+                        for prop_source in prop.source
+                    ]
 
-                            if prop.ref and prop.name in data:
-                                data[prop.name] = get_ref_id(data[prop.name])
+                elif prop.source:
+                    data[prop.name] = self.get_value_from_source(prop, command, prop.source, row, dependency)
 
-                        if self.check_key(data.get('id')):
-                            yield data
+                if prop.ref and prop.name in data:
+                    data[prop.name] = get_ref_id(data[prop.name])
 
-    def dependencies(self, deps):
+            if self.check_key(data.get('id')):
+                yield data
+
+    def dependencies(self, model, deps):
         if deps:
+            command_calls = {}
             model_names = set()
             prop_names = []
             prop_name_mapping = {}
             for name, dep in deps.items():
+                if isinstance(dep, dict):
+                    command_calls[name] = dep
+                    continue
+
                 if '.' not in dep:
                     self.error(f"Dependency must be in 'object/name.property' form, got: {dep}.")
                 model_name, prop_name = dep.split('.', 1)
                 model_names.add(model_name)
                 prop_names.append(prop_name)
                 prop_name_mapping[prop_name] = name
+
             if len(model_names) > 1:
                 names = ', '.join(sorted(model_names))
                 self.error(f"Dependencies are allowed only from single model, but more than one model found: {names}.")
-            model_name = list(model_names)[0]
-            for row in self.store.getall(model_name, {'show': prop_names, 'source': self.obj.name}):
-                yield {
-                    prop_name_mapping[k]: v
-                    for k, v in row.items()
-                }
+
+            if len(command_calls) > 1:
+                self.error(f"Only one command call is allowed.")
+
+            if len(command_calls) > 0:
+                if len(model_names) > 0:
+                    self.error(f"Only one command call or one model is allowed in dependencies.")
+                for name, cmd in command_calls.items():
+                    for value in self.run(model, cmd):
+                        yield {name: value}
+            else:
+                model_name = list(model_names)[0]
+                params = parse_url_path(model_name)
+                for row in self.store.getall(params['path'], {'show': prop_names, 'source': params['source']}):
+                    yield {
+                        prop_name_mapping[k]: v
+                        for k, v in row.items()
+                    }
         else:
             yield {}
 

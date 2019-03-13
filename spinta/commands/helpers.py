@@ -69,3 +69,10 @@ class Url(Command):
 
     def execute(self):
         return None
+
+
+class Range(Command):
+    metadata = {'name': 'range'}
+
+    def execute(self):
+        return range(self.args.start, self.args.stop + 1)

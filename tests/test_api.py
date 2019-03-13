@@ -87,6 +87,7 @@ def test_dataset(store, app):
         'formats': [
             ('CSV', '/rinkimai/:source/json/:format/csv'),
             ('JSON', '/rinkimai/:source/json/:format/json'),
+            ('ASCII', '/rinkimai/:source/json/:format/asciitable'),
         ],
     }
 
@@ -127,6 +128,7 @@ def test_nested_dataset(store, app):
         'formats': [
             ('CSV', '/deeply/nested/model/name/:source/nested/dataset/name/:format/csv'),
             ('JSON', '/deeply/nested/model/name/:source/nested/dataset/name/:format/json'),
+            ('ASCII', '/deeply/nested/model/name/:source/nested/dataset/name/:format/asciitable'),
         ],
     }
 
@@ -155,6 +157,7 @@ def test_dataset_key(store, app):
         'formats': [
             ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/csv'),
             ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/json'),
+            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/asciitable'),
         ],
         'datasets': [],
         'items': [],
@@ -205,6 +208,7 @@ def test_changes_single_object(store, app, mocker):
         'formats': [
             ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/csv'),
             ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/json'),
+            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/asciitable'),
         ],
         'datasets': [],
         'items': [],
@@ -270,6 +274,7 @@ def test_changes_object_list(store, app, mocker):
         'formats': [
             ('CSV', '/rinkimai/:source/json/:changes/:format/csv'),
             ('JSON', '/rinkimai/:source/json/:changes/:format/json'),
+            ('ASCII', '/rinkimai/:source/json/:changes/:format/asciitable'),
         ],
         'datasets': [],
         'items': [],
@@ -301,3 +306,25 @@ def test_changes_object_list(store, app, mocker):
         ],
         'row': [],
     }
+
+
+def test_count(store, app):
+    store.push([
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 1,
+            'pavadinimas': 'Rinkimai 1',
+        },
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 2,
+            'pavadinimas': 'Rinkimai 2',
+        },
+    ])
+
+    resp = app.get('/rinkimai/:source/json/:count')
+    assert resp.status_code == 200
+
+    resp.context.pop('request')
+    assert resp.context['header'] == ['count']
+    assert resp.context['data'] == [[{'color': None, 'link': None, 'value': 2}]]

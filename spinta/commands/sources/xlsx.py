@@ -1,5 +1,5 @@
 from tempfile import NamedTemporaryFile
-from itertools import islice
+from itertools import islice, chain
 
 import requests
 import xlrd
@@ -14,8 +14,8 @@ class XlsxDataset(Command):
     }
 
     def execute(self):
-        self.args.args.setdefault('skip', None)
-        self.args.args.setdefault('limit', None)
+        skip = self.args.args.get('skip', None)
+        limit = self.args.args.get('limit', None)
 
         with NamedTemporaryFile() as f:
 
@@ -28,11 +28,20 @@ class XlsxDataset(Command):
             f.seek(0)
 
             rows = read_excel(f.name)
-            if self.args.skip:
-                rows = islice(rows, self.args.skip, None)
+            if skip:
+                if isinstance(skip, dict):
+                    value = set(skip['value']) if isinstance(skip['value'], list) else {skip['value']}
+                    for row in rows:
+                        if len(row) > skip['column'] and row[skip['column']] in skip['value']:
+                            break
+                    else:
+                        self.error(f"Can't find header line: {skip!r}")
+                    rows = chain([row], rows)
+                else:
+                    rows = islice(rows, skip, None)
             cols = {i: x.strip() for i, x in enumerate(next(rows, []))}
-            if self.args.limit:
-                rows = islice(rows, 0, self.args.limit)
+            if limit:
+                rows = islice(rows, 0, limit)
             for row in rows:
                 data = {}
                 for i, value in enumerate(row):

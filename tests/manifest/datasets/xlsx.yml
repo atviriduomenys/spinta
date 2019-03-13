@@ -9,7 +9,7 @@ objects:
     source:
       xlsx:
         url: 'http://example.com/data.xlsx'
-        skip: 8
+        skip: {column: 0, value: ['Rinkimai', 'Rinkimų rūšis']}
         limit: 10
     properties:
       id: {source: ['Rinkimai']}

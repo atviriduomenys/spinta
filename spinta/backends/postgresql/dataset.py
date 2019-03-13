@@ -231,15 +231,21 @@ class GetAll(Command):
         table = _get_table(self).main
         jm = JoinManager(self, table)
 
-        query = sa.select(self.show(table, jm))
-        query = self.order_by(query, table, jm)
-        query = self.offset(query)
-        query = self.limit(query)
+        if self.args.count is not None:
+            query = sa.select([sa.func.count()]).select_from(table)
+            result = connection.execute(query)
+            yield {'count': result.scalar()}
 
-        result = connection.execute(query)
+        else:
+            query = sa.select(self.show(table, jm))
+            query = self.order_by(query, table, jm)
+            query = self.offset(query)
+            query = self.limit(query)
 
-        for row in result:
-            yield _get_data_from_row(self, table, row)
+            result = connection.execute(query)
+
+            for row in result:
+                yield _get_data_from_row(self, table, row)
 
     def show(self, table, jm):
         if not self.args.show:

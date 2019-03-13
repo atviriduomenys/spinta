@@ -14,13 +14,16 @@ class Json(Command):
     }
 
     def execute(self):
-        with requests.get(self.args.url) as r:
-            data = r.json()
-            data = data[self.args.items]
-            if isinstance(data, list):
-                yield from data
-            else:
-                yield data
+        urls = self.args.url if isinstance(self.args.url, list) else [self.args.url]
+        for url in urls:
+            url = url.format(**self.args.dependency)
+            with requests.get(url) as r:
+                data = r.json()
+                data = data[self.args.items]
+                if isinstance(data, list):
+                    yield from data
+                else:
+                    yield data
 
 
 class JsonDatasetProperty(Command):

@@ -68,3 +68,13 @@ def test_format():
     }
     assert parse_url_path(string) == params
     assert build_url_path(params) == string
+
+
+def test_no_args():
+    string = 'foo/bar/:count'
+    params = {
+        'path': 'foo/bar',
+        'count': [],
+    }
+    assert parse_url_path(string) == params
+    assert build_url_path(params) == string

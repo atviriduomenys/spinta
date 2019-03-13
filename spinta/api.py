@@ -13,6 +13,7 @@ from starlette.responses import StreamingResponse
 from spinta.utils.url import parse_url_path, build_url_path
 from spinta.utils.tree import build_path_tree
 from spinta.store import get_model_from_params
+from spinta.types import Type
 
 
 templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
@@ -50,6 +51,7 @@ async def homepage(request):
             formats = [
                 ('CSV', '/' + build_url_path({**params, 'format': 'csv'})),
                 ('JSON', '/' + build_url_path({**params, 'format': 'json'})),
+                ('ASCII', '/' + build_url_path({**params, 'format': 'asciitable'})),
             ]
 
             if 'changes' in params:
@@ -84,7 +86,7 @@ async def homepage(request):
             'row': row,
         })
 
-    elif fmt in ('csv', 'json'):
+    elif fmt in ('csv', 'json', 'asciitable'):
         async def generator():
             for data in store.export(fmt, path, params):
                 yield data
@@ -92,7 +94,11 @@ async def homepage(request):
         media_types = {
             'csv': 'text/csv',
             'json': 'application/json',
+            'asciitable': 'text/plain',
         }
+
+        if fmt == 'asciitable':
+            params['args'] = {'column_width': 42}
 
         return StreamingResponse(generator(), media_type=media_types[fmt])
 
@@ -200,7 +206,13 @@ def get_data(store, params):
     model = get_model_from_params(store, 'default', params['path'], params)
     rows = store.getall(params['path'], {'limit': 100, **params})
 
-    props = [p for p in model.properties.values() if p.name != 'type']
+    if 'count' in params:
+        prop = Type()
+        prop.name = 'count'
+        prop.ref = None
+        props = [prop]
+    else:
+        props = [p for p in model.properties.values() if p.name != 'type']
 
     yield [prop.name for prop in props]
 
@@ -243,8 +255,9 @@ def get_cell(params, prop, value, shorten=False, color=None):
     if isinstance(value, datetime.datetime):
         value = value.isoformat()
 
-    if shorten and isinstance(value, str) and len(value) > 42:
-        value = value[:42] + '...'
+    max_column_length = 200
+    if shorten and isinstance(value, str) and len(value) > max_column_length:
+        value = value[:max_column_length] + '...'
 
     if value is None:
         value = ''

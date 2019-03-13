@@ -1,0 +1,15 @@
+---
+name: generator
+type: dataset
+version: 1
+date: "2019-03-13"
+objects:
+
+  continent:
+    dependencies:
+      year: {range: {start: 2000, stop: 2001}}
+    source: 
+      csv: "http://example.com/{year}/continents.csv"
+    properties:
+      id: {source: 'id'}
+      title: {source: 'continent'}
