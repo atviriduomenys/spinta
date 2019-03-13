@@ -57,8 +57,11 @@
         {% if datasets %}
         <strong>Data sources:</strong>
         <ul>
-            {% for name, link in datasets %}
-            <li><a href="{{ link }}">{{ name }}</a></li>
+            {% for dataset in datasets %}
+            <li>
+                <a href="{{ dataset.link }}">{{ dataset.name }}</a>
+                {% if dataset.canonical %} [CANONICAL]{% endif %}
+            </li>
             {% endfor %}
         </ul>
         {% endif %}

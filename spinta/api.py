@@ -1,5 +1,6 @@
 import collections
 import datetime
+import operator
 
 import pkg_resources as pres
 import uvicorn
@@ -186,9 +187,13 @@ def get_directory_content(tree, path):
 
 def get_directory_datasets(datasets, path):
     if path in datasets:
-        for name in sorted(datasets[path].keys()):
+        for name, dataset in sorted(datasets[path].items(), key=operator.itemgetter(0)):
             link = ('/' if path else '') + path + '/:source/' + name
-            yield name, link
+            yield {
+                'name': name,
+                'link': link,
+                'canonical': dataset.objects[path].canonical,
+            }
 
 
 def get_data(store, params):

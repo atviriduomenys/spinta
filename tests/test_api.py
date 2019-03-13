@@ -44,8 +44,8 @@ def test_directory(app):
             ('turas', '/rinkimai/turas'),
         ],
         'datasets': [
-            ('json', '/rinkimai/:source/json'),
-            ('xlsx', '/rinkimai/:source/xlsx'),
+            {'name': 'json', 'link': '/rinkimai/:source/json', 'canonical': False},
+            {'name': 'xlsx', 'link': '/rinkimai/:source/xlsx', 'canonical': False},
         ],
         'header': [],
         'data': [],

@@ -34,7 +34,7 @@ class Model(Object):
             'backend': {'type': 'string', 'default': 'default', 'inherit': True},
             'dependencies': {'type': 'object'},
             'extends': {'type': 'string'},
-            'canonical': {'type': 'boolean'},
+            'canonical': {'type': 'boolean', 'default': False},
         },
     }
 
