@@ -147,10 +147,13 @@ class PrepareModel(Command):
     def execute(self):
         columns = []
         for prop_name, prop in self.obj.properties.items():
-            if prop.type == 'pk':
-                columns.append(
-                    sa.Column(prop_name, BIGINT, primary_key=True)
-                )
+            if prop.name == 'id':
+                if prop.type == 'integer' or prop.type == 'pk':
+                    columns.append(
+                        sa.Column(prop_name, BIGINT, primary_key=True)
+                    )
+                else:
+                    self.error(f"Unsuported type {prop.type!r} for primary key.")
             elif prop.type == 'string':
                 columns.append(
                     sa.Column(prop_name, sa.Text)

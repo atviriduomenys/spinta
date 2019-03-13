@@ -4,7 +4,7 @@ name: transaction
 version: 1
 date: "2019-02-12"
 properties:
-  id: {type: pk}
+  id: {type: integer}
   datetime: {type: datetime}
   client_type: {type: string, enum: [dataset, project, system]}
   client_id: {type: string}
