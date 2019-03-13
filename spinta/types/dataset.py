@@ -32,7 +32,9 @@ class Model(Object):
             'local': {'type': 'boolean'},
             'parent': {'type': 'dataset'},
             'backend': {'type': 'string', 'default': 'default', 'inherit': True},
-            'dependencies': {'type': 'object'}
+            'dependencies': {'type': 'object'},
+            'extends': {'type': 'string'},
+            'canonical': {'type': 'boolean'},
         },
     }
 
@@ -89,17 +91,38 @@ class PrepareDataset(Command):
             self.run(model, {'prepare.type': None})
 
 
-class CheckProperty(Command):
+class CheckDataset(Command):
     metadata = {
         'name': 'manifest.check',
         'type': 'dataset',
     }
 
     def execute(self):
+        self.check_owner()
         for model in self.obj.objects.values():
+            self.check_extends(model)
             for prop in model.properties.values():
-                if prop.ref and prop.ref not in self.obj.objects:
-                    self.error(f"{model.name}.{prop.name} referenced an unknown object {prop.ref!r}.")
+                self.check_ref(prop)
+
+    def check_owner(self):
+        if self.obj.owner and self.obj.owner not in self.store.objects[self.ns]['owner']:
+            self.error(f"Can't find owner {self.obj.owner!r}.")
+
+    def check_extends(self, model):
+        if not model.extends:
+            return
+
+        if model.extends in self.obj.objects:
+            return
+
+        if model.extends in self.store.objects[self.ns]['model']:
+            return
+
+        self.error(f"Can't find model {model.name!r} specified in 'extends'.")
+
+    def check_ref(self, prop):
+        if prop.ref and prop.ref not in self.obj.objects and prop.ref not in self.store.objects[self.ns]['model']:
+            self.error(f"{prop.parent.name}.{prop.name} referenced an unknown object {prop.ref!r}.")
 
 
 class Pull(Command):

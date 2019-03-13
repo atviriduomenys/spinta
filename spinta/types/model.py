@@ -21,10 +21,7 @@ class Model(Object):
         return self.name
 
     def get_primary_key(self):
-        for prop in self.properties.values():
-            if prop.type == 'pk':
-                return prop
-        raise Exception(f"{self} does not have a primary key.")
+        return self.properties['id']
 
 
 class CheckModel(Command):
@@ -38,12 +35,7 @@ class CheckModel(Command):
         self.check_primary_key()
 
     def check_primary_key(self):
-        pkeys = {name for name, prop in self.obj.properties.items() if prop.type == 'pk'}
-        n_pkeys = len(pkeys)
-        if n_pkeys > 1:
-            self.error("Only one primary key is allowed, found {n_pkeys}.")
-        if n_pkeys == 0:
-            self.error("Primary key is required, add `id: {type: pk}` to the model.")
-        pkey = next(iter(pkeys))
-        if pkey != 'id':
-            self.error("Primary key must be named 'id', but a primary key named {pkey!r} is found. Change it to 'id'.")
+        if 'id' not in self.obj.properties:
+            self.error("Primary key is required, add `id` property to the model.")
+        if self.obj.properties['id'].type == 'pk':
+            self.deprecation("`id` property must specify real type like 'string' or 'integer'. Use of 'pk' is deprecated.")

@@ -1,3 +1,6 @@
+import warnings
+
+
 class MetaData:
 
     def __init__(self, cls):
@@ -70,6 +73,9 @@ class Command(metaclass=MetaClass):
             ) + '\n')
         stack = '\n'.join(filter(None, stack))
         raise CommandError(f"Command error:\n\n{stack}\n{message}")
+
+    def deprecation(self, message):
+        warnings.warn(message, DeprecationWarning, stacklevel=2)
 
 
 class Args:

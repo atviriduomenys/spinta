@@ -55,6 +55,12 @@ class Store:
                 },
             },
             'replace': {},
+            'pdf': {
+                'argument': 'url',
+                'arguments': {
+                    'url': {'type': 'string'},
+                },
+            },
             'hint': {
                 'argument': 'source',
                 'arguments': {
