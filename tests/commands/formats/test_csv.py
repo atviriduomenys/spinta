@@ -1,10 +1,12 @@
 import datetime
 
+from spinta.utils.itertools import consume
+
 
 def test_export_csv(store, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
-    store.push([
+    consume(store.push([
         {
             'type': 'country/:source/csv',
             'id': 1,
@@ -23,7 +25,7 @@ def test_export_csv(store, app, mocker):
             'code': 'lv',
             'title': 'Latvia',
         },
-    ])
+    ]))
 
     assert app.get('country/:source/csv/:format/csv').text == (
         'type,id,code,title\r\n'

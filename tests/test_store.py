@@ -46,10 +46,15 @@ def test_schema_loader(store):
         'country': {
             '<id>': 1,
             'id': result['country']['id'],
+            'code': 'lt',
+            'title': 'Lithuania',
         },
         'org': {
             '<id>': 1,
             'id': result['org']['id'],
+            'country': result['country']['id'],
+            'govid': '0042',
+            'title': 'My Org',
         },
     }
 

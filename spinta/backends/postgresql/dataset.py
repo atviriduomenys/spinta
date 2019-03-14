@@ -116,7 +116,7 @@ class Push(Command):
 
             else:
                 # Nothing to update.
-                return key
+                return None
 
         # Track changes.
         connection.execute(

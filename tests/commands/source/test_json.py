@@ -3,6 +3,8 @@ import pathlib
 
 from responses import GET
 
+from spinta.utils.itertools import consume
+
 
 def test_json(store, responses):
     responses.add(
@@ -11,7 +13,7 @@ def test_json(store, responses):
         body=(pathlib.Path(__file__).parents[2] / 'data/data.json').read_bytes(),
     )
 
-    assert len(store.pull('json')) == 10
+    assert consume(store.pull('json')) == 10
     assert sorted(store.getall('rinkimai', {'source': 'json'}), key=operator.itemgetter('id'))[:2] == [
         {
             'type': 'rinkimai/:source/json',

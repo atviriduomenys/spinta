@@ -2,6 +2,7 @@ import sqlalchemy as sa
 
 from unittest.mock import MagicMock
 
+from spinta.utils.itertools import consume
 from spinta.backends.postgresql import get_table_name
 
 
@@ -18,9 +19,9 @@ def test_get_table_name():
 
 
 def test_changes(store):
-    data, = store.push([{'type': 'country', 'code': 'lt', 'title': 'Lithuania'}])
-    store.push([{**data, 'title': "Lietuva"}])
-    store.push([{**data, 'code': 'lv', 'title': "Latvia"}])
+    data, = list(store.push([{'type': 'country', 'code': 'lt', 'title': 'Lithuania'}]))
+    consume(store.push([{'id': data['id'], 'type': 'country', 'title': "Lietuva"}]))
+    consume(store.push([{'id': data['id'], 'type': 'country', 'code': 'lv', 'title': "Latvia"}]))
 
     backend = store.config.backends['default']
     txn = backend.tables['internal']['transaction'].main
@@ -42,7 +43,7 @@ def test_changes(store):
 
 
 def test_show_with_joins(store):
-    store.push([
+    consume(store.push([
         {
             'type': 'continent/:source/dependencies',
             'id': '1',
@@ -60,7 +61,7 @@ def test_show_with_joins(store):
             'title': 'Vilnius',
             'country': '1',
         },
-    ])
+    ]))
 
     result = store.getall('capital', {
         'source': 'dependencies',

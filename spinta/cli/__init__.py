@@ -54,15 +54,10 @@ def pull(ctx, source, model, push, export):
         export = 'stdout'
 
     if export:
-        if not model:
-            raise click.BadParameter(f"you must specify `--model`, when exporting data")
-
-        if len(model) > 1:
-            raise click.BadParameter(f"only one `--model` can be specified, when exporting data")
-
         formats = {
             'csv': 'csv',
             'json': 'json',
+            'jsonl': 'jsonl',
             'asciitable': 'asciitable',
         }
 
@@ -77,11 +72,9 @@ def pull(ctx, source, model, push, export):
             fmt = export.suffix.strip('.')
 
         if fmt not in formats:
-            raise click.BadParameter(f"unknown export file type {fmt!r}")
+            raise click.UsageError(f"unknown export file type {fmt!r}")
 
-        command = 'export.' + formats[fmt]
-        model = get_model_from_params(store, ns='default', name=model[0], params={'source': source})
-        chunks = store.run(model, {command: {'rows': result, 'wrap': True}}, backend=None, ns='default')
+        chunks = store.export(result, fmt)
 
         if path is None:
             for chunk in chunks:

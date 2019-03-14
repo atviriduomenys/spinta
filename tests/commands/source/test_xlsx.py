@@ -2,6 +2,8 @@ import pathlib
 
 from responses import GET
 
+from spinta.utils.itertools import consume
+
 
 def test_xlsx(store, responses):
     responses.add(
@@ -15,7 +17,7 @@ def test_xlsx(store, responses):
     apygarda = '025685077bbcf6e434a95b65b9a6f5fcef046861'
     apylinke = '629f0976c1a04dbe6cf3e71b3085ec555d3f63bf'
 
-    assert len(store.pull('xlsx')) > 0
+    assert consume(store.pull('xlsx')) > 0
     assert list(store.getall('rinkimai', {'source': 'xlsx'})) == [
         {
             'type': 'rinkimai/:source/xlsx',

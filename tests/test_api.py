@@ -1,5 +1,7 @@
 import datetime
 
+from spinta.utils.itertools import consume
+
 
 def test_app(app):
     resp = app.get('/')
@@ -55,13 +57,13 @@ def test_directory(app):
 
 
 def test_dataset(store, app):
-    store.push([
+    consume(store.push([
         {
             'type': 'rinkimai/:source/json',
             'id': 'Rinkimai 1',
             'pavadinimas': 'Rinkimai 1',
         },
-    ])
+    ]))
 
     resp = app.get('/rinkimai/:source/json')
     assert resp.status_code == 200
@@ -87,19 +89,20 @@ def test_dataset(store, app):
         'formats': [
             ('CSV', '/rinkimai/:source/json/:format/csv'),
             ('JSON', '/rinkimai/:source/json/:format/json'),
+            ('JSONL', '/rinkimai/:source/json/:format/jsonl'),
             ('ASCII', '/rinkimai/:source/json/:format/asciitable'),
         ],
     }
 
 
 def test_nested_dataset(store, app):
-    store.push([
+    consume(store.push([
         {
             'type': 'deeply/nested/model/name/:source/nested/dataset/name',
             'id': '42',
             'name': 'Nested One',
         },
-    ])
+    ]))
 
     resp = app.get('deeply/nested/model/name/:source/nested/dataset/name')
     assert resp.status_code == 200
@@ -128,19 +131,20 @@ def test_nested_dataset(store, app):
         'formats': [
             ('CSV', '/deeply/nested/model/name/:source/nested/dataset/name/:format/csv'),
             ('JSON', '/deeply/nested/model/name/:source/nested/dataset/name/:format/json'),
+            ('JSONL', '/deeply/nested/model/name/:source/nested/dataset/name/:format/jsonl'),
             ('ASCII', '/deeply/nested/model/name/:source/nested/dataset/name/:format/asciitable'),
         ],
     }
 
 
 def test_dataset_key(store, app):
-    store.push([
+    consume(store.push([
         {
             'type': 'rinkimai/:source/json',
             'id': 'Rinkimai 1',
             'pavadinimas': 'Rinkimai 1',
         },
-    ])
+    ]))
 
     resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json')
     assert resp.status_code == 200
@@ -157,6 +161,7 @@ def test_dataset_key(store, app):
         'formats': [
             ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/csv'),
             ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/json'),
+            ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/jsonl'),
             ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/asciitable'),
         ],
         'datasets': [],
@@ -178,20 +183,20 @@ def test_dataset_key(store, app):
 def test_changes_single_object(store, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
-    store.push([
+    consume(store.push([
         {
             'type': 'rinkimai/:source/json',
             'id': 'Rinkimai 1',
             'pavadinimas': 'Rinkimai 1',
         },
-    ])
-    store.push([
+    ]))
+    consume(store.push([
         {
             'type': 'rinkimai/:source/json',
             'id': 'Rinkimai 1',
             'pavadinimas': 'Rinkimai 2',
         },
-    ])
+    ]))
 
     resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes')
     assert resp.status_code == 200
@@ -208,6 +213,7 @@ def test_changes_single_object(store, app, mocker):
         'formats': [
             ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/csv'),
             ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/json'),
+            ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/jsonl'),
             ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/asciitable'),
         ],
         'datasets': [],
@@ -245,20 +251,20 @@ def test_changes_single_object(store, app, mocker):
 def test_changes_object_list(store, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
-    store.push([
+    consume(store.push([
         {
             'type': 'rinkimai/:source/json',
             'id': 'Rinkimai 1',
             'pavadinimas': 'Rinkimai 1',
         },
-    ])
-    store.push([
+    ]))
+    consume(store.push([
         {
             'type': 'rinkimai/:source/json',
             'id': 'Rinkimai 1',
             'pavadinimas': 'Rinkimai 2',
         },
-    ])
+    ]))
 
     resp = app.get('/rinkimai/:source/json/:changes')
     assert resp.status_code == 200
@@ -274,6 +280,7 @@ def test_changes_object_list(store, app, mocker):
         'formats': [
             ('CSV', '/rinkimai/:source/json/:changes/:format/csv'),
             ('JSON', '/rinkimai/:source/json/:changes/:format/json'),
+            ('JSONL', '/rinkimai/:source/json/:changes/:format/jsonl'),
             ('ASCII', '/rinkimai/:source/json/:changes/:format/asciitable'),
         ],
         'datasets': [],
@@ -309,7 +316,7 @@ def test_changes_object_list(store, app, mocker):
 
 
 def test_count(store, app):
-    store.push([
+    consume(store.push([
         {
             'type': 'rinkimai/:source/json',
             'id': 1,
@@ -320,7 +327,7 @@ def test_count(store, app):
             'id': 2,
             'pavadinimas': 'Rinkimai 2',
         },
-    ])
+    ]))
 
     resp = app.get('/rinkimai/:source/json/:count')
     assert resp.status_code == 200

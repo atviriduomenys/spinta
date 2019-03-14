@@ -2,6 +2,8 @@ from operator import itemgetter
 
 from responses import GET
 
+from spinta.utils.itertools import consume
+
 
 def test_csv(store, responses):
     responses.add(
@@ -15,8 +17,8 @@ def test_csv(store, responses):
         ),
     )
 
-    assert len(store.pull('csv')) == 3
-    assert len(store.pull('csv')) == 3
+    assert consume(store.pull('csv')) == 3
+    assert consume(store.pull('csv')) == 0
 
     assert sorted([(x['code'], x['title']) for x in store.getall('country')]) == []
     assert sorted([(x['code'], x['title']) for x in store.getall('country', {'source': 'csv'})]) == [
@@ -38,8 +40,8 @@ def test_denorm(store, responses):
         ),
     )
 
-    assert len(store.pull('denorm')) == 6
-    assert len(store.pull('denorm')) == 6
+    assert consume(store.pull('denorm')) == 5
+    assert consume(store.pull('denorm')) == 0
 
     lt = '552c4c243ec8c98c313255ea9bf16ee286591f8c'
     lv = 'b5dcb86880816fb966cdfbbacd1f3406739464f4'

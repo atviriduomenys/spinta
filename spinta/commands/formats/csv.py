@@ -21,7 +21,6 @@ class IterableFile:
 class Csv(Command):
     metadata = {
         'name': 'export.csv',
-        'type': 'dataset.model',
     }
 
     def execute(self):

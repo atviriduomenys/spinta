@@ -51,6 +51,7 @@ async def homepage(request):
             formats = [
                 ('CSV', '/' + build_url_path({**params, 'format': 'csv'})),
                 ('JSON', '/' + build_url_path({**params, 'format': 'json'})),
+                ('JSONL', '/' + build_url_path({**params, 'format': 'jsonl'})),
                 ('ASCII', '/' + build_url_path({**params, 'format': 'asciitable'})),
             ]
 
@@ -86,21 +87,32 @@ async def homepage(request):
             'row': row,
         })
 
-    elif fmt in ('csv', 'json', 'asciitable'):
-        async def generator():
-            for data in store.export(fmt, path, params):
+    elif fmt in ('csv', 'json', 'jsonl', 'asciitable'):
+        async def generator(rows, fmt, params):
+            for data in store.export(rows, fmt, params):
                 yield data
+
+        if 'changes' in params:
+            rows = store.changes(params)
+
+        elif 'id' in params:
+            rows = [store.get(params['path'], params['id']['value'], params)]
+            params['wrap'] = False
+
+        else:
+            rows = store.getall(params['path'], params)
 
         media_types = {
             'csv': 'text/csv',
             'json': 'application/json',
+            'jsonl': 'application/x-json-stream',
             'asciitable': 'text/plain',
         }
 
         if fmt == 'asciitable':
-            params['args'] = {'column_width': 42}
+            params['column_width'] = 42
 
-        return StreamingResponse(generator(), media_type=media_types[fmt])
+        return StreamingResponse(generator(rows, fmt, params), media_type=media_types[fmt])
 
     else:
         raise HTTPException(status_code=404)

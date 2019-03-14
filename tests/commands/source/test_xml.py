@@ -3,6 +3,8 @@ import pathlib
 
 from responses import GET
 
+from spinta.utils.itertools import consume
+
 
 def test_xml(store, responses):
     responses.add(
@@ -12,7 +14,7 @@ def test_xml(store, responses):
         stream=True,
     )
 
-    assert len(store.pull('xml')) == 8
+    assert consume(store.pull('xml')) == 8
     assert sorted(store.getall('tenure', {'source': 'xml'}), key=operator.itemgetter('id'))[:2] == [
         {
             'type': 'tenure/:source/xml',

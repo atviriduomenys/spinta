@@ -124,6 +124,11 @@ class Store:
                     'rows': {'type': 'generator', 'items': {'type': 'dict'}},
                 },
             },
+            'export.jsonl': {
+                'arguments': {
+                    'rows': {'type': 'generator', 'items': {'type': 'dict'}},
+                },
+            },
         }
         self.types = None
         self.commands = None
@@ -304,7 +309,6 @@ class Store:
                 self.run(manifest, {'backend.migrate': None}, ns=name)
 
     def push(self, stream, backend='default', ns='default'):
-        result = []
         client_supplied_ids = ClientSuppliedIDs()
         with self.config.backends[backend].transaction(write=True) as transaction:
             for data in stream:
@@ -315,13 +319,12 @@ class Store:
                 client_id = client_supplied_ids.replace(model_name, data)
                 self.run(model, {'check': {'transaction': transaction, 'data': data}}, backend=backend, ns=ns)
                 inserted_id = self.run(model, {'push': {'transaction': transaction, 'data': data}}, backend=backend, ns=ns)
-                result.append(
-                    client_supplied_ids.update(client_id, {
+                if inserted_id is not None:
+                    yield client_supplied_ids.update(client_id, {
+                        **data,
                         'type': model_name,
                         'id': inserted_id,
                     })
-                )
-        return result
 
     def pull(self, dataset_name, params: dict = None, *, backend='default', ns='default'):
         params = params or {}
@@ -372,22 +375,17 @@ class Store:
             }
             yield from self.run(model, {'changes': params}, backend=backend, ns=ns)
 
-    def export(self, fmt, model_name: str, params: dict = None, *, backend='default', ns='default'):
+    def export(self, rows, fmt, params: dict = None, *, backend='default', ns='default'):
         command = f'export.{fmt}'
         if command not in self.available_commands:
             raise Exception(f"Unknonwn format {fmt}.")
-        model = get_model_from_params(self, ns, model_name, params)
-        args = params.get('args', {})
+        params = {
+            'wrap': True,
+            **(params or {}),
+            'rows': rows,
+        }
 
-        if 'changes' in params:
-            rows = self.changes(params, backend=backend, ns=ns)
-            yield from self.run(model, {command: {**args, 'rows': rows, 'wrap': True}}, backend=None, ns=ns)
-        elif 'id' in params:
-            row = self.get(model_name, params['id']['value'], params, backend=backend, ns=ns)
-            yield from self.run(model, {command: {**args, 'rows': [row], 'wrap': False}}, backend=None, ns=ns)
-        else:
-            rows = self.getall(model_name, params, backend=backend, ns=ns)
-            yield from self.run(model, {command: {**args, 'rows': rows, 'wrap': True}}, backend=None, ns=ns)
+        yield from self.run(self.manifest, {command: params}, backend=None, ns=ns)
 
     def wipe(self, model_name: str, backend='default', ns='default'):
         model = get_model_by_name(self, ns, model_name)

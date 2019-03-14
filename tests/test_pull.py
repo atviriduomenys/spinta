@@ -2,6 +2,8 @@ import re
 
 from responses import GET
 
+from spinta.utils.itertools import consume
+
 
 def test_csv(store, responses):
     responses.add(
@@ -22,9 +24,9 @@ def test_csv(store, responses):
         body='id,capital\n1,Vilnius\n',
     )
 
-    assert len(store.pull('dependencies', {'models': ['continent']})) == 1
-    assert len(store.pull('dependencies', {'models': ['country']})) == 1
-    assert len(store.pull('dependencies', {'models': ['capital']})) == 1
+    assert consume(store.pull('dependencies', {'models': ['continent']})) == 1
+    assert consume(store.pull('dependencies', {'models': ['country']})) == 1
+    assert consume(store.pull('dependencies', {'models': ['capital']})) == 1
 
     assert sorted(store.getall('continent', {'source': 'dependencies'})) == [
         {
