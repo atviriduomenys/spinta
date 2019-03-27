@@ -1,7 +1,5 @@
-from tempfile import NamedTemporaryFile
 from itertools import islice, chain
 
-import requests
 import xlrd
 
 from spinta.commands import Command
@@ -17,16 +15,8 @@ class XlsxDataset(Command):
         skip = self.args.args.get('skip', None)
         limit = self.args.args.get('limit', None)
 
-        with NamedTemporaryFile() as f:
-
-            # We can't read data directly from stream, because openpyxl uses
-            # seek on file-like object, so we need to download data to a
-            # temporary file.
-            with requests.get(self.args.url, stream=True) as r:
-                for chunk in filter(None, r.iter_content(chunk_size=8192)):
-                    f.write(chunk)
-            f.seek(0)
-
+        http = self.store.components.get('protocols.http')
+        with http.open(self.args.url) as f:
             rows = read_excel(f.name)
             if skip:
                 if isinstance(skip, dict):

@@ -6,6 +6,7 @@ import pkg_resources as pres
 
 from spinta.types import Type
 from spinta.commands import Command
+from spinta.components import Components, components
 
 
 class Store:
@@ -136,6 +137,7 @@ class Store:
         self.objects = {}
         self.config = None
         self.manifest = None  # internal manifest
+        self.components = None
 
     def add_types(self):
         self.types = {}
@@ -223,6 +225,9 @@ class Store:
         # Check loaded manifests.
         for name, manifest in self.config.manifests.items():
             self.run(manifest, {'manifest.check': None}, ns=name)
+
+        # Configure components.
+        self.components = Components(components)
 
     def load(self, data, ns: str = 'default', bare=False, stack=()):
         assert self.types is not None, "Run add_types first."

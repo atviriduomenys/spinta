@@ -1,6 +1,6 @@
-from spinta.commands import Command
+import json
 
-import requests
+from spinta.commands import Command
 
 
 class Json(Command):
@@ -17,13 +17,14 @@ class Json(Command):
         urls = self.args.url if isinstance(self.args.url, list) else [self.args.url]
         for url in urls:
             url = url.format(**self.args.dependency)
-            with requests.get(url) as r:
-                data = r.json()
-                data = data[self.args.items]
-                if isinstance(data, list):
-                    yield from data
-                else:
-                    yield data
+            http = self.store.components.get('protocols.http')
+            with http.open(url) as f:
+                data = json.load(f)
+            data = data[self.args.items]
+            if isinstance(data, list):
+                yield from data
+            else:
+                yield data
 
 
 class JsonDatasetProperty(Command):

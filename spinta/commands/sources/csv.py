@@ -1,7 +1,5 @@
 import csv
 
-import requests
-
 from spinta.commands import Command
 
 
@@ -15,13 +13,10 @@ class CsvModel(Command):
         return self.read_csv()
 
     def read_csv(self):
+        http = self.store.components.get('protocols.http')
         source = self.args.source.format(**self.args.dependency)
-        with requests.get(source, stream=True) as r:
-            if r.encoding is None:
-                r.encoding = 'utf-8'
-            lines = r.iter_lines(decode_unicode=True)
-            reader = csv.DictReader(lines)
-            yield from reader
+        with http.open(source, text=True) as f:
+            yield from csv.DictReader(f)
 
 
 class CsvDatasetProperty(Command):

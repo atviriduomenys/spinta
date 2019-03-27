@@ -1,4 +1,3 @@
-import requests
 from lxml import etree
 
 from spinta.commands import Command
@@ -11,11 +10,11 @@ class XmlDatasetModel(Command):
     }
 
     def execute(self):
+        http = self.store.components.get('protocols.http')
         url = self.args.url.format(**self.args.dependency)
-        with requests.get(url, stream=True) as r:
-            r.raw.decode_content = True
+        with http.open(url) as f:
             tag = self.args.root.split('/')[-1]
-            context = etree.iterparse(r.raw, tag=tag)
+            context = etree.iterparse(f, tag=tag)
             for action, elem in context:
                 ancestors = elem.xpath('ancestor-or-self::*')
                 here = '/' + '/'.join([x.tag for x in ancestors])
