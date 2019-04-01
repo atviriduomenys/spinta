@@ -22,6 +22,25 @@ Features
 Development environment
 =======================
 
+You can develop either on local machine or using docker
+
+Docker
+------
+
+Run docker-compose::
+
+   docker-compose up
+
+If migrations are not applied, app will crash. To launch migrations::
+
+   docker-compose run --rm app spinta migrate
+   # and restart the app
+   docker-compose start app
+
+
+Local machine
+-------------
+
 Create database::
 
    createdb spinta
