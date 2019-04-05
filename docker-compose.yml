@@ -18,6 +18,7 @@ services:
         environment:
             - SPINTA_BACKENDS_DEFAULT_DSN=postgresql://admin:admin123@db:5432/spinta
             - SPINTA_MANIFESTS_DEFAULT_PATH=tests/manifest
+            - SPINTA_TEST_DATABASE_DSN=postgresql://admin:admin123@db:5432/spinta_tests
         depends_on:
             - db
         volumes:
