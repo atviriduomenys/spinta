@@ -1,18 +1,28 @@
+FROM python:3.7-alpine as builder
+
+WORKDIR /opt/
+
+COPY requirements-dev.txt .
+
+RUN apk update && \
+    apk add --virtual build-deps python-dev build-base && \
+    apk add postgresql-dev libxslt-dev libxml2-dev
+
+RUN pip wheel --wheel-dir=/tmp -r requirements-dev.txt
+
+
 FROM python:3.7-alpine
 
 WORKDIR /opt/spinta
 
+RUN apk add --no-cache libpq libxml2 libxslt
+
+COPY --from=builder /tmp/*.whl /tmp/wheels/
+
 COPY . .
 
-RUN wget -O /usr/local/bin/wait-for https://raw.githubusercontent.com/eficode/wait-for/master/wait-for \
-    && chmod +x /usr/local/bin/wait-for
+RUN pip install --no-index -f /tmp/wheels -r requirements-dev.txt -e .
 
-RUN apk update && \
-    apk add --virtual build-deps g++ gcc python-dev musl-dev build-base abuild binutils binutils-doc gcc-doc && \
-    apk add postgresql-dev libxslt-dev libxml2-dev libresolv-dev
-
-RUN make
-
-CMD ["wait-for", "db:5432", "-t", "60", "--", "env/bin/uvicorn", "spinta.asgi:app", "--debug"]
+CMD ["uvicorn", "spinta.scripts.spinta_backend:app", "--debug", "--host", "0.0.0.0"]
 
 EXPOSE 8000
