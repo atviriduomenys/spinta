@@ -1,8 +1,11 @@
+import requests
+
 from spinta.commands import Command
 from spinta.types import Type
 from spinta.types.object import Object
 from spinta.utils.refs import get_ref_id
 from spinta.utils.url import parse_url_path
+from spinta.backends.postgresql.cache import Cache
 
 
 class Dataset(Type):
@@ -129,29 +132,40 @@ class CheckDataset(Command):
 class Pull(Command):
     metadata = {
         'name': 'pull',
-        'type': 'dataset',
+        'components': [
+            (Dataset, ''),
+        ],
     }
 
     def execute(self):
-        for model in self.obj.objects.values():
-            if model.source is None:
-                continue
+        dataset = self.components.get(Dataset)
+        with self.components.scope():
+            self.components.bind(Cache)
+            self.components.bind(requests.Session)
 
-            if self.args.models and model.name not in self.args.models:
-                continue
+            for model in dataset.objects.values():
+                if model.source is None:
+                    continue
 
-            for dependency in self.dependencies(model, model.dependencies):
-                for source in model.source:
-                    try:
-                        yield from self.pull_model(model, source, dependency)
-                    except Exception as e:
-                        self.error(f"Error while pulling model {model.name!r}, with dependency: {dependency!r} and source: {source!r}. Error: {e}")
+                if self.args.models and model.name not in self.args.models:
+                    continue
 
-    def pull_model(self, model, source, dependency):
+                with self.components.scope():
+                    self.components.bind(Model, model)
+                    for dependency in self.dependencies(model, model.dependencies):
+                        for source in model.source:
+                            try:
+                                yield from self.pull(source, dependency)
+                            except Exception as e:
+                                self.error(f"Error while pulling model {model.name!r}, with dependency: {dependency!r} and source: {source!r}. Error: {e}")
+
+    def pull(self, source, dependency):
+        dataset = self.components.get(Dataset)
+        model = self.components.get(Model)
         command, args = next(iter(source.items()), None)
-        rows = self.run(model, {command: {**args, 'dependency': dependency}})
+        rows = self.run(command, **args, dependency=dependency)
         for row in rows:
-            data = {'type': f'{model.name}/:source/{self.obj.name}'}
+            data = {'type': f'{model.name}/:source/{dataset.name}'}
             for prop in model.properties.values():
                 if isinstance(prop.source, list):
                     data[prop.name] = [
