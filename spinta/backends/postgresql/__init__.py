@@ -24,6 +24,7 @@ PG_CLEAN_NAME_RE = re.compile(r'[^a-z0-9]+', re.IGNORECASE)
 
 MAIN_TABLE = 'M'
 CHANGES_TABLE = 'C'
+CACHE_TABLE = 'T'
 
 # Change actions
 INSERT_ACTION = 'insert'
@@ -229,8 +230,9 @@ class PrepareModel(Command):
 
 
 class ModelTables(typing.NamedTuple):
-    main: sa.Table
+    main: sa.Table = None
     changes: sa.Table = None
+    cache: sa.Table = None
 
 
 class Migrate(Command):

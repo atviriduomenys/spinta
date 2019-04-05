@@ -1,5 +1,7 @@
 import warnings
 
+from spinta.components import Components
+
 
 class MetaData:
 
@@ -25,7 +27,7 @@ class MetaClass(type):
 class Command(metaclass=MetaClass):
     metadata = {'name': None, 'type': None, 'backend': None}
 
-    def __init__(self, store, obj, name, args, *, value=None, base=0, backend=None, ns='default', stack: tuple = ()):
+    def __init__(self, store, obj, name, args, *, value=None, base=0, backend=None, ns='default', stack: tuple = (), components: Components = None):
         self.store = store
         self.obj = obj
         self.name = name
@@ -35,6 +37,7 @@ class Command(metaclass=MetaClass):
         self.backend = backend
         self.ns = ns
         self.stack = stack
+        self.components = components or Components()
 
     def execute(self):
         base = self.base + 1
@@ -42,18 +45,16 @@ class Command(metaclass=MetaClass):
             return self.run(self.obj, {self.name: self.args.args}, base=base)
         raise NotImplementedError
 
-    def inverse(self):
-        # Undo everything, that was done with `execute`.
-        raise NotImplementedError
-
     def run(self, *args, **kwargs):
         kwargs.setdefault('ns', self.ns)
         kwargs.setdefault('stack', self.stack + (self,))
+        kwargs.setdefault('components', self.components)
         return self.store.run(*args, **kwargs)
 
     def load(self, *args, **kwargs):
         kwargs.setdefault('ns', self.ns)
         kwargs.setdefault('stack', self.stack + (self,))
+        kwargs.setdefault('components', self.components)
         return self.store.load(*args, **kwargs)
 
     def error(self, message):

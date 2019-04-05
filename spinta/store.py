@@ -19,9 +19,7 @@ class Store:
         ]
         self.available_commands = {
             'backend.migrate': {},
-            'backend.migrate.internal': {},
             'backend.prepare': {},
-            'backend.prepare.internal': {},
             'manifest.check': {},
             'manifest.load': {},
             'manifest.load.backends': {},
@@ -131,7 +129,6 @@ class Store:
                 },
             },
         }
-        self.types = None
         self.commands = None
         self.backends = {}
         self.objects = {}
@@ -139,28 +136,14 @@ class Store:
         self.manifest = None  # internal manifest
         self.components = None
 
-    def add_types(self):
-        self.types = {}
-        for Class in find_subclasses(Type, self.modules):
-            if Class.metadata.name in self.types:
-                name = self.types[Class.metadata.name].__name__
-                raise Exception(f"Type {Class.__name__!r} named {Class.metadata.name!r} is already assigned to {name!r}.")
-            self.types[Class.metadata.name] = Class
-
     def add_commands(self):
         assert self.types is not None, "Run add_types first."
         self.commands = {}
-        Backend = self.types['backend']
-        backends = {Type.metadata.name for Type in self.types.values() if issubclass(Type, Backend)}
         for Class in find_subclasses(Command, self.modules):
             if Class.metadata.name not in self.available_commands:
                 raise Exception(f"Unknown command {Class.metadata.name!r} used by {Class.__module__}.{Class.__name__}.")
-            if Class.metadata.backend and Class.metadata.backend not in backends:
-                raise Exception(f"Unknown backend {Class.metadata.backend!r} used by {Class.__module__}.{Class.__name__}.")
-            for type in Class.metadata.type:
-                if type and type not in self.types:
-                    raise Exception(f"Unknown type {type} used by {Class.__module__}.{Class.__name__}.")
-                key = (Class.metadata.name, type, Class.metadata.backend)
+            for component, name in Class.metadata.components:
+                key = (component, name)
                 if key in self.commands:
                     old = self.commands[key].__module__ + '.' + self.commands[key].__name__
                     new = Class.__module__ + '.' + Class.__name__
