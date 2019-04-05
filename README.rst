@@ -37,6 +37,10 @@ If migrations are not applied, app will crash. To launch migrations::
    # and restart the app
    docker-compose start app
 
+In case PostgreSQL server will startup sooner than the app and app will crash - just restart the app when PostgreSQL is ready::
+
+   docker-compose start app
+
 
 Local machine
 -------------
