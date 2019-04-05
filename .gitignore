@@ -3,4 +3,6 @@
 /.coverage
 /env/
 /.env
+/.dockerignore
 /postgres-data/
+tags
