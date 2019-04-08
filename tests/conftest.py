@@ -65,7 +65,10 @@ def postgresql():
     if 'SPINTA_TEST_DATABASE' in os.environ:
         yield os.environ['SPINTA_TEST_DATABASE']
     else:
-        dsn = 'postgresql:///spinta_tests'
+        if 'SPINTA_TEST_DATABASE_DSN' in os.environ:
+            dsn = os.environ['SPINTA_TEST_DATABASE_DSN']
+        else:
+            dsn = 'postgresql:///spinta_tests'
         assert not su.database_exists(dsn), 'Test database already exists. Aborting tests.'
         su.create_database(dsn)
         yield dsn
