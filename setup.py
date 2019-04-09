@@ -14,7 +14,7 @@ setup(
     version='0.0.1',
     license='MIT',
     packages=find_packages(),
-    package_data={'spinta': ['manifest/*.yml']},
+    package_data={'spinta': ['manifest/*.yml', 'templates/*.html']},
     install_requires=read_requirements('requirements.in'),
     entry_points={
         'console_scripts': [
