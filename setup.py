@@ -12,7 +12,7 @@ setup(
     author='Mantas Zimnickas',
     author_email='sirexas@gmail.com',
     version='0.0.1',
-    licence='MIT',
+    license='MIT',
     packages=find_packages(),
     package_data={'spinta': ['manifest/*.yml']},
     install_requires=read_requirements('requirements.in'),
