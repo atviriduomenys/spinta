@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 def read_requirements(filename):
@@ -13,7 +13,7 @@ setup(
     author_email='sirexas@gmail.com',
     version='0.0.1',
     licence='MIT',
-    packages=['spinta'],
+    packages=find_packages(),
     install_requires=read_requirements('requirements.in'),
     entry_points={
         'console_scripts': [
