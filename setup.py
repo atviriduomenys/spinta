@@ -14,6 +14,7 @@ setup(
     version='0.0.1',
     licence='MIT',
     packages=find_packages(),
+    package_data={'spinta': ['manifest/*.yml']},
     install_requires=read_requirements('requirements.in'),
     entry_points={
         'console_scripts': [
