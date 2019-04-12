@@ -122,7 +122,7 @@ Composition::
 
       config                              (Config)
 
-         sources[]                        (EnvVars, File)
+         commands[]                       (str)
 
          backends
             [default]                     (BackendConfig)

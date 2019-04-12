@@ -1,9 +1,8 @@
-from spinta.commands import Command
-from spinta.types import Type
-from spinta.types.object import Object
+from spinta.commands import load, prepare, check
+from spinta.components import Context, Manifest, Node
 
 
-class Project(Type):
+class Project(Node):
     metadata = {
         'name': 'project',
         'properties': {
@@ -20,7 +19,7 @@ class Project(Type):
     }
 
 
-class Impact(Type):
+class Impact:
     metadata = {
         'name': 'project.impact',
         'properties': {
@@ -33,7 +32,7 @@ class Impact(Type):
     }
 
 
-class Model(Object):
+class Model(Node):
     metadata = {
         'name': 'project.model',
         'properties': {
@@ -45,7 +44,7 @@ class Model(Object):
     property_type = 'project.property'
 
 
-class Property(Type):
+class Property(Node):
     metadata = {
         'name': 'project.property',
         'properties': {
@@ -55,52 +54,32 @@ class Property(Type):
     }
 
 
-class LoadProject(Command):
-    metadata = {
-        'name': 'manifest.load',
-        'type': 'project',
-    }
+@load.register()
+def load(context: Context, project: Project, data: dict, manifest: Manifest):
+    for name, obj in data.get('objects', {}).items():
+        project.objects[name] = load(context, Model(), manifest, {
+            'name': name,
+            **(obj or {}),
+        })
 
-    def execute(self):
-        super().execute()
-        assert isinstance(self.obj.objects, dict)
-        for name, obj in self.obj.objects.items():
-            self.obj.objects[name] = self.load({
-                'type': 'project.model',
-                'name': name,
-                'parent': self.obj,
-                **(obj or {}),
-            })
-
-
-class PrepareProject(Command):
-    metadata = {
-        'name': 'prepare.type',
-        'type': 'project',
-    }
-
-    def execute(self):
-        super().execute()
-        for model in self.obj.objects.values():
-            self.run(model, {'prepare.type': None})
+    project.impact = [
+        {
+            'year': None,
+            'users': 0,
+            'revenue': 0,
+            'employees': 0,
+            **impact,
+        } for i, impact in enumerate(data.get('impact', []))
+    ]
 
 
-class CheckProject(Command):
-    metadata = {
-        'name': 'manifest.check',
-        'type': 'project',
-    }
+@prepare.register()
+def prepare(context: Context, project: Project):
+    for model in project.objects.values():
+        prepare(context, model)
 
-    def execute(self):
-        self.check_owner()
-        self.check_impact()
 
-    def check_owner(self):
-        if self.obj.owner and self.obj.owner not in self.store.objects[self.ns]['owner']:
-            self.error(f"Unknown owner {self.obj.owner}.")
-
-    def check_impact(self):
-        self.obj.impact = [
-            self.load({'type': 'project.impact', 'name': str(i), **impact})
-            for i, impact in enumerate(self.obj.impact)
-        ]
+@check.register()
+def check(context: Context, project: Project):
+    if project.owner and project.owner not in project.manifest.objects['owner']:
+        context.error(f"Unknown owner {project.owner}.")

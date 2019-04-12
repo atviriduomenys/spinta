@@ -1,95 +1,79 @@
-import warnings
-
-from spinta.components import Components
+from spinta.dispatcher import command
 
 
-class MetaData:
+@command()
+def load():
+    """Load primitive data structures to python-native objects.
 
-    def __init__(self, cls):
-        self.name = cls.metadata['name']
-        self.type = cls.metadata.get('type', None)
-        if not isinstance(self.type, tuple):
-            self.type = (self.type,)
-        self.backend = cls.metadata.get('backend', None)
+    Currently used for:
 
+    - Load things from configuration:
 
-class MetaClass(type):
+        load(Context, Config, dict) -> Config
+        load(Context, Store, Config) -> Store
+        load(Context, Backend, BackendConfig) -> Backend
+        load(Context, Manifest, dict) -> Manifest
 
-    def __new__(cls, name, bases, attrs):
-        assert 'metadata' in attrs
-        assert isinstance(attrs['metadata'], (dict, MetaData))
-        assert isinstance(attrs['metadata'], dict) and 'name' in attrs['metadata']
-        cls = super().__new__(cls, name, bases, attrs)
-        cls.metadata = MetaData(cls)
-        return cls
+    - Load nodes from manifest:
 
+        load(Context, Node, dict, Manifest) -> Node
 
-class Command(metaclass=MetaClass):
-    metadata = {'name': None, 'type': None, 'backend': None}
+    - Load commands from manifest:
 
-    def __init__(self, store, obj, name, args, *, value=None, base=0, backend=None, ns='default', stack: tuple = (), components: Components = None):
-        self.store = store
-        self.obj = obj
-        self.name = name
-        self.args = Args(args)
-        self.value = value
-        self.base = base
-        self.backend = backend
-        self.ns = ns
-        self.stack = stack
-        self.components = components or Components()
+        load(Context, Command, dict, *, scope=None) -> Command
 
-    def execute(self):
-        base = self.base + 1
-        if len(self.obj.metadata.bases) > base:
-            return self.run(self.obj, {self.name: self.args.args}, base=base)
-        raise NotImplementedError
+    - Load pimitive data types to python-native objects:
 
-    def run(self, *args, **kwargs):
-        kwargs.setdefault('ns', self.ns)
-        kwargs.setdefault('stack', self.stack + (self,))
-        kwargs.setdefault('components', self.components)
-        return self.store.run(*args, **kwargs)
+        load(Context, X, Node, Backend) -> Y
 
-    def load(self, *args, **kwargs):
-        kwargs.setdefault('ns', self.ns)
-        kwargs.setdefault('stack', self.stack + (self,))
-        kwargs.setdefault('components', self.components)
-        return self.store.load(*args, **kwargs)
-
-    def error(self, message):
-        stack = []
-        for func in self.stack + (self,):
-            params = [
-                ('type', getattr(func.obj, 'type', None) or '(unknown)'),
-                ('  name', getattr(func.obj, 'name', None)),
-                ('  path', getattr(func.obj, 'path', None)),
-                ('  class', f'{func.obj.__class__.__module__}.{func.obj.__class__.__name__}'),
-                ('command', func.metadata.name or '(unknown)'),
-                ('  class', f'{func.__class__.__module__}.{func.__class__.__name__}'),
-                ('  backend', func.metadata.backend),
-            ]
-            stack.append('- ' + '\n  '.join(
-                [f'{k}: {v}' for k, v in params if v]
-            ) + '\n')
-        stack = '\n'.join(filter(None, stack))
-        raise CommandError(f"Command error:\n\n{stack}\n{message}")
-
-    def deprecation(self, message):
-        warnings.warn(message, DeprecationWarning, stacklevel=2)
+    """
 
 
-class Args:
-
-    def __init__(self, args):
-        self.args = args or {}
-
-    def __getattr__(self, key):
-        return self.args[key]
-
-    def __call__(self, **kwargs):
-        return {**self.args, **kwargs}
+@command()
+def dump():
+    """Dump python-native objects to primitive data structures."""
 
 
-class CommandError(Exception):
-    pass
+@command()
+def check():
+    """Check if input value is correct."""
+
+
+@command()
+def prepare():
+    """Prepare value."""
+
+
+@command()
+def migrate():
+    """Migrate database schema changes."""
+
+
+@command()
+def push():
+    """Insert, update or delete data to the databse."""
+
+
+@command()
+def get():
+    """Get single record from the databse."""
+
+
+@command()
+def getall():
+    """Find multiple records in the databse."""
+
+
+@command()
+def changes():
+    """Changelog of a table."""
+
+
+@command()
+def pull():
+    """Pull data from external data sources."""
+
+
+@command()
+def wipe():
+    """Delete all data from specified model."""

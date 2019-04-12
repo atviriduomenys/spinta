@@ -7,10 +7,10 @@ from spinta.config import update_config_from_env_file
 
 
 def test_update_config_from_cli():
-    assert update_config_from_cli(CONFIG, ['backends.default.type=psycopg2'])['backends']['default']['type'] == 'psycopg2'
-    assert update_config_from_cli(CONFIG, ['backends.new.type=psycopg2'])['backends'] == {
-        'default': {'type': 'postgresql', 'dsn': 'postgresql:///spinta'},
-        'new': {'type': 'psycopg2', 'dsn': 'postgresql:///spinta'},
+    assert update_config_from_cli(CONFIG, ['backends.default.backend=psycopg2'])['backends']['default']['backend'] == 'psycopg2'
+    assert update_config_from_cli(CONFIG, ['backends.new.backend=psycopg2'])['backends'] == {
+        'default': {'backend': 'spinta.backends.postgresql:PostgreSQL', 'dsn': 'postgresql:///spinta'},
+        'new': {'backend': 'psycopg2', 'dsn': 'postgresql:///spinta'},
     }
 
 
@@ -26,15 +26,15 @@ def test_update_config_from_cli_unknown_option_error():
 
 def test_update_config_from_env():
     assert update_config_from_env(CONFIG, {
-        'SPINTA_BACKENDS_DEFAULT_TYPE': 'psycopg2',
-    })['backends']['default']['type'] == 'psycopg2'
+        'SPINTA_BACKENDS_DEFAULT_BACKEND': 'psycopg2',
+    })['backends']['default']['backend'] == 'psycopg2'
 
     assert update_config_from_env(CONFIG, {
         'SPINTA_BACKENDS': 'default,new',
-        'SPINTA_BACKENDS_NEW_TYPE': 'psycopg2',
+        'SPINTA_BACKENDS_NEW_BACKEND': 'psycopg2',
     })['backends'] == {
-        'default': {'type': 'postgresql', 'dsn': 'postgresql:///spinta'},
-        'new': {'type': 'psycopg2', 'dsn': 'postgresql:///spinta'},
+        'default': {'backend': 'spinta.backends.postgresql:PostgreSQL', 'dsn': 'postgresql:///spinta'},
+        'new': {'backend': 'psycopg2', 'dsn': 'postgresql:///spinta'},
     }
 
 
@@ -43,11 +43,11 @@ def test_update_config_from_env_file(tmpdir):
     envfile.write(
         '# comment line\n'
         '\n'
-        'SPINTA_BACKENDS_DEFAULT_TYPE=foo\n'
+        'SPINTA_BACKENDS_DEFAULT_BACKEND=foo\n'
         'SPINTA_BACKENDS=new\n'
-        'SPINTA_BACKENDS_NEW_TYPE=bar\n',
+        'SPINTA_BACKENDS_NEW_BACKEND=bar\n',
     )
     assert update_config_from_env_file(CONFIG, str(envfile))['backends'] == {
-        'default': {'dsn': 'postgresql:///spinta', 'type': 'foo'},
-        'new': {'dsn': 'postgresql:///spinta', 'type': 'bar'},
+        'default': {'dsn': 'postgresql:///spinta', 'backend': 'foo'},
+        'new': {'dsn': 'postgresql:///spinta', 'backend': 'bar'},
     }

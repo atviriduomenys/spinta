@@ -1,79 +1,28 @@
-from spinta.commands import Command
-from spinta.types.object import Object
+from spinta.utils.imports import importstr
+from spinta.commands import load
+from spinta.components import Context, Config, BackendConfig
 
 
-class Config(Object):
-    metadata = {
-        'name': 'config',
-        'properties': {
-            'backends': {'type': 'object', 'required': True},
-            'manifests': {'type': 'object', 'required': True},
-            'ignore': {'type': 'array', 'default': []},
-            'debug': {'type': 'boolean', 'default': False},
-        },
-    }
+@load.register()
+def load(context: Context, config: Config, data: dict):
 
+    # Load backends.
+    config.backends = {}
+    for name, backend in data['backends'].items():
+        bconf = config.backends[name] = BackendConfig()
+        bconf.Backend = importstr(backend['backend'])
+        bconf.name = name
+        bconf.dsn = backend['dsn']
 
-class LoadConfig(Command):
-    metadata = {
-        'name': 'manifest.load',
-        'type': 'config',
-    }
+    # Load commands.
+    config.commands = {}
+    for scope, commands in data.get('commands', {}).items():
+        if scope == 'modules':
+            continue
+        config.commands[scope] = {}
+        for name, command in commands.items():
+            config.commands[scope][name] = importstr(command)
 
-    def execute(self):
-        if self.ns != 'internal':
-            self.error("Configuration can be loaded only on 'internal' namespace.")
-        super().execute()
-
-
-class LoadBackends(Command):
-    metadata = {
-        'name': 'manifest.load.backends',
-        'type': 'config',
-    }
-
-    def execute(self):
-        if 'default' not in self.obj.backends:
-            self.error("'default' backend must be set in the configuration.")
-
-        for name, backend in self.obj.backends.items():
-            self.obj.backends[name] = self.load({
-                'name': name,
-                'parent': self.obj,
-                **backend,
-            })
-
-
-class LoadManifests(Command):
-    metadata = {
-        'name': 'manifest.load.manifests',
-        'type': 'config',
-    }
-
-    def execute(self):
-        if 'default' not in self.obj.manifests:
-            self.error("'default' manifest must be set in the configuration.")
-
-        if 'internal' in self.obj.manifests:
-            self.error("'internal' manifest can't be used in configuration, it is reserved for internal purposes.")
-
-        for name, manifest in self.obj.manifests.items():
-            self.store.objects[name] = {}
-            self.obj.manifests[name] = self.load({
-                'type': 'manifest',
-                'name': name,
-                'parent': self.obj,
-                **manifest,
-            }, ns=name)
-
-
-class PrepareConfig(Command):
-    metadata = {
-        'name': 'prepare.type',
-        'type': 'config',
-    }
-
-    def execute(self):
-        super().execute()
-        for name, manifest in self.obj.manifests.items():
-            self.run(manifest, {'prepare.type': None}, ns=name)
+    config.manifests = data['manifests']
+    config.ignore = data.get('ignore', [])
+    config.debug = data.get('debug', False)
