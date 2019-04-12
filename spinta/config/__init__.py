@@ -4,14 +4,31 @@ import pathlib
 
 
 CONFIG = {
+    'commands': {
+        'modules': [
+            'spinta.commands',
+            'spinta.config.commands',
+            'spinta.manifest.commands',
+            'spinta.types.commands',
+        ],
+        'source': {
+            'csv': 'spinta.commands.sources.csv:read_csv',
+            'html': 'spinta.commands.sources.html:read_html',
+            'json': 'spinta.commands.sources.json:read_json',
+            'url': 'spinta.commands.sources.url:read_url',
+            'xlsx': 'spinta.commands.sources.xlsx:read_xlsx',
+            'xml': 'spinta.commands.sources.xml:read_xml',
+        },
+    },
     'backends': {
         'default': {
-            'type': 'postgresql',
+            'backend': 'spinta.backends.postgresql:PostgreSQL',
             'dsn': 'postgresql:///spinta',
         },
     },
     'manifests': {
         'default': {
+            'backend': 'default',
             'path': pathlib.Path(),
         },
     },

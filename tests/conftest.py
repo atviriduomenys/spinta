@@ -4,60 +4,79 @@ import pathlib
 
 import pytest
 import sqlalchemy_utils as su
-import sqlalchemy.exc
 from responses import RequestsMock
 from toposort import toposort
 from starlette.testclient import TestClient
 
 from spinta import api
-from spinta.store import Store
+from spinta.components import Context, Config, Store
+from spinta.commands import load, check, prepare, migrate, wipe
+from spinta.utils.commands import load_commands
+from spinta.config import CONFIG
 
 
 @pytest.fixture
-def store(postgresql):
-    config = {
+def context(postgresql):
+    context = Context()
+    config = Config()
+    store = Store()
+
+    context.set('config', config)
+    context.set('store', store)
+
+    load_commands([
+        'spinta.types',
+        'spinta.backends',
+    ])
+
+    load(context, config, {
+        **CONFIG,
         'backends': {
             'default': {
-                'type': 'postgresql',
+                'backend': 'spinta.backends.postgresql:PostgreSQL',
                 'dsn': postgresql,
             },
         },
         'manifests': {
             'default': {
+                'backend': 'default',
                 'path': pathlib.Path(__file__).parent / 'manifest',
             },
         },
         'ignore': [],
-    }
+    })
 
-    store = Store()
-    store.add_types()
-    store.add_commands()
-    store.configure(config)
-    store.prepare(internal=True)
-    store.migrate(internal=True)
-    store.prepare()
-    store.migrate()
+    load(context, store, config)
+    check(context, store)
+    prepare(context, store.internal)
+    migrate(context, store)
+    prepare(context, store)
+    migrate(context, store)
 
-    yield store
+    yield context
 
     # Remove all data after each test run.
     graph = collections.defaultdict(set)
-    for model in store.objects['default']['model'].values():
+    for model in store.manifests['default'].objects['model'].values():
         graph[model.name] = set()
         for prop in model.properties.values():
             if prop.type == 'ref':
                 graph[prop.object].add(model.name)
-    for models in toposort(graph):
-        for model in models:
-            if model:
-                store.wipe(model)
 
-    for dataset in store.objects['default']['dataset'].values():
-        for model in dataset.objects.values():
-            store.wipe(f'{model.name}/:source/{dataset.name}')
+    with context.enter():
+        context.bind('transaction', store.backends['default'].transaction)
+        for models in toposort(graph):
+            for name in models:
+                if name:
+                    model = store.manifests['default'].objects['model'][name]
+                    wipe(context, model, model.backend)
 
-    store.wipe('transaction', ns='internal')
+        for dataset in store.manifests['default'].objects['dataset'].values():
+            for model in dataset.objects.values():
+                wipe(context, model, model.backend)
+
+        model = store.internal.objects['model']['transaction']
+        wipe(context, model, model.backend)
 
 
 @pytest.fixture(scope='session')
@@ -82,6 +101,6 @@ def responses():
 
 
 @pytest.fixture
-def app(store, mocker):
-    mocker.patch('spinta.api.store', store)
+def app(context, mocker):
+    mocker.patch('spinta.api.context', context)
     return TestClient(api.app)

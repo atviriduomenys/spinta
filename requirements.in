@@ -4,6 +4,7 @@ gunicorn
 jinja2
 lxml
 msgpack
+multipledispatch
 psycopg2-binary
 requests
 ruamel.yaml
