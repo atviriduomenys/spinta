@@ -1,30 +1,5 @@
-def test_schema_loader(store):
-    assert store.serialize(limit=3) == {
-        'internal': {
-            'model': {
-                'table': None,
-                'transaction': None,
-            },
-        },
-        'default': {
-            'model': {
-                'country': None,
-                'org': None,
-            },
-            'dataset': {
-                'csv': None,
-                'denorm': None,
-                'dependencies': None,
-                'generator': None,
-                'xlsx': None,
-                'xml': None,
-                'json': None,
-                'nested/dataset/name': None,
-            },
-        },
-    }
-
-    result = store.push([
+def test_schema_loader(context):
+    result = context.push([
         {
             'type': 'country',
             '<id>': 1,
@@ -59,17 +34,15 @@ def test_schema_loader(store):
     }
 
     # Read those objects from database.
-    assert store.get('org', result['org']['id']) == {
+    assert context.getone('org', result['org']['id']) == {
         'id': result['org']['id'],
         'govid': '0042',
         'title': 'My Org',
         'country': result['country']['id'],
-        'type': None,
     }
 
-    assert store.get('country', result['country']['id']) == {
+    assert context.getone('country', result['country']['id']) == {
         'id': result['country']['id'],
         'code': 'lt',
         'title': 'Lithuania',
-        'type': None,
     }

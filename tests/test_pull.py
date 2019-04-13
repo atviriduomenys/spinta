@@ -3,25 +3,6 @@ import re
 from responses import GET
 
 from spinta.utils.itertools import consume
-from spinta.commands import pull, push, getall
-
-
-def _pull(context, dataset, models=None, push_=True):
-    store = context.get('store')
-    dataset = store.manifests['default'].objects['dataset'][dataset]
-    models = models or []
-    data = pull(context, dataset, models=models)
-    if push_:
-        return push(context, store, data)
-    else:
-        return data
-
-
-def _getall(context, dataset, model):
-    store = context.get('store')
-    backend = store.backends['default']
-    model = store.manifests['default'].objects['dataset'][dataset].objects[model]
-    return sorted(getall(context, model, backend))
 
 
 def test_csv(context, responses):
@@ -43,11 +24,11 @@ def test_csv(context, responses):
         body='id,capital\n1,Vilnius\n',
     )
 
-    assert consume(_pull(context, 'dependencies', models=['continent'])) == 1
-    assert consume(_pull(context, 'dependencies', models=['country'])) == 1
-    assert consume(_pull(context, 'dependencies', models=['capital'])) == 1
+    assert consume(context.pull('dependencies', models=['continent'])) == 1
+    assert consume(context.pull('dependencies', models=['country'])) == 1
+    assert consume(context.pull('dependencies', models=['capital'])) == 1
 
-    assert _getall(context, 'dependencies', 'continent') == [
+    assert context.getall('continent', dataset='dependencies') == [
         {
             'type': 'continent/:source/dependencies',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
@@ -55,7 +36,7 @@ def test_csv(context, responses):
             'continent_id': '1',
         },
     ]
-    assert _getall(context, 'dependencies', 'country') == [
+    assert context.getall('country', dataset='dependencies') == [
         {
             'type': 'country/:source/dependencies',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
@@ -64,7 +45,7 @@ def test_csv(context, responses):
             'country_id': '1',
         },
     ]
-    assert _getall(context, 'dependencies', 'capital') == [
+    assert context.getall('capital', dataset='dependencies') == [
         {
             'type': 'capital/:source/dependencies',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
@@ -81,7 +62,7 @@ def test_no_push(context, responses):
         body='id,continent\n1,Europe\n',
     )
 
-    assert list(_pull(context, 'dependencies', push_=False)) == [
+    assert list(context.pull('dependencies', push=False)) == [
         {
             'type': 'continent/:source/dependencies',
             'id': '1',
@@ -89,10 +70,11 @@ def test_no_push(context, responses):
             'continent_id': '1',
         },
     ]
-    assert _getall(context, 'dependencies', 'continent') == []
+    assert context.getall('continent', dataset='dependencies') == []
 
 
 def test_generator(context, responses):
+
     def func(request):
         status = 200
         headers = {}
@@ -106,7 +88,7 @@ def test_generator(context, responses):
         callback=func, content_type='text/plain; charset=utf-8',
     )
 
-    assert list(_pull(context, 'generator', push_=False)) == [
+    assert list(context.pull('generator', push=False)) == [
         {
             'type': 'continent/:source/generator',
             'id': '2000',

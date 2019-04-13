@@ -294,7 +294,7 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict):
 
 
 @get.register()
-def get(context: Context, model: Model, backend: PostgreSQL, id: str):
+def get(context: Context, model: Model, backend: PostgreSQL, id: int):
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = backend.get(connection, table, table.c.id == id)
