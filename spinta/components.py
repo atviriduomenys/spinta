@@ -30,6 +30,12 @@ class Context:
         self.set(name, factory(*args, **kwargs))
         return self._context[-1][name]
 
+    def has(self, name):
+        return name in self._context[-1]
+
+    def attach(self, value):
+        return self._exitstack[-1].enter_context(value)
+
     @contextlib.contextmanager
     def enter(self):
         self._factory.append({**self._factory[-1]})
@@ -159,12 +165,6 @@ class Property(Node):
         self.enum = None
 
 
-class Cache:
-
-    def __init__(self):
-        pass
-
-
 class Command:
 
     def __init__(self):
@@ -173,7 +173,7 @@ class Command:
         self.args = None
 
     def __call__(self, *args, **kwargs):
-        self.command(*args, **self.args, **kwargs)
+        return self.command(*args, **self.args, **kwargs)
 
 
 class CommandList:

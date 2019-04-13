@@ -1,10 +1,6 @@
-from spinta.commands import Command
+from spinta.commands import command
 
 
-class Url(Command):
-    metadata = {
-        'name': 'xml',
-    }
-
-    def execute(self):
-        return None
+@command()
+def read_url():
+    raise NotImplementedError

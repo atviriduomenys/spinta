@@ -6,7 +6,7 @@ from spinta.nodes import load_node
 @load.register()
 def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Model:
     load_node(context, model, data, manifest)
-    props = {'type': {}}
+    props = {'type': {'type': 'string'}}
     props.update(data.get('properties') or {})
     for name, prop in props.items():
         prop = {
@@ -21,7 +21,13 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
 
 @load.register()
 def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
-    return load_node(context, prop, data, manifest)
+    config = context.get('config')
+    prop = load_node(context, prop, data, manifest)
+    if prop.name == 'id':
+        prop.type = load(context, config.types['pk'](), data, prop=prop)
+    else:
+        prop.type = load(context, config.types[data['type']](), data, prop=prop)
+    return prop
 
 
 @check.register()

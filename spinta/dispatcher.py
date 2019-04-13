@@ -5,16 +5,16 @@ from multipledispatch.dispatcher import Dispatcher
 _commands = {}
 
 
-def command(schema=None):
+def command(name: str = None, schema: dict = None):
     """Define a new command."""
 
     def _(func):
-        name = func.__name__
-        if name in _commands:
-            raise Exception(f"{name!r} is already defined.")
-        _commands[name] = Command(name)
-        _commands[name].schema = schema or {}
-        return _commands[name]
+        _name = func.__name__ if name is None else name
+        if _name in _commands:
+            raise Exception(f"{_name!r} is already defined.")
+        _commands[_name] = Command(_name)
+        _commands[_name].schema = schema or {}
+        return _commands[_name]
 
     return _
 

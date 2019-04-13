@@ -202,11 +202,13 @@ class JoinManager:
 
 
 @getall.register()
-def getall(context: Context, model: Model, backend: PostgreSQL, *,
-           show: typing.List[str] = None,
-           sort: typing.List[typing.Dict[str, str]] = None,
-           offset=None, limit=None,
-           count: bool = False):
+def getall(
+    context: Context, model: Model, backend: PostgreSQL, *,
+    show: typing.List[str] = None,
+    sort: typing.List[typing.Dict[str, str]] = None,
+    offset=None, limit=None,
+    count: bool = False,
+):
     connection = context.get('transaction').connection
     table = _get_table(backend, model).main
     jm = JoinManager(backend, model, table)

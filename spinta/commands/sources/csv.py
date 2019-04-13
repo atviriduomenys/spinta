@@ -1,7 +1,9 @@
 import csv
 
 from spinta.dispatcher import command
-from spinta.components import Context, Model, Property
+from spinta.components import Context
+from spinta.types.dataset import Model, Property
+from spinta.fetcher import fetch
 
 
 @command()
@@ -10,13 +12,12 @@ def read_csv():
 
 
 @read_csv.register()
-def _(context: Context, model: Model, *, source=None, dependency=None):
-    session = context.get('pull.session')
+def read_csv(context: Context, model: Model, *, source=None, dependency=None):
     source = source.format(**dependency)
-    with session.get(source, text=True) as f:
+    with fetch(context, source, text=True).open() as f:
         yield from csv.DictReader(f)
 
 
 @read_csv.register()
-def _(context: Context, model: Property, *, source=None, value=None):
+def read_csv(context: Context, model: Property, *, source=None, value=None):
     return value.get(source)
