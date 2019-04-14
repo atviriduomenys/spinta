@@ -18,12 +18,12 @@ def test_get_table_name():
     assert get_table_name(backend, ns, 'some_/name/hėrę!') == 'SOME_NAME_HERE_0042M'
 
 
-def test_changes(store):
-    data, = list(store.push([{'type': 'country', 'code': 'lt', 'title': 'Lithuania'}]))
-    consume(store.push([{'id': data['id'], 'type': 'country', 'title': "Lietuva"}]))
-    consume(store.push([{'id': data['id'], 'type': 'country', 'code': 'lv', 'title': "Latvia"}]))
+def test_changes(context):
+    data, = list(context.push([{'type': 'country', 'code': 'lt', 'title': 'Lithuania'}]))
+    consume(context.push([{'id': data['id'], 'type': 'country', 'title': "Lietuva"}]))
+    consume(context.push([{'id': data['id'], 'type': 'country', 'code': 'lv', 'title': "Latvia"}]))
 
-    backend = store.config.backends['default']
+    backend = context.get('store').backends['default']
     txn = backend.tables['internal']['transaction'].main
     changes = backend.tables['default']['country'].changes
     with backend.transaction() as transaction:
@@ -42,8 +42,8 @@ def test_changes(store):
         ]
 
 
-def test_show_with_joins(store):
-    consume(store.push([
+def test_show_with_joins(context):
+    consume(context.push([
         {
             'type': 'continent/:source/dependencies',
             'id': '1',
@@ -63,17 +63,14 @@ def test_show_with_joins(store):
         },
     ]))
 
-    result = store.getall('capital', {
-        'source': 'dependencies',
-        'show': [
-            'id',
-            'title',
-            'country.title',
-            'country.continent.title',
-        ],
-    })
+    result = context.getall('capital', dataset='dependencies', show=[
+        'id',
+        'title',
+        'country.title',
+        'country.continent.title',
+    ])
 
-    assert list(result) == [
+    assert result == [
         {
             'country.continent.title': 'Europe',
             'country.title': 'Lithuania',

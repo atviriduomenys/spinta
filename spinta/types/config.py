@@ -15,10 +15,17 @@ def load(context: Context, config: Config, data: dict):
         for name, command in commands.items():
             config.commands[scope][name] = importstr(command)
 
-    # Load data types.
-    config.types = {}
-    for name, type in data['types'].items():
-        config.types[name] = importstr(type)
+    # Load components.
+    config.components = {}
+    for group, components in data['components'].items():
+        config.components[group] = {}
+        for name, component in components.items():
+            config.components[group][name] = importstr(component)
+
+    # Load exporters.
+    config.exporters = {}
+    for name, exporter in data['exporters'].items():
+        config.exporters[name] = importstr(exporter)()
 
     # Load backends.
     config.backends = {}

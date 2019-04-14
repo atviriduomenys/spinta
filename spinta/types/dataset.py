@@ -9,6 +9,7 @@ from spinta.utils.url import parse_url_path
 from spinta.nodes import load_node
 from spinta.fetcher import Cache
 from spinta.types.store import get_model_from_params
+from spinta.types.type import load_type
 
 
 class Dataset(Node):
@@ -132,9 +133,16 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
             argname='source',
         )
 
-    # Load model properties.
+    # 'type' is reserved for object type.
     props = {'type': {'type': 'string'}}
     props.update(data.get('properties') or {})
+
+    # 'id' is reserved for primary key.
+    props['id'] = props.get('id') or {'type': 'string'}
+    if props['id'].get('type') is None or props['id'].get('type') == 'pk':
+        props['id'] == 'string'
+
+    # Load model properties.
     for name, params in props.items():
         params = {
             'name': name,
@@ -149,11 +157,13 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
 
 @load.register()
 def load(context: Context, prop: Property, data: dict, manifest: Manifest):
-    config = context.get('config')
-
     load_node(context, prop, data, manifest)
 
-    prop.type = load(context, config.types[prop.type], data)
+    # Load property type. For datasets, property type is optional.
+    if prop.type:
+        prop.type = load_type(context, prop, data)
+    else:
+        prop.type = None
 
     # Load property source.
     if isinstance(prop.source, list):

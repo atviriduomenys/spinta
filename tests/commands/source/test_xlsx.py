@@ -5,7 +5,7 @@ from responses import GET
 from spinta.utils.itertools import consume
 
 
-def test_xlsx(store, responses):
+def test_xlsx(context, responses):
     responses.add(
         GET, 'http://example.com/data.xlsx',
         status=200, content_type='application/vnd.ms-excel',
@@ -17,8 +17,8 @@ def test_xlsx(store, responses):
     apygarda = '025685077bbcf6e434a95b65b9a6f5fcef046861'
     apylinke = '629f0976c1a04dbe6cf3e71b3085ec555d3f63bf'
 
-    assert consume(store.pull('xlsx')) > 0
-    assert list(store.getall('rinkimai', {'source': 'xlsx'})) == [
+    assert consume(context.pull('xlsx')) > 0
+    assert list(context.getall('rinkimai', dataset='xlsx')) == [
         {
             'type': 'rinkimai/:source/xlsx',
             'id': rinkimai,
@@ -27,7 +27,7 @@ def test_xlsx(store, responses):
             'pavadinimas': '1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai',
         },
     ]
-    assert list(store.getall('rinkimai/turas', {'source': 'xlsx'})) == [
+    assert list(context.getall('rinkimai/turas', dataset='xlsx')) == [
         {
             'type': 'rinkimai/turas/:source/xlsx',
             'id': turas,
@@ -35,7 +35,7 @@ def test_xlsx(store, responses):
             'rinkimai': rinkimai,
         },
     ]
-    assert list(store.getall('rinkimai/apygarda', {'source': 'xlsx'})) == [
+    assert list(context.getall('rinkimai/apygarda', dataset='xlsx')) == [
         {
             'type': 'rinkimai/apygarda/:source/xlsx',
             'id': apygarda,
@@ -45,7 +45,7 @@ def test_xlsx(store, responses):
             'turas': turas,
         },
     ]
-    assert list(store.getall('rinkimai/apylinke', {'source': 'xlsx'})) == [
+    assert list(context.getall('rinkimai/apylinke', dataset='xlsx')) == [
         {
             'type': 'rinkimai/apylinke/:source/xlsx',
             'id': apylinke,
@@ -56,7 +56,7 @@ def test_xlsx(store, responses):
             'apygarda': apygarda,
         },
     ]
-    assert list(store.getall('rinkimai/kandidatas', {'source': 'xlsx'})) == [
+    assert list(context.getall('rinkimai/kandidatas', dataset='xlsx')) == [
         {
             'type': 'rinkimai/kandidatas/:source/xlsx',
             'id': '8159cf47118c31114c71a75ed06aa66b0476ad7a',

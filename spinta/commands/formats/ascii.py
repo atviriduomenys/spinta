@@ -5,17 +5,18 @@ import sys
 
 from texttable import Texttable
 
-from spinta.commands import Command
 from spinta.utils.nestedstruct import flatten
 
 
-class AsciiTable(Command):
-    metadata = {
-        'name': 'export.asciitable',
+class Ascii:
+    content_type = 'text/plain'
+    params = {
+        'width': {'type': 'integer'},
+        'colwidth': {'type': 'integer'},
     }
 
-    def execute(self):
-        rows = iter(self.args.rows)
+    def __call__(self, rows, *, width: int = None, colwidth: int = None):
+        rows = iter(rows)
         peek = next(rows, None)
 
         if peek is None:
@@ -23,14 +24,10 @@ class AsciiTable(Command):
 
         rows = itertools.chain([peek], rows)
 
-        if 'column_width' in self.args.args:
-            width = None
-        elif 'width' in self.args.args:
-            width = self.args.width
-        elif sys.stdin.isatty():
+        if width is None and colwidth is None and sys.stdin.isatty():
             _, width = map(int, subprocess.run(['stty', 'size'], capture_output=True).stdout.split())
-        else:
-            width = 80
+        elif width is None and colwidth is None:
+            colwidth = 42
 
         if 'type' in peek:
             groups = itertools.groupby(rows, operator.itemgetter('type'))
@@ -53,27 +50,28 @@ class AsciiTable(Command):
             buffer = [cols]
             tnum = 1
 
-            if 'column_width' in self.args.args:
-                width = len(cols) * self.args.column_width
+            if colwidth:
+                width = len(cols) * colwidth
 
             for row in rows:
                 buffer.append([row.get(c) for c in cols])
                 if len(buffer) > 100:
-                    yield from self.draw(buffer, name, tnum, width)
+                    yield from _draw(buffer, name, tnum, width)
                     buffer = [cols]
                     tnum += 1
 
             if buffer:
-                yield from self.draw(buffer, name, tnum, width)
+                yield from _draw(buffer, name, tnum, width)
 
-    def draw(self, buffer, name, tnum, width):
-        if tnum > 1:
-            if name:
-                yield f"\n\nTable {name} #{tnum}:\n"
-            else:
-                yield f"\n\nTable #{tnum}:\n"
 
-        table = Texttable(width)
-        table.set_deco(Texttable.HEADER)
-        table.add_rows(buffer)
-        yield table.draw()
+def _draw(buffer, name, tnum, width):
+    if tnum > 1:
+        if name:
+            yield f"\n\nTable {name} #{tnum}:\n"
+        else:
+            yield f"\n\nTable #{tnum}:\n"
+
+    table = Texttable(width)
+    table.set_deco(Texttable.HEADER)
+    table.add_rows(buffer)
+    yield table.draw()

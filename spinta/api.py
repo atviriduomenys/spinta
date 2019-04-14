@@ -40,6 +40,7 @@ async def homepage(request):
     fmt = params.get('format', 'html')
 
     with context.enter():
+        config = context.get('config')
         store = context.get('store')
         context.bind('transaction', store.backends['default'].transaction)
 
@@ -92,32 +93,47 @@ async def homepage(request):
                 'row': row,
             })
 
-        elif fmt in ('csv', 'json', 'jsonl', 'asciitable'):
-            async def generator(rows, fmt, params):
-                for data in store.export(rows, fmt, params):
-                    yield data
+        elif fmt in config.exporters:
+            async def stream(context, rows, exporter, params):
+                with context.enter():
+                    context.bind('transaction', store.backends['default'].transaction)
+                    for data in exporter(rows, **params):
+                        yield data
+
+            manifest = store.manifests['default']
+            model = get_model_from_params(manifest, params['path'], params)
 
             if 'changes' in params:
-                rows = store.changes(params)
+                rows = changes(
+                    context, model, model.backend,
+                    id=params.get('id', {}).get('value'),
+                    limit=params.get('limit', 100),
+                    offset=params.get('changes', -10),
+                )
 
             elif 'id' in params:
-                rows = [store.get(params['path'], params['id']['value'], params)]
+                rows = [get(context, model, model.backend, params['id']['value'])]
                 params['wrap'] = False
 
             else:
-                rows = store.getall(params['path'], params)
+                rows = getall(
+                    context, model, model.backend,
+                    show=params.get('show'),
+                    sort=params.get('sort', [{'name': 'id', 'ascending': True}]),
+                    offset=params.get('offset'),
+                    limit=params.get('limit', 100),
+                    count='count' in params,
+                )
 
-            media_types = {
-                'csv': 'text/csv',
-                'json': 'application/json',
-                'jsonl': 'application/x-json-stream',
-                'asciitable': 'text/plain',
+            exporter = config.exporters[fmt]
+            media_type = exporter.content_type
+            params = {
+                k: v for k, v in params.items()
+                if k in exporter.params
             }
 
-            if fmt == 'asciitable':
-                params['column_width'] = 42
-
-            return StreamingResponse(generator(rows, fmt, params), media_type=media_types[fmt])
+            g = stream(context, rows, exporter, params)
+            return StreamingResponse(g, media_type=media_type)
 
         else:
             raise HTTPException(status_code=404)

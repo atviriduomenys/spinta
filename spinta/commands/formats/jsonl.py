@@ -1,13 +1,10 @@
 import ujson as json
 
-from spinta.commands import Command
 
+class JsonLines:
+    content_type = 'application/x-json-stream'
+    params = {}
 
-class JsonLines(Command):
-    metadata = {
-        'name': 'export.jsonl',
-    }
-
-    def execute(self):
-        for i, row in enumerate(self.args.rows):
+    def __call__(self, rows):
+        for i, row in enumerate(rows):
             yield json.dumps(row, ensure_ascii=False) + '\n'

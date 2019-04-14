@@ -36,29 +36,22 @@ def load(context: Context, manifest: Manifest, manifest_conf: dict):
         if not isinstance(data, dict):
             context.error(f"{file}: expected dict got {data.__class__.__name__}.")
 
-        object_types = {
-            'model': Model,
-            'project': Project,
-            'dataset': Dataset,
-            'owner': Owner,
-        }
-
-        obj = object_types[data['type']]()
+        node = config.components['nodes'][data['type']]()
         data = {
             'path': file,
             'parent': None,
             'backend': 'default',
             **data,
         }
-        load(context, obj, data, manifest)
+        load(context, node, data, manifest)
 
-        if obj.type not in manifest.objects:
-            manifest.objects[obj.type] = {}
+        if node.type not in manifest.objects:
+            manifest.objects[node.type] = {}
 
-        if obj.name in manifest.objects[obj.type]:
-            context.error(f"Object {obj.type} with name {obj.name} already exist.")
+        if node.name in manifest.objects[node.type]:
+            context.error(f"Object {node.type} with name {node.name} already exist.")
 
-        manifest.objects[obj.type][obj.name] = obj
+        manifest.objects[node.type][node.name] = node
 
 
 @prepare.register()

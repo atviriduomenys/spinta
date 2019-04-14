@@ -11,9 +11,10 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
 from spinta.types import NA
-from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe
+from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, error
 from spinta.components import Context, BackendConfig, Manifest, Model, Property
 from spinta.backends import Backend
+from spinta.types.type import Type
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -130,54 +131,11 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     columns = []
     for prop in model.properties.values():
-        if prop.name == 'id':
-            if prop.type == 'integer' or prop.type == 'pk':
-                columns.append(
-                    sa.Column(prop.name, BIGINT, primary_key=True)
-                )
-            else:
-                context.error(f"Unsuported type {prop.type!r} for primary key.")
-        elif prop.name == 'type':
-            pass
-        elif prop.type == 'string':
-            columns.append(
-                sa.Column(prop.name, sa.Text)
-            )
-        elif prop.type == 'date':
-            columns.append(
-                sa.Column(prop.name, sa.Date)
-            )
-        elif prop.type == 'datetime':
-            columns.append(
-                sa.Column(prop.name, sa.DateTime)
-            )
-        elif prop.type == 'integer':
-            columns.append(
-                sa.Column(prop.name, sa.Integer)
-            )
-        elif prop.type == 'number':
-            columns.append(
-                sa.Column(prop.name, sa.Float)
-            )
-        elif prop.type == 'boolean':
-            columns.append(
-                sa.Column(prop.name, sa.Boolean)
-            )
-        elif prop.type in ('spatial', 'image'):
-            # TODO: these property types currently are not implemented
-            columns.append(
-                sa.Column(prop.name, sa.Text)
-            )
-        elif prop.type == 'ref':
-            columns.extend(
-                _get_foreign_key(backend, model, prop)
-            )
-        elif prop.type == 'backref':
-            pass
-        elif prop.type == 'generic':
-            pass
-        else:
-            context.error(f"Unknown property type {prop.type}.")
+        column = prepare(context, backend, prop)
+        if isinstance(column, list):
+            columns.extend(column)
+        elif column is not None:
+            columns.append(column)
 
     # Create main table.
     main_table_name = get_table_name(backend, model.manifest.name, model.name, MAIN_TABLE)
@@ -192,6 +150,58 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     changes_table = get_changes_table(backend, changes_table_name, sa.Integer)
 
     backend.tables[model.manifest.name][model.name] = ModelTables(main_table, changes_table)
+
+
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, prop: Property):
+    return prepare(context, backend, prop.type)
+
+
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, type: Type):
+    if type.prop.name == 'id':
+        if type.name == 'integer':
+            return sa.Column(type.prop.name, BIGINT, primary_key=True)
+        else:
+            context.error(f"Unsuported type {type.prop.name!r} for primary key.")
+    elif type.name == 'type':
+        return
+    elif type.name == 'string':
+        return sa.Column(type.prop.name, sa.Text)
+    elif type.name == 'date':
+        return sa.Column(type.prop.name, sa.Date)
+    elif type.name == 'datetime':
+        return sa.Column(type.prop.name, sa.DateTime)
+    elif type.name == 'integer':
+        return sa.Column(type.prop.name, sa.Integer)
+    elif type.name == 'number':
+        return sa.Column(type.prop.name, sa.Float)
+    elif type.name == 'boolean':
+        return sa.Column(type.prop.name, sa.Boolean)
+    elif type.name in ('spatial', 'image'):
+        # TODO: these property types currently are not implemented
+        return sa.Column(type.prop.name, sa.Text)
+    elif type.name == 'ref':
+        return _get_foreign_key(backend, type.prop.parent, type.prop)
+    elif type.name == 'backref':
+        return
+    elif type.name == 'generic':
+        return
+    else:
+        raise Exception(
+            f"Unknown property type {type.name} for {type.prop.name} property "
+            f"of {type.prop.parent.name} model in {type.prop.path}."
+        )
+
+
+@error.register()
+def error(exc: Exception, context: Context, backend: PostgreSQL, type: Type):
+    error(exc, context, type)
+
+
+@error.register()
+def error(exc: Exception, context: Context, model: Model, backend: PostgreSQL):
+    error(exc, context, model)
 
 
 def _get_foreign_key(backend: PostgreSQL, model: Model, prop: Property):
@@ -302,7 +312,7 @@ def get(context: Context, model: Model, backend: PostgreSQL, id: int):
 
 
 @getall.register()
-def getall(context: Context, id: str, model: Model, backend: PostgreSQL):
+def getall(context: Context, model: Model, backend: PostgreSQL):
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = connection.execute(sa.select([table]))

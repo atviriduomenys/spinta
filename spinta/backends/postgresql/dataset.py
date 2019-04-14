@@ -343,14 +343,13 @@ def _get_data_from_row(model: Model, table, row, *, show=False):
     if show:
         data = dict(row)
     else:
-        row = {
-            **row[table.c.data],
+        data = {
+            'type': _get_table_name(model),
             'id': row[table.c.id],
         }
-        data = {}
         for prop in model.properties.values():
-            data[prop.name] = row.get(prop.name)
-        data['type'] = _get_table_name(model)
+            if prop.name not in data:
+                data[prop.name] = row[table.c.data].get(prop.name)
     return data
 
 

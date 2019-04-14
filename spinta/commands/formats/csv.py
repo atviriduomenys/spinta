@@ -1,7 +1,6 @@
 import csv
 import itertools
 
-from spinta.commands import Command
 from spinta.utils.nestedstruct import flatten
 
 
@@ -18,13 +17,12 @@ class IterableFile:
         self.writes.append(data)
 
 
-class Csv(Command):
-    metadata = {
-        'name': 'export.csv',
-    }
+class Csv:
+    content_type = 'text/csv'
+    params = {}
 
-    def execute(self):
-        rows = flatten(self.args.rows)
+    def __call__(self, rows):
+        rows = flatten(rows)
         peek = next(rows, None)
 
         if peek is None:
