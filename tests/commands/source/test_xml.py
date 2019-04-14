@@ -6,7 +6,7 @@ from responses import GET
 from spinta.utils.itertools import consume
 
 
-def test_xml(store, responses):
+def test_xml(context, responses):
     responses.add(
         GET, 'http://example.com/data.xml',
         status=200, content_type='application/xml; charset=utf-8',
@@ -14,8 +14,8 @@ def test_xml(store, responses):
         stream=True,
     )
 
-    assert consume(store.pull('xml')) == 8
-    assert sorted(store.getall('tenure', {'source': 'xml'}), key=operator.itemgetter('id'))[:2] == [
+    assert consume(context.pull('xml')) == 8
+    assert sorted(context.getall('tenure', dataset='xml'), key=operator.itemgetter('id'))[:2] == [
         {
             'type': 'tenure/:source/xml',
             'id': '11a0764da48b674ce0c09982e7c43002b510d5b5',

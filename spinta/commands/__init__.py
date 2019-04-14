@@ -2,6 +2,11 @@ from spinta.dispatcher import command
 
 
 @command()
+def error():
+    pass
+
+
+@command()
 def load():
     """Load primitive data structures to python-native objects.
 
@@ -72,6 +77,11 @@ def changes():
 @command()
 def pull():
     """Pull data from external data sources."""
+
+
+@command()
+def export():
+    """Export data in a specified format."""
 
 
 @command()

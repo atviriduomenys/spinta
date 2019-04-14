@@ -64,10 +64,15 @@ class ContextForTests(Context):
         with self.transaction():
             return commands.get(self, model, model.backend, id)
 
-    def getall(self, model: str, *, dataset: str = None):
+    def getall(self, model: str, *, dataset: str = None, **kwargs):
         model = self._get_model(model, dataset)
         with self.transaction():
-            return list(commands.getall(self, model, model.backend))
+            return list(commands.getall(self, model, model.backend, **kwargs))
+
+    def changes(self, model: str, *, dataset: str = None, **kwargs):
+        model = self._get_model(model, dataset)
+        with self.transaction():
+            return list(commands.changes(self, model, model.backend, **kwargs))
 
     def wipe(self, model: str, *, dataset: str = None):
         model = self._get_model(model, dataset)
@@ -118,16 +123,18 @@ def context(postgresql):
     # Remove all data after each test run.
     graph = collections.defaultdict(set)
     for model in store.manifests['default'].objects['model'].values():
-        graph[model.name] = set()
+        if model.name not in graph:
+            graph[model.name] = set()
         for prop in model.properties.values():
             if prop.type.name == 'ref':
-                graph[prop.object].add(model.name)
+                graph[prop.type.object].add(model.name)
 
     for models in toposort(graph):
         for name in models:
-            if name:
-                context.wipe(model)
+            context.wipe(name)
 
+    # Datasets does not have foreign kei constraints, so there is no need to
+    # topologically sort them. At least for now.
     for dataset in store.manifests['default'].objects['dataset'].values():
         for model in dataset.objects.values():
             context.wipe(model)

@@ -8,7 +8,7 @@ objects:
   rinkimai:
     source:
       json:
-        url: 'http://example.com/data.json'
+        source: 'http://example.com/data.json'
         items: 'response'
     properties:
       id: {source: 'id'}

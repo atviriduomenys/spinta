@@ -39,10 +39,12 @@ def test_schema_loader(context):
         'govid': '0042',
         'title': 'My Org',
         'country': result['country']['id'],
+        'type': None,
     }
 
     assert context.getone('country', result['country']['id']) == {
         'id': result['country']['id'],
         'code': 'lt',
         'title': 'Lithuania',
+        'type': None,
     }

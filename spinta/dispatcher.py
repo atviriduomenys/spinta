@@ -28,6 +28,16 @@ class Command(Dispatcher):
             return self
         return _
 
+    def __call__(self, *args, **kwargs):
+        try:
+            return super().__call__(*args, **kwargs)
+        except Exception as exc:
+            types = tuple([type(arg) for arg in (exc,) + args])
+            if 'error' in _commands and self is not _commands['error'] and _commands['error'].dispatch(*types):
+                _commands['error'](exc, *args, **kwargs)
+            else:
+                raise
+
 
 def _find_func_types(func):
     sig = inspect.signature(func)
