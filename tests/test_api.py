@@ -18,6 +18,7 @@ def test_app(app):
             ('continent', '/continent'),
             ('country', '/country'),
             ('deeply', '/deeply'),
+            ('nested', '/nested'),
             ('org', '/org'),
             ('rinkimai', '/rinkimai'),
             ('tenure', '/tenure'),

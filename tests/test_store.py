@@ -39,12 +39,25 @@ def test_schema_loader(context):
         'govid': '0042',
         'title': 'My Org',
         'country': result['country']['id'],
-        'type': None,
+        'type': 'org',
     }
 
     assert context.getone('country', result['country']['id']) == {
         'id': result['country']['id'],
         'code': 'lt',
         'title': 'Lithuania',
-        'type': None,
+        'type': 'country',
+    }
+
+
+def test_nested(context):
+    result = list(context.push([
+        {
+            'type': 'nested',
+            'some': {'nested': {'structure': 'here'}}
+        }
+    ]))
+    assert context.getone('nested', result[0]['id']) == {
+        'type': 'nested',
+        'id': 1,
     }

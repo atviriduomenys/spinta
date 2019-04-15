@@ -81,6 +81,12 @@ class Generic(Type):
     }
 
 
+class Array(Type):
+    schema = {
+        'items': {},
+    }
+
+
 @load.register()
 def load(context: Context, type: Type, data: dict) -> Type:
     return type

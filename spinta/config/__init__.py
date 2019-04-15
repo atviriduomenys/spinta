@@ -46,6 +46,7 @@ CONFIG = {
             'ref': 'spinta.types.type:Ref',
             'backref': 'spinta.types.type:BackRef',
             'generic': 'spinta.types.type:Generic',
+            'array': 'spinta.types.type:Array',
         },
     },
     'exporters': {

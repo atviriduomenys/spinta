@@ -151,6 +151,7 @@ class Property(Node):
         'enum': {},
         'object': {},
         'backend': {'type': 'backend', 'inherit': True, 'required': True},
+        'items': {},
     }
 
     def __init__(self):

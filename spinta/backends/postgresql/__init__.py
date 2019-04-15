@@ -187,6 +187,8 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
         return
     elif type.name == 'generic':
         return
+    elif type.name == 'array':
+        return
     else:
         raise Exception(
             f"Unknown property type {type.name} for {type.prop.name} property "
@@ -266,6 +268,10 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict):
     connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
 
+    data = {
+        k: v for k, v in data.items() if k in table.main.columns
+    }
+
     # Update existing row.
     if 'id' in data:
         action = UPDATE_ACTION
@@ -308,7 +314,9 @@ def get(context: Context, model: Model, backend: PostgreSQL, id: int):
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = backend.get(connection, table, table.c.id == id)
-    return {k: v for k, v in result.items() if not k.startswith('_')}
+    result = {k: v for k, v in result.items() if not k.startswith('_')}
+    result['type'] = model.name
+    return result
 
 
 @getall.register()
