@@ -5,7 +5,7 @@ from responses import GET
 from spinta.utils.itertools import consume
 
 
-def test_csv(store, responses):
+def test_csv(context, responses):
     responses.add(
         GET, 'http://example.com/continents.csv',
         status=200, stream=True, content_type='text/plain; charset=utf-8',
@@ -24,11 +24,11 @@ def test_csv(store, responses):
         body='id,capital\n1,Vilnius\n',
     )
 
-    assert consume(store.pull('dependencies', {'models': ['continent']})) == 1
-    assert consume(store.pull('dependencies', {'models': ['country']})) == 1
-    assert consume(store.pull('dependencies', {'models': ['capital']})) == 1
+    assert consume(context.pull('dependencies', models=['continent'])) == 1
+    assert consume(context.pull('dependencies', models=['country'])) == 1
+    assert consume(context.pull('dependencies', models=['capital'])) == 1
 
-    assert sorted(store.getall('continent', {'source': 'dependencies'})) == [
+    assert context.getall('continent', dataset='dependencies') == [
         {
             'type': 'continent/:source/dependencies',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
@@ -36,7 +36,7 @@ def test_csv(store, responses):
             'continent_id': '1',
         },
     ]
-    assert sorted(store.getall('country', {'source': 'dependencies'})) == [
+    assert context.getall('country', dataset='dependencies') == [
         {
             'type': 'country/:source/dependencies',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
@@ -45,7 +45,7 @@ def test_csv(store, responses):
             'country_id': '1',
         },
     ]
-    assert sorted(store.getall('capital', {'source': 'dependencies'})) == [
+    assert context.getall('capital', dataset='dependencies') == [
         {
             'type': 'capital/:source/dependencies',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
@@ -55,14 +55,14 @@ def test_csv(store, responses):
     ]
 
 
-def test_no_push(store, responses):
+def test_no_push(context, responses):
     responses.add(
         GET, 'http://example.com/continents.csv',
         status=200, stream=True, content_type='text/plain; charset=utf-8',
         body='id,continent\n1,Europe\n',
     )
 
-    assert list(store.pull('dependencies', {'push': False})) == [
+    assert list(context.pull('dependencies', push=False)) == [
         {
             'type': 'continent/:source/dependencies',
             'id': '1',
@@ -70,10 +70,11 @@ def test_no_push(store, responses):
             'continent_id': '1',
         },
     ]
-    assert sorted(store.getall('continent', {'source': 'dependencies'})) == []
+    assert context.getall('continent', dataset='dependencies') == []
 
 
-def test_generator(store, responses):
+def test_generator(context, responses):
+
     def func(request):
         status = 200
         headers = {}
@@ -87,7 +88,7 @@ def test_generator(store, responses):
         callback=func, content_type='text/plain; charset=utf-8',
     )
 
-    assert list(store.pull('generator', {'push': False})) == [
+    assert list(context.pull('generator', push=False)) == [
         {
             'type': 'continent/:source/generator',
             'id': '2000',

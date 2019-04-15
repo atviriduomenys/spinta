@@ -1,29 +1,23 @@
 import csv
 
-from spinta.commands import Command
+from spinta.dispatcher import command
+from spinta.components import Context
+from spinta.types.dataset import Model, Property
+from spinta.fetcher import fetch
 
 
-class CsvModel(Command):
-    metadata = {
-        'name': 'csv',
-        'type': 'dataset.model',
-    }
-
-    def execute(self):
-        return self.read_csv()
-
-    def read_csv(self):
-        http = self.store.components.get('protocols.http')
-        source = self.args.source.format(**self.args.dependency)
-        with http.open(source, text=True) as f:
-            yield from csv.DictReader(f)
+@command()
+def read_csv():
+    pass
 
 
-class CsvDatasetProperty(Command):
-    metadata = {
-        'name': 'csv',
-        'type': 'dataset.property',
-    }
+@read_csv.register()
+def read_csv(context: Context, model: Model, *, source=None, dependency=None):
+    source = source.format(**dependency)
+    with fetch(context, source, text=True).open() as f:
+        yield from csv.DictReader(f)
 
-    def execute(self):
-        return self.args.value.get(self.args.source)
+
+@read_csv.register()
+def read_csv(context: Context, model: Property, *, source=None, value=None):
+    return value.get(source)

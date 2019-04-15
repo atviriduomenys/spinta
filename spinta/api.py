@@ -12,15 +12,16 @@ from starlette.responses import StreamingResponse
 
 from spinta.utils.url import parse_url_path, build_url_path
 from spinta.utils.tree import build_path_tree
-from spinta.store import get_model_from_params
+from spinta.types.store import get_model_from_params
 from spinta.types import Type
+from spinta.commands import getall, get, changes
 
 
 templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
 
 app = Starlette()
 
-store = None
+context = None
 
 COLORS = {
     'change': '#B2E2AD',
@@ -30,7 +31,7 @@ COLORS = {
 
 @app.route('/{path:path}')
 async def homepage(request):
-    global store
+    global context
 
     url_path = request.path_params['path'].strip('/')
     params = parse_url_path(url_path)
@@ -38,97 +39,117 @@ async def homepage(request):
 
     fmt = params.get('format', 'html')
 
-    if fmt == 'html':
-        header = []
-        data = []
-        formats = []
-        items = []
-        datasets = []
-        row = []
-        loc = get_current_location(path, params)
+    with context.enter():
+        config = context.get('config')
+        store = context.get('store')
+        context.bind('transaction', store.backends['default'].transaction)
 
-        if 'source' in params:
-            formats = [
-                ('CSV', '/' + build_url_path({**params, 'format': 'csv'})),
-                ('JSON', '/' + build_url_path({**params, 'format': 'json'})),
-                ('JSONL', '/' + build_url_path({**params, 'format': 'jsonl'})),
-                ('ASCII', '/' + build_url_path({**params, 'format': 'asciitable'})),
-            ]
+        if fmt == 'html':
+            header = []
+            data = []
+            formats = []
+            items = []
+            datasets = []
+            row = []
+            loc = get_current_location(path, params)
+
+            if 'source' in params:
+                formats = [
+                    ('CSV', '/' + build_url_path({**params, 'format': 'csv'})),
+                    ('JSON', '/' + build_url_path({**params, 'format': 'json'})),
+                    ('JSONL', '/' + build_url_path({**params, 'format': 'jsonl'})),
+                    ('ASCII', '/' + build_url_path({**params, 'format': 'asciitable'})),
+                ]
+
+                if 'changes' in params:
+                    data = get_changes(context, params)
+                    header = next(data)
+                    data = list(reversed(list(data)))
+                else:
+                    if 'id' in params:
+                        row = list(get_row(context, params))
+                    else:
+                        data = get_data(context, params)
+                        header = next(data)
+                        data = list(data)
+
+            else:
+                datasets_by_object = get_datasets_by_object(context)
+                tree = build_path_tree(
+                    store.manifests['default'].objects.get('model', {}).keys(),
+                    datasets_by_object.keys(),
+                )
+                items = get_directory_content(tree, path) if path in tree else []
+                datasets = list(get_directory_datasets(datasets_by_object, path))
+
+            return templates.TemplateResponse('base.html', {
+                'request': request,
+                'location': loc,
+                'formats': formats,
+                'items': items,
+                'datasets': datasets,
+                'header': header,
+                'data': data,
+                'row': row,
+            })
+
+        elif fmt in config.exporters:
+            async def stream(context, rows, exporter, params):
+                with context.enter():
+                    context.bind('transaction', store.backends['default'].transaction)
+                    for data in exporter(rows, **params):
+                        yield data
+
+            manifest = store.manifests['default']
+            model = get_model_from_params(manifest, params['path'], params)
 
             if 'changes' in params:
-                data = get_changes(store, params)
-                header = next(data)
-                data = list(reversed(list(data)))
+                rows = changes(
+                    context, model, model.backend,
+                    id=params.get('id', {}).get('value'),
+                    limit=params.get('limit', 100),
+                    offset=params.get('changes', -10),
+                )
+
+            elif 'id' in params:
+                rows = [get(context, model, model.backend, params['id']['value'])]
+                params['wrap'] = False
+
             else:
-                if 'id' in params:
-                    row = list(get_row(store, params))
-                else:
-                    data = get_data(store, params)
-                    header = next(data)
-                    data = list(data)
+                rows = getall(
+                    context, model, model.backend,
+                    show=params.get('show'),
+                    sort=params.get('sort', [{'name': 'id', 'ascending': True}]),
+                    offset=params.get('offset'),
+                    limit=params.get('limit', 100),
+                    count='count' in params,
+                )
+
+            exporter = config.exporters[fmt]
+            media_type = exporter.content_type
+            params = {
+                k: v for k, v in params.items()
+                if k in exporter.params
+            }
+
+            g = stream(context, rows, exporter, params)
+            return StreamingResponse(g, media_type=media_type)
 
         else:
-            datasets_by_object = get_datasets_by_object(store)
-            tree = build_path_tree(
-                store.objects['default'].get('model', {}).keys(),
-                datasets_by_object.keys(),
-            )
-            items = get_directory_content(tree, path) if path in tree else []
-            datasets = list(get_directory_datasets(datasets_by_object, path))
-
-        return templates.TemplateResponse('base.html', {
-            'request': request,
-            'location': loc,
-            'formats': formats,
-            'items': items,
-            'datasets': datasets,
-            'header': header,
-            'data': data,
-            'row': row,
-        })
-
-    elif fmt in ('csv', 'json', 'jsonl', 'asciitable'):
-        async def generator(rows, fmt, params):
-            for data in store.export(rows, fmt, params):
-                yield data
-
-        if 'changes' in params:
-            rows = store.changes(params)
-
-        elif 'id' in params:
-            rows = [store.get(params['path'], params['id']['value'], params)]
-            params['wrap'] = False
-
-        else:
-            rows = store.getall(params['path'], params)
-
-        media_types = {
-            'csv': 'text/csv',
-            'json': 'application/json',
-            'jsonl': 'application/x-json-stream',
-            'asciitable': 'text/plain',
-        }
-
-        if fmt == 'asciitable':
-            params['column_width'] = 42
-
-        return StreamingResponse(generator(rows, fmt, params), media_type=media_types[fmt])
-
-    else:
-        raise HTTPException(status_code=404)
+            raise HTTPException(status_code=404)
 
 
-def run(store):
-    set_store(store)
-    app.debug = store.config.debug
+def run(context):
+    set_context(context)
+    app.debug = context.get('config').debug
     uvicorn.run(app, host='0.0.0.0', port=8000)
 
 
-def set_store(store_):
-    global store
-    if store is not None:
-        raise Exception("Store was already set.")
-    store = store_
+def set_context(context_):
+    global context
+    if context is not None:
+        raise Exception("Context was already set.")
+    context = context_
 
 
 def get_current_location(path, params):
@@ -188,9 +209,10 @@ def get_current_location(path, params):
     return loc
 
 
-def get_datasets_by_object(store):
+def get_datasets_by_object(context):
+    store = context.get('store')
     datasets = collections.defaultdict(dict)
-    for dataset in store.objects['default'].get('dataset', {}).values():
+    for dataset in store.manifests['default'].objects.get('dataset', {}).values():
         for obj in dataset.objects.values():
             datasets[obj.name][dataset.name] = dataset
     return datasets
@@ -214,9 +236,19 @@ def get_directory_datasets(datasets, path):
             }
 
 
-def get_data(store, params):
-    model = get_model_from_params(store, 'default', params['path'], params)
-    rows = store.getall(params['path'], {'limit': 100, **params})
+def get_data(context, params):
+    store = context.get('store')
+    backend = store.backends['default']
+    manifest = store.manifests['default']
+    model = get_model_from_params(manifest, params['path'], params)
+    rows = getall(
+        context, model, backend,
+        show=params.get('show'),
+        sort=params.get('sort', [{'name': 'id', 'ascending': True}]),
+        offset=params.get('offset'),
+        limit=params.get('limit', 100),
+        count='count' in params,
+    )
 
     if 'count' in params:
         prop = Type()
@@ -235,9 +267,12 @@ def get_data(store, params):
         yield row
 
 
-def get_row(store, params):
-    model = get_model_from_params(store, 'default', params['path'], params)
-    row = store.get(params['path'], params['id']['value'], params)
+def get_row(context, params):
+    store = context.get('store')
+    backend = store.backends['default']
+    manifest = store.manifests['default']
+    model = get_model_from_params(manifest, params['path'], params)
+    row = get(context, model, backend, params['id']['value'])
     if row is None:
         raise HTTPException(status_code=404)
     for prop in model.properties.values():
@@ -283,9 +318,17 @@ def get_cell(params, prop, value, shorten=False, color=None):
     }
 
 
-def get_changes(store, params):
-    model = get_model_from_params(store, 'default', params['path'], params)
-    rows = store.changes({'limit': 100, 'changes': params['changes'] or -10, **params})
+def get_changes(context, params):
+    store = context.get('store')
+    backend = store.backends['default']
+    manifest = store.manifests['default']
+    model = get_model_from_params(manifest, params['path'], params)
+    rows = changes(
+        context, model, backend,
+        id=params.get('id', {}).get('value'),
+        limit=params.get('limit', 100),
+        offset=params.get('changes', -10),
+    )
 
     props = [p for p in model.properties.values() if p.name not in ('id', 'type')]
 

@@ -7,7 +7,7 @@ objects:
   tenure:
     source:
       xml:
-        url: 'http://example.com/data.xml'
+        source: 'http://example.com/data.xml'
         root: '/SeimoInformacija/SeimoKadencija'
     properties:
       id: {source: '@kadencijos_id'}

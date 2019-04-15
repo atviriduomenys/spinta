@@ -1,80 +1,31 @@
-from spinta.types import Type
-from spinta.commands import Command
+from spinta.components import Context, Command, CommandList
+from spinta.commands import load
 
 
-class CommandType(Type):
-    metadata = {
-        'name': 'command',
-    }
+@load.register()
+def load(
+    context: Context, command: Command, data: dict, *,
+    scope: str,
+    argname: str = None,
+) -> Command:
+    config = context.get('config')
+    name, args = next(iter(data.items()))
+    command.name = name
+    command.command = config.commands[scope][name]
+    if isinstance(args, str):
+        args = {command.command.schema.get('argname', argname): args}
+    command.args = args
+    return command
 
 
-class CommandListType(Type):
-    metadata = {
-        'name': 'command_list',
-    }
-
-
-class PrepareCommandList(Command):
-    metadata = {
-        'name': 'prepare',
-        'type': 'command_list',
-        'arguments': {
-            'obj': {'type': None},
-            'prop': {'type': 'string'},
-            'value': {'type': None},
-        }
-    }
-
-    def execute(self):
-        value = super().execute()
-
-        if value is None:
-            return value
-
-        if not isinstance(value, list):
-            value = [value]
-
-        obj = self.load({'type': 'command', 'parent': self.obj}, bare=True)
-        value = [
-            self.run(obj, {'prepare': {
-                **self.args.args,
-                'value': command,
-            }})
-            for command in value
-        ]
-
-        return value
-
-
-class Prepare(Command):
-    metadata = {
-        'name': 'prepare',
-        'type': 'command',
-        'arguments': {
-            'obj': {'type': None},
-            'prop': {'type': 'string'},
-            'value': {'type': None},
-        }
-    }
-
-    def execute(self):
-        value = super().execute()
-
-        if value is None:
-            return value
-
-        if not isinstance(value, dict):
-            self.error(f"{self.args.prop!r} must be a dict.")
-
-        name, args = next(iter(value.items()))
-
-        if name not in self.store.available_commands:
-            self.error(f"Unknown command {name!r}.")
-
-        if isinstance(args, str):
-            if 'argument' not in self.store.available_commands[name]:
-                self.error(f"Command {name!r} does not have a default argument.")
-            argument = self.store.available_commands[name]['argument']
-            args = {argument: args}
-
-        return {name: args}
+@load.register()
+def load(
+    context: Context, command: CommandList, data: list, *,
+    scope: str,
+    argname: str = None,
+) -> CommandList:
+    command.commands = [
+        load(context, Command(), x, scope=scope, argname=argname)
+        for x in data
+    ]
+    return command

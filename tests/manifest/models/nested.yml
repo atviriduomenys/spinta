@@ -1,0 +1,20 @@
+---
+type: model
+name: nested
+title: "Nested structure"
+version: 1
+date: "2019-02-06"
+unique:
+  - [country, govid]
+properties:
+  id: {type: integer}
+  some:
+    type: array
+    items:
+      type: object
+      properties:
+        nested:
+          type: object
+          properties:
+            structure:
+              type: string

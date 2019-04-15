@@ -1,7 +1,9 @@
 import datetime
 
 from spinta.types import Type
-from spinta.commands import Command
+from spinta.commands import load, check
+from spinta.components import Context, Manifest
+from spinta.backends import Backend
 
 
 class Property(Type):
@@ -38,23 +40,12 @@ class Date(Property):
     }
 
 
-class PrepareDate(Command):
-    metadata = {
-        'name': 'prepare',
-        'type': 'date',
-    }
-
-    def execute(self):
-        value = super().execute()
-
-        if isinstance(value, datetime.date):
-            return value
-
-        if value is not None:
-            try:
-                return datetime.datetime.strptime(value, '%Y-%m-%d').date()
-            except ValueError as e:
-                self.error(str(e))
+@load.register()
+def load(context: Context, value: str, prop: Date, backend: Backend):
+    try:
+        return datetime.datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError as e:
+        context.error(str(e))
 
 
 class DateTime(Property):
@@ -118,15 +109,10 @@ class Ref(Property):
     }
 
 
-class RefManifestCheck(Command):
-    metadata = {
-        'name': 'manifest.check',
-        'type': 'ref',
-    }
-
-    def execute(self):
-        if self.obj.object not in self.store.objects[self.ns]['model']:
-            self.error(f"Unknown model {self.obj.object}.")
+@check.register()
+def check(context: Context, prop: Ref, manifest: Manifest):
+    if prop.object not in manifest.objects['model']:
+        context.error(f"Unknown model {prop.object}.")
 
 
 class BackRef(Property):

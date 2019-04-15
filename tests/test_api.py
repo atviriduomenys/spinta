@@ -1,6 +1,7 @@
 import datetime
 
 from spinta.utils.itertools import consume
+from spinta.commands import push
 
 
 def test_app(app):
@@ -17,6 +18,7 @@ def test_app(app):
             ('continent', '/continent'),
             ('country', '/country'),
             ('deeply', '/deeply'),
+            ('nested', '/nested'),
             ('org', '/org'),
             ('rinkimai', '/rinkimai'),
             ('tenure', '/tenure'),
@@ -56,14 +58,17 @@ def test_directory(app):
     }
 
 
-def test_dataset(store, app):
-    consume(store.push([
-        {
-            'type': 'rinkimai/:source/json',
-            'id': 'Rinkimai 1',
-            'pavadinimas': 'Rinkimai 1',
-        },
-    ]))
+def test_dataset(context, app):
+    store = context.get('store')
+    with context.enter():
+        context.bind('transaction', store.backends['default'].transaction, write=True)
+        consume(push(context, store, [
+            {
+                'type': 'rinkimai/:source/json',
+                'id': 'Rinkimai 1',
+                'pavadinimas': 'Rinkimai 1',
+            },
+        ]))
 
     resp = app.get('/rinkimai/:source/json')
     assert resp.status_code == 200
@@ -95,14 +100,17 @@ def test_dataset(store, app):
     }
 
 
-def test_nested_dataset(store, app):
-    consume(store.push([
-        {
-            'type': 'deeply/nested/model/name/:source/nested/dataset/name',
-            'id': '42',
-            'name': 'Nested One',
-        },
-    ]))
+def test_nested_dataset(context, app):
+    store = context.get('store')
+    with context.enter():
+        context.bind('transaction', store.backends['default'].transaction, write=True)
+        consume(push(context, store, [
+            {
+                'type': 'deeply/nested/model/name/:source/nested/dataset/name',
+                'id': '42',
+                'name': 'Nested One',
+            },
+        ]))
 
     resp = app.get('deeply/nested/model/name/:source/nested/dataset/name')
     assert resp.status_code == 200
@@ -137,14 +145,17 @@ def test_nested_dataset(store, app):
     }
 
 
-def test_dataset_key(store, app):
-    consume(store.push([
-        {
-            'type': 'rinkimai/:source/json',
-            'id': 'Rinkimai 1',
-            'pavadinimas': 'Rinkimai 1',
-        },
-    ]))
+def test_dataset_key(context, app):
+    store = context.get('store')
+    with context.enter():
+        context.bind('transaction', store.backends['default'].transaction, write=True)
+        consume(push(context, store, [
+            {
+                'type': 'rinkimai/:source/json',
+                'id': 'Rinkimai 1',
+                'pavadinimas': 'Rinkimai 1',
+            },
+        ]))
 
     resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json')
     assert resp.status_code == 200
@@ -169,34 +180,37 @@ def test_dataset_key(store, app):
         'header': [],
         'data': [],
         'row': [
-            ('type', {'color': None, 'link': None, 'value': 'rinkimai/:source/json'}),
             ('id', {
                 'color': None,
                 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json',
                 'value': 'df6b9e04ac9e2467690bcad6d9fd673af6e1919b',
             }),
             ('pavadinimas', {'color': None, 'link': None, 'value': 'Rinkimai 1'}),
+            ('type', {'color': None, 'link': None, 'value': 'rinkimai/:source/json'}),
         ],
     }
 
 
-def test_changes_single_object(store, app, mocker):
+def test_changes_single_object(context, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
-    consume(store.push([
-        {
-            'type': 'rinkimai/:source/json',
-            'id': 'Rinkimai 1',
-            'pavadinimas': 'Rinkimai 1',
-        },
-    ]))
-    consume(store.push([
-        {
-            'type': 'rinkimai/:source/json',
-            'id': 'Rinkimai 1',
-            'pavadinimas': 'Rinkimai 2',
-        },
-    ]))
+    store = context.get('store')
+    with context.enter():
+        context.bind('transaction', store.backends['default'].transaction, write=True)
+        consume(push(context, store, [
+            {
+                'type': 'rinkimai/:source/json',
+                'id': 'Rinkimai 1',
+                'pavadinimas': 'Rinkimai 1',
+            },
+        ]))
+        consume(push(context, store, [
+            {
+                'type': 'rinkimai/:source/json',
+                'id': 'Rinkimai 1',
+                'pavadinimas': 'Rinkimai 2',
+            },
+        ]))
 
     resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes')
     assert resp.status_code == 200
@@ -248,23 +262,26 @@ def test_changes_single_object(store, app, mocker):
     }
 
 
-def test_changes_object_list(store, app, mocker):
+def test_changes_object_list(context, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
-    consume(store.push([
-        {
-            'type': 'rinkimai/:source/json',
-            'id': 'Rinkimai 1',
-            'pavadinimas': 'Rinkimai 1',
-        },
-    ]))
-    consume(store.push([
-        {
-            'type': 'rinkimai/:source/json',
-            'id': 'Rinkimai 1',
-            'pavadinimas': 'Rinkimai 2',
-        },
-    ]))
+    store = context.get('store')
+    with context.enter():
+        context.bind('transaction', store.backends['default'].transaction, write=True)
+        consume(push(context, store, [
+            {
+                'type': 'rinkimai/:source/json',
+                'id': 'Rinkimai 1',
+                'pavadinimas': 'Rinkimai 1',
+            },
+        ]))
+        consume(push(context, store, [
+            {
+                'type': 'rinkimai/:source/json',
+                'id': 'Rinkimai 1',
+                'pavadinimas': 'Rinkimai 2',
+            },
+        ]))
 
     resp = app.get('/rinkimai/:source/json/:changes')
     assert resp.status_code == 200
@@ -315,19 +332,22 @@ def test_changes_object_list(store, app, mocker):
     }
 
 
-def test_count(store, app):
-    consume(store.push([
-        {
-            'type': 'rinkimai/:source/json',
-            'id': 1,
-            'pavadinimas': 'Rinkimai 1',
-        },
-        {
-            'type': 'rinkimai/:source/json',
-            'id': 2,
-            'pavadinimas': 'Rinkimai 2',
-        },
-    ]))
+def test_count(context, app):
+    store = context.get('store')
+    with context.enter():
+        context.bind('transaction', store.backends['default'].transaction, write=True)
+        consume(push(context, store, [
+            {
+                'type': 'rinkimai/:source/json',
+                'id': 1,
+                'pavadinimas': 'Rinkimai 1',
+            },
+            {
+                'type': 'rinkimai/:source/json',
+                'id': 2,
+                'pavadinimas': 'Rinkimai 2',
+            },
+        ]))
 
     resp = app.get('/rinkimai/:source/json/:count')
     assert resp.status_code == 200

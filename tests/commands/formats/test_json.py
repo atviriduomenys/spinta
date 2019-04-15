@@ -3,10 +3,10 @@ import datetime
 from spinta.utils.itertools import consume
 
 
-def test_export_json(store, app, mocker):
+def test_export_json(context, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
-    consume(store.push([
+    consume(context.push([
         {
             'type': 'country/:source/csv',
             'id': 1,

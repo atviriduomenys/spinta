@@ -1,45 +1,186 @@
-import importlib
+import contextlib
 
-components = {
-    'protocols': {
-        'http': {
-            'component': 'spinta.protocols.http:HttpProtocol',
-        }
+
+class Context:
+
+    def __init__(self):
+        self._factory = [{}]
+        self._context = [{}]
+        self._exitstack = []
+
+    def bind(self, name, creator, *args, **kwargs):
+        self._factory[-1][name] = (creator, args, kwargs)
+        return self
+
+    def set(self, name, value):
+        if isinstance(value, contextlib.AbstractContextManager):
+            self._context[-1][name] = self._exitstack[-1].enter_context(value)
+        else:
+            self._context[-1][name] = value
+        return self
+
+    def get(self, name):
+        if name in self._context[-1]:
+            return self._context[-1][name]
+
+        if name not in self._factory[-1]:
+            raise Exception(f"Unknown context variable {name!r}.")
+
+        factory, args, kwargs = self._factory[-1][name]
+        self.set(name, factory(*args, **kwargs))
+        return self._context[-1][name]
+
+    def has(self, name):
+        return name in self._context[-1]
+
+    def attach(self, value):
+        return self._exitstack[-1].enter_context(value)
+
+    @contextlib.contextmanager
+    def enter(self):
+        self._factory.append({**self._factory[-1]})
+        self._context.append({**self._context[-1]})
+        self._exitstack.append(contextlib.ExitStack())
+        with self._exitstack[-1]:
+            yield
+        self._exitstack.pop()
+        self._context.pop()
+        self._factory.pop()
+
+    def error(self, message):
+        raise Exception(message)
+
+
+class _CommandsConfig:
+
+    def __init__(self):
+        self.modules = []
+        self.pull = {}
+
+
+class Config:
+
+    def __init__(self):
+        self.commands = _CommandsConfig()
+        self.backends = {}
+        self.manifests = {}
+        self.ignore = []
+        self.debug = False
+
+
+class BackendConfig:
+
+    def __init__(self):
+        self.Backend = None
+        self.name = None
+        self.dsn = None
+
+
+class Store:
+
+    def __init__(self):
+        self.config = None
+        self.backends = {}
+        self.manifests = {}
+
+
+class Manifest:
+
+    def __init__(self):
+        self.objects = {}
+
+
+class Node:
+
+    def __init__(self):
+        self.manifest = None
+        self.parent = None
+        self.name = None
+        self.type = None
+
+
+class Model(Node):
+    schema = {
+        'type': {},
+        'path': {'required': True},
+        'parent': {'required': True},
+        'name': {'required': True},
+        'title': {},
+        'description': {},
+        'unique': {'default': []},
+        'extends': {},
+        'backend': {'type': 'backend', 'inherit': True, 'required': True},
+        'version': {},
+        'date': {},
+        'link': {},
+        'properties': {'default': {}},
     }
-}
+
+    def __init__(self):
+        super().__init__()
+        self.unique = []
+        self.extends = None
+        self.backend = 'default'
+        self.version = None
+        self.date = None
+        self.link = None
+        self.properties = {}
+
+    def get_type_value(self):
+        return self.name
+
+    def get_primary_key(self):
+        return self.properties['id']
 
 
-class Components:
+class Property(Node):
+    schema = {
+        'type': {},
+        'path': {'required': True},
+        'parent': {'required': True},
+        'name': {'required': True},
+        'title': {},
+        'description': {},
+        'required': {'default': False},
+        'unique': {'default': False},
+        'const': {},
+        'default': {},
+        'nullable': {'default': False},
+        'check': {},
+        'link': {},
+        'enum': {},
+        'object': {},
+        'backend': {'type': 'backend', 'inherit': True, 'required': True},
+        'items': {},
+    }
 
-    def __init__(self, components):
-        self._components = components
-        self._loaded = {}
-        self._instances = {
-            'session': {},
-            'request': {},
-            'command': {},
-        }
+    def __init__(self):
+        super().__init__()
+        self.required = False
+        self.unique = False
+        self.const = None
+        self.default = None
+        self.nullable = False
+        self.check = None
+        self.link = None
+        self.enum = None
 
-    def get(self, name, scope='request'):
-        if name not in self._instances[scope]:
-            self._instances[scope][name] = self.load(name)
-        return self._instances[scope][name]
 
-    def load(self, name):
-        if name not in self._loaded:
-            component = self._components
-            for key in name.split('.'):
-                if key not in component:
-                    raise Exception(f"Unknown component {name}.")
-                component = component[key]
+class Command:
 
-            if 'component' not in component:
-                raise Exception(f"Unknown component {name}.")
+    def __init__(self):
+        self.name = None
+        self.command = None
+        self.args = None
 
-            module, klass = component['component'].split(':')
-            module = importlib.import_module(module)
-            klass = getattr(module, klass)
-            self._loaded[name] = {**component, 'class': klass}
+    def __call__(self, *args, **kwargs):
+        return self.command(*args, **self.args, **kwargs)
 
-        component = self._loaded[name]
-        return component['class']()
+
+class CommandList:
+
+    def __init__(self):
+        self.commands = None
+
+    def __call__(self, *args, **kwargs):
+        return [command(*args, **kwargs) for command in self.commands]

@@ -1,78 +1,71 @@
-from spinta.commands import Command
+from spinta.commands import command
+from spinta.components import Context
 
 
-class Replace(Command):
-    metadata = {'name': 'replace'}
-
-    def execute(self):
-        return self.args.source.get(self.args.data, self.args.data)
+@command()
+def replace():
+    pass
 
 
-class Hint(Command):
-    metadata = {'name': 'hint'}
-
-    def execute(self):
-        return None
+@replace.register()
+def replace(context: Context, *, source: dict, data):
+    return source.get(data, data)
 
 
-class Self(Command):
-    metadata = {'name': 'self'}
-
-    def execute(self):
-        return None
+@command()
+def hint():
+    pass
 
 
-class Chain(Command):
-    metadata = {'name': 'chain'}
-
-    def execute(self):
-        return None
+@command()
+def self():
+    pass
 
 
-class All(Command):
-    metadata = {'name': 'all'}
-
-    def execute(self):
-        return None
+@command()
+def chain():
+    pass
 
 
-class Denormalize(Command):
-    metadata = {'name': 'denormalize'}
-
-    def execute(self):
-        return None
+@command('all')
+def all_():
+    pass
 
 
-class Unstack(Command):
-    metadata = {'name': 'unstack'}
-
-    def execute(self):
-        return None
+@command()
+def denormalize():
+    pass
 
 
-class List(Command):
-    metadata = {'name': 'list'}
-
-    def execute(self):
-        result = []
-        for commands in self.args.commands:
-            for command in commands:
-                name, args = next(iter(command.items()))
-                result.append(
-                    self.run(self.obj, {name: {**self.args.args, **args}})
-                )
-        return result
+@command()
+def unstack():
+    pass
 
 
-class Url(Command):
-    metadata = {'name': 'url'}
-
-    def execute(self):
-        return None
+@command('list')
+def list_():
+    pass
 
 
-class Range(Command):
-    metadata = {'name': 'range'}
+@list_.register()
+def list_(context: Context, *, commands, **kwargs):
+    result = []
+    for commands_ in commands:
+        for cmd in commands_:
+            result.append(cmd(context, **kwargs))
+    return result
 
-    def execute(self):
-        return range(self.args.start, self.args.stop + 1)
+
+@command()
+def url():
+    pass
+
+
+@command('range')
+def range_():
+    pass
+
+
+@range_.register()
+def range_(context: Context, *, start: int = 0, stop: int = 0):
+    return range(start, stop + 1)

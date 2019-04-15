@@ -1,11 +1,6 @@
-from spinta.commands import Command
+from spinta.dispatcher import command
 
 
-class HtmlDataset(Command):
-    metadata = {
-        'name': 'html',
-        'type': 'dataset',
-    }
-
-    def execute(self):
-        return None
+@command()
+def read_html():
+    raise NotImplementedError

@@ -1,41 +1,59 @@
-from spinta.commands import Command
-from spinta.types.object import Object
+from spinta.commands import load, check, error
+from spinta.components import Context, Manifest, Model, Property
+from spinta.nodes import load_node
+from spinta.types.type import load_type
+from spinta.utils.errors import format_error
 
 
-class Model(Object):
-    metadata = {
-        'name': 'model',
-        'properties': {
-            'path': {'type': 'path', 'required': True},
-            'unique': {'type': 'array', 'default': []},
-            'extends': {'type': 'string'},
-            'backend': {'type': 'string', 'default': 'default'},
-            'version': {'type': 'integer', 'required': True},
-            'date': {'type': 'date', 'required': True},
-            'link': {'type': 'string'},
-            'parent': {'type': 'manifest'},
-        },
-    }
+@load.register()
+def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Model:
+    load_node(context, model, data, manifest)
 
-    def get_type_value(self):
-        return self.name
+    # 'type' is reserved for object type.
+    props = {'type': {'type': 'string'}}
+    props.update(data.get('properties') or {})
 
-    def get_primary_key(self):
-        return self.properties['id']
+    # 'id' is reserved for primary key.
+    props['id'] = props.get('id') or {'type': 'string'}
+    if props['id'].get('type') is None or props['id'].get('type') == 'pk':
+        props['id'] == 'string'
+
+    model.properties = {}
+    for name, prop in props.items():
+        prop = {
+            'name': name,
+            'path': model.path,
+            'parent': model,
+            **prop,
+        }
+        model.properties[name] = load(context, Property(), prop, manifest)
+
+    return model
 
 
-class CheckModel(Command):
-    metadata = {
-        'name': 'manifest.check',
-        'type': 'model',
-    }
+@load.register()
+def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
+    prop = load_node(context, prop, data, manifest)
+    prop.type = load_type(context, prop, data)
+    return prop
 
-    def execute(self):
-        super().execute()
-        self.check_primary_key()
 
-    def check_primary_key(self):
-        if 'id' not in self.obj.properties:
-            self.error("Primary key is required, add `id` property to the model.")
-        if self.obj.properties['id'].type == 'pk':
-            self.deprecation("`id` property must specify real type like 'string' or 'integer'. Use of 'pk' is deprecated.")
+@check.register()
+def check(context: Context, model: Model):
+    if 'id' not in model.properties:
+        context.error("Primary key is required, add `id` property to the model.")
+    if model.properties['id'].type == 'pk':
+        context.deprecation("`id` property must specify real type like 'string' or 'integer'. Use of 'pk' is deprecated.")
+
+
+@error.register()
+def error(exc: Exception, context: Context, model: Model):
+    message = (
+        '{exc}:\n'
+        '  in model {model.name!r} {model}>\n'
+        '  in file {model.path}\n'
+    )
+    raise Exception(format_error(message, {
+        'exc': exc,
+        'model': model,
+    }))

@@ -6,15 +6,15 @@ from responses import GET
 from spinta.utils.itertools import consume
 
 
-def test_json(store, responses):
+def test_json(context, responses):
     responses.add(
         GET, 'http://example.com/data.json',
         status=200, content_type='application/json; charset=utf-8',
         body=(pathlib.Path(__file__).parents[2] / 'data/data.json').read_bytes(),
     )
 
-    assert consume(store.pull('json')) == 10
-    assert sorted(store.getall('rinkimai', {'source': 'json'}), key=operator.itemgetter('id'))[:2] == [
+    assert consume(context.pull('json')) == 10
+    assert sorted(context.getall('rinkimai', dataset='json'), key=operator.itemgetter('id'))[:2] == [
         {
             'type': 'rinkimai/:source/json',
             'id': '1b704eeff5f38eeeb84ebcecdddb989e53a4a709',

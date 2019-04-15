@@ -1,37 +1,32 @@
 import json
 
-from spinta.commands import Command
+from typing import Union, List
+
+from spinta.dispatcher import command
+from spinta.components import Context
+from spinta.types.dataset import Model, Property
+from spinta.fetcher import fetch
 
 
-class Json(Command):
-    metadata = {
-        'name': 'json',
-        'type': 'dataset.model',
-        'arguments': {
-            'source': {'type': 'url', 'required': True},
-            'items': {'type': 'string', 'required': True},
-        }
-    }
-
-    def execute(self):
-        urls = self.args.url if isinstance(self.args.url, list) else [self.args.url]
-        for url in urls:
-            url = url.format(**self.args.dependency)
-            http = self.store.components.get('protocols.http')
-            with http.open(url) as f:
-                data = json.load(f)
-            data = data[self.args.items]
-            if isinstance(data, list):
-                yield from data
-            else:
-                yield data
+@command()
+def read_json():
+    pass
 
 
-class JsonDatasetProperty(Command):
-    metadata = {
-        'name': 'json',
-        'type': 'dataset.property',
-    }
+@read_json.register()
+def read_json(context: Context, model: Model, *, source=Union[str, List[str]], dependency: dict, items: str):
+    urls = source if isinstance(source, list) else [source]
+    for url in urls:
+        url = url.format(**dependency)
+        with fetch(context, url, text=True).open() as f:
+            data = json.load(f)
+        data = data[items]
+        if isinstance(data, list):
+            yield from data
+        else:
+            yield data
 
-    def execute(self):
-        return self.args.value.get(self.args.source)
+
+@read_json.register()
+def read_json(context: Context, prop: Property, *, source: str, value: dict):
+    return value.get(source)

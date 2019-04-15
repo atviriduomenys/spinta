@@ -11,8 +11,10 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
 from spinta.types import NA
-from spinta.commands import Command
+from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, error
+from spinta.components import Context, BackendConfig, Manifest, Model, Property
 from spinta.backends import Backend
+from spinta.types.type import Type
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -24,6 +26,7 @@ PG_CLEAN_NAME_RE = re.compile(r'[^a-z0-9]+', re.IGNORECASE)
 
 MAIN_TABLE = 'M'
 CHANGES_TABLE = 'C'
+CACHE_TABLE = 'T'
 
 # Change actions
 INSERT_ACTION = 'insert'
@@ -99,280 +102,241 @@ class WriteTransaction(ReadTransaction):
         self.errors = 0
 
 
-class LoadBackend(Command):
-    metadata = {
-        'name': 'manifest.load',
-        'type': 'postgresql',
-    }
-
-    def execute(self):
-        super().execute()
-        self.obj.engine = sa.create_engine(self.obj.dsn, echo=False)
-        self.obj.schema = sa.MetaData(self.obj.engine)
-        self.obj.tables = {}
+@load.register()
+def load(context: Context, backend: PostgreSQL, config: BackendConfig):
+    backend.name = config.name
+    backend.engine = sa.create_engine(config.dsn, echo=False)
+    backend.schema = sa.MetaData(backend.engine)
+    backend.tables = {}
 
 
-class Prepare(Command):
-    metadata = {
-        'name': 'backend.prepare',
-        'type': 'manifest',
-        'backend': 'postgresql',
-    }
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
+    if manifest.name not in backend.tables:
+        backend.tables[manifest.name] = {}
 
-    def execute(self):
-        if self.ns not in self.backend.tables:
-            self.backend.tables[self.ns] = {}
-        self.prepare_models()
-        self.prepare_datasets()
+    # Prepare backend for models.
+    for model in manifest.objects['model'].values():
+        if model.backend.name == backend.name:
+            prepare(context, backend, model)
 
-    def prepare_models(self, args=None):
-        for model in self.store.objects[self.ns]['model'].values():
-            if self.store.config.backends[model.backend].type == self.backend.type:
-                self.run(model, {'backend.prepare': args}, backend=self.backend.name)
-
-    def prepare_datasets(self):
-        for dataset in self.store.objects[self.ns].get('dataset', {}).values():
-            for model in dataset.objects.values():
-                if self.store.config.backends[model.backend].type == self.backend.type:
-                    self.run(model, {'backend.prepare': None}, backend=self.backend.name)
+    # Prepare backend for datasets.
+    for dataset in manifest.objects.get('dataset', {}).values():
+        for model in dataset.objects.values():
+            if model.backend.name == backend.name:
+                prepare(context, backend, model)
 
 
-class PrepareModel(Command):
-    metadata = {
-        'name': 'backend.prepare',
-        'type': 'model',
-        'backend': 'postgresql',
-    }
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, model: Model):
+    columns = []
+    for prop in model.properties.values():
+        column = prepare(context, backend, prop)
+        if isinstance(column, list):
+            columns.extend(column)
+        elif column is not None:
+            columns.append(column)
 
-    def execute(self):
-        columns = []
-        for prop_name, prop in self.obj.properties.items():
-            if prop.name == 'id':
-                if prop.type == 'integer' or prop.type == 'pk':
-                    columns.append(
-                        sa.Column(prop_name, BIGINT, primary_key=True)
-                    )
-                else:
-                    self.error(f"Unsuported type {prop.type!r} for primary key.")
-            elif prop.type == 'string':
-                columns.append(
-                    sa.Column(prop_name, sa.Text)
-                )
-            elif prop.type == 'date':
-                columns.append(
-                    sa.Column(prop_name, sa.Date)
-                )
-            elif prop.type == 'datetime':
-                columns.append(
-                    sa.Column(prop_name, sa.DateTime)
-                )
-            elif prop.type == 'integer':
-                columns.append(
-                    sa.Column(prop_name, sa.Integer)
-                )
-            elif prop.type == 'number':
-                columns.append(
-                    sa.Column(prop_name, sa.Float)
-                )
-            elif prop.type == 'boolean':
-                columns.append(
-                    sa.Column(prop_name, sa.Boolean)
-                )
-            elif prop.type in ('spatial', 'image'):
-                # TODO: these property types currently are not implemented
-                columns.append(
-                    sa.Column(prop_name, sa.Text)
-                )
-            elif prop.type == 'ref':
-                columns.extend(
-                    self.get_foreign_key(self.obj, prop)
-                )
-            elif prop.type == 'backref':
-                pass
-            elif prop.type == 'generic':
-                pass
-            else:
-                self.error(f"Unknown property type {prop.type}.")
+    # Create main table.
+    main_table_name = get_table_name(backend, model.manifest.name, model.name, MAIN_TABLE)
+    main_table = sa.Table(
+        main_table_name, backend.schema,
+        sa.Column('_transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
+        *columns,
+    )
 
-        # Create main table.
-        main_table_name = get_table_name(self.backend, self.ns, self.obj.name, MAIN_TABLE)
-        main_table = sa.Table(
-            main_table_name, self.backend.schema,
-            sa.Column('_transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
-            *columns,
+    # Create changes table.
+    changes_table_name = get_table_name(backend, model.manifest.name, model.name, CHANGES_TABLE)
+    changes_table = get_changes_table(backend, changes_table_name, sa.Integer)
+
+    backend.tables[model.manifest.name][model.name] = ModelTables(main_table, changes_table)
+
+
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, prop: Property):
+    return prepare(context, backend, prop.type)
+
+
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, type: Type):
+    if type.prop.name == 'id':
+        if type.name == 'integer':
+            return sa.Column(type.prop.name, BIGINT, primary_key=True)
+        else:
+            context.error(f"Unsuported type {type.prop.name!r} for primary key.")
+    elif type.name == 'type':
+        return
+    elif type.name == 'string':
+        return sa.Column(type.prop.name, sa.Text)
+    elif type.name == 'date':
+        return sa.Column(type.prop.name, sa.Date)
+    elif type.name == 'datetime':
+        return sa.Column(type.prop.name, sa.DateTime)
+    elif type.name == 'integer':
+        return sa.Column(type.prop.name, sa.Integer)
+    elif type.name == 'number':
+        return sa.Column(type.prop.name, sa.Float)
+    elif type.name == 'boolean':
+        return sa.Column(type.prop.name, sa.Boolean)
+    elif type.name in ('spatial', 'image'):
+        # TODO: these property types currently are not implemented
+        return sa.Column(type.prop.name, sa.Text)
+    elif type.name == 'ref':
+        return _get_foreign_key(backend, type.prop.parent, type.prop)
+    elif type.name == 'backref':
+        return
+    elif type.name == 'generic':
+        return
+    elif type.name == 'array':
+        return
+    else:
+        raise Exception(
+            f"Unknown property type {type.name} for {type.prop.name} property "
+            f"of {type.prop.parent.name} model in {type.prop.path}."
         )
 
-        # Create changes table.
-        changes_table_name = get_table_name(self.backend, self.ns, self.obj.name, CHANGES_TABLE)
-        changes_table = get_changes_table(self.backend, self.obj, self.ns, changes_table_name, sa.Integer)
 
-        self.backend.tables[self.ns][self.obj.name] = ModelTables(main_table, changes_table)
+@error.register()
+def error(exc: Exception, context: Context, backend: PostgreSQL, type: Type):
+    error(exc, context, type)
 
-    def get_foreign_key(self, model, prop):
-        ref_model = self.store.objects[self.ns]['model'][prop.object]
-        table_name = get_table_name(self.backend, self.ns, ref_model.name)
-        pkey_name = ref_model.get_primary_key().name
-        return [
-            sa.Column(prop.name, sa.Integer),
-            sa.ForeignKeyConstraint(
-                [prop.name], [f'{table_name}.{pkey_name}'],
-                name=self.get_pg_name(f'fk_{model.name}_{prop.name}'),
-            )
-        ]
 
-    def get_pg_name(self, name):
-        if len(name) > NAMEDATALEN:
-            name_hash = hashlib.sha256(name.encode()).hexdigest()
-            return name[:NAMEDATALEN - 7] + '_' + name_hash[-6:]
-        else:
-            return name
+@error.register()
+def error(exc: Exception, context: Context, model: Model, backend: PostgreSQL):
+    error(exc, context, model)
+
+
+def _get_foreign_key(backend: PostgreSQL, model: Model, prop: Property):
+    ref_model = model.manifest.objects['model'][prop.object]
+    table_name = get_table_name(backend, ref_model.manifest.name, ref_model.name)
+    pkey_name = ref_model.get_primary_key().name
+    return [
+        sa.Column(prop.name, sa.Integer),
+        sa.ForeignKeyConstraint(
+            [prop.name], [f'{table_name}.{pkey_name}'],
+            name=_get_pg_name(f'fk_{model.name}_{prop.name}'),
+        )
+    ]
+
+
+def _get_pg_name(name):
+    if len(name) > NAMEDATALEN:
+        name_hash = hashlib.sha256(name.encode()).hexdigest()
+        return name[:NAMEDATALEN - 7] + '_' + name_hash[-6:]
+    else:
+        return name
 
 
 class ModelTables(typing.NamedTuple):
-    main: sa.Table
+    main: sa.Table = None
     changes: sa.Table = None
+    cache: sa.Table = None
 
 
-class Migrate(Command):
-    metadata = {
-        'name': 'backend.migrate',
-        'type': 'manifest',
-        'backend': 'postgresql',
-    }
-
-    def execute(self):
-        self.backend.schema.create_all(checkfirst=True)
+@migrate.register()
+def migrate(context: Context, backend: PostgreSQL):
+    backend.schema.create_all(checkfirst=True)
 
 
-class CheckModel(Command):
-    metadata = {
-        'name': 'check',
-        'type': 'model',
-        'backend': 'postgresql',
-    }
+@check.register()
+def check(context: Context, model: Model, backend: PostgreSQL, data: dict):
+    connection = context.get('transaction').connection
+    table = backend.tables[model.manifest.name][model.name].main
+    action = 'update' if 'id' in data else 'insert'
 
-    def execute(self):
-        connection = self.args.transaction.connection
-        data = self.args.data
-        table = self.backend.tables[self.ns][self.obj.name].main
-        action = 'update' if 'id' in data else 'insert'
+    for name, prop in model.properties.items():
+        if prop.required and name not in data:
+            raise Exception(f"{name!r} is required for {model}.")
 
-        for name, prop in self.obj.properties.items():
-            if prop.required and name not in data:
-                raise Exception(f"{name!r} is required for {self.obj}.")
-
-            if prop.unique and prop.name in data:
-                if action == 'update':
-                    condition = sa.and_(
-                        table.c[prop.name] == data[prop.name],
-                        table.c['id'] != data['id'],
-                    )
-                else:
-                    condition = table.c[prop.name] == data[prop.name]
-                na = object()
-                result = self.backend.get(connection, table.c[prop.name], condition, default=na)
-                if result is not na:
-                    raise Exception(f"{name!r} is unique for {self.obj} and a duplicate value is found in database.")
-
-
-class Push(Command):
-    metadata = {
-        'name': 'push',
-        'type': 'model',
-        'backend': 'postgresql',
-    }
-
-    def execute(self):
-        transaction = self.args.transaction
-        connection = transaction.connection
-        data = self.args.data
-        table = self.backend.tables[self.ns][self.obj.name]
-
-        # Update existing row.
-        if 'id' in data:
-            action = UPDATE_ACTION
-            result = connection.execute(
-                table.main.update().
-                where(table.main.c.id == data['id']).
-                values(data)
-            )
-            if result.rowcount == 1:
-                row_id = data['id']
-            elif result.rowcount == 0:
-                raise Exception("Update failed, {self.obj} with {data['id']} not found.")
+        if prop.unique and prop.name in data:
+            if action == 'update':
+                condition = sa.and_(
+                    table.c[prop.name] == data[prop.name],
+                    table.c['id'] != data['id'],
+                )
             else:
-                raise Exception("Update failed, {self.obj} with {data['id']} has found and update {result.rowcount} rows.")
-
-        # Insert new row.
-        else:
-            action = INSERT_ACTION
-            result = connection.execute(
-                table.main.insert().values(data),
-            )
-            row_id = result.inserted_primary_key[0]
-
-        # Track changes.
-        connection.execute(
-            table.changes.insert().values(
-                transaction_id=transaction.id,
-                id=row_id,
-                datetime=utcnow(),
-                action=action,
-                change={k: v for k, v in data.items() if k not in {'id'}},
-            ),
-        )
-
-        return row_id
+                condition = table.c[prop.name] == data[prop.name]
+            na = object()
+            result = backend.get(connection, table.c[prop.name], condition, default=na)
+            if result is not na:
+                raise Exception(f"{name!r} is unique for {model} and a duplicate value is found in database.")
 
 
-class Get(Command):
-    metadata = {
-        'name': 'get',
-        'type': 'model',
-        'backend': 'postgresql',
+@push.register()
+def push(context: Context, model: Model, backend: PostgreSQL, data: dict):
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    table = backend.tables[model.manifest.name][model.name]
+
+    data = {
+        k: v for k, v in data.items() if k in table.main.columns
     }
 
-    def execute(self):
-        connection = self.args.transaction.connection
-        table = self.backend.tables[self.ns][self.obj.name].main
-        result = self.backend.get(connection, table, table.c.id == self.args.id)
-        return {k: v for k, v in result.items() if not k.startswith('_')}
-
-
-class GetAll(Command):
-    metadata = {
-        'name': 'getall',
-        'type': 'model',
-        'backend': 'postgresql',
-    }
-
-    def execute(self):
-        connection = self.args.transaction.connection
-        table = self.backend.tables[self.ns][self.obj.name].main
-
+    # Update existing row.
+    if 'id' in data:
+        action = UPDATE_ACTION
         result = connection.execute(
-            sa.select([table])
+            table.main.update().
+            where(table.main.c.id == data['id']).
+            values(data)
         )
+        if result.rowcount == 1:
+            row_id = data['id']
+        elif result.rowcount == 0:
+            raise Exception("Update failed, {self.obj} with {data['id']} not found.")
+        else:
+            raise Exception("Update failed, {self.obj} with {data['id']} has found and update {result.rowcount} rows.")
 
-        for row in result:
-            yield {k: v for k, v in row.items() if not k.startswith('_')}
+    # Insert new row.
+    else:
+        action = INSERT_ACTION
+        result = connection.execute(
+            table.main.insert().values(data),
+        )
+        row_id = result.inserted_primary_key[0]
+
+    # Track changes.
+    connection.execute(
+        table.changes.insert().values(
+            transaction_id=transaction.id,
+            id=row_id,
+            datetime=utcnow(),
+            action=action,
+            change={k: v for k, v in data.items() if k not in {'id'}},
+        ),
+    )
+
+    return row_id
 
 
-class Wipe(Command):
-    metadata = {
-        'name': 'wipe',
-        'type': 'model',
-        'backend': 'postgresql',
-    }
+@get.register()
+def get(context: Context, model: Model, backend: PostgreSQL, id: int):
+    connection = context.get('transaction').connection
+    table = backend.tables[model.manifest.name][model.name].main
+    result = backend.get(connection, table, table.c.id == id)
+    result = {k: v for k, v in result.items() if not k.startswith('_')}
+    result['type'] = model.name
+    return result
 
-    def execute(self):
-        connection = self.args.transaction.connection
 
-        changes = self.backend.tables[self.ns][self.obj.name].changes
-        connection.execute(changes.delete())
+@getall.register()
+def getall(context: Context, model: Model, backend: PostgreSQL):
+    connection = context.get('transaction').connection
+    table = backend.tables[model.manifest.name][model.name].main
+    result = connection.execute(sa.select([table]))
+    for row in result:
+        yield {k: v for k, v in row.items() if not k.startswith('_')}
 
-        main = self.backend.tables[self.ns][self.obj.name].main
-        connection.execute(main.delete())
+
+@wipe.register()
+def wipe(context: Context, model: Model, backend: PostgreSQL):
+    connection = context.get('transaction').connection
+
+    changes = backend.tables[model.manifest.name][model.name].changes
+    connection.execute(changes.delete())
+
+    main = backend.tables[model.manifest.name][model.name].main
+    connection.execute(main.delete())
 
 
 class utcnow(FunctionElement):
@@ -384,14 +348,14 @@ def pg_utcnow(element, compiler, **kw):
     return "TIMEZONE('utc', CURRENT_TIMESTAMP)"
 
 
-def get_table_name(backend, ns, name, table_type=MAIN_TABLE):
+def get_table_name(backend: PostgreSQL, manifest: str, name: str, table_type=MAIN_TABLE):
     assert isinstance(table_type, str)
     assert len(table_type) == 1
     assert table_type.isupper()
 
     # Table name construction depends on internal tables, so we must construct
     # internal table names differently.
-    if ns == 'internal':
+    if manifest == 'internal':
         if table_type == MAIN_TABLE:
             return name
         else:
@@ -413,7 +377,7 @@ def get_table_name(backend, ns, name, table_type=MAIN_TABLE):
     return f"{name}_{table_id:04d}{table_type}"
 
 
-def get_changes_table(backend, obj, ns, table_name, id_type):
+def get_changes_table(backend, table_name, id_type):
     table = sa.Table(
         table_name, backend.schema,
         sa.Column('change_id', BIGINT, primary_key=True),

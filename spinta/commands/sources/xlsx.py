@@ -2,55 +2,55 @@ from itertools import islice, chain
 
 import xlrd
 
-from spinta.commands import Command
+from spinta.commands import command
+from spinta.components import Context
+from spinta.types.dataset import Model, Property
+from spinta.fetcher import fetch
 
 
-class XlsxDataset(Command):
-    metadata = {
-        'name': 'xlsx',
-        'type': 'dataset.model',
-    }
+@command()
+def read_xlsx():
+    pass
 
-    def execute(self):
-        skip = self.args.args.get('skip', None)
-        limit = self.args.args.get('limit', None)
 
-        http = self.store.components.get('protocols.http')
-        with http.open(self.args.url) as f:
-            rows = read_excel(f.name)
-            if skip:
-                if isinstance(skip, dict):
-                    value = set(skip['value']) if isinstance(skip['value'], list) else {skip['value']}
-                    for row in rows:
-                        if len(row) > skip['column'] and row[skip['column']] in skip['value']:
-                            break
-                    else:
-                        self.error(f"Can't find header line: {skip!r}")
-                    rows = chain([row], rows)
-                else:
-                    rows = islice(rows, skip, None)
-            cols = {i: x.strip() for i, x in enumerate(next(rows, []))}
-            if limit:
-                rows = islice(rows, 0, limit)
+@read_xlsx.register()
+def read_xlsx(
+    context: Context, model: Model, *,
+    source=str,
+    dependency: dict,
+    skip: str = None,
+    limit: int = None,
+):
+    path = fetch(context, source)
+    rows = _read_xlsx(str(path))
+    if skip:
+        if isinstance(skip, dict):
+            value = set(skip['value']) if isinstance(skip['value'], list) else {skip['value']}
             for row in rows:
-                data = {}
-                for i, value in enumerate(row):
-                    if i in cols:
-                        data[cols[i]] = value
-                yield data
+                if len(row) > skip['column'] and row[skip['column']] in skip['value']:
+                    break
+            else:
+                context.error(f"Can't find header line: {skip!r}")
+            rows = chain([row], rows)
+        else:
+            rows = islice(rows, skip, None)
+    cols = {i: x.strip() for i, x in enumerate(next(rows, []))}
+    if limit:
+        rows = islice(rows, 0, limit)
+    for row in rows:
+        data = {}
+        for i, value in enumerate(row):
+            if i in cols:
+                data[cols[i]] = value
+        yield data
 
 
-class XlsxDatasetProperty(Command):
-    metadata = {
-        'name': 'xlsx',
-        'type': 'dataset.property',
-    }
-
-    def execute(self):
-        return self.args.value.get(self.args.source)
+@read_xlsx.register()
+def read_xlsx(context: Context, prop: Property, *, source: str, value: dict):
+    return value.get(source)
 
 
-def read_excel(filename):
+def _read_xlsx(filename):
     wb = xlrd.open_workbook(filename)
     ws = wb.sheet_by_index(0)
 

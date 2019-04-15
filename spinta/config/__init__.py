@@ -4,14 +4,66 @@ import pathlib
 
 
 CONFIG = {
+    'commands': {
+        'modules': [
+            'spinta.commands',
+            'spinta.config.commands',
+            'spinta.manifest.commands',
+            'spinta.types.commands',
+        ],
+        'source': {
+            'csv': 'spinta.commands.sources.csv:read_csv',
+            'html': 'spinta.commands.sources.html:read_html',
+            'json': 'spinta.commands.sources.json:read_json',
+            'url': 'spinta.commands.sources.url:read_url',
+            'xlsx': 'spinta.commands.sources.xlsx:read_xlsx',
+            'xml': 'spinta.commands.sources.xml:read_xml',
+        },
+        'service': {
+            'range': 'spinta.commands.helpers:range_',
+        },
+    },
+    'components': {
+        'nodes': {
+            'model': 'spinta.components:Model',
+            'project': 'spinta.types.project:Project',
+            'dataset': 'spinta.types.dataset:Dataset',
+            'owner': 'spinta.types.owner:Owner',
+        },
+        'types': {
+            'integer': 'spinta.types.type:Integer',
+            'any': 'spinta.types.type:Type',
+            'pk': 'spinta.types.type:PrimaryKey',
+            'date': 'spinta.types.type:Date',
+            'datetime': 'spinta.types.type:DateTime',
+            'string': 'spinta.types.type:String',
+            'integer': 'spinta.types.type:Integer',
+            'number': 'spinta.types.type:Number',
+            'boolean': 'spinta.types.type:Boolean',
+            'url': 'spinta.types.type:URL',
+            'image': 'spinta.types.type:Image',
+            'spatial': 'spinta.types.type:Spatial',
+            'ref': 'spinta.types.type:Ref',
+            'backref': 'spinta.types.type:BackRef',
+            'generic': 'spinta.types.type:Generic',
+            'array': 'spinta.types.type:Array',
+        },
+    },
+    'exporters': {
+        'ascii': 'spinta.commands.formats.ascii:Ascii',
+        'csv': 'spinta.commands.formats.csv:Csv',
+        'json': 'spinta.commands.formats.json:Json',
+        'jsonl': 'spinta.commands.formats.jsonl:JsonLines',
+    },
     'backends': {
         'default': {
-            'type': 'postgresql',
+            'backend': 'spinta.backends.postgresql:PostgreSQL',
             'dsn': 'postgresql:///spinta',
         },
     },
     'manifests': {
         'default': {
+            'backend': 'default',
             'path': pathlib.Path(),
         },
     },
