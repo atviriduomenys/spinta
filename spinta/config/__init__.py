@@ -24,6 +24,10 @@ CONFIG = {
         },
     },
     'components': {
+        'backends': {
+            'postgresql': 'spinta.backends.postgresql:PostgreSQL',
+            'mongo': 'spinta.backends.mongo:Mongo',
+        },
         'nodes': {
             'model': 'spinta.components:Model',
             'project': 'spinta.types.project:Project',

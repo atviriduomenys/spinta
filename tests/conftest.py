@@ -101,6 +101,10 @@ def context(postgresql):
                 'backend': 'spinta.backends.postgresql:PostgreSQL',
                 'dsn': postgresql,
             },
+            'mongo': {
+                'backend': 'spinta.backends.mongo:Mongo',
+                'dsn': 'mongodb://',
+            },
         },
         'manifests': {
             'default': {
