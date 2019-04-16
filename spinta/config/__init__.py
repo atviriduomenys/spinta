@@ -61,6 +61,12 @@ CONFIG = {
         'default': {
             'backend': 'spinta.backends.postgresql:PostgreSQL',
             'dsn': 'postgresql:///spinta',
+            'dbName': 'spinta',
+        },
+        'mongo': {
+            'backend': 'spinta.backends.mongo:Mongo',
+            'dsn': 'mongodb:///',
+            'dbName': 'spinta',
         },
     },
     'manifests': {

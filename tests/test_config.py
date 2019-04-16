@@ -9,8 +9,9 @@ from spinta.config import update_config_from_env_file
 def test_update_config_from_cli():
     assert update_config_from_cli(CONFIG, ['backends.default.backend=psycopg2'])['backends']['default']['backend'] == 'psycopg2'
     assert update_config_from_cli(CONFIG, ['backends.new.backend=psycopg2'])['backends'] == {
-        'default': {'backend': 'spinta.backends.postgresql:PostgreSQL', 'dsn': 'postgresql:///spinta'},
-        'new': {'backend': 'psycopg2', 'dsn': 'postgresql:///spinta'},
+        'default': {'backend': 'spinta.backends.postgresql:PostgreSQL', 'dbName': 'spinta', 'dsn': 'postgresql:///spinta'},
+        'mongo': {'backend': 'spinta.backends.mongo:Mongo', 'dbName': 'spinta', 'dsn': 'mongodb:///'},
+        'new': {'backend': 'psycopg2', 'dbName': 'spinta', 'dsn': 'postgresql:///spinta'},
     }
 
 
@@ -33,8 +34,9 @@ def test_update_config_from_env():
         'SPINTA_BACKENDS': 'default,new',
         'SPINTA_BACKENDS_NEW_BACKEND': 'psycopg2',
     })['backends'] == {
-        'default': {'backend': 'spinta.backends.postgresql:PostgreSQL', 'dsn': 'postgresql:///spinta'},
-        'new': {'backend': 'psycopg2', 'dsn': 'postgresql:///spinta'},
+        'default': {'backend': 'spinta.backends.postgresql:PostgreSQL', 'dbName': 'spinta', 'dsn': 'postgresql:///spinta'},
+        'mongo': {'backend': 'spinta.backends.mongo:Mongo', 'dbName': 'spinta', 'dsn': 'mongodb:///'},
+        'new': {'backend': 'psycopg2', 'dbName': 'spinta', 'dsn': 'postgresql:///spinta'},
     }
 
 
@@ -48,6 +50,7 @@ def test_update_config_from_env_file(tmpdir):
         'SPINTA_BACKENDS_NEW_BACKEND=bar\n',
     )
     assert update_config_from_env_file(CONFIG, str(envfile))['backends'] == {
-        'default': {'dsn': 'postgresql:///spinta', 'backend': 'foo'},
-        'new': {'dsn': 'postgresql:///spinta', 'backend': 'bar'},
+        'default': {'dsn': 'postgresql:///spinta', 'dbName': 'spinta', 'backend': 'foo'},
+        'mongo': {'backend': 'spinta.backends.mongo:Mongo', 'dbName': 'spinta', 'dsn': 'mongodb:///'},
+        'new': {'dsn': 'postgresql:///spinta', 'dbName': 'spinta', 'backend': 'bar'},
     }
