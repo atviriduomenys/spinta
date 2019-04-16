@@ -1,5 +1,5 @@
 .PHONY: env
-env: env/.done requirements.txt
+env: .env env/.done requirements.txt
 
 env/bin/pip:
 	python3.7 -m venv env
@@ -17,6 +17,10 @@ requirements-dev.txt: env/bin/pip-compile requirements.in requirements-dev.in
 
 requirements.txt: env/bin/pip-compile requirements.in
 	env/bin/pip-compile --no-index requirements.in -o requirements.txt
+
+.env: .env.example
+	cp -n .env.example .env
+	touch .env
 
 .PHONY: upgrade
 upgrade: env/bin/pip-compile

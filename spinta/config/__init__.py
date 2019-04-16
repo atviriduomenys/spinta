@@ -6,10 +6,8 @@ import pathlib
 CONFIG = {
     'commands': {
         'modules': [
-            'spinta.commands',
-            'spinta.config.commands',
-            'spinta.manifest.commands',
-            'spinta.types.commands',
+            'spinta.types',
+            'spinta.backends',
         ],
         'source': {
             'csv': 'spinta.commands.sources.csv:read_csv',

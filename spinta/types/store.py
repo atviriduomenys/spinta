@@ -10,7 +10,7 @@ from spinta.components import Context, Store, Config, Manifest
 
 
 @load.register()
-def load(context: Context, store: Store, config: Config):
+def load(context: Context, store: Store, config: Config) -> Store:
     """Load backends and manifests from configuration."""
 
     store.config = config
@@ -40,6 +40,8 @@ def load(context: Context, store: Store, config: Config):
             'backend': 'default',
             **manifest,
         })
+
+    return store
 
 
 @check.register()

@@ -3,11 +3,8 @@ from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scanner import ScannerError
 
 from spinta.utils.path import is_ignored
-from spinta.commands import load, prepare, migrate, check
-from spinta.types.project import Project
-from spinta.types.dataset import Dataset
-from spinta.types.owner import Owner
-from spinta.components import Context, Manifest, Model
+from spinta.commands import load, prepare, check
+from spinta.components import Context, Manifest
 
 yaml = YAML(typ='safe')
 
@@ -35,6 +32,12 @@ def load(context: Context, manifest: Manifest, manifest_conf: dict):
             context.error(f"{file}: {e}.")
         if not isinstance(data, dict):
             context.error(f"{file}: expected dict got {data.__class__.__name__}.")
+
+        if 'type' not in data:
+            raise Exception(f"'type' is not defined in {file}.")
+
+        if data['type'] not in config.components['nodes']:
+            raise Exception(f"Unknown type {data['type']!r} in {file}.")
 
         node = config.components['nodes'][data['type']]()
         data = {

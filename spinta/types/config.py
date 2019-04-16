@@ -4,7 +4,7 @@ from spinta.components import Context, Config, BackendConfig
 
 
 @load.register()
-def load(context: Context, config: Config, data: dict):
+def load(context: Context, config: Config, data: dict) -> Config:
 
     # Load commands.
     config.commands = {}
@@ -38,3 +38,5 @@ def load(context: Context, config: Config, data: dict):
     config.manifests = data['manifests']
     config.ignore = data.get('ignore', [])
     config.debug = data.get('debug', False)
+
+    return config

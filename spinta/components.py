@@ -10,14 +10,13 @@ class Context:
 
     def bind(self, name, creator, *args, **kwargs):
         self._factory[-1][name] = (creator, args, kwargs)
-        return self
 
     def set(self, name, value):
         if isinstance(value, contextlib.AbstractContextManager):
             self._context[-1][name] = self._exitstack[-1].enter_context(value)
         else:
             self._context[-1][name] = value
-        return self
+        return self._context[-1][name]
 
     def get(self, name):
         if name in self._context[-1]:

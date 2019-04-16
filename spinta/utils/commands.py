@@ -5,7 +5,10 @@ import pathlib
 def load_commands(modules):
     for module_path in modules:
         module = importlib.import_module(module_path)
-        path = pathlib.Path(module.__file__).parent
+        path = pathlib.Path(module.__file__).resolve()
+        if path.name != '__init__.py':
+            continue
+        path = path.parent
         base = path.parents[module_path.count('.')]
         for path in path.glob('**/*.py'):
             if path.name == '__init__.py':
