@@ -12,6 +12,12 @@ class Mongo(Backend):
     #
     # Backend also must have a `transaction` method which must return read or
     # write transaction object containing an active `connection` to database.
+    metadata = {
+        'name': 'mongo',
+        'properties': {
+            'dsn': {'type': 'string', 'required': True},
+        },
+    }
 
     @contextlib.contextmanager
     def transaction(self, write=False):
