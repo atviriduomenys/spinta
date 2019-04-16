@@ -1,18 +1,25 @@
-from spinta.api import app  # noqa
-from spinta.api import set_store
+from spinta.api import app, set_context
+from spinta.commands import load, prepare, check
+from spinta.components import Context, Config, Store
 from spinta.config import get_config
-from spinta.store import Store
+from spinta.utils.commands import load_commands
 
 
-config = get_config()
+CONFIG = get_config()
 
-store = Store()
-store.add_types()
-store.add_commands()
-store.configure(config)
-store.prepare(internal=True)
-store.prepare()
+load_commands(CONFIG['commands']['modules'])
 
-set_store(store)
+context = Context()
+config = context.set('config', Config())
+store = context.set('store', Store())
+
+load(context, config, CONFIG)
+load(context, store, config)
+check(context, store)
+
+prepare(context, store.internal)
+prepare(context, store)
+
+set_context(context)
 
 app.debug = store.config.debug

@@ -2,23 +2,30 @@ import pathlib
 
 import click
 
-from spinta.store import Store, get_model_from_params
 from spinta.config import get_config
+from spinta.utils.commands import load_commands
+from spinta.components import Context, Config, Store
+from spinta import commands
 
 
 @click.group()
 @click.option('--option', '-o', multiple=True, help='Set configuration option, example: `-o option.name=value`.')
 @click.pass_context
 def main(ctx, option):
-    config = get_config(option)
+    CONFIG = get_config()
 
-    store = Store()
-    store.add_types()
-    store.add_commands()
-    store.configure(config)
+    load_commands(CONFIG['commands']['modules'])
+
+    context = Context()
+    config = context.set('config', Config())
+    store = context.set('store', Store())
+
+    commands.load(context, config, CONFIG)
+    commands.load(context, store, config)
+    commands.check(context, store)
 
     ctx.ensure_object(dict)
-    ctx.obj['store'] = store
+    ctx.obj['context'] = context
 
 
 @main.command()
@@ -30,11 +37,13 @@ def check(ctx):
 @main.command()
 @click.pass_context
 def migrate(ctx):
-    store = ctx.obj['store']
-    store.prepare(internal=True)
-    store.migrate(internal=True)
-    store.prepare()
-    store.migrate()
+    context = ctx.obj['context']
+    store = context.get('store')
+
+    commands.prepare(context, store.internal)
+    commands.migrate(context, store)
+    commands.prepare(context, store)
+    commands.migrate(context, store)
 
 
 @main.command(help='Pull data from an external dataset.')
@@ -44,49 +53,57 @@ def migrate(ctx):
 @click.option('--export', '-e', help="Export pulled data to a file or stdout. For stdout use 'stdout:<fmt>', where <fmt> can be 'csv' or other supported format.")
 @click.pass_context
 def pull(ctx, source, model, push, export):
-    store = ctx.obj['store']
-    store.prepare(internal=True)
-    store.prepare()
+    context = ctx.obj['context']
+    store = context.get('store')
 
-    result = store.pull(source, {'models': model, 'push': push})
+    commands.prepare(context, store.internal)
+    commands.prepare(context, store)
 
-    if export is None and push is False:
-        export = 'stdout'
+    dataset = store.manifests['default'].objects['dataset'][source]
 
-    if export:
-        formats = {
-            'csv': 'csv',
-            'json': 'json',
-            'jsonl': 'jsonl',
-            'asciitable': 'asciitable',
-        }
+    with context.enter():
+        context.bind('transaction', store.backends['default'].transaction, write=push)
 
-        path = None
+        result = commands.pull(context, dataset, models=model)
+        result = commands.push(context, store, result) if push else result
 
-        if export == 'stdout':
-            fmt = 'asciitable'
-        elif export.startswith('stdout:'):
-            fmt = export.split(':', 1)[1]
-        else:
-            path = pathlib.Path(export)
-            fmt = export.suffix.strip('.')
+        if export is None and push is False:
+            export = 'stdout'
 
-        if fmt not in formats:
-            raise click.UsageError(f"unknown export file type {fmt!r}")
+        if export:
+            formats = {
+                'csv': 'csv',
+                'json': 'json',
+                'jsonl': 'jsonl',
+                'asciitable': 'asciitable',
+            }
 
-        chunks = store.export(result, fmt)
+            path = None
 
-        if path is None:
-            for chunk in chunks:
-                print(chunk, end='')
-        else:
-            with export.open('wb') as f:
+            if export == 'stdout':
+                fmt = 'asciitable'
+            elif export.startswith('stdout:'):
+                fmt = export.split(':', 1)[1]
+            else:
+                path = pathlib.Path(export)
+                fmt = export.suffix.strip('.')
+
+            if fmt not in formats:
+                raise click.UsageError(f"unknown export file type {fmt!r}")
+
+            chunks = store.export(result, fmt)
+
+            if path is None:
                 for chunk in chunks:
-                    f.write(chunk)
+                    print(chunk, end='')
+            else:
+                with export.open('wb') as f:
+                    for chunk in chunks:
+                        f.write(chunk)
 
 
 @main.command()
 @click.pass_context
 def run(ctx):
     import spinta.api
-    spinta.api.run(ctx.obj['store'])
+    spinta.api.run(ctx.obj['context'])
