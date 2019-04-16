@@ -19,7 +19,7 @@ requirements.txt: env/bin/pip-compile requirements.in
 	env/bin/pip-compile --no-index requirements.in -o requirements.txt
 
 .env: .env.example
-	cp -n .env.example .env
+	cp -n .env.example .env | true
 	touch .env
 
 .PHONY: upgrade
