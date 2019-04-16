@@ -4,7 +4,7 @@ services:
     db:
         image: postgres:11.2-alpine
         ports:
-            - "5432"
+            - "54321:5432"
         environment:
             - POSTGRES_DB=spinta
             - POSTGRES_USER=admin
