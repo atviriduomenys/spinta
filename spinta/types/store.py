@@ -65,7 +65,6 @@ def migrate(context: Context, store: Store):
 
 @push.register()
 def push(context: Context, store: Store, stream: types.GeneratorType):
-    backend = store.backends['default']
     manifest = store.manifests['default']
     client_supplied_ids = ClientSuppliedIDs()
     for data in stream:
@@ -74,8 +73,8 @@ def push(context: Context, store: Store, stream: types.GeneratorType):
         assert model_name is not None, data
         model = get_model_by_name(manifest, model_name)
         client_id = client_supplied_ids.replace(model_name, data)
-        check(context, model, backend, data)
-        inserted_id = push(context, model, backend, data)
+        check(context, model, model.backend, data)
+        inserted_id = push(context, model, model.backend, data)
         if inserted_id is not None:
             yield client_supplied_ids.update(client_id, {
                 **data,
