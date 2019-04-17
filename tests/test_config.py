@@ -1,41 +1,49 @@
 import pytest
 
-from spinta.config import CONFIG
-from spinta.config import update_config_from_cli
-from spinta.config import update_config_from_env
-from spinta.config import update_config_from_env_file
+from spinta.config import Config
+
+
+def test_udpate_config():
+    config = Config()
+    config.add({
+        'components': {
+            'nodes': {
+                'new': 'component',
+            },
+        },
+        'manifests': {
+            'new': {
+                'path': 'here',
+            },
+        },
+    })
+
+    assert config.get('components', 'nodes', 'new') == 'component'
+    assert config.get('manifests', 'new', 'path') == 'here'
+    assert config.get('manifests', cast=list) == ['default', 'new']
 
 
 def test_update_config_from_cli():
-    assert update_config_from_cli(CONFIG, ['backends.default.backend=psycopg2'])['backends']['default']['backend'] == 'psycopg2'
-    assert update_config_from_cli(CONFIG, ['backends.new.backend=psycopg2'])['backends'] == {
-        'default': {'backend': 'spinta.backends.postgresql:PostgreSQL', 'dsn': 'postgresql:///spinta'},
-        'new': {'backend': 'psycopg2', 'dsn': 'postgresql:///spinta'},
-    }
-
-
-def test_update_config_from_cli_unknown_option_error():
-    with pytest.raises(Exception) as e:
-        update_config_from_cli(CONFIG, ['unknown=1'])
-    assert str(e.value) == "Unknown configuration option 'unknown'."
-
-    with pytest.raises(Exception) as e:
-        update_config_from_cli(CONFIG, ['nested.param.unknown=1'])
-    assert str(e.value) == "Unknown configuration option 'nested.param.unknown'."
+    config = Config()
+    config.add_cli_args([
+        'backends.default.backend=psycopg2',
+        'backends.new.backend=psycopg2',
+    ])
+    assert config.get('backends', 'default', 'backend') == 'psycopg2'
+    assert config.get('backends', 'new', 'backend') == 'psycopg2'
+    assert config.get('backends', cast=list) == ['default', 'new']
 
 
 def test_update_config_from_env():
-    assert update_config_from_env(CONFIG, {
-        'SPINTA_BACKENDS_DEFAULT_BACKEND': 'psycopg2',
-    })['backends']['default']['backend'] == 'psycopg2'
-
-    assert update_config_from_env(CONFIG, {
+    config = Config()
+    config.set_env({
         'SPINTA_BACKENDS': 'default,new',
+        'SPINTA_BACKENDS_DEFAULT_BACKEND': 'psycopg2',
         'SPINTA_BACKENDS_NEW_BACKEND': 'psycopg2',
-    })['backends'] == {
-        'default': {'backend': 'spinta.backends.postgresql:PostgreSQL', 'dsn': 'postgresql:///spinta'},
-        'new': {'backend': 'psycopg2', 'dsn': 'postgresql:///spinta'},
-    }
+    })
+    assert config.get('backends', 'default', 'backend') == 'psycopg2'
+    assert config.get('backends', 'new', 'backend') == 'psycopg2'
+    assert config.get('backends', cast=list) == ['default', 'new']
 
 
 def test_update_config_from_env_file(tmpdir):
@@ -43,11 +51,13 @@ def test_update_config_from_env_file(tmpdir):
     envfile.write(
         '# comment line\n'
         '\n'
+        'SPINTA_BACKENDS=default,new\n'
         'SPINTA_BACKENDS_DEFAULT_BACKEND=foo\n'
-        'SPINTA_BACKENDS=new\n'
         'SPINTA_BACKENDS_NEW_BACKEND=bar\n',
     )
-    assert update_config_from_env_file(CONFIG, str(envfile))['backends'] == {
-        'default': {'dsn': 'postgresql:///spinta', 'backend': 'foo'},
-        'new': {'dsn': 'postgresql:///spinta', 'backend': 'bar'},
-    }
+
+    config = Config()
+    config.add_env_file(str(envfile))
+    assert config.get('backends', 'default', 'backend') == 'foo'
+    assert config.get('backends', 'new', 'backend') == 'bar'
+    assert config.get('backends', cast=list) == ['default', 'new']
