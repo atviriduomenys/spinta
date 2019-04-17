@@ -20,6 +20,7 @@ def test_app(app):
             ('deeply', '/deeply'),
             ('nested', '/nested'),
             ('org', '/org'),
+            ('report', '/report'),
             ('rinkimai', '/rinkimai'),
             ('tenure', '/tenure'),
         ],
