@@ -107,3 +107,6 @@ def getall(context: Context, model: Model, backend: Mongo):
 def wipe(context: Context, model: Model, backend: Mongo):
     transaction = context.get('transaction')
     # Delete all data for a given model
+    db = backend.engine[backend.db_name]
+    model_collection = db[model.get_type_value()]
+    return model_collection.delete_many({})
