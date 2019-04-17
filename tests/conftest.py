@@ -4,6 +4,7 @@ import os
 import pathlib
 import typing
 
+import pymongo
 import pytest
 import sqlalchemy_utils as su
 from responses import RequestsMock
@@ -81,7 +82,7 @@ class ContextForTests(Context):
 
 
 @pytest.fixture
-def context(postgresql):
+def context(postgresql, mongo):
     context = ContextForTests()
     config = Config()
     store = Store()
@@ -100,10 +101,12 @@ def context(postgresql):
             'default': {
                 'backend': 'spinta.backends.postgresql:PostgreSQL',
                 'dsn': postgresql,
+                'dbName': 'spinta_test',
             },
             'mongo': {
                 'backend': 'spinta.backends.mongo:Mongo',
-                'dsn': 'mongodb://',
+                'dsn': mongo,
+                'dbName': 'spinta_test',
             },
         },
         'manifests': {
@@ -159,6 +162,14 @@ def postgresql():
         su.create_database(dsn)
         yield dsn
         su.drop_database(dsn)
+
+
+@pytest.fixture(scope='session')
+def mongo():
+    dsn = os.environ['SPINTA_TEST_MONGO_DSN']
+    yield dsn
+    client = pymongo.MongoClient(dsn)
+    client.drop_database('spinta_test')
 
 
 @pytest.fixture
