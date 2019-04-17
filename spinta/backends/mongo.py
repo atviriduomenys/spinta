@@ -1,5 +1,8 @@
 import contextlib
 
+import pymongo
+from bson.objectid import ObjectId
+
 from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe
 from spinta.components import Context, BackendConfig, Manifest, Model
 from spinta.backends import Backend
@@ -49,7 +52,8 @@ def load(context: Context, backend: Mongo, config: BackendConfig):
     # Load Mongo client using configuration.
     backend.name = config.name
     backend.db_name = config.db_name
-    backend.engine = pymongo.MongoClient(config.dsn)
+    backend.client = pymongo.MongoClient(config.dsn)
+    backend.db = backend.client[backend.db_name]
 
 
 @prepare.register()
@@ -83,8 +87,7 @@ def push(context: Context, model: Model, backend: Mongo, data: dict):
     # Also this command must write information to changelog after change is
     # done.
     transaction = context.get('transaction')
-    db = backend.engine[backend.db_name]
-    model_collection = db[model.get_type_value()]
+    model_collection = backend.db[model.get_type_value()]
     data_id = model_collection.insert_one(data).inserted_id
     return data_id
 
@@ -92,8 +95,7 @@ def push(context: Context, model: Model, backend: Mongo, data: dict):
 @get.register()
 def get(context: Context, model: Model, backend: Mongo, id: ObjectId):
     transaction = context.get('transaction')
-    db = backend.engine[backend.db_name]
-    model_collection = db[model.get_type_value()]
+    model_collection = backend.db[model.get_type_value()]
     return model_collection.find_one({"_id": ObjectId(id)})
 
 
@@ -107,6 +109,5 @@ def getall(context: Context, model: Model, backend: Mongo):
 def wipe(context: Context, model: Model, backend: Mongo):
     transaction = context.get('transaction')
     # Delete all data for a given model
-    db = backend.engine[backend.db_name]
-    model_collection = db[model.get_type_value()]
+    model_collection = backend.db[model.get_type_value()]
     return model_collection.delete_many({})
