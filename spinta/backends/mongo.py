@@ -46,13 +46,15 @@ class WriteTransaction(ReadTransaction):
 
 @load.register()
 def load(context: Context, backend: Mongo, config: BackendConfig):
-    # Load Mongo component from configuration.
-    pass
+    # Load Mongo client using configuration.
+    backend.name = config.name
+    backend.db_name = config.db_name
+    backend.engine = pymongo.MongoClient(config.dsn)
 
 
 @prepare.register()
 def prepare(context: Context, backend: Mongo, manifest: Manifest):
-    # Prepare Mongo component using model declarations from Manifest (YAML files)
+    # Mongo does not need any table or database preparations
     pass
 
 
