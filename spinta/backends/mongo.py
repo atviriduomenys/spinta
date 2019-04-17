@@ -103,6 +103,8 @@ def get(context: Context, model: Model, backend: Mongo, id: ObjectId):
 def getall(context: Context, model: Model, backend: Mongo):
     transaction = context.get('transaction')
     # Yield all available entries.
+    model_collection = backend.db[model.get_type_value()]
+    return model_collection.find({})
 
 
 @wipe.register()
