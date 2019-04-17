@@ -83,13 +83,18 @@ def push(context: Context, model: Model, backend: Mongo, data: dict):
     # Also this command must write information to changelog after change is
     # done.
     transaction = context.get('transaction')
-    return id
+    db = backend.engine[backend.db_name]
+    model_collection = db[model.get_type_value()]
+    data_id = model_collection.insert_one(data).inserted_id
+    return data_id
 
 
 @get.register()
-def get(context: Context, model: Model, backend: Mongo, id: int):
-    # Return single entry by given `id`.
+def get(context: Context, model: Model, backend: Mongo, id: ObjectId):
     transaction = context.get('transaction')
+    db = backend.engine[backend.db_name]
+    model_collection = db[model.get_type_value()]
+    return model_collection.find_one({"_id": ObjectId(id)})
 
 
 @getall.register()
