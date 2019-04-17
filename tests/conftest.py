@@ -137,7 +137,7 @@ def context(postgresql):
         for name in models:
             context.wipe(name)
 
-    # Datasets does not have foreign kei constraints, so there is no need to
+    # Datasets does not have foreign key constraints, so there is no need to
     # topologically sort them. At least for now.
     for dataset in store.manifests['default'].objects['dataset'].values():
         for model in dataset.objects.values():
