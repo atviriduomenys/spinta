@@ -33,8 +33,16 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
 
 @load.register()
 def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
-    prop = load_node(context, prop, data, manifest)
+    prop = load_node(context, prop, data, manifest, check_unknowns=False)
     prop.type = load_type(context, prop, data)
+
+    # Check if there any unknown params were given.
+    known_params = set(prop.schema.keys()) | set(prop.type.schema.keys())
+    given_params = set(data.keys())
+    unknown_params = given_params - known_params
+    if unknown_params:
+        raise Exception("Unknown prams: %s" % ', '.join(map(repr, sorted(unknown_params))))
+
     return prop
 
 

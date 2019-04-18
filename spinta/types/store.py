@@ -1,11 +1,12 @@
 import inspect
 import importlib
 import pathlib
+import time
 import types
 
 import pkg_resources as pres
 
-from spinta.commands import load, prepare, migrate, check, push
+from spinta.commands import load, wait, prepare, migrate, check, push
 from spinta.components import Context, Store, Manifest
 from spinta.utils.imports import importstr
 from spinta.config import Config
@@ -30,7 +31,10 @@ def load(context: Context, store: Store, config: Config) -> Store:
     internal = store.internal = Manifest()
     internal.name = 'internal'
     internal.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
-    internal.backend = 'default'
+    internal_backend_name = config.get('manifests', 'default', 'backend', required=True)
+    internal.backend = config.get('backends', internal_backend_name, 'backend', cast=importstr, required=True)()
+    internal.backend.name = internal_backend_name
+    load(context, internal.backend, config)
     load(context, internal, config)
 
     # Load manifests
@@ -46,6 +50,20 @@ def load(context: Context, store: Store, config: Config) -> Store:
         raise Exception("'default' manifest must be set in the configuration.")
 
     return store
+
+
+@wait.register()
+def wait(context: Context, store: Store, config: Config):
+    # Wait while all backends are up.
+    seconds = config.get('wait', cast=int, required=True)
+    for backend in store.backends.values():
+        for i in range(1, seconds + 1):
+            if wait(context, backend, config):
+                break
+            time.sleep(1)
+            print(f"Waiting for {backend.name!r} backend %s..." % i)
+        else:
+            wait(context, backend, config, fail=True)
 
 
 @check.register()
