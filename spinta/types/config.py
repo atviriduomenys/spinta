@@ -34,6 +34,7 @@ def load(context: Context, config: Config, data: dict) -> Config:
         bconf.Backend = importstr(backend['backend'])
         bconf.name = name
         bconf.dsn = backend['dsn']
+        bconf.db_name = backend['dbName']
 
     config.manifests = data['manifests']
     config.ignore = data.get('ignore', [])

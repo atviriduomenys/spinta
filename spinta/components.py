@@ -73,6 +73,7 @@ class BackendConfig:
         self.Backend = None
         self.name = None
         self.dsn = None
+        self.db_name = None
 
 
 class Store:
