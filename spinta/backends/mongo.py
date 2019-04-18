@@ -1,4 +1,5 @@
 import contextlib
+import copy
 
 import pymongo
 from bson.objectid import ObjectId
@@ -88,7 +89,23 @@ def push(context: Context, model: Model, backend: Mongo, data: dict):
     # done.
     transaction = context.get('transaction')
     model_collection = backend.db[model.get_type_value()]
-    data_id = model_collection.insert_one(data).inserted_id
+
+    # Make a copy of data, because `pymongo` changes the reference `data`
+    # object on `insert_one()` call.
+    #
+    # We want to have our data intact from whatever specific mongo metadata
+    # MongoDB may add to our object.
+    raw_data = copy.deepcopy(data)
+
+    if 'id' in data:
+        result = model_collection.update_one(
+            {'_id': raw_data['id']},
+            {'$set': raw_data}
+        )
+        assert result.matched_count == 1 and result.modified_count == 1
+        data_id = data['id']
+    else:
+        data_id = model_collection.insert_one(raw_data).inserted_id
     return data_id
 
 
