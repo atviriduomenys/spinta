@@ -4,6 +4,4 @@
 /env/
 /.env
 /.dockerignore
-/postgres-data/
-/mongo-data/
 tags
