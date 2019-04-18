@@ -1,5 +1,4 @@
-import copy
-import os
+import collections
 import pathlib
 
 
@@ -74,115 +73,106 @@ CONFIG = {
     'debug': False,
 }
 
-TEMPLATES = {
-    ('backends',): 'default',
-    ('manifests',): 'default',
-}
+
+class Config:
+
+    def __init__(self):
+        self._config = {
+            'cliargs': {},
+            'environ': {},
+            'envfile': {},
+            'default': {},
+        }
+        self.add(CONFIG)
+
+    def add(self, config):
+        self._config['default'].update(_traverse(config))
+        self._config['default'].update(_get_inner_keys(self._config['default']))
+
+    def add_cli_args(self, args):
+        for arg in args:
+            name, value = arg.split('=', 1)
+            key = tuple(name.split('.'))
+            self._config['cliargs'][key] = value
+        self._config['cliargs'].update(_get_inner_keys(self._config['cliargs']))
+
+    def add_env_file(self, path):
+        if isinstance(path, str):
+            path = pathlib.Path(path)
+
+        if not path.exists():
+            return
+
+        with path.open() as f:
+            for line in f:
+                if line.startswith('#'):
+                    continue
+                line = line.strip()
+                if line == '':
+                    continue
+                if '=' not in line:
+                    continue
+                name, value = line.split('=', 1)
+                self._config['envfile'][name] = value
+
+    def set_env(self, environ):
+        self._config['environ'] = environ
+
+    def get(self, *key, default=None, cast=None, env=True, required=False):
+        value = self._get_config_value(key, default, env)
+
+        if cast is not None:
+            if cast is list and isinstance(value, str):
+                value = value.split(',')
+            elif value is not None:
+                value = cast(value)
+
+        if required and not value:
+            raise Exception("'%s' is a required configuration option." % '.'.join(key))
+
+        return value
+
+    def keys(self, *key, **kwargs):
+        return self.get(*key, cast=list, **kwargs)
+
+    def _get_config_value(self, key: tuple, default, env):
+
+        # 1. Get value from comman line arguments.
+        if key in self._config['cliargs']:
+            return self._config['cliargs'][key]
+
+        # Auto-generate environment variable name.
+        if env is True:
+            env = 'SPINTA_' + '_'.join(key).upper()
+
+        # 2. Get value from environment.
+        if env and env in self._config['environ']:
+            return self._config['environ'][env]
+
+        # 3. Get value from env file.
+        if env and env in self._config['envfile']:
+            return self._config['envfile'][env]
+
+        # 4. Get value from default configs.
+        if key in self._config['default']:
+            return self._config['default'][key]
+
+        return default
 
 
-def get_config(options=None):
-    config = copy.deepcopy(CONFIG)
-    envfile = pathlib.Path('.env')
-    if envfile.exists():
-        config = update_config_from_env_file(config, envfile)
-    config = update_config_from_env(config, os.environ)
-    if options is not None:
-        config = update_config_from_cli(config, options)
-    return config
-
-
-def update_config(config, options):
-    config = copy.deepcopy(config)
-    for keys, value in options:
-        path = ()
-        this = config
-        for key in keys[:-1]:
-            if isinstance(this, dict):
-                if key in this:
-                    this = this[key]
-                elif path in TEMPLATES:
-                    this[key] = get_copy_by_path(CONFIG, path + (TEMPLATES[path],))
-                    this = this[key]
-            else:
-                name = '.'.join(keys)
-                raise Exception(f"Unknown configuration option {name!r}.")
-
-            path += (key,)
-
-        key = keys[-1]
-        if key in this:
-            Type = type(this[key])
-            if Type is bool:
-                value = value in ('on', 'true', 'yes', '1')
-            else:
-                value = Type(value)
-            this[key] = value
-        else:
-            name = '.'.join(keys)
-            raise Exception(f"Unknown configuration option {name!r}.")
-    return config
-
-
-def update_config_from_cli(config, options):
-    options = (o.split('=', 1) for o in options)
-    options = ((k.split('.'), v) for k, v in options)
-    return update_config(config, options)
-
-
-def update_config_from_env(config, env):
-    options = get_options_from_env(CONFIG, env)
-    for path, template in TEMPLATES.items():
-        name = '_'.join(['SPINTA'] + [p.upper() for p in path])
-        if name in env:
-            for key in env[name].split(','):
-                _config = get_by_path(CONFIG, path + (template,))
-                options += get_options_from_env(_config, env, path + (key,))
-    return update_config(config, options)
-
-
-def update_config_from_env_file(config, path: str):
-    env = {}
-    with pathlib.Path(path).open() as f:
-        for line in f:
-            if line.startswith('#'):
-                continue
-            line = line.strip()
-            if line == '':
-                continue
-            if '=' not in line:
-                continue
-            name, value = line.split('=', 1)
-            env[name] = value
-    return update_config_from_env(config, env)
-
-
-def get_options_from_env(config, env, base=()):
-    options = []
-    for path, v in traverse(config):
-        name = '_'.join(['SPINTA'] + [p.upper() for p in base + path])
-        if name in env:
-            options.append((base + path, env[name]))
-    return options
-
-
-def get_by_path(config, path):
-    this = config
-    for key in path:
-        if isinstance(this, dict) and key in this:
-            this = this[key]
-        else:
-            path = '.'.join(path)
-            raise Exception(f"Unknow configuration parameter {path!r}.")
-    return this
-
-
-def get_copy_by_path(config, path):
-    return copy.deepcopy(get_by_path(config, path))
-
-
-def traverse(value, path=()):
+def _traverse(value, path=()):
     if isinstance(value, dict):
         for k, v in value.items():
-            yield from traverse(v, path + (k,))
+            yield from _traverse(v, path + (k,))
     else:
         yield path, value
+
+
+def _get_inner_keys(value):
+    inner = collections.defaultdict(list)
+    for key in value.keys():
+        for i in range(1, len(key)):
+            k = tuple(key[:i])
+            if key[i] not in inner[k]:
+                inner[k].append(key[i])
+    return inner

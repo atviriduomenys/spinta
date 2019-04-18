@@ -1,27 +1,32 @@
+import os
 import pathlib
 
 import click
 
-from spinta.config import get_config
+from spinta.config import Config
 from spinta.utils.commands import load_commands
-from spinta.components import Context, Config, Store
+from spinta.components import Context, Store
 from spinta import commands
+from spinta import components
 
 
 @click.group()
 @click.option('--option', '-o', multiple=True, help='Set configuration option, example: `-o option.name=value`.')
 @click.pass_context
 def main(ctx, option):
-    CONFIG = get_config()
+    c = Config()
+    c.set_env(os.environ)
+    c.add_env_file('.env')
+    c.add_cli_args(option)
 
-    load_commands(CONFIG['commands']['modules'])
+    load_commands(c.get('commands', 'modules', cast=list))
 
     context = Context()
-    config = context.set('config', Config())
+    config = context.set('config', components.Config())
     store = context.set('store', Store())
 
-    commands.load(context, config, CONFIG)
-    commands.load(context, store, config)
+    commands.load(context, config, c)
+    commands.load(context, store, c)
     commands.check(context, store)
 
     ctx.ensure_object(dict)

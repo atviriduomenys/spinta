@@ -5,25 +5,18 @@ from ruamel.yaml.scanner import ScannerError
 from spinta.utils.path import is_ignored
 from spinta.commands import load, prepare, check
 from spinta.components import Context, Manifest
+from spinta.config import Config
 
 yaml = YAML(typ='safe')
 
 
-class Path:
-    metadata = {
-        'name': 'path',
-    }
-
-
 @load.register()
-def load(context: Context, manifest: Manifest, manifest_conf: dict):
-    store = context.get('store')
+def load(context: Context, manifest: Manifest, c: Config):
     config = context.get('config')
-    manifest.name = manifest_conf['name']
-    manifest.path = manifest_conf['path']
-    manifest.backend = store.backends[manifest_conf['backend']]
+    ignore = c.get('ignore', default=[], cast=list)
+
     for file in manifest.path.glob('**/*.yml'):
-        if is_ignored(config.ignore, manifest_conf['path'], file):
+        if is_ignored(ignore, manifest.path, file):
             continue
 
         try:
