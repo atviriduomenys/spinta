@@ -21,6 +21,7 @@ class Mongo(Backend):
         'name': 'mongo',
         'properties': {
             'dsn': {'type': 'string', 'required': True},
+            'db': {'type': 'string', 'required': True},
         },
     }
 
@@ -53,10 +54,10 @@ class WriteTransaction(ReadTransaction):
 def load(context: Context, backend: Mongo, config: Config):
     # Load Mongo client using configuration.
     backend.dsn = config.get('backends', backend.name, 'dsn', required=True)
-    backend.db_name = config.get('backends', backend.name, 'dbName', required=True)
+    backend.db = config.get('backends', backend.name, 'db', required=True)
 
     backend.client = pymongo.MongoClient(backend.dsn)
-    backend.db = backend.client[backend.db_name]
+    backend.db = backend.client[backend.db]
 
 
 @prepare.register()

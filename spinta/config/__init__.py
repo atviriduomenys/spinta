@@ -64,7 +64,7 @@ CONFIG = {
         'mongo': {
             'backend': 'spinta.backends.mongo:Mongo',
             'dsn': 'mongodb:///',
-            'dbName': 'spinta',
+            'db': 'spinta',
         },
     },
     'manifests': {
