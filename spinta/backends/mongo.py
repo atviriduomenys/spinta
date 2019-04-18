@@ -4,9 +4,10 @@ import copy
 import pymongo
 from bson.objectid import ObjectId
 
-from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe
-from spinta.components import Context, BackendConfig, Manifest, Model
 from spinta.backends import Backend
+from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe
+from spinta.components import Context, Manifest, Model
+from spinta.config import Config
 
 
 class Mongo(Backend):
@@ -49,11 +50,12 @@ class WriteTransaction(ReadTransaction):
 
 
 @load.register()
-def load(context: Context, backend: Mongo, config: BackendConfig):
+def load(context: Context, backend: Mongo, config: Config):
     # Load Mongo client using configuration.
-    backend.name = config.name
-    backend.db_name = config.db_name
-    backend.client = pymongo.MongoClient(config.dsn)
+    backend.dsn = config.get('backends', backend.name, 'dsn', required=True)
+    backend.db_name = config.get('backends', backend.name, 'dbName', required=True)
+
+    backend.client = pymongo.MongoClient(backend.dsn)
     backend.db = backend.client[backend.db_name]
 
 
