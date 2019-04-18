@@ -66,11 +66,6 @@ CONFIG = {
             'backend': 'spinta.backends.postgresql:PostgreSQL',
             'dsn': 'postgresql:///spinta',
         },
-        'mongo': {
-            'backend': 'spinta.backends.mongo:Mongo',
-            'dsn': 'mongodb:///',
-            'db': 'spinta',
-        },
     },
     'manifests': {
         'default': {
@@ -89,19 +84,37 @@ CONFIG = {
     # How much time to wait in seconds for the backends to go up.
     'wait': 30,
 
-    'env': None,
+    'env': 'dev',
 
     'environments': {
+        'dev': {
+            'mongo': {
+                'backend': 'spinta.backends.mongo:Mongo',
+                'dsn': 'mongodb:///',
+                'db': 'spinta',
+            },
+            'manifests': {
+                'default': {
+                    'backend': 'default',
+                    'path': pathlib.Path() / 'tests/manifest',
+                },
+            },
+        },
         'test': {
             'backends': {
-                'test_postgresql': {
+                'default': {
                     'backend': 'spinta.backends.postgresql:PostgreSQL',
                     'dsn': 'postgresql:///spinta_tests',
+                },
+                'mongo': {
+                    'backend': 'spinta.backends.mongo:Mongo',
+                    'dsn': 'mongodb://admin:admin123@localhost:27017/',
+                    'db': 'spinta_test',
                 },
             },
             'manifests': {
                 'default': {
-                    'backend': 'test_postgresql',
+                    'backend': 'default',
                     'path': pathlib.Path() / 'tests/manifest',
                 },
             },

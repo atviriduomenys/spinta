@@ -24,17 +24,11 @@ def load(context: Context, store: Store, config: Config) -> Store:
         backend.name = name
         load(context, backend, config)
 
-    if 'default' not in store.backends:
-        raise Exception("'default' backend must be set in the configuration.")
-
     # Load intrnal manifest.
     internal = store.internal = Manifest()
     internal.name = 'internal'
     internal.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
-    internal_backend_name = config.get('manifests', 'default', 'backend', required=True)
-    internal.backend = config.get('backends', internal_backend_name, 'backend', cast=importstr, required=True)()
-    internal.backend.name = internal_backend_name
-    load(context, internal.backend, config)
+    internal.backend = store.backends['default']
     load(context, internal, config)
 
     # Load manifests

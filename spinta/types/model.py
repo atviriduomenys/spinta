@@ -65,3 +65,8 @@ def error(exc: Exception, context: Context, model: Model):
         'exc': exc,
         'model': model,
     }))
+
+
+@error.register()
+def error(exc: Exception, context: Context, model: Model, data: dict, manifest: Manifest):
+    error(exc, context, model)

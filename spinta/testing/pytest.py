@@ -28,21 +28,22 @@ def config():
 
 @pytest.fixture(scope='session')
 def postgresql(config):
-    dsn = config.get('backends', 'test_postgresql', 'dsn', required=True)
+    dsn = config.get('backends', 'default', 'dsn', required=True)
     if su.database_exists(dsn):
-        yield
+        yield dsn
     else:
         su.create_database(dsn)
-        yield
+        yield dsn
         su.drop_database(dsn)
 
 
 @pytest.fixture(scope='session')
-def mongo():
-    dsn = os.environ['SPINTA_TEST_MONGO_DSN']
-    yield dsn
+def mongo(config):
+    yield
+    dsn = config.get('backends', 'mongo', 'dsn', required=True)
+    db = config.get('backends', 'mongo', 'db', required=True)
     client = pymongo.MongoClient(dsn)
-    client.drop_database('spinta_test')
+    client.drop_database(db)
 
 
 @pytest.fixture

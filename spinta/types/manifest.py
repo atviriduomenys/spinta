@@ -40,7 +40,7 @@ def load(context: Context, manifest: Manifest, c: Config):
         data = {
             'path': file,
             'parent': manifest,
-            'backend': 'default',
+            'backend': manifest.backend,
             **data,
         }
         load(context, node, data, manifest)

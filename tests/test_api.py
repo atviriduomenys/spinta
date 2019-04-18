@@ -61,8 +61,9 @@ def test_directory(app):
 
 def test_dataset(context, app):
     store = context.get('store')
+    manifest = store.manifests['default']
     with context.enter():
-        context.bind('transaction', store.backends['default'].transaction, write=True)
+        context.bind('transaction', manifest.backend.transaction, write=True)
         consume(push(context, store, [
             {
                 'type': 'rinkimai/:source/json',
@@ -103,8 +104,9 @@ def test_dataset(context, app):
 
 def test_nested_dataset(context, app):
     store = context.get('store')
+    manifest = store.manifests['default']
     with context.enter():
-        context.bind('transaction', store.backends['default'].transaction, write=True)
+        context.bind('transaction', manifest.backend.transaction, write=True)
         consume(push(context, store, [
             {
                 'type': 'deeply/nested/model/name/:source/nested/dataset/name',
@@ -148,8 +150,9 @@ def test_nested_dataset(context, app):
 
 def test_dataset_key(context, app):
     store = context.get('store')
+    manifest = store.manifests['default']
     with context.enter():
-        context.bind('transaction', store.backends['default'].transaction, write=True)
+        context.bind('transaction', manifest.backend.transaction, write=True)
         consume(push(context, store, [
             {
                 'type': 'rinkimai/:source/json',
@@ -196,8 +199,9 @@ def test_changes_single_object(context, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
     store = context.get('store')
+    manifest = store.manifests['default']
     with context.enter():
-        context.bind('transaction', store.backends['default'].transaction, write=True)
+        context.bind('transaction', manifest.backend.transaction, write=True)
         consume(push(context, store, [
             {
                 'type': 'rinkimai/:source/json',
@@ -267,8 +271,9 @@ def test_changes_object_list(context, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
     store = context.get('store')
+    manifest = store.manifests['default']
     with context.enter():
-        context.bind('transaction', store.backends['default'].transaction, write=True)
+        context.bind('transaction', manifest.backend.transaction, write=True)
         consume(push(context, store, [
             {
                 'type': 'rinkimai/:source/json',
@@ -335,8 +340,9 @@ def test_changes_object_list(context, app, mocker):
 
 def test_count(context, app):
     store = context.get('store')
+    manifest = store.manifests['default']
     with context.enter():
-        context.bind('transaction', store.backends['default'].transaction, write=True)
+        context.bind('transaction', manifest.backend.transaction, write=True)
         consume(push(context, store, [
             {
                 'type': 'rinkimai/:source/json',
