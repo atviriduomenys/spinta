@@ -1,6 +1,7 @@
 import collections
 import os
 
+import pymongo
 import pytest
 import sqlalchemy_utils as su
 from responses import RequestsMock
@@ -15,7 +16,7 @@ from spinta.testing.context import ContextForTests
 
 
 @pytest.fixture
-def context(config, postgresql):
+def context(config, postgresql, mongo):
     context = ContextForTests()
 
     context.set('config', Config())
@@ -67,6 +68,14 @@ def postgresql():
         su.create_database(dsn)
         yield dsn
         su.drop_database(dsn)
+
+
+@pytest.fixture(scope='session')
+def mongo():
+    dsn = os.environ['SPINTA_TEST_MONGO_DSN']
+    yield dsn
+    client = pymongo.MongoClient(dsn)
+    client.drop_database('spinta_test')
 
 
 @pytest.fixture

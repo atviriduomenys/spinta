@@ -11,7 +11,7 @@ pytest_plugins = [
 
 
 @pytest.fixture(scope='session')
-def config(postgresql):
+def config(postgresql, mongo):
     config = Config()
 
     # Add default configuration for tests.
@@ -23,6 +23,11 @@ def config(postgresql):
             'default': {
                 'backend': 'spinta.backends.postgresql:PostgreSQL',
                 'dsn': postgresql,
+            },
+            'mongo': {
+                'backend': 'spinta.backends.mongo:Mongo',
+                'dsn': mongo,
+                'dbName': 'spinta_test',
             },
         },
         'manifests': {

@@ -4,9 +4,10 @@ python: 3.7
 
 services:
   - postgresql
+  - mongodb
 
 env:
-  - SPINTA_TEST_DATABASE=postgresql://localhost/spinta
+  - SPINTA_TEST_DATABASE=postgresql://localhost/spinta SPINTA_TEST_MONGO_DSN=mongodb://localhost/
 
 install:
   - pip install -r requirements-dev.txt -e .

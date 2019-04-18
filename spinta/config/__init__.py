@@ -21,6 +21,10 @@ CONFIG = {
         },
     },
     'components': {
+        'backends': {
+            'postgresql': 'spinta.backends.postgresql:PostgreSQL',
+            'mongo': 'spinta.backends.mongo:Mongo',
+        },
         'nodes': {
             'model': 'spinta.components:Model',
             'project': 'spinta.types.project:Project',
@@ -56,6 +60,11 @@ CONFIG = {
         'default': {
             'backend': 'spinta.backends.postgresql:PostgreSQL',
             'dsn': 'postgresql:///spinta',
+        },
+        'mongo': {
+            'backend': 'spinta.backends.mongo:Mongo',
+            'dsn': 'mongodb:///',
+            'db': 'spinta',
         },
     },
     'manifests': {

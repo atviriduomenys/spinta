@@ -1,0 +1,11 @@
+---
+type: model
+name: report
+backend: mongo
+title: "Report"
+version: 1
+date: "2019-04-17"
+properties:
+  id: {type: integer}
+  report_type: {type: string}
+  status: {type: string}

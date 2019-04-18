@@ -1,4 +1,6 @@
 codecov
+ipdb
+ipython
 pp-ez
 pprintpp
 pytest

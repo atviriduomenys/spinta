@@ -4,5 +4,4 @@
 /env/
 /.env
 /.dockerignore
-/postgres-data/
 tags

@@ -6,6 +6,7 @@ lxml
 msgpack
 multipledispatch
 psycopg2-binary
+pymongo
 requests
 ruamel.yaml
 setuptools
