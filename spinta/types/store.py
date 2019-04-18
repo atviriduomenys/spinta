@@ -6,40 +6,44 @@ import types
 import pkg_resources as pres
 
 from spinta.commands import load, prepare, migrate, check, push
-from spinta.components import Context, Store, Config, Manifest
+from spinta.components import Context, Store, Manifest
+from spinta.utils.imports import importstr
+from spinta.config import Config
 
 
 @load.register()
 def load(context: Context, store: Store, config: Config) -> Store:
     """Load backends and manifests from configuration."""
 
-    store.config = config
+    # Load backends.
+    store.backends = {}
+    for name in config.keys('backends'):
+        Backend = config.get('backends', name, 'backend', cast=importstr)
+        backend = store.backends[name] = Backend()
+        backend.name = name
+        load(context, backend, config)
 
-    # Load backends
-    if 'default' not in config.backends:
+    if 'default' not in store.backends:
         raise Exception("'default' backend must be set in the configuration.")
-    for bconf in config.backends.values():
-        backend = store.backends[bconf.name] = bconf.Backend()
-        load(context, backend, bconf)
 
     # Load intrnal manifest.
     internal = store.internal = Manifest()
-    load(context, internal, {
-        'name': 'internal',
-        'path': pathlib.Path(pres.resource_filename('spinta', 'manifest')),
-        'backend': 'default',
-    })
+    internal.name = 'internal'
+    internal.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
+    internal.backend = 'default'
+    load(context, internal, config)
 
     # Load manifests
-    if 'default' not in config.manifests:
+    store.manifests = {}
+    for name in config.keys('manifests'):
+        manifest = store.manifests[name] = Manifest()
+        manifest.name = name
+        manifest.path = config.get('manifests', name, 'path', cast=pathlib.Path, required=True)
+        manifest.backend = store.backends[config.get('manifests', name, 'backend', required=True)]
+        load(context, manifest, config)
+
+    if 'default' not in store.manifests:
         raise Exception("'default' manifest must be set in the configuration.")
-    for name, manifest in config.manifests.items():
-        store.manifests[name] = Manifest()
-        load(context, store.manifests[name], {
-            'name': name,
-            'backend': 'default',
-            **manifest,
-        })
 
     return store
 

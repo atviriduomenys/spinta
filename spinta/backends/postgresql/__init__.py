@@ -12,9 +12,10 @@ from sqlalchemy.sql.expression import FunctionElement
 
 from spinta.types import NA
 from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, error
-from spinta.components import Context, BackendConfig, Manifest, Model, Property
+from spinta.components import Context, Manifest, Model, Property
 from spinta.backends import Backend
 from spinta.types.type import Type
+from spinta.config import Config
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -103,9 +104,9 @@ class WriteTransaction(ReadTransaction):
 
 
 @load.register()
-def load(context: Context, backend: PostgreSQL, config: BackendConfig):
-    backend.name = config.name
-    backend.engine = sa.create_engine(config.dsn, echo=False)
+def load(context: Context, backend: PostgreSQL, config: Config):
+    backend.dsn = config.get('backends', backend.name, 'dsn', required=True)
+    backend.engine = sa.create_engine(backend.dsn, echo=False)
     backend.schema = sa.MetaData(backend.engine)
     backend.tables = {}
 

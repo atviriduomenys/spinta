@@ -1,43 +1,38 @@
 from spinta.utils.imports import importstr
 from spinta.commands import load
-from spinta.components import Context, Config, BackendConfig
+from spinta.components import Context
+from spinta.config import Config
+from spinta import components
 
 
 @load.register()
-def load(context: Context, config: Config, data: dict) -> Config:
+def load(context: Context, config: components.Config, c: Config) -> Config:
 
     # Load commands.
     config.commands = {}
-    for scope, commands in data.get('commands', {}).items():
+    for scope in c.keys('commands'):
         if scope == 'modules':
             continue
         config.commands[scope] = {}
-        for name, command in commands.items():
-            config.commands[scope][name] = importstr(command)
+        for name in c.keys('commands', scope):
+            command = c.get('commands', scope, name, cast=importstr)
+            config.commands[scope][name] = command
 
     # Load components.
     config.components = {}
-    for group, components in data['components'].items():
+    for group in c.keys('components'):
         config.components[group] = {}
-        for name, component in components.items():
-            config.components[group][name] = importstr(component)
+        for name in c.keys('components', group):
+            component = c.get('components', group, name, cast=importstr)
+            config.components[group][name] = component
 
     # Load exporters.
     config.exporters = {}
-    for name, exporter in data['exporters'].items():
-        config.exporters[name] = importstr(exporter)()
+    for name in c.keys('exporters'):
+        exporter = c.get('exporters', name, cast=importstr)
+        config.exporters[name] = exporter()
 
-    # Load backends.
-    config.backends = {}
-    for name, backend in data['backends'].items():
-        bconf = config.backends[name] = BackendConfig()
-        bconf.Backend = importstr(backend['backend'])
-        bconf.name = name
-        bconf.dsn = backend['dsn']
-        bconf.db_name = backend['dbName']
-
-    config.manifests = data['manifests']
-    config.ignore = data.get('ignore', [])
-    config.debug = data.get('debug', False)
+    # Load everything else.
+    config.debug = c.get('debug', default=False)
 
     return config

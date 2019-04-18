@@ -67,15 +67,6 @@ class Config:
         self.debug = False
 
 
-class BackendConfig:
-
-    def __init__(self):
-        self.Backend = None
-        self.name = None
-        self.dsn = None
-        self.db_name = None
-
-
 class Store:
 
     def __init__(self):
