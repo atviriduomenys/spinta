@@ -1,7 +1,7 @@
 from spinta.components import Context, Manifest, Node
 
 
-def load_node(context: Context, node: Node, data: dict, manifest: Manifest) -> Node:
+def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, check_unknowns=True) -> Node:
     na = object()
     store = context.get('store')
     node.manifest = manifest
@@ -10,14 +10,17 @@ def load_node(context: Context, node: Node, data: dict, manifest: Manifest) -> N
     node.parent = data['parent']
     for name in set(node.schema) | set(data):
         if name not in node.schema:
-            _load_node_error(context, node, f"Unknown option {name!r}.")
+            if check_unknowns:
+                _load_node_error(context, node, f"Unknown option {name!r}.")
+            else:
+                continue
         schema = node.schema[name]
         value = data.get(name, na)
         if schema.get('inherit', False) and value is na:
-            if node.parent:
+            if node.parent and hasattr(node.parent, name):
                 value = getattr(node.parent, name)
             else:
-                value = getattr(manifest, name)
+                value = None
         if schema.get('required', False) and value is na:
             _load_node_error(context, node, f"Missing requied option {name!r}.")
         if schema.get('type') == 'backend' and isinstance(value, str):

@@ -42,7 +42,8 @@ async def homepage(request):
     with context.enter():
         config = context.get('config')
         store = context.get('store')
-        context.bind('transaction', store.backends['default'].transaction)
+        manifest = store.manifests['default']
+        context.bind('transaction', manifest.backend.transaction)
 
         if fmt == 'html':
             header = []
@@ -76,7 +77,7 @@ async def homepage(request):
             else:
                 datasets_by_object = get_datasets_by_object(context)
                 tree = build_path_tree(
-                    store.manifests['default'].objects.get('model', {}).keys(),
+                    manifest.objects.get('model', {}).keys(),
                     datasets_by_object.keys(),
                 )
                 items = get_directory_content(tree, path) if path in tree else []
@@ -100,7 +101,6 @@ async def homepage(request):
                     for data in exporter(rows, **params):
                         yield data
 
-            manifest = store.manifests['default']
             model = get_model_from_params(manifest, params['path'], params)
 
             if 'changes' in params:
@@ -238,9 +238,9 @@ def get_directory_datasets(datasets, path):
 
 def get_data(context, params):
     store = context.get('store')
-    backend = store.backends['default']
     manifest = store.manifests['default']
     model = get_model_from_params(manifest, params['path'], params)
+    backend = model.backend
     rows = getall(
         context, model, backend,
         show=params.get('show'),
@@ -269,9 +269,9 @@ def get_data(context, params):
 
 def get_row(context, params):
     store = context.get('store')
-    backend = store.backends['default']
     manifest = store.manifests['default']
     model = get_model_from_params(manifest, params['path'], params)
+    backend = model.backend
     row = get(context, model, backend, params['id']['value'])
     if row is None:
         raise HTTPException(status_code=404)
@@ -320,9 +320,9 @@ def get_cell(params, prop, value, shorten=False, color=None):
 
 def get_changes(context, params):
     store = context.get('store')
-    backend = store.backends['default']
     manifest = store.manifests['default']
     model = get_model_from_params(manifest, params['path'], params)
+    backend = model.backend
     rows = changes(
         context, model, backend,
         id=params.get('id', {}).get('value'),

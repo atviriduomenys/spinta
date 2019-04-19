@@ -35,6 +35,16 @@ def load():
 
 
 @command()
+def wait():
+    """Wait while all database backends are up.
+
+    Database backends are a separate services and once you start multiple
+    services at the same time, you need to make sure, that all the required
+    external services are up before running the app.
+    """
+
+
+@command()
 def dump():
     """Dump python-native objects to primitive data structures."""
 

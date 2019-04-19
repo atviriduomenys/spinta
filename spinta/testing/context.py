@@ -24,8 +24,7 @@ class ContextForTests(Context):
             yield self.get('transaction')
         else:
             with self.enter():
-                self.bind('transaction', store.backends['default'].transaction, write=write)
-                yield self.get('transaction')
+                yield self.set('transaction', store.manifests['default'].backend.transaction(write=write))
 
     def pull(self, dataset: str, *, models: list = None, push: bool = True):
         store = self.get('store')

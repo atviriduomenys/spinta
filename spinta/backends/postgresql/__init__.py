@@ -6,12 +6,13 @@ import typing
 
 import unidecode
 import sqlalchemy as sa
+import sqlalchemy.exc
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
 from spinta.types import NA
-from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, error
+from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, error
 from spinta.components import Context, Manifest, Model, Property
 from spinta.backends import Backend
 from spinta.types.type import Type
@@ -103,6 +104,23 @@ class WriteTransaction(ReadTransaction):
         self.errors = 0
 
 
+@wait.register()
+def wait(context: Context, backend: PostgreSQL, config: Config, *, fail: bool = False):
+    dsn = config.get('backends', backend.name, 'dsn', required=True)
+    engine = sa.create_engine(dsn, connect_args={'connect_timeout': 0})
+    try:
+        conn = engine.connect()
+    except sqlalchemy.exc.OperationalError:
+        if fail:
+            raise
+        else:
+            return False
+    else:
+        conn.close()
+        engine.dispose()
+        return True
+
+
 @load.register()
 def load(context: Context, backend: PostgreSQL, config: Config):
     backend.dsn = config.get('backends', backend.name, 'dsn', required=True)
@@ -163,8 +181,10 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
     if type.prop.name == 'id':
         if type.name == 'integer':
             return sa.Column(type.prop.name, BIGINT, primary_key=True)
+        elif type.name == 'pk':
+            return sa.Column(type.prop.name, BIGINT, primary_key=True)
         else:
-            context.error(f"Unsuported type {type.prop.name!r} for primary key.")
+            raise Exception(f"Unsuported type {type.name!r} for primary key.")
     elif type.name == 'type':
         return
     elif type.name == 'string':
@@ -190,11 +210,10 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
         return
     elif type.name == 'array':
         return
+    elif type.name == 'object':
+        return
     else:
-        raise Exception(
-            f"Unknown property type {type.name} for {type.prop.name} property "
-            f"of {type.prop.parent.name} model in {type.prop.path}."
-        )
+        raise Exception(f"Unknown property type {type.name!r}.")
 
 
 @error.register()

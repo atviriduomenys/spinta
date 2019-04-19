@@ -23,7 +23,7 @@ def test_changes(context):
     consume(context.push([{'id': data['id'], 'type': 'country', 'title': "Lietuva"}]))
     consume(context.push([{'id': data['id'], 'type': 'country', 'code': 'lv', 'title': "Latvia"}]))
 
-    backend = context.get('store').backends['default']
+    backend = context.get('store').manifests['default'].backend
     txn = backend.tables['internal']['transaction'].main
     changes = backend.tables['default']['country'].changes
     with backend.transaction() as transaction:

@@ -15,9 +15,7 @@ from spinta import components
 @click.pass_context
 def main(ctx, option):
     c = Config()
-    c.set_env(os.environ)
-    c.add_env_file('.env')
-    c.add_cli_args(option)
+    c.read(cli_args=option)
 
     load_commands(c.get('commands', 'modules', cast=list))
 
