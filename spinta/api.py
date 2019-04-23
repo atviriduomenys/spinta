@@ -10,11 +10,12 @@ from starlette.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 from starlette.responses import StreamingResponse
 
-from spinta.utils.url import parse_url_path, build_url_path
-from spinta.utils.tree import build_path_tree
-from spinta.types.store import get_model_from_params
+from spinta.commands import getall, get, changes, prepare
 from spinta.types import Type
-from spinta.commands import getall, get, changes
+from spinta.types.store import get_model_from_params
+from spinta.urlparams import UrlParams, Version
+from spinta.utils.tree import build_path_tree
+from spinta.utils.url import parse_url_path, build_url_path
 
 
 templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
@@ -34,12 +35,17 @@ async def homepage(request):
     global context
 
     url_path = request.path_params['path'].strip('/')
-    params = parse_url_path(url_path)
-    path = params['path']
 
-    fmt = params.get('format', 'html')
+    url_params = UrlParams()
+    url_params.path = url_path
 
     with context.enter():
+        url_params = prepare(context, url_params, Version())
+        params = url_params.params
+        path = url_params.path
+
+        fmt = params.get('format', 'html')
+
         config = context.get('config')
         store = context.get('store')
         context.bind('transaction', store.backends['default'].transaction)
