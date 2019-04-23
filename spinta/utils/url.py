@@ -141,7 +141,7 @@ def parse_url_path(path):
             raise Exception(f"Unknown URl parameter {name!r}.")
 
         maxargs = rules.get('maxargs')
-        minargs = rules.get('minargs', 0 if maxargs is 0 else 1)
+        minargs = rules.get('minargs', 0 if maxargs == 0 else 1)
         if len(value) < minargs:
             raise Exception(f"At least {minargs} argument is required for {name!r} URL parameter.")
 
