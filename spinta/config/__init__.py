@@ -7,6 +7,7 @@ CONFIG = {
         'modules': [
             'spinta.types',
             'spinta.backends',
+            'spinta.urlparams',
         ],
         'source': {
             'csv': 'spinta.commands.sources.csv:read_csv',
@@ -48,6 +49,12 @@ CONFIG = {
             'backref': 'spinta.types.type:BackRef',
             'generic': 'spinta.types.type:Generic',
             'array': 'spinta.types.type:Array',
+        },
+        'urlparams': {
+            'component': 'spinta.urlparams:UrlParams',
+            # 'versions': {
+            #     '1': 'spinta.urlparams:Version',
+            # },
         },
     },
     'exporters': {
