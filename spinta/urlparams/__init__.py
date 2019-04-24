@@ -14,6 +14,7 @@ class Version:
 
 
 @prepare.register()
-def prepare(context: Context, url_params: UrlParams, version: Version, *, path="") -> UrlParams:
+def prepare(context: Context, url_params: UrlParams, version: Version, *,
+            path="", method="", headers={}) -> UrlParams:
     url_params.params = parse_url_path(path)
     return url_params
