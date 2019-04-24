@@ -49,7 +49,7 @@ async def homepage(request):
 
         url_params = prepare(context, url_params, Version())
         params = url_params.params
-        path = url_params.path
+        path = params['path']
 
         fmt = params.get('format', 'html')
 
