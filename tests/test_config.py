@@ -96,7 +96,7 @@ def test_custom_config():
         'config': [f'{__name__}:_TEST_CONFIG'],
     })
     assert config.get('backends', 'custom', 'dsn') == 'config'
-    assert config.keys('backends') == ['default', 'custom']
+    assert config.keys('backends') == ['default', 'custom', 'mongo']
 
 
 def test_custom_config_fron_environ():
@@ -105,7 +105,7 @@ def test_custom_config_fron_environ():
         'SPINTA_CONFIG': f'{__name__}:_TEST_CONFIG',
     })
     assert config.get('backends', 'custom', 'dsn') == 'config'
-    assert config.keys('backends') == ['default', 'custom']
+    assert config.keys('backends') == ['default', 'custom', 'mongo']
 
 
 def test_remove_keys():
