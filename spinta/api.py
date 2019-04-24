@@ -44,10 +44,7 @@ async def homepage(request):
         # get UrlParams parser class from configs
         UrlParams = config.components['urlparams']['component']
 
-        url_params = UrlParams()
-        url_params.path = url_path
-
-        url_params = prepare(context, url_params, Version())
+        url_params = prepare(context, UrlParams(), Version(), path=url_path)
         params = url_params.params
         path = params['path']
 
