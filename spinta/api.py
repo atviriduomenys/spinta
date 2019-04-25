@@ -6,6 +6,7 @@ from starlette.templating import Jinja2Templates
 
 from spinta.commands import prepare
 from spinta.urlparams import Version
+from spinta.utils.response import create_http_response
 
 
 templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
@@ -14,44 +15,16 @@ app = Starlette()
 
 context = None
 
-COLORS = {
-    'change': '#B2E2AD',
-    'null': '#C1C1C1',
-}
 
-
-@app.route('/{path:path}')
+@app.route('/{path:path}', methods=['GET', 'POST'])
 async def homepage(request):
     global context
 
-    url_path = request.path_params['path'].strip('/')
-
     with context.enter():
         config = context.get('config')
-        store = context.get('store')
-        manifest = store.manifests['default']
-        context.bind('transaction', manifest.backend.transaction)
-
-        # get UrlParams parser class from configs
         UrlParams = config.components['urlparams']['component']
-
-        url_params = UrlParams(
-            path=url_path,
-            method=request.method,
-            headers=request.headers,
-        )
-
-        # parse url params using prepare command
-        url_params = prepare(context, url_params, Version())
-
-        # get UrlResponse class from config
-        UrlResponse = config.components['urlresponse']['component']
-        url_response = UrlResponse(url_params, request)
-
-        # get response using prepare command
-        url_response = prepare(context, url_response)
-
-        return url_response.response
+        params = prepare(context, UrlParams(), Version(), request)
+        return await create_http_response(context, params, request)
 
 
 def run(context):

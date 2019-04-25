@@ -3,6 +3,9 @@ import ujson as json
 
 class Json:
     content_type = 'application/json'
+    accept_types = {
+        'application/json',
+    }
     params = {
         'wrap': {'type': 'boolean'},
     }

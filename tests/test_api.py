@@ -5,7 +5,7 @@ from spinta.commands import push
 
 
 def test_app(app):
-    resp = app.get('/')
+    resp = app.get('/', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -33,7 +33,7 @@ def test_app(app):
 
 
 def test_directory(app):
-    resp = app.get('/rinkimai')
+    resp = app.get('/rinkimai', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -72,7 +72,7 @@ def test_dataset(context, app):
             },
         ]))
 
-    resp = app.get('/rinkimai/:source/json')
+    resp = app.get('/rinkimai/:source/json', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -115,7 +115,7 @@ def test_nested_dataset(context, app):
             },
         ]))
 
-    resp = app.get('deeply/nested/model/name/:source/nested/dataset/name')
+    resp = app.get('deeply/nested/model/name/:source/nested/dataset/name', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -161,7 +161,7 @@ def test_dataset_key(context, app):
             },
         ]))
 
-    resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json')
+    resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -217,7 +217,7 @@ def test_changes_single_object(context, app, mocker):
             },
         ]))
 
-    resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes')
+    resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -289,7 +289,7 @@ def test_changes_object_list(context, app, mocker):
             },
         ]))
 
-    resp = app.get('/rinkimai/:source/json/:changes')
+    resp = app.get('/rinkimai/:source/json/:changes', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -356,9 +356,29 @@ def test_count(context, app):
             },
         ]))
 
-    resp = app.get('/rinkimai/:source/json/:count')
+    resp = app.get('/rinkimai/:source/json/:count', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
     assert resp.context['header'] == ['count']
     assert resp.context['data'] == [[{'color': None, 'link': None, 'value': 2}]]
+
+
+def test_crud(context, app):
+    resp = app.post('/country', json={
+        'title': 'Earth',
+        'code': 'er',
+    })
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data == {'id': data['id'], 'type': 'country'}
+
+    id = data['id']
+    resp = app.get(f'/country/{id}')
+    assert resp.status_code == 200
+    assert resp.json() == {
+        'type': 'country',
+        'id': 1,
+        'code': 'er',
+        'title': 'Earth',
+    }

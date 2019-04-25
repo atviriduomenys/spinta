@@ -19,6 +19,9 @@ class IterableFile:
 
 class Csv:
     content_type = 'text/csv'
+    accept_types = {
+        'text/csv',
+    }
     params = {}
 
     def __call__(self, rows):

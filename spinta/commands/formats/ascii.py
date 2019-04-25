@@ -10,6 +10,9 @@ from spinta.utils.nestedstruct import flatten
 
 class Ascii:
     content_type = 'text/plain'
+    accept_types = {
+        'text/plain',
+    }
     params = {
         'width': {'type': 'integer'},
         'colwidth': {'type': 'integer'},

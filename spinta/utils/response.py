@@ -5,53 +5,53 @@ import operator
 import pkg_resources as pres
 
 from starlette.exceptions import HTTPException
+from starlette.responses import JSONResponse
 from starlette.responses import StreamingResponse
 from starlette.templating import Jinja2Templates
 
-from spinta.commands import getall, get, changes
+from spinta import commands
 from spinta.types import Type
 from spinta.types.store import get_model_from_params
 from spinta.utils.tree import build_path_tree
 from spinta.utils.url import build_url_path
 
 
-def create_http_response(url_params, context, request):
-    templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
-
-    params = url_params.params
-    path = params['path']
-    fmt = params.get('format', 'html')
-
+async def create_http_response(context, params, request):
     config = context.get('config')
+    _params = params.params
+    path = params.model
+
     store = context.get('store')
     manifest = store.manifests['default']
 
-    if fmt == 'html':
+    if params.format == 'html':
         header = []
         data = []
         formats = []
         items = []
         datasets = []
         row = []
-        loc = get_current_location(path, params)
+        loc = get_current_location(path, _params)
 
-        if 'source' in params:
+        context.bind('transaction', manifest.backend.transaction)
+
+        if params.dataset:
             formats = [
-                ('CSV', '/' + build_url_path({**params, 'format': 'csv'})),
-                ('JSON', '/' + build_url_path({**params, 'format': 'json'})),
-                ('JSONL', '/' + build_url_path({**params, 'format': 'jsonl'})),
-                ('ASCII', '/' + build_url_path({**params, 'format': 'asciitable'})),
+                ('CSV', '/' + build_url_path({**_params, 'format': 'csv'})),
+                ('JSON', '/' + build_url_path({**_params, 'format': 'json'})),
+                ('JSONL', '/' + build_url_path({**_params, 'format': 'jsonl'})),
+                ('ASCII', '/' + build_url_path({**_params, 'format': 'asciitable'})),
             ]
 
-            if 'changes' in params:
-                data = get_changes(context, params)
+            if params.changes:
+                data = get_changes(context, _params)
                 header = next(data)
                 data = list(reversed(list(data)))
             else:
-                if 'id' in params:
-                    row = list(get_row(context, params))
+                if params.id:
+                    row = list(get_row(context, _params))
                 else:
-                    data = get_data(context, params)
+                    data = get_data(context, _params)
                     header = next(data)
                     data = list(data)
 
@@ -64,6 +64,8 @@ def create_http_response(url_params, context, request):
             items = get_directory_content(tree, path) if path in tree else []
             datasets = list(get_directory_datasets(datasets_by_object, path))
 
+        templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
+
         return templates.TemplateResponse('base.html', {
             'request': request,
             'location': loc,
@@ -75,45 +77,60 @@ def create_http_response(url_params, context, request):
             'row': row,
         })
 
-    elif fmt in config.exporters:
-        async def stream(context, rows, exporter, params):
+    elif params.format in config.exporters:
+
+        async def stream(context, rows, exporter, _params):
             with context.enter():
                 context.bind('transaction', store.backends['default'].transaction)
-                for data in exporter(rows, **params):
+                for data in exporter(rows, **_params):
                     yield data
 
-        model = get_model_from_params(manifest, params['path'], params)
+        model = get_model_from_params(manifest, params.model, _params)
 
-        if 'changes' in params:
-            rows = changes(
-                context, model, model.backend,
-                id=params.get('id', {}).get('value'),
-                limit=params.get('limit', 100),
-                offset=params.get('changes', -10),
-            )
+        if request.method == 'POST':
+            context.bind('transaction', manifest.backend.transaction, write=True)
+            data = await request.json()
+            id = commands.push(context, model, model.backend, data)
+            data = {
+                'type': model.name,
+                'id': id,
+            }
+            return JSONResponse(data, status_code=201)
 
-        elif 'id' in params:
-            rows = [get(context, model, model.backend, params['id']['value'])]
-            params['wrap'] = False
+        context.bind('transaction', manifest.backend.transaction)
+
+        if params.changes:
+            with context.enter():
+                context.bind('transaction', manifest.backend.transaction)
+                rows = commands.changes(
+                    context, model, model.backend,
+                    id=_params.get('id', {}).get('value'),
+                    limit=_params.get('limit', 100),
+                    offset=_params.get('changes', -10),
+                )
+
+        elif params.id:
+            rows = [commands.get(context, model, model.backend, _params['id']['value'])]
+            _params['wrap'] = False
 
         else:
-            rows = getall(
+            rows = commands.getall(
                 context, model, model.backend,
-                show=params.get('show'),
-                sort=params.get('sort', [{'name': 'id', 'ascending': True}]),
-                offset=params.get('offset'),
-                limit=params.get('limit', 100),
-                count='count' in params,
+                show=_params.get('show'),
+                sort=_params.get('sort', [{'name': 'id', 'ascending': True}]),
+                offset=_params.get('offset'),
+                limit=_params.get('limit', 100),
+                count='count' in _params,
             )
 
-        exporter = config.exporters[fmt]
+        exporter = config.exporters[params.format]
         media_type = exporter.content_type
-        params = {
-            k: v for k, v in params.items()
+        _params = {
+            k: v for k, v in _params.items()
             if k in exporter.params
         }
 
-        g = stream(context, rows, exporter, params)
+        g = stream(context, rows, exporter, _params)
         return StreamingResponse(g, media_type=media_type)
 
     else:
@@ -182,7 +199,7 @@ def get_changes(context, params):
     manifest = store.manifests['default']
     model = get_model_from_params(manifest, params['path'], params)
     backend = model.backend
-    rows = changes(
+    rows = commands.changes(
         context, model, backend,
         id=params.get('id', {}).get('value'),
         limit=params.get('limit', 100),
@@ -224,7 +241,7 @@ def get_row(context, params):
     manifest = store.manifests['default']
     model = get_model_from_params(manifest, params['path'], params)
     backend = model.backend
-    row = get(context, model, backend, params['id']['value'])
+    row = commands.get(context, model, backend, params['id']['value'])
     if row is None:
         raise HTTPException(status_code=404)
     for prop in model.properties.values():
@@ -280,7 +297,7 @@ def get_data(context, params):
     manifest = store.manifests['default']
     model = get_model_from_params(manifest, params['path'], params)
     backend = model.backend
-    rows = getall(
+    rows = commands.getall(
         context, model, backend,
         show=params.get('show'),
         sort=params.get('sort', [{'name': 'id', 'ascending': True}]),
