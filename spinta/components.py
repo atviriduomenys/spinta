@@ -61,6 +61,8 @@ class Config:
 
     def __init__(self):
         self.commands = _CommandsConfig()
+        self.components = {}
+        self.exporters = {}
         self.backends = {}
         self.manifests = {}
         self.ignore = []
