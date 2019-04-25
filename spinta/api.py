@@ -44,13 +44,13 @@ async def homepage(request):
 
         # get UrlParams parser class from configs
         UrlParams = config.components['urlparams']['component']
-
-        url_params = prepare(
-            context, UrlParams(), Version(),
+        url_params = UrlParams(
             path=url_path,
             method=request.method,
             headers=request.headers,
         )
+
+        url_params = prepare(context, url_params, Version())
         params = url_params.params
         path = params['path']
 

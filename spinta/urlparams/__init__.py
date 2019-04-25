@@ -4,8 +4,14 @@ from spinta.utils.url import parse_url_path
 
 
 class UrlParams:
-    def __init__(self):
+    def __init__(self, path="", method="", headers={}):
         self.params = {}
+        self.path = path
+        self.method = method
+        self.headers = headers
+
+    def parse_path(self):
+        self.params = parse_url_path(self.path)
 
 
 class Version:
@@ -14,7 +20,6 @@ class Version:
 
 
 @prepare.register()
-def prepare(context: Context, url_params: UrlParams, version: Version, *,
-            path="", method="", headers={}) -> UrlParams:
-    url_params.params = parse_url_path(path)
+def prepare(context: Context, url_params: UrlParams, version: Version) -> UrlParams:
+    url_params.parse_path()
     return url_params
