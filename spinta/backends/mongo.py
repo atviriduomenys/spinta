@@ -107,28 +107,28 @@ def push(context: Context, model: Model, backend: Mongo, data: dict):
 
     if 'id' in data:
         result = model_collection.update_one(
-            {'_id': raw_data['id']},
+            {'_id': ObjectId(raw_data['id'])},
             {'$set': raw_data}
         )
         assert result.matched_count == 1 and result.modified_count == 1
         data_id = data['id']
     else:
         data_id = model_collection.insert_one(raw_data).inserted_id
-    return data_id
+    return str(data_id)
 
 
 @get.register()
-def get(context: Context, model: Model, backend: Mongo, id: ObjectId):
+def get(context: Context, model: Model, backend: Mongo, id: str):
     transaction = context.get('transaction')
     model_collection = backend.db[model.get_type_value()]
-    result = model_collection.find_one({"_id": id})
+    result = model_collection.find_one({"_id": ObjectId(id)})
 
     # Mongo returns ID under, key `_id`, but to conform to the interface
     # we must change `_id` to `id`
     #
     # TODO: this must be fixed/implemented in the spinta/types/store.py::get()
     # just like it's done on spinta/types/store.py::push()
-    result['id'] = result.pop('_id')
+    result['id'] = str(result.pop('_id'))
     return result
 
 

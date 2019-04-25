@@ -51,12 +51,15 @@ class SortKey(Cast):
 class Id(Cast):
 
     key_re = re.compile(r'^[0-9a-f]{40}$')
+    mongo_id_re = re.compile(r'^[0-9a-f]{24}$')
 
     def match(self, value):
         if value.isdigit():
             return {'value': int(value), 'type': 'integer'}
         if self.key_re.match(value):
             return {'value': value, 'type': 'sha1'}
+        if self.mongo_id_re.match(value):
+            return {'value': value, 'type': 'mongo'}
 
     def to_params(self, value):
         return value

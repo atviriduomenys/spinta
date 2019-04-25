@@ -10,6 +10,7 @@ from spinta.commands import load, wait, prepare, migrate, check, push
 from spinta.components import Context, Store, Manifest
 from spinta.utils.imports import importstr
 from spinta.config import Config
+from spinta.exceptions import NotFound
 
 
 @load.register()
@@ -225,6 +226,13 @@ def get_model_by_name(manifest, name):
 
 def get_model_from_params(manifest, name, params):
     if 'source' in params:
-        return manifest.objects['dataset'][params['source']].objects[name]
+        dataset = params['source']
+        if dataset not in manifest.objects['dataset']:
+            raise NotFound(f"Dataset {dataset!r} not found.")
+        if name not in manifest.objects['dataset'][dataset].objects:
+            raise NotFound(f"Model '{name}/:source/{dataset}' not found.")
+        return manifest.objects['dataset'][dataset].objects[name]
     else:
+        if name not in manifest.objects['model']:
+            raise NotFound(f"Model {name!r} not found.")
         return manifest.objects['model'][name]

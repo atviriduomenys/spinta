@@ -1,10 +1,9 @@
-import cgi
-
 from starlette.requests import Request
 
 from spinta.commands import prepare
 from spinta.components import Context
 from spinta.utils.url import parse_url_path
+from spinta.utils.response import get_response_type
 
 
 class UrlParams:
@@ -32,7 +31,6 @@ class Version:
 
 @prepare.register()
 def prepare(context: Context, params: UrlParams, version: Version, request: Request) -> UrlParams:
-    config = context.get('config')
     path = request.path_params['path'].strip('/')
     p = parse_url_path(path)
     params.model = p['path']
@@ -48,27 +46,7 @@ def prepare(context: Context, params: UrlParams, version: Version, request: Requ
         params.changes = False
         params.offset = p.get('offset')
 
-    if 'format' in p:
-        params.format = p['format']
-    else:
-        if 'accept' in request.headers and request.headers['accept']:
-            formats = {
-                'text/html': 'html',
-                'application/xhtml+xml': 'html',
-            }
-            for name, exporter in config.exporters.items():
-                for media_type in exporter.accept_types:
-                    formats[media_type] = name
-
-            media_types, _ = cgi.parse_header(request.headers['accept'])
-            for media_type in media_types.lower().split(','):
-                if media_type in formats:
-                    params.format = formats[media_type]
-                    break
-
-        if params.format is None:
-            params.format = 'json'
-
+    params.format = get_response_type(context, request, p)
     params.count = p.get('count')
     params.params = p  # XXX: for backwards compatibility
     return params

@@ -1,7 +1,6 @@
 import datetime
 
 from spinta.utils.itertools import consume
-from spinta import commands
 
 
 def test_export_ascii(context, app, mocker):

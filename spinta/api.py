@@ -2,11 +2,14 @@ import pkg_resources as pres
 import uvicorn
 
 from starlette.applications import Starlette
+from starlette.exceptions import HTTPException
+from starlette.responses import JSONResponse
 from starlette.templating import Jinja2Templates
 
 from spinta.commands import prepare
 from spinta.urlparams import Version
 from spinta.utils.response import create_http_response
+from spinta.utils.response import get_response_type
 
 
 templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
@@ -25,6 +28,22 @@ async def homepage(request):
         UrlParams = config.components['urlparams']['component']
         params = prepare(context, UrlParams(), Version(), request)
         return await create_http_response(context, params, request)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception(request, exc):
+    global context
+
+    response = {
+        "error": exc.detail,
+    }
+
+    fmt = get_response_type(context, request, request)
+    if fmt == 'json':
+        return JSONResponse(response, status_code=exc.status_code)
+    else:
+        templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
+        return templates.TemplateResponse('error.html', response, status_code=exc.status_code)
 
 
 def run(context):
