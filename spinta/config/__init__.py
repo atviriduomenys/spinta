@@ -194,7 +194,7 @@ class Config:
 
         if cast is not None:
             if cast is list and isinstance(value, str):
-                value = value.split(',')
+                value = value.split(',') if value else []
             elif value is not None:
                 value = cast(value)
 
