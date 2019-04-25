@@ -58,6 +58,7 @@ CONFIG = {
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
+            # do not bother with versions for this time
             # 'versions': {
             #     '1': 'spinta.urlparams:Version',
             # },

@@ -11,6 +11,7 @@ class UrlParams:
         self.headers = headers
 
     def parse_path(self):
+        # sets self.params with parsed request parameters
         self.params = parse_url_path(self.path)
 
 

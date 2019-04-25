@@ -10,6 +10,7 @@ class UrlResponse:
         self.response = None
 
     def create_response(self, context):
+        # sets self.response with prepared request response
         self.response = create_http_response(self.url_params, context, self.request)
 
 
