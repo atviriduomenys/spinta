@@ -88,10 +88,12 @@ CONFIG = {
 
     'environments': {
         'dev': {
-            'mongo': {
-                'backend': 'spinta.backends.mongo:Mongo',
-                'dsn': 'mongodb:///',
-                'db': 'spinta',
+            'backends': {
+                'mongo': {
+                    'backend': 'spinta.backends.mongo:Mongo',
+                    'dsn': 'mongodb://admin:admin123@localhost:27017/',
+                    'db': 'splat',
+                },
             },
             'manifests': {
                 'default': {
@@ -190,7 +192,12 @@ class Config:
         return value
 
     def keys(self, *key, **kwargs):
+        kwargs.setdefault('default', [])
         return self.get(*key, cast=list, **kwargs)
+
+    def getall(self):
+        for key, value in self._config['default'].items():
+            yield key, self.get(*key, cast=type(value))
 
     def _add_config(self, config):
         self._config['default'].update(_traverse(config))

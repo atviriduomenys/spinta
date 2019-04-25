@@ -1,4 +1,4 @@
-import os
+import operator
 import pathlib
 
 import click
@@ -110,3 +110,14 @@ def pull(ctx, source, model, push, export):
 def run(ctx):
     import spinta.api
     spinta.api.run(ctx.obj['context'])
+
+
+@main.command()
+@click.pass_context
+def config(ctx):
+    config = Config()
+    config.read()
+    for key, value in sorted(config.getall(), key=operator.itemgetter(0)):
+        *key, name = key
+        name = len(key) * '  ' + name
+        click.echo(f'{name:<20} {value}')
