@@ -87,6 +87,12 @@ class Array(Type):
     }
 
 
+class Object(Type):
+    schema = {
+        'properties': {'type': 'object'},
+    }
+
+
 @load.register()
 def load(context: Context, type: Type, data: dict) -> Type:
     return type

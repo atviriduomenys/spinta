@@ -1,5 +1,4 @@
 import collections
-import os
 
 import pymongo
 import pytest
@@ -9,17 +8,48 @@ from toposort import toposort
 from starlette.testclient import TestClient
 
 from spinta import api
-from spinta.components import Config, Store
+from spinta.components import Store
 from spinta.commands import load, check, prepare, migrate
 from spinta.utils.commands import load_commands
 from spinta.testing.context import ContextForTests
+from spinta import components
+from spinta.config import Config
+
+
+@pytest.fixture(scope='session')
+def config():
+    config = Config()
+    config.read({
+        'env': 'test',
+    })
+    return config
+
+
+@pytest.fixture(scope='session')
+def postgresql(config):
+    dsn = config.get('backends', 'default', 'dsn', required=True)
+    if su.database_exists(dsn):
+        yield dsn
+    else:
+        su.create_database(dsn)
+        yield dsn
+        su.drop_database(dsn)
+
+
+@pytest.fixture(scope='session')
+def mongo(config):
+    yield
+    dsn = config.get('backends', 'mongo', 'dsn', required=True)
+    db = config.get('backends', 'mongo', 'db', required=True)
+    client = pymongo.MongoClient(dsn)
+    client.drop_database(db)
 
 
 @pytest.fixture
 def context(config, postgresql, mongo):
     context = ContextForTests()
 
-    context.set('config', Config())
+    context.set('config', components.Config())
     store = context.set('store', Store())
 
     load_commands(config.get('commands', 'modules', cast=list))
@@ -53,29 +83,6 @@ def context(config, postgresql, mongo):
             context.wipe(model)
 
     context.wipe(store.internal.objects['model']['transaction'])
-
-
-@pytest.fixture(scope='session')
-def postgresql():
-    if 'SPINTA_TEST_DATABASE' in os.environ:
-        yield os.environ['SPINTA_TEST_DATABASE']
-    else:
-        if 'SPINTA_TEST_DATABASE_DSN' in os.environ:
-            dsn = os.environ['SPINTA_TEST_DATABASE_DSN']
-        else:
-            dsn = 'postgresql:///spinta_tests'
-        assert not su.database_exists(dsn), 'Test database already exists. Aborting tests.'
-        su.create_database(dsn)
-        yield dsn
-        su.drop_database(dsn)
-
-
-@pytest.fixture(scope='session')
-def mongo():
-    dsn = os.environ['SPINTA_TEST_MONGO_DSN']
-    yield dsn
-    client = pymongo.MongoClient(dsn)
-    client.drop_database('spinta_test')
 
 
 @pytest.fixture

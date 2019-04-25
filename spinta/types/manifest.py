@@ -15,6 +15,10 @@ def load(context: Context, manifest: Manifest, c: Config):
     config = context.get('config')
     ignore = c.get('ignore', default=[], cast=list)
 
+    # Add all supported node types.
+    for name in config.components['nodes'].keys():
+        manifest.objects[name] = {}
+
     for file in manifest.path.glob('**/*.yml'):
         if is_ignored(ignore, manifest.path, file):
             continue
@@ -29,23 +33,20 @@ def load(context: Context, manifest: Manifest, c: Config):
         if 'type' not in data:
             raise Exception(f"'type' is not defined in {file}.")
 
-        if data['type'] not in config.components['nodes']:
+        if data['type'] not in manifest.objects:
             raise Exception(f"Unknown type {data['type']!r} in {file}.")
 
         node = config.components['nodes'][data['type']]()
         data = {
             'path': file,
-            'parent': None,
-            'backend': 'default',
+            'parent': manifest,
+            'backend': manifest.backend,
             **data,
         }
         load(context, node, data, manifest)
 
-        if node.type not in manifest.objects:
-            manifest.objects[node.type] = {}
-
         if node.name in manifest.objects[node.type]:
-            context.error(f"Object {node.type} with name {node.name} already exist.")
+            raise Exception(f"Object {node.type} with name {node.name} already exist.")
 
         manifest.objects[node.type][node.name] = node
 

@@ -145,6 +145,7 @@ class Property(Node):
         'object': {},
         'backend': {'type': 'backend', 'inherit': True, 'required': True},
         'items': {},
+        'hidden': {'type': 'boolean', 'inherit': True, 'default': False},
     }
 
     def __init__(self):

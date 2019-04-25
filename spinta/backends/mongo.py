@@ -5,7 +5,7 @@ import pymongo
 from bson.objectid import ObjectId
 
 from spinta.backends import Backend
-from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe
+from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait
 from spinta.components import Context, Manifest, Model
 from spinta.config import Config
 
@@ -58,6 +58,11 @@ def load(context: Context, backend: Mongo, config: Config):
 
     backend.client = pymongo.MongoClient(backend.dsn)
     backend.db = backend.client[backend.db_name]
+
+
+@wait.register()
+def wait(context: Context, backend: Mongo, config: Config, *, fail: bool = False):
+    return True
 
 
 @prepare.register()
