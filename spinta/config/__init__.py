@@ -12,6 +12,7 @@ CONFIG = {
             'spinta.types',
             'spinta.backends',
             'spinta.urlparams',
+            'spinta.urlresponse',
         ],
         'source': {
             'csv': 'spinta.commands.sources.csv:read_csv',
@@ -60,6 +61,9 @@ CONFIG = {
             # 'versions': {
             #     '1': 'spinta.urlparams:Version',
             # },
+        },
+        'urlresponse': {
+            'component': 'spinta.urlresponse:UrlResponse',
         },
     },
     'exporters': {
