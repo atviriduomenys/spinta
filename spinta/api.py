@@ -33,6 +33,7 @@ async def homepage(request):
 
 
 @app.exception_handler(Exception)
+@app.exception_handler(HTTPException)
 async def http_exception(request, exc):
     global context
 
