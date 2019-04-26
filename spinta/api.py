@@ -52,6 +52,10 @@ async def http_exception(request, exc):
         return JSONResponse(response, status_code=status_code)
     else:
         templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
+        response = {
+            **response,
+            'request': request,
+        }
         return templates.TemplateResponse('error.html', response, status_code=status_code)
 
 

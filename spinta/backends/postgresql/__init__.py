@@ -284,6 +284,7 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict):
 
     # Update existing row.
     if 'id' in data:
+        data['id'] = int(data['id'])
         action = UPDATE_ACTION
         result = connection.execute(
             table.main.update().
@@ -316,26 +317,29 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict):
         ),
     )
 
-    return row_id
+    return str(row_id)
 
 
 @get.register()
-def get(context: Context, model: Model, backend: PostgreSQL, id: int):
+def get(context: Context, model: Model, backend: PostgreSQL, id: str):
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
-    result = backend.get(connection, table, table.c.id == id)
+    result = backend.get(connection, table, table.c.id == int(id))
     result = {k: v for k, v in result.items() if not k.startswith('_')}
     result['type'] = model.name
+    result['id'] = str(result['id'])
     return result
 
 
 @getall.register()
-def getall(context: Context, model: Model, backend: PostgreSQL):
+def getall(context: Context, model: Model, backend: PostgreSQL, **kwargs):
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = connection.execute(sa.select([table]))
     for row in result:
-        yield {k: v for k, v in row.items() if not k.startswith('_')}
+        row = {k: v for k, v in row.items() if not k.startswith('_')}
+        row['id'] = str(row['id'])
+        yield row
 
 
 @wipe.register()

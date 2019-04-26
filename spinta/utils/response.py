@@ -36,11 +36,17 @@ async def create_http_response(context, params, request):
         items = []
         datasets = []
         row = []
-        loc = get_current_location(path, _params)
 
         context.bind('transaction', manifest.backend.transaction)
 
-        if params.dataset:
+        try:
+            model = get_model_from_params(manifest, params.model, _params)
+        except NotFound:
+            model = None
+
+        loc = get_current_location(model, path, _params)
+
+        if model:
             formats = [
                 ('CSV', '/' + build_url_path({**_params, 'format': 'csv'})),
                 ('JSON', '/' + build_url_path({**_params, 'format': 'json'})),
@@ -148,7 +154,7 @@ async def create_http_response(context, params, request):
         raise HTTPException(status_code=404)
 
 
-def get_current_location(path, params):
+def get_current_location(model, path, params):
     parts = path.split('/') if path else []
     loc = [('root', '/')]
 
@@ -197,6 +203,26 @@ def get_current_location(path, params):
                         'changes': None,
                     }))]
                 )
+    elif model:
+        if 'id' in params:
+            loc += (
+                [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
+                [(params['id']['value'][:8], None)] +
+                [(':changes', '/' + build_url_path({
+                    'path': path,
+                    'id': params['id'],
+                    'changes': None,
+                }))]
+            )
+        else:
+            loc += (
+                [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
+                [(p, None) for p in parts[-1:]] +
+                [(':changes', '/' + build_url_path({
+                    'path': path,
+                    'changes': None,
+                }))]
+            )
     else:
         loc += (
             [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
@@ -268,18 +294,24 @@ def get_cell(params, prop, value, shorten=False, color=None):
     link = None
 
     if prop.name == 'id' and value:
+        extra = {}
+        if 'source' in params:
+            extra['source'] = params['source']
         link = '/' + build_url_path({
             'path': params['path'],
             'id': {'value': value, 'type': None},
-            'source': params['source'],
+            **extra,
         })
         if shorten:
             value = value[:8]
-    elif prop.ref and value:
+    elif hasattr(prop, 'ref') and prop.ref and value:
+        extra = {}
+        if 'source' in params:
+            extra['source'] = params['source']
         link = '/' + build_url_path({
             'path': prop.ref,
             'id': {'value': value, 'type': None},
-            'source': params['source'],
+            **extra,
         })
         if shorten:
             value = value[:8]

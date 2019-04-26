@@ -55,7 +55,7 @@ class Id(Cast):
 
     def match(self, value):
         if value.isdigit():
-            return {'value': int(value), 'type': 'integer'}
+            return {'value': value, 'type': 'integer'}
         if self.key_re.match(value):
             return {'value': value, 'type': 'sha1'}
         if self.mongo_id_re.match(value):

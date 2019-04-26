@@ -5,7 +5,7 @@ from spinta.utils.url import build_url_path
 def test_parse_url_path():
     assert parse_url_path('foo/bar') == {'path': 'foo/bar'}
     assert parse_url_path('foo/bar/:source/deeply/nested/name') == {'path': 'foo/bar', 'source': 'deeply/nested/name'}
-    assert parse_url_path('foo/bar/3/:source/vrk') == {'path': 'foo/bar', 'id': {'value': 3, 'type': 'integer'}, 'source': 'vrk'}
+    assert parse_url_path('foo/bar/3/:source/vrk') == {'path': 'foo/bar', 'id': {'value': '3', 'type': 'integer'}, 'source': 'vrk'}
     assert parse_url_path('foo/bar/:limit/100') == {'path': 'foo/bar', 'limit': 100}
 
 
@@ -41,7 +41,7 @@ def test_id_integer():
     string = 'foo/bar/42'
     params = {
         'path': 'foo/bar',
-        'id': {'value': 42, 'type': 'integer'},
+        'id': {'value': '42', 'type': 'integer'},
     }
     assert parse_url_path(string) == params
     assert build_url_path(params) == string

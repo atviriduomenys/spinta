@@ -59,6 +59,84 @@ def test_directory(app):
     }
 
 
+def test_model(context, app):
+    row, = context.push([
+        {
+            'type': 'country',
+            'title': 'Earth',
+            'code': 'er',
+        },
+    ])
+
+    resp = app.get('/country', headers={'accept': 'text/html'})
+    assert resp.status_code == 200
+
+    resp.context.pop('request')
+    assert resp.context == {
+        'location': [
+            ('root', '/'),
+            ('country', None),
+            (':changes', '/country/:changes'),
+        ],
+        'items': [],
+        'datasets': [],
+        'header': ['id', 'title', 'code'],
+        'data': [
+            [
+                {'color': None, 'link': '/country/%s' % row['id'], 'value': row['id']},
+                {'color': None, 'link': None, 'value': 'Earth'},
+                {'color': None, 'link': None, 'value': 'er'},
+            ],
+        ],
+        'row': [],
+        'formats': [
+            ('CSV', '/country/:format/csv'),
+            ('JSON', '/country/:format/json'),
+            ('JSONL', '/country/:format/jsonl'),
+            ('ASCII', '/country/:format/asciitable'),
+        ],
+    }
+
+
+def test_model_get(context, app):
+    row, = context.push([
+        {
+            'type': 'country',
+            'title': 'Earth',
+            'code': 'er',
+        },
+    ])
+
+    resp = app.get('/country/%s' % row['id'], headers={'accept': 'text/html'})
+    assert resp.status_code == 200
+
+    resp.context.pop('request')
+    assert resp.context == {
+        'location': [
+            ('root', '/'),
+            ('country', '/country'),
+            (row['id'], None),
+            (':changes', '/country/%s/:changes' % row['id']),
+        ],
+        'items': [],
+        'datasets': [],
+        'header': [],
+        'data': [],
+        'row': [
+            ('type', {'color': None, 'link': None, 'value': 'country'}),
+            ('id', {'color': None, 'link': '/country/%s' % row['id'], 'value': row['id']}),
+            ('title', {'color': None, 'link': None, 'value': 'Earth'}),
+            ('code', {'color': None, 'link': None, 'value': 'er'}),
+        ],
+        'formats': [
+            ('CSV', '/country/%s/:format/csv' % row['id']),
+            ('JSON', '/country/%s/:format/json' % row['id']),
+            ('JSONL', '/country/%s/:format/jsonl' % row['id']),
+            ('ASCII', '/country/%s/:format/asciitable' % row['id']),
+        ],
+    }
+
+
 def test_dataset(context, app):
     store = context.get('store')
     manifest = store.manifests['default']
@@ -378,7 +456,7 @@ def test_crud(context, app):
     assert resp.status_code == 200
     assert resp.json() == {
         'type': 'country',
-        'id': 1,
+        'id': id,
         'code': 'er',
         'title': 'Earth',
     }
