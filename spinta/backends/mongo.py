@@ -121,23 +121,33 @@ def push(context: Context, model: Model, backend: Mongo, data: dict):
 def get(context: Context, model: Model, backend: Mongo, id: str):
     transaction = context.get('transaction')
     model_collection = backend.db[model.get_type_value()]
-    result = model_collection.find_one({"_id": ObjectId(id)})
+    row = model_collection.find_one({"_id": ObjectId(id)})
 
     # Mongo returns ID under, key `_id`, but to conform to the interface
     # we must change `_id` to `id`
     #
     # TODO: this must be fixed/implemented in the spinta/types/store.py::get()
     # just like it's done on spinta/types/store.py::push()
-    result['id'] = str(result.pop('_id'))
-    return result
+    id = str(row.pop('_id'))
+    return {
+        'type': model.name,
+        'id': id,
+        **row,
+    }
 
 
 @getall.register()
-def getall(context: Context, model: Model, backend: Mongo):
+def getall(context: Context, model: Model, backend: Mongo, **kwargs):
     transaction = context.get('transaction')
     # Yield all available entries.
     model_collection = backend.db[model.get_type_value()]
-    return model_collection.find({})
+    for row in model_collection.find({}):
+        id = str(row.pop('_id'))
+        yield {
+            'type': model.name,
+            'id': id,
+            **row,
+        }
 
 
 @wipe.register()
