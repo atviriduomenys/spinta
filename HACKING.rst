@@ -287,7 +287,7 @@ Commands
    'xlsx': {
    'json': {
 
-   'export.asciitable': {
+   'export.ascii': {
    'export.csv': {
    'export.json': {
    'export.jsonl': {

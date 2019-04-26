@@ -78,13 +78,13 @@ def pull(ctx, source, model, push, export):
                 'csv': 'csv',
                 'json': 'json',
                 'jsonl': 'jsonl',
-                'asciitable': 'asciitable',
+                'ascii': 'ascii',
             }
 
             path = None
 
             if export == 'stdout':
-                fmt = 'asciitable'
+                fmt = 'ascii'
             elif export.startswith('stdout:'):
                 fmt = export.split(':', 1)[1]
             else:

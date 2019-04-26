@@ -51,7 +51,7 @@ async def create_http_response(context, params, request):
                 ('CSV', '/' + build_url_path({**_params, 'format': 'csv'})),
                 ('JSON', '/' + build_url_path({**_params, 'format': 'json'})),
                 ('JSONL', '/' + build_url_path({**_params, 'format': 'jsonl'})),
-                ('ASCII', '/' + build_url_path({**_params, 'format': 'asciitable'})),
+                ('ASCII', '/' + build_url_path({**_params, 'format': 'ascii'})),
             ]
 
             if params.changes:

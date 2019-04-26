@@ -93,7 +93,7 @@ def test_model(context, app):
             ('CSV', '/country/:format/csv'),
             ('JSON', '/country/:format/json'),
             ('JSONL', '/country/:format/jsonl'),
-            ('ASCII', '/country/:format/asciitable'),
+            ('ASCII', '/country/:format/ascii'),
         ],
     }
 
@@ -132,7 +132,7 @@ def test_model_get(context, app):
             ('CSV', '/country/%s/:format/csv' % row['id']),
             ('JSON', '/country/%s/:format/json' % row['id']),
             ('JSONL', '/country/%s/:format/jsonl' % row['id']),
-            ('ASCII', '/country/%s/:format/asciitable' % row['id']),
+            ('ASCII', '/country/%s/:format/ascii' % row['id']),
         ],
     }
 
@@ -175,7 +175,7 @@ def test_dataset(context, app):
             ('CSV', '/rinkimai/:source/json/:format/csv'),
             ('JSON', '/rinkimai/:source/json/:format/json'),
             ('JSONL', '/rinkimai/:source/json/:format/jsonl'),
-            ('ASCII', '/rinkimai/:source/json/:format/asciitable'),
+            ('ASCII', '/rinkimai/:source/json/:format/ascii'),
         ],
     }
 
@@ -221,7 +221,7 @@ def test_nested_dataset(context, app):
             ('CSV', '/deeply/nested/model/name/:source/nested/dataset/name/:format/csv'),
             ('JSON', '/deeply/nested/model/name/:source/nested/dataset/name/:format/json'),
             ('JSONL', '/deeply/nested/model/name/:source/nested/dataset/name/:format/jsonl'),
-            ('ASCII', '/deeply/nested/model/name/:source/nested/dataset/name/:format/asciitable'),
+            ('ASCII', '/deeply/nested/model/name/:source/nested/dataset/name/:format/ascii'),
         ],
     }
 
@@ -255,7 +255,7 @@ def test_dataset_key(context, app):
             ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/csv'),
             ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/json'),
             ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/jsonl'),
-            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/asciitable'),
+            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:format/ascii'),
         ],
         'datasets': [],
         'items': [],
@@ -311,7 +311,7 @@ def test_changes_single_object(context, app, mocker):
             ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/csv'),
             ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/json'),
             ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/jsonl'),
-            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/asciitable'),
+            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes/:format/ascii'),
         ],
         'datasets': [],
         'items': [],
@@ -382,7 +382,7 @@ def test_changes_object_list(context, app, mocker):
             ('CSV', '/rinkimai/:source/json/:changes/:format/csv'),
             ('JSON', '/rinkimai/:source/json/:changes/:format/json'),
             ('JSONL', '/rinkimai/:source/json/:changes/:format/jsonl'),
-            ('ASCII', '/rinkimai/:source/json/:changes/:format/asciitable'),
+            ('ASCII', '/rinkimai/:source/json/:changes/:format/ascii'),
         ],
         'datasets': [],
         'items': [],
