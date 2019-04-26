@@ -1,5 +1,6 @@
 import pkg_resources as pres
 import uvicorn
+import logging
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -11,6 +12,7 @@ from spinta.urlparams import Version
 from spinta.utils.response import create_http_response
 from spinta.utils.response import get_response_type
 
+log = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
 
@@ -57,3 +59,8 @@ def set_context(context_):
     if context is not None:
         raise Exception("Context was already set.")
     context = context_
+
+    store = context.get('store')
+    manifest = store.manifests['default']
+    log.info("Spinta has started!")
+    log.info('manifest: %s', manifest.path.resolve())

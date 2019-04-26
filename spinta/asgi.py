@@ -1,9 +1,16 @@
+import logging
+
 from spinta.api import app, set_context
 from spinta.commands import load, wait, prepare, check
 from spinta.components import Context, Store
 from spinta.utils.commands import load_commands
 from spinta import components
 from spinta.config import Config
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s: %(message)s',
+)
 
 
 c = Config()
