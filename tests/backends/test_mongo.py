@@ -21,6 +21,7 @@ def test_mongo_insert_get(context):
     # Read those objects from database.
     get_data = context.getone('report', result['report']['id'])
     assert get_data == {
+        'type': 'report',
         'id': result['report']['id'],
         'status': '42',
     }
@@ -55,6 +56,17 @@ def test_mongo_update_get(context):
     # Read those objects from database.
     get_data = context.getone('report', update_result['report']['id'])
     assert get_data == {
+        'type': 'report',
         'id': update_result['report']['id'],
         'status': '13',
     }
+
+    # Get all objects from database.
+    result = context.getall('report')
+    assert result == [
+        {
+            'type': 'report',
+            'id': update_result['report']['id'],
+            'status': '13',
+        },
+    ]
