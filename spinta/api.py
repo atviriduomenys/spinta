@@ -32,20 +32,27 @@ async def homepage(request):
         return await create_http_response(context, params, request)
 
 
-@app.exception_handler(HTTPException)
+@app.exception_handler(Exception)
 async def http_exception(request, exc):
     global context
 
+    if isinstance(exc, HTTPException):
+        status_code = exc.status_code
+        error = exc.detail
+    else:
+        status_code = 500
+        error = str(exc)
+
     response = {
-        "error": exc.detail,
+        "error": error,
     }
 
     fmt = get_response_type(context, request, request)
     if fmt == 'json':
-        return JSONResponse(response, status_code=exc.status_code)
+        return JSONResponse(response, status_code=status_code)
     else:
         templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
-        return templates.TemplateResponse('error.html', response, status_code=exc.status_code)
+        return templates.TemplateResponse('error.html', response, status_code=status_code)
 
 
 def run(context):

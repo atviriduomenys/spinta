@@ -58,8 +58,9 @@ def check(context: Context, model: Model):
 def error(exc: Exception, context: Context, model: Model):
     message = (
         '{exc}:\n'
-        '  in model {model.name!r} {model}>\n'
-        '  in file {model.path}\n'
+        '  in model {model.name!r} {model}\n'
+        "  in file '{model.path}'\n"
+        '  on backend {model.backend.name!r}\n'
     )
     raise Exception(format_error(message, {
         'exc': exc,

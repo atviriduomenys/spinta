@@ -12,7 +12,7 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
 from spinta.types import NA
-from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, error
+from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe
 from spinta.components import Context, Manifest, Model, Property
 from spinta.backends import Backend
 from spinta.types.type import Type
@@ -214,16 +214,6 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
         return
     else:
         raise Exception(f"Unknown property type {type.name!r}.")
-
-
-@error.register()
-def error(exc: Exception, context: Context, backend: PostgreSQL, type: Type):
-    error(exc, context, type)
-
-
-@error.register()
-def error(exc: Exception, context: Context, model: Model, backend: PostgreSQL):
-    error(exc, context, model)
 
 
 def _get_foreign_key(backend: PostgreSQL, model: Model, prop: Property):
