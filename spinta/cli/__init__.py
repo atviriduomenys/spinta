@@ -1,3 +1,4 @@
+import json
 import operator
 import pathlib
 
@@ -121,3 +122,33 @@ def config(ctx):
         *key, name = key
         name = len(key) * '  ' + name
         click.echo(f'{name:<20} {value}')
+
+
+@main.command()
+@click.argument('path', type=click.Path(exists=True, file_okay=False, writable=True))
+@click.pass_context
+def genkeys(ctx, path):
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    from authlib.jose import jwk
+
+    path = pathlib.Path(path)
+    private = path / 'private.json'
+    public = path / 'public.json'
+
+    if private.exists():
+        raise click.Abort(f"{private} file already exists.")
+
+    if public.exists():
+        raise click.Abort(f"{public} file already exists.")
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
+
+    with private.open('w') as f:
+        json.dump(jwk.dumps(key), f, indent=4, ensure_ascii=False)
+        click.echo(f"Private key saved to {private}.")
+
+    with public.open('w') as f:
+        json.dump(jwk.dumps(key.public_key()), f, indent=4, ensure_ascii=False)
+        click.echo(f"Public key saved to {public}.")

@@ -14,11 +14,26 @@ from spinta.utils.response import get_response_type
 
 log = logging.getLogger(__name__)
 
-templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
+templates = Jinja2Templates(
+    directory=pres.resource_filename('spinta', 'templates'),
+)
 
 app = Starlette()
 
 context = None
+
+
+@app.route('/auth/token', methods=['POST'])
+async def auth_token(request):
+    global context
+
+    auth = context.get('auth')
+    return auth.create_token_response({
+        'method': request.method,
+        'url': str(request.url),
+        'body': dict(await request.form()),
+        'headers': request.headers,
+    })
 
 
 @app.route('/{path:path}', methods=['GET', 'POST'])

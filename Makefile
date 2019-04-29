@@ -29,7 +29,7 @@ upgrade: env/bin/pip-compile
 
 .PHONY: test
 test: env
-	env/bin/py.test -vvxra --tb=native --cov=spinta --cov-report=term-missing tests
+	env/bin/py.test -vvxra --tb=native --log-level=debug --cov=spinta --cov-report=term-missing tests
 
 .PHONY: dist
 dist: env/bin/pip
