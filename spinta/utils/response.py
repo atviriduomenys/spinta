@@ -1,6 +1,7 @@
 import cgi
 import collections
 import datetime
+import json
 import operator
 
 import pkg_resources as pres
@@ -14,6 +15,7 @@ from starlette.requests import Request
 from spinta import commands
 from spinta.types import Type
 from spinta.types.store import get_model_from_params
+from spinta.utils.exceptions import MultipleRowsException, NoResultsException
 from spinta.utils.tree import build_path_tree
 from spinta.utils.url import build_url_path
 from spinta.utils.url import parse_url_path
@@ -106,7 +108,58 @@ async def create_http_response(context, params, request):
 
         if request.method == 'POST':
             context.bind('transaction', manifest.backend.transaction, write=True)
-            data = await request.json()
+
+            # only `application/json` is supported
+            ct = request.headers.get('content-type')
+            if ct != 'application/json':
+                return JSONResponse(
+                    {"error": "only 'application/json' content-type is supported"},
+                    status_code=415
+                )
+
+            auth_header = request.headers.get('authorization')
+            if auth_header is None:
+                return JSONResponse({"error": "missing authorization header"},
+                                    status_code=401)
+
+            if not auth_header.startswith('Bearer '):
+                return JSONResponse({"error": "invalid authorization header"},
+                                    status_code=403)
+
+            jwt_token = auth_header.strip('Bearer ') if auth_header else None
+
+            # TODO: check for special scope which allows id creation
+            # scopes = jwt.decode(jwt_token)
+            #
+            # XXX: currently for dev purposes and testing use
+            # fake token `f00b4rb4z`
+            can_create_ids = bool(jwt_token == "f00b4rb4z")
+
+            # make sure json is valid
+            try:
+                data = await request.json()
+            except json.decoder.JSONDecodeError:
+                return JSONResponse({"error": "not a valid json"},
+                                    status_code=400)
+
+            object_is_being_created = ('id' in data.keys() and not params.id)
+            if object_is_being_created:
+                if not can_create_ids:
+                    return JSONResponse({"error": "cannot create 'id'"},
+                                        status_code=400)
+                else:
+                    try:
+                        id = commands.get(context, model, model.backend, data['id'])
+                    except (MultipleRowsException, NoResultsException):
+                        pass
+                    else:
+                        return JSONResponse({"error": "cannot create duplicate 'id'"},
+                                            status_code=400)
+
+            if 'revision' in data.keys():
+                return JSONResponse({"error": "cannot create 'revision'"},
+                                    status_code=400)
+
             id = commands.push(context, model, model.backend, data)
             data = {
                 'type': model.name,

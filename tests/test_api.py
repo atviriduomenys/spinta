@@ -442,11 +442,16 @@ def test_count(context, app):
     assert resp.context['data'] == [[{'color': None, 'link': None, 'value': 2}]]
 
 
-def test_crud(context, app):
-    resp = app.post('/country', json={
-        'title': 'Earth',
-        'code': 'er',
-    })
+def test_post(context, app):
+    # tests basic object creation
+    auth_header = {'authorization': 'Bearer f00b4rb4z'}
+    resp = app.post(
+        '/country',
+        headers=auth_header,
+        json={
+            'title': 'Earth',
+            'code': 'er',
+        })
     assert resp.status_code == 201
     data = resp.json()
     assert data == {'id': data['id'], 'type': 'country'}
@@ -460,3 +465,148 @@ def test_crud(context, app):
         'code': 'er',
         'title': 'Earth',
     }
+
+
+def test_post_invalid_json(context, app):
+    # tests 400 response on invalid json
+    headers = {"content-type": "application/json",
+               "authorization": "Bearer f00b4rb4z"}
+    resp = app.post('/country',
+                    headers=headers,
+                    data="""{
+        "title": "Earth",
+        "code": "er"
+    ]""")
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data == {"error": "not a valid json"}
+
+
+def test_post_empty_content(context, app):
+    # tests posting empty content
+    headers = {"content-length": "0",
+               "content-type": "application/json",
+               "authorization": "Bearer f00b4rb4z"}
+    resp = app.post('/country',
+                    headers=headers,
+                    json=None)
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data == {"error": "not a valid json"}
+
+
+def test_post_id(context, app):
+    # tests 400 response when trying to create object with id
+    auth_header = {'authorization': 'Bearer n0t4110w3d'}
+    resp = app.post('/country',
+                    headers=auth_header,
+                    json={
+                        'id': '42',
+                        'title': 'Earth',
+                        'code': 'er',
+                    })
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data == {"error": "cannot create 'id'"}
+
+
+def test_post_update(context, app):
+    # tests if update works with `id` present in the json
+    auth_header = {'authorization': 'Bearer f00b4rb4z'}
+    resp = app.post(
+        '/country',
+        headers=auth_header,
+        json={
+            'title': 'Earth',
+            'code': 'er',
+        })
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data == {'id': data['id'], 'type': 'country'}
+
+    id = data['id']
+    data['code'] = 'eh'
+
+    resp = app.post(
+        f'/country/{id}',
+        headers=auth_header,
+        json={
+            'id': id,
+            'title': 'Earth',
+            'code': 'er',
+        })
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data['id'] == id
+
+
+def test_post_revision(context, app):
+    # tests 400 response when trying to create object with revision
+    auth_header = {'authorization': 'Bearer f00b4rb4z'}
+    resp = app.post('/country',
+                    headers=auth_header,
+                    json={
+                        'revision': 'r3v1510n',
+                        'title': 'Earth',
+                        'code': 'er',
+                    })
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data == {"error": "cannot create 'revision'"}
+
+
+def test_post_duplicate_id(context, app):
+    # tests 400 response when trying to create object with id which exists
+    auth_header = {'authorization': 'Bearer f00b4rb4z'}
+    resp = app.post('/country',
+                    headers=auth_header,
+                    json={
+                        'title': 'Earth',
+                        'code': 'er',
+                    })
+    assert resp.status_code == 201
+    data = resp.json()
+    id = data['id']
+
+    # XXX: fix to correct jwt token when scopes are implemented
+    auth_header = {'authorization': 'Bearer f00b4rb4z'}
+    resp = app.post('/country',
+                    headers=auth_header,
+                    json={
+                        'id': id,
+                        'title': 'Earth',
+                        'code': 'er',
+                    })
+    assert resp.status_code == 400
+    data = resp.json()
+    assert data == {"error": "cannot create duplicate 'id'"}
+
+
+def test_post_non_json_content_type(context, app):
+    # tests 400 response when trying to make non-json request
+    headers = {"content-type": "application/text",
+               "authorization": "Bearer f00b4rb4z"}
+    resp = app.post('/country',
+                    headers=headers,
+                    json={
+                        "title": "Earth",
+                        "code": "er"
+                    })
+    assert resp.status_code == 415
+    data = resp.json()
+    assert data == {"error": "only 'application/json' content-type is supported"}
+
+
+def test_post_bad_auth_header(context, app):
+    # tests 400 response when authorization header is missing `Bearer `
+    auth_header = {'authorization': 'Fail f00b4rb4z'}
+    resp = app.post('/country',
+                    headers=auth_header,
+                    json={
+                        'title': 'Earth',
+                        'code': 'er',
+                    })
+    assert resp.status_code == 403
+    data = resp.json()
+    assert data == {"error": "invalid authorization header"}
