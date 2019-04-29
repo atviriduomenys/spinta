@@ -72,7 +72,7 @@ CONFIG = {
     'backends': {
         'default': {
             'backend': 'spinta.backends.postgresql:PostgreSQL',
-            'dsn': 'postgresql:///spinta',
+            'dsn': 'postgresql://admin:admin123@localhost:54321/spinta',
         },
     },
     'manifests': {
@@ -114,12 +114,12 @@ CONFIG = {
             'backends': {
                 'default': {
                     'backend': 'spinta.backends.postgresql:PostgreSQL',
-                    'dsn': 'postgresql:///spinta_tests',
+                    'dsn': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
                 },
                 'mongo': {
                     'backend': 'spinta.backends.mongo:Mongo',
                     'dsn': 'mongodb://admin:admin123@localhost:27017/',
-                    'db': 'spinta_test',
+                    'db': 'spinta_tests',
                 },
             },
             'manifests': {

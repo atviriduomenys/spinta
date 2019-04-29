@@ -1,46 +1,17 @@
 Development environment
 =======================
 
-You can develop either on local machine or using docker
+You can use docker-compose to run dependant services for spinta development::
 
-Docker
-------
+   docker-compose up -d
 
-You can use docker-compose to run dependant services for python app development::
-
-   docker-compose up
-
-If migrations are not applied, app will crash. To launch migrations::
+If migrations are not applied, spinta will crash. To launch migrations::
 
    env/bin/spinta migrate
-   # and restart the app
+
+You can run the app using::
+
    make run
-
-Local machine
--------------
-
-Create database::
-
-   createdb spinta
-
-Create configuration files::
-
-   SPINTA_BACKENDS_DEFAULT_DSN=postgresql:///spinta
-   SPINTA_MANIFESTS_DEFAULT_PATH=path/to/manifest
-
-Prepare environment::
-
-   make
-
-Run database migrations::
-
-   env/bin/spinta migrate
-
-
-Import some datasets::
-
-   env/bin/spinta pull gov/vrk/rinkejopuslapis.lt/kandidatai
-   env/bin/spinta pull gov/lrs/ad
 
 
 Diretory tree
