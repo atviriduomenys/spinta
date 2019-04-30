@@ -190,7 +190,7 @@ class Config:
         # Create inner keys
         self._config['default'].update(_get_inner_keys(self._config['default']))
 
-    def get(self, *key, default=None, cast=None, env=True, required=False, exists=True):
+    def get(self, *key, default=None, cast=None, env=True, required=False, exists=False):
         environment = self._get_config_value('environment', default=None, envvar=True)
         value = self._get_config_value(key, default, env, environment=environment)
 
