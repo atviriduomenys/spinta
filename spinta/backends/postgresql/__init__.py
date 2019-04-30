@@ -11,12 +11,13 @@ from sqlalchemy.dialects.postgresql import JSONB, BIGINT
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
-from spinta.types import NA
+from spinta.backends import Backend
 from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe
 from spinta.components import Context, Manifest, Model, Property
-from spinta.backends import Backend
-from spinta.types.type import Type
 from spinta.config import Config
+from spinta.types import NA
+from spinta.types.type import Type
+from spinta.utils.exceptions import MultipleRowsException, NoResultsException
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -82,12 +83,12 @@ class PostgreSQL(Backend):
 
         elif len(result) == 0:
             if default is NA:
-                raise Exception("No results where found.")
+                raise NoResultsException("No results where found.")
             else:
                 return default
 
         else:
-            raise Exception("Multiple rows were found.")
+            raise MultipleRowsException("Multiple rows were found.")
 
 
 class ReadTransaction:
