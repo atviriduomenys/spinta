@@ -92,6 +92,9 @@ CONFIG = {
     # How much time to wait in seconds for the backends to go up.
     'wait': 30,
 
+    # Directory where public and private keys are stored.
+    'keys_dir': pathlib.Path('keys'),
+
     'env': 'dev',
 
     'environments': {
@@ -128,6 +131,7 @@ CONFIG = {
                     'path': pathlib.Path() / 'tests/manifest',
                 },
             },
+            'keys_dir': pathlib.Path() / 'tests/keys',
         }
     },
 }

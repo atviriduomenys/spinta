@@ -1,4 +1,5 @@
 import collections
+import os
 
 import pymongo
 import pytest
@@ -6,6 +7,7 @@ import sqlalchemy_utils as su
 from responses import RequestsMock
 from toposort import toposort
 from starlette.testclient import TestClient
+from click.testing import CliRunner
 
 from spinta import api
 from spinta.components import Store
@@ -14,6 +16,7 @@ from spinta.utils.commands import load_commands
 from spinta.testing.context import ContextForTests
 from spinta import components
 from spinta.config import Config
+from spinta.auth import AuthorizationServer
 
 
 @pytest.fixture(scope='session')
@@ -61,6 +64,8 @@ def context(config, postgresql, mongo):
     prepare(context, store)
     migrate(context, store)
 
+    context.bind('auth', AuthorizationServer, context)
+
     yield context
 
     # Remove all data after each test run.
@@ -93,5 +98,13 @@ def responses():
 
 @pytest.fixture
 def app(context, mocker):
+    mocker.patch.dict(os.environ, {
+        'AUTHLIB_INSECURE_TRANSPORT': '1',
+    })
     mocker.patch('spinta.api.context', context)
     return TestClient(api.app)
+
+
+@pytest.fixture
+def cli():
+    return CliRunner()

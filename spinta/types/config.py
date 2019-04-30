@@ -1,3 +1,5 @@
+import pathlib
+
 from spinta.utils.imports import importstr
 from spinta.commands import load
 from spinta.components import Context
@@ -34,5 +36,6 @@ def load(context: Context, config: components.Config, c: Config) -> Config:
 
     # Load everything else.
     config.debug = c.get('debug', default=False)
+    config.keys_dir = c.get('keys_dir', cast=pathlib.Path)
 
     return config
