@@ -92,8 +92,10 @@ CONFIG = {
     # How much time to wait in seconds for the backends to go up.
     'wait': 30,
 
-    # Directory where public and private keys are stored.
-    'keys_dir': pathlib.Path('keys'),
+    # Configuration path, where clients, keys and other things are stored.
+    'config_path': pathlib.Path('config'),
+
+    'server_url': 'https://example.com/',
 
     'env': 'dev',
 
@@ -131,7 +133,7 @@ CONFIG = {
                     'path': pathlib.Path() / 'tests/manifest',
                 },
             },
-            'keys_dir': pathlib.Path() / 'tests/keys',
+            'config_path': pathlib.Path('tests/config'),
         }
     },
 }
@@ -188,7 +190,7 @@ class Config:
         # Create inner keys
         self._config['default'].update(_get_inner_keys(self._config['default']))
 
-    def get(self, *key, default=None, cast=None, env=True, required=False):
+    def get(self, *key, default=None, cast=None, env=True, required=False, exists=True):
         environment = self._get_config_value('environment', default=None, envvar=True)
         value = self._get_config_value(key, default, env, environment=environment)
 
@@ -199,7 +201,12 @@ class Config:
                 value = cast(value)
 
         if required and not value:
-            raise Exception("'%s' is a required configuration option." % '.'.join(key))
+            name = '.'.join(key)
+            raise Exception(f"{name!r} is a required configuration option.")
+
+        if exists and isinstance(value, pathlib.Path) and not value.exists():
+            name = '.'.join(key)
+            raise Exception(f"{name} ({value}) path does not exist.")
 
         return value
 

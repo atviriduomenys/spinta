@@ -1,0 +1,4 @@
+client_id: 63957342-bbf6-4efb-9e34-c17e42bbd59c
+client_secret_hash: $pbkdf2-256-1$2$b8TmXgwHdyNyWq7e6LNtQW/v$d2fc4016c28b516400eee363bc5ffff64525c8e127062c8b
+scopes:
+  - profile

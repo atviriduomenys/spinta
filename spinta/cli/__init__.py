@@ -1,6 +1,9 @@
+import base64
 import json
 import operator
+import os
 import pathlib
+import uuid
 
 import click
 
@@ -125,7 +128,7 @@ def config(ctx):
 
 
 @main.command()
-@click.argument('path', type=click.Path(exists=True, file_okay=False, writable=True))
+@click.option('--path', '-p', type=click.Path(exists=True, file_okay=False, writable=True))
 @click.pass_context
 def genkeys(ctx, path):
     from cryptography.hazmat.backends import default_backend
@@ -133,22 +136,79 @@ def genkeys(ctx, path):
 
     from authlib.jose import jwk
 
-    path = pathlib.Path(path)
-    private = path / 'private.json'
-    public = path / 'public.json'
+    if path is None:
+        context = ctx.obj['context']
+        config = context.get('config')
+        path = config.config_path / 'keys'
+        path.mkdir(exist_ok=True)
+    else:
+        path = pathlib.Path(path)
 
-    if private.exists():
-        raise click.Abort(f"{private} file already exists.")
+    private_file = path / 'private.json'
+    public_file = path / 'public.json'
 
-    if public.exists():
-        raise click.Abort(f"{public} file already exists.")
+    if private_file.exists():
+        raise click.Abort(f"{private_file} file already exists.")
+
+    if public_file.exists():
+        raise click.Abort(f"{public_file} file already exists.")
 
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
 
-    with private.open('w') as f:
+    with private_file.open('w') as f:
         json.dump(jwk.dumps(key), f, indent=4, ensure_ascii=False)
-        click.echo(f"Private key saved to {private}.")
+        click.echo(f"Private key saved to {private_file}.")
 
-    with public.open('w') as f:
+    with public_file.open('w') as f:
         json.dump(jwk.dumps(key.public_key()), f, indent=4, ensure_ascii=False)
-        click.echo(f"Public key saved to {public}.")
+        click.echo(f"Public key saved to {public_file}.")
+
+
+@main.group()
+@click.pass_context
+def client(ctx):
+    pass
+
+
+@client.command('add')
+@click.option('--path', '-p', type=click.Path(exists=True, file_okay=False, writable=True))
+@click.pass_context
+def client_add(ctx, path):
+    import passwords
+    import ruamel.yaml
+
+    yaml = ruamel.yaml.YAML(typ='safe')
+
+    if path is None:
+        context = ctx.obj['context']
+        config = context.get('config')
+        path = config.config_path / 'clients'
+        path.mkdir(exist_ok=True)
+    else:
+        path = pathlib.Path(path)
+
+    client_id = str(uuid.uuid4())
+    client_file = path / f'{client_id}.yml'
+
+    if client is None and client_file.exists():
+        raise click.Abort(f"{client_file} file already exists.")
+
+    client_secret = base64.urlsafe_b64encode(os.urandom(24)).decode()
+    client_secret_hash = passwords.crypt(client_secret)
+
+    data = {
+        'client_id': client_id,
+        'client_secret_hash': client_secret_hash,
+        'scopes': [],
+    }
+
+    yaml.dump(data, client_file)
+
+    click.echo(
+        f"New client created at {client_file}, with client secret:\n"
+        f"\n"
+        f"    {client_secret}\n"
+        f"\n"
+        f"Remember client secret, because only a secure hash of\n"
+        f"client secred will be stored info config file."
+    )
