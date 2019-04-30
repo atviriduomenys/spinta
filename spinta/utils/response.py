@@ -112,19 +112,23 @@ async def create_http_response(context, params, request):
             # only `application/json` is supported
             ct = request.headers.get('content-type')
             if ct != 'application/json':
-                return JSONResponse(
-                    {"error": "only 'application/json' content-type is supported"},
-                    status_code=415
+                raise HTTPException(
+                    status_code=415,
+                    detail="only 'application/json' content-type is supported",
                 )
 
             auth_header = request.headers.get('authorization')
             if auth_header is None:
-                return JSONResponse({"error": "missing authorization header"},
-                                    status_code=401)
+                raise HTTPException(
+                    status_code=401,
+                    detail="missing authorization header",
+                )
 
             if not auth_header.startswith('Bearer '):
-                return JSONResponse({"error": "invalid authorization header"},
-                                    status_code=403)
+                raise HTTPException(
+                    status_code=403,
+                    detail="invalid authorization header",
+                )
 
             jwt_token = auth_header.strip('Bearer ') if auth_header else None
 
@@ -139,26 +143,37 @@ async def create_http_response(context, params, request):
             try:
                 data = await request.json()
             except json.decoder.JSONDecodeError:
-                return JSONResponse({"error": "not a valid json"},
-                                    status_code=400)
+                raise HTTPException(
+                    status_code=400,
+                    detail="not a valid json",
+                )
 
             object_is_being_created = ('id' in data.keys() and not params.id)
             if object_is_being_created:
                 if not can_create_ids:
-                    return JSONResponse({"error": "cannot create 'id'"},
-                                        status_code=400)
+                    raise HTTPException(
+                        status_code=400,
+                        detail="cannot create 'id'",
+                    )
                 else:
                     try:
-                        id = commands.get(context, model, model.backend, data['id'])
+                        commands.get(context, model, model.backend, data['id'])
                     except (MultipleRowsException, NoResultsException):
                         pass
                     else:
+                        # XXX: should raise HTTPException here,
+                        # but for some reason in tests, when raising
+                        # HTTPException here, the database connection
+                        # closes sooner than the test can finish,
+                        # so I return just a JSONResponse with HTTP/400
                         return JSONResponse({"error": "cannot create duplicate 'id'"},
                                             status_code=400)
 
             if 'revision' in data.keys():
-                return JSONResponse({"error": "cannot create 'revision'"},
-                                    status_code=400)
+                raise HTTPException(
+                    status_code=400,
+                    detail="cannot create 'revision'",
+                )
 
             id = commands.push(context, model, model.backend, data)
             data = {
