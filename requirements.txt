@@ -21,7 +21,6 @@ lxml==4.3.3
 markupsafe==1.1.1         # via jinja2
 msgpack==0.6.1
 multipledispatch==0.6.0
-passwords==0.2.0
 psycopg2-binary==2.8.2
 pycparser==2.19           # via cffi
 pymongo==3.8.0

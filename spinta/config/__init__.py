@@ -93,7 +93,7 @@ CONFIG = {
     'wait': 30,
 
     # Configuration path, where clients, keys and other things are stored.
-    'config_path': pathlib.Path('config'),
+    'config_path': pathlib.Path('tests/config'),
 
     'server_url': 'https://example.com/',
 

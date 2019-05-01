@@ -33,7 +33,6 @@ more-itertools==7.0.0     # via pytest
 msgpack==0.6.1
 multipledispatch==0.6.0
 parso==0.4.0              # via jedi
-passwords==0.2.0
 pexpect==4.7.0            # via ipython
 pickleshare==0.7.5        # via ipython
 pluggy==0.9.0             # via pytest

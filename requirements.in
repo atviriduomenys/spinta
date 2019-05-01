@@ -6,7 +6,6 @@ jinja2
 lxml
 msgpack
 multipledispatch
-passwords
 psycopg2-binary
 pymongo
 python-multipart

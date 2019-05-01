@@ -11,8 +11,8 @@ from spinta.cli import client_add
 
 
 def test_app(context, app):
-    client_id = '63957342-bbf6-4efb-9e34-c17e42bbd59c'
-    client_secret = 'RG2xtKk05HWdWHL7VIEdjKurDz2Ns3l3'
+    client_id = 'baa448a8-205c-4faa-a048-a10e4b32a136'
+    client_secret = 'joWgziYLap3eKDL6Gk2SnkJoyz0F8ukB'
 
     resp = app.post('/auth/token', auth=(client_id, client_secret), data={
         'grant_type': 'client_credentials',
@@ -54,7 +54,7 @@ def test_client_add(cli, tmpdir):
     result = cli.invoke(client_add, ['-p', str(tmpdir)], catch_exceptions=False)
 
     client_file = pathlib.Path(str(tmpdir.listdir()[0]))
-    assert f'New client created at {client_file}' in result.output
+    assert f'client created and saved to:\n\n    {client_file}' in result.output
 
     yaml = ruamel.yaml.YAML(typ='safe')
     client = yaml.load(client_file)

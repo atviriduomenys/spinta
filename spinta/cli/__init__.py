@@ -174,8 +174,8 @@ def client(ctx):
 @click.option('--path', '-p', type=click.Path(exists=True, file_okay=False, writable=True))
 @click.pass_context
 def client_add(ctx, path):
-    import passwords
     import ruamel.yaml
+    from spinta.utils import passwords
 
     yaml = ruamel.yaml.YAML(typ='safe')
 
@@ -193,7 +193,7 @@ def client_add(ctx, path):
     if client is None and client_file.exists():
         raise click.Abort(f"{client_file} file already exists.")
 
-    client_secret = base64.urlsafe_b64encode(os.urandom(24)).decode()
+    client_secret = passwords.gensecret(32)
     client_secret_hash = passwords.crypt(client_secret)
 
     data = {
@@ -205,10 +205,10 @@ def client_add(ctx, path):
     yaml.dump(data, client_file)
 
     click.echo(
-        f"New client created at {client_file}, with client secret:\n"
-        f"\n"
-        f"    {client_secret}\n"
-        f"\n"
-        f"Remember client secret, because only a secure hash of\n"
-        f"client secred will be stored info config file."
+        f"New client created and saved to:\n\n"
+        f"    {client_file}\n\n"
+        f"Client secret:\n\n"
+        f"    {client_secret}\n\n"
+        f"Remember this client secret, because only a secure hash of\n"
+        f"client secret will be stored in the config file."
     )

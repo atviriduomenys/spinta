@@ -2,7 +2,6 @@ import datetime
 import json
 import time
 
-import passwords
 import ruamel.yaml
 
 from starlette.responses import JSONResponse
@@ -13,6 +12,8 @@ from authlib.oauth2 import rfc6749
 from authlib.oauth2 import OAuth2Request
 from authlib.oauth2.rfc6749 import grants
 from authlib.oauth2.rfc6750 import BearerToken
+
+from spinta.utils import passwords
 
 yaml = ruamel.yaml.YAML(typ='safe')
 
