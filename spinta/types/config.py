@@ -36,6 +36,7 @@ def load(context: Context, config: components.Config, c: Config) -> Config:
 
     # Load everything else.
     config.debug = c.get('debug', default=False)
-    config.keys_dir = c.get('keys_dir', cast=pathlib.Path)
+    config.config_path = c.get('config_path', cast=pathlib.Path, exists=True)
+    config.server_url = c.get('server_url')
 
     return config

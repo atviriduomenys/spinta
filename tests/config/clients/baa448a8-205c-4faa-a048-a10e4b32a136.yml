@@ -1,0 +1,5 @@
+client_id: baa448a8-205c-4faa-a048-a10e4b32a136
+client_secret: joWgziYLap3eKDL6Gk2SnkJoyz0F8ukB
+client_secret_hash: pbkdf2$sha256$885635$BU_xw-0vx-97k6AWa6Odgg$JvCwasOVkGqE0PDqa-PwXEML4pYmPoAwVyKTvttnZK8
+scopes:
+  - profile
