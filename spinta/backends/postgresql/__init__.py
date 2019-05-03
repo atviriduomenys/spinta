@@ -17,7 +17,7 @@ from spinta.components import Context, Manifest, Model, Property
 from spinta.config import Config
 from spinta.types import NA
 from spinta.types.type import Type
-from spinta.utils.exceptions import MultipleRowsException, NoResultsException
+from spinta.exceptions import MultipleRowsException, NoResultsException
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
