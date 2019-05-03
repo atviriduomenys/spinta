@@ -4,16 +4,24 @@ import time
 
 import ruamel.yaml
 
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from authlib.jose import jwk
 from authlib.jose import jwt
-from authlib.oauth2 import rfc6749
 from authlib.oauth2 import OAuth2Request
+from authlib.oauth2 import rfc6749
+from authlib.oauth2 import rfc6750
 from authlib.oauth2.rfc6749 import grants
-from authlib.oauth2.rfc6750 import BearerToken
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
+from spinta.commands import authorize
+from spinta.components import Context
+from spinta.dispatcher import Command
 from spinta.utils import passwords
+from spinta.utils.scopes import name_to_scope
+from spinta.components import Model
+from spinta.backends import Backend
 
 yaml = ruamel.yaml.YAML(typ='safe')
 
@@ -23,7 +31,7 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
     def __init__(self, context):
         super().__init__(
             query_client=self._query_client,
-            generate_token=BearerToken(
+            generate_token=rfc6750.BearerToken(
                 access_token_generator=self._generate_token,
                 expires_generator=self._get_expires_in,
             ),
@@ -34,7 +42,7 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         self._private_key = self._load_key('private.json')
 
     def create_oauth2_request(self, request):
-        return OAuth2Request(request['method'], request['url'], request['body'], request['headers'])
+        return get_auth_request(request)
 
     def handle_response(self, status_code, payload, headers):
         return JSONResponse(payload, status_code=status_code, headers=dict(headers))
@@ -86,6 +94,31 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         return key
 
 
+class ResourceProtector(rfc6749.ResourceProtector):
+
+    def __init__(self, context: Context, Validator: type):
+        self.TOKEN_VALIDATORS = {
+            Validator.TOKEN_TYPE: Validator(context),
+        }
+
+
+class BearerTokenValidator(rfc6750.BearerTokenValidator):
+
+    def __init__(self, context):
+        super().__init__()
+        self._context = context
+        self._private_key = self._load_key('private.json')
+
+    def authenticate_token(self, token_string: str):
+        return Token(self)
+
+    def request_invalid(self, request):
+        return False
+
+    def token_revoked(self, token):
+        return False
+
+
 class Client(rfc6749.ClientMixin):
 
     def __init__(self, *, id, secret_hash, scopes):
@@ -107,4 +140,46 @@ class Client(rfc6749.ClientMixin):
 
 
 class Token(rfc6749.TokenMixin):
-    pass
+
+    def __init__(self, validator: BearerTokenValidator):
+        self._validator = validator
+
+    def check_scope(self, scope):
+        if isinstance(scope, str):
+            scope = {scope}
+        if self.scope_insufficient(self, scope):
+            raise InsufficientScopeError()
+
+
+def get_auth_token(context: Context) -> Token:
+    scope = None  # Scopes will be validated later using Token.check_scope
+    request = context.get('auth.request')
+    resource_protector = context.get('auth.resource_protector')
+    token = resource_protector.validate_request(scope, request)
+    return token
+
+
+def get_auth_request(request: Request) -> OAuth2Request:
+    return OAuth2Request(
+        request['method'],
+        request['url'],
+        request['body'],
+        request['headers'],
+    )
+
+
+@authorize.register()
+def authorize(command: Command, context: Context, model: Model, backend: Backend, data: dict, **kwargs):
+    return authorize(command, context, model)
+
+
+@authorize.register()
+def authorize(command: Command, context: Context, model: Model, *, _wrapped, **kwargs):
+    config = context.get('config')
+    token = context.get('auth.token')
+    scope = name_to_scope('{prefix}{name}_{action}', model.name, maxlen=config.scope_max_length, params={
+        'prefix': config.scope_prefix,
+        'action': command.name,
+    })
+    token.check_scope(scope)
+    wrapped()

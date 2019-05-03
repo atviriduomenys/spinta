@@ -6,7 +6,10 @@ from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from starlette.templating import Jinja2Templates
+from starlette.requests import Request
 
+from spinta.auth import get_auth_request
+from spinta.auth import get_auth_token
 from spinta.commands import prepare
 from spinta.urlparams import Version
 from spinta.utils.response import create_http_response
@@ -24,7 +27,7 @@ context = None
 
 
 @app.route('/auth/token', methods=['POST'])
-async def auth_token(request):
+async def auth_token(request: Request):
     global context
 
     auth = context.get('auth')
@@ -37,8 +40,11 @@ async def auth_token(request):
 
 
 @app.route('/{path:path}', methods=['GET', 'POST'])
-async def homepage(request):
+async def homepage(request: Request):
     global context
+
+    context.bind('auth.request', get_auth_request, request)
+    context.bind('auth.token', get_auth_token, context)
 
     with context.enter():
         config = context.get('config')

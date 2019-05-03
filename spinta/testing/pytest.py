@@ -16,7 +16,7 @@ from spinta.utils.commands import load_commands
 from spinta.testing.context import ContextForTests
 from spinta import components
 from spinta.config import Config
-from spinta.auth import AuthorizationServer
+from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
 
 
 @pytest.fixture(scope='session')
@@ -65,6 +65,7 @@ def context(config, postgresql, mongo):
     migrate(context, store)
 
     context.bind('auth', AuthorizationServer, context)
+    context.bind('auth.resource_protector', ResourceProtector, context, BearerTokenValidator)
 
     yield context
 

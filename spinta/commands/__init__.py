@@ -64,36 +64,40 @@ def migrate():
     """Migrate database schema changes."""
 
 
-@command()
+def authorize():
+    """Check if user is authorized to access a resource."""
+
+
+@command(wrap=authorize)
 def push():
     """Insert, update or delete data to the databse."""
 
 
-@command()
+@command(wrap=authorize)
 def get():
     """Get single record from the databse."""
 
 
-@command()
+@command(wrap=authorize)
 def getall():
     """Find multiple records in the databse."""
 
 
-@command()
+@command(wrap=authorize)
 def changes():
     """Changelog of a table."""
 
 
-@command()
+@command(wrap=authorize)
 def pull():
     """Pull data from external data sources."""
 
 
 @command()
-def export():
+def export(wrap=authorize):
     """Export data in a specified format."""
 
 
 @command()
-def wipe():
+def wipe(wrap=authorize):
     """Delete all data from specified model."""
