@@ -54,6 +54,7 @@ CONFIG = {
             'generic': 'spinta.types.type:Generic',
             'array': 'spinta.types.type:Array',
             'object': 'spinta.types.type:Object',
+            'file': 'spinta.types.type:File',
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',

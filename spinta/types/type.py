@@ -93,6 +93,10 @@ class Object(Type):
     }
 
 
+class File(Type):
+    pass
+
+
 @load.register()
 def load(context: Context, type: Type, data: dict) -> Type:
     return type
