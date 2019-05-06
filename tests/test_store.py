@@ -59,5 +59,5 @@ def test_nested(context):
     ]))
     assert context.getone('nested', result[0]['id']) == {
         'type': 'nested',
-        'id': '1',
+        'id': result[0]['id'],
     }

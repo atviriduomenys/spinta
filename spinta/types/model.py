@@ -18,15 +18,30 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
     if props['id'].get('type') is None or props['id'].get('type') == 'pk':
         props['id'] == 'string'
 
+    model = load_properties(model, props, model.path, context, manifest)
+    return model
+
+
+def load_properties(model, props, path, context, manifest):
     model.properties = {}
     for name, prop in props.items():
         prop = {
             'name': name,
-            'path': model.path,
+            'path': path,
             'parent': model,
             **prop,
         }
+
         model.properties[name] = load(context, Property(), prop, manifest)
+
+        if prop['type'] == 'object':
+            typ = model.properties[name].type
+            new_props = props[name]['properties']
+            model.properties[name].type = load_properties(typ, new_props, path, context, manifest)
+        elif prop['type'] == 'array':
+            typ = model.properties[name].type
+            new_props = props[name]['items']['properties']
+            model.properties[name].type = load_properties(typ, new_props, path, context, manifest)
 
     return model
 
