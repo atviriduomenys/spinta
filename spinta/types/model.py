@@ -69,6 +69,15 @@ def check(context: Context, model: Model):
         context.deprecation("`id` property must specify real type like 'string' or 'integer'. Use of 'pk' is deprecated.")
 
 
+@check.register()
+def check(context: Context, model: Model, data: dict):
+    for name, prop in model.properties.items():
+        if name in data:
+            data_value = data[name]
+            if not prop.type.is_valid(data_value):
+                context.error(f"{data_value} is not valid type: {prop.type}")
+
+
 @error.register()
 def error(exc: Exception, context: Context, model: Model):
     message = (

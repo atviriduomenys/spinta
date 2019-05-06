@@ -210,6 +210,11 @@ def check(context: Context, dataset: Dataset):
             _check_ref(context, dataset, prop)
 
 
+@check.register()
+def check(context: Context, model: Model, data: dict):
+    pass
+
+
 def _check_owner(context: Context, dataset: Dataset):
     if dataset.owner and dataset.owner not in dataset.manifest.objects['owner']:
         context.error(f"Can't find owner {dataset.owner!r}.")
