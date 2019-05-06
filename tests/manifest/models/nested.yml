@@ -4,10 +4,8 @@ name: nested
 title: "Nested structure"
 version: 1
 date: "2019-02-06"
-unique:
-  - [country, govid]
 properties:
-  id: {type: integer}
+  id: {type: pk}
   some:
     type: array
     items:
