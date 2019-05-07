@@ -11,7 +11,6 @@ properties:
   status: {type: string}
   valid_from_date: {type: date}
   update_time: {type: datetime}
-  contents: {type: file}
 
   notes: {
       type: array,
@@ -21,5 +20,14 @@ properties:
               note: {type: string},
               note_type: {type: string}
           }
+      }
+  }
+
+  pdf: {
+      type: object,
+      hidden: true,
+      properties: {
+          body: {type: file},
+          content_type: {type: string}
       }
   }
