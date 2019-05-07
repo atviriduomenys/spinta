@@ -37,6 +37,7 @@ def test_app(context, app):
         'aud': client_id,
         'iat': int(token['iat']),
         'exp': int(token['exp']),
+        'scope': 'profile',
     }
 
 

@@ -2,11 +2,16 @@ import pkg_resources as pres
 import uvicorn
 import logging
 
+from authlib.common.errors import AuthlibHTTPError
+
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from starlette.templating import Jinja2Templates
+from starlette.requests import Request
 
+from spinta.auth import get_auth_request
+from spinta.auth import get_auth_token
 from spinta.commands import prepare
 from spinta.urlparams import Version
 from spinta.utils.response import create_http_response
@@ -24,10 +29,10 @@ context = None
 
 
 @app.route('/auth/token', methods=['POST'])
-async def auth_token(request):
+async def auth_token(request: Request):
     global context
 
-    auth = context.get('auth')
+    auth = context.get('auth.server')
     return auth.create_token_response({
         'method': request.method,
         'url': str(request.url),
@@ -37,17 +42,28 @@ async def auth_token(request):
 
 
 @app.route('/{path:path}', methods=['GET', 'POST'])
-async def homepage(request):
+async def homepage(request: Request):
     global context
 
     with context.enter():
+        context.bind('auth.request', get_auth_request, {
+            'method': request.method,
+            'url': str(request.url),
+            'body': None,
+            'headers': request.headers,
+        })
+        context.bind('auth.token', get_auth_token, context)
+
         config = context.get('config')
+
         UrlParams = config.components['urlparams']['component']
         params = prepare(context, UrlParams(), Version(), request)
+
         return await create_http_response(context, params, request)
 
 
 @app.exception_handler(Exception)
+@app.exception_handler(AuthlibHTTPError)
 @app.exception_handler(HTTPException)
 async def http_exception(request, exc):
     global context
@@ -55,6 +71,9 @@ async def http_exception(request, exc):
     if isinstance(exc, HTTPException):
         status_code = exc.status_code
         error = exc.detail
+    elif isinstance(exc, AuthlibHTTPError):
+        status_code = exc.status_code
+        error = exc.error
     else:
         status_code = 500
         error = str(exc)

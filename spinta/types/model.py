@@ -1,8 +1,9 @@
-from spinta.commands import load, check, error
+from spinta.commands import load, check, error, authorize
 from spinta.components import Context, Manifest, Model, Property
 from spinta.nodes import load_node
 from spinta.types.type import load_type
 from spinta.utils.errors import format_error
+from spinta.auth import check_generated_scopes
 
 
 @load.register()
@@ -104,3 +105,8 @@ def error(exc: Exception, context: Context, prop: Property, data: dict, manifest
         'prop': prop,
         'parents': ''.join(parents)
     }))
+
+
+@authorize.register()
+def authorize(context: Context, action: str, model: Model, *, data=None):
+    check_generated_scopes(context, model.get_type_value(), action, data=data)

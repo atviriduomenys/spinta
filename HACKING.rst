@@ -1,3 +1,5 @@
+.. default-role:: literal
+
 Development environment
 =======================
 
@@ -151,127 +153,38 @@ Composition::
       path
 
 
-Commands
-========
+Testing
+=======
 
-::
+Authorization
+-------------
 
-   'load' - convert primitive serialized form to a python-native form
-      prepare(Date)           -> (old) spinta/types/property.py:PrepareDate
-                                 (new) spinta/types/commands.py:@command('load', datetime.date, str)
-                              -> (new) spinta/types/commands.py:@command('load', datetime.datetime, str)
-      load(Config)            -> (old) spinta/types/config.py:LoadConfig
-                              -> (new) spinta/config/commands.py:@command('load', Config, EnvVars)
-                              -> (new) spinta/config/commands.py:@command('load', Config, EnvFile)
-                              -> (new) spinta/config/commands.py:@command('load', Config, CfgFile)
-      load(Config)            -> (old) spinta/types/config.py:LoadBackends
-                              -> (new) spinta/config/commands.py:@command('load', Backend, Config)
-      load(Config)            -> (old) spinta/types/config.py:LoadManifests
-                              -> (new) spinta/config/commands.py:@command('load', Manifest, Config)
-      load(Manifest)          -> (old) spinta/types/manifest.py:ManifestLoadManifest
-                                 (new) spinta/manifest/commands.py:@command('load', Manifest, YmlFile)
-      load(Node)              -> (old) spinta/types/type.py:ManifestLoad
-                                 (new) spinta/manifest/commands.py:@command('load', Node, dict)
-      load(Project)           -> (old) spinta/types/project.py:LoadProject
-                                 (new) spinta/projects/commands.py:@command('load', Project, dict)
-      load(Dataset)           -> (old) spinta/types/dataset.py:LoadDataset
-                                 (new) spinta/datasets/commands.py:@command('load', Dataset, dict)
-      load(Object)            -> (old) spinta/types/object.py:LoadObject
-      load(PostgreSQL)        -> (old) spinta/backends/postgresql/__init__.py:LoadBackend
-                                 (new) spinta/backends/postgresql/commands.py:@command('load', PostgreSQL, Config)
+Here is example how to test endpoints with authorization:
 
-   'dump' - convert python-native objects to primitive serialized form
-                              -> (new) spinta/types/commands.py:@command('dump', datetime.date)
-                              -> (new) spinta/types/commands.py:@command('dump', datetime.datetime)
 
-         self.run(self.config, {'manifest.load.backends': None}, ns='internal')
+.. code-block:: python
 
-   'prepare': {},
-      prepare(Node)           -> (old) spinta/types/type.py:Prepare
-      prepare(Command)        -> (old) spinta/types/command.py:Prepare
-      prepare(CommandList)    -> (old) spinta/types/command.py:PrepareCommandList
+   def test(app):
+      app.authorize(['spinta_model_action'])
+      resp = app.get('/some/endpoint')
+      assert resp.status_code == 200
 
-         self.run(self.load(obj, {'prepare': {'obj': self.obj, 'prop': name, 'value': value}})
+When `app.authorize` is called, client
+`tests/config/clients/baa448a8-205c-4faa-a048-a10e4b32a136.yml` credentials are
+are used to create access token and this access token is added as
+`Authorization: Bearer {token}` header to all requests.
 
-   'prepare.type': {},
-      prepare(Config)         -> (old) spinta/types/config.py:PrepareConfig
-      prepare(Manifest)       -> (old) spinta/types/manifest.py:PrepareManifest
-      prepare(Node)           -> (old) spinta/types/type.py:PrepareType
-      prepare(Dataset)        -> (old) spinta/types/dataset.py:PrepareDataset
-      prepare(Project)        -> (old) spinta/types/project.py:PrepareProject
-      prepare(Object)         -> (old) spinta/types/object.py:PrepareObject
+If `app.authorize` is called without any arguments, scopes are taken from
+client YAML file. If scopes are given, then the given scopes are used, even if
+client's YAML file does not have those scopes.
 
-         self.run(self.config, {'prepare.type': None}, ns='internal')
+Access token is created using `tests/config/keys/private.json` key and
+validated using `tests/config/keys/public.json` key.
 
-   'backend.prepare': {},
-      prepare(Manifest)                   -> (old) spinta/types/manifest.py:BackendPrepare
-      prepare(Manifest, PostgreSQL)       -> (old) spinta/backends/postgresql/__init__.py:Prepare
-      prepare(Model, PrepareModel)        -> (old) spinta/backends/postgresql/__init__.py:PrepareModel
-      prepare(DatasetModel, PostgreSQL)   -> (old) spinta/types/manifest.py:Prepare
+Additional clients can be created using this command::
 
-         self.run(manifest, {'backend.prepare': None}, ns=name)
+   spinta client add -p tests/config/clients
 
-   'backend.migrate': {},
-      migrate(Manifest)                   -> (old) spinta/types/manifest.py:BackendMigrate
-      migrate(Manifest, PostgreSQL)       -> (old) spinta/backends/postgresql/__init__.py:Migrate
-
-         self.run(manifest, {'backend.migrate': None}, ns=name)
-
-   'manifest.check': {},
-      check(Manifest)         -> (old) spinta/types/manifest.py:CheckManifest
-      check(Model)            -> (old) spinta/types/model.py:CheckModel
-      check(Project)          -> (old) spinta/types/project.py:CheckProject
-      check(Dataset)          -> (old) spinta/types/object.py:CheckDataset
-      check(Owner)            -> (old) spinta/types/owner.py:CheckOwner
-      check(Object)           -> (old) spinta/types/object.py:CheckObject
-      check(ForeignKey)       -> (old) spinta/types/property.py:RefManifestCheck
-
-         self.run(manifest, {'manifest.check': None}, ns=name)
-
-   'check': {},
-      check(Version, Model, PostgreSQL)            -> (old) spinta/backends/postgresql/__init__.py:CheckModel
-      check(Version, DatasetModel, PostgreSQL)     -> (old) spinta/backends/postgresql/dataset.py:Check
-
-         self.run(model, {'check': {'transaction': transaction, 'data': data}}, backend=backend, ns=ns)
-
-   'push': {},
-      push(Version, Model, PostgreSQL)             -> (old) spinta/backends/postgresql/__init__.py:Push
-      push(Version, DatasetModel, PostgreSQL)      -> (old) spinta/backends/postgresql/dataset.py:Push
-
-         self.run(model, {'push': {'transaction': transaction, 'data': data}}, backend=backend, ns=ns)
-
-   'pull': {},
-      pull(Dataset)           -> (old) spinta/types/dataset.py:Pull
-
-         self.run(dataset, {'pull': params}, backend=None, ns=ns)
-
-   'get': {},
-   'getall': {},
-   'changes': {},
-   'wipe': {},
-
-   'csv': {
-   'html': {
-   'xml': {
-   'pdf': {
-   'hint': {
-   'xlsx': {
-   'json': {
-
-   'export.ascii': {
-   'export.csv': {
-   'export.json': {
-   'export.jsonl': {
-
-   'replace': {},
-   'range': {
-   'self': {},
-   'chain': {},
-   'all': {},
-   'list': {
-   'denormalize': {},
-   'unstack': {},
-   'url': {
-   'getitem': {
-
-   'serialize': {},
+But currently `app.authorize` does not support using another client, currently
+only `baa448a8-205c-4faa-a048-a10e4b32a136` is always used, but that can be
+easly changed if needed.

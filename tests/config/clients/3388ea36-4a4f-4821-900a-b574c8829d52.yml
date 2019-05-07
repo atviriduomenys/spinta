@@ -1,0 +1,7 @@
+client_id: 3388ea36-4a4f-4821-900a-b574c8829d52
+client_secret: b5DVbOaEY1BGnfbfv82oA0-4XEBgLQuJ
+client_secret_hash: pbkdf2$sha256$436530$RlOUYl1U1PaCpYbYIPCV3Q$uCykFxWC8fwaRi7T2RmOA_CUqD9K-cMhvVlSSasuCeY
+scopes:
+  - spinta_getone
+  - spinta_getall
+  - spinta_changes
