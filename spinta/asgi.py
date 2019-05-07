@@ -6,6 +6,7 @@ from spinta.components import Context, Store
 from spinta.utils.commands import load_commands
 from spinta import components
 from spinta.config import Config
+from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,6 +24,7 @@ config = context.set('config', components.Config())
 store = context.set('store', Store())
 
 load(context, config, c)
+check(context, config)
 load(context, store, c)
 check(context, store)
 
@@ -30,6 +32,9 @@ wait(context, store, c)
 
 prepare(context, store.internal)
 prepare(context, store)
+
+context.set('auth.server', AuthorizationServer(context))
+context.set('auth.resource_protector', ResourceProtector(context, BearerTokenValidator))
 
 set_context(context)
 

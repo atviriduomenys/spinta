@@ -26,6 +26,7 @@ def main(ctx, option):
     store = context.set('store', Store())
 
     commands.load(context, config, c)
+    commands.check(context, config)
     commands.load(context, store, c)
     commands.check(context, store)
 

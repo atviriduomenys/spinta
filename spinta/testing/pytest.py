@@ -61,6 +61,7 @@ def context(mocker, config, postgresql, mongo):
 
     load_commands(config.get('commands', 'modules', cast=list))
     load(context, context.get('config'), config)
+    check(context, context.get('config'))
     load(context, store, config)
     check(context, store)
     prepare(context, store.internal)
@@ -68,7 +69,7 @@ def context(mocker, config, postgresql, mongo):
     prepare(context, store)
     migrate(context, store)
 
-    context.bind('auth', AuthorizationServer, context)
+    context.bind('auth.server', AuthorizationServer, context)
     context.bind('auth.resource_protector', ResourceProtector, context, BearerTokenValidator)
     context.bind('auth.token', AdminToken)
 

@@ -104,6 +104,8 @@ CONFIG = {
     # Part of the scope will be replaced with a hash to fit scope_max_length.
     'scope_max_length': 60,
 
+    'default_auth_client': None,
+
     'env': 'dev',
 
     'environments': {
@@ -121,6 +123,7 @@ CONFIG = {
                     'path': pathlib.Path() / 'tests/manifest',
                 },
             },
+            'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
         },
         'test': {
             'backends': {
@@ -141,6 +144,7 @@ CONFIG = {
                 },
             },
             'config_path': pathlib.Path('tests/config'),
+            'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
         }
     },
 }

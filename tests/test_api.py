@@ -70,7 +70,6 @@ def test_model(context, app):
         },
     ])
 
-    app.authorize(['spinta_country_getall'])
     resp = app.get('/country', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
@@ -487,8 +486,7 @@ def test_post_invalid_json(context, app):
         "code": "er"
     ]""")
     assert resp.status_code == 400
-    data = resp.json()
-    assert data == {"error": "not a valid json"}
+    assert resp.json() == {"error": "not a valid json"}
 
 
 def test_post_empty_content(context, app):
@@ -500,8 +498,7 @@ def test_post_empty_content(context, app):
     }
     resp = app.post('/country', headers=headers, json=None)
     assert resp.status_code == 400
-    data = resp.json()
-    assert data == {"error": "not a valid json"}
+    assert resp.json() == {"error": "not a valid json"}
 
 
 def test_post_id(context, app):
@@ -513,8 +510,7 @@ def test_post_id(context, app):
         'code': 'er',
     })
     assert resp.status_code == 403
-    data = resp.json()
-    assert data == {"error": "insufficient_scope"}
+    assert resp.json() == {"error": "insufficient_scope"}
 
 
 def test_post_update(context, app):
@@ -530,8 +526,7 @@ def test_post_update(context, app):
     })
 
     assert resp.status_code == 201
-    data = resp.json()
-    assert data['id'] == '42'
+    assert resp.json()['id'] == '42'
 
 
 def test_post_revision(context, app):
@@ -543,8 +538,7 @@ def test_post_revision(context, app):
         'code': 'er',
     })
     assert resp.status_code == 400
-    data = resp.json()
-    assert data == {"error": "cannot create 'revision'"}
+    assert resp.json() == {"error": "cannot create 'revision'"}
 
 
 @pytest.mark.skip('TODO')
@@ -574,8 +568,7 @@ def test_post_duplicate_id(context, app):
         'code': 'er',
     })
     assert resp.status_code == 400
-    data = resp.json()
-    assert data == {"error": "cannot create duplicate 'id'"}
+    assert resp.json() == {"error": "cannot create duplicate 'id'"}
 
 
 def test_post_non_json_content_type(context, app):
@@ -587,8 +580,7 @@ def test_post_non_json_content_type(context, app):
         "code": "er"
     })
     assert resp.status_code == 415
-    data = resp.json()
-    assert data == {"error": "only 'application/json' content-type is supported"}
+    assert resp.json() == {"error": "only 'application/json' content-type is supported"}
 
 
 def test_post_bad_auth_header(context, app):
@@ -599,5 +591,4 @@ def test_post_bad_auth_header(context, app):
         'code': 'er',
     })
     assert resp.status_code == 401
-    data = resp.json()
-    assert data == {'error': 'unsupported_token_type'}
+    assert resp.json() == {'error': 'unsupported_token_type'}

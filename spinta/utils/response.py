@@ -15,7 +15,6 @@ from starlette.requests import Request
 from spinta import commands
 from spinta.types import Type
 from spinta.types.store import get_model_from_params
-from spinta.exceptions import MultipleRowsException, NoResultsException
 from spinta.utils.tree import build_path_tree
 from spinta.utils.url import build_url_path
 from spinta.utils.url import parse_url_path

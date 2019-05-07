@@ -1,7 +1,7 @@
 import pathlib
 
 from spinta.utils.imports import importstr
-from spinta.commands import load
+from spinta.commands import load, check
 from spinta.components import Context
 from spinta.config import Config
 from spinta import components
@@ -40,5 +40,13 @@ def load(context: Context, config: components.Config, c: Config) -> Config:
     config.server_url = c.get('server_url')
     config.scope_prefix = c.get('scope_prefix')
     config.scope_max_length = c.get('scope_max_length', cast=int)
+    config.default_auth_client = c.get('default_auth_client')
 
     return config
+
+
+@check.register()
+def check(context: Context, config: components.Config):
+    if config.default_auth_client and not (config.config_path / 'clients' / f'{config.default_auth_client}.yml').exists():
+        clients_dir = config.config_path / 'clients'
+        raise Exception(f"default_auth_client {config.default_auth_client!r} does not exist in {clients_dir}.")

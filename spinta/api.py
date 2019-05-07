@@ -32,7 +32,7 @@ context = None
 async def auth_token(request: Request):
     global context
 
-    auth = context.get('auth')
+    auth = context.get('auth.server')
     return auth.create_token_response({
         'method': request.method,
         'url': str(request.url),
