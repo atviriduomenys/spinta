@@ -2,10 +2,10 @@ import contextlib
 import typing
 
 from spinta import commands
-from spinta.components import Context, Node
+from spinta.components import Node
 
 
-class ContextForTests(Context):
+class ContextForTests:
 
     def _get_model(self, model: typing.Union[str, Node], dataset: str):
         if isinstance(model, str):
