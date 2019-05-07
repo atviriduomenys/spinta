@@ -17,6 +17,7 @@ from spinta.testing.client import TestClient
 from spinta import components
 from spinta.config import Config
 from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator, AdminToken
+from spinta.utils.imports import importstr
 
 
 @pytest.fixture(scope='session')
@@ -54,7 +55,9 @@ def context(mocker, config, postgresql, mongo):
         'AUTHLIB_INSECURE_TRANSPORT': '1',
     })
 
-    context = ContextForTests()
+    Context = config.get('components', 'core', 'context', cast=importstr)
+    Context = type('ContextForTests', (ContextForTests, Context), {})
+    context = Context()
 
     context.set('config', components.Config())
     store = context.set('store', Store())
