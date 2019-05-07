@@ -1,7 +1,5 @@
-import base64
 import json
 import operator
-import os
 import pathlib
 import uuid
 
