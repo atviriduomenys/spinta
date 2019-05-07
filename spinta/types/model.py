@@ -75,7 +75,7 @@ def check(context: Context, model: Model, data: dict):
         if name in data:
             data_value = data[name]
             if not prop.type.is_valid(data_value):
-                context.error(f"{data_value} is not valid type: {prop.type}")
+                raise Exception(f"{data_value} is not valid type: {prop.type}")
 
 
 @error.register()
