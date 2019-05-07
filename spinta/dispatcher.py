@@ -5,6 +5,20 @@ from multipledispatch.dispatcher import Dispatcher
 _commands = {}
 
 
+def command(name: str = None, schema: dict = None):
+    """Define a new command."""
+
+    def _(func):
+        _name = func.__name__ if name is None else name
+        if _name in _commands:
+            raise Exception(f"{_name!r} is already defined.")
+        _commands[_name] = Command(_name)
+        _commands[_name].schema = schema or {}
+        return _commands[_name]
+
+    return _
+
+
 class Command(Dispatcher):
 
     def register(self, schema=None):
@@ -16,11 +30,6 @@ class Command(Dispatcher):
 
     def __call__(self, *args, **kwargs):
         try:
-            wrapped = kwargs.pop('_wrapped', False)
-            if self.wrap and wrapped is False:
-                types = tuple([type(arg) for arg in args])
-                if self.wrap.dispatcher(*types):
-                    return self.wrap(self, *args, _wrapped=True, **kwargs)
             return super().__call__(*args, **kwargs)
         except Exception as exc:
             types = tuple([type(arg) for arg in (exc,) + args])
@@ -28,21 +37,6 @@ class Command(Dispatcher):
                 _commands['error'](exc, *args, **kwargs)
             else:
                 raise
-
-
-def command(name: str = None, schema: dict = None, wrap: Command = None):
-    """Define a new command."""
-
-    def _(func):
-        _name = func.__name__ if name is None else name
-        if _name in _commands:
-            raise Exception(f"{_name!r} is already defined.")
-        _commands[_name] = Command(_name)
-        _commands[_name].schema = schema or {}
-        _commands[_name].wrap = wrap
-        return _commands[_name]
-
-    return _
 
 
 def _find_func_types(func):

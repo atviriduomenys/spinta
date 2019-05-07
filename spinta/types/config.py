@@ -38,5 +38,7 @@ def load(context: Context, config: components.Config, c: Config) -> Config:
     config.debug = c.get('debug', default=False)
     config.config_path = c.get('config_path', cast=pathlib.Path, exists=True)
     config.server_url = c.get('server_url')
+    config.scope_prefix = c.get('scope_prefix')
+    config.scope_max_length = c.get('scope_max_length', cast=int)
 
     return config

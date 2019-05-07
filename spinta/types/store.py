@@ -97,7 +97,11 @@ def push(context: Context, store: Store, stream: types.GeneratorType):
         # check if data is valid for the model's backend
         check(context, model, model.backend, data)
 
-        inserted_id = push(context, model, model.backend, data)
+        if 'id' in data:
+            action = 'update'
+        else:
+            action = 'insert'
+        inserted_id = push(context, model, model.backend, data, action=action)
         if inserted_id is not None:
             yield client_supplied_ids.update(client_id, {
                 **data,

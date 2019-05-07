@@ -1,28 +1,26 @@
 import datetime
 import json
+import logging
 import time
 
 import ruamel.yaml
 
-from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.exceptions import HTTPException
 
 from authlib.jose import jwk
 from authlib.jose import jwt
+from authlib.jose.errors import JoseError
 from authlib.oauth2 import OAuth2Request
 from authlib.oauth2 import rfc6749
 from authlib.oauth2 import rfc6750
 from authlib.oauth2.rfc6749 import grants
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
-from spinta.commands import authorize
 from spinta.components import Context
-from spinta.dispatcher import Command
 from spinta.utils import passwords
-from spinta.utils.scopes import name_to_scope
-from spinta.components import Model
-from spinta.backends import Backend
 
+log = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML(typ='safe')
 
 
@@ -39,7 +37,7 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         )
         self.register_grant(grants.ClientCredentialsGrant)
         self._context = context
-        self._private_key = self._load_key('private.json')
+        self._private_key = load_key(context, 'private.json')
 
     def create_oauth2_request(self, request):
         return get_auth_request(request)
@@ -51,15 +49,7 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         pass
 
     def _query_client(self, client_id):
-        config = self._context.get('config')
-        client_file = config.config_path / 'clients' / f'{client_id}.yml'
-        data = yaml.load(client_file)
-        client = Client(
-            id=client_id,
-            secret_hash=data['client_secret_hash'],
-            scopes=data['scopes'],
-        )
-        return client
+        return query_client(self._context, client_id)
 
     def _save_token(self, token, request):
         pass
@@ -68,30 +58,8 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         return int(datetime.timedelta(days=10).total_seconds())
 
     def _generate_token(self, client, grant_type, user, scope, **kwargs):
-        config = self._context.get('config')
-
-        header = {
-            'typ': 'JWT',
-            'alg': 'RS512',
-        }
-
-        iat = int(time.time())
-        exp = iat + self._get_expires_in(client, grant_type)
-        payload = {
-            'iss': config.server_url,
-            'sub': client.id,
-            'aud': client.id,
-            'iat': iat,
-            'exp': exp,
-        }
-        return jwt.encode(header, payload, self._private_key).decode('ascii')
-
-    def _load_key(self, filename):
-        config = self._context.get('config')
-        with (config.config_path / 'keys' / filename).open() as f:
-            key = json.load(f)
-        key = jwk.loads(key)
-        return key
+        expires_in = self._get_expires_in(client, grant_type)
+        return create_access_token(self._context, self._private_key, client, grant_type, expires_in)
 
 
 class ResourceProtector(rfc6749.ResourceProtector):
@@ -107,10 +75,10 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
     def __init__(self, context):
         super().__init__()
         self._context = context
-        self._private_key = self._load_key('private.json')
+        self._public_key = load_key(context, 'public.json')
 
     def authenticate_token(self, token_string: str):
-        return Token(self)
+        return Token(token_string, self)
 
     def request_invalid(self, request):
         return False
@@ -141,25 +109,42 @@ class Client(rfc6749.ClientMixin):
 
 class Token(rfc6749.TokenMixin):
 
-    def __init__(self, validator: BearerTokenValidator):
+    def __init__(self, token_string, validator: BearerTokenValidator):
+        self._token = jwt.decode(token_string, validator._public_key)
         self._validator = validator
 
     def check_scope(self, scope):
         if isinstance(scope, str):
             scope = {scope}
-        if self.scope_insufficient(self, scope):
+        if self._validator.scope_insufficient(self, scope):
+            log.error("missing required scope: %s", ', '.join(sorted(scope)))
             raise InsufficientScopeError()
+
+    def get_expires_at(self):
+        return self._token['exp']
+
+    def get_scope(self):
+        return self._token.get('scope', '')
+
+
+class AdminToken(rfc6749.TokenMixin):
+
+    def check_scope(self, scope):
+        return True
 
 
 def get_auth_token(context: Context) -> Token:
     scope = None  # Scopes will be validated later using Token.check_scope
     request = context.get('auth.request')
     resource_protector = context.get('auth.resource_protector')
-    token = resource_protector.validate_request(scope, request)
+    try:
+        token = resource_protector.validate_request(scope, request)
+    except JoseError as e:
+        raise HTTPException(status_code=400, detail=e.error)
     return token
 
 
-def get_auth_request(request: Request) -> OAuth2Request:
+def get_auth_request(request: dict) -> OAuth2Request:
     return OAuth2Request(
         request['method'],
         request['url'],
@@ -168,18 +153,45 @@ def get_auth_request(request: Request) -> OAuth2Request:
     )
 
 
-@authorize.register()
-def authorize(command: Command, context: Context, model: Model, backend: Backend, data: dict, **kwargs):
-    return authorize(command, context, model)
-
-
-@authorize.register()
-def authorize(command: Command, context: Context, model: Model, *, _wrapped, **kwargs):
+def load_key(context: Context, filename: str):
     config = context.get('config')
-    token = context.get('auth.token')
-    scope = name_to_scope('{prefix}{name}_{action}', model.name, maxlen=config.scope_max_length, params={
-        'prefix': config.scope_prefix,
-        'action': command.name,
-    })
-    token.check_scope(scope)
-    wrapped()
+    with (config.config_path / 'keys' / filename).open() as f:
+        key = json.load(f)
+    key = jwk.loads(key)
+    return key
+
+
+def create_access_token(context, private_key, client, grant_type, expires_in, scopes=None):
+    config = context.get('config')
+
+    header = {
+        'typ': 'JWT',
+        'alg': 'RS512',
+    }
+
+    scopes = client.scopes if scopes is None else scopes
+    scopes = ' '.join(sorted(scopes))
+
+    iat = int(time.time())
+    exp = iat + expires_in
+    payload = {
+        'iss': config.server_url,
+        'sub': client.id,
+        'aud': client.id,
+        'iat': iat,
+        'exp': exp,
+        'scope': scopes,
+    }
+    return jwt.encode(header, payload, private_key).decode('ascii')
+
+
+def query_client(context: Context, client_id: str):
+    config = context.get('config')
+    client_file = config.config_path / 'clients' / f'{client_id}.yml'
+    data = yaml.load(client_file)
+    client = Client(
+        id=client_id,
+        secret_hash=data['client_secret_hash'],
+        scopes=data['scopes'],
+    )
+    return client

@@ -5,7 +5,7 @@ import typing
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
-from spinta.commands import prepare, check, push, get, getall, changes, wipe
+from spinta.commands import prepare, check, push, get, getall, changes, wipe, authorize
 from spinta.components import Context
 from spinta.types.dataset import Model
 
@@ -21,7 +21,7 @@ from spinta.utils.refs import get_ref_id
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, model: Model):
-    name = _get_table_name(model)
+    name = model.get_type_value()
     table_name = get_table_name(backend, model.manifest.name, name, MAIN_TABLE)
     table = sa.Table(
         table_name, backend.schema,
@@ -42,7 +42,9 @@ def check(context: Context, model: Model, backend: PostgreSQL, data: dict):
 
 
 @push.register()
-def push(context: Context, model: Model, backend: PostgreSQL, data: dict):
+def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action):
+    authorize(context, action, model, data=data)
+
     transaction = context.get('transaction')
     connection = transaction.connection
     table = _get_table(backend, model)
@@ -136,6 +138,8 @@ def _serialize(value):
 
 @get.register()
 def get(context: Context, model: Model, backend: PostgreSQL, id: str):
+    authorize(context, 'getone', model)
+
     connection = context.get('transaction').connection
     table = _get_table(backend, model).main
 
@@ -209,6 +213,8 @@ def getall(
     offset=None, limit=None,
     count: bool = False,
 ):
+    authorize(context, 'getall', model)
+
     connection = context.get('transaction').connection
     table = _get_table(backend, model).main
     jm = JoinManager(backend, model, table)
@@ -272,6 +278,8 @@ def _getall_limit(query, limit):
 
 @changes.register()
 def changes(context: Context, model: Model, backend: PostgreSQL, *, id=None, offset=None, limit=None):
+    authorize(context, 'changes', model)
+
     connection = context.get('transaction').connection
     table = _get_table(backend, model).changes
 
@@ -325,6 +333,8 @@ def _changes_limit(query, limit):
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: PostgreSQL):
+    authorize(context, 'wipe', model)
+
     connection = context.get('transaction').connection
     table = _get_table(backend, model)
     connection.execute(table.changes.delete())
@@ -332,11 +342,7 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
 
 
 def _get_table(backend, model):
-    return backend.tables[model.manifest.name][_get_table_name(model)]
-
-
-def _get_table_name(model: Model):
-    return f'{model.name}/:source/{model.parent.name}'
+    return backend.tables[model.manifest.name][model.get_type_value()]
 
 
 def _get_data_from_row(model: Model, table, row, *, show=False):
@@ -344,7 +350,7 @@ def _get_data_from_row(model: Model, table, row, *, show=False):
         data = dict(row)
     else:
         data = {
-            'type': _get_table_name(model),
+            'type': model.get_type_value(),
             'id': row[table.c.id],
         }
         for prop in model.properties.values():
