@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from spinta.commands import load, error
 from spinta.components import Context, Node
 from spinta.utils.schema import resolve_schema
@@ -16,17 +18,35 @@ class Type:
         'link': {'type': 'string'},
     }
 
+    def is_valid(self, value):
+        raise NotImplementedError
+
 
 class PrimaryKey(Type):
-    pass
+
+    def is_valid(self, value):
+        # XXX: implement `pk` validation
+        return True
 
 
 class Date(Type):
-    pass
+
+    DEFAULT_FMT = "%Y-%m-%d"
+
+    def is_valid(self, value, date_fmt=DEFAULT_FMT):
+        if isinstance(value, str):
+            try:
+                datetime.strptime(value, date_fmt)
+            except ValueError:
+                return False
+            else:
+                return True
 
 
-class DateTime(Type):
-    pass
+
+class DateTime(Date):
+
+    DEFAULT_FMT = "%Y-%m-%d %H:%M:%S"
 
 
 class String(Type):
@@ -34,9 +54,28 @@ class String(Type):
         'enum': {'type': 'array'},
     }
 
+    def is_valid(self, value):
+        try:
+            str(value)
+        except Exception:
+            # will never be called??
+            return False
+        else:
+            return True
+
 
 class Integer(Type):
-    pass
+
+    def is_valid(self, value):
+        if isinstance(value, int):
+            return True
+        else:
+            try:
+                int(value)
+            except ValueError:
+                return False
+            else:
+                return True
 
 
 class Number(Type):
@@ -65,6 +104,10 @@ class Ref(Type):
         'enum': {'type': 'array'},
     }
 
+    def is_valid(self, value):
+        # XXX: implement `ref` validation
+        return True
+
 
 class BackRef(Type):
     schema = {
@@ -86,11 +129,23 @@ class Array(Type):
         'items': {},
     }
 
+    def is_valid(self, value):
+        # XXX: implement `array` validation
+        return True
+
 
 class Object(Type):
     schema = {
         'properties': {'type': 'object'},
     }
+
+    def is_valid(self, value):
+        # XXX: implement `object` validation
+        return True
+
+
+class File(Type):
+    pass
 
 
 @load.register()

@@ -87,8 +87,9 @@ class Node:
 
     def __init__(self):
         self.manifest = None
-        self.parent = None
         self.name = None
+        self.parent = None
+        self.path = None
         self.type = None
 
 

@@ -6,6 +6,20 @@ title: "Report"
 version: 1
 date: "2019-04-17"
 properties:
-  id: {type: integer}
+  id: {type: pk}
   report_type: {type: string}
   status: {type: string}
+  valid_from_date: {type: date}
+  update_time: {type: datetime}
+  contents: {type: file}
+
+  notes: {
+      type: array,
+      items: {
+          type: object,
+          properties: {
+              note: {type: string},
+              note_type: {type: string}
+          }
+      }
+  }
