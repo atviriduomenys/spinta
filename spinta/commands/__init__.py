@@ -75,21 +75,6 @@ def push():
 
 
 @command()
-def insert():
-    """Insert data to the databse."""
-
-
-@command()
-def update():
-    """Update data to the databse."""
-
-
-@command()
-def delete():
-    """Delete data to the databse."""
-
-
-@command()
 def get():
     """Get single record from the databse."""
 
