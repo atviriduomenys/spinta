@@ -43,7 +43,6 @@ class Date(Type):
                 return True
 
 
-
 class DateTime(Date):
 
     DEFAULT_FMT = "%Y-%m-%d %H:%M:%S"
@@ -153,12 +152,41 @@ def load(context: Context, type: Type, data: dict) -> Type:
     return type
 
 
+@load.register()
+def load(context: Context, type: Object, data: dict) -> Type:
+    type.properties = {}
+    for name, prop in data.get('properties', {}).items():
+        prop = {
+            'name': name,
+            'path': type.prop.path,
+            'parent': type.prop,
+            **prop,
+        }
+        type.properties[name] = load(context, type.prop.__class__(), prop, type.prop.manifest)
+    return type
+
+
+@load.register()
+def load(context: Context, type: Array, data: dict) -> Type:
+    if 'items' in data:
+        prop = {
+            'name': type.prop.name,
+            'path': type.prop.path,
+            'parent': type.prop,
+            **data['items'],
+        }
+        type.items = load(context, type.prop.__class__(), prop, type.prop.manifest)
+    else:
+        type.items = None
+    return type
+
+
 def load_type(context: Context, prop: Node, data: dict):
     na = object()
     config = context.get('config')
 
     if prop.type not in config.components['types']:
-        _load_type_error(context, prop, prop.type, f"Unknown property type {prop.type!r}.")
+        raise Exception(f"Unknown property type {prop.type!r}.")
 
     type = config.components['types'][prop.type]()
     type_schema = resolve_schema(type, Type)
@@ -166,7 +194,7 @@ def load_type(context: Context, prop: Node, data: dict):
         schema = type_schema[name]
         value = data.get(name, na)
         if schema.get('required', False) and value is na:
-            _load_type_error(context, prop, type, f"Missing requied option {name!r}.")
+            raise Exception(f"Missing requied option {name!r}.")
         if value is na:
             value = schema.get('default')
         setattr(type, name, value)
@@ -175,19 +203,6 @@ def load_type(context: Context, prop: Node, data: dict):
     type.name = data['type']
 
     return load(context, type, data)
-
-
-def _load_type_error(context: Context, prop: Node, type: Type, message: str):
-    if isinstance(type, Type):
-        type_repr = f"<{type.name!r}: {type.__class__.__module__}.{type.__class__.__name__}>"
-    else:
-        type_repr = f"<{type!r}: None>"
-    context.error(
-        f"Error while loading {type_repr} on "
-        f"<{prop.name!r}: {prop.__class__.__module__}."
-        f"{prop.__class__.__name__}> from "
-        f"{prop.path}: {message}"
-    )
 
 
 @error.register()
