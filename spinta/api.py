@@ -45,21 +45,20 @@ async def auth_token(request: Request):
 async def homepage(request: Request):
     global context
 
-    with context.enter():
-        context.bind('auth.request', get_auth_request, {
-            'method': request.method,
-            'url': str(request.url),
-            'body': None,
-            'headers': request.headers,
-        })
-        context.bind('auth.token', get_auth_token, context)
+    context.bind('auth.request', get_auth_request, {
+        'method': request.method,
+        'url': str(request.url),
+        'body': None,
+        'headers': request.headers,
+    })
+    context.bind('auth.token', get_auth_token, context)
 
-        config = context.get('config')
+    config = context.get('config')
 
-        UrlParams = config.components['urlparams']['component']
-        params = prepare(context, UrlParams(), Version(), request)
+    UrlParams = config.components['urlparams']['component']
+    params = prepare(context, UrlParams(), Version(), request)
 
-        return await create_http_response(context, params, request)
+    return await create_http_response(context, params, request)
 
 
 @app.exception_handler(Exception)
