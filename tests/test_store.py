@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 def test_schema_loader(context):
     result = context.push([
         {
@@ -60,4 +63,24 @@ def test_nested(context):
     assert context.getone('nested', result[0]['id']) == {
         'type': 'nested',
         'id': result[0]['id'],
+    }
+
+
+def test_report(context):
+    result = list(context.push([{
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'valid_from_date': '2019-04-20',
+        'update_time': '2019-04-20 03:14:15',
+        'notes': {'note': 'hello report', 'note_type': 'test'}
+    }]))
+    assert context.getone('report', result[0]['id']) == {
+        'id': result[0]['id'],
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'valid_from_date': datetime(2019, 4, 20),
+        'update_time': datetime(2019, 4, 20, 3, 14, 15),
+        'notes': [{'note': 'hello report', 'note_type': 'test'}],
     }
