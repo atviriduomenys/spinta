@@ -18,11 +18,19 @@ class Type:
         'link': {'type': 'string'},
     }
 
+    def load(self, value):
+        # loads value to native Python type
+        raise NotImplementedError(f"{self.__class__} lacks implementation for load()")
+
     def is_valid(self, value):
-        raise NotImplementedError
+        # checks if value is valid for the use (i.e. valid range, etc.)
+        raise NotImplementedError(f"{self.__class__} lacks implementation for is_valid()")
 
 
 class PrimaryKey(Type):
+
+    def load(self, value):
+        return str(value)
 
     def is_valid(self, value):
         # XXX: implement `pk` validation
@@ -33,20 +41,25 @@ class Date(Type):
 
     DEFAULT_FMT = "%Y-%m-%d"
 
+    def load(self, value, date_fmt=DEFAULT_FMT):
+        return datetime.strptime(value, date_fmt)
+
     def is_valid(self, value, date_fmt=DEFAULT_FMT):
-        if isinstance(value, str):
-            try:
-                datetime.strptime(value, date_fmt)
-            except ValueError:
-                return False
-            else:
-                return True
+        # self.load() ensures value is native `datetime` type
+        return True
 
 
 
-class DateTime(Date):
+class DateTime(Type):
 
     DEFAULT_FMT = "%Y-%m-%d %H:%M:%S"
+
+    def load(self, value, date_fmt=DEFAULT_FMT):
+        return datetime.strptime(value, date_fmt)
+
+    def is_valid(self, value, date_fmt=DEFAULT_FMT):
+        # self.load() ensures value is native `datetime` type
+        return True
 
 
 class String(Type):
@@ -54,28 +67,22 @@ class String(Type):
         'enum': {'type': 'array'},
     }
 
+    def load(self, value):
+        return str(value)
+
     def is_valid(self, value):
-        try:
-            str(value)
-        except Exception:
-            # will never be called??
-            return False
-        else:
-            return True
+        # self.load() ensures value is native `str` type
+        return True
 
 
 class Integer(Type):
 
+    def load(self, value):
+        return int(value)
+
     def is_valid(self, value):
-        if isinstance(value, int):
-            return True
-        else:
-            try:
-                int(value)
-            except ValueError:
-                return False
-            else:
-                return True
+        # self.load() ensures value is native `int` type
+        return True
 
 
 class Number(Type):
@@ -104,6 +111,10 @@ class Ref(Type):
         'enum': {'type': 'array'},
     }
 
+    def load(self, value):
+        # XXX: implement `ref` loading
+        return value
+
     def is_valid(self, value):
         # XXX: implement `ref` validation
         return True
@@ -128,6 +139,14 @@ class Array(Type):
     schema = {
         'items': {},
     }
+
+    def load(self, value):
+        if isinstance(value, list):
+            # if value is list - return it
+            return value
+        else:
+            # if value isn't a list - add it to list and return it
+            return [value]
 
     def is_valid(self, value):
         # XXX: implement `array` validation
