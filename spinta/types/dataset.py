@@ -183,6 +183,11 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest):
     return prop
 
 
+@load.register()
+def load(context: Context, model: Model, data: dict) -> dict:
+    return data
+
+
 def _get_source(source, parent):
     if isinstance(source, str):
         if parent is None or (isinstance(parent, CommandList) and len(parent.commands) > 1):

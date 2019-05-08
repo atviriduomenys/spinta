@@ -61,6 +61,15 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
     return prop
 
 
+@load.register()
+def load(context: Context, model: Model, data: dict) -> dict:
+    for name, prop in model.properties.items():
+        if name in data:
+            data_value = data[name]
+            data[name] = prop.type.load(data_value)
+    return data
+
+
 @check.register()
 def check(context: Context, model: Model):
     if 'id' not in model.properties:
