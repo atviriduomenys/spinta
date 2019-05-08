@@ -5,7 +5,7 @@ import pymongo
 from bson.objectid import ObjectId
 
 from spinta.backends import Backend
-from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait
+from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize
 from spinta.components import Context, Manifest, Model
 from spinta.config import Config
 
@@ -84,7 +84,9 @@ def check(context: Context, model: Model, backend: Mongo, data: dict):
 
 
 @push.register()
-def push(context: Context, model: Model, backend: Mongo, data: dict):
+def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: str):
+    authorize(context, action, model, data=data)
+
     # Push data to Mongo backend, this can be an insert, update or delete. If
     # `id` is not given, it is an insert if `id` is given, it is an update.
     #
@@ -119,6 +121,8 @@ def push(context: Context, model: Model, backend: Mongo, data: dict):
 
 @get.register()
 def get(context: Context, model: Model, backend: Mongo, id: str):
+    authorize(context, 'getone', model)
+
     transaction = context.get('transaction')
     model_collection = backend.db[model.get_type_value()]
     row = model_collection.find_one({"_id": ObjectId(id)})
@@ -138,6 +142,8 @@ def get(context: Context, model: Model, backend: Mongo, id: str):
 
 @getall.register()
 def getall(context: Context, model: Model, backend: Mongo, **kwargs):
+    authorize(context, 'getall', model)
+
     transaction = context.get('transaction')
     # Yield all available entries.
     model_collection = backend.db[model.get_type_value()]
@@ -152,6 +158,8 @@ def getall(context: Context, model: Model, backend: Mongo, **kwargs):
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: Mongo):
+    authorize(context, 'wipe', model)
+
     transaction = context.get('transaction')
     # Delete all data for a given model
     model_collection = backend.db[model.get_type_value()]

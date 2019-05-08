@@ -1,20 +1,27 @@
 import datetime
 import json
+import logging
 import time
 
 import ruamel.yaml
 
 from starlette.responses import JSONResponse
+from starlette.exceptions import HTTPException
 
 from authlib.jose import jwk
 from authlib.jose import jwt
-from authlib.oauth2 import rfc6749
+from authlib.jose.errors import JoseError
 from authlib.oauth2 import OAuth2Request
+from authlib.oauth2 import rfc6749
+from authlib.oauth2 import rfc6750
 from authlib.oauth2.rfc6749 import grants
-from authlib.oauth2.rfc6750 import BearerToken
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
+from spinta.components import Context
 from spinta.utils import passwords
+from spinta.utils.scopes import name_to_scope
 
+log = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML(typ='safe')
 
 
@@ -23,7 +30,7 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
     def __init__(self, context):
         super().__init__(
             query_client=self._query_client,
-            generate_token=BearerToken(
+            generate_token=rfc6750.BearerToken(
                 access_token_generator=self._generate_token,
                 expires_generator=self._get_expires_in,
             ),
@@ -31,10 +38,10 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         )
         self.register_grant(grants.ClientCredentialsGrant)
         self._context = context
-        self._private_key = self._load_key('private.json')
+        self._private_key = load_key(context, 'private.json')
 
     def create_oauth2_request(self, request):
-        return OAuth2Request(request['method'], request['url'], request['body'], request['headers'])
+        return get_auth_request(request)
 
     def handle_response(self, status_code, payload, headers):
         return JSONResponse(payload, status_code=status_code, headers=dict(headers))
@@ -43,15 +50,7 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         pass
 
     def _query_client(self, client_id):
-        config = self._context.get('config')
-        client_file = config.config_path / 'clients' / f'{client_id}.yml'
-        data = yaml.load(client_file)
-        client = Client(
-            id=client_id,
-            secret_hash=data['client_secret_hash'],
-            scopes=data['scopes'],
-        )
-        return client
+        return query_client(self._context, client_id)
 
     def _save_token(self, token, request):
         pass
@@ -60,30 +59,33 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         return int(datetime.timedelta(days=10).total_seconds())
 
     def _generate_token(self, client, grant_type, user, scope, **kwargs):
-        config = self._context.get('config')
+        expires_in = self._get_expires_in(client, grant_type)
+        return create_access_token(self._context, self._private_key, client, grant_type, expires_in)
 
-        header = {
-            'typ': 'JWT',
-            'alg': 'RS512',
+
+class ResourceProtector(rfc6749.ResourceProtector):
+
+    def __init__(self, context: Context, Validator: type):
+        self.TOKEN_VALIDATORS = {
+            Validator.TOKEN_TYPE: Validator(context),
         }
 
-        iat = int(time.time())
-        exp = iat + self._get_expires_in(client, grant_type)
-        payload = {
-            'iss': config.server_url,
-            'sub': client.id,
-            'aud': client.id,
-            'iat': iat,
-            'exp': exp,
-        }
-        return jwt.encode(header, payload, self._private_key).decode('ascii')
 
-    def _load_key(self, filename):
-        config = self._context.get('config')
-        with (config.config_path / 'keys' / filename).open() as f:
-            key = json.load(f)
-        key = jwk.loads(key)
-        return key
+class BearerTokenValidator(rfc6750.BearerTokenValidator):
+
+    def __init__(self, context):
+        super().__init__()
+        self._context = context
+        self._public_key = load_key(context, 'public.json')
+
+    def authenticate_token(self, token_string: str):
+        return Token(token_string, self)
+
+    def request_invalid(self, request):
+        return False
+
+    def token_revoked(self, token):
+        return False
 
 
 class Client(rfc6749.ClientMixin):
@@ -107,4 +109,122 @@ class Client(rfc6749.ClientMixin):
 
 
 class Token(rfc6749.TokenMixin):
-    pass
+
+    def __init__(self, token_string, validator: BearerTokenValidator):
+        self._token = jwt.decode(token_string, validator._public_key)
+        self._validator = validator
+
+    def check_scope(self, scope, *, operator='AND'):
+        if isinstance(scope, str):
+            scope = {scope}
+        if self._validator.scope_insufficient(self, scope, operator):
+            client_id = self._token['aud']
+            log.error(f"client {client_id!r} is missing required scope: %s", ', '.join(sorted(scope)))
+            raise InsufficientScopeError()
+
+    def get_expires_at(self):
+        return self._token['exp']
+
+    def get_scope(self):
+        return self._token.get('scope', '')
+
+
+class AdminToken(rfc6749.TokenMixin):
+
+    def check_scope(self, scope, **kwargs):
+        return True
+
+
+def get_auth_token(context: Context) -> Token:
+    scope = None  # Scopes will be validated later using Token.check_scope
+    request = context.get('auth.request')
+
+    config = context.get('config')
+    if config.default_auth_client and 'authorization' not in request.headers:
+        private_key = load_key(context, 'private.json')
+        client = query_client(context, config.default_auth_client)
+        grant_type = 'client_credentials'
+        expires_in = int(datetime.timedelta(days=10).total_seconds())
+        token = create_access_token(context, private_key, client, grant_type, expires_in)
+        request.headers = request.headers.mutablecopy()
+        request.headers['authorization'] = f'Bearer {token}'
+
+    resource_protector = context.get('auth.resource_protector')
+    try:
+        token = resource_protector.validate_request(scope, request)
+    except JoseError as e:
+        raise HTTPException(status_code=400, detail=e.error)
+    return token
+
+
+def get_auth_request(request: dict) -> OAuth2Request:
+    return OAuth2Request(
+        request['method'],
+        request['url'],
+        request['body'],
+        request['headers'],
+    )
+
+
+def load_key(context: Context, filename: str):
+    config = context.get('config')
+    with (config.config_path / 'keys' / filename).open() as f:
+        key = json.load(f)
+    key = jwk.loads(key)
+    return key
+
+
+def create_access_token(context, private_key, client, grant_type, expires_in, scopes=None):
+    config = context.get('config')
+
+    header = {
+        'typ': 'JWT',
+        'alg': 'RS512',
+    }
+
+    scopes = client.scopes if scopes is None else scopes
+    scopes = ' '.join(sorted(scopes))
+
+    iat = int(time.time())
+    exp = iat + expires_in
+    payload = {
+        'iss': config.server_url,
+        'sub': client.id,
+        'aud': client.id,
+        'iat': iat,
+        'exp': exp,
+        'scope': scopes,
+    }
+    return jwt.encode(header, payload, private_key).decode('ascii')
+
+
+def query_client(context: Context, client_id: str):
+    config = context.get('config')
+    client_file = config.config_path / 'clients' / f'{client_id}.yml'
+    data = yaml.load(client_file)
+    if not isinstance(data['scopes'], list):
+        raise Exception(f'Client {client_file} scopes must be list of scopes.')
+    client = Client(
+        id=client_id,
+        secret_hash=data['client_secret_hash'],
+        scopes=data['scopes'],
+    )
+    return client
+
+
+def check_generated_scopes(context: Context, name: str, action: str, *, data: dict = None):
+    config = context.get('config')
+    token = context.get('auth.token')
+    prefix = config.scope_prefix
+
+    # Check autogenerated scope name from model and action.
+    action_scope = f'{prefix}{action}'
+    model_scope = name_to_scope('{prefix}{name}_{action}', name, maxlen=config.scope_max_length, params={
+        'prefix': prefix,
+        'action': action,
+    })
+    token.check_scope({action_scope, model_scope}, operator='OR')
+
+    # Check if meta fields can be set.
+    if action == 'insert' and data and 'id' in data:
+        token.check_scope(f'{prefix}set_meta_fields')

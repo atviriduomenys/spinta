@@ -2,7 +2,7 @@ import pathlib
 import requests
 import tempfile
 
-from spinta.commands import load, prepare, check, pull, getall
+from spinta.commands import load, prepare, check, pull, getall, authorize
 from spinta.components import Context, Manifest, Node, Command, CommandList
 from spinta.utils.refs import get_ref_id
 from spinta.utils.url import parse_url_path
@@ -10,6 +10,7 @@ from spinta.nodes import load_node
 from spinta.fetcher import Cache
 from spinta.types.store import get_model_from_params
 from spinta.types.type import load_type
+from spinta.auth import check_generated_scopes
 
 
 class Dataset(Node):
@@ -347,3 +348,8 @@ def _get_value_from_source(context: Context, prop: Property, source: Command, va
         return dependency.get(source.args['source'])
     else:
         return source(context, prop, value=value)
+
+
+@authorize.register()
+def authorize(context: Context, action: str, model: Model, *, data=None):
+    check_generated_scopes(context, model.get_type_value(), action, data=data)

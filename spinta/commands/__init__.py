@@ -65,6 +65,11 @@ def migrate():
 
 
 @command()
+def authorize():
+    """Check if user is authorized to access a resource."""
+
+
+@command()
 def push():
     """Insert, update or delete data to the databse."""
 

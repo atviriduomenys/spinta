@@ -12,7 +12,7 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
 from spinta.backends import Backend
-from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe
+from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize
 from spinta.components import Context, Manifest, Model, Property
 from spinta.config import Config
 from spinta.types import NA
@@ -34,6 +34,7 @@ CACHE_TABLE = 'T'
 # Change actions
 INSERT_ACTION = 'insert'
 UPDATE_ACTION = 'update'
+DELETE_ACTION = 'delete'
 
 
 class PostgreSQL(Backend):
@@ -274,7 +275,9 @@ def check(context: Context, model: Model, backend: PostgreSQL, data: dict):
 
 
 @push.register()
-def push(context: Context, model: Model, backend: PostgreSQL, data: dict):
+def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: str):
+    authorize(context, action, model, data=data)
+
     transaction = context.get('transaction')
     connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
@@ -283,10 +286,14 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict):
         k: v for k, v in data.items() if k in table.main.columns
     }
 
-    # Update existing row.
-    if 'id' in data:
+    if action == INSERT_ACTION:
+        result = connection.execute(
+            table.main.insert().values(data),
+        )
+        row_id = result.inserted_primary_key[0]
+
+    elif action == UPDATE_ACTION:
         data['id'] = int(data['id'])
-        action = UPDATE_ACTION
         result = connection.execute(
             table.main.update().
             where(table.main.c.id == data['id']).
@@ -299,13 +306,11 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict):
         else:
             raise Exception("Update failed, {self.obj} with {data['id']} has found and update {result.rowcount} rows.")
 
-    # Insert new row.
+    elif action == DELETE_ACTION:
+        raise NotImplementedError
+
     else:
-        action = INSERT_ACTION
-        result = connection.execute(
-            table.main.insert().values(data),
-        )
-        row_id = result.inserted_primary_key[0]
+        raise Exception(f"Unknown action {action!r}.")
 
     # Track changes.
     connection.execute(
@@ -323,6 +328,7 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict):
 
 @get.register()
 def get(context: Context, model: Model, backend: PostgreSQL, id: str):
+    authorize(context, 'getone', model)
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = backend.get(connection, table, table.c.id == int(id))
@@ -334,6 +340,7 @@ def get(context: Context, model: Model, backend: PostgreSQL, id: str):
 
 @getall.register()
 def getall(context: Context, model: Model, backend: PostgreSQL, **kwargs):
+    authorize(context, 'getall', model)
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = connection.execute(sa.select([table]))
@@ -345,6 +352,8 @@ def getall(context: Context, model: Model, backend: PostgreSQL, **kwargs):
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: PostgreSQL):
+    authorize(context, 'wipe', model)
+
     connection = context.get('transaction').connection
 
     changes = backend.tables[model.manifest.name][model.name].changes

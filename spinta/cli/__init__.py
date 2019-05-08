@@ -1,7 +1,5 @@
-import base64
 import json
 import operator
-import os
 import pathlib
 import uuid
 
@@ -9,9 +7,10 @@ import click
 
 from spinta.config import Config
 from spinta.utils.commands import load_commands
-from spinta.components import Context, Store
+from spinta.components import Store
 from spinta import commands
 from spinta import components
+from spinta.utils.imports import importstr
 
 
 @click.group()
@@ -23,11 +22,13 @@ def main(ctx, option):
 
     load_commands(c.get('commands', 'modules', cast=list))
 
+    Context = c.get('components', 'core', 'context', cast=importstr)
     context = Context()
     config = context.set('config', components.Config())
     store = context.set('store', Store())
 
     commands.load(context, config, c)
+    commands.check(context, config)
     commands.load(context, store, c)
     commands.check(context, store)
 

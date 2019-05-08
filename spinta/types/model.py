@@ -1,8 +1,9 @@
-from spinta.commands import load, check, error
+from spinta.commands import load, check, error, authorize
 from spinta.components import Context, Manifest, Model, Property
 from spinta.nodes import load_node
 from spinta.types.type import load_type
 from spinta.utils.errors import format_error
+from spinta.auth import check_generated_scopes
 
 
 @load.register()
@@ -18,30 +19,15 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
     if props['id'].get('type') is None or props['id'].get('type') == 'pk':
         props['id'] == 'string'
 
-    model = load_properties(model, props, model.path, context, manifest)
-    return model
-
-
-def load_properties(model, props, path, context, manifest):
     model.properties = {}
     for name, prop in props.items():
         prop = {
             'name': name,
-            'path': path,
+            'path': model.path,
             'parent': model,
             **prop,
         }
-
         model.properties[name] = load(context, Property(), prop, manifest)
-
-        if prop['type'] == 'object':
-            typ = model.properties[name].type
-            new_props = props[name]['properties']
-            model.properties[name].type = load_properties(typ, new_props, path, context, manifest)
-        elif prop['type'] == 'array':
-            typ = model.properties[name].type
-            new_props = props[name]['items']['properties']
-            model.properties[name].type = load_properties(typ, new_props, path, context, manifest)
 
     return model
 
@@ -104,3 +90,32 @@ def error(exc: Exception, context: Context, model: Model):
 @error.register()
 def error(exc: Exception, context: Context, model: Model, data: dict, manifest: Manifest):
     error(exc, context, model)
+
+
+@error.register()
+def error(exc: Exception, context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
+    parents = []
+    while True:
+        message = '  in property {prop.name!r} {prop}\n'
+        parents.append(format_error(message, {'prop': prop}))
+        if hasattr(prop, 'parent') and isinstance(prop.parent, Property):
+            prop = prop.parent
+        else:
+            break
+    message = (
+        '{exc}:\n'
+        '{parents}'
+        '  in model {prop.model.name!r} {prop.model.model}\n'
+        "  in file '{prop.model.path}'\n"
+        '  on backend {prop.backend.name!r}\n'
+    )
+    raise Exception(format_error(message, {
+        'exc': exc,
+        'prop': prop,
+        'parents': ''.join(parents)
+    }))
+
+
+@authorize.register()
+def authorize(context: Context, action: str, model: Model, *, data=None):
+    check_generated_scopes(context, model.get_type_value(), action, data=data)
