@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from spinta.commands import load, error
 from spinta.components import Context, Node
@@ -39,24 +39,20 @@ class PrimaryKey(Type):
 
 class Date(Type):
 
-    DEFAULT_FMT = "%Y-%m-%d"
+    def load(self, value):
+        return date.fromisoformat(value)
 
-    def load(self, value, date_fmt=DEFAULT_FMT):
-        return datetime.strptime(value, date_fmt)
-
-    def is_valid(self, value, date_fmt=DEFAULT_FMT):
+    def is_valid(self, value):
         # self.load() ensures value is native `datetime` type
         return True
 
 
 class DateTime(Type):
 
-    DEFAULT_FMT = "%Y-%m-%d %H:%M:%S"
+    def load(self, value):
+        return datetime.fromisoformat(value)
 
-    def load(self, value, date_fmt=DEFAULT_FMT):
-        return datetime.strptime(value, date_fmt)
-
-    def is_valid(self, value, date_fmt=DEFAULT_FMT):
+    def is_valid(self, value):
         # self.load() ensures value is native `datetime` type
         return True
 
