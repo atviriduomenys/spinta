@@ -282,6 +282,10 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
     connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
 
+    # load and check if data is a valid for it's model
+    data = load(context, model, data)
+    check(context, model, data)
+
     data = {
         k: v for k, v in data.items() if k in table.main.columns
     }

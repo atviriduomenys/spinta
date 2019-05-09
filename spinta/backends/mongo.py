@@ -100,6 +100,10 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     transaction = context.get('transaction')
     model_collection = backend.db[model.get_type_value()]
 
+    # load and check if data is a valid for it's model
+    data = load(context, model, data)
+    check(context, model, data)
+
     # Make a copy of data, because `pymongo` changes the reference `data`
     # object on `insert_one()` call.
     #
