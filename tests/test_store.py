@@ -1,5 +1,7 @@
 from datetime import datetime
 
+import pytest
+
 
 def test_schema_loader(context):
     result = context.push([
@@ -71,6 +73,7 @@ def test_report(context):
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
+        'count': '42',
         'valid_from_date': '2019-04-20',
         'update_time': '2019-04-20 03:14:15',
         'notes': {'note': 'hello report', 'note_type': 'test'}
@@ -80,7 +83,20 @@ def test_report(context):
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
+        'count': 42,
         'valid_from_date': datetime(2019, 4, 20),
         'update_time': datetime(2019, 4, 20, 3, 14, 15),
         'notes': [{'note': 'hello report', 'note_type': 'test'}],
     }
+
+
+@pytest.mark.skip("SPLAT-69 must fix bugs with context")
+def test_invalid_report(context, app):
+    with pytest.raises(ValueError):
+        list(context.push([{
+            'type': 'report',
+            'report_type': 'simple',
+            'status': 'valid',
+            'count': 'c0unt',
+            'valid_from_date': '2019-04',
+        }]))
