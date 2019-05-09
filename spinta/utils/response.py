@@ -1,6 +1,7 @@
 import cgi
 import collections
 import datetime
+import itertools
 import json
 import operator
 
@@ -91,12 +92,6 @@ async def create_http_response(context, params, request):
 
     elif params.format in config.exporters:
 
-        async def stream(context, rows, exporter, _params):
-            with context.enter():
-                context.bind('transaction', store.backends['default'].transaction)
-                for data in exporter(rows, **_params):
-                    yield data
-
         if not params.model:
             raise HTTPException(status_code=404)
 
@@ -138,17 +133,17 @@ async def create_http_response(context, params, request):
             }
             return JSONResponse(data, status_code=201)
 
-        context.bind('transaction', manifest.backend.transaction)
+        context.set('transaction', manifest.backend.transaction())
 
         if params.changes:
-            with context.enter():
-                context.bind('transaction', manifest.backend.transaction)
-                rows = commands.changes(
-                    context, model, model.backend,
-                    id=_params.get('id', {}).get('value'),
-                    limit=_params.get('limit', 100),
-                    offset=_params.get('changes', -10),
-                )
+            rows = commands.changes(
+                context, model, model.backend,
+                id=_params.get('id', {}).get('value'),
+                limit=_params.get('limit', 100),
+                offset=_params.get('changes', -10),
+            )
+            # TODO: see below (look for peek_and_stream)
+            rows = peek_and_stream(rows)
 
         elif params.id:
             rows = [commands.get(context, model, model.backend, _params['id']['value'])]
@@ -164,6 +159,21 @@ async def create_http_response(context, params, request):
                 count='count' in _params,
             )
 
+            # TODO: Currently authorization and many other thins happens inside
+            #       backend functions and on iterator. If anything failes, we
+            #       get a RuntimeError, because error happens after response is
+            #       started, that means we no longer can return correct HTTP
+            #       response with an error. That is why, we first run one
+            #       iteration before returning StreamingResponse, to catch
+            #       possible errors.
+            #
+            #       In other words, all possible checks should happend before
+            #       starting response.
+            #
+            #       Current solution with PeekStream is just a temporary
+            #       workaround.
+            rows = peek_and_stream(rows)
+
         exporter = config.exporters[params.format]
         media_type = exporter.content_type
         _params = {
@@ -171,8 +181,9 @@ async def create_http_response(context, params, request):
             if k in exporter.params
         }
 
-        g = stream(context, rows, exporter, _params)
-        return StreamingResponse(g, media_type=media_type)
+        stream = aiter(exporter(rows, **_params))
+
+        return StreamingResponse(stream, media_type=media_type)
 
     else:
         raise HTTPException(status_code=404)
@@ -443,3 +454,19 @@ def get_response_type(context: Context, request: Request, params: dict = None):
                 return formats[media_type]
 
     return 'json'
+
+
+def peek_and_stream(stream):
+    peek = next(stream, None)
+
+    def _iter():
+        if peek is not None:
+            for data in itertools.chain([peek], stream):
+                yield data
+
+    return _iter()
+
+
+async def aiter(stream):
+    for data in stream:
+        yield data

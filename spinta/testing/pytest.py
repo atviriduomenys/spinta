@@ -74,32 +74,32 @@ def context(mocker, config, postgresql, mongo):
 
     context.bind('auth.server', AuthorizationServer, context)
     context.bind('auth.resource_protector', ResourceProtector, context, BearerTokenValidator)
-    context.bind('auth.token', AdminToken)
 
     yield context
 
-    context.set('auth.token', AdminToken())
+    with context.enter():
+        context.set('auth.token', AdminToken())
 
-    # Remove all data after each test run.
-    graph = collections.defaultdict(set)
-    for model in store.manifests['default'].objects['model'].values():
-        if model.name not in graph:
-            graph[model.name] = set()
-        for prop in model.properties.values():
-            if prop.type.name == 'ref':
-                graph[prop.type.object].add(model.name)
+        # Remove all data after each test run.
+        graph = collections.defaultdict(set)
+        for model in store.manifests['default'].objects['model'].values():
+            if model.name not in graph:
+                graph[model.name] = set()
+            for prop in model.properties.values():
+                if prop.type.name == 'ref':
+                    graph[prop.type.object].add(model.name)
 
-    for models in toposort(graph):
-        for name in models:
-            context.wipe(name)
+        for models in toposort(graph):
+            for name in models:
+                context.wipe(name)
 
-    # Datasets does not have foreign kei constraints, so there is no need to
-    # topologically sort them. At least for now.
-    for dataset in store.manifests['default'].objects['dataset'].values():
-        for model in dataset.objects.values():
-            context.wipe(model)
+        # Datasets does not have foreign kei constraints, so there is no need to
+        # topologically sort them. At least for now.
+        for dataset in store.manifests['default'].objects['dataset'].values():
+            for model in dataset.objects.values():
+                context.wipe(model)
 
-    context.wipe(store.internal.objects['model']['transaction'])
+        context.wipe(store.internal.objects['model']['transaction'])
 
 
 @pytest.fixture

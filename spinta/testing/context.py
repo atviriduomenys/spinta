@@ -3,6 +3,7 @@ import typing
 
 from spinta import commands
 from spinta.components import Node
+from spinta.auth import AdminToken
 
 
 class ContextForTests:
@@ -24,6 +25,7 @@ class ContextForTests:
             yield self.get('transaction')
         else:
             with self.enter():
+                self.set('auth.token', AdminToken())
                 yield self.set('transaction', store.manifests['default'].backend.transaction(write=write))
 
     def pull(self, dataset: str, *, models: list = None, push: bool = True):

@@ -27,6 +27,11 @@ def test_export_csv(context, app, mocker):
         },
     ]))
 
+    app.authorize([
+        'spinta_country_source_csv_getall',
+        'spinta_country_source_csv_changes',
+    ])
+
     assert app.get('country/:source/csv/:format/csv').text == (
         'type,id,code,title\r\n'
         'country/:source/csv,025685077bbcf6e434a95b65b9a6f5fcef046861,lv,Latvia\r\n'

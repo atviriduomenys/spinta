@@ -2,21 +2,24 @@ import contextlib
 
 
 class Context:
+    # TODO: Use contextvars to prevent issues in concurent execution flow.
+    #
+    #       Since Context is a global variable, all changes to it must be async
+    #       and thread safe.
 
     def __init__(self):
         self._factory = [{}]
         self._context = [{}]
         self._exitstack = []
+        self._names = [set()]
 
     def bind(self, name, creator, *args, **kwargs):
+        self._set_name(name)
         self._factory[-1][name] = (creator, args, kwargs)
 
     def set(self, name, value):
-        if isinstance(value, contextlib.AbstractContextManager):
-            self._context[-1][name] = self._exitstack[-1].enter_context(value)
-        else:
-            self._context[-1][name] = value
-        return self._context[-1][name]
+        self._set_name(name)
+        return self._set_value(name, value)
 
     def get(self, name):
         if name in self._context[-1]:
@@ -26,8 +29,7 @@ class Context:
             raise Exception(f"Unknown context variable {name!r}.")
 
         factory, args, kwargs = self._factory[-1][name]
-        self.set(name, factory(*args, **kwargs))
-        return self._context[-1][name]
+        return self._set_value(name, factory(*args, **kwargs))
 
     def has(self, name):
         return name in self._context[-1]
@@ -40,14 +42,31 @@ class Context:
         self._factory.append({**self._factory[-1]})
         self._context.append({**self._context[-1]})
         self._exitstack.append(contextlib.ExitStack())
+        self._names.append(set())
         with self._exitstack[-1]:
             yield
         self._exitstack.pop()
         self._context.pop()
         self._factory.pop()
+        self._names.pop()
 
     def error(self, message):
+        # TODO: Use of this method is deprecated, raise exceptions directly.
+        #
+        #       New way of handling errors is through `spinta.commands.error`.
         raise Exception(message)
+
+    def _set_name(self, name):
+        if name in self._names[-1]:
+            raise Exception(f"Context variable {name!r} has been already set.")
+        self._names[-1].add(name)
+
+    def _set_value(self, name, value):
+        if isinstance(value, contextlib.AbstractContextManager):
+            self._context[-1][name] = self._exitstack[-1].enter_context(value)
+        else:
+            self._context[-1][name] = value
+        return self._context[-1][name]
 
 
 class _CommandsConfig:
