@@ -70,6 +70,7 @@ def test_model(context, app):
         },
     ])
 
+    app.authorize(['spinta_country_getall'])
     resp = app.get('/country', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
@@ -141,17 +142,13 @@ def test_model_get(context, app):
 
 
 def test_dataset(context, app):
-    store = context.get('store')
-    manifest = store.manifests['default']
-    with context.enter():
-        context.bind('transaction', manifest.backend.transaction, write=True)
-        consume(push(context, store, [
-            {
-                'type': 'rinkimai/:source/json',
-                'id': 'Rinkimai 1',
-                'pavadinimas': 'Rinkimai 1',
-            },
-        ]))
+    consume(context.push([
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 'Rinkimai 1',
+            'pavadinimas': 'Rinkimai 1',
+        },
+    ]))
 
     app.authorize(['spinta_rinkimai_source_json_getall'])
     resp = app.get('/rinkimai/:source/json', headers={'accept': 'text/html'})
@@ -185,17 +182,13 @@ def test_dataset(context, app):
 
 
 def test_nested_dataset(context, app):
-    store = context.get('store')
-    manifest = store.manifests['default']
-    with context.enter():
-        context.bind('transaction', manifest.backend.transaction, write=True)
-        consume(push(context, store, [
-            {
-                'type': 'deeply/nested/model/name/:source/nested/dataset/name',
-                'id': '42',
-                'name': 'Nested One',
-            },
-        ]))
+    consume(context.push([
+        {
+            'type': 'deeply/nested/model/name/:source/nested/dataset/name',
+            'id': '42',
+            'name': 'Nested One',
+        },
+    ]))
 
     app.authorize(['spinta_deeply_nested_model_name_source_neste168fff41_getall'])
     resp = app.get('deeply/nested/model/name/:source/nested/dataset/name', headers={'accept': 'text/html'})
@@ -232,17 +225,13 @@ def test_nested_dataset(context, app):
 
 
 def test_dataset_key(context, app):
-    store = context.get('store')
-    manifest = store.manifests['default']
-    with context.enter():
-        context.bind('transaction', manifest.backend.transaction, write=True)
-        consume(push(context, store, [
-            {
-                'type': 'rinkimai/:source/json',
-                'id': 'Rinkimai 1',
-                'pavadinimas': 'Rinkimai 1',
-            },
-        ]))
+    consume(context.push([
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 'Rinkimai 1',
+            'pavadinimas': 'Rinkimai 1',
+        },
+    ]))
 
     app.authorize(['spinta_rinkimai_source_json_getone'])
     resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json', headers={'accept': 'text/html'})
@@ -282,24 +271,20 @@ def test_dataset_key(context, app):
 def test_changes_single_object(context, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
-    store = context.get('store')
-    manifest = store.manifests['default']
-    with context.enter():
-        context.bind('transaction', manifest.backend.transaction, write=True)
-        consume(push(context, store, [
-            {
-                'type': 'rinkimai/:source/json',
-                'id': 'Rinkimai 1',
-                'pavadinimas': 'Rinkimai 1',
-            },
-        ]))
-        consume(push(context, store, [
-            {
-                'type': 'rinkimai/:source/json',
-                'id': 'Rinkimai 1',
-                'pavadinimas': 'Rinkimai 2',
-            },
-        ]))
+    consume(context.push([
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 'Rinkimai 1',
+            'pavadinimas': 'Rinkimai 1',
+        },
+    ]))
+    consume(context.push([
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 'Rinkimai 1',
+            'pavadinimas': 'Rinkimai 2',
+        },
+    ]))
 
     app.authorize(['spinta_rinkimai_source_json_changes'])
     resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:source/json/:changes', headers={'accept': 'text/html'})
@@ -355,24 +340,20 @@ def test_changes_single_object(context, app, mocker):
 def test_changes_object_list(context, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 
-    store = context.get('store')
-    manifest = store.manifests['default']
-    with context.enter():
-        context.bind('transaction', manifest.backend.transaction, write=True)
-        consume(push(context, store, [
-            {
-                'type': 'rinkimai/:source/json',
-                'id': 'Rinkimai 1',
-                'pavadinimas': 'Rinkimai 1',
-            },
-        ]))
-        consume(push(context, store, [
-            {
-                'type': 'rinkimai/:source/json',
-                'id': 'Rinkimai 1',
-                'pavadinimas': 'Rinkimai 2',
-            },
-        ]))
+    consume(context.push([
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 'Rinkimai 1',
+            'pavadinimas': 'Rinkimai 1',
+        },
+    ]))
+    consume(context.push([
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 'Rinkimai 1',
+            'pavadinimas': 'Rinkimai 2',
+        },
+    ]))
 
     app.authorize(['spinta_rinkimai_source_json_changes'])
     resp = app.get('/rinkimai/:source/json/:changes', headers={'accept': 'text/html'})
@@ -425,22 +406,18 @@ def test_changes_object_list(context, app, mocker):
 
 
 def test_count(context, app):
-    store = context.get('store')
-    manifest = store.manifests['default']
-    with context.enter():
-        context.bind('transaction', manifest.backend.transaction, write=True)
-        consume(push(context, store, [
-            {
-                'type': 'rinkimai/:source/json',
-                'id': 1,
-                'pavadinimas': 'Rinkimai 1',
-            },
-            {
-                'type': 'rinkimai/:source/json',
-                'id': 2,
-                'pavadinimas': 'Rinkimai 2',
-            },
-        ]))
+    consume(context.push([
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 1,
+            'pavadinimas': 'Rinkimai 1',
+        },
+        {
+            'type': 'rinkimai/:source/json',
+            'id': 2,
+            'pavadinimas': 'Rinkimai 2',
+        },
+    ]))
 
     app.authorize(['spinta_rinkimai_source_json_getall'])
     resp = app.get('/rinkimai/:source/json/:count', headers={'accept': 'text/html'})
@@ -592,3 +569,27 @@ def test_post_bad_auth_header(context, app):
     })
     assert resp.status_code == 401
     assert resp.json() == {'error': 'unsupported_token_type'}
+
+
+def test_streaming_response(context, app):
+    consume(context.push([
+        {
+            'type': 'country',
+            'code': 'fi',
+            'title': 'Finland',
+        },
+        {
+            'type': 'country',
+            'code': 'lt',
+            'title': 'Lithuania',
+        },
+    ]))
+
+    app.authorize(['spinta_country_getall'])
+    resp = app.get('/country').json()
+    data = resp['data']
+    data = sorted((x['code'], x['title']) for x in data)
+    assert data == [
+        ('fi', 'Finland'),
+        ('lt', 'Lithuania'),
+    ]

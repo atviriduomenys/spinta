@@ -27,6 +27,11 @@ def test_export_ascii(context, app, mocker):
         },
     ]))
 
+    app.authorize([
+        'spinta_country_source_csv_getall',
+        'spinta_country_source_csv_changes',
+    ])
+
     assert app.get('country/:source/csv/:format/ascii').text == (
         '\n\n'
         'Table: country/:source/csv\n'
