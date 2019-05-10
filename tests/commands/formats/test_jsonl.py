@@ -27,6 +27,8 @@ def test_export_json(context, app, mocker):
         },
     ]))
 
+    app.authorize(['spinta_country_source_csv_getall'])
+
     assert app.get('country/:source/csv/:format/jsonl').text == (
         '{"type":"country\\/:source\\/csv","id":"025685077bbcf6e434a95b65b9a6f5fcef046861","code":"lv","title":"Latvia"}\n'
         '{"type":"country\\/:source\\/csv","id":"69a33b149af7a7eeb25026c8cdc09187477ffe21","code":"lt","title":"Lithuania"}\n'
