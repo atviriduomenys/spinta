@@ -60,7 +60,8 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
 
     def _generate_token(self, client, grant_type, user, scope, **kwargs):
         expires_in = self._get_expires_in(client, grant_type)
-        return create_access_token(self._context, self._private_key, client, grant_type, expires_in)
+        scopes = scope.split() if scope else []
+        return create_access_token(self._context, self._private_key, client, grant_type, expires_in, scopes)
 
 
 class ResourceProtector(rfc6749.ResourceProtector):
@@ -145,7 +146,7 @@ def get_auth_token(context: Context) -> Token:
         client = query_client(context, config.default_auth_client)
         grant_type = 'client_credentials'
         expires_in = int(datetime.timedelta(days=10).total_seconds())
-        token = create_access_token(context, private_key, client, grant_type, expires_in)
+        token = create_access_token(context, private_key, client, grant_type, expires_in, client.scopes)
         request.headers = request.headers.mutablecopy()
         request.headers['authorization'] = f'Bearer {token}'
 
@@ -174,7 +175,7 @@ def load_key(context: Context, filename: str):
     return key
 
 
-def create_access_token(context, private_key, client, grant_type, expires_in, scopes=None):
+def create_access_token(context, private_key, client, grant_type, expires_in, scopes):
     config = context.get('config')
 
     header = {
@@ -182,11 +183,9 @@ def create_access_token(context, private_key, client, grant_type, expires_in, sc
         'alg': 'RS512',
     }
 
-    scopes = client.scopes if scopes is None else scopes
-    scopes = ' '.join(sorted(scopes))
-
     iat = int(time.time())
     exp = iat + expires_in
+    scopes = ' '.join(sorted(scopes)) if scopes else ''
     payload = {
         'iss': config.server_url,
         'sub': client.id,

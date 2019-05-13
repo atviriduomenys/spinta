@@ -3,7 +3,6 @@ import datetime
 import pytest
 
 from spinta.utils.itertools import consume
-from spinta.commands import push
 
 
 def test_app(app):

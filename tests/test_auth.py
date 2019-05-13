@@ -64,3 +64,22 @@ def test_client_add(cli, tmpdir):
         'client_secret_hash': client['client_secret_hash'],
         'scopes': [],
     }
+
+
+def test_empty_scope(context, app):
+    client_id = '3388ea36-4a4f-4821-900a-b574c8829d52'
+    client_secret = 'b5DVbOaEY1BGnfbfv82oA0-4XEBgLQuJ'
+
+    resp = app.post('/auth/token', auth=(client_id, client_secret), data={
+        'grant_type': 'client_credentials',
+        'scope': '',
+    })
+    assert resp.status_code == 200, resp.text
+
+    data = resp.json()
+    assert 'scope' not in data
+
+    config = context.get('config')
+    key = jwk.loads(json.loads((config.config_path / 'keys/public.json').read_text()))
+    token = jwt.decode(data['access_token'], key)
+    assert token['scope'] == ''
