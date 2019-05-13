@@ -1,7 +1,7 @@
 from datetime import date, datetime
 
 from spinta.commands import load, error
-from spinta.components import Context, Node
+from spinta.components import Context, Manifest, Node
 from spinta.utils.schema import resolve_schema
 from spinta.utils.errors import format_error
 
@@ -163,12 +163,12 @@ class File(Type):
 
 
 @load.register()
-def load(context: Context, type: Type, data: dict) -> Type:
+def load(context: Context, type: Type, data: dict, manifest: Manifest) -> Type:
     return type
 
 
 @load.register()
-def load(context: Context, type: Object, data: dict) -> Type:
+def load(context: Context, type: Object, data: dict, manifest: Manifest) -> Type:
     type.properties = {}
     for name, prop in data.get('properties', {}).items():
         prop = {
@@ -182,7 +182,7 @@ def load(context: Context, type: Object, data: dict) -> Type:
 
 
 @load.register()
-def load(context: Context, type: Array, data: dict) -> Type:
+def load(context: Context, type: Array, data: dict, manifest: Manifest) -> Type:
     if 'items' in data:
         prop = {
             'name': type.prop.name,
@@ -196,7 +196,7 @@ def load(context: Context, type: Array, data: dict) -> Type:
     return type
 
 
-def load_type(context: Context, prop: Node, data: dict):
+def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
     na = object()
     config = context.get('config')
 
@@ -217,7 +217,7 @@ def load_type(context: Context, prop: Node, data: dict):
     type.prop = prop
     type.name = data['type']
 
-    return load(context, type, data)
+    return load(context, type, data, manifest)
 
 
 @error.register()

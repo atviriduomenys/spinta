@@ -35,7 +35,7 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
 @load.register()
 def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
     prop = load_node(context, prop, data, manifest, check_unknowns=False)
-    prop.type = load_type(context, prop, data)
+    prop.type = load_type(context, prop, data, manifest)
 
     # Check if there any unknown params were given.
     known_params = set(prop.schema.keys()) | set(prop.type.schema.keys())

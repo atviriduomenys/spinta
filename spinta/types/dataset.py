@@ -162,7 +162,7 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest):
 
     # Load property type. For datasets, property type is optional.
     if prop.type:
-        prop.type = load_type(context, prop, data)
+        prop.type = load_type(context, prop, data, manifest)
     else:
         prop.type = None
 
