@@ -40,7 +40,10 @@ class PrimaryKey(Type):
 class Date(Type):
 
     def load(self, value):
-        return date.fromisoformat(value)
+        # XXX: should `date` type be used?
+        # pymongo supports only datetime.datetime for bson timestamps
+        # should we implement bson Codec to handle datetime.date conversions?
+        return datetime.fromisoformat(value)
 
     def is_valid(self, value):
         # self.load() ensures value is native `datetime` type
