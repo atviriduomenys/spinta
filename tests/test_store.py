@@ -90,13 +90,11 @@ def test_report(context):
     }
 
 
-@pytest.mark.skip("SPLAT-69 must fix bugs with context")
 def test_invalid_report(context, app):
     with pytest.raises(ValueError):
         list(context.push([{
             'type': 'report',
             'report_type': 'simple',
             'status': 'valid',
-            'count': 'c0unt',
-            'valid_from_date': '2019-04',
+            'count': 'c0unt',  # invalid conversion to string
         }]))
