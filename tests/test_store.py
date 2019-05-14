@@ -68,33 +68,51 @@ def test_nested(context):
     }
 
 
-def test_report(context):
-    result = list(context.push([{
+def test_report(context, app):
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_report_getone',
+    ])
+
+    resp = app.post('/report', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
         'count': '42',
         'valid_from_date': '2019-04-20',
         'update_time': '2019-04-20 03:14:15',
-        'notes': {'note': 'hello report', 'note_type': 'test'}
-    }]))
-    assert context.getone('report', result[0]['id']) == {
-        'id': result[0]['id'],
+        'notes': [{'note': 'hello report', 'note_type': 'test'}]
+    })
+    assert resp.status_code == 201
+
+    data = resp.json()
+    id = data['id']
+    resp = app.get(f'/report/{id}')
+    assert resp.status_code == 200
+
+    # FIXME: should return date/datetime strings instead of unix timestamps?
+    assert resp.json() == {
+        'id': id,
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
         'count': 42,
-        'valid_from_date': datetime(2019, 4, 20),
-        'update_time': datetime(2019, 4, 20, 3, 14, 15),
+        'valid_from_date': 1555718400,
+        'update_time': 1555730055,
         'notes': [{'note': 'hello report', 'note_type': 'test'}],
     }
 
 
 def test_invalid_report(context, app):
+    app.authorize([
+        'spinta_report_insert',
+    ])
+
     with pytest.raises(ValueError):
-        list(context.push([{
+        # FIXME: instead of raising an error should return HTTP/4XX code?
+        app.post('/report', json={
             'type': 'report',
             'report_type': 'simple',
             'status': 'valid',
             'count': 'c0unt',  # invalid conversion to string
-        }]))
+        })
