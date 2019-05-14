@@ -87,6 +87,10 @@ def check(context: Context, model: Model, backend: Mongo, data: dict):
 def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: str):
     authorize(context, action, model, data=data)
 
+    # load and check if data is a valid for it's model
+    data = load(context, model, data)
+    check(context, model, data)
+
     # Push data to Mongo backend, this can be an insert, update or delete. If
     # `id` is not given, it is an insert if `id` is given, it is an update.
     #
@@ -99,10 +103,6 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     # done.
     transaction = context.get('transaction')
     model_collection = backend.db[model.get_type_value()]
-
-    # load and check if data is a valid for it's model
-    data = load(context, model, data)
-    check(context, model, data)
 
     # Make a copy of data, because `pymongo` changes the reference `data`
     # object on `insert_one()` call.

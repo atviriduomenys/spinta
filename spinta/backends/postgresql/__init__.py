@@ -278,13 +278,13 @@ def check(context: Context, model: Model, backend: PostgreSQL, data: dict):
 def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: str):
     authorize(context, action, model, data=data)
 
-    transaction = context.get('transaction')
-    connection = transaction.connection
-    table = backend.tables[model.manifest.name][model.name]
-
     # load and check if data is a valid for it's model
     data = load(context, model, data)
     check(context, model, data)
+
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    table = backend.tables[model.manifest.name][model.name]
 
     data = {
         k: v for k, v in data.items() if k in table.main.columns
