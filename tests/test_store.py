@@ -103,16 +103,73 @@ def test_report(context, app):
     }
 
 
-def test_invalid_report(context, app):
+def test_invalid_report_int(context, app):
     app.authorize([
         'spinta_report_insert',
     ])
 
-    with pytest.raises(ValueError):
-        # FIXME: instead of raising an error should return HTTP/4XX code?
-        app.post('/report', json={
-            'type': 'report',
-            'report_type': 'simple',
-            'status': 'valid',
-            'count': 'c0unt',  # invalid conversion to string
-        })
+    resp = app.post('/report', json={
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'count': 'c0unt',  # invalid conversion to int
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        "error": "Invalid value for int type: c0unt",
+    }
+
+
+def test_invalid_report_date(context, app):
+    app.authorize([
+        'spinta_report_insert',
+    ])
+
+    resp = app.post('/report', json={
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'valid_from_date': '2019-04',  # invalid conversion to date
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        "error": "Invalid value for date type: 2019-04",
+    }
+
+
+def test_invalid_report_datetime(context, app):
+    app.authorize([
+        'spinta_report_insert',
+    ])
+
+    resp = app.post('/report', json={
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'update_time': '2019-04',  # invalid conversion to datetime
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        "error": "Invalid value for datetime type: 2019-04",
+    }
+
+
+def test_invalid_report_array(context, app):
+    app.authorize([
+        'spinta_report_insert',
+    ])
+
+    resp = app.post('/report', json={
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'notes': {'foo': 'bar'},  # invalid conversion to array
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        "error": "Invalid value for array type: {'foo': 'bar'}",
+    }
