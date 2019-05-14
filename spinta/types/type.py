@@ -34,12 +34,7 @@ class Type:
 class PrimaryKey(Type):
 
     def load(self, value: typing.Any):
-        try:
-            # is it possible to get ValueError when doing string conversion?
-            return str(value)
-        except ValueError:
-            raise DataError(f'Invalid value for pk type: {value}')
-
+        return str(value)
 
     def is_valid(self, value):
         # XXX: implement `pk` validation
@@ -78,10 +73,7 @@ class String(Type):
     }
 
     def load(self, value: typing.Any):
-        try:
-            return str(value)
-        except ValueError:
-            raise DataError(f'Invalid value for str type: {value}')
+        return str(value)
 
     def is_valid(self, value: str):
         # self.load() ensures value is native `str` type
