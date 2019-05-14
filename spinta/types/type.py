@@ -29,18 +29,6 @@ class Type:
         # checks if value is valid for the use (i.e. valid range, etc.)
         raise NotImplementedError(f"{self.__class__} lacks implementation for is_valid()")
 
-    def prepare_for_mongo(self, value: typing.Any):
-        # prepares value for Mongo store
-        # for simple types - loaded native values should work
-        # otherwise - override for this method is necessary
-        return value
-
-    def prepare_for_postgres(self, value: typing.Any):
-        # prepares value for PostgreSQL store
-        # for simple types - loaded native values should work
-        # otherwise - override for this method is necessary
-        return value
-
 
 class PrimaryKey(Type):
 
@@ -60,11 +48,6 @@ class Date(Type):
     def is_valid(self, value: date):
         # self.load() ensures value is native `datetime` type
         return True
-
-    def prepare_for_mongo(self, value: date) -> datetime:
-        # `pymongo` expects datetime objects for dates
-        # https://api.mongodb.com/python/current/api/bson/timestamp.html
-        return datetime(value.year, value.month, value.day)
 
 
 class DateTime(Type):
