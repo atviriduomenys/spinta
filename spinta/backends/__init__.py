@@ -1,11 +1,12 @@
 import contextlib
 
-from spinta.types import Type
+from spinta.types import Type as MetaType
+from spinta.types.type import Type
 from spinta.components import Context, Model
 from spinta.commands import error, prepare
 
 
-class Backend(Type):
+class Backend(MetaType):
     metadata = {
         'name': 'backend',
     }
@@ -24,7 +25,7 @@ def prepare(context: Context, type: Type, backend: Backend, value: object) -> ob
 
 
 @error.register()
-def error(exc: Exception, context: Context, backend: Backend, type: Type, **kwargs):
+def error(exc: Exception, context: Context, backend: Backend, type: MetaType, **kwargs):
     error(exc, context, type)
 
 
