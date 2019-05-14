@@ -1,7 +1,9 @@
-from datetime import datetime
+import typing
+
+from datetime import date, datetime
 
 from spinta.commands import load, error
-from spinta.components import Context, Node
+from spinta.components import Context, Manifest, Node
 from spinta.utils.schema import resolve_schema
 from spinta.utils.errors import format_error
 
@@ -18,11 +20,20 @@ class Type:
         'link': {'type': 'string'},
     }
 
-    def is_valid(self, value):
-        raise NotImplementedError
+    def load(self, value: typing.Any):
+        # loads value given by the user to native Python type
+        # this is done before validation and writing to database
+        raise NotImplementedError(f"{self.__class__} lacks implementation for load()")
+
+    def is_valid(self, value: typing.Any):
+        # checks if value is valid for the use (i.e. valid range, etc.)
+        raise NotImplementedError(f"{self.__class__} lacks implementation for is_valid()")
 
 
 class PrimaryKey(Type):
+
+    def load(self, value: typing.Any):
+        return str(value)
 
     def is_valid(self, value):
         # XXX: implement `pk` validation
@@ -31,21 +42,22 @@ class PrimaryKey(Type):
 
 class Date(Type):
 
-    DEFAULT_FMT = "%Y-%m-%d"
+    def load(self, value: typing.Any):
+        return date.fromisoformat(value)
 
-    def is_valid(self, value, date_fmt=DEFAULT_FMT):
-        if isinstance(value, str):
-            try:
-                datetime.strptime(value, date_fmt)
-            except ValueError:
-                return False
-            else:
-                return True
+    def is_valid(self, value: date):
+        # self.load() ensures value is native `datetime` type
+        return True
 
 
-class DateTime(Date):
+class DateTime(Type):
 
-    DEFAULT_FMT = "%Y-%m-%d %H:%M:%S"
+    def load(self, value: typing.Any):
+        return datetime.fromisoformat(value)
+
+    def is_valid(self, value: datetime):
+        # self.load() ensures value is native `datetime` type
+        return True
 
 
 class String(Type):
@@ -53,28 +65,22 @@ class String(Type):
         'enum': {'type': 'array'},
     }
 
-    def is_valid(self, value):
-        try:
-            str(value)
-        except Exception:
-            # will never be called??
-            return False
-        else:
-            return True
+    def load(self, value: typing.Any):
+        return str(value)
+
+    def is_valid(self, value: str):
+        # self.load() ensures value is native `str` type
+        return True
 
 
 class Integer(Type):
 
-    def is_valid(self, value):
-        if isinstance(value, int):
-            return True
-        else:
-            try:
-                int(value)
-            except ValueError:
-                return False
-            else:
-                return True
+    def load(self, value: typing.Any):
+        return int(value)
+
+    def is_valid(self, value: int):
+        # self.load() ensures value is native `int` type
+        return True
 
 
 class Number(Type):
@@ -103,8 +109,12 @@ class Ref(Type):
         'enum': {'type': 'array'},
     }
 
+    def load(self, value: typing.Any):
+        # TODO: implement `ref` loading
+        return value
+
     def is_valid(self, value):
-        # XXX: implement `ref` validation
+        # TODO: implement `ref` validation
         return True
 
 
@@ -128,9 +138,19 @@ class Array(Type):
         'items': {},
     }
 
-    def is_valid(self, value):
-        # XXX: implement `array` validation
+    def load(self, value: typing.Any):
+        if isinstance(value, list):
+            # if value is list - return it
+            return value
+        else:
+            raise ValueError
+
+    def is_valid(self, value: list):
+        # TODO: implement `array` validation
         return True
+
+    def prepare_for_mongo(self, value: list) -> list:
+        return value
 
 
 class Object(Type):
@@ -139,7 +159,7 @@ class Object(Type):
     }
 
     def is_valid(self, value):
-        # XXX: implement `object` validation
+        # TODO: implement `object` validation
         return True
 
 
@@ -148,12 +168,12 @@ class File(Type):
 
 
 @load.register()
-def load(context: Context, type: Type, data: dict) -> Type:
+def load(context: Context, type: Type, data: dict, manifest: Manifest) -> Type:
     return type
 
 
 @load.register()
-def load(context: Context, type: Object, data: dict) -> Type:
+def load(context: Context, type: Object, data: dict, manifest: Manifest) -> Type:
     type.properties = {}
     for name, prop in data.get('properties', {}).items():
         prop = {
@@ -167,7 +187,7 @@ def load(context: Context, type: Object, data: dict) -> Type:
 
 
 @load.register()
-def load(context: Context, type: Array, data: dict) -> Type:
+def load(context: Context, type: Array, data: dict, manifest: Manifest) -> Type:
     if 'items' in data:
         prop = {
             'name': type.prop.name,
@@ -181,7 +201,7 @@ def load(context: Context, type: Array, data: dict) -> Type:
     return type
 
 
-def load_type(context: Context, prop: Node, data: dict):
+def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
     na = object()
     config = context.get('config')
 
@@ -202,7 +222,7 @@ def load_type(context: Context, prop: Node, data: dict):
     type.prop = prop
     type.name = data['type']
 
-    return load(context, type, data)
+    return load(context, type, data, manifest)
 
 
 @error.register()

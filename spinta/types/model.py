@@ -1,4 +1,4 @@
-from spinta.commands import load, check, error, authorize
+from spinta.commands import load, check, error, authorize, prepare
 from spinta.components import Context, Manifest, Model, Property
 from spinta.nodes import load_node
 from spinta.types.type import load_type
@@ -35,7 +35,7 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
 @load.register()
 def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
     prop = load_node(context, prop, data, manifest, check_unknowns=False)
-    prop.type = load_type(context, prop, data)
+    prop.type = load_type(context, prop, data, manifest)
 
     # Check if there any unknown params were given.
     known_params = set(prop.schema.keys()) | set(prop.type.schema.keys())
@@ -45,6 +45,16 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
         raise Exception("Unknown prams: %s" % ', '.join(map(repr, sorted(unknown_params))))
 
     return prop
+
+
+@load.register()
+def load(context: Context, model: Model, data: dict) -> dict:
+    for name, prop in model.properties.items():
+        if name in data:
+            data_value = data[name]
+            # XXX: rewrite into command instead of type method?
+            data[name] = prop.type.load(data_value)
+    return data
 
 
 @check.register()
@@ -62,6 +72,17 @@ def check(context: Context, model: Model, data: dict):
             data_value = data[name]
             if not prop.type.is_valid(data_value):
                 raise Exception(f"{data_value} is not valid type: {prop.type}")
+
+
+@prepare.register()
+def prepare(context: Context, model: Model, data: dict) -> dict:
+    # prepares model's data for storing in Mongo
+    backend = model.backend
+    for name, prop in model.properties.items():
+        if name in data:
+            data_value = data[name]
+            data[name] = prepare(context, prop.type, backend, data_value)
+    return data
 
 
 @error.register()

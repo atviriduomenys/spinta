@@ -90,11 +90,6 @@ def push(context: Context, store: Store, stream: types.GeneratorType):
         assert model_name is not None, data
         model = get_model_by_name(manifest, model_name)
         client_id = client_supplied_ids.replace(model_name, data)
-
-        # check if data is a valid model
-        check(context, model, data)
-
-        # check if data is valid for the model's backend
         check(context, model, model.backend, data)
 
         if 'id' in data:

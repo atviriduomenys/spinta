@@ -1,5 +1,8 @@
 import contextlib
 import copy
+import typing
+
+from datetime import date, datetime
 
 import pymongo
 from bson.objectid import ObjectId
@@ -8,6 +11,7 @@ from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize
 from spinta.components import Context, Manifest, Model
 from spinta.config import Config
+from spinta.types.type import Type, Date
 
 
 class Mongo(Backend):
@@ -87,6 +91,11 @@ def check(context: Context, model: Model, backend: Mongo, data: dict):
 def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: str):
     authorize(context, action, model, data=data)
 
+    # load and check if data is a valid for it's model
+    data = load(context, model, data)
+    check(context, model, data)
+    data = prepare(context, model, data)
+
     # Push data to Mongo backend, this can be an insert, update or delete. If
     # `id` is not given, it is an insert if `id` is given, it is an update.
     #
@@ -164,3 +173,9 @@ def wipe(context: Context, model: Model, backend: Mongo):
     # Delete all data for a given model
     model_collection = backend.db[model.get_type_value()]
     return model_collection.delete_many({})
+
+
+@prepare.register()
+def prepare(context: Context, type: Date, backend: Mongo, value: date) -> datetime:
+    # prepares date values for Mongo store, they must be converted to datetime
+    return datetime(value.year, value.month, value.day)

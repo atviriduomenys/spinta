@@ -14,7 +14,7 @@ from starlette.templating import Jinja2Templates
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.types import Type
+from spinta.types.type import Type
 from spinta.types.store import get_model_from_params
 from spinta.utils.tree import build_path_tree
 from spinta.utils.url import build_url_path
