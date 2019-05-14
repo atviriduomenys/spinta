@@ -144,8 +144,7 @@ class Array(Type):
             # if value is list - return it
             return value
         else:
-            # if value isn't a list - add it to list and return it
-            return [value]
+            raise ValueError
 
     def is_valid(self, value):
         # XXX: implement `array` validation
