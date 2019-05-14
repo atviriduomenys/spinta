@@ -78,7 +78,7 @@ def context(mocker, config, postgresql, mongo):
     yield context
 
     with context.enter():
-        # XXX: quick and dirty workaround on `context.wipe` missing a connection,
+        # FIXME: quick and dirty workaround on `context.wipe` missing a connection,
         # when exception is thrown in spinta's logic.
         context.set('transaction', store.manifests['default'].backend.transaction(write=True))
         context.set('auth.token', AdminToken())

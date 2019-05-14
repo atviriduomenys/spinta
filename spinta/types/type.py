@@ -19,7 +19,8 @@ class Type:
     }
 
     def load(self, value):
-        # loads value to native Python type
+        # loads value given by the user to native Python type
+        # this is done before validation and writing to database
         raise NotImplementedError(f"{self.__class__} lacks implementation for load()")
 
     def is_valid(self, value):
@@ -40,9 +41,9 @@ class PrimaryKey(Type):
 class Date(Type):
 
     def load(self, value):
-        # XXX: should `date` type be used?
-        # pymongo supports only datetime.datetime for bson timestamps
-        # should we implement bson Codec to handle datetime.date conversions?
+        # FIXME: quick hack - should return datetime.date
+        # but that datetime.date must be prepared for passing to a backend
+        # somewhere later down the pipeline
         return datetime.fromisoformat(value)
 
     def is_valid(self, value):
@@ -110,11 +111,11 @@ class Ref(Type):
     }
 
     def load(self, value):
-        # XXX: implement `ref` loading
+        # TODO: implement `ref` loading
         return value
 
     def is_valid(self, value):
-        # XXX: implement `ref` validation
+        # TODO: implement `ref` validation
         return True
 
 
