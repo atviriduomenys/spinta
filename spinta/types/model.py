@@ -1,4 +1,6 @@
-from spinta.commands import load, check, error, authorize
+from spinta.backends.mongo import Mongo
+from spinta.backends.postgresql import PostgreSQL
+from spinta.commands import load, check, error, authorize, prepare
 from spinta.components import Context, Manifest, Model, Property
 from spinta.nodes import load_node
 from spinta.types.type import load_type
@@ -72,6 +74,30 @@ def check(context: Context, model: Model, data: dict):
             data_value = data[name]
             if not prop.type.is_valid(data_value):
                 raise Exception(f"{data_value} is not valid type: {prop.type}")
+
+
+@prepare.register()
+def prepare(context: Context, model: Model, data: dict) -> dict:
+    data = prepare(context, model, model.backend, data)
+    return data
+
+
+@prepare.register()
+def prepare(context: Context, model: Model, backend: PostgreSQL, data: dict) -> dict:
+    for name, prop in model.properties.items():
+        if name in data:
+            data_value = data[name]
+            data[name] = prop.type.prepare_for_postgres(data_value)
+    return data
+
+
+@prepare.register()
+def prepare(context: Context, model: Model, backend: Mongo, data: dict) -> dict:
+    for name, prop in model.properties.items():
+        if name in data:
+            data_value = data[name]
+            data[name] = prop.type.prepare_for_mongo(data_value)
+    return data
 
 
 @error.register()

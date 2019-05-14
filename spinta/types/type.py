@@ -29,6 +29,18 @@ class Type:
         # checks if value is valid for the use (i.e. valid range, etc.)
         raise NotImplementedError(f"{self.__class__} lacks implementation for is_valid()")
 
+    def prepare_for_mongo(self, value: typing.Any):
+        # prepares value for Mongo store
+        # for simple types - loaded native values should work
+        # otherwise - override for this method is necessary
+        return value
+
+    def prepare_for_postgres(self, value: typing.Any):
+        # prepares value for PostgreSQL store
+        # for simple types - loaded native values should work
+        # otherwise - override for this method is necessary
+        return value
+
 
 class PrimaryKey(Type):
 
@@ -43,14 +55,16 @@ class PrimaryKey(Type):
 class Date(Type):
 
     def load(self, value: typing.Any):
-        # FIXME: quick hack - should return datetime.date
-        # but that datetime.date must be prepared for passing to a backend
-        # somewhere later down the pipeline
-        return datetime.fromisoformat(value)
+        return date.fromisoformat(value)
 
-    def is_valid(self, value):
+    def is_valid(self, value: date):
         # self.load() ensures value is native `datetime` type
         return True
+
+    def prepare_for_mongo(self, value: date) -> datetime:
+        # `pymongo` expects datetime objects for dates
+        # https://api.mongodb.com/python/current/api/bson/timestamp.html
+        return datetime(value.year, value.month, value.day)
 
 
 class DateTime(Type):
@@ -58,7 +72,7 @@ class DateTime(Type):
     def load(self, value: typing.Any):
         return datetime.fromisoformat(value)
 
-    def is_valid(self, value):
+    def is_valid(self, value: datetime):
         # self.load() ensures value is native `datetime` type
         return True
 
@@ -71,7 +85,7 @@ class String(Type):
     def load(self, value: typing.Any):
         return str(value)
 
-    def is_valid(self, value):
+    def is_valid(self, value: str):
         # self.load() ensures value is native `str` type
         return True
 
@@ -81,7 +95,7 @@ class Integer(Type):
     def load(self, value: typing.Any):
         return int(value)
 
-    def is_valid(self, value):
+    def is_valid(self, value: int):
         # self.load() ensures value is native `int` type
         return True
 
@@ -148,9 +162,12 @@ class Array(Type):
         else:
             raise ValueError
 
-    def is_valid(self, value):
-        # XXX: implement `array` validation
+    def is_valid(self, value: list):
+        # TODO: implement `array` validation
         return True
+
+    def prepare_for_mongo(self, value: list) -> list:
+        return value
 
 
 class Object(Type):
@@ -159,7 +176,7 @@ class Object(Type):
     }
 
     def is_valid(self, value):
-        # XXX: implement `object` validation
+        # TODO: implement `object` validation
         return True
 
 

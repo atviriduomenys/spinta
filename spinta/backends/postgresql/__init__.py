@@ -281,6 +281,7 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
     # load and check if data is a valid for it's model
     data = load(context, model, data)
     check(context, model, data)
+    data = prepare(context, model, data)
 
     transaction = context.get('transaction')
     connection = transaction.connection

@@ -90,6 +90,7 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     # load and check if data is a valid for it's model
     data = load(context, model, data)
     check(context, model, data)
+    data = prepare(context, model, data)
 
     # Push data to Mongo backend, this can be an insert, update or delete. If
     # `id` is not given, it is an insert if `id` is given, it is an update.
