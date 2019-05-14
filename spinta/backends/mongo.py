@@ -176,15 +176,6 @@ def wipe(context: Context, model: Model, backend: Mongo):
 
 
 @prepare.register()
-def prepare(context: Context, model: Model, backend: Mongo, data: dict) -> dict:
-    for name, prop in model.properties.items():
-        if name in data:
-            data_value = data[name]
-            data[name] = prepare(context, prop.type, backend, data_value)
-    return data
-
-
-@prepare.register()
 def prepare(context: Context, type: Type, backend: Mongo, value: object) -> object:
     # prepares value for Mongo store
     # for simple types - loaded native values should work

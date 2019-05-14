@@ -246,16 +246,6 @@ class ModelTables(typing.NamedTuple):
 
 
 @prepare.register()
-def prepare(context: Context, model: Model, backend: PostgreSQL, data: dict) -> dict:
-    # prepares model's data for backend store
-    for name, prop in model.properties.items():
-        if name in data:
-            data_value = data[name]
-            data[name] = prepare(context, prop.type, backend, data_value)
-    return data
-
-
-@prepare.register()
 def prepare(context: Context, type: Type, backend: PostgreSQL, value: object) -> object:
     # prepares value for PostgreSQL store
     # for simple types - loaded native values should work

@@ -76,7 +76,12 @@ def check(context: Context, model: Model, data: dict):
 
 @prepare.register()
 def prepare(context: Context, model: Model, data: dict) -> dict:
-    data = prepare(context, model, model.backend, data)
+    # prepares model's data for storing in Mongo
+    backend = model.backend
+    for name, prop in model.properties.items():
+        if name in data:
+            data_value = data[name]
+            data[name] = prepare(context, prop.type, backend, data_value)
     return data
 
 
