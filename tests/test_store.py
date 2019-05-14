@@ -59,7 +59,7 @@ def test_nested(context):
     result = list(context.push([
         {
             'type': 'nested',
-            'some': {'nested': {'structure': 'here'}}
+            'some': [{'nested': {'structure': 'here'}}]
         }
     ]))
     assert context.getone('nested', result[0]['id']) == {
