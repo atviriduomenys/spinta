@@ -117,7 +117,7 @@ def test_invalid_report_int(context, app):
 
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "Invalid value for int type: c0unt",
+        "error": "Expected type int, got <class 'str'>",
     }
 
 
@@ -135,7 +135,7 @@ def test_invalid_report_date(context, app):
 
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "Invalid value for date type: 2019-04",
+        "error": "Expected date value in ISO 8601 format ('YYYY-MM-DD'), got '2019-04'",
     }
 
 
@@ -153,7 +153,7 @@ def test_invalid_report_datetime(context, app):
 
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "Invalid value for datetime type: 2019-04",
+        "error": "Expected datetime value in ISO 8601 format ('YYYY-MM-DDTHH:MM:SS' or 'YYYY-MM-DDTHH:MM:SS.ffffff'), got '2019-04'",
     }
 
 
@@ -171,5 +171,5 @@ def test_invalid_report_array(context, app):
 
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "Invalid value for array type: {'foo': 'bar'}",
+        "error": "Expected type array, got <class 'dict'>",
     }
