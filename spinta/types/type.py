@@ -1,3 +1,5 @@
+import typing
+
 from datetime import date, datetime
 
 from spinta.commands import load, error
@@ -18,19 +20,19 @@ class Type:
         'link': {'type': 'string'},
     }
 
-    def load(self, value):
+    def load(self, value: typing.Any):
         # loads value given by the user to native Python type
         # this is done before validation and writing to database
         raise NotImplementedError(f"{self.__class__} lacks implementation for load()")
 
-    def is_valid(self, value):
+    def is_valid(self, value: typing.Any):
         # checks if value is valid for the use (i.e. valid range, etc.)
         raise NotImplementedError(f"{self.__class__} lacks implementation for is_valid()")
 
 
 class PrimaryKey(Type):
 
-    def load(self, value):
+    def load(self, value: typing.Any):
         return str(value)
 
     def is_valid(self, value):
@@ -40,7 +42,7 @@ class PrimaryKey(Type):
 
 class Date(Type):
 
-    def load(self, value):
+    def load(self, value: typing.Any):
         # FIXME: quick hack - should return datetime.date
         # but that datetime.date must be prepared for passing to a backend
         # somewhere later down the pipeline
@@ -53,7 +55,7 @@ class Date(Type):
 
 class DateTime(Type):
 
-    def load(self, value):
+    def load(self, value: typing.Any):
         return datetime.fromisoformat(value)
 
     def is_valid(self, value):
@@ -66,7 +68,7 @@ class String(Type):
         'enum': {'type': 'array'},
     }
 
-    def load(self, value):
+    def load(self, value: typing.Any):
         return str(value)
 
     def is_valid(self, value):
@@ -76,7 +78,7 @@ class String(Type):
 
 class Integer(Type):
 
-    def load(self, value):
+    def load(self, value: typing.Any):
         return int(value)
 
     def is_valid(self, value):
@@ -110,7 +112,7 @@ class Ref(Type):
         'enum': {'type': 'array'},
     }
 
-    def load(self, value):
+    def load(self, value: typing.Any):
         # TODO: implement `ref` loading
         return value
 
@@ -139,7 +141,7 @@ class Array(Type):
         'items': {},
     }
 
-    def load(self, value):
+    def load(self, value: typing.Any):
         if isinstance(value, list):
             # if value is list - return it
             return value
