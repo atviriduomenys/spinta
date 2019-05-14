@@ -2,7 +2,7 @@ import contextlib
 
 from spinta.types import Type
 from spinta.components import Context, Model
-from spinta.commands import error
+from spinta.commands import error, prepare
 
 
 class Backend(Type):
@@ -13,6 +13,14 @@ class Backend(Type):
     @contextlib.contextmanager
     def transaction(self):
         raise NotImplementedError
+
+
+@prepare.register()
+def prepare(context: Context, type: Type, backend: Backend, value: object) -> object:
+    # prepares value for data store
+    # for simple types - loaded native values should work
+    # otherwise - override for this command if necessary
+    return value
 
 
 @error.register()

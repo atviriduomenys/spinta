@@ -176,14 +176,6 @@ def wipe(context: Context, model: Model, backend: Mongo):
 
 
 @prepare.register()
-def prepare(context: Context, type: Type, backend: Mongo, value: object) -> object:
-    # prepares value for Mongo store
-    # for simple types - loaded native values should work
-    # otherwise - override for this command if necessary
-    return value
-
-
-@prepare.register()
 def prepare(context: Context, type: Date, backend: Mongo, value: date) -> datetime:
     # prepares date values for Mongo store, they must be converted to datetime
     return datetime(value.year, value.month, value.day)
