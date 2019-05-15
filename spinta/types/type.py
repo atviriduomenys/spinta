@@ -46,8 +46,8 @@ class Date(Type):
     def load(self, value: typing.Any):
         try:
             return date.fromisoformat(value)
-        except ValueError:
-            raise DataError(f"Expected date value in ISO 8601 format ('YYYY-MM-DD'), got {value!r}")
+        except ValueError as e:
+            raise DataError(f'{e}')
 
     def is_valid(self, value: date):
         # self.load() ensures value is native `datetime` type
@@ -59,10 +59,8 @@ class DateTime(Type):
     def load(self, value: typing.Any):
         try:
             return datetime.fromisoformat(value)
-        except ValueError:
-            raise DataError(f"Expected datetime value in ISO 8601 format "
-                            f"('YYYY-MM-DDTHH:MM:SS' or 'YYYY-MM-DDTHH:MM:SS.ffffff'), "
-                            f"got {value!r}")
+        except ValueError as e:
+            raise DataError(f'{e}')
 
     def is_valid(self, value: datetime):
         # self.load() ensures value is native `datetime` type
@@ -87,8 +85,8 @@ class Integer(Type):
     def load(self, value: typing.Any):
         try:
             return int(value)
-        except ValueError:
-            raise DataError(f'Expected type int, got {type(value)}')
+        except ValueError as e:
+            raise DataError(f'{e}')
 
     def is_valid(self, value: int):
         # self.load() ensures value is native `int` type
@@ -155,7 +153,7 @@ class Array(Type):
             # if value is list - return it
             return value
         else:
-            raise DataError(f'Expected type array, got {type(value)}')
+            raise DataError(f'Invalid array type: {type(value)}')
 
     def is_valid(self, value: list):
         # TODO: implement `array` validation

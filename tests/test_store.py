@@ -117,7 +117,7 @@ def test_invalid_report_int(context, app):
 
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "Expected type int, got <class 'str'>",
+        "error": "invalid literal for int() with base 10: 'c0unt'",
     }
 
 
@@ -135,7 +135,7 @@ def test_invalid_report_date(context, app):
 
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "Expected date value in ISO 8601 format ('YYYY-MM-DD'), got '2019-04'",
+        "error": "Invalid isoformat string: '2019-04'",
     }
 
 
@@ -153,7 +153,7 @@ def test_invalid_report_datetime(context, app):
 
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "Expected datetime value in ISO 8601 format ('YYYY-MM-DDTHH:MM:SS' or 'YYYY-MM-DDTHH:MM:SS.ffffff'), got '2019-04'",
+        "error": "Invalid isoformat string: '2019-04'",
     }
 
 
@@ -171,5 +171,5 @@ def test_invalid_report_array(context, app):
 
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "Expected type array, got <class 'dict'>",
+        "error": "Invalid array type: <class 'dict'>",
     }
