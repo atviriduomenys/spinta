@@ -52,8 +52,7 @@ def load(context: Context, model: Model, data: dict) -> dict:
     for name, prop in model.properties.items():
         if name in data:
             data_value = data[name]
-            # XXX: rewrite into command instead of type method?
-            data[name] = prop.type.load(data_value)
+            data[name] = load(context, prop.type, data_value)
     return data
 
 

@@ -168,6 +168,12 @@ class Object(Type):
         'properties': {'type': 'object'},
     }
 
+    def load(self, value: typing.Any):
+        if isinstance(value, dict):
+            return value
+        else:
+            raise DataError(f'Invalid object type: {type(value)}')
+
     def is_valid(self, value):
         # TODO: implement `object` validation
         return True
@@ -233,6 +239,33 @@ def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
     type.name = data['type']
 
     return load(context, type, data, manifest)
+
+
+@load.register()
+def load(context: Context, type: Type, value: object) -> object:
+    # loads value to python native value according to given type
+    return type.load(value)
+
+
+@load.register()
+def load(context: Context, type: Array, value: object) -> object:
+    # loads value into native python list, including all list items
+    array_item_type = type.items.type
+    loaded_array = type.load(value)
+    for j, item in enumerate(loaded_array):
+        # overwrite loaded list, with items loaded to native python types
+        loaded_array[j] = load(context, array_item_type, item)
+    return loaded_array
+
+
+@load.register()
+def load(context: Context, type: Object, value: object) -> object:
+    # loads value into native python dict, including all dict's items
+    loaded_obj_value = type.load(value)
+    for name, value in type.properties.items():
+        # overwrite given object key value, with a loaded python native key value
+        loaded_obj_value[name] = load(context, value.type, loaded_obj_value[name])
+    return loaded_obj_value
 
 
 @error.register()
