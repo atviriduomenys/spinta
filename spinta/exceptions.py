@@ -8,3 +8,7 @@ class MultipleRowsException(Exception):
 
 class NoResultsException(Exception):
     pass
+
+
+class DataError(Exception):
+    pass

@@ -4,6 +4,7 @@ from datetime import date, datetime
 
 from spinta.commands import load, error
 from spinta.components import Context, Manifest, Node
+from spinta.exceptions import DataError
 from spinta.utils.schema import resolve_schema
 from spinta.utils.errors import format_error
 
@@ -43,7 +44,10 @@ class PrimaryKey(Type):
 class Date(Type):
 
     def load(self, value: typing.Any):
-        return date.fromisoformat(value)
+        try:
+            return date.fromisoformat(value)
+        except ValueError as e:
+            raise DataError(f'{e}')
 
     def is_valid(self, value: date):
         # self.load() ensures value is native `datetime` type
@@ -53,7 +57,10 @@ class Date(Type):
 class DateTime(Type):
 
     def load(self, value: typing.Any):
-        return datetime.fromisoformat(value)
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError as e:
+            raise DataError(f'{e}')
 
     def is_valid(self, value: datetime):
         # self.load() ensures value is native `datetime` type
@@ -76,7 +83,10 @@ class String(Type):
 class Integer(Type):
 
     def load(self, value: typing.Any):
-        return int(value)
+        try:
+            return int(value)
+        except ValueError as e:
+            raise DataError(f'{e}')
 
     def is_valid(self, value: int):
         # self.load() ensures value is native `int` type
@@ -143,7 +153,7 @@ class Array(Type):
             # if value is list - return it
             return value
         else:
-            raise ValueError
+            raise DataError(f'Invalid array type: {type(value)}')
 
     def is_valid(self, value: list):
         # TODO: implement `array` validation
