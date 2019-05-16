@@ -42,7 +42,7 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
     given_params = set(data.keys())
     unknown_params = given_params - known_params
     if unknown_params:
-        raise Exception("Unknown prams: %s" % ', '.join(map(repr, sorted(unknown_params))))
+        raise Exception("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
 
     return prop
 
