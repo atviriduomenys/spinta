@@ -253,8 +253,7 @@ def load(context: Context, type: Array, value: object) -> object:
     array_item_type = type.items.type
     loaded_array = type.load(value)
     new_loaded_array = []
-    for j, item in enumerate(loaded_array):
-        # overwrite loaded list, with items loaded to native python types
+    for item in loaded_array:
         new_loaded_array.append(load(context, array_item_type, item))
     return new_loaded_array
 
@@ -265,7 +264,6 @@ def load(context: Context, type: Object, value: object) -> object:
     loaded_obj = type.load(value)
     new_loaded_obj = {}
     for k, v in type.properties.items():
-        # overwrite given object key value, with a loaded python native key value
         new_loaded_obj[k] = load(context, v.type, loaded_obj[k])
     return new_loaded_obj
 
