@@ -255,7 +255,7 @@ def load(context: Context, type: Array, value: object) -> object:
     new_loaded_array = []
     for j, item in enumerate(loaded_array):
         # overwrite loaded list, with items loaded to native python types
-        new_loaded_array[j] = load(context, array_item_type, item)
+        new_loaded_array.append(load(context, array_item_type, item))
     return new_loaded_array
 
 
