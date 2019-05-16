@@ -2,7 +2,7 @@ import pathlib
 import requests
 import tempfile
 
-from spinta.commands import load, prepare, check, pull, getall, authorize
+from spinta.commands import load, prepare, check, pull, getall, authorize, error
 from spinta.components import Context, Manifest, Node, Command, CommandList
 from spinta.utils.refs import get_ref_id
 from spinta.utils.url import parse_url_path
@@ -11,6 +11,7 @@ from spinta.fetcher import Cache
 from spinta.types.store import get_model_from_params
 from spinta.types.type import load_type
 from spinta.auth import check_generated_scopes
+from spinta.utils.errors import format_error
 
 
 class Dataset(Node):
@@ -103,7 +104,17 @@ class Property(Node):
 @load.register()
 def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
     load_node(context, dataset, data, manifest)
-    for name, params in (data.get('objects', {}) or None).items():
+
+    if dataset.source:
+        dataset.source = load(
+            context, CommandList(),
+            [_get_source(dataset.source, None)],
+            parent=dataset,
+            scope='source',
+            argname='source',
+        )
+
+    for name, params in (data.get('objects') or {}).items():
         params = {
             'path': dataset.path,
             'name': name,
@@ -123,6 +134,7 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
         model.source = load(
             context, CommandList(),
             [_get_source(s, model.parent.source) for s in model.source],
+            parent=model,
             scope='source',
             argname='source',
         )
@@ -130,6 +142,7 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
         model.source = load(
             context, CommandList(),
             [_get_source(model.source, model.parent.source)],
+            parent=model,
             scope='source',
             argname='source',
         )
@@ -170,14 +183,16 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest):
     if isinstance(prop.source, list):
         prop.source = load(
             context, CommandList(),
-            [_get_source(s, prop.parent.source) for s in prop.source],
+            [_get_source(s, prop.parent.source or prop.parent.parent.source) for s in prop.source],
+            parent=prop,
             scope='source',
             argname='source',
         )
     elif prop.source:
         prop.source = load(
             context, Command(),
-            _get_source(prop.source, prop.parent.source),
+            _get_source(prop.source, prop.parent.source or prop.parent.parent.source),
+            parent=prop,
             scope='source',
             argname='source',
         )
@@ -190,7 +205,7 @@ def load(context: Context, model: Model, data: dict) -> dict:
 
 
 def _get_source(source, parent):
-    if isinstance(source, str):
+    if isinstance(source, (str, int)):
         if parent is None or (isinstance(parent, CommandList) and len(parent.commands) > 1):
             raise Exception(f"Command must be a dict, not an str.")
         if isinstance(parent, CommandList):
@@ -317,7 +332,7 @@ def _dependencies(context: Context, model, deps):
             if len(model_names) > 0:
                 context.error(f"Only one command call or one model is allowed in dependencies.")
             for name, cmd in command_calls.items():
-                cmd = load(context, Command(), cmd, scope='service')
+                cmd = load(context, Command(), cmd, parent=model, scope='service')
                 for value in cmd(context):
                     yield {name: value}
         else:
@@ -353,3 +368,48 @@ def _get_value_from_source(context: Context, prop: Property, source: Command, va
 @authorize.register()
 def authorize(context: Context, action: str, model: Model, *, data=None):
     check_generated_scopes(context, model.get_type_value(), action, data=data)
+
+
+@error.register()
+def error(exc: Exception, context: Context, dataset: Dataset):
+    message = (
+        '{exc}:\n'
+        '  in dataset {dataset.name!r} {dataset}\n'
+        "  in file '{dataset.path}'\n"
+        '  on backend {dataset.backend.name!r}\n'
+    )
+    raise Exception(format_error(message, {
+        'exc': exc,
+        'dataset': dataset,
+    }))
+
+
+@error.register()
+def error(exc: Exception, context: Context, model: Model):
+    message = (
+        '{exc}:\n'
+        '  in model {model.name!r} {model}\n'
+        '  in dataset {model.parent.name!r} {model.parent}\n'
+        "  in file '{model.path}'\n"
+        '  on backend {model.backend.name!r}\n'
+    )
+    raise Exception(format_error(message, {
+        'exc': exc,
+        'model': model,
+    }))
+
+
+@error.register()
+def error(exc: Exception, context: Context, prop: Property, data: dict, manifest: Manifest):
+    message = (
+        '{exc}:\n'
+        '  in property {prop.name!r} {prop}\n'
+        '  in model {prop.parent.name!r} {prop.model}\n'
+        '  in dataset {prop.model.parent.name!r} {prop.model.parent}\n'
+        "  in file '{prop.path}'\n"
+        '  on backend {prop.backend.name!r}\n'
+    )
+    raise Exception(format_error(message, {
+        'exc': exc,
+        'prop': prop,
+    }))

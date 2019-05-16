@@ -103,6 +103,15 @@ class Manifest:
 
 
 class Node:
+    schema = {
+        'type': {},
+        'path': {'required': True},
+        'parent': {'required': True},
+        'name': {'required': True},
+        'title': {},
+        'description': {},
+        'backend': {'type': 'backend', 'inherit': True, 'required': True},
+    }
 
     def __init__(self):
         self.manifest = None
@@ -114,15 +123,8 @@ class Node:
 
 class Model(Node):
     schema = {
-        'type': {},
-        'path': {'required': True},
-        'parent': {'required': True},
-        'name': {'required': True},
-        'title': {},
-        'description': {},
         'unique': {'default': []},
         'extends': {},
-        'backend': {'type': 'backend', 'inherit': True, 'required': True},
         'version': {},
         'date': {},
         'link': {},
@@ -148,12 +150,6 @@ class Model(Node):
 
 class Property(Node):
     schema = {
-        'type': {},
-        'path': {'required': True},
-        'parent': {'required': True},
-        'name': {'required': True},
-        'title': {},
-        'description': {},
         'required': {'default': False},
         'unique': {'default': False},
         'const': {},
@@ -163,7 +159,6 @@ class Property(Node):
         'link': {},
         'enum': {},
         'object': {},
-        'backend': {'type': 'backend', 'inherit': True, 'required': True},
         'items': {},
         'hidden': {'type': 'boolean', 'inherit': True, 'default': False},
     }

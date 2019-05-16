@@ -1,7 +1,6 @@
 import collections
 import os
 
-import pymongo
 import pytest
 import sqlalchemy_utils as su
 from responses import RequestsMock
@@ -43,10 +42,12 @@ def postgresql(config):
 @pytest.fixture(scope='session')
 def mongo(config):
     yield
-    dsn = config.get('backends', 'mongo', 'dsn', required=True)
-    db = config.get('backends', 'mongo', 'db', required=True)
-    client = pymongo.MongoClient(dsn)
-    client.drop_database(db)
+    dsn = config.get('backends', 'mongo', 'dsn', required=False)
+    db = config.get('backends', 'mongo', 'db', required=False)
+    if dsn and db:
+        import pymongo
+        client = pymongo.MongoClient(dsn)
+        client.drop_database(db)
 
 
 @pytest.fixture
