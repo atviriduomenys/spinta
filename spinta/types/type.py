@@ -46,7 +46,7 @@ class Date(Type):
     def load(self, value: typing.Any):
         try:
             return date.fromisoformat(value)
-        except ValueError as e:
+        except (ValueError, TypeError) as e:
             raise DataError(f'{e}')
 
     def is_valid(self, value: date):
@@ -59,7 +59,7 @@ class DateTime(Type):
     def load(self, value: typing.Any):
         try:
             return datetime.fromisoformat(value)
-        except ValueError as e:
+        except (ValueError, TypeError) as e:
             raise DataError(f'{e}')
 
     def is_valid(self, value: datetime):

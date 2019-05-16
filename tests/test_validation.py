@@ -69,6 +69,24 @@ def test_invalid_report_date(context, app):
     }
 
 
+def test_non_string_report_date(context, app):
+    app.authorize([
+        'spinta_report_insert',
+    ])
+
+    resp = app.post('/report', json={
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'valid_from_date': 42,  # invalid conversion to date
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        "error": "fromisoformat: argument must be str",
+    }
+
+
 def test_invalid_report_datetime(context, app):
     app.authorize([
         'spinta_report_insert',
@@ -84,6 +102,24 @@ def test_invalid_report_datetime(context, app):
     assert resp.status_code == 400
     assert resp.json() == {
         "error": "Invalid isoformat string: '2019-04'",
+    }
+
+
+def test_non_string_report_datetime(context, app):
+    app.authorize([
+        'spinta_report_insert',
+    ])
+
+    resp = app.post('/report', json={
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'update_time': 42,  # invalid conversion to datetime
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        "error": "fromisoformat: argument must be str",
     }
 
 
