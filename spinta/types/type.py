@@ -252,20 +252,22 @@ def load(context: Context, type: Array, value: object) -> object:
     # loads value into native python list, including all list items
     array_item_type = type.items.type
     loaded_array = type.load(value)
+    new_loaded_array = []
     for j, item in enumerate(loaded_array):
         # overwrite loaded list, with items loaded to native python types
-        loaded_array[j] = load(context, array_item_type, item)
-    return loaded_array
+        new_loaded_array[j] = load(context, array_item_type, item)
+    return new_loaded_array
 
 
 @load.register()
 def load(context: Context, type: Object, value: object) -> object:
     # loads value into native python dict, including all dict's items
-    loaded_obj_value = type.load(value)
-    for name, value in type.properties.items():
+    loaded_obj = type.load(value)
+    new_loaded_obj = {}
+    for k, v in type.properties.items():
         # overwrite given object key value, with a loaded python native key value
-        loaded_obj_value[name] = load(context, value.type, loaded_obj_value[name])
-    return loaded_obj_value
+        new_loaded_obj[k] = load(context, v.type, loaded_obj[k])
+    return new_loaded_obj
 
 
 @error.register()
