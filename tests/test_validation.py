@@ -11,7 +11,11 @@ def test_report(context, app):
         'count': '42',
         'valid_from_date': '2019-04-20',
         'update_time': '2019-04-20 03:14:15',
-        'notes': [{'note': 'hello report', 'note_type': 'test'}]
+        'notes': [{
+            'note': 'hello report',
+            'note_type': 'test',
+            'create_date': '2019-04-20',
+        }]
     })
     assert resp.status_code == 201
 
@@ -29,7 +33,11 @@ def test_report(context, app):
         'count': 42,
         'valid_from_date': 1555718400,
         'update_time': 1555730055,
-        'notes': [{'note': 'hello report', 'note_type': 'test'}],
+        'notes': [{
+            'note': 'hello report',
+            'note_type': 'test',
+            'create_date': 1555718400,
+        }]
     }
 
 
