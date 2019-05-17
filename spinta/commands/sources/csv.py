@@ -1,23 +1,19 @@
 import csv
 
-from spinta.dispatcher import command
 from spinta.components import Context
-from spinta.types.dataset import Model, Property
+from spinta.types.dataset import Model
 from spinta.fetcher import fetch
+from spinta.commands import pull
+from spinta.commands.sources import Source
 
 
-@command()
-def read_csv():
-    pass
+class SourceMap:
+    Dataset = Source
+    Model = Source
+    Property = Source
 
 
-@read_csv.register()
-def read_csv(context: Context, model: Model, *, source=None, dependency=None):
-    source = source.format(**dependency)
-    with fetch(context, source, text=True).open() as f:
+@pull.register()
+def pull(context: Context, source: Source, node: Model):
+    with fetch(context, source.name, text=True).open() as f:
         yield from csv.DictReader(f)
-
-
-@read_csv.register()
-def read_csv(context: Context, model: Property, *, source=None, value=None):
-    return value.get(source)

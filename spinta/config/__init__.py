@@ -13,14 +13,6 @@ CONFIG = {
             'spinta.backends',
             'spinta.urlparams',
         ],
-        'source': {
-            'csv': 'spinta.commands.sources.csv:read_csv',
-            'html': 'spinta.commands.sources.html:read_html',
-            'json': 'spinta.commands.sources.json:read_json',
-            'url': 'spinta.commands.sources.url:read_url',
-            'xlsx': 'spinta.commands.sources.xlsx:read_xlsx',
-            'xml': 'spinta.commands.sources.xml:read_xml',
-        },
         'service': {
             'range': 'spinta.commands.helpers:range_',
         },
@@ -65,6 +57,15 @@ CONFIG = {
             # 'versions': {
             #     '1': 'spinta.urlparams:Version',
             # },
+        },
+        'sources': {
+            'csv': 'spinta.commands.sources:Source',
+            'html': 'spinta.commands.sources:Source',
+            'json': 'spinta.commands.sources:Source',
+            'url': 'spinta.commands.sources:Source',
+            'xlsx': 'spinta.commands.sources:Source',
+            'xml': 'spinta.commands.sources:Source',
+            'sql': 'spinta.commands.sources.sql:Sql',
         },
     },
     'exporters': {

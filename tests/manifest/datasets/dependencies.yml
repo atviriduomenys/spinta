@@ -3,17 +3,20 @@ name: dependencies
 type: dataset
 version: 1
 date: "2019-03-08"
+source:
+  type: csv
+  name: http://example.com
 objects:
 
   continent:
-    source: {csv: "http://example.com/continents.csv"}
+    source: "/continents.csv"
     properties:
       id: {source: 'id'}
       title: {source: 'continent'}
       continent_id: {source: 'id'}
 
   country:
-    source: {csv: "http://example.com/continents/{continent}/countries.csv"}
+    source: "/continents/{continent}/countries.csv"
     dependencies:
       continent: continent/:source/dependencies.continent_id
     properties:
@@ -23,7 +26,7 @@ objects:
       country_id: {source: 'id'}
 
   capital:
-    source: {csv: "http://example.com/continents/{continent}/countries/{country}/captials.csv"}
+    source: "/continents/{continent}/countries/{country}/captials.csv"
     dependencies:
       continent: country/:source/dependencies.continent.continent_id
       country: country/:source/dependencies.country_id

@@ -1,10 +1,14 @@
 import pathlib
 
+from ruamel.yaml import YAML
+
 from spinta.utils.imports import importstr
 from spinta.commands import load, check
 from spinta.components import Context
 from spinta.config import Config
 from spinta import components
+
+yaml = YAML(typ='safe')
 
 
 @load.register()
@@ -41,6 +45,12 @@ def load(context: Context, config: components.Config, c: Config) -> Config:
     config.scope_prefix = c.get('scope_prefix')
     config.scope_max_length = c.get('scope_max_length', cast=int)
     config.default_auth_client = c.get('default_auth_client')
+
+    credentials_file = (config.config_path / 'credentials.yml')
+    if credentials_file.exists():
+        config.credentials = yaml.load(credentials_file.read_text())
+    else:
+        config.credentials = {}
 
     return config
 
