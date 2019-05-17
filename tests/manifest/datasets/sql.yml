@@ -1,0 +1,13 @@
+---
+name: sql
+type: dataset
+version: 1
+date: "2019-05-17"
+source: sql
+objects:
+  country:
+    source: country
+    properties:
+      id: {source: kodas}
+      code: {source: kodas}
+      title: {source: pavadinimas}

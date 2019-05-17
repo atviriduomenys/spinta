@@ -1,3 +1,6 @@
+na = object()
+
+
 def resolve_schema(obj, Base):
     # Emulates inheritance for `schema` class attribute for given `obj` and
     # one of the `obj's` base classes `Base`.
@@ -28,3 +31,24 @@ def resolve_schema(obj, Base):
         if hasattr(cls, 'schema'):
             schema.update(cls.schema)
     return schema
+
+
+def load_from_schema(obj: object, schema: dict, params: dict, check_unknowns=True):
+    for name in set(schema) | set(params):
+        if name not in schema:
+            if check_unknowns:
+                raise Exception(f"Unknown param {name!r} of {obj!r}.")
+            else:
+                continue
+        value = params.get(name, na)
+        value = _get_value(obj, schema[name], name, value)
+        setattr(obj, name, value)
+    return obj
+
+
+def _get_value(obj: object, schema: dict, name: str, value: object):
+    if schema.get('required', False) and value is na:
+        raise Exception(f"Missing required param {name!r}.")
+    if value is na:
+        value = schema.get('default')
+    return value
