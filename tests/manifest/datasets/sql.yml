@@ -6,7 +6,7 @@ date: "2019-05-17"
 source: sql
 objects:
   country:
-    source: country
+    source: tests_country
     properties:
       id: {source: kodas}
       code: {source: kodas}

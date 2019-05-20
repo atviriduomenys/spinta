@@ -3,7 +3,7 @@ import requests
 import tempfile
 
 from spinta.commands import load, prepare, check, pull, getall, authorize, error
-from spinta.components import Context, Manifest, Node, Command, CommandList
+from spinta.components import Context, Manifest, Node, Command
 from spinta.utils.refs import get_ref_id
 from spinta.utils.url import parse_url_path
 from spinta.nodes import load_node
@@ -116,11 +116,12 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
 
     # Load model source
     if model.source:
-        model.source = []
+        sources = []
         for source in ensure_list(model.source):
             params = source if isinstance(source, dict) else {'name': source}
             params['type'] = model.parent.source.type
-            model.source.append(load_source(context, model, params))
+            sources.append(load_source(context, model, params))
+        model.source = sources
     else:
         model.source = []
 
@@ -159,11 +160,12 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest):
     # Load property source.
     if prop.source:
         if isinstance(prop.source, list):
-            prop.source = []
+            sources = []
             for params in prop.source:
                 params = params if isinstance(params, dict) else {'name': params}
                 params['type'] = prop.parent.parent.source.type
-                prop.source.append(load_source(context, prop, params))
+                sources.append(load_source(context, prop, params))
+            prop.source = sources
         else:
             params = prop.source
             params = params if isinstance(params, dict) else {'name': params}
@@ -229,7 +231,6 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
         context.bind('requests', requests.Session)
 
         prepare(context, dataset.source, dataset)
-        print('ok')
 
         for model in dataset.objects.values():
             if model.source is None:
@@ -265,6 +266,7 @@ def _pull(context: Context, model: Model, source, dependency):
             if prop.ref and prop.name in data:
                 data[prop.name] = get_ref_id(data[prop.name])
 
+        import pp; pp(data)
         if _check_key(data.get('id')):
             yield data
 
@@ -416,5 +418,8 @@ def load_source(context: Context, node: Node, params: dict):
     }
     source = Source()
     schema = resolve_schema(source, Source)
-    source = load_from_schema(source, schema, params)
+
+    # FIXME: refactore components to separate python module
+    from spinta.commands.sources import Source
+    source = load_from_schema(Source, source, schema, params)
     return load(context, source, node)
