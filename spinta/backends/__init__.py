@@ -35,6 +35,7 @@ def prepare(context: Context, type: Object, backend: Backend, value: dict) -> di
     new_loaded_obj = {}
     for k, v in type.properties.items():
         # only load value keys which are available in schema
+        # FIXME: If k is not in value, then value should be NA. Do not skip a value
         if k in value:
             new_loaded_obj[k] = prepare(context, v.type, backend, value[k])
     return new_loaded_obj
