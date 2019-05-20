@@ -34,7 +34,9 @@ def prepare(context: Context, type: Object, backend: Backend, value: dict) -> di
     # prepare objects and it's properties for datastore
     new_loaded_obj = {}
     for k, v in type.properties.items():
-        new_loaded_obj[k] = prepare(context, v.type, backend, value[k])
+        # only load value keys which are available in schema
+        if k in value:
+            new_loaded_obj[k] = prepare(context, v.type, backend, value[k])
     return new_loaded_obj
 
 

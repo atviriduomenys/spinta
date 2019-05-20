@@ -264,7 +264,9 @@ def load(context: Context, type: Object, value: object) -> dict:
     loaded_obj = type.load(value)
     new_loaded_obj = {}
     for k, v in type.properties.items():
-        new_loaded_obj[k] = load(context, v.type, loaded_obj[k])
+        # only load value keys which are available in schema
+        if k in loaded_obj:
+            new_loaded_obj[k] = load(context, v.type, loaded_obj[k])
     return new_loaded_obj
 
 
