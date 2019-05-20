@@ -26,11 +26,7 @@ def prepare(context: Context, type: Type, backend: Backend, value: object) -> ob
 @prepare.register()
 def prepare(context: Context, type: Array, backend: Backend, value: list) -> list:
     # prepare array and it's items for datastore
-    array_item_type = type.items.type
-    new_prepare_array = []
-    for item in value:
-        new_prepare_array.append(prepare(context, array_item_type, backend, item))
-    return new_prepare_array
+    return [prepare(context, type.items.type, backend, v) for v in value]
 
 
 @prepare.register()
