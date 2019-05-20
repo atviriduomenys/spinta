@@ -34,6 +34,9 @@ class Type:
 class PrimaryKey(Type):
 
     def load(self, value: typing.Any):
+        if value is None:
+            return None
+
         return str(value)
 
     def is_valid(self, value):
@@ -44,6 +47,9 @@ class PrimaryKey(Type):
 class Date(Type):
 
     def load(self, value: typing.Any):
+        if value is None:
+            return None
+
         try:
             return date.fromisoformat(value)
         except (ValueError, TypeError) as e:
@@ -57,6 +63,9 @@ class Date(Type):
 class DateTime(Type):
 
     def load(self, value: typing.Any):
+        if value is None:
+            return None
+
         try:
             return datetime.fromisoformat(value)
         except (ValueError, TypeError) as e:
@@ -73,6 +82,9 @@ class String(Type):
     }
 
     def load(self, value: typing.Any):
+        if value is None:
+            return None
+
         return str(value)
 
     def is_valid(self, value: str):
@@ -83,6 +95,9 @@ class String(Type):
 class Integer(Type):
 
     def load(self, value: typing.Any):
+        if value is None:
+            return None
+
         try:
             return int(value)
         except ValueError as e:
@@ -149,6 +164,9 @@ class Array(Type):
     }
 
     def load(self, value: typing.Any):
+        if value is None:
+            return []
+
         if isinstance(value, list):
             # if value is list - return it
             return value
@@ -169,6 +187,9 @@ class Object(Type):
     }
 
     def load(self, value: typing.Any):
+        if value is None:
+            return {}
+
         if isinstance(value, dict):
             return value
         else:
