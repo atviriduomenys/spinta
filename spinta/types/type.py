@@ -248,7 +248,7 @@ def load(context: Context, type: Type, value: object) -> object:
 
 
 @load.register()
-def load(context: Context, type: Array, value: object) -> object:
+def load(context: Context, type: Array, value: object) -> list:
     # loads value into native python list, including all list items
     array_item_type = type.items.type
     loaded_array = type.load(value)
@@ -259,7 +259,7 @@ def load(context: Context, type: Array, value: object) -> object:
 
 
 @load.register()
-def load(context: Context, type: Object, value: object) -> object:
+def load(context: Context, type: Object, value: object) -> dict:
     # loads value into native python dict, including all dict's items
     loaded_obj = type.load(value)
     new_loaded_obj = {}

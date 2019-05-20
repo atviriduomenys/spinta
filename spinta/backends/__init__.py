@@ -24,7 +24,7 @@ def prepare(context: Context, type: Type, backend: Backend, value: object) -> ob
 
 
 @prepare.register()
-def prepare(context: Context, type: Array, backend: Backend, value: object) -> object:
+def prepare(context: Context, type: Array, backend: Backend, value: list) -> list:
     # prepare array and it's items for datastore
     array_item_type = type.items.type
     new_prepare_array = []
@@ -34,7 +34,7 @@ def prepare(context: Context, type: Array, backend: Backend, value: object) -> o
 
 
 @prepare.register()
-def prepare(context: Context, type: Object, backend: Backend, value: object) -> object:
+def prepare(context: Context, type: Object, backend: Backend, value: dict) -> dict:
     # prepare objects and it's properties for datastore
     new_loaded_obj = {}
     for k, v in type.properties.items():
