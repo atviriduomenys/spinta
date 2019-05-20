@@ -1,4 +1,4 @@
-def test_report(context, app):
+def test_report(app):
     app.authorize([
         'spinta_report_insert',
         'spinta_report_getone',
@@ -41,7 +41,7 @@ def test_report(context, app):
     }
 
 
-def test_invalid_report_int(context, app):
+def test_invalid_report_int(app):
     app.authorize([
         'spinta_report_insert',
     ])
@@ -59,7 +59,7 @@ def test_invalid_report_int(context, app):
     }
 
 
-def test_invalid_report_date(context, app):
+def test_invalid_report_date(app):
     app.authorize([
         'spinta_report_insert',
     ])
@@ -77,7 +77,7 @@ def test_invalid_report_date(context, app):
     }
 
 
-def test_non_string_report_date(context, app):
+def test_non_string_report_date(app):
     app.authorize([
         'spinta_report_insert',
     ])
@@ -95,7 +95,7 @@ def test_non_string_report_date(context, app):
     }
 
 
-def test_invalid_report_datetime(context, app):
+def test_invalid_report_datetime(app):
     app.authorize([
         'spinta_report_insert',
     ])
@@ -113,7 +113,7 @@ def test_invalid_report_datetime(context, app):
     }
 
 
-def test_non_string_report_datetime(context, app):
+def test_non_string_report_datetime(app):
     app.authorize([
         'spinta_report_insert',
     ])
@@ -131,7 +131,7 @@ def test_non_string_report_datetime(context, app):
     }
 
 
-def test_invalid_report_array(context, app):
+def test_invalid_report_array(app):
     app.authorize([
         'spinta_report_insert',
     ])
@@ -149,7 +149,7 @@ def test_invalid_report_array(context, app):
     }
 
 
-def test_invalid_report_array_object(context, app):
+def test_invalid_report_array_object(app):
     app.authorize([
         'spinta_report_insert',
     ])
@@ -167,7 +167,7 @@ def test_invalid_report_array_object(context, app):
     }
 
 
-def test_invalid_nested_object_property(context, app):
+def test_invalid_nested_object_property(app):
     app.authorize([
         'spinta_nested_insert',
     ])
