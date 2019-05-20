@@ -182,3 +182,76 @@ def test_invalid_nested_object_property(app):
     assert resp.json() == {
         "error": "Invalid object type: <class 'str'>",
     }
+
+
+def test_missing_report_object_property(app):
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_report_getone',
+    ])
+
+    resp = app.post('/report', json={
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'count': '42',
+        'valid_from_date': '2019-04-20',
+        'update_time': '2019-04-20 03:14:15',
+        'notes': [{
+            'note': 'hello report',  # missing object properties
+        }],
+    })
+
+    assert resp.status_code == 201
+
+
+def test_unknown_report_property(app):
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_report_getone',
+    ])
+
+    resp = app.post('/report', json={
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'count': '42',
+        'valid_from_date': '2019-04-20',
+        'update_time': '2019-04-20 03:14:15',
+        'notes': [{
+            'note': 'hello report',
+            'note_type': 'test',
+            'create_date': '2014-20',
+        }],
+        'random_prop': 'foo',
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        "error": "Unknown params: 'random_prop'",
+    }
+
+
+def test_unknown_report_object_property(app):
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_report_getone',
+    ])
+
+    resp = app.post('/report', json={
+        'type': 'report',
+        'report_type': 'simple',
+        'status': 'valid',
+        'count': '42',
+        'valid_from_date': '2019-04-20',
+        'update_time': '2019-04-20 03:14:15',
+        'notes': [{
+            'note': 'hello report',
+            'rand_prop': 42,  # unknown object properties
+        }],
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        "error": "Unknown params: 'rand_prop'",
+    }
