@@ -1,6 +1,5 @@
 import contextlib
 import copy
-import typing
 
 from datetime import date, datetime
 
@@ -11,7 +10,7 @@ from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize
 from spinta.components import Context, Manifest, Model
 from spinta.config import Config
-from spinta.types.type import Type, Date
+from spinta.types.type import Date
 
 
 class Mongo(Backend):

@@ -46,7 +46,7 @@ class Date(Type):
     def load(self, value: typing.Any):
         try:
             return date.fromisoformat(value)
-        except ValueError as e:
+        except (ValueError, TypeError) as e:
             raise DataError(f'{e}')
 
     def is_valid(self, value: date):
@@ -59,7 +59,7 @@ class DateTime(Type):
     def load(self, value: typing.Any):
         try:
             return datetime.fromisoformat(value)
-        except ValueError as e:
+        except (ValueError, TypeError) as e:
             raise DataError(f'{e}')
 
     def is_valid(self, value: datetime):
@@ -168,6 +168,12 @@ class Object(Type):
         'properties': {'type': 'object'},
     }
 
+    def load(self, value: typing.Any):
+        if isinstance(value, dict):
+            return value
+        else:
+            raise DataError(f'Invalid object type: {type(value)}')
+
     def is_valid(self, value):
         # TODO: implement `object` validation
         return True
@@ -233,6 +239,41 @@ def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
     type.name = data['type']
 
     return load(context, type, data, manifest)
+
+
+@load.register()
+def load(context: Context, type: Type, value: object) -> object:
+    # loads value to python native value according to given type
+    return type.load(value)
+
+
+@load.register()
+def load(context: Context, type: Array, value: object) -> list:
+    # loads value into native python list, including all list items
+    array_item_type = type.items.type
+    loaded_array = type.load(value)
+    new_loaded_array = []
+    for item in loaded_array:
+        new_loaded_array.append(load(context, array_item_type, item))
+    return new_loaded_array
+
+
+@load.register()
+def load(context: Context, type: Object, value: object) -> dict:
+    # loads value into native python dict, including all dict's items
+    loaded_obj = type.load(value)
+
+    # check that given obj does not have more keys, than type's schema
+    unknown_params = set(loaded_obj.keys()) - set(type.properties.keys())
+    if unknown_params:
+        raise DataError("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
+
+    new_loaded_obj = {}
+    for k, v in type.properties.items():
+        # only load value keys which are available in schema
+        if k in loaded_obj:
+            new_loaded_obj[k] = load(context, v.type, loaded_obj[k])
+    return new_loaded_obj
 
 
 @error.register()

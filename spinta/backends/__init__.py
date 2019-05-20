@@ -1,6 +1,6 @@
 import contextlib
 
-from spinta.types.type import Type
+from spinta.types.type import Array, Object, Type
 from spinta.components import Context, Model
 from spinta.commands import error, prepare
 
@@ -21,6 +21,23 @@ def prepare(context: Context, type: Type, backend: Backend, value: object) -> ob
     # for simple types - loaded native values should work
     # otherwise - override for this command if necessary
     return value
+
+
+@prepare.register()
+def prepare(context: Context, type: Array, backend: Backend, value: list) -> list:
+    # prepare array and it's items for datastore
+    return [prepare(context, type.items.type, backend, v) for v in value]
+
+
+@prepare.register()
+def prepare(context: Context, type: Object, backend: Backend, value: dict) -> dict:
+    # prepare objects and it's properties for datastore
+    new_loaded_obj = {}
+    for k, v in type.properties.items():
+        # only load value keys which are available in schema
+        if k in value:
+            new_loaded_obj[k] = prepare(context, v.type, backend, value[k])
+    return new_loaded_obj
 
 
 @error.register()

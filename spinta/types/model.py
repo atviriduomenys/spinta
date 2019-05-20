@@ -1,9 +1,10 @@
+from spinta.auth import check_generated_scopes
 from spinta.commands import load, check, error, authorize, prepare
 from spinta.components import Context, Manifest, Node, Model, Property
+from spinta.exceptions import DataError
 from spinta.nodes import load_node
 from spinta.types.type import Type, load_type
 from spinta.utils.errors import format_error
-from spinta.auth import check_generated_scopes
 from spinta.utils.schema import resolve_schema
 
 
@@ -43,18 +44,21 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
     given_params = set(data.keys())
     unknown_params = given_params - known_params
     if unknown_params:
-        raise Exception("Unknown prams: %s" % ', '.join(map(repr, sorted(unknown_params))))
+        raise Exception("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
 
     return prop
 
 
 @load.register()
 def load(context: Context, model: Model, data: dict) -> dict:
+    # check that given data does not have more keys, than model's schema
+    unknown_params = set(data.keys()) - set(model.properties.keys())
+    if unknown_params:
+        raise DataError("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
     for name, prop in model.properties.items():
         if name in data:
             data_value = data[name]
-            # XXX: rewrite into command instead of type method?
-            data[name] = prop.type.load(data_value)
+            data[name] = load(context, prop.type, data_value)
     return data
 
 
