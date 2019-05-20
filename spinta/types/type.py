@@ -262,6 +262,12 @@ def load(context: Context, type: Array, value: object) -> list:
 def load(context: Context, type: Object, value: object) -> dict:
     # loads value into native python dict, including all dict's items
     loaded_obj = type.load(value)
+
+    # check that given obj does not have more keys, than type's schema
+    unknown_params = set(loaded_obj.keys()) - set(type.properties.keys())
+    if unknown_params:
+        raise DataError("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
+
     new_loaded_obj = {}
     for k, v in type.properties.items():
         # only load value keys which are available in schema
