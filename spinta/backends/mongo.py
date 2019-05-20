@@ -109,6 +109,14 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     transaction = context.get('transaction')
     model_collection = backend.db[model.get_type_value()]
 
+    # FIXME: hack to remove built-in properties
+    if data['id'] is None:
+        del data['id']
+    if data['revision'] is None:
+        del data['revision']
+    if data['type'] is None:
+        data['type'] = model.name
+
     # Make a copy of data, because `pymongo` changes the reference `data`
     # object on `insert_one()` call.
     #
@@ -170,9 +178,7 @@ def getall(context: Context, model: Model, backend: Mongo, **kwargs):
     for row in model_collection.find({}):
         id = str(row.pop('_id'))
         yield {
-            'type': model.name,
             'id': id,
-            **row,
         }
 
 
