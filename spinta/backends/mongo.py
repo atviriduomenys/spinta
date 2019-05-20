@@ -11,6 +11,7 @@ from spinta.commands import load, prepare, migrate, check, push, get, getall, wi
 from spinta.components import Context, Manifest, Model
 from spinta.config import Config
 from spinta.types.type import Date
+from spinta.utils.idgen import get_new_id
 
 
 class Mongo(Backend):
@@ -115,6 +116,10 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     # MongoDB may add to our object.
     raw_data = copy.deepcopy(data)
 
+    # FIXME: before creating revision check if there's not collision clash
+    revision_id = get_new_id('revision id')
+    raw_data['revision'] = revision_id
+
     if 'id' in data:
         result = model_collection.update_one(
             {'_id': ObjectId(raw_data['id'])},
@@ -124,7 +129,14 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
         data_id = data['id']
     else:
         data_id = model_collection.insert_one(raw_data).inserted_id
-    return str(data_id)
+
+    # parse `ObjectId` to string and add it to our object
+    raw_data['id'] = str(data_id)
+
+    # do not return inner Mongo `_id`
+    del raw_data['_id']
+
+    return raw_data
 
 
 @get.register()
