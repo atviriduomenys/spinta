@@ -1,10 +1,11 @@
 from spinta.auth import check_generated_scopes
 from spinta.commands import load, check, error, authorize, prepare
-from spinta.components import Context, Manifest, Model, Property
+from spinta.components import Context, Manifest, Node, Model, Property
 from spinta.exceptions import DataError
 from spinta.nodes import load_node
-from spinta.types.type import load_type
+from spinta.types.type import Type, load_type
 from spinta.utils.errors import format_error
+from spinta.utils.schema import resolve_schema
 
 
 @load.register()
@@ -39,7 +40,7 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
     prop.type = load_type(context, prop, data, manifest)
 
     # Check if there any unknown params were given.
-    known_params = set(prop.schema.keys()) | set(prop.type.schema.keys())
+    known_params = set(resolve_schema(prop, Node).keys()) | set(resolve_schema(prop.type, Type).keys())
     given_params = set(data.keys())
     unknown_params = given_params - known_params
     if unknown_params:

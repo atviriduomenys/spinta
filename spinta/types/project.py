@@ -1,66 +1,54 @@
 from spinta.commands import load, prepare, check
 from spinta.components import Context, Manifest, Node
+from spinta.nodes import load_node
 
 
 class Project(Node):
-    metadata = {
-        'name': 'project',
-        'properties': {
-            'path': {'type': 'path', 'required': True},
-            'version': {'type': 'integer', 'required': True},
-            'date': {'type': 'date', 'required': True},
-            'objects': {'type': 'object', 'default': {}},
-            'impact': {'type': 'array', 'default': []},
-            'url': {'type': 'url'},
-            'source_code': {'type': 'url'},
-            'owner': {'type': 'string'},
-            'parent': {'type': 'manifest'},
-        },
+    schema = {
+        'version': {'type': 'integer', 'required': True},
+        'date': {'type': 'date', 'required': True},
+        'objects': {'type': 'object', 'default': {}},
+        'impact': {'type': 'array', 'default': []},
+        'url': {'type': 'url'},
+        'source_code': {'type': 'url'},
+        'owner': {'type': 'string'},
     }
 
 
 class Impact:
-    metadata = {
-        'name': 'project.impact',
-        'properties': {
-            'year': {'type': 'integer', 'required': True},
-            'users': {'type': 'integer'},
-            'revenue': {'type': 'number'},
-            'employees': {'type': 'integer'},
-            'parent': {'type': 'project'},
-        },
+    schema = {
+        'year': {'type': 'integer', 'required': True},
+        'users': {'type': 'integer'},
+        'revenue': {'type': 'number'},
+        'employees': {'type': 'integer'},
+        'parent': {'type': 'project'},
     }
 
 
 class Model(Node):
-    metadata = {
-        'name': 'project.model',
-        'properties': {
-            'properties': {'type': 'object', 'default': {}},
-            'parent': {'type': 'project'},
-        },
+    schema = {
+        'properties': {'type': 'object', 'default': {}},
     }
-
-    property_type = 'project.property'
 
 
 class Property(Node):
-    metadata = {
-        'name': 'project.property',
-        'properties': {
-            'enum': {'type': 'array'},
-            'parent': {'type': 'project.model'},
-        },
+    schema = {
+        'enum': {'type': 'array'},
     }
 
 
 @load.register()
 def load(context: Context, project: Project, data: dict, manifest: Manifest):
+    load_node(context, project, data, manifest)
+
     for name, obj in data.get('objects', {}).items():
-        project.objects[name] = load(context, Model(), manifest, {
+        project.objects[name] = load_node(context, Model(), {
             'name': name,
+            'path': project.path,
+            'parent': project,
+            'backend': project.backend,
             **(obj or {}),
-        })
+        }, manifest)
 
     project.impact = [
         {
