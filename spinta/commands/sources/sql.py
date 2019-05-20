@@ -15,12 +15,17 @@ class Sql(Source):
 def prepare(context: Context, source: Sql, node: Dataset):
     source.engine = sa.create_engine(source.name)
     source.schema = sa.MetaData(source.engine)
-    source.schema.reflect(only=[model.source.name for model in node.objects.values() if model.source])
+    source.schema.reflect(only=[
+        source.name
+        for model in node.objects.values()
+        for source in model.source
+        if model.source
+    ])
 
 
 @pull.register()
 def pull(context: Context, source: Sql, node: Model, *, name: str):
     sql = node.parent.source
     query = sa.select([sql.schema.tables[name]])
-    for row in source.dataset.conn.execute(query):
+    for row in sql.engine.execute(query):
         yield dict(row)

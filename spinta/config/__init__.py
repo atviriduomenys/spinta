@@ -59,12 +59,12 @@ CONFIG = {
             # },
         },
         'sources': {
-            'csv': 'spinta.commands.sources:Source',
-            'html': 'spinta.commands.sources:Source',
-            'json': 'spinta.commands.sources:Source',
+            'csv': 'spinta.commands.sources.csv:Csv',
+            'html': 'spinta.commands.sources:Source',  # TODO: this is a stub
+            'json': 'spinta.commands.sources.json:Json',
             'url': 'spinta.commands.sources:Source',
-            'xlsx': 'spinta.commands.sources:Source',
-            'xml': 'spinta.commands.sources:Source',
+            'xlsx': 'spinta.commands.sources.xlsx:Xlsx',
+            'xml': 'spinta.commands.sources.xml:Xml',
             'sql': 'spinta.commands.sources.sql:Sql',
         },
     },

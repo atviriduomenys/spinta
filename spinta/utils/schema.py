@@ -33,11 +33,14 @@ def resolve_schema(obj, Base):
     return schema
 
 
-def load_from_schema(obj: object, schema: dict, params: dict, check_unknowns=True):
+def load_from_schema(Base: type, obj: object, schema: dict, params: dict, check_unknowns=True):
+    schema = resolve_schema(obj, Base)
     for name in set(schema) | set(params):
         if name not in schema:
             if check_unknowns:
-                raise Exception(f"Unknown param {name!r} of {obj!r}.")
+                continue
+                # TODO: temporarily commented this out.
+                # raise Exception(f"Unknown param {name!r} of {obj!r}.")
             else:
                 continue
         value = params.get(name, na)
