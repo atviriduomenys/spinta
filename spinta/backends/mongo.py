@@ -201,4 +201,7 @@ def prepare(context: Context, action: str, model: Model, backend: Mongo, value: 
             **value,
         }
     elif action in ('insert', 'update'):
-        return value['id']
+        return {
+            'type': model.name,
+            'id': value['id']
+        }

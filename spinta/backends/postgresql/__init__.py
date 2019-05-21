@@ -431,4 +431,7 @@ def prepare(context: Context, action: str, model: Model, backend: PostgreSQL, va
 @prepare.register()
 def prepare(context: Context, action: str, model: Model, backend: PostgreSQL, value: dict) -> object:
     if action in ('insert', 'update'):
-        return value['id']
+        return {
+            'type': model.name,
+            'id': value['id']
+        }
