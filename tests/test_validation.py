@@ -25,8 +25,10 @@ def test_report(app):
     assert resp.status_code == 200
 
     # FIXME: should return date/datetime strings instead of unix timestamps?
-    assert resp.json() == {
+    data = resp.json()
+    assert data == {
         'id': id,
+        'revision': data['revision'],
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
