@@ -34,8 +34,8 @@ class Type:
 class PrimaryKey(Type):
 
     def load(self, value: typing.Any):
-        if value is None:
-            return None
+        # if value is None:
+        #     return None
 
         return str(value)
 
@@ -47,8 +47,8 @@ class PrimaryKey(Type):
 class Date(Type):
 
     def load(self, value: typing.Any):
-        if value is None:
-            return None
+        # if value is None:
+        #     return None
 
         try:
             return date.fromisoformat(value)
@@ -63,8 +63,8 @@ class Date(Type):
 class DateTime(Type):
 
     def load(self, value: typing.Any):
-        if value is None:
-            return None
+        # if value is None:
+        #     return None
 
         try:
             return datetime.fromisoformat(value)
@@ -82,8 +82,8 @@ class String(Type):
     }
 
     def load(self, value: typing.Any):
-        if value is None:
-            return None
+        # if value is None:
+        #     return None
 
         return str(value)
 
@@ -95,8 +95,8 @@ class String(Type):
 class Integer(Type):
 
     def load(self, value: typing.Any):
-        if value is None:
-            return None
+        # if value is None:
+        #     return None
 
         try:
             return int(value)
@@ -164,8 +164,8 @@ class Array(Type):
     }
 
     def load(self, value: typing.Any):
-        if value is None:
-            return []
+        # if value is None:
+        #     return []
 
         if isinstance(value, list):
             # if value is list - return it
@@ -187,8 +187,8 @@ class Object(Type):
     }
 
     def load(self, value: typing.Any):
-        if value is None:
-            return {}
+        # if value is None:
+        #     return {}
 
         if isinstance(value, dict):
             return value

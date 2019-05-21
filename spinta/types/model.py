@@ -57,8 +57,9 @@ def load(context: Context, model: Model, data: dict) -> dict:
         raise DataError("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
 
     for name, prop in model.properties.items():
-        data_value = data.get(name)
-        data[name] = load(context, prop.type, data_value)
+        if name in data:
+            data_value = data.get(name)
+            data[name] = load(context, prop.type, data_value)
     return data
 
 

@@ -12,7 +12,7 @@ class Json:
 
     def __call__(self, rows, *, wrap: bool = True):
         if wrap:
-            yield '{"resources":['
+            yield '{"data":['
         for i, row in enumerate(rows):
             yield (',' if i > 0 else '') + json.dumps(row, ensure_ascii=False)
         if wrap:

@@ -126,10 +126,10 @@ async def create_http_response(context, params, request):
                     detail="cannot create 'revision'",
                 )
 
-            pushed_data = commands.push(context, model, model.backend, data, action='insert')
+            id = commands.push(context, model, model.backend, data, action='insert')
             data = {
                 'type': model.name,
-                **pushed_data,
+                'id': str(id),
             }
             return JSONResponse(data, status_code=201)
 

@@ -110,12 +110,12 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     model_collection = backend.db[model.get_type_value()]
 
     # FIXME: hack to remove built-in properties
-    if data['id'] is None:
-        del data['id']
-    if data['revision'] is None:
-        del data['revision']
-    if data['type'] is None:
-        data['type'] = model.name
+    # if data['id'] is None:
+    #     del data['id']
+    # if data['revision'] is None:
+    #     del data['revision']
+    # if data['type'] is None:
+    #     data['type'] = model.name
 
     # Make a copy of data, because `pymongo` changes the reference `data`
     # object on `insert_one()` call.
@@ -142,7 +142,7 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     raw_data['id'] = str(data_id)
 
     # do not return inner Mongo `_id`
-    del raw_data['_id']
+    # del raw_data['_id']
 
     return prepare(context, action, model, backend, raw_data)
 
