@@ -1,8 +1,8 @@
-from spinta.config import Config
+from spinta.config import RawConfig
 
 
 def test_udpate_config():
-    config = Config()
+    config = RawConfig()
     config.read(env_vars=False, env_files=False, config={
         'components': {
             'nodes': {
@@ -22,7 +22,7 @@ def test_udpate_config():
 
 
 def test_update_config_from_cli():
-    config = Config()
+    config = RawConfig()
     config.read(env_vars=False, env_files=False, cli_args=[
         'backends.default.backend=psycopg2',
         'backends.new.backend=psycopg2',
@@ -33,7 +33,7 @@ def test_update_config_from_cli():
 
 
 def test_update_config_from_env():
-    config = Config()
+    config = RawConfig()
     config.read(env_files=False, env_vars={
         'SPINTA_BACKENDS': 'default,new',
         'SPINTA_BACKENDS_DEFAULT_BACKEND': 'psycopg2',
@@ -54,7 +54,7 @@ def test_update_config_from_env_file(tmpdir):
         'SPINTA_BACKENDS_NEW_BACKEND=bar\n',
     )
 
-    config = Config()
+    config = RawConfig()
     config.read(env_vars=False, env_files=[str(envfile)])
     assert config.get('backends', 'default', 'backend') == 'foo'
     assert config.get('backends', 'new', 'backend') == 'bar'
@@ -62,7 +62,7 @@ def test_update_config_from_env_file(tmpdir):
 
 
 def test_custom_env():
-    config = Config()
+    config = RawConfig()
     config.read(env_vars=False, env_files=False, config={
         'env': 'testing',
         'environments': {
@@ -84,7 +84,7 @@ def test_custom_env():
 
 
 def test_custom_env_from_envvar():
-    config = Config()
+    config = RawConfig()
     config.read(env_files=False, env_vars={'SPINTA_ENV': 'testing'}, config={
         'environments': {
             'testing': {
@@ -100,7 +100,7 @@ def test_custom_env_from_envvar():
 
 
 def test_custom_env_from_envvars_only():
-    config = Config()
+    config = RawConfig()
     config.read(env_files=False, env_vars={
         'SPINTA_ENV': 'testing',
         'SPINTA_TESTING_BACKENDS_DEFAULT_DSN': 'foo',
@@ -109,7 +109,7 @@ def test_custom_env_from_envvars_only():
 
 
 def test_custom_env_priority():
-    config = Config()
+    config = RawConfig()
     config.read(env_files=False, env_vars={
         'SPINTA_ENV': 'testing',
         'SPINTA_BACKENDS_DEFAULT_DSN': 'bar',
@@ -119,7 +119,7 @@ def test_custom_env_priority():
 
 
 def test_custom_env_different_env_name():
-    config = Config()
+    config = RawConfig()
     config.read(env_files=False, env_vars={
         'SPINTA_ENV': 'testing',
         'SPINTA_BACKENDS_DEFAULT_DSN': 'bar',
@@ -135,7 +135,7 @@ def test_custom_env_from_envfile(tmpdir):
         'SPINTA_BACKENDS_DEFAULT_DSN=foo\n'
         'SPINTA_TESTING_BACKENDS_DEFAULT_DSN=bar\n'
     )
-    config = Config()
+    config = RawConfig()
     config.read(env_vars=False, env_files=[str(envfile)])
     assert config.get('backends', 'default', 'dsn') == 'bar'
 
@@ -146,7 +146,7 @@ def test_custom_env_from_envfile_only(tmpdir):
         'SPINTA_ENV=testing\n'
         'SPINTA_TESTING_BACKENDS_DEFAULT_DSN=bar\n'
     )
-    config = Config()
+    config = RawConfig()
     config.read(env_vars=False, env_files=[str(envfile)])
     assert config.get('backends', 'default', 'dsn') == 'bar'
 
@@ -157,7 +157,7 @@ def test_custom_env_from_envfile_fallback(tmpdir):
         'SPINTA_ENV=testing\n'
         'SPINTA_BACKENDS_DEFAULT_DSN=bar\n'
     )
-    config = Config()
+    config = RawConfig()
     config.read(env_vars=False, env_files=[str(envfile)])
     assert config.get('backends', 'default', 'dsn') == 'bar'
 
@@ -170,7 +170,7 @@ _TEST_CONFIG = {
 
 
 def test_custom_config():
-    config = Config()
+    config = RawConfig()
     config.read(env_vars=False, env_files=False, config={
         'config': [f'{__name__}:_TEST_CONFIG'],
     })
@@ -178,8 +178,20 @@ def test_custom_config():
     assert config.keys('backends') == ['default', 'custom', 'mongo']
 
 
+def test_yaml_config(tmpdir):
+    tmpdir.join('a.yml').write('wait: 1\nbackends: {default: {dsn: test}}')
+    tmpdir.join('b.yml').write('wait: 2\n')
+    config = RawConfig()
+    config.read(env_files=False, env_vars={
+        'SPINTA_CONFIG': f'{tmpdir}/a.yml,{tmpdir}/b.yml'
+    })
+    assert config.get('wait', cast=int) == 2
+    assert config.get('backends', 'default', 'dsn') == 'test'
+    assert config.get('manifests', 'default', 'backend') == 'default'
+
+
 def test_custom_config_fron_environ():
-    config = Config()
+    config = RawConfig()
     config.read(env_files=False, env_vars={
         'SPINTA_CONFIG': f'{__name__}:_TEST_CONFIG',
     })
@@ -187,8 +199,16 @@ def test_custom_config_fron_environ():
     assert config.keys('backends') == ['default', 'custom', 'mongo']
 
 
+def test_datasets_params():
+    config = RawConfig()
+    config.read(env_files=False, env_vars={
+        'SPINTA_DATASETS_SQL': 'param',
+    })
+    assert config.get('datasets', 'sql') == 'param'
+
+
 def test_remove_keys():
-    config = Config()
+    config = RawConfig()
     config.read(
         env_files=False,
         env_vars={

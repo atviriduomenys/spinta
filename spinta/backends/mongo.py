@@ -9,7 +9,7 @@ from bson.objectid import ObjectId
 from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize
 from spinta.components import Context, Manifest, Model
-from spinta.config import Config
+from spinta.config import RawConfig
 from spinta.types.type import Date
 from spinta.utils.idgen import get_new_id
 
@@ -55,7 +55,7 @@ class WriteTransaction(ReadTransaction):
 
 
 @load.register()
-def load(context: Context, backend: Mongo, config: Config):
+def load(context: Context, backend: Mongo, config: RawConfig):
     # Load Mongo client using configuration.
     backend.dsn = config.get('backends', backend.name, 'dsn', required=True)
     backend.db_name = config.get('backends', backend.name, 'db', required=True)
@@ -65,7 +65,7 @@ def load(context: Context, backend: Mongo, config: Config):
 
 
 @wait.register()
-def wait(context: Context, backend: Mongo, config: Config, *, fail: bool = False):
+def wait(context: Context, backend: Mongo, config: RawConfig, *, fail: bool = False):
     return True
 
 

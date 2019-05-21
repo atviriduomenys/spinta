@@ -14,9 +14,9 @@ def load():
 
     - Load things from configuration:
 
-        load(Context, Config, dict) -> Config
+        load(Context, Config, RawConfig) -> Config
         load(Context, Store, Config) -> Store
-        load(Context, Backend, BackendConfig) -> Backend
+        load(Context, Backend, Config) -> Backend
         load(Context, Manifest, dict) -> Manifest
 
     - Load nodes from manifest:

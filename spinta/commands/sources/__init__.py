@@ -19,9 +19,8 @@ def load(context: Context, source: Source, node: Node):
 @load.register()
 def load(context: Context, source: Source, node: Dataset):
     config = context.get('config')
-    credentials = config.credentials.get('datasets', {})
-    if not source.name and node.name in credentials:
-        source.name = credentials[node.name]
+    if not source.name:
+        source.name = config.raw.get('datasets', node.parent.name, node.name, default=None)
     return source
 
 

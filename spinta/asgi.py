@@ -5,7 +5,7 @@ from spinta.commands import load, wait, prepare, check
 from spinta.components import Store
 from spinta.utils.commands import load_commands
 from spinta import components
-from spinta.config import Config
+from spinta.config import RawConfig
 from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
 from spinta.utils.imports import importstr
 
@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 
 
-c = Config()
+c = RawConfig()
 c.read()
 
 load_commands(c.get('commands', 'modules', cast=list))
