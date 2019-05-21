@@ -14,14 +14,14 @@ from spinta.utils.commands import load_commands
 from spinta.testing.context import ContextForTests
 from spinta.testing.client import TestClient
 from spinta import components
-from spinta.config import Config
+from spinta.config import RawConfig
 from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator, AdminToken
 from spinta.utils.imports import importstr
 
 
 @pytest.fixture(scope='session')
 def config():
-    config = Config()
+    config = RawConfig()
     config.read({
         'env': 'test',
     })
@@ -76,7 +76,8 @@ def context(mocker, config, postgresql, mongo):
     context.bind('auth.server', AuthorizationServer, context)
     context.bind('auth.resource_protector', ResourceProtector, context, BearerTokenValidator)
 
-    yield context
+    with context.enter():
+        yield context
 
     with context.enter():
         # FIXME: quick and dirty workaround on `context.wipe` missing a connection,

@@ -2,7 +2,11 @@ import collections
 import os
 import pathlib
 
+from ruamel.yaml import YAML
+
 from spinta.utils.imports import importstr
+
+yaml = YAML(typ='safe')
 
 
 CONFIG = {
@@ -86,12 +90,22 @@ CONFIG = {
             'path': pathlib.Path(),
         },
     },
+
+    # Parameters for datasets, for example credentials. Example:
+    #
+    #   datasets: {default: {gov/vpk: sql://user:pass@host/db}}
+    #
+    # There configuraiton parameters should be read directly by datasets.
+    'datasets': {},
+
+    # When scanning for manifest YAML files, ignore these files.
     'ignore': [
         '.travis.yml',
         '/prefixes.yml',
         '/schema/',
         '/env/',
     ],
+
     'debug': False,
 
     # How much time to wait in seconds for the backends to go up.
@@ -147,6 +161,11 @@ CONFIG = {
                     'path': pathlib.Path() / 'tests/manifest',
                 },
             },
+            'datasets': {
+                'default': {
+                    'sql': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
+                }
+            },
             'config_path': pathlib.Path('tests/config'),
             'default_auth_client': 'baa448a8-205c-4faa-a048-a10e4b32a136',
         }
@@ -154,7 +173,7 @@ CONFIG = {
 }
 
 
-class Config:
+class RawConfig:
 
     def __init__(self):
         self._config = {
@@ -197,7 +216,11 @@ class Config:
 
         # Override defaults from other locations.
         for _config in self.get('config', cast=list, default=[]):
-            _config = importstr(_config)
+            if _config.endswith(('.yml', '.yaml')):
+                _config = pathlib.Path(_config)
+                _config = yaml.load(_config.read_text())
+            else:
+                _config = importstr(_config)
             self._add_config(_config)
 
         # Update defaults from specified environment.

@@ -7,7 +7,10 @@ services:
   - mongodb
 
 env:
-  - SPINTA_BACKENDS_DEFAULT_DSN=postgresql://localhost/spinta SPINTA_BACKENDS_MONGO_DSN=mongodb://localhost/
+  - >-
+    SPINTA_BACKENDS_DEFAULT_DSN=postgresql://localhost/spinta
+    SPINTA_DATASETS_DEFAULT_SQL=postgresql://localhost/spinta
+    SPINTA_BACKENDS_MONGO_DSN=mongodb://localhost/
 
 install:
   - pip install -r requirements-dev.txt -e .

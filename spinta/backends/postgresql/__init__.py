@@ -14,7 +14,7 @@ from sqlalchemy.sql.expression import FunctionElement
 from spinta.backends import Backend
 from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize
 from spinta.components import Context, Manifest, Model, Property
-from spinta.config import Config
+from spinta.config import RawConfig
 from spinta.types import NA
 from spinta.types.type import Type
 from spinta.exceptions import MultipleRowsException, NoResultsException
@@ -107,7 +107,7 @@ class WriteTransaction(ReadTransaction):
 
 
 @wait.register()
-def wait(context: Context, backend: PostgreSQL, config: Config, *, fail: bool = False):
+def wait(context: Context, backend: PostgreSQL, config: RawConfig, *, fail: bool = False):
     dsn = config.get('backends', backend.name, 'dsn', required=True)
     engine = sa.create_engine(dsn, connect_args={'connect_timeout': 0})
     try:
@@ -124,7 +124,7 @@ def wait(context: Context, backend: PostgreSQL, config: Config, *, fail: bool = 
 
 
 @load.register()
-def load(context: Context, backend: PostgreSQL, config: Config):
+def load(context: Context, backend: PostgreSQL, config: RawConfig):
     backend.dsn = config.get('backends', backend.name, 'dsn', required=True)
     backend.engine = sa.create_engine(backend.dsn, echo=False)
     backend.schema = sa.MetaData(backend.engine)

@@ -9,12 +9,12 @@ import pkg_resources as pres
 from spinta.commands import load, wait, prepare, migrate, check, push
 from spinta.components import Context, Store, Manifest
 from spinta.utils.imports import importstr
-from spinta.config import Config
+from spinta.config import RawConfig
 from spinta.exceptions import NotFound
 
 
 @load.register()
-def load(context: Context, store: Store, config: Config) -> Store:
+def load(context: Context, store: Store, config: RawConfig) -> Store:
     """Load backends and manifests from configuration."""
 
     # Load backends.
@@ -48,7 +48,7 @@ def load(context: Context, store: Store, config: Config) -> Store:
 
 
 @wait.register()
-def wait(context: Context, store: Store, config: Config):
+def wait(context: Context, store: Store, config: RawConfig):
     # Wait while all backends are up.
     seconds = config.get('wait', cast=int, required=True)
     for backend in store.backends.values():

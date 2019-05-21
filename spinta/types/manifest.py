@@ -5,13 +5,13 @@ from ruamel.yaml.scanner import ScannerError
 from spinta.utils.path import is_ignored
 from spinta.commands import load, prepare, check
 from spinta.components import Context, Manifest
-from spinta.config import Config
+from spinta.config import RawConfig
 
 yaml = YAML(typ='safe')
 
 
 @load.register()
-def load(context: Context, manifest: Manifest, c: Config):
+def load(context: Context, manifest: Manifest, c: RawConfig):
     config = context.get('config')
     ignore = c.get('ignore', default=[], cast=list)
 
@@ -63,3 +63,14 @@ def check(context: Context, manifest: Manifest):
     for objects in manifest.objects.values():
         for obj in objects.values():
             check(context, obj)
+
+    # Check dataset names in config.
+    config = context.get('config')
+    known_datasets = set(manifest.objects.get('dataset', {}).keys())
+    datasets_in_config = set(config.raw.keys('datasets', manifest.name))
+    unknown_datasets = datasets_in_config - known_datasets
+    if unknown_datasets:
+        raise Exception("Unknown datasets in configuration parameter 'datasets': %s." % (
+            ', '.join([repr(x) for x in sorted(unknown_datasets)])
+        ))
+
