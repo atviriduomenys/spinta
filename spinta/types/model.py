@@ -57,9 +57,11 @@ def load(context: Context, model: Model, data: dict) -> dict:
         raise DataError("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
 
     for name, prop in model.properties.items():
-        if name in data:
-            data_value = data.get(name)
-            data[name] = load(context, prop.type, data_value)
+        # if private model property is not in data - ignore it's loading
+        if name in ('id', 'revision', 'type') and name not in data:
+            continue
+        data_value = data.get(name)
+        data[name] = load(context, prop.type, data_value)
     return data
 
 
