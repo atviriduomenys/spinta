@@ -206,7 +206,7 @@ class Config:
         self._config['default'].update(_get_inner_keys(self._config['default']))
 
     def get(self, *key, default=None, cast=None, env=True, required=False, exists=False):
-        environment = self._get_config_value('environment', default=None, envvar=True)
+        environment = self._get_config_value(('environment',), default=None, envvar=True)
         value = self._get_config_value(key, default, env, environment=environment)
 
         if cast is not None:
@@ -266,6 +266,7 @@ class Config:
         self._config['environ'] = environ
 
     def _get_config_value(self, key: tuple, default, envvar, environment=None):
+        assert isinstance(key, tuple)
 
         # 1. Get value from command line arguments.
         if key in self._config['cliargs']:
