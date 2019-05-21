@@ -165,6 +165,12 @@ class Config:
         }
 
     def read(self, config=None, *, env_vars=None, env_files=None, cli_args=None):
+        if self._config['default']:
+            raise Exception(
+                "Configuraiton has been read already, you can call read method "
+                "only once for each Config instance."
+            )
+
         # Default configuration.
         self._add_config(CONFIG)
 
@@ -206,8 +212,8 @@ class Config:
         self._config['default'].update(_get_inner_keys(self._config['default']))
 
     def get(self, *key, default=None, cast=None, env=True, required=False, exists=False):
-        environment = self._get_config_value(('environment',), default=None, envvar=True)
-        value = self._get_config_value(key, default, env, environment=environment)
+        envname = self._get_config_value(('env',), None, True)
+        value = self._get_config_value(key, default, env, env=envname)
 
         if cast is not None:
             if cast is list and isinstance(value, str):
@@ -265,26 +271,38 @@ class Config:
     def _set_env_vars(self, environ):
         self._config['environ'] = environ
 
-    def _get_config_value(self, key: tuple, default, envvar, environment=None):
+    def _get_config_value(self, key: tuple, default, envvar, env=None):
         assert isinstance(key, tuple)
+
+        envvar = '_'.join(key).upper() if envvar is True else envvar
 
         # 1. Get value from command line arguments.
         if key in self._config['cliargs']:
             return self._config['cliargs'][key]
 
-        # Auto-generate environment variable name.
-        if envvar is True:
-            envvar = 'SPINTA_' + '_'.join(key).upper()
+        # 2. Get value from environment with env prefix.
+        if env:
+            name = 'SPINTA_' + env.upper() + '_' + envvar if envvar else None
+            if name and name in self._config['environ']:
+                return self._config['environ'][name]
 
-        # 2. Get value from environment.
-        if envvar and envvar in self._config['environ']:
-            return self._config['environ'][envvar]
+        # 3. Get value from environment without env prefix.
+        name = 'SPINTA_' + envvar if envvar else None
+        if name and name in self._config['environ']:
+            return self._config['environ'][name]
 
-        # 3. Get value from env file.
-        if envvar and envvar in self._config['envfile']:
-            return self._config['envfile'][envvar]
+        # 4. Get value from env file with env prefix.
+        if env:
+            name = 'SPINTA_' + env.upper() + '_' + envvar if envvar else None
+            if name and name in self._config['envfile']:
+                return self._config['envfile'][name]
 
-        # 4. Get value from default configs.
+        # 5. Get value from env file without env prefix.
+        name = 'SPINTA_' + envvar if envvar else None
+        if name and name in self._config['envfile']:
+            return self._config['envfile'][name]
+
+        # 6. Get value from default configs.
         if key in self._config['default']:
             return self._config['default'][key]
 
