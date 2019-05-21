@@ -23,3 +23,8 @@ script:
 
 after_script:
   - codecov
+  - psql -c 'drop database spinta;' -U postgres
+
+branches:
+  only:
+    - master
