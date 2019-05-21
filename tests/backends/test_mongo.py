@@ -22,6 +22,7 @@ def test_mongo_insert_get(context):
     get_data = context.getone('report', result['report']['id'])
     assert get_data == {
         'type': 'report',
+        'revision': get_data['revision'],
         'id': result['report']['id'],
         'status': '42',
     }
@@ -57,6 +58,7 @@ def test_mongo_update_get(context):
     get_data = context.getone('report', update_result['report']['id'])
     assert get_data == {
         'type': 'report',
+        'revision': get_data['revision'],
         'id': update_result['report']['id'],
         'status': '13',
     }
@@ -66,6 +68,7 @@ def test_mongo_update_get(context):
     assert result == [
         {
             'type': 'report',
+            'revision': result[0]['revision'],
             'id': update_result['report']['id'],
             'status': '13',
         },
