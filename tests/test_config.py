@@ -61,7 +61,7 @@ def test_update_config_from_env_file(tmpdir):
     assert config.keys('backends') == ['default', 'new']
 
 
-def test_custom_environment():
+def test_custom_env():
     config = Config()
     config.read(env_vars=False, env_files=False, config={
         'env': 'testing',
@@ -81,6 +81,85 @@ def test_custom_environment():
     assert config.get('backends', 'default', 'dsn') == 'foo'
     assert config.get('backends', 'new', 'dsn') == 'bar'
     assert config.keys('backends') == ['default', 'new']
+
+
+def test_custom_env_from_envvar():
+    config = Config()
+    config.read(env_files=False, env_vars={'SPINTA_ENV': 'testing'}, config={
+        'environments': {
+            'testing': {
+                'backends': {
+                    'default': {
+                        'dsn': 'foo',
+                    },
+                }
+            }
+        }
+    })
+    assert config.get('backends', 'default', 'dsn') == 'foo'
+
+
+def test_custom_env_from_envvars_only():
+    config = Config()
+    config.read(env_files=False, env_vars={
+        'SPINTA_ENV': 'testing',
+        'SPINTA_TESTING_BACKENDS_DEFAULT_DSN': 'foo',
+    })
+    assert config.get('backends', 'default', 'dsn') == 'foo'
+
+
+def test_custom_env_priority():
+    config = Config()
+    config.read(env_files=False, env_vars={
+        'SPINTA_ENV': 'testing',
+        'SPINTA_BACKENDS_DEFAULT_DSN': 'bar',
+        'SPINTA_TESTING_BACKENDS_DEFAULT_DSN': 'foo',
+    })
+    assert config.get('backends', 'default', 'dsn') == 'foo'
+
+
+def test_custom_env_different_env_name():
+    config = Config()
+    config.read(env_files=False, env_vars={
+        'SPINTA_ENV': 'testing',
+        'SPINTA_BACKENDS_DEFAULT_DSN': 'bar',
+        'SPINTA_PROD_BACKENDS_DEFAULT_DSN': 'foo',
+    })
+    assert config.get('backends', 'default', 'dsn') == 'bar'
+
+
+def test_custom_env_from_envfile(tmpdir):
+    envfile = tmpdir.join('.env')
+    envfile.write(
+        'SPINTA_ENV=testing\n'
+        'SPINTA_BACKENDS_DEFAULT_DSN=foo\n'
+        'SPINTA_TESTING_BACKENDS_DEFAULT_DSN=bar\n'
+    )
+    config = Config()
+    config.read(env_vars=False, env_files=[str(envfile)])
+    assert config.get('backends', 'default', 'dsn') == 'bar'
+
+
+def test_custom_env_from_envfile_only(tmpdir):
+    envfile = tmpdir.join('.env')
+    envfile.write(
+        'SPINTA_ENV=testing\n'
+        'SPINTA_TESTING_BACKENDS_DEFAULT_DSN=bar\n'
+    )
+    config = Config()
+    config.read(env_vars=False, env_files=[str(envfile)])
+    assert config.get('backends', 'default', 'dsn') == 'bar'
+
+
+def test_custom_env_from_envfile_fallback(tmpdir):
+    envfile = tmpdir.join('.env')
+    envfile.write(
+        'SPINTA_ENV=testing\n'
+        'SPINTA_BACKENDS_DEFAULT_DSN=bar\n'
+    )
+    config = Config()
+    config.read(env_vars=False, env_files=[str(envfile)])
+    assert config.get('backends', 'default', 'dsn') == 'bar'
 
 
 _TEST_CONFIG = {
