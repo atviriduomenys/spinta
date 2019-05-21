@@ -10,16 +10,18 @@ services:
   - mongodb
 
 env:
-  - >-
-    SPINTA_BACKENDS_DEFAULT_DSN=postgresql://localhost:$PGPORT/spinta
-    SPINTA_DATASETS_DEFAULT_SQL=postgresql://localhost:$PGPORT/spinta
-    SPINTA_BACKENDS_MONGO_DSN=mongodb://localhost/
+  global:
+    - >-
+      SPINTA_BACKENDS_DEFAULT_DSN=postgresql://localhost:54321/spinta
+      SPINTA_DATASETS_DEFAULT_SQL=postgresql://localhost:54321/spinta
+      SPINTA_BACKENDS_MONGO_DSN=mongodb://localhost/
+      PGPORT=54321
 
 install:
   - pip install -r requirements-dev.txt -e .
 
 before_script:
-  - psql -p $PGPORT -c 'create database spinta;' -U postgres
+  - psql -p 54321 -c 'create database spinta;' -U postgres
 
 script:
   - py.test -vvra --tb=native --log-level=debug --cov-report=term-missing --cov=spinta tests
