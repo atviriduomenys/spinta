@@ -15,6 +15,11 @@ def test_mongo_insert_get(context):
         'report': {
             'id': result['report']['id'],
             'status': '42',
+            'notes': [],
+            'count': None,
+            'report_type': None,
+            'update_time': None,
+            'valid_from_date': None,
         },
     }
 
@@ -25,6 +30,11 @@ def test_mongo_insert_get(context):
         'revision': get_data['revision'],
         'id': result['report']['id'],
         'status': '42',
+        'notes': [],
+        'count': None,
+        'report_type': None,
+        'update_time': None,
+        'valid_from_date': None,
     }
 
 
@@ -51,6 +61,11 @@ def test_mongo_update_get(context):
         'report': {
             'id': update_result['report']['id'],
             'status': '13',
+            'notes': [],
+            'count': None,
+            'report_type': None,
+            'update_time': None,
+            'valid_from_date': None,
         },
     }
 
@@ -61,6 +76,11 @@ def test_mongo_update_get(context):
         'revision': get_data['revision'],
         'id': update_result['report']['id'],
         'status': '13',
+        'notes': [],
+        'count': None,
+        'report_type': None,
+        'update_time': None,
+        'valid_from_date': None,
     }
 
     # Get all objects from database.
@@ -71,5 +91,10 @@ def test_mongo_update_get(context):
             'revision': result[0]['revision'],
             'id': update_result['report']['id'],
             'status': '13',
+            'notes': [],
+            'count': None,
+            'report_type': None,
+            'update_time': None,
+            'valid_from_date': None,
         },
     ]
