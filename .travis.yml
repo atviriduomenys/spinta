@@ -15,15 +15,11 @@ env:
 install:
   - pip install -r requirements-dev.txt -e .
 
-before_script:
-  - psql -c 'create database spinta;' -U postgres
-
 script:
   - py.test -vvra --tb=native --log-level=debug --cov-report=term-missing --cov=spinta tests
 
 after_script:
   - codecov
-  - psql -c 'drop database spinta;' -U postgres
 
 branches:
   only:
