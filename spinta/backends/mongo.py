@@ -195,6 +195,11 @@ def prepare(context: Context, action: str, model: Model, backend: Mongo, value: 
         # TODO: this must be fixed/implemented in the spinta/types/store.py::get()
         # just like it's done on spinta/types/store.py::push()
         id = str(value.pop('_id'))
+
+        # delete empty type value as we will add it later
+        if 'type' in value and value['type'] is None:
+            del value['type']
+
         return {
             'type': model.name,
             'id': id,
