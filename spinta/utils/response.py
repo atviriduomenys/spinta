@@ -126,6 +126,13 @@ async def create_http_response(context, params, request):
                     detail="cannot create 'revision'",
                 )
 
+            # if 'id' is given not on update - raise an error
+            if 'id' in data.keys() and params.id is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="cannot create 'id'",
+                )
+
             data = commands.push(context, model, model.backend, data, action='insert')
             return JSONResponse(data, status_code=201)
 
