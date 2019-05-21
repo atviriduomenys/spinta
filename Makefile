@@ -38,3 +38,7 @@ dist: env/bin/pip
 .PHONY: run
 run: env
 	env/bin/uvicorn spinta.asgi:app --debug
+
+.PHONY: psql
+psql:
+	PGPASSWORD=admin123 psql -h localhost -p 54321 -U admin -d spinta
