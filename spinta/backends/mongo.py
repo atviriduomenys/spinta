@@ -109,13 +109,6 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     transaction = context.get('transaction')
     model_collection = backend.db[model.get_type_value()]
 
-    # FIXME: hack to remove built-in properties
-    if data['id'] is None:
-        del data['id']
-    if data['revision'] is None:
-        del data['revision']
-    if data['type'] is None:
-        data['type'] = model.name
 
     # Make a copy of data, because `pymongo` changes the reference `data`
     # object on `insert_one()` call.
@@ -141,10 +134,7 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     # parse `ObjectId` to string and add it to our object
     raw_data['id'] = str(data_id)
 
-    # do not return inner Mongo `_id`
-    del raw_data['_id']
-
-    return raw_data
+    return prepare(context, action, model, backend, raw_data)
 
 
 @get.register()
@@ -155,17 +145,8 @@ def get(context: Context, model: Model, backend: Mongo, id: str):
     model_collection = backend.db[model.get_type_value()]
     row = model_collection.find_one({"_id": ObjectId(id)})
 
-    # Mongo returns ID under, key `_id`, but to conform to the interface
-    # we must change `_id` to `id`
-    #
-    # TODO: this must be fixed/implemented in the spinta/types/store.py::get()
-    # just like it's done on spinta/types/store.py::push()
-    id = str(row.pop('_id'))
-    return {
-        'type': model.name,
-        'id': id,
-        **row,
-    }
+    return prepare(context, 'getone', model, backend, row)
+
 
 
 @getall.register()
@@ -176,10 +157,7 @@ def getall(context: Context, model: Model, backend: Mongo, **kwargs):
     # Yield all available entries.
     model_collection = backend.db[model.get_type_value()]
     for row in model_collection.find({}):
-        id = str(row.pop('_id'))
-        yield {
-            'id': id,
-        }
+        yield prepare(context, 'getall', model, backend, row)
 
 
 @wipe.register()
@@ -196,3 +174,29 @@ def wipe(context: Context, model: Model, backend: Mongo):
 def prepare(context: Context, type: Date, backend: Mongo, value: date) -> datetime:
     # prepares date values for Mongo store, they must be converted to datetime
     return datetime(value.year, value.month, value.day)
+
+
+@prepare.register()
+def prepare(context: Context, action: str, model: Model, backend: Mongo, value: dict) -> dict:
+    if action in ('getall', 'getone'):
+        # Mongo returns ID under, key `_id`, but to conform to the interface
+        # we must change `_id` to `id`
+        #
+        # TODO: this must be fixed/implemented in the spinta/types/store.py::get()
+        # just like it's done on spinta/types/store.py::push()
+        id = str(value.pop('_id'))
+
+        # delete empty type value as we will add it later
+        if 'type' in value and value['type'] is None:
+            del value['type']
+
+        return {
+            'type': model.name,
+            'id': id,
+            **value,
+        }
+    elif action in ('insert', 'update'):
+        return {
+            'type': model.name,
+            'id': value['id']
+        }

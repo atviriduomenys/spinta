@@ -96,12 +96,12 @@ def push(context: Context, store: Store, stream: types.GeneratorType):
             action = 'update'
         else:
             action = 'insert'
-        inserted_id = push(context, model, model.backend, data, action=action)
-        if inserted_id is not None:
+        pushed_data = push(context, model, model.backend, data, action=action)
+        if pushed_data is not None:
             yield client_supplied_ids.update(client_id, {
                 **data,
                 'type': model_name,
-                'id': inserted_id,
+                'id': pushed_data['id'],
             })
 
 

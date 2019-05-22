@@ -8,6 +8,7 @@ import unidecode
 import sqlalchemy as sa
 import sqlalchemy.exc
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT
+from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
@@ -328,7 +329,7 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
         ),
     )
 
-    return str(row_id)
+    return prepare(context, action, model, backend, {'id': str(row_id)})
 
 
 @get.register()
@@ -337,10 +338,7 @@ def get(context: Context, model: Model, backend: PostgreSQL, id: str):
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = backend.get(connection, table, table.c.id == int(id))
-    result = {k: v for k, v in result.items() if not k.startswith('_')}
-    result['type'] = model.name
-    result['id'] = str(result['id'])
-    return result
+    return prepare(context, 'getone', model, backend, result)
 
 
 @getall.register()
@@ -350,9 +348,7 @@ def getall(context: Context, model: Model, backend: PostgreSQL, **kwargs):
     table = backend.tables[model.manifest.name][model.name].main
     result = connection.execute(sa.select([table]))
     for row in result:
-        row = {k: v for k, v in row.items() if not k.startswith('_')}
-        row['id'] = str(row['id'])
-        yield row
+        yield prepare(context, 'getall', model, backend, row)
 
 
 @wipe.register()
@@ -417,3 +413,25 @@ def get_changes_table(backend, table_name, id_type):
         sa.Column('change', JSONB),
     )
     return table
+
+
+@prepare.register()
+def prepare(context: Context, action: str, model: Model, backend: PostgreSQL, value: RowProxy) -> RowProxy:
+    if action == 'getall':
+        row = {k: v for k, v in value.items() if not k.startswith('_')}
+        row['id'] = str(row['id'])
+        return row
+    elif action == 'getone':
+        result = {k: v for k, v in value.items() if not k.startswith('_')}
+        result['type'] = model.name
+        result['id'] = str(result['id'])
+        return result
+
+
+@prepare.register()
+def prepare(context: Context, action: str, model: Model, backend: PostgreSQL, value: dict) -> object:
+    if action in ('insert', 'update'):
+        return {
+            'type': model.name,
+            'id': value['id']
+        }

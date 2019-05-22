@@ -7,6 +7,7 @@ import operator
 
 import pkg_resources as pres
 
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from starlette.responses import StreamingResponse
@@ -14,6 +15,7 @@ from starlette.templating import Jinja2Templates
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.auth import check_generated_scopes
 from spinta.types.type import Type
 from spinta.types.store import get_model_from_params
 from spinta.utils.tree import build_path_tree
@@ -126,11 +128,7 @@ async def create_http_response(context, params, request):
                     detail="cannot create 'revision'",
                 )
 
-            pushed_data = commands.push(context, model, model.backend, data, action='insert')
-            data = {
-                'type': model.name,
-                **pushed_data,
-            }
+            data = commands.push(context, model, model.backend, data, action='insert')
             return JSONResponse(data, status_code=201)
 
         context.set('transaction', manifest.backend.transaction())

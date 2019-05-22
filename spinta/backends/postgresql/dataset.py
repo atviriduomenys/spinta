@@ -123,7 +123,7 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
     # Sanity check, do we really updated just one row?
     assert action != UPDATE_ACTION or result.rowcount == 1, result.rowcount
 
-    return key
+    return {'id': key}
 
 
 def _serialize(value):
