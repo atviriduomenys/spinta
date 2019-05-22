@@ -485,8 +485,8 @@ def test_post_id(context, app):
         'title': 'Earth',
         'code': 'er',
     })
-    assert resp.status_code == 400
-    assert resp.json() == {"error": "cannot create 'id'"}
+    assert resp.status_code == 403
+    assert resp.json() == {"error": "insufficient_scope"}
 
 
 def test_post_update(context, app):

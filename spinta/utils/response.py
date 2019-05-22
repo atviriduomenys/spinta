@@ -128,22 +128,6 @@ async def create_http_response(context, params, request):
                     detail="cannot create 'revision'",
                 )
 
-            # if 'id' is given on create and there's no permission for it - raise an error
-            try:
-                check_generated_scopes(context, '', 'set_meta_fields')
-            except InsufficientScopeError:
-                can_set_meta_fields = False
-            else:
-                can_set_meta_fields = True
-
-            id_is_given_on_create = 'id' in data.keys() and params.id is None
-
-            if id_is_given_on_create and not can_set_meta_fields:
-                raise HTTPException(
-                    status_code=400,
-                    detail="cannot create 'id'",
-                )
-
             data = commands.push(context, model, model.backend, data, action='insert')
             return JSONResponse(data, status_code=201)
 
