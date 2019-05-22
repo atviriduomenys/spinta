@@ -7,7 +7,6 @@ import operator
 
 import pkg_resources as pres
 
-from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from starlette.responses import StreamingResponse
@@ -15,7 +14,6 @@ from starlette.templating import Jinja2Templates
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.auth import check_generated_scopes
 from spinta.types.type import Type
 from spinta.types.store import get_model_from_params
 from spinta.utils.tree import build_path_tree
