@@ -7,6 +7,7 @@ import operator
 
 import pkg_resources as pres
 
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from starlette.responses import StreamingResponse
@@ -14,6 +15,7 @@ from starlette.templating import Jinja2Templates
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.auth import check_generated_scopes
 from spinta.types.type import Type
 from spinta.types.store import get_model_from_params
 from spinta.utils.tree import build_path_tree
@@ -126,8 +128,17 @@ async def create_http_response(context, params, request):
                     detail="cannot create 'revision'",
                 )
 
-            # if 'id' is given not on update - raise an error
-            if 'id' in data.keys() and params.id is None:
+            # if 'id' is given on create and there's no permission for it - raise an error
+            try:
+                check_generated_scopes(context, '', 'set_meta_fields')
+            except InsufficientScopeError:
+                can_set_meta_fields = False
+            else:
+                can_set_meta_fields = True
+
+            id_is_given_on_create = 'id' in data.keys() and params.id is None
+
+            if id_is_given_on_create and not can_set_meta_fields:
                 raise HTTPException(
                     status_code=400,
                     detail="cannot create 'id'",
