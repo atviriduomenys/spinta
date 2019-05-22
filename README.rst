@@ -2,11 +2,11 @@
 
 This data store allows you to take full control of your data.
 
-.. image:: https://gitlab.com/atviriduomenys/manifest/badges/master/pipeline.svg
-   :target: https://gitlab.com/atviriduomenys/manifest/commits/master
+.. image:: https://gitlab.com/atviriduomenys/spinta/badges/master/pipeline.svg
+   :target: https://gitlab.com/atviriduomenys/spinta/commits/master
 
-.. image:: https://gitlab.com/atviriduomenys/manifest/badges/master/coverage.svg
-   :target: https://gitlab.com/atviriduomenys/manifest/commits/master
+.. image:: https://gitlab.com/atviriduomenys/spinta/badges/master/coverage.svg
+   :target: https://gitlab.com/atviriduomenys/spinta/commits/master
 
 
 Features
