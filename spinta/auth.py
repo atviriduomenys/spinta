@@ -211,7 +211,7 @@ def query_client(context: Context, client_id: str):
     return client
 
 
-def check_generated_scopes(context: Context, name: str, action: str, *, data: dict = None):
+def check_generated_scopes(context: Context, name: str, action: str, *, data: dict = None, spinta_action: str = None):
     config = context.get('config')
     token = context.get('auth.token')
     prefix = config.scope_prefix
@@ -225,5 +225,6 @@ def check_generated_scopes(context: Context, name: str, action: str, *, data: di
     token.check_scope({action_scope, model_scope}, operator='OR')
 
     # Check if meta fields can be set.
-    if action == 'insert' and data and 'id' in data:
+    spinta_action = spinta_action or action
+    if spinta_action == 'insert' and data and 'id' in data:
         token.check_scope(f'{prefix}set_meta_fields')
