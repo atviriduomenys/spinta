@@ -5,7 +5,7 @@ import uuid
 
 import click
 
-from spinta.config import Config
+from spinta.config import RawConfig
 from spinta.utils.commands import load_commands
 from spinta.components import Store
 from spinta import commands
@@ -17,7 +17,7 @@ from spinta.utils.imports import importstr
 @click.option('--option', '-o', multiple=True, help='Set configuration option, example: `-o option.name=value`.')
 @click.pass_context
 def main(ctx, option):
-    c = Config()
+    c = RawConfig()
     c.read(cli_args=option)
 
     load_commands(c.get('commands', 'modules', cast=list))
@@ -120,7 +120,7 @@ def run(ctx):
 @main.command()
 @click.pass_context
 def config(ctx):
-    config = Config()
+    config = RawConfig()
     config.read()
     for key, value in sorted(config.getall(), key=operator.itemgetter(0)):
         *key, name = key

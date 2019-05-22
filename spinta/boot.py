@@ -5,7 +5,7 @@ from spinta.commands import load, wait, prepare, check
 from spinta.components import Context, Store
 from spinta.utils.commands import load_commands
 from spinta import components
-from spinta.config import Config
+from spinta.config import RawConfig
 
 logging.basicConfig(
     level=logging.INFO,
@@ -13,7 +13,7 @@ logging.basicConfig(
 )
 
 
-c = Config()
+c = RawConfig()
 c.read()
 
 load_commands(c.get('commands', 'modules', cast=list))

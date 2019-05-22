@@ -3,9 +3,10 @@ name: csv
 type: dataset
 version: 1
 date: "2019-02-15"
+source: csv
 objects:
   country:
-    source: {csv: 'http://example.com/countries.csv'}
+    source: 'http://example.com/countries.csv'
     properties:
       id: {source: 'kodas'}
       code: {source: 'kodas'}

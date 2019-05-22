@@ -3,7 +3,7 @@ import requests
 import tempfile
 
 from spinta.commands import load, prepare, check, pull, getall, authorize, error
-from spinta.components import Context, Manifest, Node, Command, CommandList
+from spinta.components import Context, Manifest, Node, Command
 from spinta.utils.refs import get_ref_id
 from spinta.utils.url import parse_url_path
 from spinta.nodes import load_node
@@ -12,21 +12,17 @@ from spinta.types.store import get_model_from_params
 from spinta.types.type import load_type
 from spinta.auth import check_generated_scopes
 from spinta.utils.errors import format_error
+from spinta.utils.schema import resolve_schema, load_from_schema
 
 
 class Dataset(Node):
     schema = {
-        'type': {},
-        'name': {'required': True},
-        'path': {'type': 'path', 'required': True},
         'source': {'type': 'command'},
         'objects': {'type': 'object', 'default': {}},
         'version': {'type': 'integer', 'required': True},
         'date': {'type': 'date', 'required': True},
         'owner': {'type': 'string'},
         'stars': {'type': 'integer'},
-        'parent': {'type': 'manifest'},
-        'backend': {'type': 'backend', 'inherit': True, 'required': True},
     }
 
     def __init__(self):
@@ -41,16 +37,11 @@ class Dataset(Node):
 
 class Model(Node):
     schema = {
-        'type': {},
-        'name': {'required': True},
-        'path': {'required': True},
         'source': {'type': 'command_list'},
         'identity': {'type': 'array', 'required': False},
         'properties': {'type': 'object', 'default': {}},
         'stars': {'type': 'integer'},
         'local': {'type': 'boolean'},
-        'parent': {'type': 'dataset'},
-        'backend': {'type': 'backend', 'inherit': True, 'required': True},
         'dependencies': {'type': 'object'},
         'extends': {'type': 'string'},
         'canonical': {'type': 'boolean', 'default': False},
@@ -75,19 +66,14 @@ class Model(Node):
 
 class Property(Node):
     schema = {
-        'type': {},
-        'name': {'required': True},
-        'path': {'required': True},
         'source': {'type': 'string'},
         'local': {'type': 'boolean'},
         'stars': {'type': 'integer'},
         'const': {'type': 'any'},
         'enum': {'type': 'array'},
-        'parent': {'type': 'dataset.model'},
         'replace': {'type': 'object'},
         'ref': {'type': 'string'},
         'dependency': {'type': 'boolean'},
-        'backend': {'type': 'backend', 'inherit': True, 'required': True},
     }
 
     def __init__(self):
@@ -105,15 +91,13 @@ class Property(Node):
 def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
     load_node(context, dataset, data, manifest)
 
+    # Load dataset source
     if dataset.source:
-        dataset.source = load(
-            context, CommandList(),
-            [_get_source(dataset.source, None)],
-            parent=dataset,
-            scope='source',
-            argname='source',
-        )
+        params = dataset.source
+        params = params if isinstance(params, dict) else {'type': params}
+        dataset.source = load_source(context, dataset, params)
 
+    # Load models
     for name, params in (data.get('objects') or {}).items():
         params = {
             'path': dataset.path,
@@ -122,6 +106,7 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
             **(params or {}),
         }
         dataset.objects[name] = load(context, Model(), params, manifest)
+
     return dataset
 
 
@@ -129,23 +114,16 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
 def load(context: Context, model: Model, data: dict, manifest: Manifest):
     load_node(context, model, data, manifest)
 
-    # Load source.
-    if isinstance(model.source, list):
-        model.source = load(
-            context, CommandList(),
-            [_get_source(s, model.parent.source) for s in model.source],
-            parent=model,
-            scope='source',
-            argname='source',
-        )
-    elif model.source:
-        model.source = load(
-            context, CommandList(),
-            [_get_source(model.source, model.parent.source)],
-            parent=model,
-            scope='source',
-            argname='source',
-        )
+    # Load model source
+    if model.source:
+        sources = []
+        for source in ensure_list(model.source):
+            params = source if isinstance(source, dict) else {'name': source}
+            params['type'] = model.parent.source.type
+            sources.append(load_source(context, model, params))
+        model.source = sources
+    else:
+        model.source = []
 
     # 'type' is reserved for object type.
     props = {'type': {'type': 'string'}}
@@ -180,40 +158,26 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest):
         prop.type = None
 
     # Load property source.
-    if isinstance(prop.source, list):
-        prop.source = load(
-            context, CommandList(),
-            [_get_source(s, prop.parent.source or prop.parent.parent.source) for s in prop.source],
-            parent=prop,
-            scope='source',
-            argname='source',
-        )
-    elif prop.source:
-        prop.source = load(
-            context, Command(),
-            _get_source(prop.source, prop.parent.source or prop.parent.parent.source),
-            parent=prop,
-            scope='source',
-            argname='source',
-        )
+    if prop.source:
+        if isinstance(prop.source, list):
+            sources = []
+            for params in prop.source:
+                params = params if isinstance(params, dict) else {'name': params}
+                params['type'] = prop.parent.parent.source.type
+                sources.append(load_source(context, prop, params))
+            prop.source = sources
+        else:
+            params = prop.source
+            params = params if isinstance(params, dict) else {'name': params}
+            params['type'] = prop.parent.parent.source.type
+            prop.source = load_source(context, prop, params)
+
     return prop
 
 
 @load.register()
 def load(context: Context, model: Model, data: dict) -> dict:
     return data
-
-
-def _get_source(source, parent):
-    if isinstance(source, (str, int)):
-        if parent is None or (isinstance(parent, CommandList) and len(parent.commands) > 1):
-            raise Exception(f"Command must be a dict, not an str.")
-        if isinstance(parent, CommandList):
-            command = parent.commands[-1].name
-        else:
-            command = parent.name
-        return {command: source}
-    return source
 
 
 @prepare.register()
@@ -266,6 +230,8 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
         context.bind('cache', Cache, path=pathlib.Path(tmpdir))
         context.bind('requests', requests.Session)
 
+        prepare(context, dataset.source, dataset)
+
         for model in dataset.objects.values():
             if model.source is None:
                 continue
@@ -274,7 +240,7 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
                 continue
 
             for dependency in _dependencies(context, model, model.dependencies):
-                for source in model.source.commands:
+                for source in model.source:
                     try:
                         yield from _pull(context, model, source, dependency)
                     except Exception as e:
@@ -283,14 +249,15 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
 
 def _pull(context: Context, model: Model, source, dependency):
     dataset = model.parent
-    rows = source(context, model, dependency=dependency)
+    name = source.name.format(**dependency)
+    rows = pull(context, source, model, name=name)
     for row in rows:
         data = {'type': f'{model.name}/:source/{dataset.name}'}
         for prop in model.properties.values():
-            if isinstance(prop.source, CommandList):
+            if isinstance(prop.source, list):
                 data[prop.name] = [
                     _get_value_from_source(context, prop, prop_source, row, dependency)
-                    for prop_source in prop.source.commands
+                    for prop_source in prop.source
                 ]
 
             elif prop.source:
@@ -299,6 +266,7 @@ def _pull(context: Context, model: Model, source, dependency):
             if prop.ref and prop.name in data:
                 data[prop.name] = get_ref_id(data[prop.name])
 
+        import pp; pp(data)
         if _check_key(data.get('id')):
             yield data
 
@@ -358,11 +326,11 @@ def _check_key(key):
     return True
 
 
-def _get_value_from_source(context: Context, prop: Property, source: Command, value: object, dependency: dict):
+def _get_value_from_source(context: Context, prop: Property, source, data: dict, dependency: dict):
     if prop.dependency:
-        return dependency.get(source.args['source'])
+        return dependency.get(source.name)
     else:
-        return source(context, prop, value=value)
+        return pull(context, source, prop, data=data)
 
 
 @authorize.register()
@@ -385,6 +353,11 @@ def error(exc: Exception, context: Context, dataset: Dataset):
 
 
 @error.register()
+def error(exc: Exception, context: Context, dataset: Dataset, data: dict, manifest: Manifest):
+    error(exc, context, dataset)
+
+
+@error.register()
 def error(exc: Exception, context: Context, model: Model):
     message = (
         '{exc}:\n'
@@ -397,6 +370,11 @@ def error(exc: Exception, context: Context, model: Model):
         'exc': exc,
         'model': model,
     }))
+
+
+@error.register()
+def error(exc: Exception, context: Context, model: Model, data: dict, manifest: Manifest):
+    error(exc, context, model)
 
 
 @error.register()
@@ -413,3 +391,35 @@ def error(exc: Exception, context: Context, prop: Property, data: dict, manifest
         'exc': exc,
         'prop': prop,
     }))
+
+
+def ensure_list(value):
+    if isinstance(value, list):
+        return value
+    elif value is None:
+        return []
+    else:
+        return [value]
+
+
+def load_source(context: Context, node: Node, params: dict):
+    config = context.get('config')
+
+    # Find source component by source type.
+    source_type = params['type']
+    if f'{source_type}:{node.type}' in config.components['sources']:
+        Source = config.components['sources'][f'{source_type}:{node.type}']
+    else:
+        Source = config.components['sources'][source_type]
+
+    params = {
+        'node': node,
+        **params,
+    }
+    source = Source()
+    schema = resolve_schema(source, Source)
+
+    # FIXME: refactore components to separate python module
+    from spinta.commands.sources import Source
+    source = load_from_schema(Source, source, schema, params)
+    return load(context, source, node)

@@ -2,52 +2,45 @@ from itertools import islice, chain
 
 import xlrd
 
-from spinta.commands import command
 from spinta.components import Context
-from spinta.types.dataset import Model, Property
+from spinta.types.dataset import Model
 from spinta.fetcher import fetch
+from spinta.commands import pull
+from spinta.commands.sources import Source
 
 
-@command()
-def read_xlsx():
-    pass
+class Xlsx(Source):
+    schema = {
+        'skip': {},
+        'limit': {},
+    }
 
 
-@read_xlsx.register()
-def read_xlsx(
-    context: Context, model: Model, *,
-    source=str,
-    dependency: dict,
-    skip: str = None,
-    limit: int = None,
-):
-    path = fetch(context, source)
+@pull.register()
+def pull(context: Context, source: Xlsx, node: Model, *, name: str):
+    dataset = node.parent
+    path = fetch(context, dataset.source.name)
     rows = _read_xlsx(str(path))
-    if skip:
-        if isinstance(skip, dict):
-            value = set(skip['value']) if isinstance(skip['value'], list) else {skip['value']}
+    if source.skip:
+        if isinstance(source.skip, dict):
+            value = set(source.skip['value']) if isinstance(source.skip['value'], list) else {source.skip['value']}
             for row in rows:
-                if len(row) > skip['column'] and row[skip['column']] in skip['value']:
+                if len(row) > source.skip['column'] and row[source.skip['column']] in source.skip['value']:
                     break
             else:
-                context.error(f"Can't find header line: {skip!r}")
+                context.error(f"Can't find header line: {source.skip!r}")
             rows = chain([row], rows)
         else:
-            rows = islice(rows, skip, None)
+            rows = islice(rows, source.skip, None)
     cols = {i: x.strip() for i, x in enumerate(next(rows, []))}
-    if limit:
-        rows = islice(rows, 0, limit)
+    if source.limit:
+        rows = islice(rows, 0, source.limit)
     for row in rows:
         data = {}
         for i, value in enumerate(row):
             if i in cols:
                 data[cols[i]] = value
         yield data
-
-
-@read_xlsx.register()
-def read_xlsx(context: Context, prop: Property, *, source: str, value: dict):
-    return value.get(source)
 
 
 def _read_xlsx(filename):

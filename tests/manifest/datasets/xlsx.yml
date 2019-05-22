@@ -3,14 +3,15 @@ name: xlsx
 type: dataset
 version: 1
 date: "2019-02-21"
+source:
+  type: xlsx
+  name: http://example.com/data.xlsx
 objects:
 
   rinkimai:
     source:
-      xlsx:
-        source: 'http://example.com/data.xlsx'
-        skip: {column: 0, value: ['Rinkimai', 'Rinkimų rūšis']}
-        limit: 10
+      skip: {column: 0, value: ['Rinkimai', 'Rinkimų rūšis']}
+      limit: 10
     properties:
       id: {source: ['Rinkimai']}
       rusis: {source: 'Rinkimų rūšis'}
@@ -19,10 +20,8 @@ objects:
 
   rinkimai/turas:
     source:
-      xlsx:
-        source: 'http://example.com/data.xlsx'
-        skip: 8
-        limit: 10
+      skip: 8
+      limit: 10
     properties:
       id: {source: ['Rinkimai', 'Turas']}
       turas: {source: 'Turas'}
@@ -30,10 +29,8 @@ objects:
 
   rinkimai/apygarda:
     source:
-      xlsx:
-        source: 'http://example.com/data.xlsx'
-        skip: 8
-        limit: 10
+      skip: 8
+      limit: 10
     properties:
       id: {source: ['Apygardos Nr.']}
       numeris: {source: 'Apygardos Nr.'}
@@ -43,10 +40,8 @@ objects:
 
   rinkimai/apylinke:
     source:
-      xlsx:
-        source: 'http://example.com/data.xlsx'
-        skip: 8
-        limit: 10
+      skip: 8
+      limit: 10
     properties:
       id: {source: ['Apygardos Nr.', 'Apylinkės Nr.']}
       numeris: {source: 'Apylinkės Nr.'}
@@ -57,10 +52,8 @@ objects:
 
   rinkimai/kandidatas:
     source:
-      xlsx:
-        source: 'http://example.com/data.xlsx'
-        skip: 8
-        limit: 1
+      skip: 8
+      limit: 1
     properties:
       id:
         source:

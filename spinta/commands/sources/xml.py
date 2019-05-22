@@ -1,27 +1,28 @@
 from lxml import etree
 
-from spinta.commands import command
 from spinta.components import Context
 from spinta.types.dataset import Model, Property
 from spinta.fetcher import fetch
+from spinta.commands.sources import Source
+from spinta.commands import pull
 
 
-@command()
-def read_xml():
+class Xml(Source):
     pass
 
 
-@read_xml.register()
-def read_xml(context: Context, model: Model, *, source=str, dependency: dict, root: str):
-    url = source.format(**dependency)
-    with fetch(context, url).open('rb') as f:
-        tag = root.split('/')[-1]
+@pull.register()
+def pull(context: Context, source: Xml, node: Model, *, name: str):
+    dataset = node.parent
+
+    with fetch(context, dataset.source.name).open('rb') as f:
+        tag = name.split('/')[-1]
         context = etree.iterparse(f, tag=tag)
         for action, elem in context:
             ancestors = elem.xpath('ancestor-or-self::*')
             here = '/' + '/'.join([x.tag for x in ancestors])
 
-            if here == root:
+            if here == name:
                 yield elem
 
             # Clean unused elements.
@@ -32,12 +33,12 @@ def read_xml(context: Context, model: Model, *, source=str, dependency: dict, ro
                     del ancestor.getparent()[0]
 
 
-@read_xml.register()
-def read_xml(context: Context, prop: Property, *, source=str, value: etree.ElementBase):
-    result = value.xpath(source)
+@pull.register()
+def pull(context: Context, source: Xml, node: Property, *, data: etree.ElementBase):
+    result = data.xpath(source.name)
     if len(result) == 1:
         return result[0]
     elif len(result) == 0:
         return None
     else:
-        context.error(f"More than one value returned for {source}: {value}")
+        context.error(f"More than one value returned for {source.name!r}: {data!r}")
