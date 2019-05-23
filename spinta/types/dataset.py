@@ -23,6 +23,7 @@ class Dataset(Node):
         'date': {'type': 'date', 'required': True},
         'owner': {'type': 'string'},
         'stars': {'type': 'integer'},
+        'website': {'type': 'url', 'description': "Website of this dataset."},
     }
 
     def __init__(self):

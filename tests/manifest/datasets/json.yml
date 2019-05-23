@@ -3,12 +3,13 @@ name: json
 type: dataset
 version: 1
 date: "2019-02-22"
-source:
-  type: json
-  name: http://example.com/data.json
-objects:
-  rinkimai:
-    source: response
-    properties:
-      id: {source: id}
-      pavadinimas: {source: label}
+resources:
+  data:
+    type: json
+    source: http://example.com/data.json
+    objects:
+      rinkimai:
+        source: response
+        properties:
+          id: {source: id}
+          pavadinimas: {source: label}

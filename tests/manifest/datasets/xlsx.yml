@@ -3,77 +3,79 @@ name: xlsx
 type: dataset
 version: 1
 date: "2019-02-21"
-source:
-  type: xlsx
-  name: http://example.com/data.xlsx
-objects:
+resources:
 
-  rinkimai:
-    source:
-      skip: {column: 0, value: ['Rinkimai', 'Rinkimų rūšis']}
-      limit: 10
-    properties:
-      id: {source: ['Rinkimai']}
-      rusis: {source: 'Rinkimų rūšis'}
-      pavadinimas: {source: 'Rinkimai'}
-      data: {source: 'Rinkimų data'}
+  data:
+    type: xlsx
+    source: http://example.com/data.xlsx
+    objects:
 
-  rinkimai/turas:
-    source:
-      skip: 8
-      limit: 10
-    properties:
-      id: {source: ['Rinkimai', 'Turas']}
-      turas: {source: 'Turas'}
-      rinkimai: {source: ['Rinkimai'], ref: rinkimai}
-
-  rinkimai/apygarda:
-    source:
-      skip: 8
-      limit: 10
-    properties:
-      id: {source: ['Apygardos Nr.']}
-      numeris: {source: 'Apygardos Nr.'}
-      pavadinimas: {source: 'Apygardos pavadinimas'}
-      rinkimai: {source: ['Rinkimai'], ref: rinkimai}
-      turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
-
-  rinkimai/apylinke:
-    source:
-      skip: 8
-      limit: 10
-    properties:
-      id: {source: ['Apygardos Nr.', 'Apylinkės Nr.']}
-      numeris: {source: 'Apylinkės Nr.'}
-      pavadinimas: {source: 'Apylinkės pavadinimas'}
-      rinkimai: {source: ['Rinkimai'], ref: rinkimai}
-      turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
-      apygarda: {source: ['Apygardos Nr.'], ref: rinkimai/apygarda}
-
-  rinkimai/kandidatas:
-    source:
-      skip: 8
-      limit: 1
-    properties:
-      id:
+      rinkimai:
         source:
-          - 'Rinkimai'
-          - 'Turas'
-          - 'Apygardos Nr.'
-          - 'Apylinkės Nr.'
-          - 'Kandidato vardas'
-          - 'Kandidato pavardė'
-          - 'Gimimo data'
-      vardas: {source: 'Kandidato vardas'}
-      pavarde: {source: 'Kandidato pavardė'}
-      lytis: {source: 'Lytis'}
-      tautybe: {source: 'Tautybė'}
-      gimimo_data: {source: 'Gimimo data'}
-      kas_iskele_kandidata: {source: 'Kas iškėlė kandidatą'}
-      gauti_balsai_is_viso: {source: 'Gauti balsai (iš viso)'}
-      gauti_balsai_rinkimu_diena: {source: 'Gauti balsai (rinkimų dieną)'}
-      gauti_balsai_is_anksto: {source: 'Gauti balsai (iš anksto)'}
-      rinkimai: {source: ['Rinkimai'], ref: rinkimai}
-      turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
-      apygarda: {source: ['Apygardos Nr.'], ref: rinkimai/apygarda}
-      apylinke: {source: ['Apygardos Nr.', 'Apylinkės Nr.'], ref: rinkimai/apylinke}
+          skip: {column: 0, value: ['Rinkimai', 'Rinkimų rūšis']}
+          limit: 10
+        properties:
+          id: {source: ['Rinkimai']}
+          rusis: {source: 'Rinkimų rūšis'}
+          pavadinimas: {source: 'Rinkimai'}
+          data: {source: 'Rinkimų data'}
+
+      rinkimai/turas:
+        source:
+          skip: 8
+          limit: 10
+        properties:
+          id: {source: ['Rinkimai', 'Turas']}
+          turas: {source: 'Turas'}
+          rinkimai: {source: ['Rinkimai'], ref: rinkimai}
+
+      rinkimai/apygarda:
+        source:
+          skip: 8
+          limit: 10
+        properties:
+          id: {source: ['Apygardos Nr.']}
+          numeris: {source: 'Apygardos Nr.'}
+          pavadinimas: {source: 'Apygardos pavadinimas'}
+          rinkimai: {source: ['Rinkimai'], ref: rinkimai}
+          turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
+
+      rinkimai/apylinke:
+        source:
+          skip: 8
+          limit: 10
+        properties:
+          id: {source: ['Apygardos Nr.', 'Apylinkės Nr.']}
+          numeris: {source: 'Apylinkės Nr.'}
+          pavadinimas: {source: 'Apylinkės pavadinimas'}
+          rinkimai: {source: ['Rinkimai'], ref: rinkimai}
+          turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
+          apygarda: {source: ['Apygardos Nr.'], ref: rinkimai/apygarda}
+
+      rinkimai/kandidatas:
+        source:
+          skip: 8
+          limit: 1
+        properties:
+          id:
+            source:
+              - 'Rinkimai'
+              - 'Turas'
+              - 'Apygardos Nr.'
+              - 'Apylinkės Nr.'
+              - 'Kandidato vardas'
+              - 'Kandidato pavardė'
+              - 'Gimimo data'
+          vardas: {source: 'Kandidato vardas'}
+          pavarde: {source: 'Kandidato pavardė'}
+          lytis: {source: 'Lytis'}
+          tautybe: {source: 'Tautybė'}
+          gimimo_data: {source: 'Gimimo data'}
+          kas_iskele_kandidata: {source: 'Kas iškėlė kandidatą'}
+          gauti_balsai_is_viso: {source: 'Gauti balsai (iš viso)'}
+          gauti_balsai_rinkimu_diena: {source: 'Gauti balsai (rinkimų dieną)'}
+          gauti_balsai_is_anksto: {source: 'Gauti balsai (iš anksto)'}
+          rinkimai: {source: ['Rinkimai'], ref: rinkimai}
+          turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
+          apygarda: {source: ['Apygardos Nr.'], ref: rinkimai/apygarda}
+          apylinke: {source: ['Apygardos Nr.', 'Apylinkės Nr.'], ref: rinkimai/apylinke}
