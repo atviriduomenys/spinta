@@ -100,6 +100,7 @@ class Manifest:
 
     def __init__(self):
         self.objects = {}
+        self.endpoints = {}
 
 
 class Node:
@@ -129,6 +130,7 @@ class Model(Node):
         'date': {},
         'link': {},
         'properties': {'default': {}},
+        'endpoint': {},
     }
 
     def __init__(self):

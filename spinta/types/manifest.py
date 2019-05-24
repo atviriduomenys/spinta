@@ -18,6 +18,7 @@ def load(context: Context, manifest: Manifest, c: RawConfig):
     # Add all supported node types.
     for name in config.components['nodes'].keys():
         manifest.objects[name] = {}
+        manifest.endpoints[name] = {}
 
     for file in manifest.path.glob('**/*.yml'):
         if is_ignored(ignore, manifest.path, file):
@@ -50,6 +51,24 @@ def load(context: Context, manifest: Manifest, c: RawConfig):
 
         manifest.objects[node.type][node.name] = node
 
+        # FIXME: this conditional block should be used instead of the one
+        # below. Though tests fail and some smarter refactoring is required
+        # if hasattr(node, 'endpoint'):
+        #     # if `endpoint` is None - fallback to `name`
+        #     endpoint = node.endpoint or node.name
+        #     manifest.endpoints[node.type][endpoint] = node
+
+        # not all nodes support `endpoint` attribute
+        # FIXME: this code should be removed, and commented conditional block
+        # should be used instead, though there are problems with running tests
+        # and distinguishing `Model` from `dataset.Model`
+        if hasattr(node, 'endpoint'):
+            # if `endpoint` is None - fallback to `name`
+            endpoint = node.endpoint or node.name
+        else:
+            endpoint = node.name
+        manifest.endpoints[node.type][endpoint] = node
+
 
 @prepare.register()
 def prepare(context: Context, manifest: Manifest):
@@ -73,4 +92,3 @@ def check(context: Context, manifest: Manifest):
         raise Exception("Unknown datasets in configuration parameter 'datasets': %s." % (
             ', '.join([repr(x) for x in sorted(unknown_datasets)])
         ))
-

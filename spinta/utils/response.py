@@ -42,7 +42,7 @@ async def create_http_response(context, params, request):
         context.bind('transaction', manifest.backend.transaction)
 
         try:
-            model = get_model_from_params(manifest, params.model, _params)
+            model = get_model_from_params(manifest.endpoints, params.model, _params)
         except NotFound:
             model = None
 
@@ -96,7 +96,7 @@ async def create_http_response(context, params, request):
             raise HTTPException(status_code=404)
 
         try:
-            model = get_model_from_params(manifest, params.model, _params)
+            model = get_model_from_params(manifest.endpoints, params.model, _params)
         except NotFound as e:
             raise HTTPException(status_code=404, detail=str(e))
 
@@ -265,7 +265,7 @@ def get_current_location(model, path, params):
 def get_changes(context, params):
     store = context.get('store')
     manifest = store.manifests['default']
-    model = get_model_from_params(manifest, params['path'], params)
+    model = get_model_from_params(manifest.endpoints, params['path'], params)
     backend = model.backend
     rows = commands.changes(
         context, model, backend,
@@ -307,7 +307,7 @@ def get_changes(context, params):
 def get_row(context, params):
     store = context.get('store')
     manifest = store.manifests['default']
-    model = get_model_from_params(manifest, params['path'], params)
+    model = get_model_from_params(manifest.endpoints, params['path'], params)
     backend = model.backend
     row = commands.get(context, model, backend, params['id']['value'])
     if row is None:
@@ -369,7 +369,7 @@ def get_cell(params, prop, value, shorten=False, color=None):
 def get_data(context, params):
     store = context.get('store')
     manifest = store.manifests['default']
-    model = get_model_from_params(manifest, params['path'], params)
+    model = get_model_from_params(manifest.endpoints, params['path'], params)
     backend = model.backend
     rows = commands.getall(
         context, model, backend,
