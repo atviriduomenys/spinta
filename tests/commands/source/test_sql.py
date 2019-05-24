@@ -37,7 +37,7 @@ def test_sql(sql, context):
     assert consume(context.pull('sql')) == 0
 
     assert sorted([(x['code'], x['title']) for x in context.getall('country')]) == []
-    assert sorted([(x['code'], x['title']) for x in context.getall('country', dataset='sql')]) == [
+    assert sorted([(x['code'], x['title']) for x in context.getall('country', dataset='sql', resource='db')]) == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),

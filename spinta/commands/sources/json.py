@@ -12,10 +12,11 @@ class Json(Source):
 
 
 @pull.register()
-def pull(context: Context, source: Json, node: Model, *, name: str):
-    with fetch(context, node.parent.source.name, text=True).open() as f:
+def pull(context: Context, source: Json, node: Model, *, params: dict):
+    url = node.parent.source.name.format(**params)
+    with fetch(context, url, text=True).open() as f:
         data = json.load(f)
-    data = data[name]
+    data = data[source.name]
     if isinstance(data, list):
         yield from data
     else:

@@ -18,26 +18,26 @@ def test_xlsx(context, responses):
     apylinke = '629f0976c1a04dbe6cf3e71b3085ec555d3f63bf'
 
     assert consume(context.pull('xlsx')) > 0
-    assert list(context.getall('rinkimai', dataset='xlsx')) == [
+    assert list(context.getall('rinkimai', dataset='xlsx', resource='data')) == [
         {
-            'type': 'rinkimai/:source/xlsx',
+            'type': 'rinkimai/:ds/xlsx/:rs/data',
             'id': rinkimai,
             'data': '1992-10-25T00:00:00',
             'rusis': 'Seimo rinkimai',
             'pavadinimas': '1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai',
         },
     ]
-    assert list(context.getall('rinkimai/turas', dataset='xlsx')) == [
+    assert list(context.getall('rinkimai/turas', dataset='xlsx', resource='data')) == [
         {
-            'type': 'rinkimai/turas/:source/xlsx',
+            'type': 'rinkimai/turas/:ds/xlsx/:rs/data',
             'id': turas,
             'turas': 1,
             'rinkimai': rinkimai,
         },
     ]
-    assert list(context.getall('rinkimai/apygarda', dataset='xlsx')) == [
+    assert list(context.getall('rinkimai/apygarda', dataset='xlsx', resource='data')) == [
         {
-            'type': 'rinkimai/apygarda/:source/xlsx',
+            'type': 'rinkimai/apygarda/:ds/xlsx/:rs/data',
             'id': apygarda,
             'numeris': 2,
             'pavadinimas': 'Senamiesčio',
@@ -45,9 +45,9 @@ def test_xlsx(context, responses):
             'turas': turas,
         },
     ]
-    assert list(context.getall('rinkimai/apylinke', dataset='xlsx')) == [
+    assert list(context.getall('rinkimai/apylinke', dataset='xlsx', resource='data')) == [
         {
-            'type': 'rinkimai/apylinke/:source/xlsx',
+            'type': 'rinkimai/apylinke/:ds/xlsx/:rs/data',
             'id': apylinke,
             'numeris': 0,
             'pavadinimas': 'Balsai, suskaičiuoti apygardos rinkimų komisijoje',
@@ -56,9 +56,9 @@ def test_xlsx(context, responses):
             'apygarda': apygarda,
         },
     ]
-    assert list(context.getall('rinkimai/kandidatas', dataset='xlsx')) == [
+    assert list(context.getall('rinkimai/kandidatas', dataset='xlsx', resource='data')) == [
         {
-            'type': 'rinkimai/kandidatas/:source/xlsx',
+            'type': 'rinkimai/kandidatas/:ds/xlsx/:rs/data',
             'id': '8159cf47118c31114c71a75ed06aa66b0476ad7a',
             'vardas': 'NIJOLĖ',
             'pavarde': 'VAITIEKŪNIENĖ',

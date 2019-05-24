@@ -7,13 +7,13 @@ resources:
 
   continents:
     type: csv
-    source: http://example.com/{year}/continents.csv
+    source: http://example.com/{year}/
     objects:
 
       continent:
         dependencies:
           year: {range: {start: 2000, stop: 2001}}
-        source: ""
+        source: continents.csv
         properties:
           id: {source: 'id'}
           title: {source: 'continent'}

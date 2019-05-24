@@ -17,9 +17,9 @@ class Xlsx(Source):
 
 
 @pull.register()
-def pull(context: Context, source: Xlsx, node: Model, *, name: str):
+def pull(context: Context, source: Xlsx, node: Model, *, params: dict):
     dataset = node.parent
-    path = fetch(context, dataset.source.name)
+    path = fetch(context, dataset.source.name.format(**params))
     rows = _read_xlsx(str(path))
     if source.skip:
         if isinstance(source.skip, dict):

@@ -14,15 +14,15 @@ def test_json(context, responses):
     )
 
     assert consume(context.pull('json')) == 10
-    assert sorted(context.getall('rinkimai', dataset='json'), key=operator.itemgetter('id'))[:2] == [
+    assert sorted(context.getall('rinkimai', dataset='json', resource='data'), key=operator.itemgetter('id'))[:2] == [
         {
-            'type': 'rinkimai/:source/json',
+            'type': 'rinkimai/:ds/json/:rs/data',
             'id': '1b704eeff5f38eeeb84ebcecdddb989e53a4a709',
             'pavadinimas': '2017 m. balandžio 23 d. nauji savivaldybių tarybų narių – merų rinkimai '
                            'Jonavos ir Šakių rajonų savivaldybėse',
         },
         {
-            'type': 'rinkimai/:source/json',
+            'type': 'rinkimai/:ds/json/:rs/data',
             'id': '2a9d25cbf1e8ee6402433d6fc5535f79b5701481',
             'pavadinimas': '2017 m. balandžio 23 d. nauji rinkimai į Lietuvos Respublikos Seimą vienmandatėje '
                            'Anykščių-Panevėžio rinkimų apygardoje Nr. 49',

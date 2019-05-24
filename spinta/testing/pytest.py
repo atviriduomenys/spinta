@@ -101,8 +101,9 @@ def context(mocker, config, postgresql, mongo):
         # Datasets does not have foreign kei constraints, so there is no need to
         # topologically sort them. At least for now.
         for dataset in store.manifests['default'].objects['dataset'].values():
-            for model in dataset.objects.values():
-                context.wipe(model)
+            for resource in dataset.resources.values():
+                for model in resource.objects.values():
+                    context.wipe(model)
 
         context.wipe(store.internal.objects['model']['transaction'])
 

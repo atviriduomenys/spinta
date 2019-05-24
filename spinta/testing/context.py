@@ -8,11 +8,11 @@ from spinta.auth import AdminToken
 
 class ContextForTests:
 
-    def _get_model(self, model: typing.Union[str, Node], dataset: str):
+    def _get_model(self, model: typing.Union[str, Node], dataset: str, resource: str):
         if isinstance(model, str):
             store = self.get('store')
-            if dataset:
-                return store.manifests['default'].objects['dataset'][dataset].objects[model]
+            if resource:
+                return store.manifests['default'].objects['dataset'][dataset].resources[resource].objects[model]
             else:
                 return store.manifests['default'].objects['model'][model]
         else:
@@ -47,22 +47,22 @@ class ContextForTests:
         with self.transaction(write=True):
             yield from commands.push(self, store, data)
 
-    def getone(self, model: str, id, *, dataset: str = None):
-        model = self._get_model(model, dataset)
+    def getone(self, model: str, id, *, dataset: str = None, resource: str = None):
+        model = self._get_model(model, dataset, resource)
         with self.transaction():
             return commands.get(self, model, model.backend, id)
 
-    def getall(self, model: str, *, dataset: str = None, **kwargs):
-        model = self._get_model(model, dataset)
+    def getall(self, model: str, *, dataset: str = None, resource: str = None, **kwargs):
+        model = self._get_model(model, dataset, resource)
         with self.transaction():
             return list(commands.getall(self, model, model.backend, **kwargs))
 
-    def changes(self, model: str, *, dataset: str = None, **kwargs):
-        model = self._get_model(model, dataset)
+    def changes(self, model: str, *, dataset: str = None, resource: str = None, **kwargs):
+        model = self._get_model(model, dataset, resource)
         with self.transaction():
             return list(commands.changes(self, model, model.backend, **kwargs))
 
-    def wipe(self, model: str, *, dataset: str = None):
-        model = self._get_model(model, dataset)
+    def wipe(self, model: str, *, dataset: str = None, resource: str = None):
+        model = self._get_model(model, dataset, resource)
         with self.transaction():
             commands.wipe(self, model, model.backend)

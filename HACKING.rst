@@ -62,6 +62,7 @@ Inheritance::
          ProjectModel
          ProjectProperty
       Dataset
+         Resource
          DatasetModel
          DatasetProperty
       Owner
@@ -90,67 +91,69 @@ Composition::
 
    Store
 
-      config                              (Config)
+     config                            (Config)
 
-         commands[]                       (str)
+       commands[]                      (str)
 
-         backends
-            [default]                     (BackendConfig)
-               type                       (str)
-               dsn                        (str)
+       backends
+         [default]                     (BackendConfig)
+           type                        (str)
+           dsn                         (str)
 
-         manifests:
-            [default]
-               path                       (pathlib.Path)
+       manifests:
+         [default]
+           path                        (pathlib.Path)
 
-         ignore[]                         (str)
+       ignore[]                        (str)
 
-         debug                            (bool)
+       debug                           (bool)
 
-      backends
-         [backend]                        (Backend)
+     backends
+       [backend]                       (Backend)
 
-      manifests
-         [ns]                             (Manifest)
-            path                          (pathlib.Path)
-            objects
+     manifests
+       [ns]                            (Manifest)
+         path                          (pathlib.Path)
+         objects
 
-               ['model']
-                  [object]                (Model)
-                     properties
-                        [property]        (Property)
-                           type           (Type)
+            ['model']
+              [name]                   (Model)
+                properties
+                  [name]               (Property)
+                    type               (Type)
 
-               ['project']
-                  [object]                (Project)
-                     objects
-                        [object]          (ProjectModel)
-                           properties
-                              [property]  (ProjectProperty)
+            ['project']
+              [name]                   (Project)
+                objects
+                  [name]               (ProjectModel)
+                    properties
+                      [name]           (ProjectProperty)
 
-               ['dataset']
-                  [object]                (Dataset)
-                     objects
-                        [object]          (Object)
-                           properties
-                              [property]  (Property)
-                                 type     (Type)
+            ['dataset']
+              [name]                   (Dataset)
+                resources
+                  [name]               (Resource)
+                    objects
+                      [name]           (Object)
+                         properties
+                           [name]      (Property)
+                             type      (Type)
 
-               ['owner']
-                  [object]                (Owner)
+            ['owner']
+              [name]                   (Owner)
 
    Node
-      parent                              (Node)
-      manifest                            (Manifest)
+     parent                            (Node)
+     manifest                          (Manifest)
 
    Type
-      name                                (str)
+     name                              (str)
 
    EnvVars
-      environ
+     environ
 
    File
-      path
+     path
 
 
 Testing

@@ -12,17 +12,17 @@ class Xml(Source):
 
 
 @pull.register()
-def pull(context: Context, source: Xml, node: Model, *, name: str):
+def pull(context: Context, source: Xml, node: Model, *, params: dict):
     dataset = node.parent
-
-    with fetch(context, dataset.source.name).open('rb') as f:
-        tag = name.split('/')[-1]
+    url = dataset.source.name.format(**params)
+    with fetch(context, url).open('rb') as f:
+        tag = source.name.split('/')[-1]
         context = etree.iterparse(f, tag=tag)
         for action, elem in context:
             ancestors = elem.xpath('ancestor-or-self::*')
             here = '/' + '/'.join([x.tag for x in ancestors])
 
-            if here == name:
+            if here == source.name:
                 yield elem
 
             # Clean unused elements.

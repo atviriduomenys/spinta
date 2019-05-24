@@ -45,25 +45,25 @@ def test_changes(context):
 def test_show_with_joins(context):
     consume(context.push([
         {
-            'type': 'continent/:source/dependencies',
+            'type': 'continent/:ds/dependencies/:rs/continents',
             'id': '1',
             'title': 'Europe',
         },
         {
-            'type': 'country/:source/dependencies',
+            'type': 'country/:ds/dependencies/:rs/continents',
             'id': 1,
             'title': 'Lithuania',
             'continent': '1',
         },
         {
-            'type': 'capital/:source/dependencies',
+            'type': 'capital/:ds/dependencies/:rs/continents',
             'id': 1,
             'title': 'Vilnius',
             'country': '1',
         },
     ]))
 
-    result = context.getall('capital', dataset='dependencies', show=[
+    result = context.getall('capital', dataset='dependencies', resource='continents', show=[
         'id',
         'title',
         'country.title',

@@ -3,9 +3,6 @@ name: dependencies
 type: dataset
 version: 1
 date: "2019-03-08"
-source:
-  type: csv
-  name: 
 resources:
 
   continents:
@@ -23,7 +20,7 @@ resources:
       country:
         source: "/continents/{continent}/countries.csv"
         dependencies:
-          continent: continent/:source/dependencies.continent_id
+          continent: continent/:ds/dependencies/:rs/continents.continent_id
         properties:
           id: {source: 'id'}
           title: {source: 'country'}
@@ -33,8 +30,8 @@ resources:
       capital:
         source: "/continents/{continent}/countries/{country}/captials.csv"
         dependencies:
-          continent: country/:source/dependencies.continent.continent_id
-          country: country/:source/dependencies.country_id
+          continent: country/:ds/dependencies/:rs/continents.continent.continent_id
+          country: country/:ds/dependencies/:rs/continents.country_id
         properties:
           id: {source: 'id'}
           title: {source: 'capital'}

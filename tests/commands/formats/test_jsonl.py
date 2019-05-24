@@ -8,28 +8,28 @@ def test_export_json(context, app, mocker):
 
     consume(context.push([
         {
-            'type': 'country/:source/csv',
+            'type': 'country/:ds/csv/:rs/countries',
             'id': 1,
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
-            'type': 'country/:source/csv',
+            'type': 'country/:ds/csv/:rs/countries',
             'id': 2,
             'code': 'lv',
             'title': 'LATVIA',
         },
         {
-            'type': 'country/:source/csv',
+            'type': 'country/:ds/csv/:rs/countries',
             'id': 2,
             'code': 'lv',
             'title': 'Latvia',
         },
     ]))
 
-    app.authorize(['spinta_country_source_csv_getall'])
+    app.authorize(['spinta_country_ds_csv_rs_countries_getall'])
 
-    assert app.get('country/:source/csv/:format/jsonl').text == (
-        '{"type":"country\\/:source\\/csv","id":"025685077bbcf6e434a95b65b9a6f5fcef046861","code":"lv","title":"Latvia"}\n'
-        '{"type":"country\\/:source\\/csv","id":"69a33b149af7a7eeb25026c8cdc09187477ffe21","code":"lt","title":"Lithuania"}\n'
+    assert app.get('country/:ds/csv/:rs/countries/:format/jsonl').text == (
+        '{"type":"country\\/:ds\\/csv\\/:rs\\/countries","id":"025685077bbcf6e434a95b65b9a6f5fcef046861","code":"lv","title":"Latvia"}\n'
+        '{"type":"country\\/:ds\\/csv\\/:rs\\/countries","id":"69a33b149af7a7eeb25026c8cdc09187477ffe21","code":"lt","title":"Lithuania"}\n'
     )

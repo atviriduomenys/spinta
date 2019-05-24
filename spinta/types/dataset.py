@@ -17,13 +17,12 @@ from spinta.utils.schema import resolve_schema, load_from_schema
 
 class Dataset(Node):
     schema = {
-        'source': {'type': 'command'},
-        'objects': {'type': 'object', 'default': {}},
         'version': {'type': 'integer', 'required': True},
         'date': {'type': 'date', 'required': True},
         'owner': {'type': 'string'},
         'stars': {'type': 'integer'},
         'website': {'type': 'url', 'description': "Website of this dataset."},
+        'resources': {'type': 'object', 'description': "Dataset resources."}
     }
 
     def __init__(self):
@@ -34,11 +33,21 @@ class Dataset(Node):
         self.owner = None
         self.stars = None
         self.backend = None
+        self.website = ''
+        self.resources = {}
+
+
+class Resource(Node):
+    schema = {
+        'type': {'type': 'string'},
+        'source': {'type': 'string'},
+        'objects': {'type': 'object', 'default': {}},
+    }
 
 
 class Model(Node):
     schema = {
-        'source': {'type': 'command_list'},
+        'source': {'type': 'array'},
         'identity': {'type': 'array', 'required': False},
         'properties': {'type': 'object', 'default': {}},
         'stars': {'type': 'integer'},
@@ -63,7 +72,7 @@ class Model(Node):
         self.canonical = False
 
     def get_type_value(self):
-        return f'{self.name}/:source/{self.parent.name}'
+        return f'{self.name}/:ds/{self.parent.parent.name}/:rs/{self.parent.name}'
 
 
 class Property(Node):
@@ -100,16 +109,39 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
         dataset.source = load_source(context, dataset, params)
 
     # Load models
-    for name, params in (data.get('objects') or {}).items():
+    for name, params in (data.get('resources') or {}).items():
         params = {
             'path': dataset.path,
             'name': name,
             'parent': dataset,
             **(params or {}),
         }
-        dataset.objects[name] = load(context, Model(), params, manifest)
+        dataset.resources[name] = load(context, Resource(), params, manifest)
 
     return dataset
+
+
+@load.register()
+def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
+    load_node(context, resource, data, manifest)
+
+    # Load dataset source
+    if resource.type:
+        params = dict(data)
+        params['name'] = params.pop('source', None)
+        resource.source = load_source(context, resource, params)
+
+    # Load models
+    for name, params in (data.get('objects') or {}).items():
+        params = {
+            'path': resource.path,
+            'name': name,
+            'parent': resource,
+            **(params or {}),
+        }
+        resource.objects[name] = load(context, Model(), params, manifest)
+
+    return resource
 
 
 @load.register()
@@ -232,29 +264,28 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
         context.bind('cache', Cache, path=pathlib.Path(tmpdir))
         context.bind('requests', requests.Session)
 
-        prepare(context, dataset.source, dataset)
+        for resource in dataset.resources.values():
+            prepare(context, resource.source, resource)
 
-        for model in dataset.objects.values():
-            if model.source is None:
-                continue
+            for model in resource.objects.values():
+                if model.source is None:
+                    continue
 
-            if models and model.name not in models:
-                continue
+                if models and model.name not in models:
+                    continue
 
-            for dependency in _dependencies(context, model, model.dependencies):
-                for source in model.source:
-                    try:
-                        yield from _pull(context, model, source, dependency)
-                    except Exception as e:
-                        context.error(f"Error while pulling model {model.name!r}, with dependency: {dependency!r} and source: {source!r}. Error: {e}")
+                for dependency in _dependencies(context, model, model.dependencies):
+                    for source in model.source:
+                        try:
+                            yield from _pull(context, model, source, dependency)
+                        except Exception as e:
+                            context.error(f"Error while pulling model {model.name!r}, with dependency: {dependency!r} and source: {source!r}. Error: {e}")
 
 
 def _pull(context: Context, model: Model, source, dependency):
-    dataset = model.parent
-    name = source.name.format(**dependency)
-    rows = pull(context, source, model, name=name)
+    rows = pull(context, source, model, params=dependency)
     for row in rows:
-        data = {'type': f'{model.name}/:source/{dataset.name}'}
+        data = {'type': model.get_type_value()}
         for prop in model.properties.values():
             if isinstance(prop.source, list):
                 data[prop.name] = [
@@ -268,7 +299,6 @@ def _pull(context: Context, model: Model, source, dependency):
             if prop.ref and prop.name in data:
                 data[prop.name] = get_ref_id(data[prop.name])
 
-        import pp; pp(data)
         if _check_key(data.get('id')):
             yield data
 
@@ -421,7 +451,7 @@ def load_source(context: Context, node: Node, params: dict):
     source = Source()
     schema = resolve_schema(source, Source)
 
-    # FIXME: refactore components to separate python module
+    # FIXME: refactor components to separate python module
     from spinta.commands.sources import Source
     source = load_from_schema(Source, source, schema, params)
     return load(context, source, node)
