@@ -4,7 +4,7 @@ def test_report(app):
         'spinta_report_getone',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -21,7 +21,7 @@ def test_report(app):
 
     data = resp.json()
     id = data['id']
-    resp = app.get(f'/report/{id}')
+    resp = app.get(f'/reports/{id}')
     assert resp.status_code == 200
 
     # FIXME: should return date/datetime strings instead of unix timestamps?
@@ -48,7 +48,7 @@ def test_invalid_report_int(app):
         'spinta_report_insert',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -66,7 +66,7 @@ def test_invalid_report_date(app):
         'spinta_report_insert',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -84,7 +84,7 @@ def test_non_string_report_date(app):
         'spinta_report_insert',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -102,7 +102,7 @@ def test_invalid_report_datetime(app):
         'spinta_report_insert',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -120,7 +120,7 @@ def test_non_string_report_datetime(app):
         'spinta_report_insert',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -138,7 +138,7 @@ def test_invalid_report_array(app):
         'spinta_report_insert',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -156,7 +156,7 @@ def test_invalid_report_array_object(app):
         'spinta_report_insert',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -192,7 +192,7 @@ def test_missing_report_object_property(app):
         'spinta_report_getone',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -213,7 +213,7 @@ def test_unknown_report_property(app):
         'spinta_report_getone',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -240,7 +240,7 @@ def test_unknown_report_object_property(app):
         'spinta_report_getone',
     ])
 
-    resp = app.post('/report', json={
+    resp = app.post('/reports', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',

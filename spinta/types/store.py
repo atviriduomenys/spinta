@@ -125,7 +125,7 @@ def pull(self, dataset_name, params: dict = None, *, backend='default', ns='defa
 
 def get(self, model_name: str, object_id, params: dict = None, backend='default', ns='default'):
     params = params or {}
-    model = get_model_from_params(self, ns, model_name, params)
+    model = get_model_from_params(self.objects, ns, model_name, params)
     with self.config.backends[backend].transaction() as transaction:
         params = {
             'transaction': transaction,
@@ -136,7 +136,7 @@ def get(self, model_name: str, object_id, params: dict = None, backend='default'
 
 def getall(self, model_name: str, params: dict = None, *, backend='default', ns='default'):
     params = params or {}
-    model = get_model_from_params(self, ns, model_name, params)
+    model = get_model_from_params(self.objects, ns, model_name, params)
     with self.config.backends[backend].transaction() as transaction:
         params = {
             'transaction': transaction,
@@ -149,7 +149,7 @@ def getall(self, model_name: str, params: dict = None, *, backend='default', ns=
         yield from self.run(model, {'getall': params}, backend=backend, ns=ns)
 
 def changes(self, params: dict, *, backend='default', ns='default'):
-    model = get_model_from_params(self, ns, params['path'], params)
+    model = get_model_from_params(self.objects, ns, params['path'], params)
     with self.config.backends[backend].transaction() as transaction:
         params = {
             'transaction': transaction,
@@ -229,15 +229,15 @@ def get_model_by_name(manifest, name):
         return manifest.objects['model'][name]
 
 
-def get_model_from_params(manifest, name, params):
+def get_model_from_params(models, name, params):
     if 'source' in params:
         dataset = params['source']
-        if dataset not in manifest.objects['dataset']:
+        if dataset not in models['dataset']:
             raise NotFound(f"Dataset {dataset!r} not found.")
-        if name not in manifest.objects['dataset'][dataset].objects:
+        if name not in models['dataset'][dataset].objects:
             raise NotFound(f"Model '{name}/:source/{dataset}' not found.")
-        return manifest.objects['dataset'][dataset].objects[name]
+        return models['dataset'][dataset].objects[name]
     else:
-        if name not in manifest.objects['model']:
+        if name not in models['model']:
             raise NotFound(f"Model {name!r} not found.")
-        return manifest.objects['model'][name]
+        return models['model'][name]
