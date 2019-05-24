@@ -100,7 +100,24 @@ class Manifest:
 
     def __init__(self):
         self.objects = {}
+
+        # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
+        # name and endpoint for all of them should match.
         self.endpoints = {}
+
+    def add_model_endpoint(self, model):
+        endpoint = model.endpoint
+        if endpoint:
+            if endpoint not in self.endpoints:
+                self.endpoints[endpoint] = model.name
+            elif self.endpoints[endpoint] != model.name:
+                raise Exception(f"Same endpoint, but different model name, endpoint={endpoint!r}, model.name={model.name!r}.")
+
+    def find_all_models(self):
+        yield from self.objects['model'].values()
+        for dataset in self.objects['dataset'].values():
+            for resource in dataset.resources.values():
+                yield from resource.objects.values()
 
 
 class Node:

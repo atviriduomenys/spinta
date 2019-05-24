@@ -227,18 +227,25 @@ def get_model_by_name(manifest, name):
     return get_model_from_params(manifest, params['path'], params)
 
 
-def get_model_from_params(models, name, params):
+def get_model_from_params(manifest, name, params):
+    # Allow users to specify a different URL endpoint to make URL look
+    # nicer, but that is optional, they can still use model.name.
+    if name in manifest.endpoints:
+        model = manifest.endpoints[name]
+    else:
+        model = name
+
     if 'rs' in params:
         dataset = params['ds']
-        if dataset not in models['dataset']:
+        if dataset not in manifest.objects['dataset']:
             raise NotFound(f"Dataset {dataset!r} not found.")
         resource = params['rs']
-        if resource not in modles['dataset'][dataset].resources:
+        if resource not in manifest.objects['dataset'][dataset].resources:
             raise NotFound(f"Resource ':ds/{dataset}/:rs/{resource}' not found.")
-        if name not in models['dataset'][dataset].resources[resource].objects:
-            raise NotFound(f"Model '{name}/:ds/{dataset}/:rs/{resource}' not found.")
-        return models['dataset'][dataset].resources[resource].objects[name]
+        if model not in manifest.objects['dataset'][dataset].resources[resource].objects:
+            raise NotFound(f"Model '{model}/:ds/{dataset}/:rs/{resource}' not found.")
+        return manifest.objects['dataset'][dataset].resources[resource].objects[model]
     else:
-        if name not in models['model']:
-            raise NotFound(f"Model {name!r} not found.")
-        return models['model'][name]
+        if model not in manifest.objects['model']:
+            raise NotFound(f"Model {model!r} not found.")
+        return manifest.objects['model'][model]

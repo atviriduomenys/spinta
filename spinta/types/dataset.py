@@ -147,6 +147,7 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
 @load.register()
 def load(context: Context, model: Model, data: dict, manifest: Manifest):
     load_node(context, model, data, manifest)
+    manifest.add_model_endpoint(model)
 
     # Load model source
     if model.source:
@@ -338,7 +339,7 @@ def _dependencies(context: Context, model, deps):
         else:
             model_name = list(model_names)[0]
             params = parse_url_path(model_name)
-            depmodel = get_model_from_params(model.manifest.objects, params['path'], params)
+            depmodel = get_model_from_params(model.manifest, params['path'], params)
             for row in getall(context, depmodel, depmodel.backend, show=prop_names):
                 yield {
                     prop_name_mapping[k]: v
