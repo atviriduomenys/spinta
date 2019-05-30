@@ -342,7 +342,17 @@ def get(context: Context, model: Model, backend: PostgreSQL, id: str):
 
 
 @getall.register()
-def getall(context: Context, model: Model, backend: PostgreSQL, **kwargs):
+def getall(
+    context: Context, model: Model, backend: PostgreSQL, *,
+    show: typing.List[str] = None,
+    sort: typing.List[typing.Dict[str, str]] = None,
+    offset=None, limit=None,
+    count: bool = False,
+    query_params: typing.List[typing.Dict[str, str]] = None,
+):
+    if query_params is None:
+        query_params = []
+
     authorize(context, 'getall', model)
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main

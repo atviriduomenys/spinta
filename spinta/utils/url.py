@@ -74,6 +74,21 @@ class Path(Cast):
         return '/'.join(value)
 
 
+class QueryParams(Cast):
+
+    def __init__(self, operator, **kwargs):
+        self.operator = operator
+
+        super().__init__(**kwargs)
+
+    def to_params(self, value):
+        return {
+            'operator': self.operator,
+            'key': value[0],
+            'value': value[1],
+        }
+
+
 RULES = {
     'path': {
         'cast': Path(),
@@ -108,6 +123,13 @@ RULES = {
     },
     'count': {
         'maxargs': 0,
+    },
+    'exact': {
+        'cast': QueryParams('exact'),
+        'minargs': 2,
+        'maxargs': 2,
+        'multiple': True,
+        'change_name': 'query_params',
     },
 }
 
@@ -158,6 +180,9 @@ def parse_url_path(path):
 
         if 'cast' in rules and value is not None:
             value = rules['cast'].to_params(value)
+
+        if 'change_name' in rules:
+            name = rules['change_name']
 
         multiple = rules.get('multiple', False)
         if multiple:
