@@ -47,9 +47,9 @@ def test_export_ascii(context, app, mocker):
     assert app.get('country/:ds/csv/:rs/countries/:changes/:format/ascii').text == (
         'change_id   transaction_id                      id                               datetime            action   change.code   change.title\n'
         '========================================================================================================================================\n'
-        f'{ids[0]:<3}         {txn[0]:<3}             69a33b149af7a7eeb25026c8cdc09187477ffe21   2019-03-06 16:15:00.816308   insert   lt            Lithuania   \n'
-        f'{ids[1]:<3}         {txn[0]:<3}             025685077bbcf6e434a95b65b9a6f5fcef046861   2019-03-06 16:15:00.816308   insert   lv            LATVIA      \n'
-        f'{ids[2]:<3}         {txn[0]:<3}             025685077bbcf6e434a95b65b9a6f5fcef046861   2019-03-06 16:15:00.816308   update   None          Latvia      '
+        f'{ids[0]:<3}         {txn[0]:<3}              69a33b149af7a7eeb25026c8cdc09187477ffe21   2019-03-06 16:15:00.816308   insert   lt            Lithuania   \n'
+        f'{ids[1]:<3}         {txn[0]:<3}              025685077bbcf6e434a95b65b9a6f5fcef046861   2019-03-06 16:15:00.816308   insert   lv            LATVIA      \n'
+        f'{ids[2]:<3}         {txn[0]:<3}              025685077bbcf6e434a95b65b9a6f5fcef046861   2019-03-06 16:15:00.816308   update   None          Latvia      '
     )
 
 
