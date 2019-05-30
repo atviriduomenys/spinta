@@ -78,3 +78,32 @@ def test_no_args():
     }
     assert parse_url_path(string) == params
     assert build_url_path(params) == string
+
+
+def test_properties():
+    assert parse_url_path('model/42/property') == {
+        'path': 'model',
+        'id': {'type': 'integer', 'value': '42'},
+        'properties': ['property'],
+    }
+
+    assert parse_url_path('model/42/p1/p2/p3') == {
+        'path': 'model',
+        'id': {'type': 'integer', 'value': '42'},
+        'properties': ['p1', 'p2', 'p3'],
+    }
+
+    assert parse_url_path('model/42') == {
+        'path': 'model',
+        'id': {'type': 'integer', 'value': '42'},
+    }
+
+    assert parse_url_path('model') == {
+        'path': 'model',
+    }
+
+    assert parse_url_path('model/42/:format/csv') == {
+        'path': 'model',
+        'id': {'type': 'integer', 'value': '42'},
+        'format': 'csv',
+    }

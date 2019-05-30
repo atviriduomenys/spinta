@@ -153,7 +153,7 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     columns = []
     for prop in model.properties.values():
-        column = prepare(context, backend, prop)
+        column = prepare(context, prop.backend, prop)
         if isinstance(column, list):
             columns.extend(column)
         elif column is not None:

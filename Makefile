@@ -1,5 +1,5 @@
 .PHONY: env
-env: .env env/.done requirements.txt
+env: .env env/.done var/.done requirements.txt
 
 env/bin/pip:
 	python3.7 -m venv env
@@ -8,6 +8,9 @@ env/bin/pip:
 env/.done: env/bin/pip setup.py requirements-dev.txt
 	env/bin/pip install -r requirements-dev.txt -e .
 	touch env/.done
+
+var/.done: Makefile
+	mkdir -p var/files
 
 env/bin/pip-compile: env/bin/pip
 	env/bin/pip install pip-tools

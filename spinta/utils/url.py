@@ -74,6 +74,10 @@ class Path(Cast):
         return '/'.join(value)
 
 
+class Property(Cast):
+    pass
+
+
 class QueryParams(Cast):
 
     def __init__(self, operator, **kwargs):
@@ -98,6 +102,11 @@ RULES = {
         'maxargs': 1,
         'cast': Id(),
         'name': False,
+    },
+    'properties': {
+        'cast': Property(),
+        'name': False,
+        'minargs': 0,
     },
     'source': {
         'cast': Path(),
@@ -140,7 +149,9 @@ def parse_url_path(path):
     value = []
     params = {}
 
-    for part in path.split('/'):
+    parts = path.split('/')
+    last = len(parts) - 1
+    for i, part in enumerate(parts):
         if part.startswith(':'):
             data.append((name, value))
             name = part[1:]
@@ -153,6 +164,10 @@ def parse_url_path(path):
                 data.append((name, value))
                 name = 'id'
                 value = [id]
+                if i < last and not parts[i + 1].startswith(':'):
+                    data.append((name, value))
+                    name = 'properties'
+                    value = []
                 continue
 
         value.append(part)
@@ -163,7 +178,7 @@ def parse_url_path(path):
 
         rules = RULES.get(name)
         if rules is None:
-            raise Exception(f"Unknown URl parameter {name!r}.")
+            raise Exception(f"Unknown URL parameter {name!r}.")
 
         maxargs = rules.get('maxargs')
         minargs = rules.get('minargs', 0 if maxargs == 0 else 1)
