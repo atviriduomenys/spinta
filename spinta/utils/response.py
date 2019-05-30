@@ -42,7 +42,7 @@ async def create_http_response(context, params, request):
         context.bind('transaction', manifest.backend.transaction)
 
         try:
-            model = get_model_from_params(manifest.endpoints, params.model, _params)
+            model = get_model_from_params(manifest, params.model, _params)
         except NotFound:
             model = None
 
@@ -69,7 +69,7 @@ async def create_http_response(context, params, request):
                     data = list(data)
 
         else:
-            datasets_by_object = get_datasets_by_object(context)
+            datasets_by_object = get_datasets_by_model(context)
             tree = build_path_tree(
                 manifest.objects.get('model', {}).keys(),
                 datasets_by_object.keys(),
@@ -96,7 +96,7 @@ async def create_http_response(context, params, request):
             raise HTTPException(status_code=404)
 
         try:
-            model = get_model_from_params(manifest.endpoints, params.model, _params)
+            model = get_model_from_params(manifest, params.model, _params)
         except NotFound as e:
             raise HTTPException(status_code=404, detail=str(e))
 
@@ -190,28 +190,30 @@ def get_current_location(model, path, params):
     parts = path.split('/') if path else []
     loc = [('root', '/')]
 
-    if 'source' in params:
+    if 'rs' in params:
         if 'id' in params:
             if 'changes' in params:
                 loc += (
                     [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                    [(':source/' + params['source'], '/' + '/'.join(parts + [':source', params['source']]))] +
+                    [(':ds/' + params['ds'] + '/:rs/' + params['rs'], '/' + '/'.join(parts + [':ds', params['ds'], ':rs', params['rs']]))] +
                     [(params['id']['value'][:8], '/' + build_url_path({
                         'path': path,
                         'id': params['id'],
-                        'source': params['source'],
+                        'ds': params['ds'],
+                        'rs': params['rs'],
                     }))] +
                     [(':changes', None)]
                 )
             else:
                 loc += (
                     [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                    [(':source/' + params['source'], '/' + '/'.join(parts + [':source', params['source']]))] +
+                    [(':ds/' + params['ds'] + '/:rs/' + params['rs'], '/' + '/'.join(parts + [':ds', params['ds'], ':rs', params['rs']]))] +
                     [(params['id']['value'][:8], None)] +
                     [(':changes', '/' + build_url_path({
                         'path': path,
                         'id': params['id'],
-                        'source': params['source'],
+                        'ds': params['ds'],
+                        'rs': params['rs'],
                         'changes': None,
                     }))]
                 )
@@ -219,19 +221,21 @@ def get_current_location(model, path, params):
             if 'changes' in params:
                 loc += (
                     [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                    [(':source/' + params['source'], '/' + build_url_path({
+                    [(':ds/' + params['ds'] + '/:rs/' + params['rs'], '/' + build_url_path({
                         'path': path,
-                        'source': params['source'],
+                        'ds': params['ds'],
+                        'rs': params['rs'],
                     }))] +
                     [(':changes', None)]
                 )
             else:
                 loc += (
                     [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                    [(':source/' + params['source'], None)] +
+                    [(':ds/' + params['ds'] + '/:rs/' + params['rs'], None)] +
                     [(':changes', '/' + build_url_path({
                         'path': path,
-                        'source': params['source'],
+                        'ds': params['ds'],
+                        'rs': params['rs'],
                         'changes': None,
                     }))]
                 )
@@ -266,7 +270,7 @@ def get_current_location(model, path, params):
 def get_changes(context, params):
     store = context.get('store')
     manifest = store.manifests['default']
-    model = get_model_from_params(manifest.endpoints, params['path'], params)
+    model = get_model_from_params(manifest, params['path'], params)
     backend = model.backend
     rows = commands.changes(
         context, model, backend,
@@ -308,7 +312,7 @@ def get_changes(context, params):
 def get_row(context, params):
     store = context.get('store')
     manifest = store.manifests['default']
-    model = get_model_from_params(manifest.endpoints, params['path'], params)
+    model = get_model_from_params(manifest, params['path'], params)
     backend = model.backend
     row = commands.get(context, model, backend, params['id']['value'])
     if row is None:
@@ -327,8 +331,9 @@ def get_cell(params, prop, value, shorten=False, color=None):
 
     if prop.name == 'id' and value:
         extra = {}
-        if 'source' in params:
-            extra['source'] = params['source']
+        if 'rs' in params:
+            extra['ds'] = params['ds']
+            extra['rs'] = params['rs']
         link = '/' + build_url_path({
             'path': params['path'],
             'id': {'value': value, 'type': None},
@@ -338,8 +343,9 @@ def get_cell(params, prop, value, shorten=False, color=None):
             value = value[:8]
     elif hasattr(prop, 'ref') and prop.ref and value:
         extra = {}
-        if 'source' in params:
-            extra['source'] = params['source']
+        if 'rs' in params:
+            extra['ds'] = params['ds']
+            extra['rs'] = params['rs']
         link = '/' + build_url_path({
             'path': prop.ref,
             'id': {'value': value, 'type': None},
@@ -370,7 +376,7 @@ def get_cell(params, prop, value, shorten=False, color=None):
 def get_data(context, params):
     store = context.get('store')
     manifest = store.manifests['default']
-    model = get_model_from_params(manifest.endpoints, params['path'], params)
+    model = get_model_from_params(manifest, params['path'], params)
     backend = model.backend
     rows = commands.getall(
         context, model, backend,
@@ -398,12 +404,13 @@ def get_data(context, params):
         yield row
 
 
-def get_datasets_by_object(context):
+def get_datasets_by_model(context):
     store = context.get('store')
-    datasets = collections.defaultdict(dict)
+    datasets = collections.defaultdict(lambda: collections.defaultdict(dict))
     for dataset in store.manifests['default'].objects.get('dataset', {}).values():
-        for obj in dataset.objects.values():
-            datasets[obj.name][dataset.name] = dataset
+        for resource in dataset.resources.values():
+            for model in resource.objects.values():
+                datasets[model.name][dataset.name][resource.name] = resource
     return datasets
 
 
@@ -416,13 +423,14 @@ def get_directory_content(tree, path):
 
 def get_directory_datasets(datasets, path):
     if path in datasets:
-        for name, dataset in sorted(datasets[path].items(), key=operator.itemgetter(0)):
-            link = ('/' if path else '') + path + '/:source/' + name
-            yield {
-                'name': name,
-                'link': link,
-                'canonical': dataset.objects[path].canonical,
-            }
+        for dataset, resources in sorted(datasets[path].items(), key=operator.itemgetter(0)):
+            for resource in sorted(resources.values(), key=operator.attrgetter('name')):
+                link = ('/' if path else '') + path + '/:ds/' + dataset + '/:rs/' + resource.name
+                yield {
+                    'name': dataset + '/' + resource.name,
+                    'link': link,
+                    'canonical': resource.objects[path].canonical,
+                }
 
 
 def get_response_type(context: Context, request: Request, params: dict = None):

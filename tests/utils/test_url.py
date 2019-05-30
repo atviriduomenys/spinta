@@ -4,14 +4,14 @@ from spinta.utils.url import build_url_path
 
 def test_parse_url_path():
     assert parse_url_path('foo/bar') == {'path': 'foo/bar'}
-    assert parse_url_path('foo/bar/:source/deeply/nested/name') == {'path': 'foo/bar', 'source': 'deeply/nested/name'}
-    assert parse_url_path('foo/bar/3/:source/vrk') == {'path': 'foo/bar', 'id': {'value': '3', 'type': 'integer'}, 'source': 'vrk'}
+    assert parse_url_path('foo/bar/:ds/deeply/nested/name/:rs/res') == {'path': 'foo/bar', 'ds': 'deeply/nested/name', 'rs': 'res'}
+    assert parse_url_path('foo/bar/3/:ds/vrk/:rs/data') == {'path': 'foo/bar', 'id': {'value': '3', 'type': 'integer'}, 'ds': 'vrk', 'rs': 'data'}
     assert parse_url_path('foo/bar/:limit/100') == {'path': 'foo/bar', 'limit': 100}
 
 
 def test_build_url_path():
     assert build_url_path({'path': 'foo/bar', 'id': {'value': '42', 'type': 'sha1'}}) == 'foo/bar/42'
-    assert build_url_path({'path': 'foo/bar', 'id': {'value': '42', 'type': 'sha1'}, 'source': 'gov/org'}) == 'foo/bar/42/:source/gov/org'
+    assert build_url_path({'path': 'foo/bar', 'id': {'value': '42', 'type': 'sha1'}, 'ds': 'gov/org', 'rs': 'data'}) == 'foo/bar/42/:ds/gov/org/:rs/data'
 
 
 def test_optional_argument():

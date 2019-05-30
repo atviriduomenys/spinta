@@ -11,6 +11,7 @@ from spinta.components import Context, Store, Manifest
 from spinta.utils.imports import importstr
 from spinta.config import RawConfig
 from spinta.exceptions import NotFound
+from spinta.utils.url import parse_url_path
 
 
 @load.register()
@@ -222,22 +223,29 @@ class ClientSuppliedIDs:
 
 
 def get_model_by_name(manifest, name):
-    if '/:source/' in name:
-        model, dataset = name.split('/:source/')
-        return manifest.objects['dataset'][dataset].objects[model]
+    params = parse_url_path(name)
+    return get_model_from_params(manifest, params['path'], params)
+
+
+def get_model_from_params(manifest, name, params):
+    # Allow users to specify a different URL endpoint to make URL look
+    # nicer, but that is optional, they can still use model.name.
+    if name in manifest.endpoints:
+        model = manifest.endpoints[name]
     else:
-        return manifest.objects['model'][name]
+        model = name
 
-
-def get_model_from_params(models, name, params):
-    if 'source' in params:
-        dataset = params['source']
-        if dataset not in models['dataset']:
+    if 'rs' in params:
+        dataset = params['ds']
+        if dataset not in manifest.objects['dataset']:
             raise NotFound(f"Dataset {dataset!r} not found.")
-        if name not in models['dataset'][dataset].objects:
-            raise NotFound(f"Model '{name}/:source/{dataset}' not found.")
-        return models['dataset'][dataset].objects[name]
+        resource = params['rs']
+        if resource not in manifest.objects['dataset'][dataset].resources:
+            raise NotFound(f"Resource ':ds/{dataset}/:rs/{resource}' not found.")
+        if model not in manifest.objects['dataset'][dataset].resources[resource].objects:
+            raise NotFound(f"Model '{model}/:ds/{dataset}/:rs/{resource}' not found.")
+        return manifest.objects['dataset'][dataset].resources[resource].objects[model]
     else:
-        if name not in models['model']:
-            raise NotFound(f"Model {name!r} not found.")
-        return models['model'][name]
+        if model not in manifest.objects['model']:
+            raise NotFound(f"Model {model!r} not found.")
+        return manifest.objects['model'][model]

@@ -93,7 +93,7 @@ CONFIG = {
 
     # Parameters for datasets, for example credentials. Example:
     #
-    #   datasets: {default: {gov/vpk: sql://user:pass@host/db}}
+    #   datasets: {default: {gov/vpk: {resource: sql://user:pass@host/db}}
     #
     # There configuraiton parameters should be read directly by datasets.
     'datasets': {},
@@ -163,7 +163,9 @@ CONFIG = {
             },
             'datasets': {
                 'default': {
-                    'sql': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
+                    'sql': {
+                        'db': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
+                    },
                 }
             },
             'config_path': pathlib.Path('tests/config'),

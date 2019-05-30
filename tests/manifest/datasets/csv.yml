@@ -3,11 +3,14 @@ name: csv
 type: dataset
 version: 1
 date: "2019-02-15"
-source: csv
-objects:
-  country:
-    source: 'http://example.com/countries.csv'
-    properties:
-      id: {source: 'kodas'}
-      code: {source: 'kodas'}
-      title: {source: 'šalis'}
+resources:
+  countries:
+    type: csv
+    source: http://example.com/
+    objects:
+      country:
+        source: countries.csv
+        properties:
+          id: {source: kodas}
+          code: {source: kodas}
+          title: {source: šalis}

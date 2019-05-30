@@ -3,34 +3,36 @@ name: dependencies
 type: dataset
 version: 1
 date: "2019-03-08"
-source:
-  type: csv
-  name: http://example.com
-objects:
+resources:
 
-  continent:
-    source: "/continents.csv"
-    properties:
-      id: {source: 'id'}
-      title: {source: 'continent'}
-      continent_id: {source: 'id'}
+  continents:
+    type: csv
+    source: http://example.com
+    objects:
 
-  country:
-    source: "/continents/{continent}/countries.csv"
-    dependencies:
-      continent: continent/:source/dependencies.continent_id
-    properties:
-      id: {source: 'id'}
-      title: {source: 'country'}
-      continent: {source: 'continent', ref: continent, dependency: true}
-      country_id: {source: 'id'}
+      continent:
+        source: "/continents.csv"
+        properties:
+          id: {source: 'id'}
+          title: {source: 'continent'}
+          continent_id: {source: 'id'}
 
-  capital:
-    source: "/continents/{continent}/countries/{country}/captials.csv"
-    dependencies:
-      continent: country/:source/dependencies.continent.continent_id
-      country: country/:source/dependencies.country_id
-    properties:
-      id: {source: 'id'}
-      title: {source: 'capital'}
-      country: {source: 'country', ref: country, dependency: true}
+      country:
+        source: "/continents/{continent}/countries.csv"
+        dependencies:
+          continent: continent/:ds/dependencies/:rs/continents.continent_id
+        properties:
+          id: {source: 'id'}
+          title: {source: 'country'}
+          continent: {source: 'continent', ref: continent, dependency: true}
+          country_id: {source: 'id'}
+
+      capital:
+        source: "/continents/{continent}/countries/{country}/captials.csv"
+        dependencies:
+          continent: country/:ds/dependencies/:rs/continents.continent.continent_id
+          country: country/:ds/dependencies/:rs/continents.country_id
+        properties:
+          id: {source: 'id'}
+          title: {source: 'capital'}
+          country: {source: 'country', ref: country, dependency: true}

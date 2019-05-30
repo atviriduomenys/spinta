@@ -3,14 +3,19 @@ name: xml
 type: dataset
 version: 1
 date: "2019-03-07"
-source:
-  type: xml
-  name: http://example.com/data.xml
-objects:
-  tenure:
-    source: /SeimoInformacija/SeimoKadencija
-    properties:
-      id: {source: '@kadencijos_id'}
-      title: {source: '@pavadinimas'}
-      since: {source: '@data_nuo'}
-      until: {source: '@data_iki'}
+resources:
+  data:
+    type: xml
+    source: http://example.com/data.xml
+    objects:
+      tenure:
+        source: /SeimoInformacija/SeimoKadencija
+        properties:
+          id:
+            source: "@kadencijos_id"
+          title:
+            source: "@pavadinimas"
+          since:
+            source: "@data_nuo"
+          until:
+            source: "@data_iki"

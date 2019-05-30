@@ -99,7 +99,10 @@ RULES = {
         'cast': Id(),
         'name': False,
     },
-    'source': {
+    'ds': {
+        'cast': Path(),
+    },
+    'rs': {
         'cast': Path(),
     },
     'changes': {
@@ -163,7 +166,7 @@ def parse_url_path(path):
 
         rules = RULES.get(name)
         if rules is None:
-            raise Exception(f"Unknown URl parameter {name!r}.")
+            raise Exception(f"Unknown URL parameter {name!r}.")
 
         maxargs = rules.get('maxargs')
         minargs = rules.get('minargs', 0 if maxargs == 0 else 1)

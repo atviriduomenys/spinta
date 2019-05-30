@@ -21,7 +21,7 @@ def test_csv(context, responses):
     assert consume(context.pull('csv')) == 0
 
     assert sorted([(x['code'], x['title']) for x in context.getall('country')]) == []
-    assert sorted([(x['code'], x['title']) for x in context.getall('country', dataset='csv')]) == [
+    assert sorted([(x['code'], x['title']) for x in context.getall('country', dataset='csv', resource='countries')]) == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
@@ -47,13 +47,13 @@ def test_denorm(context, responses):
     lv = 'b5dcb86880816fb966cdfbbacd1f3406739464f4'
 
     assert list(context.getall('country')) == []
-    assert sorted([(x['id'], x['title']) for x in context.getall('country', dataset='denorm')]) == [
+    assert sorted([(x['id'], x['title']) for x in context.getall('country', dataset='denorm', resource='orgs')]) == [
         (lt, 'Lietuva'),
         (lv, 'Latvija'),
     ]
 
     assert list(context.getall('org')) == []
-    assert sorted([(x['id'], x['title'], x['country']) for x in context.getall('org', dataset='denorm')], key=itemgetter(1)) == [
+    assert sorted([(x['id'], x['title'], x['country']) for x in context.getall('org', dataset='denorm', resource='orgs')], key=itemgetter(1)) == [
         ('23fcdb953846e7c709d2967fb549de67d975c010', 'Org1', lt),
         ('6f9f652eb6dae29e4406f1737dd6043af6142090', 'Org2', lt),
         ('11a0764da48b674ce0c09982e7c43002b510d5b5', 'Org3', lv),

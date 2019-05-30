@@ -3,17 +3,20 @@ name: denorm
 type: dataset
 version: 1
 date: "2019-02-19"
-source: csv
-objects:
-  org:
-    source: 'http://example.com/orgs.csv'
-    properties:
-      id: {source: 'govid'}
-      title: {source: 'org'}
-      country: {source: 'kodas', ref: country}
-  country:
-    source: 'http://example.com/orgs.csv'
-    properties:
-      id: {source: 'kodas'}
-      code: {source: 'kodas'}
-      title: {source: 'šalis'}
+resources:
+  orgs:
+    type: csv
+    source: http://example.com/
+    objects:
+      org:
+        source: orgs.csv
+        properties:
+          id: {source: govid}
+          title: {source: org}
+          country: {source: kodas, ref: country}
+      country:
+        source: orgs.csv
+        properties:
+          id: {source: kodas}
+          code: {source: kodas}
+          title: {source: šalis}

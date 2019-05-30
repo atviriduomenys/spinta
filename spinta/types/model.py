@@ -11,6 +11,7 @@ from spinta.utils.schema import resolve_schema
 @load.register()
 def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Model:
     load_node(context, model, data, manifest)
+    manifest.add_model_endpoint(model)
 
     # 'type' is reserved for object type.
     props = {'type': {'type': 'string'}}

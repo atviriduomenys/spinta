@@ -28,26 +28,26 @@ def test_csv(context, responses):
     assert consume(context.pull('dependencies', models=['country'])) == 1
     assert consume(context.pull('dependencies', models=['capital'])) == 1
 
-    assert context.getall('continent', dataset='dependencies') == [
+    assert context.getall('continent', dataset='dependencies', resource='continents') == [
         {
-            'type': 'continent/:source/dependencies',
+            'type': 'continent/:ds/dependencies/:rs/continents',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
             'title': 'Europe',
             'continent_id': '1',
         },
     ]
-    assert context.getall('country', dataset='dependencies') == [
+    assert context.getall('country', dataset='dependencies', resource='continents') == [
         {
-            'type': 'country/:source/dependencies',
+            'type': 'country/:ds/dependencies/:rs/continents',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
             'title': 'Lithuania',
             'continent': '23fcdb953846e7c709d2967fb549de67d975c010',
             'country_id': '1',
         },
     ]
-    assert context.getall('capital', dataset='dependencies') == [
+    assert context.getall('capital', dataset='dependencies', resource='continents') == [
         {
-            'type': 'capital/:source/dependencies',
+            'type': 'capital/:ds/dependencies/:rs/continents',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
             'title': 'Vilnius',
             'country': '23fcdb953846e7c709d2967fb549de67d975c010',
@@ -64,13 +64,13 @@ def test_no_push(context, responses):
 
     assert list(context.pull('dependencies', push=False)) == [
         {
-            'type': 'continent/:source/dependencies',
+            'type': 'continent/:ds/dependencies/:rs/continents',
             'id': '1',
             'title': 'Europe',
             'continent_id': '1',
         },
     ]
-    assert context.getall('continent', dataset='dependencies') == []
+    assert context.getall('continent', dataset='dependencies', resource='continents') == []
 
 
 def test_generator(context, responses):
@@ -90,12 +90,12 @@ def test_generator(context, responses):
 
     assert list(context.pull('generator', push=False)) == [
         {
-            'type': 'continent/:source/generator',
+            'type': 'continent/:ds/generator/:rs/continents',
             'id': '2000',
             'title': 'Europe',
         },
         {
-            'type': 'continent/:source/generator',
+            'type': 'continent/:ds/generator/:rs/continents',
             'id': '2001',
             'title': 'Europe',
         },

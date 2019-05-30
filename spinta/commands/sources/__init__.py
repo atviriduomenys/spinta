@@ -1,6 +1,6 @@
 from spinta.commands import load, prepare, pull
 from spinta.components import Context, Node
-from spinta.types.dataset import Dataset, Property
+from spinta.types.dataset import Resource, Property
 
 
 class Source:
@@ -17,10 +17,12 @@ def load(context: Context, source: Source, node: Node):
 
 
 @load.register()
-def load(context: Context, source: Source, node: Dataset):
+def load(context: Context, source: Source, node: Resource):
     config = context.get('config')
     if not source.name:
-        source.name = config.raw.get('datasets', node.parent.name, node.name, default=None)
+        dataset = node.parent
+        manifest = dataset.parent
+        source.name = config.raw.get('datasets', manifest.name, dataset.name, node.name, default=None)
     return source
 
 
