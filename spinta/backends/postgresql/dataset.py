@@ -212,7 +212,11 @@ def getall(
     sort: typing.List[typing.Dict[str, str]] = None,
     offset=None, limit=None,
     count: bool = False,
+    query_params: typing.List[typing.Dict[str, str]] = None,
 ):
+    if query_params is None:
+        query_params = []
+
     authorize(context, 'getall', model)
 
     connection = context.get('transaction').connection

@@ -1,5 +1,6 @@
 import contextlib
 import copy
+import typing
 
 from datetime import date, datetime
 
@@ -149,14 +150,39 @@ def get(context: Context, model: Model, backend: Mongo, id: str):
 
 
 
+# TODO: refactor keyword arguments into a list of query parameters, like `query_params`
 @getall.register()
-def getall(context: Context, model: Model, backend: Mongo, **kwargs):
+def getall(
+    context: Context, model: Model, backend: Mongo, *,
+    show: typing.List[str] = None,
+    sort: typing.List[typing.Dict[str, str]] = None,
+    offset=None, limit=None,
+    count: bool = False,
+    query_params: typing.List[typing.Dict[str, str]] = None,
+):
+    if query_params is None:
+        query_params = []
+
     authorize(context, 'getall', model)
 
     transaction = context.get('transaction')
     # Yield all available entries.
     model_collection = backend.db[model.get_type_value()]
-    for row in model_collection.find({}):
+
+    search_expressions = []
+    for qp in query_params:
+        if qp.get('operator') == 'exact':
+            # FIXME: this assumes that only one field can be used in search
+            search_expressions.append({qp['key']: qp['value']})
+
+    search_query = {}
+    # search expressions cannot be empty
+    if search_expressions:
+        # TODO: implement `$or` operator support
+        operator = '$and'
+        search_query[operator] = search_expressions
+
+    for row in model_collection.find(search_query):
         yield prepare(context, 'getall', model, backend, row)
 
 

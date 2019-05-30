@@ -153,6 +153,7 @@ async def create_http_response(context, params, request):
                 offset=_params.get('offset'),
                 limit=_params.get('limit', 100),
                 count='count' in _params,
+                query_params=_params.get('query_params'),
             )
 
             # TODO: Currently authorization and many other thins happens inside
