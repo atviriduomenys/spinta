@@ -102,32 +102,26 @@ async def create_http_response(context, params, request):
 
         if request.method == 'POST':
             context.bind('transaction', manifest.backend.transaction, write=True)
-
-            # only `application/json` is supported
-            ct = request.headers.get('content-type')
-            if ct != 'application/json':
-                raise HTTPException(
-                    status_code=415,
-                    detail="only 'application/json' content-type is supported",
-                )
-
-            # make sure json is valid
-            try:
-                data = await request.json()
-            except json.decoder.JSONDecodeError:
-                raise HTTPException(
-                    status_code=400,
-                    detail="not a valid json",
-                )
-
-            if 'revision' in data.keys():
-                raise HTTPException(
-                    status_code=400,
-                    detail="cannot create 'revision'",
-                )
-
+            data = await get_request_data(request)
             data = commands.push(context, model, model.backend, data, action='insert')
             return JSONResponse(data, status_code=201)
+
+        elif request.method == 'PUT':
+            if params.properties:
+                if len(params.properties) != 1:
+                    raise HTTPException(status_code=400, detail=(
+                        "only one property can be given for PUT method, now "
+                        "thise properties were given: "
+                    ) % ', '.join(map(repr, params.properties)))
+                prop = params.properties[0]
+                if prop not in model.properties:
+                    raise HTTPException(status_code=404, detail=f"Unknown property {prop}.")
+                prop = model.properties[prop]
+                data = await commands.load(context, prop, prop.backend, request)
+                data = commands.push(context, prop, prop.backend, data, action='update')
+                return JSONResponse(data, status_code=201)
+            else:
+                raise NotImplementedError("Currently only PUT for a property is supported.")
 
         context.set('transaction', manifest.backend.transaction())
 
@@ -475,3 +469,28 @@ def peek_and_stream(stream):
 async def aiter(stream):
     for data in stream:
         yield data
+
+
+async def get_request_data(request):
+    ct = request.headers.get('content-type')
+    if ct != 'application/json':
+        raise HTTPException(
+            status_code=415,
+            detail="only 'application/json' content-type is supported",
+        )
+
+    try:
+        data = await request.json()
+    except json.decoder.JSONDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="not a valid json",
+        )
+
+    if 'revision' in data.keys():
+        raise HTTPException(
+            status_code=400,
+            detail="cannot create 'revision'",
+        )
+
+    return data

@@ -11,6 +11,7 @@ class UrlParams:
     def __init__(self):
         self.model = None
         self.id = None
+        self.properties = None
         self.dataset = None
         self.changes = None
         self.sort = None
@@ -35,6 +36,7 @@ def prepare(context: Context, params: UrlParams, version: Version, request: Requ
     p = parse_url_path(path)
     params.model = p['path']
     params.id = p.get('id')
+    params.properties = p.get('properties')
     params.dataset = p.get('source')
     params.sort = p.get('sort')
     params.limit = p.get('limit')

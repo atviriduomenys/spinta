@@ -27,9 +27,13 @@ def load():
 
         load(Context, Command, dict, *, scope=None) -> Command
 
-    - Load pimitive data types to python-native objects:
+    - Load primitive data types to python-native objects:
 
         load(Context, X, Node, Backend) -> Y
+
+    - Load data from request:
+
+        load(Context, Property, Request)
 
     """
 
