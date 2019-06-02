@@ -1,9 +1,12 @@
+import cgi
 import pathlib
 import shutil
 
+from starlette.requests import Request
+
 from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, check, push, get, wipe, wait, authorize
-from spinta.components import Context, Manifest, Model, Property
+from spinta.components import Context, Manifest, Model, Property, Attachment
 from spinta.config import RawConfig
 
 
@@ -41,12 +44,19 @@ def check(context: Context, model: Model, backend: FileSystem, data: dict):
     pass
 
 
+@load.register()
+async def load(context: Context, prop: Property, backend: FileSystem, request: Request) -> Attachment:
+    return Attachment(
+        context_type=request.headers['content-type'],
+        filename=cgi.parse_header(request.headers['content-disposition'])[1]['filename'],
+        data=await request.body(),
+    )
+
+
 @push.register()
-def push(context: Context, prop: Property, backend: FileSystem, data: dict, *, action: str, filename: str):
-    data = prepare(context, prop, data)
-    with open(backend.path / filename, 'w') as f:
-        f.write(data)
-    return prepare(context, action, prop, backend, data)
+def push(context: Context, prop: Property, backend: FileSystem, attachment: Attachment, *, action: str):
+    with open(backend.path / attachment.filename, 'w') as f:
+        f.write(attachment.data)
 
 
 @get.register()

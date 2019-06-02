@@ -13,6 +13,7 @@ def test_crud(app):
 
     resp = app.put(f'/photos/{id}/image', data=b'BINARYDATA', headers={
         'content-type': 'image/png',
+        'content-disposition': 'attachment; filename="myimg.png"',
     })
     assert resp.status_code == 200, resp.text
 

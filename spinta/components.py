@@ -1,4 +1,5 @@
 import contextlib
+from dataclasses import dataclass
 
 
 class Context:
@@ -195,3 +196,10 @@ class CommandList:
 
     def __call__(self, *args, **kwargs):
         return [command(*args, **kwargs) for command in self.commands]
+
+
+@dataclass
+class Attachment:
+    content_type: str
+    filename: str
+    data: bytes
