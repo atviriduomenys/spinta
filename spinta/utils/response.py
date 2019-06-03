@@ -10,6 +10,7 @@ import pkg_resources as pres
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from starlette.responses import StreamingResponse
+from starlette.responses import FileResponse
 from starlette.templating import Jinja2Templates
 from starlette.requests import Request
 
@@ -107,19 +108,18 @@ async def create_http_response(context, params, request):
             return JSONResponse(data, status_code=201)
 
         elif request.method == 'PUT':
+            context.bind('transaction', manifest.backend.transaction, write=True)
             if params.properties:
-                if len(params.properties) != 1:
-                    raise HTTPException(status_code=400, detail=(
-                        "only one property can be given for PUT method, now "
-                        "thise properties were given: "
-                    ) % ', '.join(map(repr, params.properties)))
-                prop = params.properties[0]
-                if prop not in model.properties:
-                    raise HTTPException(status_code=404, detail=f"Unknown property {prop}.")
-                prop = model.properties[prop]
-                data = await commands.load(context, prop, prop.backend, request)
-                data = commands.push(context, prop, prop.backend, data, action='update')
-                return JSONResponse(data, status_code=201)
+                prop = get_prop_from_params(model, params)
+                attachment = await commands.load(context, prop, prop.backend, request)
+                data = {
+                    'id': params.id['value'],
+                    prop.name: attachment.filename,
+                    'content_type': attachment.content_type,
+                }
+                data = commands.push(context, model, model.backend, data, action='update')
+                commands.push(context, prop, prop.backend, attachment, action='update')
+                return JSONResponse(data, status_code=200)
             else:
                 raise NotImplementedError("Currently only PUT for a property is supported.")
 
@@ -136,8 +136,14 @@ async def create_http_response(context, params, request):
             rows = peek_and_stream(rows)
 
         elif params.id:
-            rows = [commands.get(context, model, model.backend, _params['id']['value'])]
-            _params['wrap'] = False
+            if params.properties:
+                data = commands.get(context, model, model.backend, _params['id']['value'])
+                prop = get_prop_from_params(model, params)
+                return FileResponse(prop.backend.path / data[prop.name], media_type=data['content_type'])
+
+            else:
+                rows = [commands.get(context, model, model.backend, _params['id']['value'])]
+                _params['wrap'] = False
 
         else:
             rows = commands.getall(
@@ -494,3 +500,15 @@ async def get_request_data(request):
         )
 
     return data
+
+
+def get_prop_from_params(model, params):
+    if len(params.properties) != 1:
+        raise HTTPException(status_code=400, detail=(
+            "only one property can be given, now "
+            "these properties were given: "
+        ) % ', '.join(map(repr, params.properties)))
+    prop = params.properties[0]
+    if prop not in model.properties:
+        raise HTTPException(status_code=404, detail=f"Unknown property {prop}.")
+    return model.properties[prop]

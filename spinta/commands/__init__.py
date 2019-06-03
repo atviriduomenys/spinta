@@ -60,7 +60,20 @@ def check():
 
 @command()
 def prepare():
-    """Prepare value."""
+    """Prepare value.
+
+    - Prepare database backend:
+
+        prepare(Context, Backend, Node)
+        prepare(Context, Backend, Type)
+
+    - Prepare database backend when model and property types differ:
+
+        prepare(Context, Backend, Type, Backend)
+
+      here, first is a property backend and last a model backend.
+
+    """
 
 
 @command()

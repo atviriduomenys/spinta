@@ -4,6 +4,7 @@
 #
 #    pip-compile --no-index requirements.in -o requirements.txt
 #
+aiofiles==0.4.0
 asn1crypto==0.24.0        # via cryptography
 asyncpg==0.18.3
 authlib==0.11

@@ -17,7 +17,7 @@ from spinta.commands import wait, load, prepare, migrate, check, push, get, geta
 from spinta.components import Context, Manifest, Model, Property
 from spinta.config import RawConfig
 from spinta.types import NA
-from spinta.types.type import Type
+from spinta.types.type import Type, File
 from spinta.exceptions import MultipleRowsException, NoResultsException
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
@@ -176,11 +176,6 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 
 
 @prepare.register()
-def prepare(context: Context, backend: PostgreSQL, prop: Property):
-    return prepare(context, backend, prop.type)
-
-
-@prepare.register()
 def prepare(context: Context, backend: PostgreSQL, type: Type):
     if type.prop.name == 'id':
         if type.name == 'integer':
@@ -218,6 +213,12 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
         return
     else:
         raise Exception(f"Unknown property type {type.name!r}.")
+
+
+@prepare.register()
+def prepare(context: Context, backend: Backend, type: File, model_backend: PostgreSQL):
+    # Store file name reference if file field is stored in another backend.
+    return sa.Column(type.prop.name, sa.Text)
 
 
 def _get_foreign_key(backend: PostgreSQL, model: Model, prop: Property):

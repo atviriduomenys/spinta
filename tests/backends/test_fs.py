@@ -1,6 +1,7 @@
 def test_crud(app):
     app.authorize([
         'spinta_photo_insert',
+        'spinta_photo_update',
         'spinta_photo_getone',
     ])
 
@@ -20,9 +21,11 @@ def test_crud(app):
     resp = app.get(f'/photos/{id}')
     assert resp.json() == {
         'type': 'photo',
-        'id': '1',
+        'id': id,
         # FIXME: revision should not be None.
         'revision': None,
+        'content_type': 'image/png',
+        'image': 'myimg.png',
         'name': 'myphoto',
     }
 

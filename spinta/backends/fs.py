@@ -8,6 +8,7 @@ from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, check, push, get, wipe, wait, authorize
 from spinta.components import Context, Manifest, Model, Property, Attachment
 from spinta.config import RawConfig
+from spinta.types.type import File
 
 
 class FileSystem(Backend):
@@ -30,7 +31,7 @@ def prepare(context: Context, backend: FileSystem, manifest: Manifest):
 
 
 @prepare.register()
-def prepare(context: Context, backend: FileSystem, prop: Property):
+def prepare(context: Context, backend: FileSystem, type: File):
     pass
 
 
@@ -47,7 +48,7 @@ def check(context: Context, model: Model, backend: FileSystem, data: dict):
 @load.register()
 async def load(context: Context, prop: Property, backend: FileSystem, request: Request) -> Attachment:
     return Attachment(
-        context_type=request.headers['content-type'],
+        content_type=request.headers['content-type'],
         filename=cgi.parse_header(request.headers['content-disposition'])[1]['filename'],
         data=await request.body(),
     )
@@ -55,7 +56,7 @@ async def load(context: Context, prop: Property, backend: FileSystem, request: R
 
 @push.register()
 def push(context: Context, prop: Property, backend: FileSystem, attachment: Attachment, *, action: str):
-    with open(backend.path / attachment.filename, 'w') as f:
+    with open(backend.path / attachment.filename, 'wb') as f:
         f.write(attachment.data)
 
 

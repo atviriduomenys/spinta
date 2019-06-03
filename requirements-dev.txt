@@ -4,6 +4,7 @@
 #
 #    pip-compile --no-index requirements.in requirements-dev.in -o requirements-dev.txt
 #
+aiofiles==0.4.0
 asn1crypto==0.24.0        # via cryptography
 asyncpg==0.18.3
 atomicwrites==1.3.0       # via pytest

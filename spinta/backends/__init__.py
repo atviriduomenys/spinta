@@ -1,7 +1,7 @@
 import contextlib
 
 from spinta.types.type import Array, Object, Type
-from spinta.components import Context, Model
+from spinta.components import Context, Model, Property
 from spinta.commands import error, prepare
 
 
@@ -39,6 +39,24 @@ def prepare(context: Context, type: Object, backend: Backend, value: dict) -> di
         if k in value:
             new_loaded_obj[k] = prepare(context, v.type, backend, value[k])
     return new_loaded_obj
+
+
+@prepare.register()
+def prepare(context: Context, backend: Backend, prop: Property):
+    # FIXME: replace `prop.parent` to `prop.model`, because `prop.parent` can
+    #        point to a parent property, but here we need a model.
+    if backend.name == prop.parent.backend.name:
+        return prepare(context, backend, prop.type)
+    else:
+        # When property backend differs from model backend, we need to call
+        # `prepare` with two backends in order to return correct field type for
+        # the model.
+        return prepare(context, backend, prop.type, prop.parent.backend)
+
+
+@prepare.register()
+def prepare(context: Context, backend: Backend, prop: Property, model_backend: Backend):
+    pass
 
 
 @error.register()
