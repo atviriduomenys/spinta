@@ -112,6 +112,17 @@ async def create_http_response(context, params, request):
             context.bind('transaction', manifest.backend.transaction, write=True)
             if params.properties:
                 prop = get_prop_from_params(model, params)
+                # FIXME: attachment is a FileSystem backend specific thing and
+                #        should not be here.
+                #
+                #        Probably push command should take request and do all
+                #        the needed processing, because some actions use
+                #        information in headers, they need to return streaming
+                #        responces, consume streaming inputs. So there is no
+                #        other way, but to give more control to commands like
+                #        push, getone, getall and etc.
+                #
+                #        [give_request_to_push]
                 attachment = await commands.load(context, prop, prop.backend, request)
                 data = {
                     'id': params.id['value'],
@@ -130,6 +141,7 @@ async def create_http_response(context, params, request):
                 prop = get_prop_from_params(model, params)
 
                 data = commands.get(context, model, model.backend, _params['id']['value'])
+                # FIXME: see [give_request_to_push]
                 attachment = Attachment(
                     content_type=data['content_type'],
                     filename=data[prop.name],

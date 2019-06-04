@@ -91,8 +91,8 @@ def prepare():
 
     - Convert backend-native values to Python-native values:
 
+        # FIXME: probably this should be replaced with `dump`.
         prepare(Context, Action, Model, Backend, object) -> dict
-        dump(Context, Backend, Type, object) -> object
 
     - Prepare external dataset for data import:
 
