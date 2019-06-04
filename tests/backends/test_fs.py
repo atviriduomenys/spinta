@@ -6,6 +6,7 @@ def test_crud(app):
         'spinta_photo_getone',
     ])
 
+    # Create a new photo resource.
     resp = app.post('/photos', json={
         'type': 'photo',
         'name': 'myphoto',
@@ -13,8 +14,12 @@ def test_crud(app):
     assert resp.status_code == 201, resp.text
     id = resp.json()['id']
 
+    # PUT image to just create photo resource.
     resp = app.put(f'/photos/{id}/image', data=b'BINARYDATA', headers={
         'content-type': 'image/png',
+        # TODO: with content-disposition header it is possible to specify file
+        #       naem dierectly, but there should be option, to use model id as a
+        #       file name, but that is currently not implemented.
         'content-disposition': 'attachment; filename="myimg.png"',
     })
     assert resp.status_code == 200, resp.text

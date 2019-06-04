@@ -143,6 +143,11 @@ async def create_http_response(context, params, request):
                 data = commands.get(context, model, model.backend, _params['id']['value'])
                 # FIXME: see [give_request_to_push]
                 attachment = Attachment(
+                    # FIXME: content_type is hardcoded here, but it should be
+                    #        configured in property node as an parameter with
+                    #        default value 'content_type'.
+                    #
+                    #        [fs_content_type_param]
                     content_type=data['content_type'],
                     filename=data[prop.name],
                     data=None,

@@ -48,6 +48,7 @@ def check(context: Context, model: Model, backend: FileSystem, data: dict):
 @load.register()
 async def load(context: Context, prop: Property, backend: FileSystem, request: Request) -> Attachment:
     return Attachment(
+        # FIXME: see [fs_content_type_param]
         content_type=request.headers['content-type'],
         filename=cgi.parse_header(request.headers['content-disposition'])[1]['filename'],
         data=await request.body(),
