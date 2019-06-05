@@ -30,7 +30,7 @@ def load(context: Context, manifest: Manifest, c: RawConfig):
         except (ParserError, ScannerError) as e:
             context.error(f"{file}: {e}.")
         if not isinstance(data, dict):
-            context.error(f"{file}: expected dict got {data.__class__.__name__}.")
+            raise Exception(f"{file}: expected dict got {data.__class__.__name__}.")
 
         if 'type' not in data:
             raise Exception(f"'type' is not defined in {file}.")

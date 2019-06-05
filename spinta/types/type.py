@@ -201,7 +201,17 @@ class Object(Type):
 
 
 class File(Type):
-    pass
+
+    def load(self, value: typing.Any):
+        if value is None:
+            return None
+        return value
+
+    def is_valid(self, value):
+        if value is None:
+            return True
+        else:
+            return isinstance(value, bytes)
 
 
 @load.register()
