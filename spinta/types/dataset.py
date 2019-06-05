@@ -3,7 +3,7 @@ import requests
 import tempfile
 
 from spinta.commands import load, prepare, check, pull, getall, authorize, error
-from spinta.components import Context, Manifest, Node, Command
+from spinta.components import Context, Manifest, Node, Command, Action
 from spinta.utils.refs import get_ref_id
 from spinta.utils.url import parse_url_path
 from spinta.nodes import load_node
@@ -13,7 +13,6 @@ from spinta.types.type import load_type
 from spinta.auth import check_generated_scopes
 from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema, load_from_schema
-from spinta.backends import Action
 
 
 class Dataset(Node):
@@ -86,6 +85,7 @@ class Property(Node):
         'replace': {'type': 'object'},
         'ref': {'type': 'string'},
         'dependency': {'type': 'boolean'},
+        'model': {'required': True},
     }
 
     def __init__(self):
@@ -176,6 +176,7 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
             'name': name,
             'path': model.path,
             'parent': model,
+            'model': model,
             **(params or {}),
         }
         model.properties[name] = load(context, Property(), params, manifest)
@@ -229,11 +230,6 @@ def check(context: Context, dataset: Dataset):
         _check_extends(context, dataset, model)
         for prop in model.properties.values():
             _check_ref(context, dataset, prop)
-
-
-@check.register()
-def check(context: Context, model: Model, data: dict):
-    pass
 
 
 def _check_owner(context: Context, dataset: Dataset):

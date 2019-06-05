@@ -21,8 +21,7 @@ from spinta.utils.tree import build_path_tree
 from spinta.utils.url import build_url_path
 from spinta.utils.url import parse_url_path
 from spinta.exceptions import NotFound
-from spinta.components import Context, Attachment
-from spinta.backends import Action
+from spinta.components import Context, Attachment, Action
 
 
 async def create_http_response(context, params, request):
@@ -129,8 +128,8 @@ async def create_http_response(context, params, request):
                     prop.name: attachment.filename,
                     'content_type': attachment.content_type,
                 }
-                data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
                 commands.push(context, prop, prop.backend, attachment, action=Action.UPDATE)
+                data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
                 return JSONResponse(data, status_code=200)
             else:
                 raise NotImplementedError("PUT is not supported.")

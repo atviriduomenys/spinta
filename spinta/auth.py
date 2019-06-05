@@ -17,10 +17,9 @@ from authlib.oauth2 import rfc6750
 from authlib.oauth2.rfc6749 import grants
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
-from spinta.components import Context
+from spinta.components import Context, Action
 from spinta.utils import passwords
 from spinta.utils.scopes import name_to_scope
-from spinta.backends import Action
 
 log = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML(typ='safe')

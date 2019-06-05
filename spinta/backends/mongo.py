@@ -6,9 +6,9 @@ from datetime import date, datetime
 import pymongo
 from bson.objectid import ObjectId
 
-from spinta.backends import Backend, Action
+from spinta.backends import Backend, check_model_properties
 from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize, dump
-from spinta.components import Context, Manifest, Model
+from spinta.components import Context, Manifest, Model, Action
 from spinta.config import RawConfig
 from spinta.types.type import Date
 from spinta.utils.idgen import get_new_id
@@ -82,18 +82,17 @@ def migrate(context: Context, backend: Mongo):
 
 
 @check.register()
-def check(context: Context, model: Model, backend: Mongo, data: dict):
-    # Check data before insert/update.
-    transaction = context.get('transaction')
+def check(context: Context, model: Model, backend: Mongo, data: dict, *, action: Action):
+    check_model_properties(context, model, backend, data, action)
 
 
 @push.register()
-def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: str):
+def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: Action):
     authorize(context, action, model, data=data)
 
     # load and check if data is a valid for it's model
     data = load(context, model, data)
-    check(context, model, data)
+    check(context, model, backend, data, action=action)
     data = prepare(context, model, data)
 
     # Push data to Mongo backend, this can be an insert, update or delete. If

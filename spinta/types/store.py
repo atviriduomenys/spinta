@@ -7,12 +7,11 @@ import types
 import pkg_resources as pres
 
 from spinta.commands import load, wait, prepare, migrate, check, push
-from spinta.components import Context, Store, Manifest
+from spinta.components import Context, Store, Manifest, Action
 from spinta.utils.imports import importstr
 from spinta.config import RawConfig
 from spinta.exceptions import NotFound
 from spinta.utils.url import parse_url_path
-from spinta.backends import Action
 
 
 @load.register()
@@ -92,12 +91,8 @@ def push(context: Context, store: Store, stream: types.GeneratorType):
         assert model_name is not None, data
         model = get_model_by_name(manifest, model_name)
         client_id = client_supplied_ids.replace(model_name, data)
-        check(context, model, model.backend, data)
-
-        if 'id' in data:
-            action = Action.UPDATE
-        else:
-            action = Action.INSERT
+        action = Action.UPDATE if 'id' in data else Action.INSERT
+        check(context, model, model.backend, data, action=action)
         pushed_data = push(context, model, model.backend, data, action=action)
         if pushed_data is not None:
             a = client_supplied_ids.update(client_id, {

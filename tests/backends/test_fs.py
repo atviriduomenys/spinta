@@ -1,3 +1,6 @@
+import pathlib
+
+
 def test_crud(app):
     app.authorize([
         'spinta_photo_insert',
@@ -53,4 +56,46 @@ def test_crud(app):
         # FIXME: revision should not be None.
         'revision': None,
         'type': 'photo',
+    }
+
+
+def test_add_existing_file(app, tmpdir):
+    app.authorize([
+        'spinta_photo_insert',
+        'spinta_photo_getone',
+    ])
+
+    image = pathlib.Path(tmpdir) / 'image.png'
+    image.write_bytes(b'IMAGEDATA')
+
+    resp = app.post('/photos', json={
+        'type': 'photo',
+        'name': 'myphoto',
+        'content_type': 'image/png',
+        'image': str(image),
+    })
+    assert resp.status_code == 201, resp.text
+    id = resp.json()['id']
+
+    resp = app.get(f'/photos/{id}/image')
+    assert resp.content == b'IMAGEDATA'
+
+
+def test_add_missing_file(app, tmpdir):
+    app.authorize([
+        'spinta_photo_insert',
+        'spinta_photo_getone',
+    ])
+
+    image = pathlib.Path(tmpdir) / 'missing.png'
+
+    resp = app.post('/photos', json={
+        'type': 'photo',
+        'name': 'myphoto',
+        'content_type': 'image/png',
+        'image': str(image),
+    })
+    assert resp.status_code == 400, resp.text
+    assert resp.json() == {
+        'error': f'File {image} does not exist.'
     }

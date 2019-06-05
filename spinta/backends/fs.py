@@ -4,11 +4,12 @@ import shutil
 
 from starlette.requests import Request
 
-from spinta.backends import Backend, Action
+from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, check, push, get, wipe, wait, authorize
-from spinta.components import Context, Manifest, Model, Property, Attachment
+from spinta.components import Context, Manifest, Model, Property, Attachment, Action
 from spinta.config import RawConfig
 from spinta.types.type import File
+from spinta.exceptions import DataError
 
 
 class FileSystem(Backend):
@@ -40,11 +41,6 @@ def migrate(context: Context, backend: FileSystem):
     pass
 
 
-@check.register()
-def check(context: Context, model: Model, backend: FileSystem, data: dict):
-    pass
-
-
 @load.register()
 async def load(context: Context, prop: Property, backend: FileSystem, request: Request) -> Attachment:
     return Attachment(
@@ -53,6 +49,13 @@ async def load(context: Context, prop: Property, backend: FileSystem, request: R
         filename=cgi.parse_header(request.headers['content-disposition'])[1]['filename'],
         data=await request.body(),
     )
+
+
+@check.register()
+def check(context: Context, type: File, prop: Property, backend: FileSystem, value: str, *, data: dict, action: Action):
+    path = backend.path / value
+    if not path.exists():
+        raise DataError(f"File {path} does not exist.")
 
 
 @push.register()

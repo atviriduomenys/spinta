@@ -1,23 +1,11 @@
 import contextlib
-import enum
 import datetime
 
-from spinta.types.type import Array, Object, Type, DateTime, Date, Object, Array
-from spinta.components import Context, Model, Property
-from spinta.commands import error, prepare, dump
-
-
-class Action(enum.Enum):
-    INSERT = 'insert'
-    UPDATE = 'update'
-    DELETE = 'delete'
-
-    WIPE = 'wipe'
-
-    GETONE = 'getone'
-    GETALL = 'getall'
-
-    CHANGES = 'changes'
+from spinta.types.type import Type, DateTime, Date, Object, Array
+from spinta.components import Context, Model, Property, Action
+from spinta.commands import error, prepare, dump, check
+from spinta.common import NA
+from spinta.types import dataset
 
 
 class Backend:
@@ -100,3 +88,30 @@ def dump(context: Context, backend: Backend, type: Object, value: dict):
 @dump.register()
 def dump(context: Context, backend: Backend, type: Array, value: list):
     return [dump(context, backend, type.items.type, v) for v in value]
+
+
+@check.register()
+def check(context: Context, model: Model, backend: Backend, data: dict):
+    check_model_properties(context, model, backend, data)
+
+
+@check.register()
+def check(context: Context, type: Type, prop: Property, backend: Backend, value: object, *, data: dict, action: Action):
+    check_type_value(type, value)
+
+
+@check.register()
+def check(context: Context, type: Type, prop: dataset.Property, backend: Backend, value: object, *, data: dict, action: Action):
+    check_type_value(type, value)
+
+
+def check_model_properties(context: Context, model: Model, backend, data: dict, action: Action):
+    for name, prop in model.properties.items():
+        # For datasets, property type is optional.
+        if prop.type is not None:
+            check(context, prop.type, prop, backend, data.get(name, NA), data=data, action=action)
+
+
+def check_type_value(type: Type, value: object):
+    if type.required and (value is None or value is NA):
+        raise Exception(f"{type.prop.name!r} is required for {type.prop.model.name!r}.")

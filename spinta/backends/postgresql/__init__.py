@@ -12,11 +12,11 @@ from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
-from spinta.backends import Backend, Action
+from spinta.backends import Backend, check_model_properties, check_type_value
 from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize, dump
-from spinta.components import Context, Manifest, Model, Property
+from spinta.components import Context, Manifest, Model, Property, Action
 from spinta.config import RawConfig
-from spinta.types import NA
+from spinta.common import NA
 from spinta.types.type import Type, File
 from spinta.exceptions import MultipleRowsException, NoResultsException
 
@@ -219,12 +219,18 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, type: File):
-    if type.prop.backend == backend.name:
+    if type.prop.backend.name == backend.name:
         return sa.Column(type.prop.name, sa.LargeBinary)
     else:
         # If file property has a different backend, then here we just need to
         # save file name of file stored externally.
         return sa.Column(type.prop.name, sa.Text)
+
+
+@check.register()
+def check(context: Context, type: File, prop: Property, backend: PostgreSQL, value: str, *, data: dict, action: Action):
+    if prop.backend.name != backend.name:
+        check(context, type, prop, prop.backend, value, data=data, action=action)
 
 
 def _get_foreign_key(backend: PostgreSQL, model: Model, prop: Property):
@@ -260,27 +266,29 @@ def migrate(context: Context, backend: PostgreSQL):
 
 
 @check.register()
-def check(context: Context, model: Model, backend: PostgreSQL, data: dict):
+def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action):
+    check_model_properties(context, model, backend, data, action)
+
+
+@check.register()
+def check(context: Context, type: Type, prop: Property, backend: PostgreSQL, value: object, *, data: dict, action: Action):
+    check_type_value(type, value)
+
     connection = context.get('transaction').connection
-    table = backend.tables[model.manifest.name][model.name].main
-    action = 'update' if 'id' in data else 'insert'
+    table = backend.tables[prop.manifest.name][prop.model.name].main
 
-    for name, prop in model.properties.items():
-        if prop.required and name not in data:
-            raise Exception(f"{name!r} is required for {model}.")
-
-        if prop.unique and prop.name in data:
-            if action == 'update':
-                condition = sa.and_(
-                    table.c[prop.name] == data[prop.name],
-                    table.c['id'] != data['id'],
-                )
-            else:
-                condition = table.c[prop.name] == data[prop.name]
-            na = object()
-            result = backend.get(connection, table.c[prop.name], condition, default=na)
-            if result is not na:
-                raise Exception(f"{name!r} is unique for {model} and a duplicate value is found in database.")
+    if type.unique and value is not NA:
+        if action == Action.UPDATE:
+            condition = sa.and_(
+                table.c[prop.name] == value,
+                table.c['id'] != data['id'],
+            )
+        else:
+            condition = table.c[prop.name] == value
+        not_found = object()
+        result = backend.get(connection, table.c[prop.name], condition, default=not_found)
+        if result is not not_found:
+            raise Exception(f"{prop.name!r} is unique for {prop.model.name!r} and a duplicate value is found in database.")
 
 
 @push.register()
@@ -289,7 +297,7 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
 
     # load and check if data is a valid for it's model
     data = load(context, model, data)
-    check(context, model, data)
+    check(context, model, backend, data, action=action)
     data = prepare(context, model, data)
 
     transaction = context.get('transaction')
