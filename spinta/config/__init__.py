@@ -135,7 +135,7 @@ CONFIG = {
                     'db': 'splat',
                 },
                 'fs': {
-                    'backend': 'spinta.backends.fs.FileSystem',
+                    'backend': 'spinta.backends.fs:FileSystem',
                     'path': pathlib.Path() / 'var/files',
                 },
             },
