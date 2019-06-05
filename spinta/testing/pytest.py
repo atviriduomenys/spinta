@@ -51,9 +51,10 @@ def mongo(config):
 
 
 @pytest.fixture
-def context(mocker, config, postgresql, mongo):
+def context(mocker, tmpdir, config, postgresql, mongo):
     mocker.patch.dict(os.environ, {
         'AUTHLIB_INSECURE_TRANSPORT': '1',
+        'SPINTA_BACKENDS_FS_PATH': str(tmpdir),
     })
 
     Context = config.get('components', 'core', 'context', cast=importstr)

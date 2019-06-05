@@ -27,9 +27,13 @@ def load():
 
         load(Context, Command, dict, *, scope=None) -> Command
 
-    - Load pimitive data types to python-native objects:
+    - Load primitive data types to python-native objects:
 
         load(Context, X, Node, Backend) -> Y
+
+    - Load data from request:
+
+        load(Context, Property, Request)
 
     """
 
@@ -46,7 +50,14 @@ def wait():
 
 @command()
 def dump():
-    """Dump python-native objects to primitive data structures."""
+    """Dump python-native objects to primitive data structures.
+
+
+    - Dump backend-native values to primitive data structures.
+
+        dump(Context, Backend, Type, object)
+
+    """
 
 
 @command()
@@ -56,7 +67,38 @@ def check():
 
 @command()
 def prepare():
-    """Prepare value."""
+    """Prepare value.
+
+    - Prepare database backend:
+
+        prepare(Context, Store)
+        prepare(Context, Manifest)
+        prepare(Context, Backend, Manifest)
+        prepare(Context, Backend, Node)
+        prepare(Context, Backend, Type)
+
+      Here, sqlalchemy.MetaData object is populated with tables and columns.
+
+    - Build UrlParams from Request:
+
+        prepare(Context, UrlParams, Version, Request) -> UrlParams
+
+    - Convert Python-native values backend-native values:
+
+        prepare(Context, Model, dict) -> dict
+        prepare(Context, Property, Backend, object) -> object
+        prepare(Context, Type, Backend, object) -> object
+
+    - Convert backend-native values to Python-native values:
+
+        # FIXME: probably this should be replaced with `dump`.
+        prepare(Context, Action, Model, Backend, object) -> dict
+
+    - Prepare external dataset for data import:
+
+        prepare(Context, Source, Node)
+
+    """
 
 
 @command()
@@ -74,6 +116,7 @@ def push():
     """Insert, update or delete data to the databse."""
 
 
+# FIXME: `get` should be renamed to `getone`.
 @command()
 def get():
     """Get single record from the databse."""

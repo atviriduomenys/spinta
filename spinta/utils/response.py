@@ -10,6 +10,7 @@ import pkg_resources as pres
 from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from starlette.responses import StreamingResponse
+from starlette.responses import FileResponse
 from starlette.templating import Jinja2Templates
 from starlette.requests import Request
 
@@ -20,7 +21,8 @@ from spinta.utils.tree import build_path_tree
 from spinta.utils.url import build_url_path
 from spinta.utils.url import parse_url_path
 from spinta.exceptions import NotFound
-from spinta.components import Context
+from spinta.components import Context, Attachment
+from spinta.backends import Action
 
 
 async def create_http_response(context, params, request):
@@ -102,32 +104,66 @@ async def create_http_response(context, params, request):
 
         if request.method == 'POST':
             context.bind('transaction', manifest.backend.transaction, write=True)
-
-            # only `application/json` is supported
-            ct = request.headers.get('content-type')
-            if ct != 'application/json':
-                raise HTTPException(
-                    status_code=415,
-                    detail="only 'application/json' content-type is supported",
-                )
-
-            # make sure json is valid
-            try:
-                data = await request.json()
-            except json.decoder.JSONDecodeError:
-                raise HTTPException(
-                    status_code=400,
-                    detail="not a valid json",
-                )
-
-            if 'revision' in data.keys():
-                raise HTTPException(
-                    status_code=400,
-                    detail="cannot create 'revision'",
-                )
-
-            data = commands.push(context, model, model.backend, data, action='insert')
+            data = await get_request_data(request)
+            data = commands.push(context, model, model.backend, data, action=Action.INSERT)
             return JSONResponse(data, status_code=201)
+
+        elif request.method == 'PUT':
+            context.bind('transaction', manifest.backend.transaction, write=True)
+            if params.properties:
+                prop = get_prop_from_params(model, params)
+                # FIXME: attachment is a FileSystem backend specific thing and
+                #        should not be here.
+                #
+                #        Probably push command should take request and do all
+                #        the needed processing, because some actions use
+                #        information in headers, they need to return streaming
+                #        responces, consume streaming inputs. So there is no
+                #        other way, but to give more control to commands like
+                #        push, getone, getall and etc.
+                #
+                #        [give_request_to_push]
+                attachment = await commands.load(context, prop, prop.backend, request)
+                data = {
+                    'id': params.id['value'],
+                    prop.name: attachment.filename,
+                    'content_type': attachment.content_type,
+                }
+                data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
+                commands.push(context, prop, prop.backend, attachment, action=Action.UPDATE)
+                return JSONResponse(data, status_code=200)
+            else:
+                raise NotImplementedError("PUT is not supported.")
+
+        elif request.method == 'DELETE':
+            context.bind('transaction', manifest.backend.transaction, write=True)
+            if params.properties:
+                prop = get_prop_from_params(model, params)
+
+                data = commands.get(context, model, model.backend, _params['id']['value'])
+                # FIXME: see [give_request_to_push]
+                attachment = Attachment(
+                    # FIXME: content_type is hardcoded here, but it should be
+                    #        configured in property node as an parameter with
+                    #        default value 'content_type'.
+                    #
+                    #        [fs_content_type_param]
+                    content_type=data['content_type'],
+                    filename=data[prop.name],
+                    data=None,
+                )
+
+                data = {
+                    'id': params.id['value'],
+                    prop.name: None,
+                    'content_type': None,
+                }
+                data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
+
+                commands.push(context, prop, prop.backend, attachment, action=Action.DELETE)
+                return JSONResponse({'id': params.id['value']}, status_code=200)
+            else:
+                raise NotImplementedError("DELETE is not supported.")
 
         context.set('transaction', manifest.backend.transaction())
 
@@ -142,8 +178,16 @@ async def create_http_response(context, params, request):
             rows = peek_and_stream(rows)
 
         elif params.id:
-            rows = [commands.get(context, model, model.backend, _params['id']['value'])]
-            _params['wrap'] = False
+            if params.properties:
+                data = commands.get(context, model, model.backend, _params['id']['value'])
+                prop = get_prop_from_params(model, params)
+                if data.get(prop.name) is None:
+                    raise HTTPException(status_code=404, detail=f"File {prop.name!r} not found in {params.id['value']!r}.")
+                return FileResponse(prop.backend.path / data[prop.name], media_type=data['content_type'])
+
+            else:
+                rows = [commands.get(context, model, model.backend, _params['id']['value'])]
+                _params['wrap'] = False
 
         else:
             rows = commands.getall(
@@ -475,3 +519,40 @@ def peek_and_stream(stream):
 async def aiter(stream):
     for data in stream:
         yield data
+
+
+async def get_request_data(request):
+    ct = request.headers.get('content-type')
+    if ct != 'application/json':
+        raise HTTPException(
+            status_code=415,
+            detail="only 'application/json' content-type is supported",
+        )
+
+    try:
+        data = await request.json()
+    except json.decoder.JSONDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="not a valid json",
+        )
+
+    if 'revision' in data.keys():
+        raise HTTPException(
+            status_code=400,
+            detail="cannot create 'revision'",
+        )
+
+    return data
+
+
+def get_prop_from_params(model, params):
+    if len(params.properties) != 1:
+        raise HTTPException(status_code=400, detail=(
+            "only one property can be given, now "
+            "these properties were given: "
+        ) % ', '.join(map(repr, params.properties)))
+    prop = params.properties[0]
+    if prop not in model.properties:
+        raise HTTPException(status_code=404, detail=f"Unknown property {prop}.")
+    return model.properties[prop]

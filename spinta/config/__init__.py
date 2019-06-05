@@ -134,6 +134,10 @@ CONFIG = {
                     'dsn': 'mongodb://admin:admin123@localhost:27017/',
                     'db': 'splat',
                 },
+                'fs': {
+                    'backend': 'spinta.backends.fs:FileSystem',
+                    'path': pathlib.Path() / 'var/files',
+                },
             },
             'manifests': {
                 'default': {
@@ -153,6 +157,9 @@ CONFIG = {
                     'backend': 'spinta.backends.mongo:Mongo',
                     'dsn': 'mongodb://admin:admin123@localhost:27017/',
                     'db': 'spinta_tests',
+                },
+                'fs': {
+                    'backend': 'spinta.backends.fs:FileSystem',
                 },
             },
             'manifests': {

@@ -1,5 +1,4 @@
 import contextlib
-import copy
 import typing
 
 from datetime import date, datetime
@@ -7,8 +6,8 @@ from datetime import date, datetime
 import pymongo
 from bson.objectid import ObjectId
 
-from spinta.backends import Backend
-from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize
+from spinta.backends import Backend, Action
+from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize, dump
 from spinta.components import Context, Manifest, Model
 from spinta.config import RawConfig
 from spinta.types.type import Date
@@ -110,43 +109,32 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     transaction = context.get('transaction')
     model_collection = backend.db[model.get_type_value()]
 
-
-    # Make a copy of data, because `pymongo` changes the reference `data`
-    # object on `insert_one()` call.
-    #
-    # We want to have our data intact from whatever specific mongo metadata
-    # MongoDB may add to our object.
-    raw_data = copy.deepcopy(data)
-
     # FIXME: before creating revision check if there's not collision clash
     revision_id = get_new_id('revision id')
-    raw_data['revision'] = revision_id
+    data['revision'] = revision_id
 
     if 'id' in data:
         result = model_collection.update_one(
-            {'_id': ObjectId(raw_data['id'])},
-            {'$set': raw_data}
+            {'_id': ObjectId(data['id'])},
+            {'$set': data}
         )
         assert result.matched_count == 1 and result.modified_count == 1
         data_id = data['id']
     else:
-        data_id = model_collection.insert_one(raw_data).inserted_id
+        data_id = model_collection.insert_one(data).inserted_id
 
     # parse `ObjectId` to string and add it to our object
-    raw_data['id'] = str(data_id)
+    data['_id'] = str(data_id)
 
-    return prepare(context, action, model, backend, raw_data)
+    return prepare(context, action, model, backend, data)
 
 
 @get.register()
 def get(context: Context, model: Model, backend: Mongo, id: str):
-    authorize(context, 'getone', model)
-
-    transaction = context.get('transaction')
+    authorize(context, Action.GETONE, model)
     model_collection = backend.db[model.get_type_value()]
     row = model_collection.find_one({"_id": ObjectId(id)})
-
-    return prepare(context, 'getone', model, backend, row)
+    return prepare(context, Action.GETONE, model, backend, row)
 
 
 
@@ -163,9 +151,8 @@ def getall(
     if query_params is None:
         query_params = []
 
-    authorize(context, 'getall', model)
+    authorize(context, Action.GETALL, model)
 
-    transaction = context.get('transaction')
     # Yield all available entries.
     model_collection = backend.db[model.get_type_value()]
 
@@ -183,12 +170,12 @@ def getall(
         search_query[operator] = search_expressions
 
     for row in model_collection.find(search_query):
-        yield prepare(context, 'getall', model, backend, row)
+        yield prepare(context, Action.GETALL, model, backend, row)
 
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: Mongo):
-    authorize(context, 'wipe', model)
+    authorize(context, Action.WIPE, model)
 
     transaction = context.get('transaction')
     # Delete all data for a given model
@@ -203,26 +190,14 @@ def prepare(context: Context, type: Date, backend: Mongo, value: date) -> dateti
 
 
 @prepare.register()
-def prepare(context: Context, action: str, model: Model, backend: Mongo, value: dict) -> dict:
-    if action in ('getall', 'getone'):
-        # Mongo returns ID under, key `_id`, but to conform to the interface
-        # we must change `_id` to `id`
-        #
-        # TODO: this must be fixed/implemented in the spinta/types/store.py::get()
-        # just like it's done on spinta/types/store.py::push()
-        id = str(value.pop('_id'))
-
-        # delete empty type value as we will add it later
-        if 'type' in value and value['type'] is None:
-            del value['type']
-
-        return {
-            'type': model.name,
-            'id': id,
-            **value,
-        }
-    elif action in ('insert', 'update'):
-        return {
-            'type': model.name,
-            'id': value['id']
-        }
+def prepare(context: Context, action: Action, model: Model, backend: Mongo, value: dict) -> dict:
+    if action in (Action.GETALL, Action.GETONE, Action.INSERT, Action.UPDATE):
+        result = {}
+        for prop in model.properties.values():
+            # TODO: `prepare` should be called for each property.
+            result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
+        result['type'] = model.get_type_value()
+        result['id'] = str(value['_id'])
+        return result
+    else:
+        raise Exception(f"Unknown action {action}.")

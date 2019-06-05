@@ -12,6 +12,7 @@ from spinta.utils.imports import importstr
 from spinta.config import RawConfig
 from spinta.exceptions import NotFound
 from spinta.utils.url import parse_url_path
+from spinta.backends import Action
 
 
 @load.register()
@@ -94,16 +95,17 @@ def push(context: Context, store: Store, stream: types.GeneratorType):
         check(context, model, model.backend, data)
 
         if 'id' in data:
-            action = 'update'
+            action = Action.UPDATE
         else:
-            action = 'insert'
+            action = Action.INSERT
         pushed_data = push(context, model, model.backend, data, action=action)
         if pushed_data is not None:
-            yield client_supplied_ids.update(client_id, {
-                **data,
+            a = client_supplied_ids.update(client_id, {
+                **pushed_data,
                 'type': model_name,
                 'id': pushed_data['id'],
             })
+            yield a
 
 
 @push.register()

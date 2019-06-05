@@ -14,6 +14,7 @@ def test_mongo_insert_get(context):
     assert result == {
         'report': {
             'id': result['report']['id'],
+            'revision': result['report']['revision'],
             'status': '42',
             'notes': [],
             'count': None,
@@ -60,6 +61,7 @@ def test_mongo_update_get(context):
     assert update_result == {
         'report': {
             'id': update_result['report']['id'],
+            'revision': update_result['report']['revision'],
             'status': '13',
             'notes': [],
             'count': None,

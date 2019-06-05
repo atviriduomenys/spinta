@@ -24,7 +24,6 @@ def test_report(app):
     resp = app.get(f'/reports/{id}')
     assert resp.status_code == 200
 
-    # FIXME: should return date/datetime strings instead of unix timestamps?
     data = resp.json()
     assert data == {
         'id': id,
@@ -33,12 +32,12 @@ def test_report(app):
         'report_type': 'simple',
         'status': 'valid',
         'count': 42,
-        'valid_from_date': 1555718400,
-        'update_time': 1555730055,
+        'valid_from_date': '2019-04-20',
+        'update_time': '2019-04-20T03:14:15',
         'notes': [{
             'note': 'hello report',
             'note_type': 'test',
-            'create_date': 1555718400,
+            'create_date': '2019-04-20',
         }]
     }
 

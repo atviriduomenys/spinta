@@ -13,6 +13,7 @@ from spinta.types.type import load_type
 from spinta.auth import check_generated_scopes
 from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema, load_from_schema
+from spinta.backends import Action
 
 
 class Dataset(Node):
@@ -367,8 +368,8 @@ def _get_value_from_source(context: Context, prop: Property, source, data: dict,
 
 
 @authorize.register()
-def authorize(context: Context, action: str, model: Model, *, data=None):
-    check_generated_scopes(context, model.get_type_value(), action, data=data)
+def authorize(context: Context, action: Action, model: Model, *, data=None):
+    check_generated_scopes(context, model.get_type_value(), action.value, spinta_action=action, data=data)
 
 
 @error.register()

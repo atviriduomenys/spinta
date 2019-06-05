@@ -1,0 +1,105 @@
+@startuml
+
+object Store {
+    +manifests: Dict[Manifest.name, Manifest]
+    +backends: Dict[Backend.name, Backend]
+}
+
+object Manifest {
+    +objects: Dict[Node.type, Dict[Node.name, Node]]
+    +backend: Backend
+}
+
+object Backend {
+    +type: str
+    +name: str
+}
+
+object Node {
+    +type: str
+    +name: str
+    +parent: Node
+    +backend: Backend
+}
+
+object Type {
+    +type: str
+    +name: str
+}
+
+package types <<Rectangle>> {
+
+    object Object {
+        +properties: Dict[Node.name, Node]
+    }
+
+    object Array {
+        +items: Node
+    }
+
+}
+
+package backends <<Rectangle>> {
+    object PostgreSQL
+    object Mongo
+    object FileSystem
+}
+
+package nodes <<Rectangle>> {
+
+    package models <<Rectangle>> {
+
+        object Model {
+            +properties: Dict[Property.name, Property]
+        }
+
+        object Property {
+            +type: Type
+        }
+
+    }
+
+    package datasets <<Rectangle>> {
+
+        object Dataset {
+            +resources: Dict[Resource.name, Resource]
+        }
+
+        object Resource {
+            +objects: Dict[Model.name, Model]
+        }
+
+        object datasets.Model {
+            +properties: Dict[Property.name, Property]
+        }
+
+        object datasets.Property {
+            +type: Type
+        }
+
+    }
+
+}
+
+Type <|-- types
+Node <|-- nodes
+Backend <|-- backends
+
+Node *-- Node
+Node *-- Object
+Node *-- Array
+
+Store *-- Backend
+Manifest *-- Backend
+Node *-- Backend
+Manifest *-- Node
+Store *-- Manifest
+Model *-- Property
+Property *-- Type
+
+Dataset *-- Resource
+Resource *-- datasets.Model
+datasets.Model *-- datasets.Property
+datasets.Property *-- Type
+
+@enduml

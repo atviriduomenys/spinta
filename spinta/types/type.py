@@ -7,6 +7,7 @@ from spinta.components import Context, Manifest, Node
 from spinta.exceptions import DataError
 from spinta.utils.schema import resolve_schema
 from spinta.utils.errors import format_error
+from spinta.common import NA
 
 
 class Type:
@@ -34,8 +35,8 @@ class Type:
 class PrimaryKey(Type):
 
     def load(self, value: typing.Any):
-        if value is None:
-            return None
+        if value is None or value is NA:
+            return value
 
         return str(value)
 
@@ -47,8 +48,8 @@ class PrimaryKey(Type):
 class Date(Type):
 
     def load(self, value: typing.Any):
-        if value is None:
-            return None
+        if value is None or value is NA:
+            return value
 
         try:
             return date.fromisoformat(value)
@@ -63,8 +64,8 @@ class Date(Type):
 class DateTime(Type):
 
     def load(self, value: typing.Any):
-        if value is None:
-            return None
+        if value is None or value is NA:
+            return value
 
         try:
             return datetime.fromisoformat(value)
@@ -82,8 +83,8 @@ class String(Type):
     }
 
     def load(self, value: typing.Any):
-        if value is None:
-            return None
+        if value is None or value is NA:
+            return value
 
         return str(value)
 
@@ -95,8 +96,8 @@ class String(Type):
 class Integer(Type):
 
     def load(self, value: typing.Any):
-        if value is None:
-            return None
+        if value is None or value is NA:
+            return value
 
         try:
             return int(value)
@@ -164,21 +165,18 @@ class Array(Type):
     }
 
     def load(self, value: typing.Any):
-        if value is None:
+        if value is None or value is NA:
             return []
 
         if isinstance(value, list):
             # if value is list - return it
-            return value
+            return list(value)
         else:
             raise DataError(f'Invalid array type: {type(value)}')
 
     def is_valid(self, value: list):
         # TODO: implement `array` validation
         return True
-
-    def prepare_for_mongo(self, value: list) -> list:
-        return value
 
 
 class Object(Type):
@@ -187,11 +185,11 @@ class Object(Type):
     }
 
     def load(self, value: typing.Any):
-        if value is None:
+        if value is None or value is NA:
             return {}
 
         if isinstance(value, dict):
-            return value
+            return dict(value)
         else:
             raise DataError(f'Invalid object type: {type(value)}')
 
@@ -201,7 +199,17 @@ class Object(Type):
 
 
 class File(Type):
-    pass
+
+    def load(self, value: typing.Any):
+        if value is None:
+            return None
+        return value
+
+    def is_valid(self, value):
+        if value is None or value is NA:
+            return True
+        else:
+            return isinstance(value, (str, bytes))
 
 
 @load.register()

@@ -21,6 +21,9 @@ def test_app(app):
             ('deeply', '/deeply'),
             ('nested', '/nested'),
             ('org', '/org'),
+            ('photo', '/photo'),
+            # FIXME: /report should be /reports, because that is specified in
+            #        'endpoint' option of report model.
             ('report', '/report'),
             ('rinkimai', '/rinkimai'),
             ('tenure', '/tenure'),
@@ -440,14 +443,19 @@ def test_post(context, app):
     })
     assert resp.status_code == 201
     data = resp.json()
-    assert data == {'id': data['id'], 'type': 'country'}
+    id_ = data['id']
+    assert data == {
+        'id': id_,
+        'type': 'country',
+        'code': 'er',
+        'title': 'Earth',
+    }
 
-    id = data['id']
-    resp = app.get(f'/country/{id}')
+    resp = app.get(f'/country/{id_}')
     assert resp.status_code == 200
     assert resp.json() == {
         'type': 'country',
-        'id': id,
+        'id': id_,
         'code': 'er',
         'title': 'Earth',
     }

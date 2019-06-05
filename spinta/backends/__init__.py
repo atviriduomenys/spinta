@@ -1,8 +1,23 @@
 import contextlib
+import enum
+import datetime
 
-from spinta.types.type import Array, Object, Type
-from spinta.components import Context, Model
-from spinta.commands import error, prepare
+from spinta.types.type import Array, Object, Type, DateTime, Date, Object, Array
+from spinta.components import Context, Model, Property
+from spinta.commands import error, prepare, dump
+
+
+class Action(enum.Enum):
+    INSERT = 'insert'
+    UPDATE = 'update'
+    DELETE = 'delete'
+
+    WIPE = 'wipe'
+
+    GETONE = 'getone'
+    GETALL = 'getall'
+
+    CHANGES = 'changes'
 
 
 class Backend:
@@ -41,6 +56,11 @@ def prepare(context: Context, type: Object, backend: Backend, value: dict) -> di
     return new_loaded_obj
 
 
+@prepare.register()
+def prepare(context: Context, backend: Backend, prop: Property):
+    return prepare(context, backend, prop.type)
+
+
 @error.register()
 def error(exc: Exception, context: Context, backend: Backend, type: Type, **kwargs):
     error(exc, context, type)
@@ -49,3 +69,34 @@ def error(exc: Exception, context: Context, backend: Backend, type: Type, **kwar
 @error.register()
 def error(exc: Exception, context: Context, model: Model, backend: Backend, **kwargs):
     error(exc, context, model)
+
+
+@dump.register()
+def dump(context: Context, backend: Backend, type: Type, value: object):
+    return value
+
+
+@dump.register()
+def dump(context: Context, backend: Backend, type: DateTime, value: datetime.datetime):
+    return value.isoformat()
+
+
+@dump.register()
+def dump(context: Context, backend: Backend, type: Date, value: datetime.date):
+    if isinstance(value, datetime.datetime):
+        return value.date().isoformat()
+    else:
+        return value.isoformat()
+
+
+@dump.register()
+def dump(context: Context, backend: Backend, type: Object, value: dict):
+    return {
+        prop.name: dump(context, backend, prop.type, value.get(prop.name))
+        for prop in type.properties.values()
+    }
+
+
+@dump.register()
+def dump(context: Context, backend: Backend, type: Array, value: list):
+    return [dump(context, backend, type.items.type, v) for v in value]
