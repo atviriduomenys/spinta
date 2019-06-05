@@ -2,6 +2,7 @@ def test_crud(app):
     app.authorize([
         'spinta_photo_insert',
         'spinta_photo_update',
+        'spinta_photo_delete',
         'spinta_photo_getone',
     ])
 
@@ -39,4 +40,12 @@ def test_crud(app):
     assert resp.status_code == 404
 
     resp = app.get(f'/photos/{id}')
-    assert resp.json() == {}
+    assert resp.json() == {
+        'content_type': None,
+        'id': id,
+        'image': None,
+        'name': 'myphoto',
+        # FIXME: revision should not be None.
+        'revision': None,
+        'type': 'photo',
+    }

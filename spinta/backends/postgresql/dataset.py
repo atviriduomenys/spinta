@@ -9,12 +9,12 @@ from spinta.commands import prepare, check, push, get, getall, changes, wipe, au
 from spinta.components import Context
 from spinta.types.dataset import Model
 
+from spinta.backends import Action
 from spinta.backends.postgresql import PostgreSQL
 from spinta.backends.postgresql import utcnow
 from spinta.backends.postgresql import get_table_name
 from spinta.backends.postgresql import get_changes_table
 from spinta.backends.postgresql import MAIN_TABLE, CHANGES_TABLE
-from spinta.backends.postgresql import INSERT_ACTION, UPDATE_ACTION
 from spinta.backends.postgresql import ModelTables
 from spinta.utils.refs import get_ref_id
 
@@ -67,7 +67,7 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
 
     # Insert.
     if row is None:
-        action = INSERT_ACTION
+        action = Action.INSERT
         result = connection.execute(
             table.main.insert().values({
                 'id': key,
@@ -82,7 +82,7 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
         changes = _get_patch_changes(row[table.main.c.data], data)
 
         if changes:
-            action = UPDATE_ACTION
+            action = Action.UPDATE
             result = connection.execute(
                 table.main.update().
                 where(table.main.c.id == key).
@@ -112,16 +112,16 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
             transaction_id=transaction.id,
             id=key,
             datetime=utcnow(),
-            action=action,
+            action=action.value,
             change=changes,
         ),
     )
 
     # Sanity check, is primary key was really what we tell it to be?
-    assert action != INSERT_ACTION or result.inserted_primary_key[0] == key, f'{result.inserted_primary_key[0]} == {key}'
+    assert action != Action.INSERT or result.inserted_primary_key[0] == key, f'{result.inserted_primary_key[0]} == {key}'
 
     # Sanity check, do we really updated just one row?
-    assert action != UPDATE_ACTION or result.rowcount == 1, result.rowcount
+    assert action != Action.UPDATE or result.rowcount == 1, result.rowcount
 
     return {'id': key}
 
@@ -138,7 +138,7 @@ def _serialize(value):
 
 @get.register()
 def get(context: Context, model: Model, backend: PostgreSQL, id: str):
-    authorize(context, 'getone', model)
+    authorize(context, Action.GETONE, model)
 
     connection = context.get('transaction').connection
     table = _get_table(backend, model).main
@@ -217,7 +217,7 @@ def getall(
     if query_params is None:
         query_params = []
 
-    authorize(context, 'getall', model)
+    authorize(context, Action.GETALL, model)
 
     connection = context.get('transaction').connection
     table = _get_table(backend, model).main
@@ -282,7 +282,7 @@ def _getall_limit(query, limit):
 
 @changes.register()
 def changes(context: Context, model: Model, backend: PostgreSQL, *, id=None, offset=None, limit=None):
-    authorize(context, 'changes', model)
+    authorize(context, Action.CHANGES, model)
 
     connection = context.get('transaction').connection
     table = _get_table(backend, model).changes
@@ -337,7 +337,7 @@ def _changes_limit(query, limit):
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: PostgreSQL):
-    authorize(context, 'wipe', model)
+    authorize(context, Action.WIPE, model)
 
     connection = context.get('transaction').connection
     table = _get_table(backend, model)

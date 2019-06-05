@@ -7,6 +7,7 @@ from spinta.types.type import Type, load_type
 from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema
 from spinta.common import NA
+from spinta.backends import Action
 
 
 @load.register()
@@ -58,13 +59,14 @@ def load(context: Context, model: Model, data: dict) -> dict:
     if unknown_params:
         raise DataError("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
 
+    result = {}
     for name, prop in model.properties.items():
         # if private model property is not in data - ignore it's loading
         if name in ('id', 'revision', 'type') and name not in data:
             continue
-        data_value = data.get(name, NA)
-        data[name] = load(context, prop.type, data_value)
-    return data
+        value = data.get(name, NA)
+        result[name] = load(context, prop.type, value)
+    return result
 
 
 @check.register()
@@ -141,5 +143,5 @@ def error(exc: Exception, context: Context, prop: Property, data: dict, manifest
 
 
 @authorize.register()
-def authorize(context: Context, action: str, model: Model, *, data=None):
-    check_generated_scopes(context, model.get_type_value(), action, data=data)
+def authorize(context: Context, action: Action, model: Model, *, data=None):
+    check_generated_scopes(context, model.get_type_value(), action.value, spinta_action=action, data=data)

@@ -12,8 +12,8 @@ from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
-from spinta.backends import Backend
-from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize
+from spinta.backends import Backend, Action
+from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize, dump
 from spinta.components import Context, Manifest, Model, Property
 from spinta.config import RawConfig
 from spinta.types import NA
@@ -31,11 +31,6 @@ PG_CLEAN_NAME_RE = re.compile(r'[^a-z0-9]+', re.IGNORECASE)
 MAIN_TABLE = 'M'
 CHANGES_TABLE = 'C'
 CACHE_TABLE = 'T'
-
-# Change actions
-INSERT_ACTION = 'insert'
-UPDATE_ACTION = 'update'
-DELETE_ACTION = 'delete'
 
 
 class PostgreSQL(Backend):
@@ -154,7 +149,7 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     columns = []
     for prop in model.properties.values():
-        column = prepare(context, prop.backend, prop)
+        column = prepare(context, backend, prop)
         if isinstance(column, list):
             columns.extend(column)
         elif column is not None:
@@ -177,6 +172,13 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, type: Type):
+    if type.prop.backend.name != backend.name:
+        # If property backend differs from modle backend, then no columns should
+        # be added to the table. If some property types requires adding column
+        # even for a property with different backend, then this type must
+        # implement prepare command add do custom logic there.
+        return
+
     if type.prop.name == 'id':
         if type.name == 'integer':
             return sa.Column(type.prop.name, BIGINT, primary_key=True)
@@ -216,9 +218,13 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
 
 
 @prepare.register()
-def prepare(context: Context, backend: Backend, type: File, model_backend: PostgreSQL):
-    # Store file name reference if file field is stored in another backend.
-    return sa.Column(type.prop.name, sa.Text)
+def prepare(context: Context, backend: PostgreSQL, type: File):
+    if type.prop.backend == backend.name:
+        return sa.Column(type.prop.name, sa.LargeBinary)
+    else:
+        # If file property has a different backend, then here we just need to
+        # save file name of file stored externally.
+        return sa.Column(type.prop.name, sa.Text)
 
 
 def _get_foreign_key(backend: PostgreSQL, model: Model, prop: Property):
@@ -278,7 +284,7 @@ def check(context: Context, model: Model, backend: PostgreSQL, data: dict):
 
 
 @push.register()
-def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: str):
+def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action):
     authorize(context, action, model, data=data)
 
     # load and check if data is a valid for it's model
@@ -294,13 +300,13 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
         k: v for k, v in data.items() if k in table.main.columns
     }
 
-    if action == INSERT_ACTION:
+    if action == Action.INSERT:
         result = connection.execute(
             table.main.insert().values(data),
         )
         row_id = result.inserted_primary_key[0]
 
-    elif action == UPDATE_ACTION:
+    elif action == Action.UPDATE:
         data['id'] = int(data['id'])
         result = connection.execute(
             table.main.update().
@@ -314,7 +320,7 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
         else:
             raise Exception("Update failed, {self.obj} with {data['id']} has found and update {result.rowcount} rows.")
 
-    elif action == DELETE_ACTION:
+    elif action == Action.DELETE:
         raise NotImplementedError
 
     else:
@@ -326,21 +332,21 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
             transaction_id=transaction.id,
             id=row_id,
             datetime=utcnow(),
-            action=action,
+            action=action.value,
             change={k: v for k, v in data.items() if k not in {'id'}},
         ),
     )
 
-    return prepare(context, action, model, backend, {'id': str(row_id)})
+    return prepare(context, action, model, backend, {**data, 'id': str(row_id)})
 
 
 @get.register()
 def get(context: Context, model: Model, backend: PostgreSQL, id: str):
-    authorize(context, 'getone', model)
+    authorize(context, Action.GETONE, model)
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = backend.get(connection, table, table.c.id == int(id))
-    return prepare(context, 'getone', model, backend, result)
+    return prepare(context, Action.GETONE, model, backend, result)
 
 
 @getall.register()
@@ -355,17 +361,17 @@ def getall(
     if query_params is None:
         query_params = []
 
-    authorize(context, 'getall', model)
+    authorize(context, Action.GETALL, model)
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = connection.execute(sa.select([table]))
     for row in result:
-        yield prepare(context, 'getall', model, backend, row)
+        yield prepare(context, Action.GETALL, model, backend, row)
 
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: PostgreSQL):
-    authorize(context, 'wipe', model)
+    authorize(context, Action.WIPE, model)
 
     connection = context.get('transaction').connection
 
@@ -428,22 +434,23 @@ def get_changes_table(backend, table_name, id_type):
 
 
 @prepare.register()
-def prepare(context: Context, action: str, model: Model, backend: PostgreSQL, value: RowProxy) -> RowProxy:
-    if action == 'getall':
-        row = {k: v for k, v in value.items() if not k.startswith('_')}
-        row['id'] = str(row['id'])
-        return row
-    elif action == 'getone':
-        result = {k: v for k, v in value.items() if not k.startswith('_')}
-        result['type'] = model.name
-        result['id'] = str(result['id'])
-        return result
+def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy) -> dict:
+    return _backend_to_python(context, backend, action, model, dict(value))
 
 
 @prepare.register()
-def prepare(context: Context, action: str, model: Model, backend: PostgreSQL, value: dict) -> object:
-    if action in ('insert', 'update'):
-        return {
-            'type': model.name,
-            'id': value['id']
-        }
+def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: dict) -> dict:
+    return _backend_to_python(context, backend, action, model, value)
+
+
+def _backend_to_python(context: Context, backend: PostgreSQL, action: Action, model: Model, value):
+    if action in (Action.GETALL, Action.GETONE, Action.INSERT, Action.UPDATE):
+        result = {}
+        for prop in model.properties.values():
+            # TODO: `prepare` should be called for each property.
+            result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
+        result['type'] = model.get_type_value()
+        result['id'] = str(value['id'])
+        return result
+    else:
+        raise Exception(f"Unknown action {action}.")

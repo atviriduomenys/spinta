@@ -50,7 +50,14 @@ def wait():
 
 @command()
 def dump():
-    """Dump python-native objects to primitive data structures."""
+    """Dump python-native objects to primitive data structures.
+
+
+    - Dump backend-native values to primitive data structures.
+
+        dump(Context, Backend, Type, object)
+
+    """
 
 
 @command()
@@ -64,14 +71,32 @@ def prepare():
 
     - Prepare database backend:
 
+        prepare(Context, Store)
+        prepare(Context, Manifest)
+        prepare(Context, Backend, Manifest)
         prepare(Context, Backend, Node)
         prepare(Context, Backend, Type)
 
-    - Prepare database backend when model and property types differ:
+      Here, sqlalchemy.MetaData object is populated with tables and columns.
 
-        prepare(Context, Backend, Type, Backend)
+    - Build UrlParams from Request:
 
-      here, first is a property backend and last a model backend.
+        prepare(Context, UrlParams, Version, Request) -> UrlParams
+
+    - Convert Python-native values backend-native values:
+
+        prepare(Context, Model, dict) -> dict
+        prepare(Context, Property, Backend, object) -> object
+        prepare(Context, Type, Backend, object) -> object
+
+    - Convert backend-native values to Python-native values:
+
+        prepare(Context, Action, Model, Backend, object) -> dict
+        dump(Context, Backend, Type, object) -> object
+
+    - Prepare external dataset for data import:
+
+        prepare(Context, Source, Node)
 
     """
 
@@ -91,6 +116,7 @@ def push():
     """Insert, update or delete data to the databse."""
 
 
+# FIXME: `get` should be renamed to `getone`.
 @command()
 def get():
     """Get single record from the databse."""

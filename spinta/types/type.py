@@ -165,12 +165,12 @@ class Array(Type):
     }
 
     def load(self, value: typing.Any):
-        if value is None:
+        if value is None or value is NA:
             return []
 
         if isinstance(value, list):
             # if value is list - return it
-            return value
+            return list(value)
         else:
             raise DataError(f'Invalid array type: {type(value)}')
 
@@ -185,11 +185,11 @@ class Object(Type):
     }
 
     def load(self, value: typing.Any):
-        if value is None:
+        if value is None or value is NA:
             return {}
 
         if isinstance(value, dict):
-            return value
+            return dict(value)
         else:
             raise DataError(f'Invalid object type: {type(value)}')
 

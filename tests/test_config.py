@@ -175,7 +175,7 @@ def test_custom_config():
         'config': [f'{__name__}:_TEST_CONFIG'],
     })
     assert config.get('backends', 'custom', 'dsn') == 'config'
-    assert config.keys('backends') == ['default', 'custom', 'mongo']
+    assert config.keys('backends') == ['default', 'custom', 'mongo', 'fs']
 
 
 def test_yaml_config(tmpdir):
@@ -196,7 +196,7 @@ def test_custom_config_fron_environ():
         'SPINTA_CONFIG': f'{__name__}:_TEST_CONFIG',
     })
     assert config.get('backends', 'custom', 'dsn') == 'config'
-    assert config.keys('backends') == ['default', 'custom', 'mongo']
+    assert config.keys('backends') == ['default', 'custom', 'mongo', 'fs']
 
 
 def test_datasets_params():

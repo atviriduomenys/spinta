@@ -4,7 +4,7 @@ import shutil
 
 from starlette.requests import Request
 
-from spinta.backends import Backend
+from spinta.backends import Backend, Action
 from spinta.commands import load, prepare, migrate, check, push, get, wipe, wait, authorize
 from spinta.components import Context, Manifest, Model, Property, Attachment
 from spinta.config import RawConfig
@@ -56,8 +56,15 @@ async def load(context: Context, prop: Property, backend: FileSystem, request: R
 
 @push.register()
 def push(context: Context, prop: Property, backend: FileSystem, attachment: Attachment, *, action: str):
-    with open(backend.path / attachment.filename, 'wb') as f:
-        f.write(attachment.data)
+    path = backend.path / attachment.filename
+    if action in (Action.INSERT, Action.UPDATE):
+        with open(path, 'wb') as f:
+            f.write(attachment.data)
+    elif action == Action.DELETE:
+        if path.exists():
+            path.unlink()
+    else:
+        raise Exception(f"Unknown action {action!r}.")
 
 
 @get.register()

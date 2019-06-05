@@ -20,6 +20,7 @@ from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from spinta.components import Context
 from spinta.utils import passwords
 from spinta.utils.scopes import name_to_scope
+from spinta.backends import Action
 
 log = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML(typ='safe')
@@ -211,7 +212,7 @@ def query_client(context: Context, client_id: str):
     return client
 
 
-def check_generated_scopes(context: Context, name: str, action: str, *, data: dict = None, spinta_action: str = None):
+def check_generated_scopes(context: Context, name: str, action: str, *, spinta_action: Action, data: dict = None):
     config = context.get('config')
     token = context.get('auth.token')
     prefix = config.scope_prefix
@@ -225,6 +226,5 @@ def check_generated_scopes(context: Context, name: str, action: str, *, data: di
     token.check_scope({action_scope, model_scope}, operator='OR')
 
     # Check if meta fields can be set.
-    spinta_action = spinta_action or action
-    if spinta_action == 'insert' and data and 'id' in data:
+    if spinta_action == Action.INSERT and data and 'id' in data:
         token.check_scope(f'{prefix}set_meta_fields')
