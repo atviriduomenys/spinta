@@ -145,11 +145,7 @@ class Object(Type):
 
 
 class File(Type):
-
-    def is_valid(self, value):
-        super().check(value)
-        if value is not None and value is not NA and not isinstance(value, (str, bytes)):
-            raise DataError(f"Invalid value type: {type(value)}.")
+    pass
 
 
 @load.register()
