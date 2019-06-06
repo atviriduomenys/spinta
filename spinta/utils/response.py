@@ -134,7 +134,7 @@ async def create_http_response(context, params, request):
                 #
                 # So here, first we store a file, which might be stored in a
                 # separate backend. Then we updated model with reference to this
-                # file. Model also checsd if reference is correct and if file
+                # file. Model also checks if reference is correct and if file
                 # really exists.
                 #
                 # TODO: here we assume, that subresource is always stored in a
