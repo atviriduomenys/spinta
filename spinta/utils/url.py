@@ -143,6 +143,55 @@ RULES = {
         'multiple': True,
         'change_name': 'query_params',
     },
+    'gt': {
+        'cast': QueryParams('gt'),
+        'minargs': 2,
+        'maxargs': 2,
+        'multiple': True,
+        'change_name': 'query_params',
+    },
+    'gte': {
+        'cast': QueryParams('gte'),
+        'minargs': 2,
+        'maxargs': 2,
+        'multiple': True,
+        'change_name': 'query_params',
+    },
+    'lt': {
+        'cast': QueryParams('lt'),
+        'minargs': 2,
+        'maxargs': 2,
+        'multiple': True,
+        'change_name': 'query_params',
+    },
+    'lte': {
+        'cast': QueryParams('lte'),
+        'minargs': 2,
+        'maxargs': 2,
+        'multiple': True,
+        'change_name': 'query_params',
+    },
+    'ne': {
+        'cast': QueryParams('ne'),
+        'minargs': 2,
+        'maxargs': 2,
+        'multiple': True,
+        'change_name': 'query_params',
+    },
+    'contains': {
+        'cast': QueryParams('contains'),
+        'minargs': 2,
+        'maxargs': 2,
+        'multiple': True,
+        'change_name': 'query_params',
+    },
+    'startswith': {
+        'cast': QueryParams('startswith'),
+        'minargs': 2,
+        'maxargs': 2,
+        'multiple': True,
+        'change_name': 'query_params',
+    },
 }
 
 

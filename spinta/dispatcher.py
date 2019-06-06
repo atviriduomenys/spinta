@@ -1,4 +1,5 @@
 import inspect
+import pathlib
 
 from multipledispatch.dispatcher import Dispatcher
 
@@ -37,6 +38,24 @@ class Command(Dispatcher):
                 _commands['error'](exc, *args, **kwargs)
             else:
                 raise
+
+    def print_methods(self):
+        """Print all commands method in resolution order."""
+        argnames = {}
+        for args in self.ordering:
+            for arg in args:
+                name = arg.__name__
+                if name in argnames:
+                    name = arg.__module__.split('.')[-1] + '.' + name
+                argnames[arg] = name
+        for args in self.ordering:
+            argsn = ', '.join([argnames[arg] for arg in args])
+            func = self.funcs[args]
+            file = inspect.getsourcefile(func)
+            line = inspect.getsourcelines(func)[1]
+            file = pathlib.Path(file).relative_to(pathlib.Path().resolve())
+            signature = f'{self.name}({argsn}):'
+            print(f'{signature:<60} {file}:{line}')
 
 
 def _find_func_types(func):

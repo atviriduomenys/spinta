@@ -1,3 +1,6 @@
+from spinta.types.type import Array, Object
+
+
 def flatten(rows, sep='.', scan=100):
     for row in rows:
         for item in flatten_nested_lists(row):
@@ -32,3 +35,25 @@ def flatten_nested_dicts(nested, field=()):
             yield from flatten_nested_dicts(v, field + (k,))
     else:
         yield (field, nested)
+
+
+def get_nested_property_type(properties, prop_name):
+    prop_names = prop_name.split('.')
+
+    if len(prop_names) > 1:
+        prop = properties.get(prop_names[0])
+
+        if prop is not None:
+            if isinstance(prop.type, Array):
+                # FIXME: There can be cases, when Array is a list of scalars,
+                # in that case there would be no such thing as
+                # prop.type.itmes.type.priprieties.
+                props = prop.type.items.type.properties
+            elif isinstance(prop.type, Object):
+                props = prop.type.properties
+            return get_nested_property_type(props, '.'.join(prop_names[1:]))
+        else:
+            return None
+    else:
+        prop = properties.get(prop_names[0])
+        return prop.type if prop else None

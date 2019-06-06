@@ -36,6 +36,19 @@ def prepare(context: Context, backend: FileSystem, type: File):
     pass
 
 
+@prepare.register()
+def prepare(context: Context, backend: FileSystem, type: File):
+    pass
+
+
+@prepare.register()
+def prepare(context: Context, type: File, backend: Backend, value: Attachment):
+    return {
+        'filename': value.filename,
+        'content_type': value.content_type,
+    }
+
+
 @migrate.register()
 def migrate(context: Context, backend: FileSystem):
     pass
@@ -52,10 +65,16 @@ async def load(context: Context, prop: Property, backend: FileSystem, request: R
 
 
 @check.register()
-def check(context: Context, type: File, prop: Property, backend: FileSystem, value: str, *, data: dict, action: Action):
-    path = backend.path / value
+def check(context: Context, type: File, prop: Property, backend: FileSystem, value: dict, *, data: dict, action: Action):
+    path = backend.path / value['filename']
     if not path.exists():
         raise DataError(f"File {path} does not exist.")
+
+
+@check.register()
+def check(context: Context, type: File, prop: Property, backend: Backend, value: dict, *, data: dict, action: Action):
+    if prop.backend.name != backend.name:
+        check(context, type, prop, prop.backend, value, data=data, action=action)
 
 
 @push.register()

@@ -33,8 +33,10 @@ def test_crud(app):
         'id': id,
         # FIXME: revision should not be None.
         'revision': None,
-        'content_type': 'image/png',
-        'image': 'myimg.png',
+        'image': {
+            'content_type': 'image/png',
+            'filename': 'myimg.png',
+        },
         'name': 'myphoto',
     }
 
@@ -49,7 +51,6 @@ def test_crud(app):
 
     resp = app.get(f'/photos/{id}')
     assert resp.json() == {
-        'content_type': None,
         'id': id,
         'image': None,
         'name': 'myphoto',
@@ -71,8 +72,10 @@ def test_add_existing_file(app, tmpdir):
     resp = app.post('/photos', json={
         'type': 'photo',
         'name': 'myphoto',
-        'content_type': 'image/png',
-        'image': str(image),
+        'image': {
+            'content_type': 'image/png',
+            'filename': str(image),
+        },
     })
     assert resp.status_code == 201, resp.text
     id = resp.json()['id']
@@ -92,8 +95,10 @@ def test_add_missing_file(app, tmpdir):
     resp = app.post('/photos', json={
         'type': 'photo',
         'name': 'myphoto',
-        'content_type': 'image/png',
-        'image': str(image),
+        'image': {
+            'content_type': 'image/png',
+            'filename': str(image),
+        },
     })
     assert resp.status_code == 400, resp.text
     assert resp.json() == {

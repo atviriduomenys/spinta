@@ -106,7 +106,12 @@ class Client(rfc6749.ClientMixin):
         return grant_type == 'client_credentials'
 
     def check_requested_scopes(self, scopes: set):
-        return self.scopes.issuperset(scopes)
+        unknown_scopes = scopes - self.scopes
+        if unknown_scopes:
+            log.warning(f"requested unknown scopes: %s", ', '.join(sorted(unknown_scopes)))
+            return False
+        else:
+            return True
 
 
 class Token(rfc6749.TokenMixin):
