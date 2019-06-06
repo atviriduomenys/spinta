@@ -14,7 +14,7 @@ from sqlalchemy.sql.expression import FunctionElement
 
 from spinta.backends import Backend, check_model_properties, check_type_value
 from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize, dump
-from spinta.components import Context, Manifest, Model, Property, Action
+from spinta.components import Context, Manifest, Model, Property, Action, Attachment
 from spinta.config import RawConfig
 from spinta.common import NA
 from spinta.types.type import Type, File
@@ -224,13 +224,7 @@ def prepare(context: Context, backend: PostgreSQL, type: File):
     else:
         # If file property has a different backend, then here we just need to
         # save file name of file stored externally.
-        return sa.Column(type.prop.name, sa.Text)
-
-
-@check.register()
-def check(context: Context, type: File, prop: Property, backend: PostgreSQL, value: str, *, data: dict, action: Action):
-    if prop.backend.name != backend.name:
-        check(context, type, prop, prop.backend, value, data=data, action=action)
+        return sa.Column(type.prop.name, JSONB)
 
 
 def _get_foreign_key(backend: PostgreSQL, model: Model, prop: Property):
@@ -289,6 +283,12 @@ def check(context: Context, type: Type, prop: Property, backend: PostgreSQL, val
         result = backend.get(connection, table.c[prop.name], condition, default=not_found)
         if result is not not_found:
             raise Exception(f"{prop.name!r} is unique for {prop.model.name!r} and a duplicate value is found in database.")
+
+
+@check.register()
+def check(context: Context, type: File, prop: Property, backend: PostgreSQL, value: dict, *, data: dict, action: Action):
+    if prop.backend.name != backend.name:
+        check(context, type, prop, prop.backend, value, data=data, action=action)
 
 
 @push.register()

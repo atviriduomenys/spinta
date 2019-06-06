@@ -125,8 +125,7 @@ async def create_http_response(context, params, request):
                 attachment = await commands.load(context, prop, prop.backend, request)
                 data = {
                     'id': params.id['value'],
-                    prop.name: attachment.filename,
-                    'content_type': attachment.content_type,
+                    prop.name: attachment,
                 }
 
                 # Here we handle subresources in general, but currently only
@@ -151,8 +150,10 @@ async def create_http_response(context, params, request):
             context.bind('transaction', manifest.backend.transaction, write=True)
             if params.properties:
                 prop = get_prop_from_params(model, params)
-
                 data = commands.get(context, model, model.backend, _params['id']['value'])
+                value = data.get(prop.name)
+                if value is None:
+                    raise HTTPException(status_code=404, detail=f"File {prop.name!r} not found in {params.id['value']!r}.")
                 # FIXME: see [give_request_to_push]
                 attachment = Attachment(
                     # FIXME: content_type is hardcoded here, but it should be
@@ -160,18 +161,16 @@ async def create_http_response(context, params, request):
                     #        default value 'content_type'.
                     #
                     #        [fs_content_type_param]
-                    content_type=data['content_type'],
-                    filename=data[prop.name],
+                    content_type=value['content_type'],
+                    filename=value['filename'],
                     data=None,
                 )
 
                 data = {
                     'id': params.id['value'],
                     prop.name: None,
-                    'content_type': None,
                 }
                 data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
-
                 commands.push(context, prop, prop.backend, attachment, action=Action.DELETE)
                 return JSONResponse({'id': params.id['value']}, status_code=200)
             else:
@@ -193,9 +192,12 @@ async def create_http_response(context, params, request):
             if params.properties:
                 data = commands.get(context, model, model.backend, _params['id']['value'])
                 prop = get_prop_from_params(model, params)
-                if data.get(prop.name) is None:
+                value = data.get(prop.name)
+                if value is None:
                     raise HTTPException(status_code=404, detail=f"File {prop.name!r} not found in {params.id['value']!r}.")
-                return FileResponse(prop.backend.path / data[prop.name], media_type=data['content_type'])
+                # FIXME: this is pretty much hardcoded just for file fields
+                #        case, this should be moved to backends.fs
+                return FileResponse(prop.backend.path / value['filename'], media_type=value['content_type'])
 
             else:
                 rows = [commands.get(context, model, model.backend, _params['id']['value'])]

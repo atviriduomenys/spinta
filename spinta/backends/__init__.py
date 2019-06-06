@@ -108,6 +108,7 @@ def check(context: Context, type: Type, prop: dataset.Property, backend: Backend
 def check_model_properties(context: Context, model: Model, backend, data: dict, action: Action):
     for name, prop in model.properties.items():
         # For datasets, property type is optional.
+        # XXX: but I think, it should be mandatory.
         if prop.type is not None:
             check(context, prop.type, prop, backend, data.get(name, NA), data=data, action=action)
 

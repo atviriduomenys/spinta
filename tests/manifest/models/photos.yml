@@ -14,5 +14,4 @@ properties:
   image:
     type: file
     backend: fs
-  content_type:
-    type: string
+    hidden: true
