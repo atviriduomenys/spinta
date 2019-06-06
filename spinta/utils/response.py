@@ -21,8 +21,7 @@ from spinta.utils.tree import build_path_tree
 from spinta.utils.url import build_url_path
 from spinta.utils.url import parse_url_path
 from spinta.exceptions import NotFound
-from spinta.components import Context, Attachment
-from spinta.backends import Action
+from spinta.components import Context, Attachment, Action
 
 
 async def create_http_response(context, params, request):
@@ -129,8 +128,21 @@ async def create_http_response(context, params, request):
                     prop.name: attachment.filename,
                     'content_type': attachment.content_type,
                 }
-                data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
+
+                # Here we handle subresources in general, but currently only
+                # case of subresources is files.
+                #
+                # So here, first we store a file, which might be stored in a
+                # separate backend. Then we updated model with reference to this
+                # file. Model also checks if reference is correct and if file
+                # really exists.
+                #
+                # TODO: here we assume, that subresource is always stored in a
+                #       separate backend, which is a wrong assumption. We should
+                #       check if file has a separate backend and if not, then we
+                #       should save file with single push on model.
                 commands.push(context, prop, prop.backend, attachment, action=Action.UPDATE)
+                data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
                 return JSONResponse(data, status_code=200)
             else:
                 raise NotImplementedError("PUT is not supported.")

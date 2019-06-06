@@ -6,10 +6,10 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
 from spinta.commands import prepare, check, push, get, getall, changes, wipe, authorize
-from spinta.components import Context
+from spinta.components import Context, Action
 from spinta.types.dataset import Model
 
-from spinta.backends import Action
+from spinta.backends import check_model_properties
 from spinta.backends.postgresql import PostgreSQL
 from spinta.backends.postgresql import utcnow
 from spinta.backends.postgresql import get_table_name
@@ -37,12 +37,12 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 
 
 @check.register()
-def check(context: Context, model: Model, backend: PostgreSQL, data: dict):
-    pass
+def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action):
+    check_model_properties(context, model, backend, data, action)
 
 
 @push.register()
-def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action):
+def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action):
     authorize(context, action, model, data=data)
 
     transaction = context.get('transaction')

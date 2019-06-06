@@ -23,26 +23,11 @@ class Type:
     }
 
     def load(self, value: typing.Any):
-        # loads value given by the user to native Python type
-        # this is done before validation and writing to database
-        raise NotImplementedError(f"{self.__class__} lacks implementation for load()")
-
-    def is_valid(self, value: typing.Any):
-        # checks if value is valid for the use (i.e. valid range, etc.)
-        raise NotImplementedError(f"{self.__class__} lacks implementation for is_valid()")
+        return value
 
 
 class PrimaryKey(Type):
-
-    def load(self, value: typing.Any):
-        if value is None or value is NA:
-            return value
-
-        return str(value)
-
-    def is_valid(self, value):
-        # XXX: implement `pk` validation
-        return True
+    pass
 
 
 class Date(Type):
@@ -56,10 +41,6 @@ class Date(Type):
         except (ValueError, TypeError) as e:
             raise DataError(f'{e}')
 
-    def is_valid(self, value: date):
-        # self.load() ensures value is native `datetime` type
-        return True
-
 
 class DateTime(Type):
 
@@ -72,25 +53,11 @@ class DateTime(Type):
         except (ValueError, TypeError) as e:
             raise DataError(f'{e}')
 
-    def is_valid(self, value: datetime):
-        # self.load() ensures value is native `datetime` type
-        return True
-
 
 class String(Type):
     schema = {
         'enum': {'type': 'array'},
     }
-
-    def load(self, value: typing.Any):
-        if value is None or value is NA:
-            return value
-
-        return str(value)
-
-    def is_valid(self, value: str):
-        # self.load() ensures value is native `str` type
-        return True
 
 
 class Integer(Type):
@@ -103,10 +70,6 @@ class Integer(Type):
             return int(value)
         except ValueError as e:
             raise DataError(f'{e}')
-
-    def is_valid(self, value: int):
-        # self.load() ensures value is native `int` type
-        return True
 
 
 class Number(Type):
@@ -135,14 +98,6 @@ class Ref(Type):
         'enum': {'type': 'array'},
     }
 
-    def load(self, value: typing.Any):
-        # TODO: implement `ref` loading
-        return value
-
-    def is_valid(self, value):
-        # TODO: implement `ref` validation
-        return True
-
 
 class BackRef(Type):
     schema = {
@@ -169,14 +124,9 @@ class Array(Type):
             return []
 
         if isinstance(value, list):
-            # if value is list - return it
             return list(value)
         else:
             raise DataError(f'Invalid array type: {type(value)}')
-
-    def is_valid(self, value: list):
-        # TODO: implement `array` validation
-        return True
 
 
 class Object(Type):
@@ -193,23 +143,9 @@ class Object(Type):
         else:
             raise DataError(f'Invalid object type: {type(value)}')
 
-    def is_valid(self, value):
-        # TODO: implement `object` validation
-        return True
-
 
 class File(Type):
-
-    def load(self, value: typing.Any):
-        if value is None:
-            return None
-        return value
-
-    def is_valid(self, value):
-        if value is None or value is NA:
-            return True
-        else:
-            return isinstance(value, (str, bytes))
+    pass
 
 
 @load.register()
@@ -225,6 +161,7 @@ def load(context: Context, type: Object, data: dict, manifest: Manifest) -> Type
             'name': name,
             'path': type.prop.path,
             'parent': type.prop,
+            'model': type.prop.model,
             **prop,
         }
         type.properties[name] = load(context, type.prop.__class__(), prop, type.prop.manifest)
@@ -238,6 +175,7 @@ def load(context: Context, type: Array, data: dict, manifest: Manifest) -> Type:
             'name': type.prop.name,
             'path': type.prop.path,
             'parent': type.prop,
+            'model': type.prop.model,
             **data['items'],
         }
         type.items = load(context, type.prop.__class__(), prop, type.prop.manifest)

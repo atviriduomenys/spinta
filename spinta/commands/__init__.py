@@ -62,7 +62,21 @@ def dump():
 
 @command()
 def check():
-    """Check if input value is correct."""
+    """Check if input value is correct.
+
+    - Check components after load:
+
+        check(Context, Config):
+        check(Context, Store):
+        check(Context, Manifest):
+        check(Context, Node):
+
+    - Check data before push:
+
+        check(Context, Model, Backend, dict, *, action: Action)
+        check(Context, Type, Property, Backend, object, *, data: dict, action: Action)
+
+    """
 
 
 @command()

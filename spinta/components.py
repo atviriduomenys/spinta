@@ -1,5 +1,6 @@
+import enum
 import contextlib
-from dataclasses import dataclass
+import dataclasses
 
 
 class Context:
@@ -181,6 +182,7 @@ class Property(Node):
         'object': {},
         'items': {},
         'hidden': {'type': 'boolean', 'inherit': True, 'default': False},
+        'model': {'required': True},
     }
 
     def __init__(self):
@@ -215,8 +217,21 @@ class CommandList:
         return [command(*args, **kwargs) for command in self.commands]
 
 
-@dataclass
+@dataclasses.dataclass
 class Attachment:
     content_type: str
     filename: str
     data: bytes
+
+
+class Action(enum.Enum):
+    INSERT = 'insert'
+    UPDATE = 'update'
+    DELETE = 'delete'
+
+    WIPE = 'wipe'
+
+    GETONE = 'getone'
+    GETALL = 'getall'
+
+    CHANGES = 'changes'

@@ -11,6 +11,7 @@ env/.done: env/bin/pip setup.py requirements-dev.txt
 
 var/.done: Makefile
 	mkdir -p var/files
+	touch var/.done
 
 env/bin/pip-compile: env/bin/pip
 	env/bin/pip install pip-tools
