@@ -14,7 +14,7 @@ from sqlalchemy.sql.expression import FunctionElement
 
 from spinta.backends import Backend, check_model_properties, check_type_value
 from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize, dump
-from spinta.components import Context, Manifest, Model, Property, Action, Attachment
+from spinta.components import Context, Manifest, Model, Property, Action
 from spinta.config import RawConfig
 from spinta.common import NA
 from spinta.types.type import Type, File
