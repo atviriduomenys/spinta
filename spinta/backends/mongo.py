@@ -5,6 +5,7 @@ from datetime import date, datetime
 
 import pymongo
 from bson.objectid import ObjectId
+from starlette.exceptions import HTTPException
 
 from spinta.backends import Backend, check_model_properties
 from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize, dump
@@ -12,6 +13,7 @@ from spinta.components import Context, Manifest, Model, Action
 from spinta.config import RawConfig
 from spinta.types.type import Date
 from spinta.utils.idgen import get_new_id
+from spinta.utils.nestedstruct import get_nested_property_type
 
 
 class Mongo(Backend):
@@ -157,9 +159,66 @@ def getall(
 
     search_expressions = []
     for qp in query_params:
+        value_type = get_nested_property_type(model.properties, qp['key'])
+
+        if value_type is None:
+            # FIXME: proper error message
+            raise HTTPException(status_code=400, detail="attribute does not exist")
+        else:
+            # for search to work on MongoDB, values must be compatible for
+            # Mongo's BSON consumption, thus we need to use chained load and prepare
+            value = load(context, value_type, qp['value'])
+            value = prepare(context, value_type, backend, value)
+
         if qp.get('operator') == 'exact':
-            # FIXME: this assumes that only one field can be used in search
-            search_expressions.append({qp['key']: qp['value']})
+            search_expressions.append({
+                qp['key']: value
+            })
+        elif qp.get('operator') == 'gt':
+            search_expressions.append({
+                qp['key']: {
+                    '$gt': value
+                }
+            })
+        elif qp.get('operator') == 'gte':
+            search_expressions.append({
+                qp['key']: {
+                    '$gte': value
+                }
+            })
+        elif qp.get('operator') == 'lt':
+            search_expressions.append({
+                qp['key']: {
+                    '$lt': value
+                }
+            })
+        elif qp.get('operator') == 'lte':
+            search_expressions.append({
+                qp['key']: {
+                    '$lte': value
+                }
+            })
+        elif qp.get('operator') == 'ne':
+            search_expressions.append({
+                qp['key']: {
+                    '$ne': value
+                }
+            })
+        elif qp.get('operator') == 'contains':
+            # FIXME: what to do if value for regex search is not a string?
+            # Should `find` call be wrapped in try/except?
+            search_expressions.append({
+                qp['key']: {
+                    '$regex': value
+                }
+            })
+        elif qp.get('operator') == 'startswith':
+            # https://stackoverflow.com/a/3483399
+            search_expressions.append({
+                qp['key']: {
+                    '$regex': f'^{value}.*',
+                }
+            })
 
     search_query = {}
     # search expressions cannot be empty
@@ -169,7 +228,7 @@ def getall(
         search_query[operator] = search_expressions
 
     for row in model_collection.find(search_query):
-        yield prepare(context, Action.GETALL, model, backend, row)
+        yield prepare(context, Action.GETALL, model, backend, row, show=show)
 
 
 @wipe.register()
@@ -189,13 +248,20 @@ def prepare(context: Context, type: Date, backend: Mongo, value: date) -> dateti
 
 
 @prepare.register()
-def prepare(context: Context, action: Action, model: Model, backend: Mongo, value: dict) -> dict:
+def prepare(context: Context, action: Action, model: Model, backend: Mongo, value: dict, *,
+            show: typing.List[str] = None) -> dict:
+    if show is None:
+        show = ['id']
     if action in (Action.GETALL, Action.GETONE, Action.INSERT, Action.UPDATE):
         result = {}
         for prop in model.properties.values():
             # TODO: `prepare` should be called for each property.
-            result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
-        result['type'] = model.get_type_value()
+            if action == Action.GETALL:
+                if prop.name in show:
+                    result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
+            else:
+                result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
+                result['type'] = model.get_type_value()
         result['id'] = str(value['_id'])
         return result
     else:
