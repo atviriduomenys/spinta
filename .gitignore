@@ -1,7 +1,8 @@
 *.egg-info/
 *.pyc
 /.coverage
-/env/
-/.env
 /.dockerignore
-tags
+/.env
+/build/
+/env/
+/tags

@@ -8,7 +8,7 @@ from bson.objectid import ObjectId
 from starlette.exceptions import HTTPException
 
 from spinta.backends import Backend, check_model_properties
-from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize, dump
+from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize, dump, gen_object_id
 from spinta.components import Context, Manifest, Model, Action
 from spinta.config import RawConfig
 from spinta.types.type import Date
@@ -116,16 +116,13 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
 
     if 'id' in data:
         result = model_collection.update_one(
-            {'_id': ObjectId(data['id'])},
+            {'id': data['id']},
             {'$set': data}
         )
         assert result.matched_count == 1 and result.modified_count == 1
-        data_id = data['id']
     else:
-        data_id = model_collection.insert_one(data).inserted_id
-
-    # parse `ObjectId` to string and add it to our object
-    data['_id'] = str(data_id)
+        data['id'] = gen_object_id(context, backend, model)
+        model_collection.insert_one(data).inserted_id
 
     return prepare(context, action, model, backend, data)
 
@@ -134,7 +131,7 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
 def get(context: Context, model: Model, backend: Mongo, id: str):
     authorize(context, Action.GETONE, model)
     model_collection = backend.db[model.get_type_value()]
-    row = model_collection.find_one({"_id": ObjectId(id)})
+    row = model_collection.find_one({"id": id})
     return prepare(context, Action.GETONE, model, backend, row)
 
 
@@ -262,7 +259,6 @@ def prepare(context: Context, action: Action, model: Model, backend: Mongo, valu
             else:
                 result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
                 result['type'] = model.get_type_value()
-        result['id'] = str(value['_id'])
         return result
     else:
         raise Exception(f"Unknown action {action}.")

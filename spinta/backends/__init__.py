@@ -1,9 +1,10 @@
 import contextlib
 import datetime
+import uuid
 
 from spinta.types.type import Type, DateTime, Date, Object, Array
-from spinta.components import Context, Model, Property, Action
-from spinta.commands import error, prepare, dump, check
+from spinta.components import Context, Model, Property, Action, Node
+from spinta.commands import error, prepare, dump, check, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
 
@@ -116,3 +117,43 @@ def check_model_properties(context: Context, model: Model, backend, data: dict, 
 def check_type_value(type: Type, value: object):
     if type.required and (value is None or value is NA):
         raise Exception(f"{type.prop.name!r} is required for {type.prop.model.name!r}.")
+
+
+@gen_object_id.register()
+def gen_object_id(context: Context, backend: Backend, model: Node):
+    return str(uuid.uuid4())
+
+
+@is_object_id.register()
+def is_object_id(context: Context, value: str):
+    # Callect all available backend/model combinations.
+    # TODO: this probably should be cached at load time to increase performance
+    #       of object id lookup.
+    # XXX: other option would be to implement two pass URL parsing, to get
+    #      information about model, resource and dataset, and then call
+    #      is_object_id directly with backend and model. That would be nice.
+    store = context.get('store')
+    candidates = set()
+    for manifest in store.manifests.values():
+        for model in manifest.objects.get('model', {}).values():
+            candidates.add((model.backend.__class__, model.__class__))
+        for dataset_ in manifest.objects.get('dataset', {}).values():
+            for resource in dataset_.resources.values():
+                for model in resource.objects.values():
+                    candidates.add((model.backend.__class__, model.__class__))
+
+    # Currently all models use UUID, but dataset models use id generated from
+    # other properties that form an unique id.
+    for Backend, Model_ in candidates:
+        backend = Backend()
+        model = Model_()
+        if is_object_id(context, backend, model, value):
+            return True
+
+
+@is_object_id.register()
+def is_object_id(context: Context, backend: Backend, model: Node, value: str):
+    try:
+        return uuid.UUID(value).version == 4
+    except ValueError:
+        return False

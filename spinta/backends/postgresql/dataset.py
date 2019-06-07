@@ -1,15 +1,16 @@
 import datetime
 import itertools
+import string
 import typing
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
-from spinta.commands import prepare, check, push, get, getall, changes, wipe, authorize
+from spinta.commands import prepare, check, push, get, getall, changes, wipe, authorize, is_object_id
 from spinta.components import Context, Action
 from spinta.types.dataset import Model
 
-from spinta.backends import check_model_properties
+from spinta.backends import Backend, check_model_properties
 from spinta.backends.postgresql import PostgreSQL
 from spinta.backends.postgresql import utcnow
 from spinta.backends.postgresql import get_table_name
@@ -369,3 +370,8 @@ def _get_patch_changes(old, new):
         if old.get(k) != v:
             changes[k] = v
     return changes
+
+
+@is_object_id.register()
+def is_object_id(context: Context, backend: Backend, model: Model, value: str):
+    return len(value) == 40 and not set(value) - set(string.hexdigits)

@@ -36,9 +36,9 @@ def test_changes(context):
                 changes.c.change,
             ]).order_by(changes.c.transaction_id)
         ).fetchall())) == [
-            {'id': int(data['id']), 'action': 'insert', 'change': {'code': 'lt', 'title': 'Lithuania'}},
-            {'id': int(data['id']), 'action': 'update', 'change': {'title': 'Lietuva'}},
-            {'id': int(data['id']), 'action': 'update', 'change': {'code': 'lv', 'title': 'Latvia'}},
+            {'id': data['id'], 'action': 'insert', 'change': {'code': 'lt', 'title': 'Lithuania'}},
+            {'id': data['id'], 'action': 'update', 'change': {'title': 'Lietuva'}},
+            {'id': data['id'], 'action': 'update', 'change': {'code': 'lv', 'title': 'Latvia'}},
         ]
 
 

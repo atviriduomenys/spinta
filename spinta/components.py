@@ -165,9 +165,6 @@ class Model(Node):
     def get_type_value(self):
         return self.name
 
-    def get_primary_key(self):
-        return self.properties['id']
-
 
 class Property(Node):
     schema = {
