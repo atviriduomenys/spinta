@@ -43,7 +43,12 @@ def test_search_exact(context, app):
     # single field search
     resp = app.get('/reports/:exact/status/ok')
     data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r1['id']
 
+    # single field search, case-insensitive
+    resp = app.get('/reports/:exact/status/OK')
+    data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
@@ -213,6 +218,12 @@ def test_search_ne(context, app):
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
+    # single field search, case insensitive
+    resp = app.get('/reports/:ne/status/invAlID')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r1['id']
+
     # multi field search
     # test if operators are joined with AND logic
     resp = app.get('/reports/:ne/count/10/:ne/count/42')
@@ -239,9 +250,22 @@ def test_search_contains(context, app):
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
+    # single field search, case insensitive
+    resp = app.get('/reports/:contains/report_type/vM')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r2['id']
+
     # multi field search
     # test if operators are joined with AND logic
     resp = app.get('/reports/:contains/status/valid/:contains/report_type/tv')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r3['id']
+
+    # multi field search, case insensitive
+    # test if operators are joined with AND logic
+    resp = app.get('/reports/:contains/status/vAlId/:contains/report_type/TV')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
@@ -268,6 +292,12 @@ def test_search_startswith(context, app):
 
     # single field search
     resp = app.get('/reports/:startswith/report_type/vm')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r2['id']
+
+    # single field search, case insensitive
+    resp = app.get('/reports/:startswith/report_type/Vm')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
@@ -299,6 +329,12 @@ def test_search_nested(context, app):
 
     # nested `exact` search
     resp = app.get('/reports/:exact/notes.note/foo bar')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r3['id']
+
+    # nested `exact` search, case insensitive
+    resp = app.get('/reports/:exact/notes.note/foo BAR')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']

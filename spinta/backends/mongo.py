@@ -1,4 +1,5 @@
 import contextlib
+import re
 import typing
 
 from datetime import date, datetime
@@ -170,54 +171,77 @@ def getall(
             value = load(context, value_type, qp['value'])
             value = prepare(context, value_type, backend, value)
 
+        # in case value is not a string - then just search for that value directly
+        if isinstance(value, str):
+            re_value = re.compile('^' + value + '$', re.IGNORECASE)
+        else:
+            re_value = value
+
         if qp.get('operator') == 'exact':
             search_expressions.append({
-                qp['key']: value
+                qp['key']: re_value
             })
         elif qp.get('operator') == 'gt':
             search_expressions.append({
                 qp['key']: {
-                    '$gt': value
+                    '$gt': re_value
                 }
             })
         elif qp.get('operator') == 'gte':
             search_expressions.append({
                 qp['key']: {
-                    '$gte': value
+                    '$gte': re_value
                 }
             })
         elif qp.get('operator') == 'lt':
             search_expressions.append({
                 qp['key']: {
-                    '$lt': value
+                    '$lt': re_value
                 }
             })
         elif qp.get('operator') == 'lte':
             search_expressions.append({
                 qp['key']: {
-                    '$lte': value
+                    '$lte': re_value
                 }
             })
         elif qp.get('operator') == 'ne':
-            search_expressions.append({
-                qp['key']: {
-                    '$ne': value
-                }
-            })
+            # MongoDB's $ne operator does not consume regular expresions for values,
+            # whereas `$not` requires an expression.
+            # Thus if our search value is regular expression - search with $not, if
+            # not - use $ne
+            if isinstance(re_value, re.Pattern):
+                search_expressions.append({
+                    qp['key']: {
+                        '$not': re_value
+                    }
+                })
+            else:
+                search_expressions.append({
+                    qp['key']: {
+                        '$ne': re_value
+                    }
+                })
         elif qp.get('operator') == 'contains':
-            # FIXME: what to do if value for regex search is not a string?
-            # Should `find` call be wrapped in try/except?
+            try:
+                re_value = re.compile(value, re.IGNORECASE)
+            except TypeError:
+                # in case value is not a string - then just search for that value directly
+                re_value = value
+
             search_expressions.append({
-                qp['key']: {
-                    '$regex': value
-                }
+                qp['key']: re_value
             })
         elif qp.get('operator') == 'startswith':
             # https://stackoverflow.com/a/3483399
+            try:
+                re_value = re.compile('^' + value + '.*', re.IGNORECASE)
+            except TypeError:
+                # in case value is not a string - then just search for that value directly
+                re_value = value
+
             search_expressions.append({
-                qp['key']: {
-                    '$regex': f'^{value}.*',
-                }
+                qp['key']: re_value
             })
 
     search_query = {}
