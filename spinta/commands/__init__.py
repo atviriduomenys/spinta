@@ -159,3 +159,27 @@ def export():
 @command()
 def wipe():
     """Delete all data from specified model."""
+
+
+@command()
+def gen_object_id():
+    """Genearet unique id.
+
+    gen_object_id(Context, Backend, Model) -> str
+
+    """
+
+
+@command()
+def is_object_id():
+    """Check if given string is object id.
+
+    - Detect if given string is an object id:
+
+        is_object_id(Context, str) -> bool
+
+    - Detect if given string is an object id of given backend and model.
+
+        is_object_id(Context, Backend, Model, str) -> bool
+
+    """

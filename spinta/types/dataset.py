@@ -335,7 +335,7 @@ def _dependencies(context: Context, model, deps):
                     yield {name: value}
         else:
             model_name = list(model_names)[0]
-            params = parse_url_path(model_name)
+            params = parse_url_path(context, model_name)
             depmodel = get_model_from_params(model.manifest, params['path'], params)
             for row in getall(context, depmodel, depmodel.backend, show=prop_names):
                 yield {

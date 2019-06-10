@@ -124,7 +124,7 @@ async def create_http_response(context, params, request):
                 #        [give_request_to_push]
                 attachment = await commands.load(context, prop, prop.backend, request)
                 data = {
-                    'id': params.id['value'],
+                    'id': params.id,
                     prop.name: attachment,
                 }
 
@@ -150,10 +150,10 @@ async def create_http_response(context, params, request):
             context.bind('transaction', manifest.backend.transaction, write=True)
             if params.properties:
                 prop = get_prop_from_params(model, params)
-                data = commands.get(context, model, model.backend, _params['id']['value'])
+                data = commands.get(context, model, model.backend, _params['id'])
                 value = data.get(prop.name)
                 if value is None:
-                    raise HTTPException(status_code=404, detail=f"File {prop.name!r} not found in {params.id['value']!r}.")
+                    raise HTTPException(status_code=404, detail=f"File {prop.name!r} not found in {params.id!r}.")
                 # FIXME: see [give_request_to_push]
                 attachment = Attachment(
                     # FIXME: content_type is hardcoded here, but it should be
@@ -167,12 +167,12 @@ async def create_http_response(context, params, request):
                 )
 
                 data = {
-                    'id': params.id['value'],
+                    'id': params.id,
                     prop.name: None,
                 }
                 data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
                 commands.push(context, prop, prop.backend, attachment, action=Action.DELETE)
-                return JSONResponse({'id': params.id['value']}, status_code=200)
+                return JSONResponse({'id': params.id}, status_code=200)
             else:
                 raise NotImplementedError("DELETE is not supported.")
 
@@ -181,7 +181,7 @@ async def create_http_response(context, params, request):
         if params.changes:
             rows = commands.changes(
                 context, model, model.backend,
-                id=_params.get('id', {}).get('value'),
+                id=_params.get('id'),
                 limit=_params.get('limit', 100),
                 offset=_params.get('changes', -10),
             )
@@ -190,17 +190,17 @@ async def create_http_response(context, params, request):
 
         elif params.id:
             if params.properties:
-                data = commands.get(context, model, model.backend, _params['id']['value'])
+                data = commands.get(context, model, model.backend, _params['id'])
                 prop = get_prop_from_params(model, params)
                 value = data.get(prop.name)
                 if value is None:
-                    raise HTTPException(status_code=404, detail=f"File {prop.name!r} not found in {params.id['value']!r}.")
+                    raise HTTPException(status_code=404, detail=f"File {prop.name!r} not found in {params.id!r}.")
                 # FIXME: this is pretty much hardcoded just for file fields
                 #        case, this should be moved to backends.fs
                 return FileResponse(prop.backend.path / value['filename'], media_type=value['content_type'])
 
             else:
-                rows = [commands.get(context, model, model.backend, _params['id']['value'])]
+                rows = [commands.get(context, model, model.backend, _params['id'])]
                 _params['wrap'] = False
 
         else:
@@ -254,7 +254,7 @@ def get_current_location(model, path, params):
                 loc += (
                     [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
                     [(':ds/' + params['ds'] + '/:rs/' + params['rs'], '/' + '/'.join(parts + [':ds', params['ds'], ':rs', params['rs']]))] +
-                    [(params['id']['value'][:8], '/' + build_url_path({
+                    [(params['id'][:8], '/' + build_url_path({
                         'path': path,
                         'id': params['id'],
                         'ds': params['ds'],
@@ -266,7 +266,7 @@ def get_current_location(model, path, params):
                 loc += (
                     [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
                     [(':ds/' + params['ds'] + '/:rs/' + params['rs'], '/' + '/'.join(parts + [':ds', params['ds'], ':rs', params['rs']]))] +
-                    [(params['id']['value'][:8], None)] +
+                    [(params['id'][:8], None)] +
                     [(':changes', '/' + build_url_path({
                         'path': path,
                         'id': params['id'],
@@ -301,7 +301,7 @@ def get_current_location(model, path, params):
         if 'id' in params:
             loc += (
                 [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                [(params['id']['value'][:8], None)] +
+                [(params['id'][:8], None)] +
                 [(':changes', '/' + build_url_path({
                     'path': path,
                     'id': params['id'],
@@ -332,7 +332,7 @@ def get_changes(context, params):
     backend = model.backend
     rows = commands.changes(
         context, model, backend,
-        id=params.get('id', {}).get('value'),
+        id=params.get('id'),
         limit=params.get('limit', 100),
         offset=params.get('changes', -10),
     )
@@ -372,7 +372,7 @@ def get_row(context, params):
     manifest = store.manifests['default']
     model = get_model_from_params(manifest, params['path'], params)
     backend = model.backend
-    row = commands.get(context, model, backend, params['id']['value'])
+    row = commands.get(context, model, backend, params['id'])
     if row is None:
         raise HTTPException(status_code=404)
     for prop in model.properties.values():
@@ -394,7 +394,7 @@ def get_cell(params, prop, value, shorten=False, color=None):
             extra['rs'] = params['rs']
         link = '/' + build_url_path({
             'path': params['path'],
-            'id': {'value': value, 'type': None},
+            'id': value,
             **extra,
         })
         if shorten:
@@ -406,7 +406,7 @@ def get_cell(params, prop, value, shorten=False, color=None):
             extra['rs'] = params['rs']
         link = '/' + build_url_path({
             'path': prop.ref,
-            'id': {'value': value, 'type': None},
+            'id': value,
             **extra,
         })
         if shorten:
@@ -494,7 +494,7 @@ def get_directory_datasets(datasets, path):
 def get_response_type(context: Context, request: Request, params: dict = None):
     if params is None and 'path' in request.path_params:
         path = request.path_params['path'].strip('/')
-        params = parse_url_path(path)
+        params = parse_url_path(context, path)
     elif params is None:
         params = {}
 

@@ -1,3 +1,4 @@
+import uuid
 import datetime
 
 import pytest
@@ -88,7 +89,7 @@ def test_model(context, app):
         'header': ['id', 'title', 'code'],
         'data': [
             [
-                {'color': None, 'link': '/country/%s' % row['id'], 'value': row['id']},
+                {'color': None, 'link': '/country/%s' % row['id'], 'value': row['id'][:8]},
                 {'color': None, 'link': None, 'value': 'Earth'},
                 {'color': None, 'link': None, 'value': 'er'},
             ],
@@ -121,7 +122,7 @@ def test_model_get(context, app):
         'location': [
             ('root', '/'),
             ('country', '/country'),
-            (row['id'], None),
+            (row['id'][:8], None),
             (':changes', '/country/%s/:changes' % row['id']),
         ],
         'items': [],
@@ -444,6 +445,7 @@ def test_post(context, app):
     assert resp.status_code == 201
     data = resp.json()
     id_ = data['id']
+    assert uuid.UUID(id_).version == 4
     assert data == {
         'id': id_,
         'type': 'country',
@@ -504,13 +506,13 @@ def test_post_update(context, app):
         'spinta_set_meta_fields',
     ])
     resp = app.post('/country', json={
-        'id': '42',
+        'id': '0007ddec-092b-44b5-9651-76884e6081b4',
         'title': 'Earth',
         'code': 'er',
     })
 
     assert resp.status_code == 201
-    assert resp.json()['id'] == '42'
+    assert resp.json()['id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
 
 
 def test_post_revision(context, app):

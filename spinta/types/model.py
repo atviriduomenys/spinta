@@ -19,9 +19,10 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
     props.update(data.get('properties') or {})
 
     # 'id' is reserved for primary key.
-    props['id'] = props.get('id') or {'type': 'string'}
-    if props['id'].get('type') is None or props['id'].get('type') == 'pk':
-        props['id'] == 'string'
+    if 'id' not in props:
+        props['id'] = {'type': 'pk'}
+    elif props['id'].get('type') != 'pk':
+        raise Exception("'id' property is reserved for primary key and must be of 'pk' type.")
 
     model.properties = {}
     for name, prop in props.items():

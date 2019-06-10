@@ -33,7 +33,7 @@ class Version:
 @prepare.register()
 def prepare(context: Context, params: UrlParams, version: Version, request: Request) -> UrlParams:
     path = request.path_params['path'].strip('/')
-    p = parse_url_path(path)
+    p = parse_url_path(context, path)
     params.model = p['path']
     params.id = p.get('id')
     params.properties = p.get('properties')

@@ -1,4 +1,4 @@
-import re
+from spinta.commands import is_object_id
 
 
 class Cast:
@@ -48,26 +48,6 @@ class SortKey(Cast):
             return '-' + value['name']
 
 
-class Id(Cast):
-
-    key_re = re.compile(r'^[0-9a-f]{40}$')
-    mongo_id_re = re.compile(r'^[0-9a-f]{24}$')
-
-    def match(self, value):
-        if value.isdigit():
-            return {'value': value, 'type': 'integer'}
-        if self.key_re.match(value):
-            return {'value': value, 'type': 'sha1'}
-        if self.mongo_id_re.match(value):
-            return {'value': value, 'type': 'mongo'}
-
-    def to_params(self, value):
-        return value
-
-    def to_string(self, value):
-        return [] if value['value'] is None else [str(value['value'])]
-
-
 class Path(Cast):
 
     def to_params(self, value):
@@ -100,7 +80,6 @@ RULES = {
     },
     'id': {
         'maxargs': 1,
-        'cast': Id(),
         'name': False,
     },
     'properties': {
@@ -195,7 +174,7 @@ RULES = {
 }
 
 
-def parse_url_path(path):
+def parse_url_path(context, path):
     data = []
     name = 'path'
     value = []
@@ -211,11 +190,10 @@ def parse_url_path(path):
             continue
 
         if not data:
-            id = RULES['id']['cast'].match(part)
-            if id is not None:
+            if is_object_id(context, part):
                 data.append((name, value))
                 name = 'id'
-                value = [id]
+                value = [part]
                 if i < last and not parts[i + 1].startswith(':'):
                     data.append((name, value))
                     name = 'properties'

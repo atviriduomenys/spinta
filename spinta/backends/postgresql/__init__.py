@@ -7,17 +7,17 @@ import typing
 import unidecode
 import sqlalchemy as sa
 import sqlalchemy.exc
-from sqlalchemy.dialects.postgresql import JSONB, BIGINT
+from sqlalchemy.dialects.postgresql import JSONB, BIGINT, UUID
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
 from spinta.backends import Backend, check_model_properties, check_type_value
-from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize, dump
+from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize, dump, gen_object_id
 from spinta.components import Context, Manifest, Model, Property, Action
 from spinta.config import RawConfig
 from spinta.common import NA
-from spinta.types.type import Type, File
+from spinta.types.type import Type, File, PrimaryKey, Ref
 from spinta.exceptions import MultipleRowsException, NoResultsException
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
@@ -165,7 +165,9 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 
     # Create changes table.
     changes_table_name = get_table_name(backend, model.manifest.name, model.name, CHANGES_TABLE)
-    changes_table = get_changes_table(backend, changes_table_name, sa.Integer)
+    # XXX: not sure if I should pass main_table.c.id.type.__class__() or a
+    #      shorter form.
+    changes_table = get_changes_table(backend, changes_table_name, main_table.c.id.type)
 
     backend.tables[model.manifest.name][model.name] = ModelTables(main_table, changes_table)
 
@@ -179,14 +181,7 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
         # implement prepare command add do custom logic there.
         return
 
-    if type.prop.name == 'id':
-        if type.name == 'integer':
-            return sa.Column(type.prop.name, BIGINT, primary_key=True)
-        elif type.name == 'pk':
-            return sa.Column(type.prop.name, BIGINT, primary_key=True)
-        else:
-            raise Exception(f"Unsuported type {type.name!r} for primary key.")
-    elif type.name == 'type':
+    if type.name == 'type':
         return
     elif type.name == 'string':
         return sa.Column(type.prop.name, sa.Text)
@@ -203,8 +198,6 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
     elif type.name in ('spatial', 'image'):
         # TODO: these property types currently are not implemented
         return sa.Column(type.prop.name, sa.Text)
-    elif type.name == 'ref':
-        return _get_foreign_key(backend, type.prop.parent, type.prop)
     elif type.name == 'backref':
         return
     elif type.name == 'generic':
@@ -218,6 +211,31 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
 
 
 @prepare.register()
+def prepare(context: Context, backend: PostgreSQL, type: PrimaryKey):
+    if type.prop.manifest.name == 'internal':
+        return sa.Column(type.prop.name, BIGINT, primary_key=True)
+    else:
+        return sa.Column(type.prop.name, UUID(), primary_key=True)
+
+
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, type: Ref):
+    ref_model = type.prop.model.manifest.objects['model'][type.object]
+    table_name = get_table_name(backend, ref_model.manifest.name, ref_model.name)
+    if ref_model.manifest.name == 'internal':
+        column_type = sa.Integer()
+    else:
+        column_type = UUID()
+    return [
+        sa.Column(type.prop.name, column_type),
+        sa.ForeignKeyConstraint(
+            [type.prop.name], [f'{table_name}.id'],
+            name=_get_pg_name(f'fk_{type.prop.model.name}_{type.prop.name}'),
+        )
+    ]
+
+
+@prepare.register()
 def prepare(context: Context, backend: PostgreSQL, type: File):
     if type.prop.backend.name == backend.name:
         return sa.Column(type.prop.name, sa.LargeBinary)
@@ -225,19 +243,6 @@ def prepare(context: Context, backend: PostgreSQL, type: File):
         # If file property has a different backend, then here we just need to
         # save file name of file stored externally.
         return sa.Column(type.prop.name, JSONB)
-
-
-def _get_foreign_key(backend: PostgreSQL, model: Model, prop: Property):
-    ref_model = model.manifest.objects['model'][prop.object]
-    table_name = get_table_name(backend, ref_model.manifest.name, ref_model.name)
-    pkey_name = ref_model.get_primary_key().name
-    return [
-        sa.Column(prop.name, sa.Integer),
-        sa.ForeignKeyConstraint(
-            [prop.name], [f'{table_name}.{pkey_name}'],
-            name=_get_pg_name(f'fk_{model.name}_{prop.name}'),
-        )
-    ]
 
 
 def _get_pg_name(name):
@@ -309,23 +314,21 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
     }
 
     if action == Action.INSERT:
+        if 'id' not in data:
+            data['id'] = gen_object_id(context, backend, model)
         result = connection.execute(
             table.main.insert().values(data),
         )
-        row_id = result.inserted_primary_key[0]
 
     elif action == Action.UPDATE:
-        data['id'] = int(data['id'])
         result = connection.execute(
             table.main.update().
             where(table.main.c.id == data['id']).
             values(data)
         )
-        if result.rowcount == 1:
-            row_id = data['id']
-        elif result.rowcount == 0:
+        if result.rowcount == 0:
             raise Exception("Update failed, {self.obj} with {data['id']} not found.")
-        else:
+        elif result.rowcount > 1:
             raise Exception("Update failed, {self.obj} with {data['id']} has found and update {result.rowcount} rows.")
 
     elif action == Action.DELETE:
@@ -338,14 +341,14 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
     connection.execute(
         table.changes.insert().values(
             transaction_id=transaction.id,
-            id=row_id,
+            id=data['id'],
             datetime=utcnow(),
             action=action.value,
             change={k: v for k, v in data.items() if k not in {'id'}},
         ),
     )
 
-    return prepare(context, action, model, backend, {**data, 'id': str(row_id)})
+    return prepare(context, action, model, backend, data)
 
 
 @get.register()
@@ -353,7 +356,7 @@ def get(context: Context, model: Model, backend: PostgreSQL, id: str):
     authorize(context, Action.GETONE, model)
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
-    result = backend.get(connection, table, table.c.id == int(id))
+    result = backend.get(connection, table, table.c.id == id)
     return prepare(context, Action.GETONE, model, backend, result)
 
 

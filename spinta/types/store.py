@@ -84,23 +84,15 @@ def migrate(context: Context, store: Store):
 @push.register()
 def push(context: Context, store: Store, stream: types.GeneratorType):
     manifest = store.manifests['default']
-    client_supplied_ids = ClientSuppliedIDs()
     for data in stream:
         data = dict(data)
         model_name = data.pop('type', None)
         assert model_name is not None, data
-        model = get_model_by_name(manifest, model_name)
-        client_id = client_supplied_ids.replace(model_name, data)
+        model = get_model_by_name(context, manifest, model_name)
         action = Action.UPDATE if 'id' in data else Action.INSERT
-        check(context, model, model.backend, data, action=action)
         pushed_data = push(context, model, model.backend, data, action=action)
         if pushed_data is not None:
-            a = client_supplied_ids.update(client_id, {
-                **pushed_data,
-                'type': model_name,
-                'id': pushed_data['id'],
-            })
-            yield a
+            yield pushed_data
 
 
 @push.register()
@@ -170,7 +162,7 @@ def export(self, rows, fmt, params: dict = None, *, backend='default', ns='defau
     yield from self.run(self.manifest, {command: params}, backend=None, ns=ns)
 
 def wipe(self, model_name: str, backend='default', ns='default'):
-    model = get_model_by_name(self, ns, model_name)
+    model = get_model_by_name(context, self, ns, model_name)
     with self.config.backends[backend].transaction() as transaction:
         self.run(model, {'wipe': {'transaction': transaction}}, backend=backend, ns=ns)
 
@@ -193,34 +185,10 @@ def find_subclasses(Class, modules):
                     yield obj
 
 
-class ClientSuppliedIDs:
-
-    def __init__(self):
-        self.ids = {}
-
-    def replace(self, model_name, data):
-        client_id = data.pop('<id>', None)
-        for k, v in data.items():
-            if not isinstance(v, dict):
-                continue
-            if set(v.keys()) == {'type', '<id>'}:
-                if self.ids[(v['type'], v['<id>'])]:
-                    data[k] = self.ids[(v['type'], v['<id>'])]
-                else:
-                    raise Exception(f"Can't find ID {v['<id>']!r} for {k} property of {model_name}.")
-            elif '<id>' in v:
-                raise Exception(f"ID replacement works with {{type=x, <id>=y}}, but instead got {data!r}")
-        return client_id
-
-    def update(self, client_id, data):
-        if client_id is not None:
-            self.ids[(data['type'], client_id)] = data['id']
-            return {'<id>': client_id, **data}
-        return data
-
-
-def get_model_by_name(manifest, name):
-    params = parse_url_path(name)
+def get_model_by_name(context: Context, manifest: Manifest, name: str):
+    # XXX: use of this function is deprecated, use get_model_from_params
+    #      instead.
+    params = parse_url_path(context, name)
     return get_model_from_params(manifest, params['path'], params)
 
 
