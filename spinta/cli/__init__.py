@@ -4,6 +4,7 @@ import pathlib
 import uuid
 
 import click
+import tqdm
 
 from spinta.config import RawConfig
 from spinta.utils.commands import load_commands
@@ -11,6 +12,8 @@ from spinta.components import Store
 from spinta import commands
 from spinta import components
 from spinta.utils.imports import importstr
+from spinta.utils.itertools import consume
+from spinta.auth import AdminToken
 
 
 @click.group()
@@ -56,7 +59,7 @@ def migrate(ctx):
 
 @main.command(help='Pull data from an external dataset.')
 @click.argument('source')
-@click.option('--model', '-m', multiple=True, help="Pull only specified modles.")
+@click.option('--model', '-m', multiple=True, help="Pull only specified models.")
 @click.option('--push', is_flag=True, default=False, help="Write pulled data to database.")
 @click.option('--export', '-e', help="Export pulled data to a file or stdout. For stdout use 'stdout:<fmt>', where <fmt> can be 'csv' or other supported format.")
 @click.pass_context
@@ -69,23 +72,20 @@ def pull(ctx, source, model, push, export):
 
     dataset = store.manifests['default'].objects['dataset'][source]
 
+    # TODO: probably commands should also use an exsiting token in order to
+    #       track who changed what.
+    context.set('auth.token', AdminToken())
+
     with context.enter():
         context.bind('transaction', store.backends['default'].transaction, write=push)
 
-        result = commands.pull(context, dataset, models=model)
-        result = commands.push(context, store, result) if push else result
+        rows = commands.pull(context, dataset, models=model)
+        rows = commands.push(context, store, rows) if push else rows
 
         if export is None and push is False:
             export = 'stdout'
 
         if export:
-            formats = {
-                'csv': 'csv',
-                'json': 'json',
-                'jsonl': 'jsonl',
-                'ascii': 'ascii',
-            }
-
             path = None
 
             if export == 'stdout':
@@ -96,10 +96,13 @@ def pull(ctx, source, model, push, export):
                 path = pathlib.Path(export)
                 fmt = export.suffix.strip('.')
 
-            if fmt not in formats:
+            config = context.get('config')
+
+            if fmt not in config.exporters:
                 raise click.UsageError(f"unknown export file type {fmt!r}")
 
-            chunks = store.export(result, fmt)
+            exporter = config.exporters[fmt]
+            chunks = exporter(rows)
 
             if path is None:
                 for chunk in chunks:
@@ -108,6 +111,9 @@ def pull(ctx, source, model, push, export):
                 with export.open('wb') as f:
                     for chunk in chunks:
                         f.write(chunk)
+
+        else:
+            consume(tqdm.tqdm(rows, desc=source))
 
 
 @main.command()

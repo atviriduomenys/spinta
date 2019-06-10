@@ -122,5 +122,9 @@ def app(context, mocker):
 
 
 @pytest.fixture
-def cli():
-    return CliRunner()
+def cli(context):
+    runner = CliRunner()
+    runner.env.update({
+        'SPINTA_ENV': 'test',
+    })
+    return runner

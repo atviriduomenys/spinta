@@ -147,11 +147,7 @@ def get_auth_token(context: Context) -> Token:
 
     config = context.get('config')
     if config.default_auth_client and 'authorization' not in request.headers:
-        private_key = load_key(context, 'private.json')
-        client = query_client(context, config.default_auth_client)
-        grant_type = 'client_credentials'
-        expires_in = int(datetime.timedelta(days=10).total_seconds())
-        token = create_access_token(context, private_key, client, grant_type, expires_in, client.scopes)
+        token = create_client_access_token(context, config.default_auth_client)
         request.headers = request.headers.mutablecopy()
         request.headers['authorization'] = f'Bearer {token}'
 
@@ -178,6 +174,14 @@ def load_key(context: Context, filename: str):
         key = json.load(f)
     key = jwk.loads(key)
     return key
+
+
+def create_client_access_token(context: Context, client_id: str):
+    private_key = load_key(context, 'private.json')
+    client = query_client(context, client_id)
+    grant_type = 'client_credentials'
+    expires_in = int(datetime.timedelta(days=10).total_seconds())
+    return create_access_token(context, private_key, client, grant_type, expires_in, client.scopes)
 
 
 def create_access_token(context, private_key, client, grant_type, expires_in, scopes):

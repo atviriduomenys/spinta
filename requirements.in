@@ -16,6 +16,7 @@ setuptools
 sqlalchemy
 starlette
 texttable
+tqdm
 ujson
 unidecode
 uvicorn

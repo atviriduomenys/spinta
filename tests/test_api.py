@@ -85,7 +85,12 @@ def test_model(context, app):
             (':changes', '/country/:changes'),
         ],
         'items': [],
-        'datasets': [],
+        'datasets': [
+            {'canonical': False, 'link': '/country/:ds/csv/:rs/countries', 'name': 'csv/countries'},
+            {'canonical': False, 'link': '/country/:ds/denorm/:rs/orgs', 'name': 'denorm/orgs'},
+            {'canonical': False, 'link': '/country/:ds/dependencies/:rs/continents', 'name': 'dependencies/continents'},
+            {'canonical': False, 'link': '/country/:ds/sql/:rs/db', 'name': 'sql/db'},
+        ],
         'header': ['id', 'title', 'code'],
         'data': [
             [
@@ -126,7 +131,12 @@ def test_model_get(context, app):
             (':changes', '/country/%s/:changes' % row['id']),
         ],
         'items': [],
-        'datasets': [],
+        'datasets': [
+            {'canonical': False, 'link': '/country/:ds/csv/:rs/countries', 'name': 'csv/countries'},
+            {'canonical': False, 'link': '/country/:ds/denorm/:rs/orgs', 'name': 'denorm/orgs'},
+            {'canonical': False, 'link': '/country/:ds/dependencies/:rs/continents', 'name': 'dependencies/continents'},
+            {'canonical': False, 'link': '/country/:ds/sql/:rs/db', 'name': 'sql/db'},
+        ],
         'header': [],
         'data': [],
         'row': [
@@ -165,8 +175,16 @@ def test_dataset(context, app):
             (':ds/json/:rs/data', None),
             (':changes', '/rinkimai/:ds/json/:rs/data/:changes'),
         ],
-        'items': [],
-        'datasets': [],
+        'items': [
+            ('apygarda', '/rinkimai/apygarda'),
+            ('apylinke', '/rinkimai/apylinke'),
+            ('kandidatas', '/rinkimai/kandidatas'),
+            ('turas', '/rinkimai/turas'),
+        ],
+        'datasets': [
+            {'canonical': False, 'link': '/rinkimai/:ds/json/:rs/data', 'name': 'json/data'},
+            {'canonical': False, 'link': '/rinkimai/:ds/xlsx/:rs/data', 'name': 'xlsx/data'},
+        ],
         'header': ['id', 'pavadinimas'],
         'data': [
             [
@@ -209,7 +227,13 @@ def test_nested_dataset(context, app):
             (':changes', '/deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource/:changes'),
         ],
         'items': [],
-        'datasets': [],
+        'datasets': [
+            {
+                'canonical': False,
+                'link': '/deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource',
+                'name': 'nested/dataset/name/resource',
+            },
+        ],
         'header': ['id', 'name'],
         'data': [
             [
@@ -255,8 +279,16 @@ def test_dataset_key(context, app):
             ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:format/jsonl'),
             ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:format/ascii'),
         ],
-        'datasets': [],
-        'items': [],
+        'datasets': [
+            {'canonical': False, 'link': '/rinkimai/:ds/json/:rs/data', 'name': 'json/data'},
+            {'canonical': False, 'link': '/rinkimai/:ds/xlsx/:rs/data', 'name': 'xlsx/data'},
+        ],
+        'items': [
+            ('apygarda', '/rinkimai/apygarda'),
+            ('apylinke', '/rinkimai/apylinke'),
+            ('kandidatas', '/rinkimai/kandidatas'),
+            ('turas', '/rinkimai/turas'),
+        ],
         'header': [],
         'data': [],
         'row': [
@@ -308,8 +340,16 @@ def test_changes_single_object(context, app, mocker):
             ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:changes/:format/jsonl'),
             ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:changes/:format/ascii'),
         ],
-        'datasets': [],
-        'items': [],
+        'datasets': [
+            {'canonical': False, 'link': '/rinkimai/:ds/json/:rs/data', 'name': 'json/data'},
+            {'canonical': False, 'link': '/rinkimai/:ds/xlsx/:rs/data', 'name': 'xlsx/data'},
+        ],
+        'items': [
+            ('apygarda', '/rinkimai/apygarda'),
+            ('apylinke', '/rinkimai/apylinke'),
+            ('kandidatas', '/rinkimai/kandidatas'),
+            ('turas', '/rinkimai/turas'),
+        ],
         'header': [
             'change_id',
             'transaction_id',
@@ -376,8 +416,16 @@ def test_changes_object_list(context, app, mocker):
             ('JSONL', '/rinkimai/:ds/json/:rs/data/:changes/:format/jsonl'),
             ('ASCII', '/rinkimai/:ds/json/:rs/data/:changes/:format/ascii'),
         ],
-        'datasets': [],
-        'items': [],
+        'datasets': [
+            {'canonical': False, 'link': '/rinkimai/:ds/json/:rs/data', 'name': 'json/data'},
+            {'canonical': False, 'link': '/rinkimai/:ds/xlsx/:rs/data', 'name': 'xlsx/data'},
+        ],
+        'items': [
+            ('apygarda', '/rinkimai/apygarda'),
+            ('apylinke', '/rinkimai/apylinke'),
+            ('kandidatas', '/rinkimai/kandidatas'),
+            ('turas', '/rinkimai/turas'),
+        ],
         'header': [
             'change_id',
             'transaction_id',

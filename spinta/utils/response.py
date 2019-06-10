@@ -69,14 +69,13 @@ async def create_http_response(context, params, request):
                     header = next(data)
                     data = list(data)
 
-        else:
-            datasets_by_object = get_datasets_by_model(context)
-            tree = build_path_tree(
-                manifest.objects.get('model', {}).keys(),
-                datasets_by_object.keys(),
-            )
-            items = get_directory_content(tree, path) if path in tree else []
-            datasets = list(get_directory_datasets(datasets_by_object, path))
+        datasets_by_object = get_datasets_by_model(context)
+        tree = build_path_tree(
+            manifest.objects.get('model', {}).keys(),
+            datasets_by_object.keys(),
+        )
+        items = get_directory_content(tree, path) if path in tree else []
+        datasets = list(get_directory_datasets(datasets_by_object, path))
 
         templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
 
