@@ -126,7 +126,7 @@ def gen_object_id(context: Context, backend: Backend, model: Node):
 
 @is_object_id.register()
 def is_object_id(context: Context, value: str):
-    # Callect all available backend/model combinations.
+    # Collect all available backend/model combinations.
     # TODO: this probably should be cached at load time to increase performance
     #       of object id lookup.
     # XXX: other option would be to implement two pass URL parsing, to get
