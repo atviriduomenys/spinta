@@ -4,4 +4,5 @@ client_secret_hash: pbkdf2$sha256$436530$RlOUYl1U1PaCpYbYIPCV3Q$uCykFxWC8fwaRi7T
 scopes:
   - spinta_getone
   - spinta_getall
+  - spinta_search
   - spinta_changes
