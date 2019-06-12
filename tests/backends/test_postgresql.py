@@ -78,3 +78,28 @@ def test_show_with_joins(context):
             'id': '69a33b149af7a7eeb25026c8cdc09187477ffe21',
         },
     ]
+
+
+def test_delete(context, app):
+    result = context.push([
+        {'type': 'country', 'code': 'fi', 'title': 'Finland'},
+        {'type': 'country', 'code': 'lt', 'title': 'Lithuania'},
+    ])
+    ids = [x['id'] for x in result]
+
+    app.authorize([
+        'spinta_country_getall',
+        'spinta_country_delete',
+    ])
+
+    resp = app.get('/country').json()
+    data = [x['id'] for x in resp['data']]
+    assert ids[0] in data
+    assert ids[1] in data
+
+    resp = app.delete(f'/country/{ids[0]}').json()
+
+    resp = app.get('/country').json()
+    data = [x['id'] for x in resp['data']]
+    assert ids[0] not in data
+    assert ids[1] in data

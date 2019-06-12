@@ -92,3 +92,28 @@ def test_mongo_update_get(context):
             'id': update_result['report']['id'],
         },
     ]
+
+
+def test_delete(context, app):
+    result = context.push([
+        {'type': 'report', 'status': '1'},
+        {'type': 'report', 'status': '2'},
+    ])
+    ids = [x['id'] for x in result]
+
+    app.authorize([
+        'spinta_report_getall',
+        'spinta_report_delete',
+    ])
+
+    resp = app.get('/report').json()
+    data = [x['id'] for x in resp['data']]
+    assert ids[0] in data
+    assert ids[1] in data
+
+    resp = app.delete(f'/report/{ids[0]}').json()
+
+    resp = app.get('/report').json()
+    data = [x['id'] for x in resp['data']]
+    assert ids[0] not in data
+    assert ids[1] in data
