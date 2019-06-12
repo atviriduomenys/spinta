@@ -147,12 +147,13 @@ def is_object_id(context: Context, value: str):
     for Backend, Model_ in candidates:
         backend = Backend()
         model = Model_()
+        model.name = ''
         if is_object_id(context, backend, model, value):
             return True
 
 
 @is_object_id.register()
-def is_object_id(context: Context, backend: Backend, model: Node, value: str):
+def is_object_id(context: Context, backend: Backend, model: Model, value: str):
     try:
         return uuid.UUID(value).version == 4
     except ValueError:
