@@ -170,7 +170,9 @@ async def create_http_response(context, params, request):
                 commands.push(context, prop, prop.backend, attachment, action=Action.DELETE)
                 return JSONResponse({'id': params.id}, status_code=200)
             else:
-                raise NotImplementedError("DELETE is not supported.")
+                data = {'id': params.id}
+                commands.push(context, model, model.backend, data, action=Action.DELETE)
+                return JSONResponse(data, status_code=200)
 
         context.set('transaction', manifest.backend.transaction())
 

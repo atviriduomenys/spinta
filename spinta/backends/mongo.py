@@ -108,22 +108,26 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     #
     # Also this command must write information to changelog after change is
     # done.
-    transaction = context.get('transaction')
+    transaction = context.get('transaction')  # noqa
     model_collection = backend.db[model.get_type_value()]
 
     # FIXME: before creating revision check if there's not collision clash
     revision_id = get_new_id('revision id')
     data['revision'] = revision_id
 
-    if 'id' in data:
+    if action == Action.INSERT:
+        data['id'] = gen_object_id(context, backend, model)
+        model_collection.insert_one(data)
+    elif action == Action.UPDATE:
         result = model_collection.update_one(
             {'id': data['id']},
             {'$set': data}
         )
         assert result.matched_count == 1 and result.modified_count == 1
+    elif action == Action.DELETE:
+        model_collection.delete_one({'id': data['id']})
     else:
-        data['id'] = gen_object_id(context, backend, model)
-        model_collection.insert_one(data).inserted_id
+        raise Exception(f"Unknown action: {action!r}.")
 
     return prepare(context, action, model, backend, data)
 
@@ -287,5 +291,9 @@ def prepare(context: Context, action: Action, model: Model, backend: Mongo, valu
                 result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
                 result['type'] = model.get_type_value()
         return result
+    elif action == Action.DELETE:
+        return {
+            'id': value['id'],
+        }
     else:
         raise Exception(f"Unknown action {action}.")

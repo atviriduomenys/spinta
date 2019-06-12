@@ -332,7 +332,10 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
             raise Exception("Update failed, {self.obj} with {data['id']} has found and update {result.rowcount} rows.")
 
     elif action == Action.DELETE:
-        raise NotImplementedError
+        connection.execute(
+            table.main.delete().
+            where(table.main.c.id == data['id'])
+        )
 
     else:
         raise Exception(f"Unknown action {action!r}.")
@@ -463,5 +466,7 @@ def _backend_to_python(context: Context, backend: PostgreSQL, action: Action, mo
         result['type'] = model.get_type_value()
         result['id'] = str(value['id'])
         return result
+    elif action == Action.DELETE:
+        return {'id': value['id']}
     else:
         raise Exception(f"Unknown action {action}.")
