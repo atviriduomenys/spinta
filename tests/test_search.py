@@ -38,7 +38,7 @@ test_data = [
 def test_search_exact(context, app):
     r1, r2, r3, = context.push(test_data)
 
-    app.authorize(['spinta_report_getall'])
+    app.authorize(['spinta_report_search'])
 
     # single field search
     resp = app.get('/reports/:exact/status/ok')
@@ -84,7 +84,7 @@ def test_search_exact(context, app):
 def test_search_gt(context, app):
     r1, r2, r3, = context.push(test_data)
 
-    app.authorize(['spinta_report_getall'])
+    app.authorize(['spinta_report_search'])
 
     # single field search
     resp = app.get('/reports/:gt/count/40')
@@ -115,7 +115,7 @@ def test_search_gt(context, app):
 def test_search_gte(context, app):
     r1, r2, r3, = context.push(test_data)
 
-    app.authorize(['spinta_report_getall'])
+    app.authorize(['spinta_report_search'])
 
     # single field search
     resp = app.get('/reports/:gte/count/40')
@@ -147,7 +147,7 @@ def test_search_gte(context, app):
 def test_search_lt(context, app):
     r1, r2, r3, = context.push(test_data)
 
-    app.authorize(['spinta_report_getall'])
+    app.authorize(['spinta_report_search'])
 
     # single field search
     resp = app.get('/reports/:lt/count/12')
@@ -178,7 +178,7 @@ def test_search_lt(context, app):
 def test_search_lte(context, app):
     r1, r2, r3, = context.push(test_data)
 
-    app.authorize(['spinta_report_getall'])
+    app.authorize(['spinta_report_search'])
 
     # single field search
     resp = app.get('/reports/:lte/count/12')
@@ -210,7 +210,7 @@ def test_search_lte(context, app):
 def test_search_ne(context, app):
     r1, r2, r3, = context.push(test_data)
 
-    app.authorize(['spinta_report_getall'])
+    app.authorize(['spinta_report_search'])
 
     # single field search
     resp = app.get('/reports/:ne/status/invalid')
@@ -242,7 +242,7 @@ def test_search_ne(context, app):
 def test_search_contains(context, app):
     r1, r2, r3, = context.push(test_data)
 
-    app.authorize(['spinta_report_getall'])
+    app.authorize(['spinta_report_search'])
 
     # single field search
     resp = app.get('/reports/:contains/report_type/vm')
@@ -288,7 +288,7 @@ def test_search_contains(context, app):
 def test_search_startswith(context, app):
     r1, r2, r3, = context.push(test_data)
 
-    app.authorize(['spinta_report_getall'])
+    app.authorize(['spinta_report_search'])
 
     # single field search
     resp = app.get('/reports/:startswith/report_type/vm')
@@ -325,7 +325,7 @@ def test_search_startswith(context, app):
 def test_search_nested(context, app):
     r1, r2, r3, = context.push(test_data)
 
-    app.authorize(['spinta_report_getall'])
+    app.authorize(['spinta_report_search'])
 
     # nested `exact` search
     resp = app.get('/reports/:exact/notes.note/foo bar')

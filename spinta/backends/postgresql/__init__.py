@@ -12,7 +12,7 @@ from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
-from spinta.backends import Backend, check_model_properties, check_type_value
+from spinta.backends import Backend, check_model_properties, check_type_value, is_search
 from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize, dump, gen_object_id
 from spinta.components import Context, Manifest, Model, Property, Action
 from spinta.config import RawConfig
@@ -375,12 +375,18 @@ def getall(
     if query_params is None:
         query_params = []
 
-    authorize(context, Action.GETALL, model)
+    if is_search(show, sort, offset, count, query_params):
+        action = Action.SEARCH
+    else:
+        action = Action.GETALL
+
+    authorize(context, action, model)
+
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = connection.execute(sa.select([table]))
     for row in result:
-        yield prepare(context, Action.GETALL, model, backend, row)
+        yield prepare(context, action, model, backend, row)
 
 
 @wipe.register()
@@ -458,7 +464,7 @@ def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL,
 
 
 def _backend_to_python(context: Context, backend: PostgreSQL, action: Action, model: Model, value):
-    if action in (Action.GETALL, Action.GETONE, Action.INSERT, Action.UPDATE):
+    if action in (Action.GETALL, Action.SEARCH, Action.GETONE, Action.INSERT, Action.UPDATE):
         result = {}
         for prop in model.properties.values():
             # TODO: `prepare` should be called for each property.

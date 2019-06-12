@@ -7,7 +7,7 @@ from datetime import date, datetime
 import pymongo
 from starlette.exceptions import HTTPException
 
-from spinta.backends import Backend, check_model_properties
+from spinta.backends import Backend, check_model_properties, is_search
 from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize, dump, gen_object_id
 from spinta.components import Context, Manifest, Model, Action
 from spinta.config import RawConfig
@@ -157,7 +157,12 @@ def getall(
     if query_params is None:
         query_params = []
 
-    authorize(context, Action.GETALL, model)
+    if is_search(show, sort, offset, count, query_params):
+        action = Action.SEARCH
+    else:
+        action = Action.GETALL
+
+    authorize(context, action, model)
 
     # Yield all available entries.
     model_collection = backend.db[model.get_type_value()]
@@ -256,7 +261,7 @@ def getall(
         search_query[operator] = search_expressions
 
     for row in model_collection.find(search_query):
-        yield prepare(context, Action.GETALL, model, backend, row, show=show)
+        yield prepare(context, action, model, backend, row, show=show)
 
 
 @wipe.register()
@@ -280,11 +285,11 @@ def prepare(context: Context, action: Action, model: Model, backend: Mongo, valu
             show: typing.List[str] = None) -> dict:
     if show is None:
         show = ['id']
-    if action in (Action.GETALL, Action.GETONE, Action.INSERT, Action.UPDATE):
+    if action in (Action.GETALL, Action.SEARCH, Action.GETONE, Action.INSERT, Action.UPDATE):
         result = {}
         for prop in model.properties.values():
             # TODO: `prepare` should be called for each property.
-            if action == Action.GETALL:
+            if action in (Action.GETALL, Action.SEARCH):
                 if prop.name in show:
                     result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
             else:

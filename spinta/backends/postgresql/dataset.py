@@ -10,7 +10,7 @@ from spinta.commands import prepare, check, push, get, getall, changes, wipe, au
 from spinta.components import Context, Action
 from spinta.types.dataset import Model
 
-from spinta.backends import Backend, check_model_properties
+from spinta.backends import Backend, check_model_properties, is_search
 from spinta.backends.postgresql import PostgreSQL
 from spinta.backends.postgresql import utcnow
 from spinta.backends.postgresql import get_table_name
@@ -218,7 +218,12 @@ def getall(
     if query_params is None:
         query_params = []
 
-    authorize(context, Action.GETALL, model)
+    if is_search(show, sort, offset, count, query_params):
+        action = Action.SEARCH
+    else:
+        action = Action.GETALL
+
+    authorize(context, action, model)
 
     connection = context.get('transaction').connection
     table = _get_table(backend, model).main

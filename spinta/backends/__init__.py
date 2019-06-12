@@ -158,3 +158,9 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: str):
         return uuid.UUID(value).version == 4
     except ValueError:
         return False
+
+
+def is_search(show, sort, offset, count, query_params):
+    if sort == [{'name': 'id', 'ascending': True}]:
+        sort = None
+    return any([show, sort, offset, count, query_params])

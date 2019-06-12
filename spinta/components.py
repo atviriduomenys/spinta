@@ -230,5 +230,6 @@ class Action(enum.Enum):
 
     GETONE = 'getone'
     GETALL = 'getall'
+    SEARCH = 'search'
 
     CHANGES = 'changes'
