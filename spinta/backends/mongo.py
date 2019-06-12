@@ -5,7 +5,6 @@ import typing
 from datetime import date, datetime
 
 import pymongo
-from bson.objectid import ObjectId
 from starlette.exceptions import HTTPException
 
 from spinta.backends import Backend, check_model_properties
@@ -15,6 +14,7 @@ from spinta.config import RawConfig
 from spinta.types.type import Date
 from spinta.utils.idgen import get_new_id
 from spinta.utils.nestedstruct import get_nested_property_type
+from spinta.exceptions import NotFound
 
 
 class Mongo(Backend):
@@ -133,6 +133,9 @@ def get(context: Context, model: Model, backend: Mongo, id: str):
     authorize(context, Action.GETONE, model)
     model_collection = backend.db[model.get_type_value()]
     row = model_collection.find_one({"id": id})
+    if row is None:
+        model_type = model.get_type_value()
+        raise NotFound(f"Model {model_type!r} with id {id!r} not found.")
     return prepare(context, Action.GETONE, model, backend, row)
 
 

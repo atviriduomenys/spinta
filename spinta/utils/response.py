@@ -95,10 +95,7 @@ async def create_http_response(context, params, request):
         if not params.model:
             raise HTTPException(status_code=404)
 
-        try:
-            model = get_model_from_params(manifest, params.model, _params)
-        except NotFound as e:
-            raise HTTPException(status_code=404, detail=str(e))
+        model = get_model_from_params(manifest, params.model, _params)
 
         if request.method == 'POST':
             context.bind('transaction', manifest.backend.transaction, write=True)

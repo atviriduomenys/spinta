@@ -15,7 +15,7 @@ from starlette.types import Receive, Send, Scope
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
 from spinta.commands import prepare
-from spinta.exceptions import DataError
+from spinta.exceptions import DataError, NotFound
 from spinta.urlparams import Version
 from spinta.utils.response import create_http_response
 from spinta.utils.response import get_response_type
@@ -130,6 +130,7 @@ async def homepage(request: Request):
 
 
 @app.exception_handler(Exception)
+@app.exception_handler(NotFound)
 @app.exception_handler(DataError)
 @app.exception_handler(AuthlibHTTPError)
 @app.exception_handler(HTTPException)
@@ -146,6 +147,9 @@ async def http_exception(request, exc):
         error = exc.error
     elif isinstance(exc, DataError):
         status_code = 400
+        error = str(exc)
+    elif isinstance(exc, NotFound):
+        status_code = 404
         error = str(exc)
     else:
         status_code = 500
