@@ -470,7 +470,7 @@ def test_count(context, app):
         },
     ]))
 
-    app.authorize(['spinta_rinkimai_ds_json_rs_data_getall'])
+    app.authorize(['spinta_rinkimai_ds_json_rs_data_search'])
     resp = app.get('/rinkimai/:ds/json/:rs/data/:count', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
