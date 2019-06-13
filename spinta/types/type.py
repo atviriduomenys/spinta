@@ -121,7 +121,7 @@ class Array(Type):
 
     def load(self, value: typing.Any):
         if value is None or value is NA:
-            return []
+            return value
 
         if isinstance(value, list):
             return list(value)
@@ -222,6 +222,8 @@ def load(context: Context, type: Array, value: object) -> list:
     # loads value into native python list, including all list items
     array_item_type = type.items.type
     loaded_array = type.load(value)
+    if value is None or value is NA:
+        return value
     new_loaded_array = []
     for item in loaded_array:
         new_loaded_array.append(load(context, array_item_type, item))

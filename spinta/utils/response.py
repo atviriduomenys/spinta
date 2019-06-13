@@ -103,7 +103,7 @@ async def create_http_response(context, params, request):
             data = commands.push(context, model, model.backend, data, action=Action.INSERT)
             return JSONResponse(data, status_code=201)
 
-        elif request.method == 'PUT':
+        elif request.method == 'PUT' or request.method == 'PATCH':
             context.bind('transaction', manifest.backend.transaction, write=True)
             if params.properties:
                 prop = get_prop_from_params(model, params)
@@ -140,9 +140,13 @@ async def create_http_response(context, params, request):
                 data = commands.push(context, model, model.backend, data, action=Action.PATCH)
                 return JSONResponse(data, status_code=200)
             else:
+                action = {
+                    'PUT': Action.UPDATE,
+                    'PATCH': Action.PATCH,
+                }[request.method]
                 data = await get_request_data(request)
                 data['id'] = params.id
-                data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
+                data = commands.push(context, model, model.backend, data, action=action)
                 return JSONResponse(data, status_code=200)
 
         elif request.method == 'DELETE':

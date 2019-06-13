@@ -56,5 +56,5 @@ def test_nested(context):
         'type': 'nested',
         'id': result[0]['id'],
         # TODO: add nested structure support for PostgreSQL
-        'some': None,
+        'some': [],
     }

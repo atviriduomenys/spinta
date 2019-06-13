@@ -99,6 +99,11 @@ def dump(context: Context, backend: Backend, type: Array, value: list, *, show: 
     return [dump(context, backend, type.items.type, v, show=show) for v in value]
 
 
+@dump.register()
+def dump(context: Context, backend: Backend, type: Array, value: type(None), *, show: dict = None):
+    return []
+
+
 @check.register()
 def check(context: Context, model: Model, backend: Backend, data: dict):
     check_model_properties(context, model, backend, data)
