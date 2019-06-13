@@ -149,6 +149,7 @@ class Model(Node):
         'date': {},
         'link': {},
         'properties': {'default': {}},
+        'flatprops': {},
         'endpoint': {},
     }
 
@@ -180,6 +181,7 @@ class Property(Node):
         'items': {},
         'hidden': {'type': 'boolean', 'inherit': True, 'default': False},
         'model': {'required': True},
+        'place': {'required': True},
     }
 
     def __init__(self):

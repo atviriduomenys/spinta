@@ -157,14 +157,16 @@ def load(context: Context, type: Type, data: dict, manifest: Manifest) -> Type:
 def load(context: Context, type: Object, data: dict, manifest: Manifest) -> Type:
     type.properties = {}
     for name, prop in data.get('properties', {}).items():
+        place = type.prop.place + '.' + name
         prop = {
             'name': name,
+            'place': place,
             'path': type.prop.path,
             'parent': type.prop,
             'model': type.prop.model,
             **prop,
         }
-        type.properties[name] = load(context, type.prop.__class__(), prop, type.prop.manifest)
+        type.prop.model.flatprops[place] = type.properties[name] = load(context, type.prop.__class__(), prop, type.prop.manifest)
     return type
 
 
@@ -173,6 +175,7 @@ def load(context: Context, type: Array, data: dict, manifest: Manifest) -> Type:
     if 'items' in data:
         prop = {
             'name': type.prop.name,
+            'place': type.prop.place,
             'path': type.prop.path,
             'parent': type.prop,
             'model': type.prop.model,

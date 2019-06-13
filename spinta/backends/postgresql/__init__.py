@@ -12,13 +12,14 @@ from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 
-from spinta.backends import Backend, check_model_properties, check_type_value, is_search
+from spinta.backends import Backend, check_model_properties, check_type_value
 from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize, dump, gen_object_id
 from spinta.components import Context, Manifest, Model, Property, Action
 from spinta.config import RawConfig
 from spinta.common import NA
 from spinta.types.type import Type, File, PrimaryKey, Ref
-from spinta.exceptions import MultipleRowsException, NoResultsException
+from spinta.exceptions import MultipleRowsException, NoResultsException, NotFound
+from spinta.utils.nestedstruct import build_show_tree
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -371,14 +372,12 @@ def getall(
     offset=None, limit=None,
     count: bool = False,
     query_params: typing.List[typing.Dict[str, str]] = None,
+    search: bool = False,
 ):
     if query_params is None:
         query_params = []
 
-    if is_search(show, sort, offset, count, query_params):
-        action = Action.SEARCH
-    else:
-        action = Action.GETALL
+    action = Action.SEARCH if search else Action.GETALL
 
     authorize(context, action, model)
 
@@ -454,25 +453,44 @@ def get_changes_table(backend, table_name, id_type):
 
 
 @prepare.register()
-def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy) -> dict:
-    return _backend_to_python(context, backend, action, model, dict(value))
+def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, show: typing.List[str] = None) -> dict:
+    return _backend_to_python(context, backend, action, model, dict(value), show)
 
 
 @prepare.register()
-def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: dict) -> dict:
-    return _backend_to_python(context, backend, action, model, value)
+def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: dict, *, show: typing.List[str] = None) -> dict:
+    return _backend_to_python(context, backend, action, model, value, show)
 
 
-def _backend_to_python(context: Context, backend: PostgreSQL, action: Action, model: Model, value):
-    if action in (Action.GETALL, Action.SEARCH, Action.GETONE, Action.INSERT, Action.UPDATE):
+def _backend_to_python(context: Context, backend: PostgreSQL, action: Action, model: Model, value: dict, show: typing.List[str]):
+    if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
+        value = {**value, 'type': model.get_type_value()}
+        result = {}
+
+        if show is not None:
+            unknown_properties = set(show) - set(model.flatprops)
+            if unknown_properties:
+                raise NotFound("Unknown properties for show: %s" % ', '.join(sorted(unknown_properties)))
+            show = build_show_tree(show)
+
+        for prop in model.properties.values():
+            if show is None or prop.place in show:
+                result[prop.name] = dump(context, backend, prop.type, value.get(prop.name), show=show)
+
+        return result
+
+    elif action in (Action.INSERT, Action.UPDATE):
         result = {}
         for prop in model.properties.values():
-            # TODO: `prepare` should be called for each property.
             result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
         result['type'] = model.get_type_value()
-        result['id'] = str(value['id'])
         return result
+
     elif action == Action.DELETE:
-        return {'id': value['id']}
+        return {
+            'id': value['id'],
+            'type': model.get_type_value(),
+        }
+
     else:
         raise Exception(f"Unknown action {action}.")

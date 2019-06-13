@@ -24,16 +24,18 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
     elif props['id'].get('type') != 'pk':
         raise Exception("'id' property is reserved for primary key and must be of 'pk' type.")
 
+    model.flatprops = {}
     model.properties = {}
     for name, prop in props.items():
         prop = {
             'name': name,
+            'place': name,
             'path': model.path,
             'parent': model,
             'model': model,
             **prop,
         }
-        model.properties[name] = load(context, Property(), prop, manifest)
+        model.flatprops[name] = model.properties[name] = load(context, Property(), prop, manifest)
 
     return model
 

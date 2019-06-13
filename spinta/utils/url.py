@@ -101,6 +101,9 @@ RULES = {
     'sort': {
         'cast': SortKey(each=True),
     },
+    'show': {
+        'minargs': 1,
+    },
     'limit': {
         'maxargs': 1,
         'cast': Cast(int, str),

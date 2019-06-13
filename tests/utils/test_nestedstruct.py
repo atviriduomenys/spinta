@@ -1,4 +1,4 @@
-from spinta.utils.nestedstruct import flatten
+from spinta.utils.nestedstruct import flatten, build_show_tree
 
 
 def test_flatten():
@@ -9,3 +9,29 @@ def test_flatten():
         {'a.b': 2},
         {'a.b': 3},
     ]
+
+
+def test_build_show_tree():
+    assert build_show_tree(['a']) == {
+        'a': set(),
+    }
+
+    assert build_show_tree(['a.b.c']) == {
+        'a': {'b'},
+        'a.b': {'c'},
+        'a.b.c': set(),
+    }
+
+    assert build_show_tree(['a.b.c', 'a.b.c.d']) == {
+        'a': {'b'},
+        'a.b': {'c'},
+        'a.b.c': {'d'},
+        'a.b.c.d': set(),
+    }
+
+    assert build_show_tree(['a.b.c', 'a.b.d']) == {
+        'a': {'b'},
+        'a.b': {'c', 'd'},
+        'a.b.c': set(),
+        'a.b.d': set()
+    }

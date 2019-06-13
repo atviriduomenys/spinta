@@ -61,17 +61,17 @@ def error(exc: Exception, context: Context, model: Model, backend: Backend, **kw
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, type: Type, value: object):
+def dump(context: Context, backend: Backend, type: Type, value: object, *, show: dict = None):
     return value
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, type: DateTime, value: datetime.datetime):
+def dump(context: Context, backend: Backend, type: DateTime, value: datetime.datetime, *, show: dict = None):
     return value.isoformat()
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, type: Date, value: datetime.date):
+def dump(context: Context, backend: Backend, type: Date, value: datetime.date, *, show: dict = None):
     if isinstance(value, datetime.datetime):
         return value.date().isoformat()
     else:
@@ -79,16 +79,24 @@ def dump(context: Context, backend: Backend, type: Date, value: datetime.date):
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, type: Object, value: dict):
+def dump(context: Context, backend: Backend, type: Object, value: dict, *, show: dict = None):
+    if show is None or show[type.prop.place]:
+        show_ = show
+    else:
+        show_ = {
+            prop.place: set()
+            for prop in type.properties.values()
+        }
     return {
-        prop.name: dump(context, backend, prop.type, value.get(prop.name))
+        prop.name: dump(context, backend, prop.type, value.get(prop.name), show=show_)
         for prop in type.properties.values()
+        if show_ is None or prop.place in show_
     }
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, type: Array, value: list):
-    return [dump(context, backend, type.items.type, v) for v in value]
+def dump(context: Context, backend: Backend, type: Array, value: list, *, show: dict = None):
+    return [dump(context, backend, type.items.type, v, show=show) for v in value]
 
 
 @check.register()
@@ -158,9 +166,3 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: str):
         return uuid.UUID(value).version == 4
     except ValueError:
         return False
-
-
-def is_search(show, sort, offset, count, query_params):
-    if sort == [{'name': 'id', 'ascending': True}]:
-        sort = None
-    return any([show, sort, offset, count, query_params])

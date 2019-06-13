@@ -7,13 +7,13 @@ from datetime import date, datetime
 import pymongo
 from starlette.exceptions import HTTPException
 
-from spinta.backends import Backend, check_model_properties, is_search
+from spinta.backends import Backend, check_model_properties
 from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize, dump, gen_object_id
 from spinta.components import Context, Manifest, Model, Action
 from spinta.config import RawConfig
 from spinta.types.type import Date
 from spinta.utils.idgen import get_new_id
-from spinta.utils.nestedstruct import get_nested_property_type
+from spinta.utils.nestedstruct import get_nested_property_type, build_show_tree
 from spinta.exceptions import NotFound
 
 
@@ -153,14 +153,12 @@ def getall(
     offset=None, limit=None,
     count: bool = False,
     query_params: typing.List[typing.Dict[str, str]] = None,
+    search: bool = False,
 ):
     if query_params is None:
         query_params = []
 
-    if is_search(show, sort, offset, count, query_params):
-        action = Action.SEARCH
-    else:
-        action = Action.GETALL
+    action = Action.SEARCH if search else Action.GETALL
 
     authorize(context, action, model)
 
@@ -260,7 +258,25 @@ def getall(
         operator = '$and'
         search_query[operator] = search_expressions
 
-    for row in model_collection.find(search_query):
+    cursor = model_collection.find(search_query)
+
+    if limit is not None:
+        cursor = cursor.limit(limit)
+
+    if offset is not None:
+        cursor = cursor.skip(offset)
+
+    if sort:
+        cursor = cursor.sort([
+            (
+                sort_key['name'],
+                pymongo.ASCENDING if sort_key['ascending'] else
+                pymongo.DESCENDING,
+            )
+            for sort_key in sort
+        ])
+
+    for row in cursor:
         yield prepare(context, action, model, backend, row, show=show)
 
 
@@ -283,22 +299,34 @@ def prepare(context: Context, type: Date, backend: Mongo, value: date) -> dateti
 @prepare.register()
 def prepare(context: Context, action: Action, model: Model, backend: Mongo, value: dict, *,
             show: typing.List[str] = None) -> dict:
-    if show is None:
-        show = ['id']
-    if action in (Action.GETALL, Action.SEARCH, Action.GETONE, Action.INSERT, Action.UPDATE):
+    if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
+        value = {**value, 'type': model.get_type_value()}
+        result = {}
+
+        if show is not None:
+            unknown_properties = set(show) - set(model.flatprops)
+            if unknown_properties:
+                raise NotFound("Unknown properties for show: %s" % ', '.join(sorted(unknown_properties)))
+            show = build_show_tree(show)
+
+        for prop in model.properties.values():
+            if show is None or prop.place in show:
+                result[prop.name] = dump(context, backend, prop.type, value.get(prop.name), show=show)
+
+        return result
+
+    elif action in (Action.INSERT, Action.UPDATE):
         result = {}
         for prop in model.properties.values():
-            # TODO: `prepare` should be called for each property.
-            if action in (Action.GETALL, Action.SEARCH):
-                if prop.name in show:
-                    result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
-            else:
-                result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
-                result['type'] = model.get_type_value()
+            result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
+        result['type'] = model.get_type_value()
         return result
+
     elif action == Action.DELETE:
         return {
             'id': value['id'],
+            'type': model.get_type_value(),
         }
+
     else:
         raise Exception(f"Unknown action {action}.")
