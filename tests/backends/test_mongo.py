@@ -89,7 +89,15 @@ def test_mongo_update_get(context):
     result = context.getall('report')
     assert result == [
         {
+            'type': 'report',
             'id': update_result['report']['id'],
+            'notes': [],
+            'report_type': None,
+            'revision': update_result['report']['revision'],
+            'status': '13',
+            'update_time': None,
+            'valid_from_date': None,
+            'count': None,
         },
     ]
 

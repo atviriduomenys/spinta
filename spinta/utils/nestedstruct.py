@@ -1,3 +1,5 @@
+from typing import List
+
 from spinta.types.type import Array, Object
 
 
@@ -57,3 +59,17 @@ def get_nested_property_type(properties, prop_name):
     else:
         prop = properties.get(prop_names[0])
         return prop.type if prop else None
+
+
+def build_show_tree(show: List[str]):
+    tree = {}
+    for name in show:
+        split = name, None
+        while len(split) == 2:
+            name, node = split
+            if name not in tree:
+                tree[name] = set()
+            if node:
+                tree[name].add(node)
+            split = name.rsplit('.', 1)
+    return tree

@@ -38,6 +38,14 @@ def prepare(context: Context, params: UrlParams, version: Version, request: Requ
     params.id = p.get('id')
     params.properties = p.get('properties')
     params.dataset = p.get('source')
+    params.search = any([
+        'show' in p,
+        'sort' in p,
+        'limit' in p,
+        'offset' in p,
+        'count' in p,
+        'query_params' in p,
+    ])
     params.sort = p.get('sort')
     params.limit = p.get('limit')
 

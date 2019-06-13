@@ -65,7 +65,7 @@ async def create_http_response(context, params, request):
                 if params.id:
                     row = list(get_row(context, _params))
                 else:
-                    data = get_data(context, _params)
+                    data = get_data(context, params)
                     header = next(data)
                     data = list(data)
 
@@ -210,6 +210,7 @@ async def create_http_response(context, params, request):
                 limit=_params.get('limit', 100),
                 count='count' in _params,
                 query_params=_params.get('query_params'),
+                search=params.search,
             )
 
             # TODO: Currently authorization and many other thins happens inside
@@ -430,20 +431,22 @@ def get_cell(params, prop, value, shorten=False, color=None):
 
 
 def get_data(context, params):
+    _params = params.params
     store = context.get('store')
     manifest = store.manifests['default']
-    model = get_model_from_params(manifest, params['path'], params)
+    model = get_model_from_params(manifest, _params['path'], _params)
     backend = model.backend
     rows = commands.getall(
         context, model, backend,
-        show=params.get('show'),
-        sort=params.get('sort', [{'name': 'id', 'ascending': True}]),
-        offset=params.get('offset'),
-        limit=params.get('limit', 100),
-        count='count' in params,
+        show=_params.get('show'),
+        sort=_params.get('sort', [{'name': 'id', 'ascending': True}]),
+        offset=_params.get('offset'),
+        limit=_params.get('limit', 100),
+        count='count' in _params,
+        search=params.search
     )
 
-    if 'count' in params:
+    if 'count' in _params:
         prop = Type()
         prop.name = 'count'
         prop.ref = None
@@ -456,7 +459,7 @@ def get_data(context, params):
     for data in rows:
         row = []
         for prop in props:
-            row.append(get_cell(params, prop, data.get(prop.name), shorten=True))
+            row.append(get_cell(_params, prop, data.get(prop.name), shorten=True))
         yield row
 
 
