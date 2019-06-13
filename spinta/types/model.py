@@ -81,15 +81,18 @@ def check(context: Context, model: Model):
 
 
 @prepare.register()
-def prepare(context: Context, model: Model, data: dict) -> dict:
+def prepare(context: Context, model: Model, data: dict, *, action: Action) -> dict:
     # prepares model's data for storing in Mongo
     backend = model.backend
     result = {}
     for name, prop in model.properties.items():
         value = data.get(name, NA)
         value = prepare(context, prop.type, backend, value)
-        if value is not NA:
-            result[name] = value
+        if action == Action.UPDATE:
+            result[name] = None if value is NA else value
+        else:
+            if value is not NA:
+                result[name] = value
     return result
 
 

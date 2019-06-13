@@ -137,10 +137,13 @@ async def create_http_response(context, params, request):
                 #       check if file has a separate backend and if not, then we
                 #       should save file with single push on model.
                 commands.push(context, prop, prop.backend, attachment, action=Action.UPDATE)
-                data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
+                data = commands.push(context, model, model.backend, data, action=Action.PATCH)
                 return JSONResponse(data, status_code=200)
             else:
-                raise NotImplementedError("PUT is not supported.")
+                data = await get_request_data(request)
+                data['id'] = params.id
+                data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
+                return JSONResponse(data, status_code=200)
 
         elif request.method == 'DELETE':
             context.bind('transaction', manifest.backend.transaction, write=True)
@@ -166,7 +169,7 @@ async def create_http_response(context, params, request):
                     'id': params.id,
                     prop.name: None,
                 }
-                data = commands.push(context, model, model.backend, data, action=Action.UPDATE)
+                data = commands.push(context, model, model.backend, data, action=Action.PATCH)
                 commands.push(context, prop, prop.backend, attachment, action=Action.DELETE)
                 return JSONResponse({'id': params.id}, status_code=200)
             else:
