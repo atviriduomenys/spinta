@@ -96,7 +96,7 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     # load and check if data is a valid for it's model
     data = load(context, model, data)
     check(context, model, backend, data, action=action)
-    data = prepare(context, model, data)
+    data = prepare(context, model, data, action=action)
 
     # Push data to Mongo backend, this can be an insert, update or delete. If
     # `id` is not given, it is an insert if `id` is given, it is an update.
@@ -118,12 +118,14 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     if action == Action.INSERT:
         data['id'] = gen_object_id(context, backend, model)
         model_collection.insert_one(data)
-    elif action == Action.UPDATE:
+    elif action == Action.UPDATE or action == Action.PATCH:
         result = model_collection.update_one(
             {'id': data['id']},
             {'$set': data}
         )
-        assert result.matched_count == 1 and result.modified_count == 1
+        assert result.matched_count == 1 and result.modified_count == 1, (
+            f"matched: {result.matched_count}, modified: {result.modified_count}"
+        )
     elif action == Action.DELETE:
         model_collection.delete_one({'id': data['id']})
     else:
@@ -299,6 +301,9 @@ def prepare(context: Context, type: Date, backend: Mongo, value: date) -> dateti
 @prepare.register()
 def prepare(context: Context, action: Action, model: Model, backend: Mongo, value: dict, *,
             show: typing.List[str] = None) -> dict:
+
+    # FIXME: whole this function is mostly identical to a one for postgresql.
+
     if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
         value = {**value, 'type': model.get_type_value()}
         result = {}
@@ -319,6 +324,14 @@ def prepare(context: Context, action: Action, model: Model, backend: Mongo, valu
         result = {}
         for prop in model.properties.values():
             result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
+        result['type'] = model.get_type_value()
+        return result
+
+    elif action == Action.PATCH:
+        result = {}
+        for k, v in value.items():
+            prop = model.properties[k]
+            result[prop.name] = dump(context, backend, prop.type, v)
         result['type'] = model.get_type_value()
         return result
 

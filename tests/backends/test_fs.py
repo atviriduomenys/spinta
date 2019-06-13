@@ -5,6 +5,7 @@ def test_crud(app):
     app.authorize([
         'spinta_photo_insert',
         'spinta_photo_update',
+        'spinta_photo_patch',
         'spinta_photo_delete',
         'spinta_photo_getone',
     ])
@@ -15,10 +16,10 @@ def test_crud(app):
         'name': 'myphoto',
     })
     assert resp.status_code == 201, resp.text
-    id = resp.json()['id']
+    id_ = resp.json()['id']
 
     # PUT image to just create photo resource.
-    resp = app.put(f'/photos/{id}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/photos/{id_}/image', data=b'BINARYDATA', headers={
         'content-type': 'image/png',
         # TODO: with content-disposition header it is possible to specify file
         #       naem dierectly, but there should be option, to use model id as a
@@ -27,10 +28,10 @@ def test_crud(app):
     })
     assert resp.status_code == 200, resp.text
 
-    resp = app.get(f'/photos/{id}')
+    resp = app.get(f'/photos/{id_}')
     assert resp.json() == {
         'type': 'photo',
-        'id': id,
+        'id': id_,
         # FIXME: revision should not be None.
         'revision': None,
         'image': {
@@ -40,18 +41,18 @@ def test_crud(app):
         'name': 'myphoto',
     }
 
-    resp = app.get(f'/photos/{id}/image')
+    resp = app.get(f'/photos/{id_}/image')
     assert resp.content == b'BINARYDATA'
 
-    resp = app.delete(f'/photos/{id}/image')
+    resp = app.delete(f'/photos/{id_}/image')
     assert resp.status_code == 200, resp.text
 
-    resp = app.get(f'/photos/{id}/image')
+    resp = app.get(f'/photos/{id_}/image')
     assert resp.status_code == 404
 
-    resp = app.get(f'/photos/{id}')
+    resp = app.get(f'/photos/{id_}')
     assert resp.json() == {
-        'id': id,
+        'id': id_,
         'image': None,
         'name': 'myphoto',
         # FIXME: revision should not be None.
@@ -78,9 +79,9 @@ def test_add_existing_file(app, tmpdir):
         },
     })
     assert resp.status_code == 201, resp.text
-    id = resp.json()['id']
+    id_ = resp.json()['id']
 
-    resp = app.get(f'/photos/{id}/image')
+    resp = app.get(f'/photos/{id_}/image')
     assert resp.content == b'IMAGEDATA'
 
 

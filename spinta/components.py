@@ -226,6 +226,7 @@ class Attachment:
 class Action(enum.Enum):
     INSERT = 'insert'
     UPDATE = 'update'
+    PATCH = 'patch'
     DELETE = 'delete'
 
     WIPE = 'wipe'

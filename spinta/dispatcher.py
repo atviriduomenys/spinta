@@ -48,12 +48,18 @@ class Command(Dispatcher):
                 if name in argnames:
                     name = arg.__module__.split('.')[-1] + '.' + name
                 argnames[arg] = name
+        base = pathlib.Path().resolve()
         for args in self.ordering:
             argsn = ', '.join([argnames[arg] for arg in args])
             func = self.funcs[args]
             file = inspect.getsourcefile(func)
             line = inspect.getsourcelines(func)[1]
-            file = pathlib.Path(file).relative_to(pathlib.Path().resolve())
+            try:
+                file = pathlib.Path(file).relative_to(base)
+            except ValueError:
+                # If two paths do not have common base, then fallback to full
+                # file path.
+                pass
             signature = f'{self.name}({argsn}):'
             print(f'{signature:<60} {file}:{line}')
 

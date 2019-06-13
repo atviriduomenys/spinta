@@ -304,24 +304,24 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
     # load and check if data is a valid for it's model
     data = load(context, model, data)
     check(context, model, backend, data, action=action)
-    data = prepare(context, model, data)
+    data = prepare(context, model, data, action=action)
 
     transaction = context.get('transaction')
     connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
 
     data = {
-        k: v for k, v in data.items() if k in table.main.columns
+        k: v for k, v in data.items() if k in table.main.columns and k != 'type'
     }
 
     if action == Action.INSERT:
-        if 'id' not in data:
+        if not data.get('id'):
             data['id'] = gen_object_id(context, backend, model)
         result = connection.execute(
             table.main.insert().values(data),
         )
 
-    elif action == Action.UPDATE:
+    elif action == Action.UPDATE or action == Action.PATCH:
         result = connection.execute(
             table.main.update().
             where(table.main.c.id == data['id']).
@@ -483,6 +483,14 @@ def _backend_to_python(context: Context, backend: PostgreSQL, action: Action, mo
         result = {}
         for prop in model.properties.values():
             result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
+        result['type'] = model.get_type_value()
+        return result
+
+    elif action == Action.PATCH:
+        result = {}
+        for k, v in value.items():
+            prop = model.properties[k]
+            result[prop.name] = dump(context, backend, prop.type, v)
         result['type'] = model.get_type_value()
         return result
 
