@@ -109,7 +109,7 @@ async def auth_token(request: Request):
     })
 
 
-@app.route('/{path:path}', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/{path:path}', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
 async def homepage(request: Request):
     global context
 
