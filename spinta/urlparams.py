@@ -4,30 +4,7 @@ from spinta.commands import prepare
 from spinta.components import Context
 from spinta.utils.url import parse_url_path
 from spinta.utils.response import get_response_type
-
-
-class UrlParams:
-
-    def __init__(self):
-        self.model = None
-        self.id = None
-        self.properties = None
-        self.dataset = None
-        self.changes = None
-        self.sort = None
-        self.limit = None
-        self.offset = None
-        self.format = None
-        self.count = None
-
-        # Deprecated, added for backwards compatibility.
-        self.params = {}
-
-
-class Version:
-
-    def __init__(self):
-        self.version = None
+from spinta.components import UrlParams, Version
 
 
 @prepare.register()
@@ -48,6 +25,7 @@ def prepare(context: Context, params: UrlParams, version: Version, request: Requ
     ])
     params.sort = p.get('sort')
     params.limit = p.get('limit')
+    params.show = p.get('show')
 
     if 'changes' in p:
         params.changes = True

@@ -1,19 +1,23 @@
 import ujson as json
 
+from spinta.commands.formats import Format
+from spinta.components import Action
 
-class Json:
+
+class Json(Format):
     content_type = 'application/json'
     accept_types = {
         'application/json',
     }
-    params = {
-        'wrap': {'type': 'boolean'},
-    }
+    params = {}
+    wrap = 'data'
 
-    def __call__(self, rows, *, wrap: bool = True):
+    def __call__(self, data, action: Action):
+        wrap = action in (Action.GETALL, Action.SEARCH)
         if wrap:
-            yield '{"data":['
-        for i, row in enumerate(rows):
-            yield (',' if i > 0 else '') + json.dumps(row, ensure_ascii=False)
-        if wrap:
+            yield '{"' + self.wrap + '":['
+            for i, item in enumerate(data):
+                yield (',' if i > 0 else '') + json.dumps(item, ensure_ascii=False)
             yield ']}'
+        else:
+            yield json.dumps(data, ensure_ascii=False)

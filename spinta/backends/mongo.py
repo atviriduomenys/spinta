@@ -8,8 +8,8 @@ import pymongo
 from starlette.exceptions import HTTPException
 
 from spinta.backends import Backend, check_model_properties
-from spinta.commands import load, prepare, migrate, check, push, get, getall, wipe, wait, authorize, dump, gen_object_id
-from spinta.components import Context, Manifest, Model, Action
+from spinta.commands import load, prepare, migrate, check, push, getone, getall, wipe, wait, authorize, dump, gen_object_id
+from spinta.components import Context, Manifest, Model, Property, Action
 from spinta.config import RawConfig
 from spinta.types.type import Date
 from spinta.utils.idgen import get_new_id
@@ -134,16 +134,21 @@ def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: 
     return prepare(context, action, model, backend, data)
 
 
-@get.register()
-def get(context: Context, model: Model, backend: Mongo, id: str):
+@getone.register()
+def getone(context: Context, model: Model, backend: Mongo, id: str, *, prop: Property = None):
     authorize(context, Action.GETONE, model)
     model_collection = backend.db[model.get_type_value()]
-    row = model_collection.find_one({"id": id})
+    if prop:
+        row = model_collection.find_one({"id": id}, {prop.name: 1})
+    else:
+        row = model_collection.find_one({"id": id})
     if row is None:
         model_type = model.get_type_value()
         raise NotFound(f"Model {model_type!r} with id {id!r} not found.")
-    return prepare(context, Action.GETONE, model, backend, row)
-
+    if prop:
+        return dump(context, backend, prop.type, row.get(prop.name))
+    else:
+        return prepare(context, Action.GETONE, model, backend, row)
 
 
 # TODO: refactor keyword arguments into a list of query parameters, like `query_params`
@@ -309,12 +314,18 @@ def prepare(context: Context, action: Action, model: Model, backend: Mongo, valu
         result = {}
 
         if show is not None:
-            unknown_properties = set(show) - set(model.flatprops)
+            unknown_properties = set(show) - {
+                name
+                for name, prop in model.flatprops.items()
+                if not prop.hidden
+            }
             if unknown_properties:
                 raise NotFound("Unknown properties for show: %s" % ', '.join(sorted(unknown_properties)))
             show = build_show_tree(show)
 
         for prop in model.properties.values():
+            if prop.hidden:
+                continue
             if show is None or prop.place in show:
                 result[prop.name] = dump(context, backend, prop.type, value.get(prop.name), show=show)
 
@@ -323,6 +334,8 @@ def prepare(context: Context, action: Action, model: Model, backend: Mongo, valu
     elif action in (Action.INSERT, Action.UPDATE):
         result = {}
         for prop in model.properties.values():
+            if prop.hidden:
+                continue
             result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
         result['type'] = model.get_type_value()
         return result

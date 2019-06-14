@@ -1,7 +1,9 @@
 import ujson as json
 
+from spinta.commands.formats import Format
 
-class JsonLines:
+
+class JsonLines(Format):
     content_type = 'application/x-json-stream'
     accept_types = {
         'application/x-json-stream',

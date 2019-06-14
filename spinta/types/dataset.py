@@ -364,8 +364,14 @@ def _get_value_from_source(context: Context, prop: Property, source, data: dict,
 
 
 @authorize.register()
-def authorize(context: Context, action: Action, model: Model, *, data=None):
-    check_generated_scopes(context, model.get_type_value(), action.value, spinta_action=action, data=data)
+def authorize(context: Context, action: Action, model: Model):
+    check_generated_scopes(context, model.get_type_value(), action.value)
+
+
+@authorize.register()
+def authorize(context: Context, action: Action, prop: Property):
+    name = prop.model.get_type_value() + '_' + prop.place
+    check_generated_scopes(context, name, action.value)
 
 
 @error.register()

@@ -4,6 +4,7 @@ import typing
 from spinta import commands
 from spinta.components import Node
 from spinta.auth import AdminToken
+from spinta.types.store import get_model_by_name
 
 
 class ContextForTests:
@@ -43,14 +44,27 @@ class ContextForTests:
             raise Exception(f"Error while processing '{dataset.path}'.")
 
     def push(self, data):
+        result = []
         store = self.get('store')
+        manifest = store.manifests['default']
         with self.transaction(write=True):
-            yield from commands.push(self, store, data)
+            for d in data:
+                d = dict(d)
+                model_name = d.pop('type', None)
+                assert model_name is not None, d
+                model = get_model_by_name(self, manifest, model_name)
+                if 'id' in d:
+                    id_ = d.pop('id')
+                    commands.patch(self, model, model.backend, id_=id_, data=d)
+                else:
+                    id_ = commands.insert(self, model, model.backend, data=d)
+                result.append(id_)
+        return result
 
-    def getone(self, model: str, id, *, dataset: str = None, resource: str = None):
+    def getone(self, model: str, id_, *, dataset: str = None, resource: str = None):
         model = self._get_model(model, dataset, resource)
         with self.transaction():
-            return commands.get(self, model, model.backend, id)
+            return commands.getone(self, model, model.backend, id_=id_)
 
     def getall(self, model: str, *, dataset: str = None, resource: str = None, **kwargs):
         model = self._get_model(model, dataset, resource)
