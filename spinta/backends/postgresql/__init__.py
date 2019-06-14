@@ -11,15 +11,21 @@ from sqlalchemy.dialects.postgresql import JSONB, BIGINT, UUID
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
+from starlette.requests import Request
+from starlette.exceptions import HTTPException
+from starlette.responses import StreamingResponse
 
 from spinta.backends import Backend, check_model_properties, check_type_value
-from spinta.commands import wait, load, prepare, migrate, check, push, get, getall, wipe, authorize, dump, gen_object_id
-from spinta.components import Context, Manifest, Model, Property, Action
+from spinta.commands import wait, load, prepare, migrate, check, push, getone, getall, wipe, authorize, dump, gen_object_id
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.common import NA
 from spinta.types.type import Type, File, PrimaryKey, Ref
 from spinta.exceptions import MultipleRowsException, NoResultsException, NotFound
 from spinta.utils.nestedstruct import build_show_tree
+from spinta.utils.response import get_request_data, get_exporter_stream
+from spinta.auth import check_scope
+from spinta import commands
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -298,48 +304,72 @@ def check(context: Context, type: File, prop: Property, backend: PostgreSQL, val
 
 
 @push.register()
-def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action):
-    authorize(context, action, model, data=data)
+async def push(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    authorize(context, action, model)
 
     # load and check if data is a valid for it's model
+    data = await get_request_data(request)
     data = load(context, model, data)
     check(context, model, backend, data, action=action)
     data = prepare(context, model, data, action=action)
 
-    transaction = context.get('transaction')
-    connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
-
+    # XXX: why is this (below) needed?
     data = {
         k: v for k, v in data.items() if k in table.main.columns and k != 'type'
     }
 
     if action == Action.INSERT:
-        if not data.get('id'):
-            data['id'] = gen_object_id(context, backend, model)
-        result = connection.execute(
-            table.main.insert().values(data),
-        )
+        if 'revision' in data.keys():
+            raise HTTPException(status_code=400, detail="cannot create 'revision'")
+        data['id'] = commands.insert(context, model, backend, data=data)
 
-    elif action == Action.UPDATE or action == Action.PATCH:
-        result = connection.execute(
-            table.main.update().
-            where(table.main.c.id == data['id']).
-            values(data)
-        )
-        if result.rowcount == 0:
-            raise Exception("Update failed, {self.obj} with {data['id']} not found.")
-        elif result.rowcount > 1:
-            raise Exception("Update failed, {self.obj} with {data['id']} has found and update {result.rowcount} rows.")
+    elif action == Action.UPDATE:
+        commands.update(context, model, backend, id_=params.id, data=data)
+
+    elif action == Action.PATCH:
+        commands.patch(context, model, backend, id_=params.id, data=data)
 
     elif action == Action.DELETE:
-        connection.execute(
-            table.main.delete().
-            where(table.main.c.id == data['id'])
-        )
+        commands.delete(context, model, backend, id_=params.id)
 
     else:
         raise Exception(f"Unknown action {action!r}.")
+
+    data = prepare(context, action, model, backend, data)
+
+    status_code = 201 if action == Action.INSERT else 200
+
+    media_type, stream = get_exporter_stream(context, action, params, data)
+    return StreamingResponse(stream, media_type=media_type, status_code=status_code)
+
+
+@commands.insert.register()
+def insert(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    data: dict,
+):
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    table = backend.tables[model.manifest.name][model.name]
+
+    if not data.get('id'):
+        data['id'] = gen_object_id(context, backend, model)
+
+    connection.execute(
+        table.main.insert().values(data),
+    )
 
     # Track changes.
     connection.execute(
@@ -347,45 +377,327 @@ def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, act
             transaction_id=transaction.id,
             id=data['id'],
             datetime=utcnow(),
-            action=action.value,
+            action=Action.INSERT.value,
             change={k: v for k, v in data.items() if k not in {'id'}},
         ),
     )
 
-    return prepare(context, action, model, backend, data)
+    return data['id']
 
 
-@get.register()
-def get(context: Context, model: Model, backend: PostgreSQL, id: str):
-    authorize(context, Action.GETONE, model)
+@commands.update.register()
+def update(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+    data: dict,
+):
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    table = backend.tables[model.manifest.name][model.name]
+
+    result = connection.execute(
+        table.main.update().
+        where(table.main.c.id == id_).
+        values(data)
+    )
+    if result.rowcount == 0:
+        raise Exception("Update failed, {model} with {id_} not found.")
+    elif result.rowcount > 1:
+        raise Exception("Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
+
+    # Track changes.
+    connection.execute(
+        table.changes.insert().values(
+            transaction_id=transaction.id,
+            id=data['id'],
+            datetime=utcnow(),
+            action=Action.UPDATE.value,
+            change={k: v for k, v in data.items() if k not in {'id'}},
+        ),
+    )
+
+
+@commands.patch.register()
+def patch(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+    data: dict,
+):
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    table = backend.tables[model.manifest.name][model.name]
+
+    result = connection.execute(
+        table.main.update().
+        where(table.main.c.id == id_).
+        values(data)
+    )
+    if result.rowcount == 0:
+        raise Exception("Update failed, {model} with {id_} not found.")
+    elif result.rowcount > 1:
+        raise Exception("Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
+
+    # Track changes.
+    connection.execute(
+        table.changes.insert().values(
+            transaction_id=transaction.id,
+            id=data['id'],
+            datetime=utcnow(),
+            action=Action.PATCH.value,
+            change={k: v for k, v in data.items() if k not in {'id'}},
+        ),
+    )
+
+
+@commands.delete.register()
+def delete(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+):
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    table = backend.tables[model.manifest.name][model.name]
+
+    connection.execute(
+        table.main.delete().
+        where(table.main.c.id == id_)
+    )
+
+    # Track changes.
+    connection.execute(
+        table.changes.insert().values(
+            transaction_id=transaction.id,
+            id=id_,
+            datetime=utcnow(),
+            action=Action.DELETE.value,
+            change=None,
+        ),
+    )
+
+
+@push.register()
+async def push(
+    context: Context,
+    request: Request,
+    prop: Property,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+    ref: bool = False,
+):
+    """
+
+    Args:
+        ref: Update reference or data refered by reference.
+
+            This applies only to direct property updates. Update reference is
+            enabled, when property is named like this `prop:ref`, the `:ref`
+            suffix tells, that reference should be updated and `ref` argument is
+            set to True.
+
+            Most properties do not have references, but some do. So this only
+            applies to properties like File with external backend, ForeignKey
+            and etc.
+
+    """
+    if action == Action.INSERT:
+        raise HTTPException(status_code=400, detail=f"Can't POST to a property, use PUT or PATCH instead.")
+
+    authorize(context, action, prop)
+
+    data = await get_request_data(request)
+
+    # Check if meta fields can be set.
+    if action == Action.INSERT and 'id' in data:
+        check_scope(context, 'set_meta_fields')
+
+    data = load(context, prop.type, data)
+    check(context, prop.type, prop, backend, data, data=None, action=action)
+    data = prepare(context, prop.type, backend, data)
+
+    if action == Action.UPDATE:
+        commands.update(context, prop, backend, id_=params.id, data=data)
+    elif action == Action.PATCH:
+        commands.patch(context, prop, backend, id_=params.id, data=data)
+    elif action == Action.DELETE:
+        commands.delete(context, prop, backend, id_=params.id)
+    else:
+        raise Exception(f"Unknown action {action}.")
+
+    data = dump(context, backend, prop.type, data)
+    media_type, stream = get_exporter_stream(context, action, params, data)
+    return StreamingResponse(stream, media_type=media_type)
+
+
+@commands.update.register()
+def update(
+    context: Context,
+    prop: Property,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+    data: dict,
+):
+    connection = context.get('transaction').connection
+    table = backend.tables[prop.model.manifest.name][prop.model.name]
+    result = connection.execute(
+        table.main.update().
+        where(table.main.c.id == id_).
+        values({prop.name: data})
+    )
+    if result.rowcount == 0:
+        raise Exception("Property update failed, {prop} with {params.id} not found.")
+    elif result.rowcount > 1:
+        raise Exception("Property update failed, {prop} with {params.id} has found and update {result.rowcount} rows.")
+
+
+@commands.patch.register()
+def patch(
+    context: Context,
+    prop: Property,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+    data: dict,
+):
+    connection = context.get('transaction').connection
+    table = backend.tables[prop.model.manifest.name][prop.model.name]
+    result = connection.execute(
+        table.main.update().
+        where(table.main.c.id == id_).
+        values({prop.name: data})
+    )
+    if result.rowcount == 0:
+        raise Exception("Property update failed, {prop} with {params.id} not found.")
+    elif result.rowcount > 1:
+        raise Exception("Property update failed, {prop} with {params.id} has found and update {result.rowcount} rows.")
+
+
+@commands.delete.register()
+def delete(
+    context: Context,
+    prop: Property,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+):
+    connection = context.get('transaction').connection
+    table = backend.tables[prop.model.manifest.name][prop.model.name]
+    result = connection.execute(
+        table.main.update().
+        where(table.main.c.id == id_).
+        values({prop.name: None})
+    )
+    if result.rowcount == 0:
+        raise Exception("Property delete failed, {prop} with {params.id} not found.")
+    elif result.rowcount > 1:
+        raise Exception("Property delete failed, {prop} with {params.id} has found and update {result.rowcount} rows.")
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+    ref: bool = False,
+):
+    authorize(context, action, model)
+    data = getone(context, model, backend, id_=params.id)
+    data = prepare(context, Action.GETONE, model, backend, data, show=params.show)
+    media_type, stream = get_exporter_stream(context, action, params, data)
+    return StreamingResponse(stream, media_type=media_type)
+
+
+@getone.register()
+def getone(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+):
+    # TODO: add `show` parameter and create query that would fetch only those
+    #       fields specified in `show` parameter.
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
-    result = backend.get(connection, table, table.c.id == id)
-    return prepare(context, Action.GETONE, model, backend, result)
+    return backend.get(connection, table, table.c.id == id_)
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+    ref: bool = False,
+):
+    authorize(context, action, prop)
+    data = getone(context, prop, backend, id_=params.id)
+    data = dump(context, backend, prop.type, data)
+    media_type, stream = get_exporter_stream(context, action, params, data)
+    return StreamingResponse(stream, media_type=media_type)
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+):
+    table = backend.tables[prop.manifest.name][prop.model.name].main
+    connection = context.get('transaction').connection
+    return backend.get(connection, table.c[prop.name], table.c.id == id_)
 
 
 @getall.register()
-def getall(
-    context: Context, model: Model, backend: PostgreSQL, *,
-    show: typing.List[str] = None,
-    sort: typing.List[typing.Dict[str, str]] = None,
-    offset=None, limit=None,
-    count: bool = False,
-    query_params: typing.List[typing.Dict[str, str]] = None,
-    search: bool = False,
+async def getall(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
 ):
-    if query_params is None:
-        query_params = []
 
-    action = Action.SEARCH if search else Action.GETALL
+    # TODO: add all the filtering support to postgresql
+    # show=_params.get('show'),
+    # sort=_params.get('sort', [{'name': 'id', 'ascending': True}]),
+    # offset=_params.get('offset'),
+    # limit=_params.get('limit', 100),
+    # count='count' in _params,
+    # query_params=_params.get('query_params'),
+    # search=params.search,
 
     authorize(context, action, model)
 
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
     result = connection.execute(sa.select([table]))
-    for row in result:
-        yield prepare(context, action, model, backend, row)
+    media_type, stream = get_exporter_stream(context, action, params, (
+        prepare(context, action, model, backend, row)
+        for row in result
+    ))
+    return StreamingResponse(stream, media_type=media_type)
 
 
 @wipe.register()

@@ -5,9 +5,10 @@ import typing
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+from starlette.requests import Request
 
-from spinta.commands import prepare, check, push, get, getall, changes, wipe, authorize, is_object_id
-from spinta.components import Context, Action
+from spinta.commands import prepare, check, push, getone, getall, changes, wipe, authorize, is_object_id
+from spinta.components import Context, Action, UrlParams
 from spinta.types.dataset import Model
 
 from spinta.backends import Backend, check_model_properties
@@ -137,8 +138,8 @@ def _serialize(value):
     return value
 
 
-@get.register()
-def get(context: Context, model: Model, backend: PostgreSQL, id: str):
+@getone.register()
+def getone(context: Context, model: Model, backend: PostgreSQL, id: str):
     authorize(context, Action.GETONE, model)
 
     connection = context.get('transaction').connection
@@ -208,16 +209,39 @@ class JoinManager:
 
 @getall.register()
 def getall(
-    context: Context, model: Model, backend: PostgreSQL, *,
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    if query_params is None:
+        query_params = []
+
+
+
+
+    show=_params.get('show'),
+    sort=_params.get('sort', [{'name': 'id', 'ascending': True}]),
+    offset=_params.get('offset'),
+    limit=_params.get('limit', 100),
+    count='count' in _params,
+    search=params.search
+
+
+
+    context: Context, request: Request, model: Model, backend: PostgreSQL, *,
     show: typing.List[str] = None,
     sort: typing.List[typing.Dict[str, str]] = None,
     offset=None, limit=None,
     count: bool = False,
     query_params: typing.List[typing.Dict[str, str]] = None,
     search: bool = False,
-):
-    if query_params is None:
-        query_params = []
+
+
+
 
     action = Action.SEARCH if search else Action.GETALL
 
@@ -285,8 +309,25 @@ def _getall_limit(query, limit):
 
 
 @changes.register()
-def changes(context: Context, model: Model, backend: PostgreSQL, *, id=None, offset=None, limit=None):
+def changes(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+
+    id = params.id           # default = None
+    limit = params.limit     # default = 100
+    offset = params.changes  # default = -10
+
     authorize(context, Action.CHANGES, model)
+
+    store = context.get('store')
+    manifest = store.manifests['default']
+    context.bind('transaction', manifest.backend.transaction)
 
     connection = context.get('transaction').connection
     table = _get_table(backend, model).changes

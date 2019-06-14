@@ -5,10 +5,11 @@ import sys
 
 from texttable import Texttable
 
+from spinta.commands.formats import Format
 from spinta.utils.nestedstruct import flatten
 
 
-class Ascii:
+class Ascii(Format):
     content_type = 'text/plain'
     accept_types = {
         'text/plain',

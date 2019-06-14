@@ -130,9 +130,28 @@ def push():
     """Insert, update or delete data to the databse."""
 
 
-# FIXME: `get` should be renamed to `getone`.
 @command()
-def get():
+def insert():
+    pass
+
+
+@command()
+def update():
+    pass
+
+
+@command()
+def patch():
+    pass
+
+
+@command()
+def delete():
+    pass
+
+
+@command()
+def getone():
     """Get single record from the databse."""
 
 

@@ -236,3 +236,23 @@ class Action(enum.Enum):
     SEARCH = 'search'
 
     CHANGES = 'changes'
+
+
+class UrlParams:
+    model: str
+    id: str
+    properties: list
+    dataset: str
+    changes: str
+    sort: list
+    limit: int
+    offset: int
+    format: str
+    count: bool
+
+    # Deprecated, added for backwards compatibility.
+    params: dict
+
+
+class Version:
+    version: str

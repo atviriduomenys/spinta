@@ -1,6 +1,7 @@
 import csv
 import itertools
 
+from spinta.commands.formats import Format
 from spinta.utils.nestedstruct import flatten
 
 
@@ -17,7 +18,7 @@ class IterableFile:
         self.writes.append(data)
 
 
-class Csv:
+class Csv(Format):
     content_type = 'text/csv'
     accept_types = {
         'text/csv',
