@@ -1,59 +1,62 @@
 import datetime
 
-from spinta.utils.itertools import consume
+import pytest
 
 
 def test_export_ascii(context, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
+    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REV')
 
-    consume(context.push([
+    context.push([
         {
             'type': 'country/:ds/csv/:rs/countries',
-            'id': 1,
+            'id': '1',
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
             'type': 'country/:ds/csv/:rs/countries',
-            'id': 2,
+            'id': '2',
             'code': 'lv',
             'title': 'LATVIA',
         },
         {
             'type': 'country/:ds/csv/:rs/countries',
-            'id': 2,
+            'id': '2',
             'code': 'lv',
             'title': 'Latvia',
         },
-    ]))
+    ])
 
     app.authorize([
         'spinta_country_ds_csv_rs_countries_getall',
+        'spinta_country_ds_csv_rs_countries_search',
         'spinta_country_ds_csv_rs_countries_changes',
     ])
 
-    assert app.get('country/:ds/csv/:rs/countries/:format/ascii').text == (
+    assert app.get('country/:ds/csv/:rs/countries/:sort/code/:format/ascii').text == (
         '\n\n'
         'Table: country/:ds/csv/:rs/countries\n'
-        '                   id                      code     title  \n'
-        '===========================================================\n'
-        '025685077bbcf6e434a95b65b9a6f5fcef046861   lv     Latvia   \n'
-        '69a33b149af7a7eeb25026c8cdc09187477ffe21   lt     Lithuania'
+        'id   code     title     revision\n'
+        '================================\n'
+        '1    lt     Lithuania   REV     \n'
+        '2    lv     Latvia      REV     '
     )
 
     changes = context.changes('country', dataset='csv', resource='countries')
     ids = [c['change_id'] for c in changes]
     txn = [c['transaction_id'] for c in changes]
     assert app.get('country/:ds/csv/:rs/countries/:changes/:format/ascii').text == (
-        'change_id   transaction_id                      id                               datetime            action   change.code   change.title\n'
-        '========================================================================================================================================\n'
-        f'{ids[0]:<3}         {txn[0]:<3}              69a33b149af7a7eeb25026c8cdc09187477ffe21   2019-03-06 16:15:00.816308   insert   lt            Lithuania   \n'
-        f'{ids[1]:<3}         {txn[0]:<3}              025685077bbcf6e434a95b65b9a6f5fcef046861   2019-03-06 16:15:00.816308   insert   lv            LATVIA      \n'
-        f'{ids[2]:<3}         {txn[0]:<3}              025685077bbcf6e434a95b65b9a6f5fcef046861   2019-03-06 16:15:00.816308   update   None          Latvia      '
+        'change_id   transaction_id   id            datetime            action   change.code   change.title\n'
+        '==================================================================================================\n'
+        f'{ids[0]:<12}{txn[0]:<13}    1    2019-03-06T16:15:00.816308   insert   lt            Lithuania   \n'
+        f'{ids[1]:<12}{txn[1]:<13}    2    2019-03-06T16:15:00.816308   insert   lv            LATVIA      \n'
+        f'{ids[2]:<12}{txn[2]:<13}    2    2019-03-06T16:15:00.816308   patch    None          Latvia      '
     )
 
 
-def test_export_multiple_types(context):
+@pytest.mark.asyncio
+async def test_export_multiple_types(context):
     rows = [
         {'type': 'a', 'value': 1},
         {'type': 'a', 'value': 2},

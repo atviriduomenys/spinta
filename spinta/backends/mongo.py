@@ -5,16 +5,22 @@ import typing
 from datetime import date, datetime
 
 import pymongo
+
 from starlette.exceptions import HTTPException
+from starlette.requests import Request
 
 from spinta.backends import Backend, check_model_properties
 from spinta.commands import load, prepare, migrate, check, push, getone, getall, wipe, wait, authorize, dump, gen_object_id
-from spinta.components import Context, Manifest, Model, Property, Action
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.types.type import Date
 from spinta.utils.idgen import get_new_id
-from spinta.utils.nestedstruct import get_nested_property_type, build_show_tree
 from spinta.exceptions import NotFound
+from spinta import commands
+from spinta.auth import check_scope
+from spinta.utils.changes import get_patch_changes
+from spinta.utils.response import get_request_data
+from spinta.renderer import render
 
 
 class Mongo(Backend):
@@ -90,100 +96,326 @@ def check(context: Context, model: Model, backend: Mongo, data: dict, *, action:
 
 
 @push.register()
-def push(context: Context, model: Model, backend: Mongo, data: dict, *, action: Action):
-    authorize(context, action, model, data=data)
+async def push(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: Mongo,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    authorize(context, action, model)
 
-    # load and check if data is a valid for it's model
-    data = load(context, model, data)
-    check(context, model, backend, data, action=action)
-    data = prepare(context, model, data, action=action)
+    if action == Action.DELETE:
+        data = {}
+    else:
+        data = await get_request_data(request)
+        data = load(context, model, data)
+        check(context, model, backend, data, action=action)
+        data = prepare(context, model, data, action=action)
 
-    # Push data to Mongo backend, this can be an insert, update or delete. If
-    # `id` is not given, it is an insert if `id` is given, it is an update.
-    #
-    # Deletes are not yet implemented, but for deletes `data` must equal to
-    # `{'id': 1, _delete: True}`.
-    #
-    # Also this must return inserted/updated/deleted id.
-    #
-    # Also this command must write information to changelog after change is
-    # done.
     transaction = context.get('transaction')  # noqa
-    model_collection = backend.db[model.get_type_value()]
-
-    # FIXME: before creating revision check if there's not collision clash
-    revision_id = get_new_id('revision id')
-    data['revision'] = revision_id
 
     if action == Action.INSERT:
-        data['id'] = gen_object_id(context, backend, model)
-        model_collection.insert_one(data)
-    elif action == Action.UPDATE or action == Action.PATCH:
-        result = model_collection.update_one(
-            {'id': data['id']},
-            {'$set': data}
-        )
-        assert result.matched_count == 1 and result.modified_count == 1, (
-            f"matched: {result.matched_count}, modified: {result.modified_count}"
-        )
+        data['id'] = commands.insert(context, model, backend, data=data)
+
+    elif action == Action.UPSERT:
+        data['id'] = commands.upsert(context, model, backend, data=data)
+
+    elif action == Action.UPDATE:
+        data['id'] = params.id
+        data['revision'] = get_new_id('revision id')
+        commands.update(context, model, backend, id_=params.id, data=data)
+
+    elif action == Action.PATCH:
+        data['id'] = params.id
+        data['revision'] = get_new_id('revision id')
+        commands.patch(context, model, backend, id_=params.id, data=data)
+
     elif action == Action.DELETE:
-        model_collection.delete_one({'id': data['id']})
+        data['id'] = params.id
+        data['revision'] = get_new_id('revision id')
+        commands.delete(context, model, backend, id_=params.id)
+
     else:
         raise Exception(f"Unknown action: {action!r}.")
 
-    return prepare(context, action, model, backend, data)
+    data = prepare(context, action, model, backend, data)
+
+    status_code = 201 if action == Action.INSERT else 200
+    return render(context, request, model, action, params, data, status_code=status_code)
+
+
+@commands.insert.register()
+def insert(
+    context: Context,
+    model: Model,
+    backend: Mongo,
+    *,
+    data: dict,
+):
+    table = backend.db[model.get_type_value()]
+
+    if 'id' in data:
+        check_scope(context, 'set_meta_fields')
+    else:
+        data['id'] = gen_object_id(context, backend, model)
+
+    if 'revision' in data:
+        raise HTTPException(status_code=400, detail="cannot create 'revision'")
+    # FIXME: before creating revision check if there's no collision clash
+    data['revision'] = get_new_id('revision id')
+
+    table.insert_one(data)
+
+    return data['id']
+
+
+@commands.upsert.register()
+def upsert(
+    context: Context,
+    model: Model,
+    backend: Mongo,
+    *,
+    key: typing.List[str],
+    data: dict,
+):
+    table = backend.db[model.get_type_value()]
+
+    condition = []
+    for k in key:
+        condition.append({k: data[k]})
+
+    row = table.find_one({'$and': condition})
+
+    if row is None:
+        if 'id' in data:
+            id_ = data['id']
+        else:
+            id_ = commands.gen_object_id(context, backend, model)
+
+        if 'revision' in data.keys():
+            raise HTTPException(status_code=400, detail="cannot create 'revision'")
+        data['revision'] = get_new_id('revision id')
+
+        table.insert_one(data)
+
+    else:
+        id_ = row['_id']
+
+        data = _patch(table, id_, row, data)
+
+        if data is None:
+            # Nothing changed.
+            return None
+
+    # Track changes.
+    # TODO: add to changelog
+
+    return id_
+
+
+@commands.update.register()
+def update(
+    context: Context,
+    model: Model,
+    backend: Mongo,
+    *,
+    id_: str,
+    data: dict,
+):
+    table = backend.db[model.get_type_value()]
+    result = table.update_one(
+        {'id': id_},
+        {'$set': data}
+    )
+    assert result.matched_count == 1 and result.modified_count == 1, (
+        f"matched: {result.matched_count}, modified: {result.modified_count}"
+    )
+    return id_
+
+
+@commands.patch.register()
+def patch(
+    context: Context,
+    model: Model,
+    backend: Mongo,
+    *,
+    id_: str,
+    data: dict,
+):
+    table = backend.db[model.get_type_value()]
+
+    row = table.find_one({'id': id_})
+    if row is None:
+        type_ = model.get_type_value()
+        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+
+    data = _patch(table, id_, row, data)
+
+    if data is None:
+        # Nothing changed.
+        return None
+
+    # Track changes.
+    # TODO: add to changelog
+
+    return data
+
+
+def _patch(table, id_, row, data):
+    changes = get_patch_changes(row, data)
+
+    if not changes:
+        # Nothing to update.
+        return None
+
+    table.update_one(
+        {'_id': id_},
+        {'$set': changes},
+    )
+
+    return changes
+
+
+@commands.delete.register()
+def delete(
+    context: Context,
+    model: Model,
+    backend: Mongo,
+    *,
+    id_: str,
+):
+    table = backend.db[model.get_type_value()]
+    table.delete_one({'id': id_})
 
 
 @getone.register()
-def getone(context: Context, model: Model, backend: Mongo, id: str, *, prop: Property = None):
-    authorize(context, Action.GETONE, model)
-    model_collection = backend.db[model.get_type_value()]
-    if prop:
-        row = model_collection.find_one({"id": id}, {prop.name: 1})
-    else:
-        row = model_collection.find_one({"id": id})
-    if row is None:
-        model_type = model.get_type_value()
-        raise NotFound(f"Model {model_type!r} with id {id!r} not found.")
-    if prop:
-        return dump(context, backend, prop.type, row.get(prop.name))
-    else:
-        return prepare(context, Action.GETONE, model, backend, row)
-
-
-# TODO: refactor keyword arguments into a list of query parameters, like `query_params`
-@getall.register()
-def getall(
-    context: Context, model: Model, backend: Mongo, *,
-    show: typing.List[str] = None,
-    sort: typing.List[typing.Dict[str, str]] = None,
-    offset=None, limit=None,
-    count: bool = False,
-    query_params: typing.List[typing.Dict[str, str]] = None,
-    search: bool = False,
+async def getone(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: Mongo,
+    *,
+    action: Action,
+    params: UrlParams,
+    ref: bool = False,
 ):
-    if query_params is None:
-        query_params = []
+    authorize(context, action, model)
+    data = getone(context, model, backend, id_=params.id)
+    data = prepare(context, action, model, backend, data)
+    return render(context, request, model, action, params, data)
 
-    action = Action.SEARCH if search else Action.GETALL
+
+@getone.register()
+def getone(
+    context: Context,
+    model: Model,
+    backend: Mongo,
+    *,
+    id_: str,
+):
+    table = backend.db[model.get_type_value()]
+    data = table.find_one({'id': id_})
+    if data is None:
+        type_ = model.get_type_value()
+        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+    return data
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    backend: Mongo,
+    *,
+    action: Action,
+    params: UrlParams,
+    ref: bool = False,
+):
+    authorize(context, action, prop)
+    data = getone(context, prop, backend, id_=params.id)
+    data = dump(context, backend, prop.type, data)
+    return render(context, request, prop, action, params, data)
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    backend: Mongo,
+    *,
+    id_: str,
+):
+    table = backend.db[prop.model.get_type_value()]
+    data = table.find_one({'id': id_}, {prop.name: 1})
+    if data is None:
+        type_ = prop.model.get_type_value()
+        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+    return data.get(prop.name)
+
+
+@getall.register()
+async def getall(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: Mongo,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    # show: typing.List[str] = None,
+    # sort: typing.List[typing.Dict[str, str]] = None,
+    # offset=None, limit=None,
+    # count: bool = False,
+    # query_params: typing.List[typing.Dict[str, str]] = None,
+    # search: bool = False,
 
     authorize(context, action, model)
+    data = commands.getall(
+        context, model, model.backend,
+        action=action,
+        show=params.show,
+        sort=params.sort,
+        offset=params.offset,
+        limit=params.limit,
+        count=params.count,
+        query=params.query,
+    )
+    return render(context, request, model, action, params, data)
 
-    # Yield all available entries.
-    model_collection = backend.db[model.get_type_value()]
+
+@getall.register()  # noqa
+def getall(
+    context: Context,
+    model: Model,
+    backend: Mongo,
+    *,
+    action: Action = Action.GETALL,
+    show: typing.List[str] = None,
+    sort: typing.Dict[str, dict] = None,
+    offset: int = None,
+    limit: int = None,
+    count: bool = False,
+    query: typing.List[typing.Dict[str, str]] = None,
+):
+    table = backend.db[model.get_type_value()]
 
     search_expressions = []
-    for qp in query_params:
-        value_type = get_nested_property_type(model.properties, qp['key'])
+    query = query or []
+    for qp in query:
+        if qp['key'] not in model.flatprops:
+            raise HTTPException(status_code=400, detail=f"Unknown property {qp['key']!r}.")
 
-        if value_type is None:
-            # FIXME: proper error message
-            raise HTTPException(status_code=400, detail="attribute does not exist")
-        else:
-            # for search to work on MongoDB, values must be compatible for
-            # Mongo's BSON consumption, thus we need to use chained load and prepare
-            value = load(context, value_type, qp['value'])
-            value = prepare(context, value_type, backend, value)
+        prop = model.flatprops[qp['key']]
+
+        # for search to work on MongoDB, values must be compatible for
+        # Mongo's BSON consumption, thus we need to use chained load and prepare
+        value = load(context, prop.type, qp['value'])
+        value = prepare(context, prop.type, backend, value)
 
         # in case value is not a string - then just search for that value directly
         if isinstance(value, str):
@@ -191,35 +423,37 @@ def getall(
         else:
             re_value = value
 
-        if qp.get('operator') == 'exact':
+        operator = qp.get('operator')
+
+        if operator == 'exact':
             search_expressions.append({
                 qp['key']: re_value
             })
-        elif qp.get('operator') == 'gt':
+        elif operator == 'gt':
             search_expressions.append({
                 qp['key']: {
                     '$gt': re_value
                 }
             })
-        elif qp.get('operator') == 'gte':
+        elif operator == 'gte':
             search_expressions.append({
                 qp['key']: {
                     '$gte': re_value
                 }
             })
-        elif qp.get('operator') == 'lt':
+        elif operator == 'lt':
             search_expressions.append({
                 qp['key']: {
                     '$lt': re_value
                 }
             })
-        elif qp.get('operator') == 'lte':
+        elif operator == 'lte':
             search_expressions.append({
                 qp['key']: {
                     '$lte': re_value
                 }
             })
-        elif qp.get('operator') == 'ne':
+        elif operator == 'ne':
             # MongoDB's $ne operator does not consume regular expresions for values,
             # whereas `$not` requires an expression.
             # Thus if our search value is regular expression - search with $not, if
@@ -236,7 +470,7 @@ def getall(
                         '$ne': re_value
                     }
                 })
-        elif qp.get('operator') == 'contains':
+        elif operator == 'contains':
             try:
                 re_value = re.compile(value, re.IGNORECASE)
             except TypeError:
@@ -246,7 +480,7 @@ def getall(
             search_expressions.append({
                 qp['key']: re_value
             })
-        elif qp.get('operator') == 'startswith':
+        elif operator == 'startswith':
             # https://stackoverflow.com/a/3483399
             try:
                 re_value = re.compile('^' + value + '.*', re.IGNORECASE)
@@ -259,13 +493,12 @@ def getall(
             })
 
     search_query = {}
+
     # search expressions cannot be empty
     if search_expressions:
-        # TODO: implement `$or` operator support
-        operator = '$and'
-        search_query[operator] = search_expressions
+        search_query['$and'] = search_expressions
 
-    cursor = model_collection.find(search_query)
+    cursor = table.find(search_query)
 
     if limit is not None:
         cursor = cursor.limit(limit)
@@ -290,69 +523,11 @@ def getall(
 @wipe.register()
 def wipe(context: Context, model: Model, backend: Mongo):
     authorize(context, Action.WIPE, model)
-
-    transaction = context.get('transaction')
-    # Delete all data for a given model
-    model_collection = backend.db[model.get_type_value()]
-    return model_collection.delete_many({})
+    table = backend.db[model.get_type_value()]
+    return table.delete_many({})
 
 
 @prepare.register()
 def prepare(context: Context, type: Date, backend: Mongo, value: date) -> datetime:
     # prepares date values for Mongo store, they must be converted to datetime
     return datetime(value.year, value.month, value.day)
-
-
-@prepare.register()
-def prepare(context: Context, action: Action, model: Model, backend: Mongo, value: dict, *,
-            show: typing.List[str] = None) -> dict:
-
-    # FIXME: whole this function is mostly identical to a one for postgresql.
-
-    if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
-        value = {**value, 'type': model.get_type_value()}
-        result = {}
-
-        if show is not None:
-            unknown_properties = set(show) - {
-                name
-                for name, prop in model.flatprops.items()
-                if not prop.hidden
-            }
-            if unknown_properties:
-                raise NotFound("Unknown properties for show: %s" % ', '.join(sorted(unknown_properties)))
-            show = build_show_tree(show)
-
-        for prop in model.properties.values():
-            if prop.hidden:
-                continue
-            if show is None or prop.place in show:
-                result[prop.name] = dump(context, backend, prop.type, value.get(prop.name), show=show)
-
-        return result
-
-    elif action in (Action.INSERT, Action.UPDATE):
-        result = {}
-        for prop in model.properties.values():
-            if prop.hidden:
-                continue
-            result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
-        result['type'] = model.get_type_value()
-        return result
-
-    elif action == Action.PATCH:
-        result = {}
-        for k, v in value.items():
-            prop = model.properties[k]
-            result[prop.name] = dump(context, backend, prop.type, v)
-        result['type'] = model.get_type_value()
-        return result
-
-    elif action == Action.DELETE:
-        return {
-            'id': value['id'],
-            'type': model.get_type_value(),
-        }
-
-    else:
-        raise Exception(f"Unknown action {action}.")

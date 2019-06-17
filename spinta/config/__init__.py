@@ -77,6 +77,7 @@ CONFIG = {
         'csv': 'spinta.commands.formats.csv:Csv',
         'json': 'spinta.commands.formats.json:Json',
         'jsonl': 'spinta.commands.formats.jsonl:JsonLines',
+        'html': 'spinta.commands.formats.html:Html',
     },
     'backends': {
         'default': {

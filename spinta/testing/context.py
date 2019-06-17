@@ -33,15 +33,13 @@ class ContextForTests:
         store = self.get('store')
         dataset = store.manifests['default'].objects['dataset'][dataset]
         models = models or []
-        try:
-            with self.transaction(write=push):
-                data = commands.pull(self, dataset, models=models)
-                if push:
-                    yield from commands.push(self, store, data)
-                else:
-                    yield from data
-        except Exception:
-            raise Exception(f"Error while processing '{dataset.path}'.")
+        with self.transaction(write=push):
+            try:
+                data = list(commands.pull(self, dataset, models=models))
+            except Exception:
+                raise Exception(f"Error while processing '{dataset.path}'.")
+            data = self.push(data) if push else data
+        return data
 
     def push(self, data):
         result = []
@@ -50,15 +48,18 @@ class ContextForTests:
         with self.transaction(write=True):
             for d in data:
                 d = dict(d)
-                model_name = d.pop('type', None)
-                assert model_name is not None, d
-                model = get_model_by_name(self, manifest, model_name)
+                type_ = d.pop('type', None)
+                assert type_ is not None, d
+                model = get_model_by_name(self, manifest, type_)
                 if 'id' in d:
-                    id_ = d.pop('id')
-                    commands.patch(self, model, model.backend, id_=id_, data=d)
+                    id_ = commands.upsert(self, model, model.backend, key=['id'], data=d)
                 else:
                     id_ = commands.insert(self, model, model.backend, data=d)
-                result.append(id_)
+                if id_ is not None:
+                    result.append({
+                        'type': type_,
+                        'id': id_,
+                    })
         return result
 
     def getone(self, model: str, id_, *, dataset: str = None, resource: str = None):

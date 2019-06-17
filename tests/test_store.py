@@ -1,4 +1,4 @@
-def test_schema_loader(context):
+def test_schema_loader(context, app):
     country, = context.push([
         {
             'type': 'country',
@@ -17,44 +17,50 @@ def test_schema_loader(context):
 
     assert country == {
         'id': country['id'],
-        'code': 'lt',
-        'title': 'Lithuania',
         'type': 'country',
     }
     assert org == {
         'id': org['id'],
-        'country': country['id'],
-        'govid': '0042',
-        'title': 'My Org',
         'type': 'org',
     }
 
-    assert context.getone('org', org['id']) == {
+    app.authorize(['spinta_getone'])
+
+    assert app.get(f'/org/{org["id"]}').json() == {
         'id': org['id'],
         'govid': '0042',
         'title': 'My Org',
         'country': country['id'],
         'type': 'org',
+        # FIXME: revision should not be None.
+        'revision': None,
     }
 
-    assert context.getone('country', country['id']) == {
+    assert app.get(f'/country/{country["id"]}').json() == {
         'id': country['id'],
         'code': 'lt',
         'title': 'Lithuania',
         'type': 'country',
+        # FIXME: revision should not be None.
+        'revision': None,
     }
 
 
-def test_nested(context):
-    result = list(context.push([
-        {
-            'type': 'nested',
-            'some': [{'nested': {'structure': 'here'}}]
-        }
-    ]))
-    assert context.getone('nested', result[0]['id']) == {
+def test_nested(app):
+    app.authorize(['spinta_insert', 'spinta_getone'])
+
+    resp = app.post('/nested', json={
         'type': 'nested',
-        'id': result[0]['id'],
+        'some': [{'nested': {'structure': 'here'}}]
+    })
+    assert resp.status_code == 201
+    data = resp.json()
+    id_ = data['id']
+
+    assert app.get(f'/nested/{id_}').json() == {
+        'type': 'nested',
+        'id': id_,
         # TODO: add nested structure support for PostgreSQL
         'some': [],
+        'revision': None,
     }

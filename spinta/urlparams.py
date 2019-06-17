@@ -11,7 +11,7 @@ from spinta.components import UrlParams, Version
 def prepare(context: Context, params: UrlParams, version: Version, request: Request) -> UrlParams:
     path = request.path_params['path'].strip('/')
     p = parse_url_path(context, path)
-    params.model = p['path']
+    params.path = p['path']
     params.id = p.get('id')
     params.properties = p.get('properties')
     params.dataset = p.get('source')
@@ -26,6 +26,7 @@ def prepare(context: Context, params: UrlParams, version: Version, request: Requ
     params.sort = p.get('sort')
     params.limit = p.get('limit')
     params.show = p.get('show')
+    params.query = p.get('query_params')
 
     if 'changes' in p:
         params.changes = True
@@ -35,6 +36,7 @@ def prepare(context: Context, params: UrlParams, version: Version, request: Requ
         params.offset = p.get('offset')
 
     params.format = get_response_type(context, request, p)
-    params.count = p.get('count')
+    params.count = 'count' in p
+    params.contents = 'contents' in p
     params.params = p  # XXX: for backwards compatibility
     return params

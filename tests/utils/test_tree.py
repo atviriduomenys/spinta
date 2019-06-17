@@ -15,6 +15,8 @@ def test_build_path_tree():
         'a': ['b'],
         'a/b': ['c'],
         'a/b/c': ['d'],
+        'a/b/c/d': [],
         'z': ['x'],
         'z/x': ['y'],
+        'z/x/y': [],
     }
