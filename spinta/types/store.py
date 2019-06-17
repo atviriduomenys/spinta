@@ -12,6 +12,7 @@ from spinta.utils.imports import importstr
 from spinta.config import RawConfig
 from spinta.exceptions import NotFound
 from spinta.utils.url import parse_url_path
+from spinta import commands
 
 
 @load.register()
@@ -89,10 +90,12 @@ def push(context: Context, store: Store, stream: types.GeneratorType):
         model_name = data.pop('type', None)
         assert model_name is not None, data
         model = get_model_by_name(context, manifest, model_name)
-        action = Action.UPDATE if 'id' in data else Action.INSERT
-        pushed_data = push(context, model, model.backend, data, action=action)
-        if pushed_data is not None:
-            yield pushed_data
+        if 'id' in data:
+            id_ = commands.upsert(context, model, model.backend, key=['id'], data=data)
+        else:
+            id_ = commands.insert(context, model, model.backend, data=data)
+        if id_ is not None:
+            yield id_
 
 
 @push.register()
@@ -196,9 +199,10 @@ def get_model_from_params(manifest, name, params):
     # Allow users to specify a different URL endpoint to make URL look
     # nicer, but that is optional, they can still use model.name.
     if name in manifest.endpoints:
-        model = manifest.endpoints[name]
-    else:
-        model = name
+        name = manifest.endpoints[name]
+
+    if name not in manifest.tree:
+        raise NotFound(f"Model or collection {name!r} not found.")
 
     if 'rs' in params:
         dataset = params['ds']
@@ -207,10 +211,10 @@ def get_model_from_params(manifest, name, params):
         resource = params['rs']
         if resource not in manifest.objects['dataset'][dataset].resources:
             raise NotFound(f"Resource ':ds/{dataset}/:rs/{resource}' not found.")
-        if model not in manifest.objects['dataset'][dataset].resources[resource].objects:
-            raise NotFound(f"Model '{model}/:ds/{dataset}/:rs/{resource}' not found.")
-        return manifest.objects['dataset'][dataset].resources[resource].objects[model]
+        if name not in manifest.objects['dataset'][dataset].resources[resource].objects:
+            return None
+        return manifest.objects['dataset'][dataset].resources[resource].objects[name]
     else:
-        if model not in manifest.objects['model']:
-            raise NotFound(f"Model {model!r} not found.")
-        return manifest.objects['model'][model]
+        if name not in manifest.objects['model']:
+            return None
+        return manifest.objects['model'][name]

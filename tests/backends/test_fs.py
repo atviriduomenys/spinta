@@ -37,10 +37,6 @@ def test_crud(app):
         'id': id_,
         # FIXME: revision should not be None.
         'revision': None,
-        'image': {
-            'content_type': 'image/png',
-            'filename': 'myimg.png',
-        },
         'name': 'myphoto',
     }
 
@@ -53,6 +49,7 @@ def test_crud(app):
     resp = app.get(f'/photos/{id_}/image')
     assert resp.content == b'BINARYDATA'
 
+    print('============================')
     resp = app.delete(f'/photos/{id_}/image')
     assert resp.status_code == 200, resp.text
     assert resp.json() is None
@@ -70,7 +67,6 @@ def test_crud(app):
     resp = app.get(f'/photos/{id_}')
     assert resp.json() == {
         'id': id_,
-        'image': None,
         'name': 'myphoto',
         # FIXME: revision should not be None.
         'revision': None,
@@ -181,12 +177,8 @@ def test_id_as_filename(app, tmpdir):
         'filename': id_,
     }
 
-    resp = app.get(f'/photos/{id_}/:show/name/image')
+    resp = app.get(f'/photos/{id_}/:show/name')
     assert resp.status_code == 200
     assert resp.json() == {
         'name': 'myphoto',
-        'image': {
-            'content_type': 'image/png',
-            'filename': id_,
-        },
     }

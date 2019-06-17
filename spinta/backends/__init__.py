@@ -1,12 +1,15 @@
 import contextlib
 import datetime
 import uuid
+import typing
 
 from spinta.types.type import Type, DateTime, Date, Object, Array
 from spinta.components import Context, Model, Property, Action, Node
 from spinta.commands import error, prepare, dump, check, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
+from spinta.exceptions import NotFound
+from spinta.utils.nestedstruct import build_show_tree
 
 
 class Backend:
@@ -171,3 +174,86 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: str):
         return uuid.UUID(value).version == 4
     except ValueError:
         return False
+
+
+@prepare.register()
+def prepare(
+    context: Context,
+    action: Action,
+    model: Model,
+    backend: Backend,
+    value: dict,
+    *,
+    show: typing.List[str] = None,
+) -> dict:
+    return _prepare_query_result(context, action, model, backend, value, show)
+
+
+@prepare.register()
+def prepare(
+    context: Context,
+    action: Action,
+    model: dataset.Model,
+    backend: Backend,
+    value: dict,
+    *,
+    show: typing.List[str] = None,
+) -> dict:
+    return _prepare_query_result(context, action, model, backend, value, show)
+
+
+def _prepare_query_result(
+    context: Context,
+    action: Action,
+    model: Node,
+    backend: Backend,
+    value: dict,
+    show: typing.List[str],
+):
+    if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
+        value = {**value, 'type': model.get_type_value()}
+        result = {}
+
+        if show is not None:
+            unknown_properties = set(show) - {
+                name
+                for name, prop in model.flatprops.items()
+                if not prop.hidden
+            }
+            if unknown_properties:
+                raise NotFound("Unknown properties for show: %s" % ', '.join(sorted(unknown_properties)))
+            show = build_show_tree(show)
+
+        for prop in model.properties.values():
+            if prop.hidden:
+                continue
+            if show is None or prop.place in show:
+                result[prop.name] = dump(context, backend, prop.type, value.get(prop.name), show=show)
+
+        return result
+
+    elif action in (Action.INSERT, Action.UPDATE):
+        result = {}
+        for prop in model.properties.values():
+            if prop.hidden:
+                continue
+            result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
+        result['type'] = model.get_type_value()
+        return result
+
+    elif action == Action.PATCH:
+        result = {}
+        for k, v in value.items():
+            prop = model.properties[k]
+            result[prop.name] = dump(context, backend, prop.type, v)
+        result['type'] = model.get_type_value()
+        return result
+
+    elif action == Action.DELETE:
+        return {
+            'id': value['id'],
+            'type': model.get_type_value(),
+        }
+
+    else:
+        raise Exception(f"Unknown action {action}.")

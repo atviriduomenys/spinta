@@ -136,6 +136,11 @@ def insert():
 
 
 @command()
+def upsert():
+    pass
+
+
+@command()
 def update():
     pass
 
@@ -202,3 +207,18 @@ def is_object_id():
         is_object_id(Context, Backend, Model, str) -> bool
 
     """
+
+
+@command()
+def contents():
+    """Model namespace contents.
+
+    For example if we have two models named `foo/bar/baz` ant `foo/bar/bac`,
+    then if client requests `/foo/bar` they will get `[baz, bac]`.
+
+    """
+
+
+@command()
+def render():
+    """Render response to the clinet."""

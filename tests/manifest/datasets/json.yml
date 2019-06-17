@@ -11,5 +11,9 @@ resources:
       rinkimai:
         source: response
         properties:
-          id: {source: id}
-          pavadinimas: {source: label}
+          id:
+            type: pk
+            source: id
+          pavadinimas:
+            type: string
+            source: label

@@ -8,7 +8,7 @@ from starlette.requests import Request
 from spinta import commands
 from spinta.types.store import get_model_from_params
 from spinta.utils.url import parse_url_path
-from spinta.components import Context, Action, UrlParams
+from spinta.components import Context, Action
 
 
 METHOD_TO_ACTION = {
@@ -23,15 +23,14 @@ async def create_http_response(context, params, request):
     store = context.get('store')
     manifest = store.manifests['default']
 
-    if not params.model:
-        raise HTTPException(status_code=404)
-
-    model = get_model_from_params(manifest, params.model, params.params)
+    model = get_model_from_params(manifest, params.path, params.params)
     prop, ref = get_prop_from_params(model, params)
+
+    if model is None or params.contents:
+        return await commands.contents(context, request, params=params)
 
     if request.method == 'GET':
         context.set('transaction', manifest.backend.transaction())
-
         if params.changes:
             return await commands.changes(context, request, model, model.backend, action=Action.CHANGES, params=params)
         elif params.id:
@@ -43,10 +42,9 @@ async def create_http_response(context, params, request):
                 return await commands.getone(context, request, model, model.backend, action=Action.GETONE, params=params)
         else:
             action = Action.SEARCH if params.search else Action.GETALL
-            return await commands.getall(context, request, model, model.backend, action=Action.GETALL, params=params)
+            return await commands.getall(context, request, model, model.backend, action=action, params=params)
     else:
         context.bind('transaction', manifest.backend.transaction, write=True)
-
         action = METHOD_TO_ACTION[request.method]
         if prop and ref:
             return await commands.push(context, request, prop, model.backend, action=action, params=params)
@@ -85,12 +83,11 @@ def get_response_type(context: Context, request: Request, params: dict = None):
 
 
 def peek_and_stream(stream):
-    peek = next(stream, None)
+    peek = list(itertools.islice(stream, 2))
 
     def _iter():
-        if peek is not None:
-            for data in itertools.chain([peek], stream):
-                yield data
+        for data in itertools.chain(peek, stream):
+            yield data
 
     return _iter()
 
@@ -105,7 +102,7 @@ async def get_request_data(request):
     if ct != 'application/json':
         raise HTTPException(
             status_code=415,
-            detail="only 'application/json' content-type is supported",
+            detail=f"Only 'application/json' content-type is supported, got {ct!r}.",
         )
 
     try:
@@ -136,15 +133,3 @@ def get_prop_from_params(model, params):
     if prop not in model.properties:
         raise HTTPException(status_code=404, detail=f"Unknown property {prop}.")
     return model.properties[prop], ref
-
-
-def get_exporter_stream(context: Context, action: Action, params: UrlParams, rows):
-    config = context.get('config')
-    exporter = config.exporters[params.format]
-    media_type = exporter.content_type
-    _params = {
-        k: v for k, v in params.params.items()
-        if k in exporter.params
-    }
-    stream = aiter(exporter(rows, action, **_params))
-    return media_type, stream

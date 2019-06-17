@@ -11,12 +11,25 @@ resources:
       org:
         source: orgs.csv
         properties:
-          id: {source: govid}
-          title: {source: org}
-          country: {source: kodas, ref: country}
+          id:
+            type: pk
+            source: govid
+          title:
+            type: string
+            source: org
+          country:
+            type: ref
+            source: kodas
+            ref: country
       country:
         source: orgs.csv
         properties:
-          id: {source: kodas}
-          code: {source: kodas}
-          title: {source: šalis}
+          id:
+            type: pk
+            source: kodas
+          code:
+            type: string
+            source: kodas
+          title:
+            type: string
+            source: šalis

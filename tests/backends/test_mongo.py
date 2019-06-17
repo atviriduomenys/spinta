@@ -1,35 +1,35 @@
-def test_mongo_insert_get(context):
-    # Add few objects to database.
-    result = context.push([
-        {
-            'type': 'report',
-            'status': '42',
-        },
+def test_mongo_insert_get(app):
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_report_getone',
     ])
 
-    result = {x.pop('type'): x for x in result}
+    resp = app.post('/reports', json={
+        'type': 'report',
+        'status': '42',
+    })
+    assert resp.status_code == 201
 
-    # mongo inserts ID at key `_id` and we also insert ID at key `id`, look up
-    # code at: spinta/types/store.py::push
-    assert result == {
-        'report': {
-            'id': result['report']['id'],
-            'revision': result['report']['revision'],
-            'status': '42',
-            'notes': [],
-            'count': None,
-            'report_type': None,
-            'update_time': None,
-            'valid_from_date': None,
-        },
+    data = resp.json()
+    assert data == {
+        'type': 'report',
+        'id': data['id'],
+        'revision': data['revision'],
+        'status': '42',
+        'notes': [],
+        'count': None,
+        'report_type': None,
+        'update_time': None,
+        'valid_from_date': None,
     }
 
     # Read those objects from database.
-    get_data = context.getone('report', result['report']['id'])
-    assert get_data == {
+    id_ = data['id']
+    resp = app.get(f'/reports/{id_}')
+    assert resp.json() == {
         'type': 'report',
-        'revision': get_data['revision'],
-        'id': result['report']['id'],
+        'revision': data['revision'],
+        'id': id_,
         'status': '42',
         'notes': [],
         'count': None,
@@ -39,44 +39,48 @@ def test_mongo_insert_get(context):
     }
 
 
-def test_mongo_update_get(context):
-    # Add few objects to database.
-    insert_result = context.push([
-        {
-            'type': 'report',
-            'status': '42',
-        },
+def test_mongo_update_get(app):
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_report_update',
+        'spinta_report_getone',
+        'spinta_report_getall',
     ])
 
+    resp = app.post('/reports', json={
+        'type': 'report',
+        'status': '42',
+    })
+    assert resp.status_code == 201
+
     # change report status
-    report_data = list(insert_result)[0]
-    report_data['status'] = '13'
-
-    # push updated report to database
-    update_result = context.push([report_data])
-    update_result = {x.pop('type'): x for x in update_result}
-
-    # mongo inserts ID at key `_id` and we also insert ID at key `id`, look up
-    # code at: spinta/types/store.py::push
-    assert update_result == {
-        'report': {
-            'id': update_result['report']['id'],
-            'revision': update_result['report']['revision'],
-            'status': '13',
-            'notes': [],
-            'count': None,
-            'report_type': None,
-            'update_time': None,
-            'valid_from_date': None,
-        },
+    data = resp.json()
+    id_ = data['id']
+    revision = data['revision']
+    resp = app.put(f'/reports/{id_}', json={'status': '13'})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['revision'] != revision
+    revision = data['revision']
+    assert data == {
+        'type': 'report',
+        'id': id_,
+        'revision': data['revision'],
+        'status': '13',
+        'notes': [],
+        'count': None,
+        'report_type': None,
+        'update_time': None,
+        'valid_from_date': None,
     }
 
     # Read those objects from database.
-    get_data = context.getone('report', update_result['report']['id'])
-    assert get_data == {
+    resp = app.get(f'/reports/{id_}')
+    data = resp.json()
+    assert data == {
         'type': 'report',
-        'revision': get_data['revision'],
-        'id': update_result['report']['id'],
+        'revision': revision,
+        'id': id_,
         'status': '13',
         'notes': [],
         'count': None,
@@ -86,20 +90,23 @@ def test_mongo_update_get(context):
     }
 
     # Get all objects from database.
-    result = context.getall('report')
-    assert result == [
-        {
-            'type': 'report',
-            'id': update_result['report']['id'],
-            'notes': [],
-            'report_type': None,
-            'revision': update_result['report']['revision'],
-            'status': '13',
-            'update_time': None,
-            'valid_from_date': None,
-            'count': None,
-        },
-    ]
+    resp = app.get('/reports')
+    data = resp.json()
+    assert data == {
+        'data': [
+            {
+                'type': 'report',
+                'id': id_,
+                'notes': [],
+                'report_type': None,
+                'revision': revision,
+                'status': '13',
+                'update_time': None,
+                'valid_from_date': None,
+                'count': None,
+            },
+        ]
+    }
 
 
 def test_delete(context, app):
@@ -119,7 +126,8 @@ def test_delete(context, app):
     assert ids[0] in data
     assert ids[1] in data
 
-    resp = app.delete(f'/report/{ids[0]}').json()
+    resp = app.delete(f'/report/{ids[0]}')
+    assert resp.status_code == 200, resp.text
 
     resp = app.get('/report').json()
     data = [x['id'] for x in resp['data']]

@@ -15,5 +15,9 @@ resources:
           year: {range: {start: 2000, stop: 2001}}
         source: continents.csv
         properties:
-          id: {source: 'id'}
-          title: {source: 'continent'}
+          id:
+            type: pk
+            source: id
+          title:
+            type: string
+            source: continent

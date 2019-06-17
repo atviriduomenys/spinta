@@ -19,6 +19,7 @@ def load(context: Context, manifest: Manifest, c: RawConfig):
     for name in config.components['nodes'].keys():
         manifest.objects[name] = {}
 
+    manifest.tree = {}
     manifest.endpoints = {}
 
     for file in manifest.path.glob('**/*.yml'):

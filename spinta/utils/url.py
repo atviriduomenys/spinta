@@ -87,6 +87,9 @@ RULES = {
         'name': False,
         'minargs': 0,
     },
+    'contents': {
+        'maxargs': 0,
+    },
     'ds': {
         'cast': Path(),
     },

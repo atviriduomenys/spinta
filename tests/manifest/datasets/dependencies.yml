@@ -13,19 +13,35 @@ resources:
       continent:
         source: "/continents.csv"
         properties:
-          id: {source: 'id'}
-          title: {source: 'continent'}
-          continent_id: {source: 'id'}
+          id:
+            type: pk
+            source: id
+          title:
+            type: string
+            source: continent
+          continent_id:
+            type: string
+            source: id
 
       country:
         source: "/continents/{continent}/countries.csv"
         dependencies:
           continent: continent/:ds/dependencies/:rs/continents.continent_id
         properties:
-          id: {source: 'id'}
-          title: {source: 'country'}
-          continent: {source: 'continent', ref: continent, dependency: true}
-          country_id: {source: 'id'}
+          id:
+            type: pk
+            source: id
+          title:
+            type: string
+            source: country
+          continent:
+            type: ref
+            source: continent
+            ref: continent
+            dependency: true
+          country_id:
+            type: string
+            source: id
 
       capital:
         source: "/continents/{continent}/countries/{country}/captials.csv"
@@ -33,6 +49,14 @@ resources:
           continent: country/:ds/dependencies/:rs/continents.continent.continent_id
           country: country/:ds/dependencies/:rs/continents.country_id
         properties:
-          id: {source: 'id'}
-          title: {source: 'capital'}
-          country: {source: 'country', ref: country, dependency: true}
+          id:
+            type: pk
+            source: id
+          title:
+            type: string
+            source: capital
+          country:
+            type: ref
+            source: country
+            ref: country
+            dependency: true

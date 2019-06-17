@@ -4,7 +4,6 @@ import shutil
 
 from starlette.requests import Request
 from starlette.responses import FileResponse
-from starlette.responses import StreamingResponse
 
 from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, check, push, getone, wipe, wait, authorize
@@ -12,8 +11,8 @@ from spinta.components import Context, Manifest, Model, Property, Attachment, Ac
 from spinta.config import RawConfig
 from spinta.types.type import File
 from spinta.exceptions import DataError, NotFound
-from spinta.utils.response import get_exporter_stream
 from spinta import commands
+from spinta.renderer import render
 
 
 class FileSystem(Backend):
@@ -130,8 +129,7 @@ async def push(
     if data != update:
         commands.update(context, prop, prop.model.backend, id_=params.id, data=update)
 
-    media_type, stream = get_exporter_stream(context, action, params, update)
-    return StreamingResponse(stream, media_type=media_type)
+    return render(context, request, prop, action, params, update)
 
 
 @getone.register()

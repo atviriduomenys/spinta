@@ -21,11 +21,11 @@ def test_pull(responses, cli, context):
         '\n'
         '\n'
         'Table: country/:ds/csv/:rs/countries\n'
-        'id   code    title \n'
-        '===================\n'
-        'lt   lt     Lietuva\n'
-        'lv   lv     Latvija\n'
-        'ee   ee     Estija '
+        '                   id                      code    title \n'
+        '=========================================================\n'
+        '552c4c243ec8c98c313255ea9bf16ee286591f8c   lt     Lietuva\n'
+        'b5dcb86880816fb966cdfbbacd1f3406739464f4   lv     Latvija\n'
+        '68de1c04d49aeefabb7081a5baf81c055f235be3   ee     Estija '
     )
 
     assert context.getall('country', dataset='csv', resource='countries') == []

@@ -4,6 +4,7 @@ ipython
 pp-ez
 pprintpp
 pytest
+pytest-asyncio
 pytest-cov
 pytest-mock
 responses

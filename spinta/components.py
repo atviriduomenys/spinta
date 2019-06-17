@@ -124,7 +124,7 @@ class Manifest:
 
 class Node:
     schema = {
-        'type': {},
+        'type': {'required': True},
         'path': {'required': True},
         'parent': {'required': True},
         'name': {'required': True},
@@ -194,6 +194,7 @@ class Property(Node):
         self.check = None
         self.link = None
         self.enum = None
+        self.hidden = False
 
 
 class Command:
@@ -225,6 +226,7 @@ class Attachment:
 
 class Action(enum.Enum):
     INSERT = 'insert'
+    UPSERT = 'upsert'
     UPDATE = 'update'
     PATCH = 'patch'
     DELETE = 'delete'
@@ -237,6 +239,8 @@ class Action(enum.Enum):
 
     CHANGES = 'changes'
 
+    CONTENTS = 'contents'
+
 
 class UrlParams:
     model: str
@@ -248,7 +252,7 @@ class UrlParams:
     limit: int
     offset: int
     format: str
-    count: bool
+    count: bool = False
 
     # Deprecated, added for backwards compatibility.
     params: dict

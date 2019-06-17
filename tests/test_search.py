@@ -1,3 +1,6 @@
+import datetime
+
+
 test_data = [
     {
         'type': 'report',
@@ -7,7 +10,7 @@ test_data = [
         'notes': [{
             'note': 'hello',
             'note_type': 'simple',
-            'create_date': '2019-03-14',
+            'create_date': datetime.datetime(2019, 3, 14),
         }],
     },
     {
@@ -18,7 +21,7 @@ test_data = [
         'notes': [{
             'note': 'world',
             'note_type': 'daily',
-            'create_date': '2019-04-20',
+            'create_date': datetime.datetime(2019, 4, 20),
         }],
     },
     {
@@ -29,7 +32,7 @@ test_data = [
         'notes': [{
             'note': 'foo bar',
             'note_type': 'important',
-            'create_date': '2019-02-01',
+            'create_date': datetime.datetime(2019, 2, 1),
         }],
     },
 ]
@@ -66,7 +69,7 @@ def test_search_exact(context, app):
 
     # single non-existing field search
     resp = app.get('/reports/:exact/state/o')
-    assert resp.json()['error'] == 'attribute does not exist'
+    assert resp.json()['error'] == "Unknown property 'state'."
 
     # multple field search
     resp = app.get('/reports/:exact/status/invalid/:exact/report_type/stv')
@@ -347,4 +350,4 @@ def test_search_nested(context, app):
 
     # nested non existant field
     resp = app.get('/reports/:exact/notes.foo.bar/baz')
-    assert resp.json()['error'] == 'attribute does not exist'
+    assert resp.json()['error'] == "Unknown property 'notes.foo.bar'."

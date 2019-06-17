@@ -4,6 +4,7 @@ import datetime
 import pytest
 
 from spinta.utils.itertools import consume
+from spinta.utils.refs import get_ref_id
 
 
 def test_app(app):
@@ -91,12 +92,14 @@ def test_model(context, app):
             {'canonical': False, 'link': '/country/:ds/dependencies/:rs/continents', 'name': 'dependencies/continents'},
             {'canonical': False, 'link': '/country/:ds/sql/:rs/db', 'name': 'sql/db'},
         ],
-        'header': ['id', 'title', 'code'],
+        'header': ['id', 'title', 'code', 'revision'],
         'data': [
             [
                 {'color': None, 'link': '/country/%s' % row['id'], 'value': row['id'][:8]},
                 {'color': None, 'link': None, 'value': 'Earth'},
                 {'color': None, 'link': None, 'value': 'er'},
+                # FIXME: revision should not be None
+                {'color': '#C1C1C1', 'link': None, 'value': ''},
             ],
         ],
         'row': [],
@@ -140,10 +143,12 @@ def test_model_get(context, app):
         'header': [],
         'data': [],
         'row': [
-            ('type', {'color': None, 'link': None, 'value': 'country'}),
             ('id', {'color': None, 'link': '/country/%s' % row['id'], 'value': row['id']}),
             ('title', {'color': None, 'link': None, 'value': 'Earth'}),
             ('code', {'color': None, 'link': None, 'value': 'er'}),
+            ('type', {'color': None, 'link': None, 'value': 'country'}),
+            # FIXME: revision should not be None
+            ('revision', {'color': '#C1C1C1', 'link': None, 'value': ''}),
         ],
         'formats': [
             ('CSV', '/country/%s/:format/csv' % row['id']),
@@ -154,14 +159,16 @@ def test_model_get(context, app):
     }
 
 
-def test_dataset(context, app):
-    consume(context.push([
+def test_dataset(context, app, mocker):
+    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REVISION')
+
+    context.push([
         {
             'type': 'rinkimai/:ds/json/:rs/data',
-            'id': 'Rinkimai 1',
+            'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 1',
         },
-    ]))
+    ])
 
     app.authorize(['spinta_rinkimai_ds_json_rs_data_getall'])
     resp = app.get('/rinkimai/:ds/json/:rs/data', headers={'accept': 'text/html'})
@@ -185,11 +192,12 @@ def test_dataset(context, app):
             {'canonical': False, 'link': '/rinkimai/:ds/json/:rs/data', 'name': 'json/data'},
             {'canonical': False, 'link': '/rinkimai/:ds/xlsx/:rs/data', 'name': 'xlsx/data'},
         ],
-        'header': ['id', 'pavadinimas'],
+        'header': ['id', 'pavadinimas', 'revision'],
         'data': [
             [
                 {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data', 'value': 'df6b9e04'},
                 {'color': None, 'link': None, 'value': 'Rinkimai 1'},
+                {'color': None, 'link': None, 'value': 'REVISION'},
             ],
         ],
         'row': [],
@@ -202,14 +210,16 @@ def test_dataset(context, app):
     }
 
 
-def test_nested_dataset(context, app):
-    consume(context.push([
+def test_nested_dataset(context, app, mocker):
+    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REVISION')
+
+    context.push([
         {
             'type': 'deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource',
-            'id': '42',
+            'id': get_ref_id('42'),
             'name': 'Nested One',
         },
-    ]))
+    ])
 
     app.authorize(['spinta_deeply_nested_model_name_ds_nested_da9add3385_getall'])
     resp = app.get('deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource', headers={'accept': 'text/html'})
@@ -234,11 +244,12 @@ def test_nested_dataset(context, app):
                 'name': 'nested/dataset/name/resource',
             },
         ],
-        'header': ['id', 'name'],
+        'header': ['id', 'name', 'revision'],
         'data': [
             [
                 {'color': None, 'link': '/deeply/nested/model/name/e2ff1ff0f7d663344abe821582b0908925e5b366/:ds/nested/dataset/name/:rs/resource', 'value': 'e2ff1ff0'},
                 {'color': None, 'link': None, 'value': 'Nested One'},
+                {'color': None, 'link': None, 'value': 'REVISION'},
             ],
         ],
         'row': [],
@@ -251,14 +262,16 @@ def test_nested_dataset(context, app):
     }
 
 
-def test_dataset_key(context, app):
-    consume(context.push([
+def test_dataset_key(context, app, mocker):
+    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REVISION')
+
+    context.push([
         {
             'type': 'rinkimai/:ds/json/:rs/data',
-            'id': 'Rinkimai 1',
+            'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 1',
         },
-    ]))
+    ])
 
     app.authorize(['spinta_rinkimai_ds_json_rs_data_getone'])
     resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data', headers={'accept': 'text/html'})
@@ -299,27 +312,29 @@ def test_dataset_key(context, app):
             }),
             ('pavadinimas', {'color': None, 'link': None, 'value': 'Rinkimai 1'}),
             ('type', {'color': None, 'link': None, 'value': 'rinkimai/:ds/json/:rs/data'}),
+            ('revision', {'color': None, 'link': None, 'value': 'REVISION'}),
         ],
     }
 
 
 def test_changes_single_object(context, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
+    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REVISION')
 
-    consume(context.push([
+    context.push([
         {
             'type': 'rinkimai/:ds/json/:rs/data',
-            'id': 'Rinkimai 1',
+            'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 1',
         },
-    ]))
-    consume(context.push([
+    ])
+    context.push([
         {
             'type': 'rinkimai/:ds/json/:rs/data',
-            'id': 'Rinkimai 1',
+            'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 2',
         },
-    ]))
+    ])
 
     app.authorize(['spinta_rinkimai_ds_json_rs_data_changes'])
     resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:changes', headers={'accept': 'text/html'})
@@ -363,7 +378,7 @@ def test_changes_single_object(context, app, mocker):
                 {'color': None, 'link': None, 'value': resp.context['data'][0][0]['value']},
                 {'color': None, 'link': None, 'value': resp.context['data'][0][1]['value']},
                 {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
-                {'color': None, 'link': None, 'value': 'update'},
+                {'color': None, 'link': None, 'value': 'patch'},
                 {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data', 'value': 'df6b9e04'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
             ],
@@ -382,21 +397,22 @@ def test_changes_single_object(context, app, mocker):
 
 def test_changes_object_list(context, app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
+    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REVISION')
 
-    consume(context.push([
+    context.push([
         {
             'type': 'rinkimai/:ds/json/:rs/data',
-            'id': 'Rinkimai 1',
+            'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 1',
         },
-    ]))
-    consume(context.push([
+    ])
+    context.push([
         {
             'type': 'rinkimai/:ds/json/:rs/data',
-            'id': 'Rinkimai 1',
+            'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 2',
         },
-    ]))
+    ])
 
     app.authorize(['spinta_rinkimai_ds_json_rs_data_changes'])
     resp = app.get('/rinkimai/:ds/json/:rs/data/:changes', headers={'accept': 'text/html'})
@@ -439,7 +455,7 @@ def test_changes_object_list(context, app, mocker):
                 {'color': None, 'link': None, 'value': resp.context['data'][0][0]['value']},
                 {'color': None, 'link': None, 'value': resp.context['data'][0][1]['value']},
                 {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
-                {'color': None, 'link': None, 'value': 'update'},
+                {'color': None, 'link': None, 'value': 'patch'},
                 {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data', 'value': 'df6b9e04'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
             ],
@@ -460,12 +476,12 @@ def test_count(context, app):
     consume(context.push([
         {
             'type': 'rinkimai/:ds/json/:rs/data',
-            'id': 1,
+            'id': get_ref_id(1),
             'pavadinimas': 'Rinkimai 1',
         },
         {
             'type': 'rinkimai/:ds/json/:rs/data',
-            'id': 2,
+            'id': get_ref_id(2),
             'pavadinimas': 'Rinkimai 2',
         },
     ]))
@@ -499,6 +515,7 @@ def test_post(context, app):
         'type': 'country',
         'code': 'er',
         'title': 'Earth',
+        'revision': None,
     }
 
     resp = app.get(f'/country/{id_}')
@@ -508,12 +525,13 @@ def test_post(context, app):
         'id': id_,
         'code': 'er',
         'title': 'Earth',
+        'revision': None,
     }
 
 
 def test_post_invalid_json(context, app):
     # tests 400 response on invalid json
-    app.authorize(['spinta_country_getall'])
+    app.authorize(['spinta_country_insert'])
     headers = {"content-type": "application/json"}
     resp = app.post('/country', headers=headers, data="""{
         "title": "Earth",
@@ -525,7 +543,7 @@ def test_post_invalid_json(context, app):
 
 def test_post_empty_content(context, app):
     # tests posting empty content
-    app.authorize(['spinta_country_getall'])
+    app.authorize(['spinta_country_insert'])
     headers = {
         "content-length": "0",
         "content-type": "application/json",
@@ -614,7 +632,7 @@ def test_post_non_json_content_type(context, app):
         "code": "er"
     })
     assert resp.status_code == 415
-    assert resp.json() == {"error": "only 'application/json' content-type is supported"}
+    assert resp.json() == {"error": "Only 'application/json' content-type is supported, got 'application/text'."}
 
 
 def test_post_bad_auth_header(context, app):

@@ -13,7 +13,6 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 from starlette.requests import Request
 from starlette.exceptions import HTTPException
-from starlette.responses import StreamingResponse
 
 from spinta.backends import Backend, check_model_properties, check_type_value
 from spinta.commands import wait, load, prepare, migrate, check, push, getone, getall, wipe, authorize, dump, gen_object_id
@@ -21,11 +20,14 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.config import RawConfig
 from spinta.common import NA
 from spinta.types.type import Type, File, PrimaryKey, Ref
-from spinta.exceptions import MultipleRowsException, NoResultsException, NotFound
-from spinta.utils.nestedstruct import build_show_tree
-from spinta.utils.response import get_request_data, get_exporter_stream
+from spinta.exceptions import MultipleRowsException, NoResultsException
+from spinta.utils.response import get_request_data
 from spinta.auth import check_scope
 from spinta import commands
+from spinta.renderer import render
+from spinta.utils.idgen import get_new_id
+from spinta.utils.changes import get_patch_changes
+from spinta.exceptions import NotFound
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -38,6 +40,13 @@ PG_CLEAN_NAME_RE = re.compile(r'[^a-z0-9]+', re.IGNORECASE)
 MAIN_TABLE = 'M'
 CHANGES_TABLE = 'C'
 CACHE_TABLE = 'T'
+
+UNSUPPORTED_TYPES = [
+    'backref',
+    'generic',
+    'array',
+    'object',
+]
 
 
 class PostgreSQL(Backend):
@@ -205,13 +214,7 @@ def prepare(context: Context, backend: PostgreSQL, type: Type):
     elif type.name in ('spatial', 'image'):
         # TODO: these property types currently are not implemented
         return sa.Column(type.prop.name, sa.Text)
-    elif type.name == 'backref':
-        return
-    elif type.name == 'generic':
-        return
-    elif type.name == 'array':
-        return
-    elif type.name == 'object':
+    elif type.name in UNSUPPORTED_TYPES:
         return
     else:
         raise Exception(f"Unknown property type {type.name!r}.")
@@ -315,31 +318,36 @@ async def push(
 ):
     authorize(context, action, model)
 
-    # load and check if data is a valid for it's model
-    data = await get_request_data(request)
-    data = load(context, model, data)
-    check(context, model, backend, data, action=action)
-    data = prepare(context, model, data, action=action)
-
-    table = backend.tables[model.manifest.name][model.name]
-    # XXX: why is this (below) needed?
-    data = {
-        k: v for k, v in data.items() if k in table.main.columns and k != 'type'
-    }
+    if action == Action.DELETE:
+        data = {}
+    else:
+        data = await get_request_data(request)
+        data = load(context, model, data)
+        check(context, model, backend, data, action=action)
+        data = prepare(context, model, data, action=action)
+        data = {
+            k: v
+            for k, v in data.items()
+            if model.properties[k].type.name not in UNSUPPORTED_TYPES
+        }
 
     if action == Action.INSERT:
-        if 'revision' in data.keys():
-            raise HTTPException(status_code=400, detail="cannot create 'revision'")
         data['id'] = commands.insert(context, model, backend, data=data)
+
+    elif action == Action.UPSERT:
+        data['id'] = commands.upsert(context, model, backend, data=data)
 
     elif action == Action.UPDATE:
         commands.update(context, model, backend, id_=params.id, data=data)
+        data['id'] = params.id
 
     elif action == Action.PATCH:
         commands.patch(context, model, backend, id_=params.id, data=data)
+        data['id'] = params.id
 
     elif action == Action.DELETE:
         commands.delete(context, model, backend, id_=params.id)
+        data['id'] = params.id
 
     else:
         raise Exception(f"Unknown action {action!r}.")
@@ -347,9 +355,7 @@ async def push(
     data = prepare(context, action, model, backend, data)
 
     status_code = 201 if action == Action.INSERT else 200
-
-    media_type, stream = get_exporter_stream(context, action, params, data)
-    return StreamingResponse(stream, media_type=media_type, status_code=status_code)
+    return render(context, request, model, action, params, data, status_code=status_code)
 
 
 @commands.insert.register()
@@ -363,6 +369,12 @@ def insert(
     transaction = context.get('transaction')
     connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
+
+    if 'id' in data:
+        check_scope(context, 'set_meta_fields')
+
+    if 'revision' in data:
+        raise HTTPException(status_code=400, detail="cannot create 'revision'")
 
     if not data.get('id'):
         data['id'] = gen_object_id(context, backend, model)
@@ -383,6 +395,64 @@ def insert(
     )
 
     return data['id']
+
+
+@commands.upsert.register()
+def upsert(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    key: typing.List[str],
+    data: dict,
+):
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    table = backend.tables[model.manifest.name][model.name]
+
+    condition = []
+    for k in key:
+        condition.append(table.main.c[k] == data[k])
+
+    row = backend.get(connection, table.main, sa.and_(*condition), default=None)
+
+    if row is None:
+        action = Action.INSERT
+
+        if 'id' not in data:
+            data['id'] = gen_object_id(context, backend, model)
+
+        if 'revision' in data.keys():
+            raise HTTPException(status_code=400, detail="cannot create 'revision'")
+        data['revision'] = get_new_id('revision id')
+
+        connection.execute(
+            table.main.insert().values(data),
+        )
+
+    else:
+        action = Action.PATCH
+
+        id_ = row[table.main.c.id]
+
+        data = _patch(transaction, connection, table, id_, row, data)
+
+        if data is None:
+            # Nothing changed.
+            return None
+
+    # Track changes.
+    connection.execute(
+        table.changes.insert().values(
+            transaction_id=transaction.id,
+            id=id_,
+            datetime=utcnow(),
+            action=action.value,
+            change=data,
+        ),
+    )
+
+    return id_
 
 
 @commands.update.register()
@@ -433,15 +503,21 @@ def patch(
     connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
 
-    result = connection.execute(
-        table.main.update().
-        where(table.main.c.id == id_).
-        values(data)
+    row = backend.get(
+        connection,
+        [table.main.c.data, table.main.c.transaction_id],
+        table.main.c.id == id_,
+        default=None,
     )
-    if result.rowcount == 0:
-        raise Exception("Update failed, {model} with {id_} not found.")
-    elif result.rowcount > 1:
-        raise Exception("Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
+    if row is None:
+        type_ = model.get_type_value()
+        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+
+    data = _patch(transaction, connection, table, id_, row, data)
+
+    if data is None:
+        # Nothing changed.
+        return None
 
     # Track changes.
     connection.execute(
@@ -450,9 +526,36 @@ def patch(
             id=data['id'],
             datetime=utcnow(),
             action=Action.PATCH.value,
-            change={k: v for k, v in data.items() if k not in {'id'}},
+            change=data,
         ),
     )
+
+
+def _patch(transaction, connection, table, id_, row, data):
+    changes = get_patch_changes(dict(row), data)
+
+    if not changes:
+        # Nothing to update.
+        return None
+
+    result = connection.execute(
+        table.main.update().
+        where(table.main.c.id == id_).
+        where(table.main.c._transaction_id == row[table.main.c._transaction_id]).
+        values(changes)
+    )
+
+    # TODO: Retries are needed if result.rowcount is 0, if such
+    #       situation happens, that means a concurrent transaction
+    #       changed the data and we need to reread it.
+    #
+    #       And assumption is made here, than in the same
+    #       transaction there are no concurrent updates, if this
+    #       assumption is false, then we need to check against
+    #       change_id instead of transaction_id.
+    assert result.rowcount > 0
+
+    return changes
 
 
 @commands.delete.register()
@@ -517,10 +620,6 @@ async def push(
 
     data = await get_request_data(request)
 
-    # Check if meta fields can be set.
-    if action == Action.INSERT and 'id' in data:
-        check_scope(context, 'set_meta_fields')
-
     data = load(context, prop.type, data)
     check(context, prop.type, prop, backend, data, data=None, action=action)
     data = prepare(context, prop.type, backend, data)
@@ -535,11 +634,10 @@ async def push(
         raise Exception(f"Unknown action {action}.")
 
     data = dump(context, backend, prop.type, data)
-    media_type, stream = get_exporter_stream(context, action, params, data)
-    return StreamingResponse(stream, media_type=media_type)
+    return render(context, request, prop, action, params, data)
 
 
-@commands.update.register()
+@commands.update.register()  # noqa
 def update(
     context: Context,
     prop: Property,
@@ -561,7 +659,7 @@ def update(
         raise Exception("Property update failed, {prop} with {params.id} has found and update {result.rowcount} rows.")
 
 
-@commands.patch.register()
+@commands.patch.register()  # noqa
 def patch(
     context: Context,
     prop: Property,
@@ -583,7 +681,7 @@ def patch(
         raise Exception("Property update failed, {prop} with {params.id} has found and update {result.rowcount} rows.")
 
 
-@commands.delete.register()
+@commands.delete.register()  # noqa
 def delete(
     context: Context,
     prop: Property,
@@ -618,8 +716,7 @@ async def getone(
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.id)
     data = prepare(context, Action.GETONE, model, backend, data, show=params.show)
-    media_type, stream = get_exporter_stream(context, action, params, data)
-    return StreamingResponse(stream, media_type=media_type)
+    return render(context, request, model, action, params, data)
 
 
 @getone.register()
@@ -630,11 +727,10 @@ def getone(
     *,
     id_: str,
 ):
-    # TODO: add `show` parameter and create query that would fetch only those
-    #       fields specified in `show` parameter.
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
-    return backend.get(connection, table, table.c.id == id_)
+    result = backend.get(connection, table, table.c.id == id_)
+    return dict(result)
 
 
 @getone.register()
@@ -651,8 +747,7 @@ async def getone(
     authorize(context, action, prop)
     data = getone(context, prop, backend, id_=params.id)
     data = dump(context, backend, prop.type, data)
-    media_type, stream = get_exporter_stream(context, action, params, data)
-    return StreamingResponse(stream, media_type=media_type)
+    return render(context, request, prop, action, params, data)
 
 
 @getone.register()
@@ -678,7 +773,6 @@ async def getall(
     action: Action,
     params: UrlParams,
 ):
-
     # TODO: add all the filtering support to postgresql
     # show=_params.get('show'),
     # sort=_params.get('sort', [{'name': 'id', 'ascending': True}]),
@@ -689,15 +783,23 @@ async def getall(
     # search=params.search,
 
     authorize(context, action, model)
-
-    connection = context.get('transaction').connection
-    table = backend.tables[model.manifest.name][model.name].main
-    result = connection.execute(sa.select([table]))
-    media_type, stream = get_exporter_stream(context, action, params, (
+    result = getall(context, model, backend)
+    return render(context, request, model, action, params, (
         prepare(context, action, model, backend, row)
         for row in result
     ))
-    return StreamingResponse(stream, media_type=media_type)
+
+
+@getall.register()
+def getall(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+):
+    connection = context.get('transaction').connection
+    table = backend.tables[model.manifest.name][model.name].main
+    for row in connection.execute(sa.select([table])):
+        yield dict(row)
 
 
 @wipe.register()
@@ -766,51 +868,4 @@ def get_changes_table(backend, table_name, id_type):
 
 @prepare.register()
 def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, show: typing.List[str] = None) -> dict:
-    return _backend_to_python(context, backend, action, model, dict(value), show)
-
-
-@prepare.register()
-def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: dict, *, show: typing.List[str] = None) -> dict:
-    return _backend_to_python(context, backend, action, model, value, show)
-
-
-def _backend_to_python(context: Context, backend: PostgreSQL, action: Action, model: Model, value: dict, show: typing.List[str]):
-    if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
-        value = {**value, 'type': model.get_type_value()}
-        result = {}
-
-        if show is not None:
-            unknown_properties = set(show) - set(model.flatprops)
-            if unknown_properties:
-                raise NotFound("Unknown properties for show: %s" % ', '.join(sorted(unknown_properties)))
-            show = build_show_tree(show)
-
-        for prop in model.properties.values():
-            if show is None or prop.place in show:
-                result[prop.name] = dump(context, backend, prop.type, value.get(prop.name), show=show)
-
-        return result
-
-    elif action in (Action.INSERT, Action.UPDATE):
-        result = {}
-        for prop in model.properties.values():
-            result[prop.name] = dump(context, backend, prop.type, value.get(prop.name))
-        result['type'] = model.get_type_value()
-        return result
-
-    elif action == Action.PATCH:
-        result = {}
-        for k, v in value.items():
-            prop = model.properties[k]
-            result[prop.name] = dump(context, backend, prop.type, v)
-        result['type'] = model.get_type_value()
-        return result
-
-    elif action == Action.DELETE:
-        return {
-            'id': value['id'],
-            'type': model.get_type_value(),
-        }
-
-    else:
-        raise Exception(f"Unknown action {action}.")
+    return prepare(context, action, model, backend, dict(value), show=show)
