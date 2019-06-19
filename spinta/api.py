@@ -11,10 +11,12 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.templating import Jinja2Templates
 from starlette.types import Receive, Send, Scope
+from starlette.staticfiles import StaticFiles
 
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
 from spinta.commands import prepare
+from spinta.config import RawConfig
 from spinta.exceptions import DataError, NotFound
 from spinta.urlparams import Version
 from spinta.utils.response import create_http_response
@@ -94,6 +96,19 @@ class ContextMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(ContextMiddleware)
+
+# FIXME: configuration should be loaded at one of the entry points: ASGI, CLI, etc.
+raw_config = RawConfig()
+raw_config.read()
+docs_path = raw_config.get('docs_path')
+
+if docs_path:
+    # FIXME: after upgrading to starlette >= 0.12.0, index.html can be served
+    # automatically with html=True flag. Otherwise we need to explicitly
+    # call for `index.html` in the URL, e.g. `/docs/index.html`. Without
+    # doing this HTTP/404 will be raised.
+    app.mount('/docs', StaticFiles(directory=docs_path))
+    # app.mount('/docs', StaticFiles(directory="uml", html=True))
 
 
 @app.route('/auth/token', methods=['POST'])
