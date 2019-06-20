@@ -247,9 +247,9 @@ class RawConfig:
         # Create inner keys
         self._config['default'].update(_get_inner_keys(self._config['default']))
 
-    def get(self, *key, default=None, cast=None, env=True, required=False, exists=False):
-        envname = self._get_config_value(('env',), None, True)
-        value = self._get_config_value(key, default, env, env=envname)
+    def get(self, *key, default=None, cast=None, env=True, required=False, exists=False, origin=False):
+        envname, _ = self._get_config_value(('env',), None, True)
+        value, origin_ = self._get_config_value(key, default, env, env=envname)
 
         if cast is not None:
             if cast is list and isinstance(value, str):
@@ -265,15 +265,22 @@ class RawConfig:
             name = '.'.join(key)
             raise Exception(f"{name} ({value}) path does not exist.")
 
-        return value
+        if origin:
+            return value, origin_
+        else:
+            return value
 
     def keys(self, *key, **kwargs):
         kwargs.setdefault('default', [])
         return self.get(*key, cast=list, **kwargs)
 
-    def getall(self):
+    def getall(self, origin=False):
         for key, value in self._config['default'].items():
-            yield key, self.get(*key, cast=type(value))
+            if origin:
+                value, origin = self.get(*key, cast=type(value), origin=origin)
+                yield key, value, origin
+            else:
+                yield key, self.get(*key, cast=type(value), origin=origin)
 
     def _add_config(self, config):
         self._config['default'].update(_traverse(config))
@@ -314,35 +321,35 @@ class RawConfig:
 
         # 1. Get value from command line arguments.
         if key in self._config['cliargs']:
-            return self._config['cliargs'][key]
+            return self._config['cliargs'][key], 'cliargs'
 
         # 2. Get value from environment with env prefix.
         if env:
             name = 'SPINTA_' + env.upper() + '_' + envvar if envvar else None
             if name and name in self._config['environ']:
-                return self._config['environ'][name]
+                return self._config['environ'][name], f'environ:{env}'
 
         # 3. Get value from environment without env prefix.
         name = 'SPINTA_' + envvar if envvar else None
         if name and name in self._config['environ']:
-            return self._config['environ'][name]
+            return self._config['environ'][name], 'environ'
 
         # 4. Get value from env file with env prefix.
         if env:
             name = 'SPINTA_' + env.upper() + '_' + envvar if envvar else None
             if name and name in self._config['envfile']:
-                return self._config['envfile'][name]
+                return self._config['envfile'][name], f'envfile:{env}'
 
         # 5. Get value from env file without env prefix.
         name = 'SPINTA_' + envvar if envvar else None
         if name and name in self._config['envfile']:
-            return self._config['envfile'][name]
+            return self._config['envfile'][name], 'envfile'
 
         # 6. Get value from default configs.
         if key in self._config['default']:
-            return self._config['default'][key]
+            return self._config['default'][key], 'config'
 
-        return default
+        return default, 'default'
 
 
 def _traverse(value, path=()):
