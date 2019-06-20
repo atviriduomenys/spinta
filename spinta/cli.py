@@ -128,10 +128,7 @@ def run(ctx):
 def config(ctx):
     config = RawConfig()
     config.read()
-    for key, value, origin in sorted(config.getall(origin=True), key=operator.itemgetter(0)):
-        *key, name = key
-        name = len(key) * '  ' + name
-        click.echo(f'{name:<20} {origin:<10} {value}')
+    config.dump()
 
 
 @main.command()

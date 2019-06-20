@@ -7,7 +7,7 @@ from spinta.components import Config
 
 def test_unknown_dataset_in_config(context):
     config = RawConfig()
-    config.read(env_files=False, config={
+    config.read(env_files=False, hardset={
         'datasets': {
             'default': {
                 'unknown': 'value',

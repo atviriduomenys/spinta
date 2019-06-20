@@ -1,4 +1,5 @@
 import collections
+import operator
 import os
 import pathlib
 
@@ -190,13 +191,14 @@ class RawConfig:
 
     def __init__(self):
         self._config = {
+            'hardset': {},
             'cliargs': {},
             'environ': {},
             'envfile': {},
             'default': {},
         }
 
-    def read(self, config=None, *, env_vars=None, env_files=None, cli_args=None):
+    def read(self, hardset=None, *, env_vars=None, env_files=None, cli_args=None):
         if self._config['default']:
             raise Exception(
                 "Configuraiton has been read already, you can call read method "
@@ -224,8 +226,9 @@ class RawConfig:
                 self._add_env_file(env_file)
 
         # Add user supplied config.
-        if config:
-            self._add_config(config)
+        if hardset:
+            self._add_config(hardset, name='hardset')
+            self._add_config(hardset)
 
         # Override defaults from other locations.
         for _config in self.get('config', cast=list, default=[]):
@@ -282,8 +285,14 @@ class RawConfig:
             else:
                 yield key, self.get(*key, cast=type(value), origin=origin)
 
-    def _add_config(self, config):
-        self._config['default'].update(_traverse(config))
+    def dump(self):
+        for key, value, origin in sorted(self.getall(origin=True), key=operator.itemgetter(0)):
+            *key, name = key
+            name = len(key) * '  ' + name
+            print(f'{name:<20} {origin:<10} {value}')
+
+    def _add_config(self, config, name='default'):
+        self._config[name].update(_traverse(config))
 
     def _add_cli_args(self, args):
         for arg in args:
@@ -318,6 +327,10 @@ class RawConfig:
         assert isinstance(key, tuple)
 
         envvar = '_'.join(key).upper() if envvar is True else envvar
+
+        # 0. Get hard set value.
+        if key in self._config['hardset']:
+            return self._config['hardset'][key], 'hardset'
 
         # 1. Get value from command line arguments.
         if key in self._config['cliargs']:
