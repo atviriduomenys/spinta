@@ -17,7 +17,17 @@ def sql(config):
     schema.drop_all()
 
 
-def test_sql(sql, context):
+def test_sql(config, sql, context):
+    context.load({
+        'datasets': {
+            'default': {
+                'sql': {
+                    'db': config.get('backends', 'default', 'dsn'),
+                },
+            }
+        },
+    })
+
     country = sa.Table(
         'tests_country', sql.schema,
         sa.Column('id', sa.Integer, primary_key=True),

@@ -1,15 +1,17 @@
 import datetime
-import itertools
 import string
 import typing
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.engine.result import RowProxy
 
-from spinta.commands import prepare, check, push, get, getall, changes, wipe, authorize, is_object_id
-from spinta.components import Context, Action
+from starlette.requests import Request
+from starlette.exceptions import HTTPException
+
+from spinta.commands import prepare, check, push, getone, getall, changes, wipe, authorize, is_object_id
+from spinta.components import Context, Action, UrlParams
 from spinta.types.dataset import Model
-
 from spinta.backends import Backend, check_model_properties
 from spinta.backends.postgresql import PostgreSQL
 from spinta.backends.postgresql import utcnow
@@ -17,7 +19,12 @@ from spinta.backends.postgresql import get_table_name
 from spinta.backends.postgresql import get_changes_table
 from spinta.backends.postgresql import MAIN_TABLE, CHANGES_TABLE
 from spinta.backends.postgresql import ModelTables
-from spinta.utils.refs import get_ref_id
+from spinta.renderer import render
+from spinta import commands
+from spinta.exceptions import NotFound
+from spinta.utils.response import get_request_data
+from spinta.utils.idgen import get_new_id
+from spinta.utils.changes import get_patch_changes
 
 
 @prepare.register()
@@ -43,124 +50,296 @@ def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, ac
 
 
 @push.register()
-def push(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action):
-    authorize(context, action, model, data=data)
+async def push(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    authorize(context, action, model)
 
+    data = await get_request_data(request)
+    data = commands.load(context, model, data)
+    check(context, model, backend, data, action=action)
+    data = prepare(context, model, data, action=action)
+
+    if action == Action.INSERT:
+        data['id'] = commands.insert(context, model, backend, data=data)
+
+    elif action == Action.UPSERT:
+        data['id'] = commands.upsert(context, model, backend, data=data)
+
+    elif action == Action.UPDATE:
+        commands.update(context, model, backend, id_=params.id, data=data)
+
+    elif action == Action.PATCH:
+        commands.patch(context, model, backend, id_=params.id, data=data)
+
+    elif action == Action.DELETE:
+        commands.delete(context, model, backend, id_=params.id)
+
+    else:
+        raise Exception(f"Unknown action: {action!r}.")
+
+    data = prepare(context, action, model, backend, data)
+
+    status_code = 201 if action == Action.INSERT else 200
+    return render(context, request, model, action, params, data, status_code=status_code)
+
+
+@commands.insert.register()
+def insert(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    data: dict,
+):
     transaction = context.get('transaction')
     connection = transaction.connection
     table = _get_table(backend, model)
-    data = _serialize(data)
-    key = get_ref_id(data.pop('id'))
 
-    values = {
-        'data': data,
-        'transaction_id': transaction.id,
-    }
-
-    row = backend.get(
-        connection,
-        [table.main.c.data, table.main.c.transaction_id],
-        table.main.c.id == key,
-        default=None,
-    )
-
-    action = None
-
-    # Insert.
-    if row is None:
-        action = Action.INSERT
-        result = connection.execute(
-            table.main.insert().values({
-                'id': key,
-                'created': utcnow(),
-                **values,
-            })
-        )
-        changes = data
-
-    # Update.
+    if 'id' in data:
+        id_ = data['id']
     else:
-        changes = _get_patch_changes(row[table.main.c.data], data)
+        id_ = commands.gen_object_id(context, backend, model)
 
-        if changes:
-            action = Action.UPDATE
-            result = connection.execute(
-                table.main.update().
-                where(table.main.c.id == key).
-                where(table.main.c.transaction_id == row[table.main.c.transaction_id]).
-                values({
-                    **values,
-                    'updated': utcnow(),
-                })
-            )
+    if 'revision' in data.keys():
+        raise HTTPException(status_code=400, detail="cannot create 'revision'")
+    data['revision'] = get_new_id('revision id')
 
-            # TODO: Retries are needed if result.rowcount is 0, if such
-            #       situation happens, that means a concurrent transaction
-            #       changed the data and we need to reread it.
-            #
-            #       And assumption is made here, than in the same
-            #       transaction there are no concurrent updates, if this
-            #       assumption is false, then we need to check against
-            #       change_id instead of transaction_id.
-
-        else:
-            # Nothing to update.
-            return None
+    connection.execute(
+        table.main.insert().values({
+            'id': id_,
+            'transaction_id': transaction.id,
+            'created': utcnow(),
+            'data': data,
+        })
+    )
 
     # Track changes.
     connection.execute(
         table.changes.insert().values(
             transaction_id=transaction.id,
-            id=key,
+            id=id_,
             datetime=utcnow(),
-            action=action.value,
-            change=changes,
+            action=Action.INSERT.value,
+            change=data,
         ),
     )
 
-    # Sanity check, is primary key was really what we tell it to be?
-    assert action != Action.INSERT or result.inserted_primary_key[0] == key, f'{result.inserted_primary_key[0]} == {key}'
-
-    # Sanity check, do we really updated just one row?
-    assert action != Action.UPDATE or result.rowcount == 1, result.rowcount
-
-    return {'id': key}
+    return id_
 
 
-def _serialize(value):
-    if isinstance(value, dict):
-        return {k: _serialize(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_serialize(v) for v in value]
-    if isinstance(value, datetime.datetime):
-        return value.isoformat()
-    return value
+@commands.upsert.register()
+def upsert(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    key: typing.List[str],
+    data: dict,
+):
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    table = _get_table(backend, model)
 
+    condition = []
+    for k in key:
+        condition.append(table.main.c[k] == data[k])
 
-@get.register()
-def get(context: Context, model: Model, backend: PostgreSQL, id: str):
-    authorize(context, Action.GETONE, model)
-
-    connection = context.get('transaction').connection
-    table = _get_table(backend, model).main
-
-    query = (
-        sa.select([table]).
-        where(table.c.id == id)
+    row = backend.get(
+        connection,
+        [table.main.c.id, table.main.c.data, table.main.c.transaction_id],
+        sa.and_(*condition),
+        default=None,
     )
 
-    result = connection.execute(query)
-    result = list(itertools.islice(result, 2))
+    if row is None:
+        action = Action.INSERT
 
-    if len(result) == 1:
-        row = result[0]
-        return _get_data_from_row(model, table, row)
+        if 'id' in data:
+            id_ = data['id']
+        else:
+            id_ = commands.gen_object_id(context, backend, model)
 
-    elif len(result) == 0:
+        if 'revision' in data.keys():
+            raise HTTPException(status_code=400, detail="cannot create 'revision'")
+        data['revision'] = get_new_id('revision id')
+
+        data = _fix_data_for_json(data)
+
+        connection.execute(
+            table.main.insert().values({
+                'id': id_,
+                'transaction_id': transaction.id,
+                'created': utcnow(),
+                'data': data,
+            })
+        )
+    else:
+        action = Action.PATCH
+
+        id_ = row[table.main.c.id]
+
+        data = _patch(transaction, connection, table, id_, row, data)
+
+        if data is None:
+            # Nothing changed.
+            return None
+
+        data = _fix_data_for_json(data)
+
+    # Track changes.
+    connection.execute(
+        table.changes.insert().values(
+            transaction_id=transaction.id,
+            id=id_,
+            datetime=utcnow(),
+            action=action.value,
+            change={
+                k: v for k, v in data.items() if k not in ('id', 'revision')
+            },
+        ),
+    )
+
+    return id_
+
+
+@commands.update.register()
+def update(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+    data: dict,
+):
+    raise NotImplementedError
+
+
+@commands.patch.register()
+def patch(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+    data: dict,
+):
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    table = _get_table(backend, model)
+
+    row = backend.get(
+        connection,
+        [table.main.c.data, table.main.c.transaction_id],
+        table.main.c.id == id_,
+        default=None,
+    )
+    if row is None:
+        type_ = model.get_type_value()
+        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+
+    data = _patch(transaction, connection, table, id_, row, data)
+
+    if data is None:
+        # Nothing changed.
         return None
 
-    else:
-        context.error(f"Multiple rows were found, id={id}.")
+    # Track changes.
+    connection.execute(
+        table.changes.insert().values(
+            transaction_id=transaction.id,
+            id=id_,
+            datetime=utcnow(),
+            action=Action.PATCH.value,
+            change=data,
+        ),
+    )
+
+    return data
+
+
+def _patch(transaction, connection, table, id_, row, data):
+    changes = get_patch_changes(row[table.main.c.data], data)
+
+    if not changes:
+        # Nothing to update.
+        return None
+
+    data['revision'] = get_new_id('revision id')
+
+    data = _fix_data_for_json(data)
+
+    result = connection.execute(
+        table.main.update().
+        where(table.main.c.id == id_).
+        where(table.main.c.transaction_id == row[table.main.c.transaction_id]).
+        values({
+            'id': id_,
+            'transaction_id': transaction.id,
+            'updated': utcnow(),
+            'data': data,
+        })
+    )
+
+    # TODO: Retries are needed if result.rowcount is 0, if such
+    #       situation happens, that means a concurrent transaction
+    #       changed the data and we need to reread it.
+    #
+    #       And assumption is made here, than in the same
+    #       transaction there are no concurrent updates, if this
+    #       assumption is false, then we need to check against
+    #       change_id instead of transaction_id.
+    assert result.rowcount > 0
+
+    return changes
+
+
+@commands.delete.register()
+def delete(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+):
+    raise NotImplementedError
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+    ref: bool = False,
+):
+    authorize(context, action, model)
+    data = getone(context, model, backend, id_=params.id)
+    data = prepare(context, Action.GETONE, model, backend, data, show=params.show)
+    return render(context, request, model, action, params, data)
+
+
+@getone.register()
+def getone(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+):
+    connection = context.get('transaction').connection
+    table = _get_table(backend, model)
+    data = backend.get(connection, table.main.c.data, table.main.c.id == id_)
+    return {**data, 'id': id_}
 
 
 class JoinManager:
@@ -207,22 +386,57 @@ class JoinManager:
 
 
 @getall.register()
-def getall(
-    context: Context, model: Model, backend: PostgreSQL, *,
-    show: typing.List[str] = None,
-    sort: typing.List[typing.Dict[str, str]] = None,
-    offset=None, limit=None,
-    count: bool = False,
-    query_params: typing.List[typing.Dict[str, str]] = None,
-    search: bool = False,
+async def getall(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
 ):
-    if query_params is None:
-        query_params = []
-
-    action = Action.SEARCH if search else Action.GETALL
+    # show=_params.get('show'),
+    # sort=_params.get('sort', [{'name': 'id', 'ascending': True}]),
+    # offset=_params.get('offset'),
+    # limit=_params.get('limit', 100),
+    # count='count' in _params,
+    # search=params.search
+    # ---
+    # context: Context, request: Request, model: Model, backend: PostgreSQL, *,
+    # show: typing.List[str] = None,
+    # sort: typing.List[typing.Dict[str, str]] = None,
+    # offset=None, limit=None,
+    # count: bool = False,
+    # query_params: typing.List[typing.Dict[str, str]] = None,
+    # search: bool = False,
 
     authorize(context, action, model)
+    data = commands.getall(
+        context, model, model.backend,
+        action=action,
+        show=params.show,
+        sort=params.sort,
+        offset=params.offset,
+        limit=params.limit,
+        count=params.count,
+    )
+    return render(context, request, model, action, params, data)
 
+
+
+@getall.register()  # noqa
+def getall(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action = Action.GETALL,
+    show: typing.List[str] = None,
+    sort: typing.Dict[str, dict] = None,
+    offset: int = None,
+    limit: int = None,
+    count: bool = False,
+):
     connection = context.get('transaction').connection
     table = _get_table(backend, model).main
     jm = JoinManager(backend, model, table)
@@ -230,7 +444,7 @@ def getall(
     if count:
         query = sa.select([sa.func.count()]).select_from(table)
         result = connection.execute(query)
-        yield {'count': result.scalar()}
+        return {'count': result.scalar()}
 
     else:
         query = sa.select(_getall_show(table, jm, show))
@@ -240,8 +454,25 @@ def getall(
 
         result = connection.execute(query)
 
-        for row in result:
-            yield _get_data_from_row(model, table, row, show=show)
+        if len(jm.aliases) > 1:
+            # FIXME: currently `prepare` does not support joins, but that should
+            #        be fixed, so for now skipping `prepare`.
+            return (dict(row) for row in result)
+
+        if show:
+            return (
+                prepare(context, action, model, backend, dict(row), show=show)
+                for row in result
+            )
+        else:
+            return (
+                prepare(
+                    context, action, model, backend,
+                    {**row[table.c.data], 'id': row[table.c.id]},
+                    show=show,
+                )
+                for row in result
+            )
 
 
 def _getall_show(table: sa.Table, jm: JoinManager, show: typing.List[str]):
@@ -285,14 +516,41 @@ def _getall_limit(query, limit):
 
 
 @changes.register()
-def changes(context: Context, model: Model, backend: PostgreSQL, *, id=None, offset=None, limit=None):
-    authorize(context, Action.CHANGES, model)
+async def changes(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    authorize(context, action, model)
+    data = changes(context, model, backend, id_=params.id, limit=params.limit, offset=params.offset)
+    return render(context, request, model, action, params, (
+        {
+            **row,
+            'datetime': row['datetime'].isoformat(),
+        }
+        for row in data
+    ))
 
+
+@changes.register()
+def changes(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    id_: str = None,
+    limit: int = 100,
+    offset: int = -10,
+):
     connection = context.get('transaction').connection
     table = _get_table(backend, model).changes
 
     query = sa.select([table]).order_by(table.c.change_id)
-    query = _changes_id(table, query, id)
+    query = _changes_id(table, query, id_)
     query = _changes_offset(table, query, offset)
     query = _changes_limit(query, limit)
 
@@ -309,9 +567,9 @@ def changes(context: Context, model: Model, backend: PostgreSQL, *, id=None, off
         }
 
 
-def _changes_id(table, query, id):
-    if id:
-        return query.where(table.c.id == id)
+def _changes_id(table, query, id_):
+    if id_:
+        return query.where(table.c.id == id_)
     else:
         return query
 
@@ -353,28 +611,24 @@ def _get_table(backend, model):
     return backend.tables[model.manifest.name][model.get_type_value()]
 
 
-def _get_data_from_row(model: Model, table, row, *, show=False):
-    if show:
-        data = dict(row)
-    else:
-        data = {
-            'type': model.get_type_value(),
-            'id': row[table.c.id],
-        }
-        for prop in model.properties.values():
-            if prop.name not in data:
-                data[prop.name] = row[table.c.data].get(prop.name)
-    return data
-
-
-def _get_patch_changes(old, new):
-    changes = {}
-    for k, v in new.items():
-        if old.get(k) != v:
-            changes[k] = v
-    return changes
-
-
 @is_object_id.register()
 def is_object_id(context: Context, backend: Backend, model: Model, value: str):
     return len(value) == 40 and not set(value) - set(string.hexdigits)
+
+
+@prepare.register()
+def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, show: typing.List[str] = None) -> dict:
+    return prepare(context, action, model, backend, dict(value), show=show)
+
+
+def _fix_data_for_json(data):
+    # XXX: a temporary workaround
+    #
+    #      Dataset data is stored in a JSONB column and has to be converted
+    #      into JSON friendly types.
+    _data = {}
+    for k, v in data.items():
+        if isinstance(v, (datetime.datetime, datetime.date)):
+            v = v.isoformat()
+        _data[k] = v
+    return _data

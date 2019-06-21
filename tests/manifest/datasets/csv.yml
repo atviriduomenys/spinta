@@ -11,6 +11,12 @@ resources:
       country:
         source: countries.csv
         properties:
-          id: {source: kodas}
-          code: {source: kodas}
-          title: {source: šalis}
+          id:
+            type: pk
+            source: kodas
+          code:
+            type: string
+            source: kodas
+          title:
+            type: string
+            source: šalis

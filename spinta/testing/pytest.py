@@ -1,21 +1,14 @@
-import collections
 import os
 
 import pytest
 import sqlalchemy_utils as su
 from responses import RequestsMock
-from toposort import toposort
 from click.testing import CliRunner
 
 from spinta import api
-from spinta.components import Store
-from spinta.commands import load, check, prepare, migrate
-from spinta.utils.commands import load_commands
 from spinta.testing.context import ContextForTests
 from spinta.testing.client import TestClient
-from spinta import components
 from spinta.config import RawConfig
-from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator, AdminToken
 from spinta.utils.imports import importstr
 
 
@@ -61,52 +54,13 @@ def context(mocker, tmpdir, config, postgresql, mongo):
     Context = type('ContextForTests', (ContextForTests, Context), {})
     context = Context()
 
-    context.set('config', components.Config())
-    store = context.set('store', Store())
+    context.set('config.raw', config)
 
-    load_commands(config.get('commands', 'modules', cast=list))
-    load(context, context.get('config'), config)
-    check(context, context.get('config'))
-    load(context, store, config)
-    check(context, store)
-    prepare(context, store.internal)
-    migrate(context, store)
-    prepare(context, store)
-    migrate(context, store)
+    yield context
 
-    context.bind('auth.server', AuthorizationServer, context)
-    context.bind('auth.resource_protector', ResourceProtector, context, BearerTokenValidator)
-
-    with context.enter():
-        yield context
-
-    with context.enter():
-        # FIXME: quick and dirty workaround on `context.wipe` missing a connection,
-        # when exception is thrown in spinta's logic.
-        context.set('transaction', store.manifests['default'].backend.transaction(write=True))
-        context.set('auth.token', AdminToken())
-
-        # Remove all data after each test run.
-        graph = collections.defaultdict(set)
-        for model in store.manifests['default'].objects['model'].values():
-            if model.name not in graph:
-                graph[model.name] = set()
-            for prop in model.properties.values():
-                if prop.type.name == 'ref':
-                    graph[prop.type.object].add(model.name)
-
-        for models in toposort(graph):
-            for name in models:
-                context.wipe(name)
-
-        # Datasets does not have foreign kei constraints, so there is no need to
-        # topologically sort them. At least for now.
-        for dataset in store.manifests['default'].objects['dataset'].values():
-            for resource in dataset.resources.values():
-                for model in resource.objects.values():
-                    context.wipe(model)
-
-        context.wipe(store.internal.objects['model']['transaction'])
+    config.restore()
+    if context.loaded:
+        context.wipe_all()
 
 
 @pytest.fixture

@@ -6,6 +6,7 @@ from spinta.nodes import load_node
 from spinta.types.type import Type, load_type
 from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema
+from spinta.utils.tree import add_path_to_tree
 from spinta.common import NA
 
 
@@ -13,10 +14,13 @@ from spinta.common import NA
 def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Model:
     load_node(context, model, data, manifest)
     manifest.add_model_endpoint(model)
+    add_path_to_tree(manifest.tree, model.name)
 
-    # 'type' is reserved for object type.
-    props = {'type': {'type': 'string'}}
-    props.update(data.get('properties') or {})
+    props = data.get('properties') or {}
+
+    # Add build-in properties.
+    props['type'] = {'type': 'string'}
+    props['revision'] = {'type': 'string'}
 
     # 'id' is reserved for primary key.
     if 'id' not in props:
@@ -140,5 +144,11 @@ def error(exc: Exception, context: Context, prop: Property, data: dict, manifest
 
 
 @authorize.register()
-def authorize(context: Context, action: Action, model: Model, *, data=None):
-    check_generated_scopes(context, model.get_type_value(), action.value, spinta_action=action, data=data)
+def authorize(context: Context, action: Action, model: Model):
+    check_generated_scopes(context, model.get_type_value(), action.value)
+
+
+@authorize.register()
+def authorize(context: Context, action: Action, prop: Property):
+    name = prop.model.get_type_value() + '_' + prop.place
+    check_generated_scopes(context, name, action.value)

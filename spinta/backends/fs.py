@@ -3,13 +3,16 @@ import pathlib
 import shutil
 
 from starlette.requests import Request
+from starlette.responses import FileResponse
 
 from spinta.backends import Backend
-from spinta.commands import load, prepare, migrate, check, push, get, wipe, wait, authorize
-from spinta.components import Context, Manifest, Model, Property, Attachment, Action
+from spinta.commands import load, prepare, migrate, check, push, getone, wipe, wait, authorize
+from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.types.type import File
-from spinta.exceptions import DataError
+from spinta.exceptions import DataError, NotFound
+from spinta import commands
+from spinta.renderer import render
 
 
 class FileSystem(Backend):
@@ -54,16 +57,6 @@ def migrate(context: Context, backend: FileSystem):
     pass
 
 
-@load.register()
-async def load(context: Context, prop: Property, backend: FileSystem, request: Request) -> Attachment:
-    return Attachment(
-        # FIXME: see [fs_content_type_param]
-        content_type=request.headers['content-type'],
-        filename=cgi.parse_header(request.headers['content-disposition'])[1]['filename'],
-        data=await request.body(),
-    )
-
-
 @check.register()
 def check(context: Context, type: File, prop: Property, backend: FileSystem, value: dict, *, data: dict, action: Action):
     path = backend.path / value['filename']
@@ -78,23 +71,83 @@ def check(context: Context, type: File, prop: Property, backend: Backend, value:
 
 
 @push.register()
-def push(context: Context, prop: Property, backend: FileSystem, attachment: Attachment, *, action: str):
-    path = backend.path / attachment.filename
-    if action in (Action.INSERT, Action.UPDATE):
-        with open(path, 'wb') as f:
-            f.write(attachment.data)
+async def push(
+    context: Context,
+    request: Request,
+    prop: Property,
+    backend: FileSystem,
+    *,
+    action: str,
+    params: UrlParams,
+    ref: bool = False,
+):
+    authorize(context, action, prop)
+
+    content_type = None
+    filename = None
+
+    if 'content-type' in request.headers:
+        content_type = request.headers['content-type']
+
+    if 'content-disposition' in request.headers:
+        filename = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
+
+    if content_type is None or filename is None:
+        data = getone(context, prop, prop.model.backend, id_=params.id)
+        data = data or {}
+        data.setdefault('content_type', None)
+        data.setdefault('filename', None)
+
+        if content_type is None:
+            content_type = data['content_type']
+
+        if filename is None:
+            filename = data['filename'] or params.id
+    else:
+        data = {
+            'content_type': None,
+            'filename': None,
+        }
+
+    filepath = backend.path / filename
+
+    if action in (Action.UPDATE, Action.PATCH):
+        with open(filepath, 'wb') as f:
+            async for chunk in request.stream():
+                f.write(chunk)
+        update = {
+            'content_type': content_type,
+            'filename': filename,
+        }
     elif action == Action.DELETE:
-        if path.exists():
-            path.unlink()
+        if filepath.exists():
+            filepath.unlink()
+        update = None
     else:
         raise Exception(f"Unknown action {action!r}.")
 
+    if data != update:
+        commands.update(context, prop, prop.model.backend, id_=params.id, data=update)
 
-@get.register()
-def get(context: Context, prop: Property, backend: FileSystem, filename: str):
-    with open(backend.path / filename) as f:
-        data = f.read()
-    return data
+    return render(context, request, prop, action, params, update)
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    backend: FileSystem,
+    *,
+    action: str,
+    params: UrlParams,
+    ref: bool = False,
+):
+    data = getone(context, prop, prop.model.backend, id_=params.id)
+    if data is None:
+        raise NotFound(f"File {prop.name!r} not found in {params.id!r}.")
+    filename = data['filename'] or params.id
+    return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
 
 
 @wipe.register()

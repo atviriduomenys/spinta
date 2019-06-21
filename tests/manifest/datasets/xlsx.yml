@@ -15,42 +15,84 @@ resources:
           skip: {column: 0, value: ['Rinkimai', 'Rinkimų rūšis']}
           limit: 10
         properties:
-          id: {source: ['Rinkimai']}
-          rusis: {source: 'Rinkimų rūšis'}
-          pavadinimas: {source: 'Rinkimai'}
-          data: {source: 'Rinkimų data'}
+          id:
+            type: pk
+            source: ['Rinkimai']
+          rusis:
+            type: string
+            source: 'Rinkimų rūšis'
+          pavadinimas:
+            type: string
+            source: 'Rinkimai'
+          data:
+            type: date
+            source: 'Rinkimų data'
 
       rinkimai/turas:
         source:
           skip: 8
           limit: 10
         properties:
-          id: {source: ['Rinkimai', 'Turas']}
-          turas: {source: 'Turas'}
-          rinkimai: {source: ['Rinkimai'], ref: rinkimai}
+          id:
+            type: pk
+            source: ['Rinkimai', 'Turas']
+          turas:
+            type: string
+            source: 'Turas'
+          rinkimai:
+            type: ref
+            source: ['Rinkimai']
+            ref: rinkimai
 
       rinkimai/apygarda:
         source:
           skip: 8
           limit: 10
         properties:
-          id: {source: ['Apygardos Nr.']}
-          numeris: {source: 'Apygardos Nr.'}
-          pavadinimas: {source: 'Apygardos pavadinimas'}
-          rinkimai: {source: ['Rinkimai'], ref: rinkimai}
-          turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
+          id:
+            type: pk
+            source: ['Apygardos Nr.']
+          numeris:
+            type: string
+            source: 'Apygardos Nr.'
+          pavadinimas:
+            type: string
+            source: 'Apygardos pavadinimas'
+          rinkimai:
+            type: string
+            source: ['Rinkimai']
+            ref: rinkimai
+          turas:
+            type: string
+            source: ['Rinkimai', 'Turas']
+            ref: rinkimai/turas
 
       rinkimai/apylinke:
         source:
           skip: 8
           limit: 10
         properties:
-          id: {source: ['Apygardos Nr.', 'Apylinkės Nr.']}
-          numeris: {source: 'Apylinkės Nr.'}
-          pavadinimas: {source: 'Apylinkės pavadinimas'}
-          rinkimai: {source: ['Rinkimai'], ref: rinkimai}
-          turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
-          apygarda: {source: ['Apygardos Nr.'], ref: rinkimai/apygarda}
+          id:
+            type: pk
+            source: ['Apygardos Nr.', 'Apylinkės Nr.']
+          numeris:
+            type: string
+            source: 'Apylinkės Nr.'
+          pavadinimas:
+            type: string
+            source: 'Apylinkės pavadinimas'
+          rinkimai:
+            type: ref
+            source: ['Rinkimai']
+            ref: rinkimai
+          turas:
+            type: ref
+            source: ['Rinkimai', 'Turas']
+            ref: rinkimai/turas
+          apygarda:
+            type: ref
+            source: ['Apygardos Nr.']
+            ref: rinkimai/apygarda
 
       rinkimai/kandidatas:
         source:
@@ -58,6 +100,7 @@ resources:
           limit: 1
         properties:
           id:
+            type: pk
             source:
               - 'Rinkimai'
               - 'Turas'
@@ -66,16 +109,46 @@ resources:
               - 'Kandidato vardas'
               - 'Kandidato pavardė'
               - 'Gimimo data'
-          vardas: {source: 'Kandidato vardas'}
-          pavarde: {source: 'Kandidato pavardė'}
-          lytis: {source: 'Lytis'}
-          tautybe: {source: 'Tautybė'}
-          gimimo_data: {source: 'Gimimo data'}
-          kas_iskele_kandidata: {source: 'Kas iškėlė kandidatą'}
-          gauti_balsai_is_viso: {source: 'Gauti balsai (iš viso)'}
-          gauti_balsai_rinkimu_diena: {source: 'Gauti balsai (rinkimų dieną)'}
-          gauti_balsai_is_anksto: {source: 'Gauti balsai (iš anksto)'}
-          rinkimai: {source: ['Rinkimai'], ref: rinkimai}
-          turas: {source: ['Rinkimai', 'Turas'], ref: rinkimai/turas}
-          apygarda: {source: ['Apygardos Nr.'], ref: rinkimai/apygarda}
-          apylinke: {source: ['Apygardos Nr.', 'Apylinkės Nr.'], ref: rinkimai/apylinke}
+          vardas:
+            type: string
+            source: 'Kandidato vardas'
+          pavarde:
+            type: string
+            source: 'Kandidato pavardė'
+          lytis:
+            type: string
+            source: 'Lytis'
+          tautybe:
+            type: string
+            source: 'Tautybė'
+          gimimo_data:
+            type: date
+            source: 'Gimimo data'
+          kas_iskele_kandidata:
+            type: string
+            source: 'Kas iškėlė kandidatą'
+          gauti_balsai_is_viso:
+            type: integer
+            source: 'Gauti balsai (iš viso)'
+          gauti_balsai_rinkimu_diena:
+            type: integer
+            source: 'Gauti balsai (rinkimų dieną)'
+          gauti_balsai_is_anksto:
+            type: integer
+            source: 'Gauti balsai (iš anksto)'
+          rinkimai:
+            type: ref
+            source: ['Rinkimai']
+            ref: rinkimai
+          turas:
+            type: ref
+            source: ['Rinkimai', 'Turas']
+            ref: rinkimai/turas
+          apygarda:
+            type: ref
+            source: ['Apygardos Nr.']
+            ref: rinkimai/apygarda
+          apylinke:
+            type: ref
+            source: ['Apygardos Nr.', 'Apylinkės Nr.']
+            ref: rinkimai/apylinke

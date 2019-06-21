@@ -17,8 +17,8 @@ def test_csv(context, responses):
         ),
     )
 
-    assert consume(context.pull('csv')) == 3
-    assert consume(context.pull('csv')) == 0
+    assert len(context.pull('csv')) == 3
+    assert len(context.pull('csv')) == 0
 
     assert sorted([(x['code'], x['title']) for x in context.getall('country')]) == []
     assert sorted([(x['code'], x['title']) for x in context.getall('country', dataset='csv', resource='countries')]) == [

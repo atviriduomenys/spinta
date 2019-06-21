@@ -12,10 +12,14 @@ resources:
         source: /SeimoInformacija/SeimoKadencija
         properties:
           id:
+            type: pk
             source: "@kadencijos_id"
           title:
+            type: string
             source: "@pavadinimas"
           since:
+            type: date
             source: "@data_nuo"
           until:
+            type: date
             source: "@data_iki"

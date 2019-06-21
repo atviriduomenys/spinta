@@ -2,10 +2,10 @@ import pathlib
 
 from responses import GET
 
-from spinta.utils.itertools import consume
 
+def test_xlsx(context, responses, mocker):
+    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REV')
 
-def test_xlsx(context, responses):
     responses.add(
         GET, 'http://example.com/data.xlsx',
         status=200, content_type='application/vnd.ms-excel',
@@ -17,11 +17,12 @@ def test_xlsx(context, responses):
     apygarda = '025685077bbcf6e434a95b65b9a6f5fcef046861'
     apylinke = '629f0976c1a04dbe6cf3e71b3085ec555d3f63bf'
 
-    assert consume(context.pull('xlsx')) > 0
+    assert len(context.pull('xlsx')) > 0
     assert list(context.getall('rinkimai', dataset='xlsx', resource='data')) == [
         {
             'type': 'rinkimai/:ds/xlsx/:rs/data',
             'id': rinkimai,
+            'revision': 'REV',
             'data': '1992-10-25T00:00:00',
             'rusis': 'Seimo rinkimai',
             'pavadinimas': '1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai',
@@ -31,6 +32,7 @@ def test_xlsx(context, responses):
         {
             'type': 'rinkimai/turas/:ds/xlsx/:rs/data',
             'id': turas,
+            'revision': 'REV',
             'turas': 1,
             'rinkimai': rinkimai,
         },
@@ -39,6 +41,7 @@ def test_xlsx(context, responses):
         {
             'type': 'rinkimai/apygarda/:ds/xlsx/:rs/data',
             'id': apygarda,
+            'revision': 'REV',
             'numeris': 2,
             'pavadinimas': 'Senamiesčio',
             'rinkimai': rinkimai,
@@ -49,6 +52,7 @@ def test_xlsx(context, responses):
         {
             'type': 'rinkimai/apylinke/:ds/xlsx/:rs/data',
             'id': apylinke,
+            'revision': 'REV',
             'numeris': 0,
             'pavadinimas': 'Balsai, suskaičiuoti apygardos rinkimų komisijoje',
             'rinkimai': rinkimai,
@@ -60,6 +64,7 @@ def test_xlsx(context, responses):
         {
             'type': 'rinkimai/kandidatas/:ds/xlsx/:rs/data',
             'id': '8159cf47118c31114c71a75ed06aa66b0476ad7a',
+            'revision': 'REV',
             'vardas': 'NIJOLĖ',
             'pavarde': 'VAITIEKŪNIENĖ',
             'lytis': 'Moteris',

@@ -13,6 +13,7 @@ from spinta.types.type import load_type
 from spinta.auth import check_generated_scopes
 from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema, load_from_schema
+from spinta.utils.tree import add_path_to_tree
 
 
 class Dataset(Node):
@@ -86,6 +87,8 @@ class Property(Node):
         'ref': {'type': 'string'},
         'dependency': {'type': 'boolean'},
         'model': {'required': True},
+        'hidden': {'type': 'boolean', 'inherit': True, 'default': False},
+        'place': {'required': True},
     }
 
     def __init__(self):
@@ -97,6 +100,7 @@ class Property(Node):
         self.replace = None
         self.ref = None
         self.dependency = None
+        self.hidden = False
 
 
 @load.register()
@@ -135,6 +139,7 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     # Load models
     for name, params in (data.get('objects') or {}).items():
         params = {
+            'type': 'model',
             'path': resource.path,
             'name': name,
             'parent': resource,
@@ -149,6 +154,7 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
 def load(context: Context, model: Model, data: dict, manifest: Manifest):
     load_node(context, model, data, manifest)
     manifest.add_model_endpoint(model)
+    add_path_to_tree(manifest.tree, model.name)
 
     # Load model source
     if model.source:
@@ -161,25 +167,31 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
     else:
         model.source = []
 
-    # 'type' is reserved for object type.
-    props = {'type': {'type': 'string'}}
-    props.update(data.get('properties') or {})
+    props = data.get('properties') or {}
+
+    # Add build-in properties.
+    props['type'] = {'type': 'string'}
+    props['revision'] = {'type': 'string'}
 
     # 'id' is reserved for primary key.
-    props['id'] = props.get('id') or {'type': 'string'}
-    if props['id'].get('type') is None or props['id'].get('type') == 'pk':
-        props['id'] == 'string'
+    if 'id' not in props:
+        props['id'] = {'type': 'pk'}
+    elif props['id'].get('type') != 'pk':
+        raise Exception("'id' property is reserved for primary key and must be of 'pk' type.")
 
     # Load model properties.
+    model.flatprops = {}
+    model.properties = {}
     for name, params in props.items():
         params = {
             'name': name,
+            'place': name,
             'path': model.path,
             'parent': model,
             'model': model,
             **(params or {}),
         }
-        model.properties[name] = load(context, Property(), params, manifest)
+        model.flatprops[name] = model.properties[name] = load(context, Property(), params, manifest)
 
     return model
 
@@ -298,6 +310,7 @@ def _pull(context: Context, model: Model, source, dependency):
                 data[prop.name] = get_ref_id(data[prop.name])
 
         if _check_key(data.get('id')):
+            data['id'] = get_ref_id(data['id'])
             yield data
 
 
@@ -364,8 +377,14 @@ def _get_value_from_source(context: Context, prop: Property, source, data: dict,
 
 
 @authorize.register()
-def authorize(context: Context, action: Action, model: Model, *, data=None):
-    check_generated_scopes(context, model.get_type_value(), action.value, spinta_action=action, data=data)
+def authorize(context: Context, action: Action, model: Model):
+    check_generated_scopes(context, model.get_type_value(), action.value)
+
+
+@authorize.register()
+def authorize(context: Context, action: Action, prop: Property):
+    name = prop.model.get_type_value() + '_' + prop.place
+    check_generated_scopes(context, name, action.value)
 
 
 @error.register()

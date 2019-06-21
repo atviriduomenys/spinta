@@ -1,24 +1,30 @@
 from spinta.config import RawConfig
 
 
-def test_udpate_config():
+def test_hardset():
     config = RawConfig()
-    config.read(env_vars=False, env_files=False, config={
-        'components': {
-            'nodes': {
-                'new': 'component',
+    config.read(
+        env_files=False,
+        env_vars={
+            'SPINTA_MANIFESTS_NEW_PATH': 'envvars',
+        },
+        hardset={
+            'components': {
+                'nodes': {
+                    'new': 'component',
+                },
+            },
+            'manifests': {
+                'new': {
+                    'path': 'here',
+                },
             },
         },
-        'manifests': {
-            'new': {
-                'path': 'here',
-            },
-        },
-    })
+    )
 
     assert config.get('components', 'nodes', 'new') == 'component'
     assert config.get('manifests', 'new', 'path') == 'here'
-    assert config.keys('manifests') == ['default', 'new']
+    assert config.keys('manifests') == ['new']
 
 
 def test_update_config_from_cli():
@@ -63,7 +69,7 @@ def test_update_config_from_env_file(tmpdir):
 
 def test_custom_env():
     config = RawConfig()
-    config.read(env_vars=False, env_files=False, config={
+    config.read(env_vars=False, env_files=False, hardset={
         'env': 'testing',
         'environments': {
             'testing': {
@@ -85,7 +91,7 @@ def test_custom_env():
 
 def test_custom_env_from_envvar():
     config = RawConfig()
-    config.read(env_files=False, env_vars={'SPINTA_ENV': 'testing'}, config={
+    config.read(env_files=False, env_vars={'SPINTA_ENV': 'testing'}, hardset={
         'environments': {
             'testing': {
                 'backends': {
@@ -171,7 +177,7 @@ _TEST_CONFIG = {
 
 def test_custom_config():
     config = RawConfig()
-    config.read(env_vars=False, env_files=False, config={
+    config.read(env_vars=False, env_files=False, hardset={
         'config': [f'{__name__}:_TEST_CONFIG'],
     })
     assert config.get('backends', 'custom', 'dsn') == 'config'

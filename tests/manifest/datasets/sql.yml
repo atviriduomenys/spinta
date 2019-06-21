@@ -10,6 +10,12 @@ resources:
       country:
         source: tests_country
         properties:
-          id: {source: kodas}
-          code: {source: kodas}
-          title: {source: pavadinimas}
+          id:
+            type: pk
+            source: kodas
+          code:
+            type: string
+            source: kodas
+          title:
+            type: string
+            source: pavadinimas

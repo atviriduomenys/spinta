@@ -41,12 +41,18 @@ class Context:
 
     @contextlib.contextmanager
     def enter(self):
+        self.enter_stack()
+        with self._exitstack[-1]:
+            yield
+        self.leave_stack()
+
+    def enter_stack(self):
         self._factory.append({**self._factory[-1]})
         self._context.append({**self._context[-1]})
         self._exitstack.append(contextlib.ExitStack())
         self._names.append(set())
-        with self._exitstack[-1]:
-            yield
+
+    def leave_stack(self):
         self._exitstack.pop()
         self._context.pop()
         self._factory.pop()
@@ -124,7 +130,7 @@ class Manifest:
 
 class Node:
     schema = {
-        'type': {},
+        'type': {'required': True},
         'path': {'required': True},
         'parent': {'required': True},
         'name': {'required': True},
@@ -194,6 +200,7 @@ class Property(Node):
         self.check = None
         self.link = None
         self.enum = None
+        self.hidden = False
 
 
 class Command:
@@ -225,6 +232,7 @@ class Attachment:
 
 class Action(enum.Enum):
     INSERT = 'insert'
+    UPSERT = 'upsert'
     UPDATE = 'update'
     PATCH = 'patch'
     DELETE = 'delete'
@@ -236,3 +244,25 @@ class Action(enum.Enum):
     SEARCH = 'search'
 
     CHANGES = 'changes'
+
+    CONTENTS = 'contents'
+
+
+class UrlParams:
+    model: str
+    id: str
+    properties: list
+    dataset: str
+    changes: str
+    sort: list
+    limit: int
+    offset: int
+    format: str
+    count: bool = False
+
+    # Deprecated, added for backwards compatibility.
+    params: dict
+
+
+class Version:
+    version: str

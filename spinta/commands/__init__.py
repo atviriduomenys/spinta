@@ -130,9 +130,33 @@ def push():
     """Insert, update or delete data to the databse."""
 
 
-# FIXME: `get` should be renamed to `getone`.
 @command()
-def get():
+def insert():
+    pass
+
+
+@command()
+def upsert():
+    pass
+
+
+@command()
+def update():
+    pass
+
+
+@command()
+def patch():
+    pass
+
+
+@command()
+def delete():
+    pass
+
+
+@command()
+def getone():
     """Get single record from the databse."""
 
 
@@ -183,3 +207,18 @@ def is_object_id():
         is_object_id(Context, Backend, Model, str) -> bool
 
     """
+
+
+@command()
+def contents():
+    """Model namespace contents.
+
+    For example if we have two models named `foo/bar/baz` ant `foo/bar/bac`,
+    then if client requests `/foo/bar` they will get `[baz, bac]`.
+
+    """
+
+
+@command()
+def render():
+    """Render response to the clinet."""

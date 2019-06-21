@@ -20,8 +20,8 @@ def test_get_table_name():
 
 def test_changes(context):
     data, = list(context.push([{'type': 'country', 'code': 'lt', 'title': 'Lithuania'}]))
-    consume(context.push([{'id': data['id'], 'type': 'country', 'title': "Lietuva"}]))
-    consume(context.push([{'id': data['id'], 'type': 'country', 'code': 'lv', 'title': "Latvia"}]))
+    context.push([{'id': data['id'], 'type': 'country', 'title': "Lietuva"}])
+    context.push([{'id': data['id'], 'type': 'country', 'code': 'lv', 'title': "Latvia"}])
 
     backend = context.get('store').manifests['default'].backend
     txn = backend.tables['internal']['transaction'].main
@@ -37,13 +37,13 @@ def test_changes(context):
             ]).order_by(changes.c.transaction_id)
         ).fetchall())) == [
             {'id': data['id'], 'action': 'insert', 'change': {'code': 'lt', 'title': 'Lithuania'}},
-            {'id': data['id'], 'action': 'update', 'change': {'code': None, 'title': 'Lietuva'}},
-            {'id': data['id'], 'action': 'update', 'change': {'code': 'lv', 'title': 'Latvia'}},
+            {'id': data['id'], 'action': 'patch', 'change': {'title': 'Lietuva'}},
+            {'id': data['id'], 'action': 'patch', 'change': {'code': 'lv', 'title': 'Latvia'}},
         ]
 
 
 def test_show_with_joins(context):
-    consume(context.push([
+    context.push([
         {
             'type': 'continent/:ds/dependencies/:rs/continents',
             'id': '1',
@@ -51,17 +51,17 @@ def test_show_with_joins(context):
         },
         {
             'type': 'country/:ds/dependencies/:rs/continents',
-            'id': 1,
+            'id': '1',
             'title': 'Lithuania',
             'continent': '1',
         },
         {
             'type': 'capital/:ds/dependencies/:rs/continents',
-            'id': 1,
+            'id': '1',
             'title': 'Vilnius',
             'country': '1',
         },
-    ]))
+    ])
 
     result = context.getall('capital', dataset='dependencies', resource='continents', show=[
         'id',
@@ -75,7 +75,7 @@ def test_show_with_joins(context):
             'country.continent.title': 'Europe',
             'country.title': 'Lithuania',
             'title': 'Vilnius',
-            'id': '69a33b149af7a7eeb25026c8cdc09187477ffe21',
+            'id': '1',
         },
     ]
 
