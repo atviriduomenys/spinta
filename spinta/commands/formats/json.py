@@ -18,9 +18,10 @@ class Json(Format):
         'application/json',
     }
     params = {}
+    container_name = 'data'
 
     def __call__(self, data):
-        yield '{"data":['
+        yield f'{{"{self.container_name}":['
         for i, row in enumerate(data):
             sep = ',' if i > 0 else ''
             yield sep + json.dumps(row, ensure_ascii=False)
@@ -39,7 +40,7 @@ def render(
     data,
     status_code: int = 200,
 ):
-    return _render_model(context, request, model, fmt, action, params, data, status_code)
+    return _render(context, request, fmt, action, params, data, status_code)
 
 
 @commands.render.register()  # noqa
@@ -54,7 +55,7 @@ def render(
     data,
     status_code: int = 200,
 ):
-    return _render_model(context, request, model, fmt, action, params, data, status_code)
+    return _render(context, request, fmt, action, params, data, status_code)
 
 
 @commands.render.register()  # noqa
@@ -69,13 +70,26 @@ def render(
     data,
     status_code: int = 200,
 ):
-    return _render_model(context, request, prop, fmt, action, params, data, status_code)
+    return _render(context, request, fmt, action, params, data, status_code)
 
 
-def _render_model(
+@commands.render.register()  # noqa
+def render(
     context: Context,
     request: Request,
-    model: Model,
+    fmt: Json,
+    *,
+    action: Action,
+    params: UrlParams,
+    data,
+    status_code: int = 200,
+):
+    return _render(context, request, fmt, action, params, data, status_code)
+
+
+def _render(
+    context: Context,
+    request: Request,
     fmt: Json,
     action: Action,
     params: UrlParams,

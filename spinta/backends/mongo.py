@@ -236,6 +236,25 @@ def update(
     return id_
 
 
+@commands.update.register()  # noqa
+def update(
+    context: Context,
+    prop: Property,
+    backend: Mongo,
+    *,
+    id_: str,
+    data: dict,
+):
+    table = backend.db[prop.model.get_type_value()]
+    result = table.update_one(
+        {'id': id_},
+        {'$set': {prop.name: data}}
+    )
+    assert result.matched_count == 1 and result.modified_count == 1, (
+        f"matched: {result.matched_count}, modified: {result.modified_count}"
+    )
+
+
 @commands.patch.register()
 def patch(
     context: Context,
@@ -271,9 +290,13 @@ def _patch(table, id_, row, data):
         # Nothing to update.
         return None
 
-    table.update_one(
-        {'_id': id_},
+    result = table.update_one(
+        {'id': id_},
         {'$set': changes},
+    )
+
+    assert result.matched_count == 1 and result.modified_count == 1, (
+        f"matched: {result.matched_count}, modified: {result.modified_count}"
     )
 
     return changes
