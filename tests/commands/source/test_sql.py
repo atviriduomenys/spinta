@@ -17,12 +17,12 @@ def sql(config):
     schema.drop_all()
 
 
-def test_sql(sql, context):
+def test_sql(config, sql, context):
     context.load({
         'datasets': {
             'default': {
                 'sql': {
-                    'db': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
+                    'db': config.get('backends', 'default', 'dsn'),
                 },
             }
         },
