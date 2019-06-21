@@ -41,12 +41,18 @@ class Context:
 
     @contextlib.contextmanager
     def enter(self):
+        self.enter_stack()
+        with self._exitstack[-1]:
+            yield
+        self.leave_stack()
+
+    def enter_stack(self):
         self._factory.append({**self._factory[-1]})
         self._context.append({**self._context[-1]})
         self._exitstack.append(contextlib.ExitStack())
         self._names.append(set())
-        with self._exitstack[-1]:
-            yield
+
+    def leave_stack(self):
         self._exitstack.pop()
         self._context.pop()
         self._factory.pop()

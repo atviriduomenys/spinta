@@ -69,6 +69,7 @@ async def test_export_multiple_types(context):
         {'type': 'c', 'value': 3},
     ]
 
+    context.load()
     config = context.get('config')
     exporter = config.exporters['ascii']
     assert ''.join(exporter(rows)) == (

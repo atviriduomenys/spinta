@@ -7,7 +7,7 @@ import types
 import pkg_resources as pres
 
 from spinta.commands import load, wait, prepare, migrate, check, push
-from spinta.components import Context, Store, Manifest, Action
+from spinta.components import Context, Store, Manifest
 from spinta.utils.imports import importstr
 from spinta.config import RawConfig
 from spinta.exceptions import NotFound

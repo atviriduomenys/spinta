@@ -1,4 +1,5 @@
 import collections
+import copy
 import operator
 import os
 import pathlib
@@ -173,13 +174,6 @@ CONFIG = {
                     'path': pathlib.Path() / 'tests/manifest',
                 },
             },
-            'datasets': {
-                'default': {
-                    'sql': {
-                        'db': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
-                    },
-                }
-            },
             'config_path': pathlib.Path('tests/config'),
             'default_auth_client': 'baa448a8-205c-4faa-a048-a10e4b32a136',
         }
@@ -190,6 +184,8 @@ CONFIG = {
 class RawConfig:
 
     def __init__(self):
+        self._dirty = False
+        self._backup = None
         self._config = {
             'hardset': {},
             'cliargs': {},
@@ -198,7 +194,7 @@ class RawConfig:
             'default': {},
         }
 
-    def read(self, hardset=None, *, env_vars=None, env_files=None, cli_args=None):
+    def read(self, hardset=None, *, env_vars=None, env_files=None, cli_args=None, config=None):
         if self._config['default']:
             raise Exception(
                 "Configuraiton has been read already, you can call read method "
@@ -225,10 +221,13 @@ class RawConfig:
             for env_file in env_files:
                 self._add_env_file(env_file)
 
-        # Add user supplied config.
+        # Hard set configuration values.
         if hardset:
-            self._add_config(hardset, name='hardset')
-            self._add_config(hardset)
+            self.hardset(hardset, dirty=False)
+
+        # Add user supplied config.
+        if config:
+            self._add_config(config)
 
         # Override defaults from other locations.
         for _config in self.get('config', cast=list, default=[]):
@@ -291,6 +290,21 @@ class RawConfig:
             name = len(key) * '  ' + name
             print(f'{name:<20} {origin:<10} {value}')
 
+    def hardset(self, config, dirty=True):
+        if dirty and not self._dirty:
+            self._backup = self._config
+            self._config = copy.deepcopy(self._config)
+            self._dirty = dirty
+        self._add_config(config, name='hardset')
+        self._config['hardset'].update(_get_inner_keys(self._config['hardset']))
+
+    def restore(self):
+        if not self._dirty:
+            return
+        self._config = self._backup
+        self._backup = None
+        self._dirty = False
+
     def _add_config(self, config, name='default'):
         self._config[name].update(_traverse(config))
 
@@ -328,37 +342,43 @@ class RawConfig:
 
         envvar = '_'.join(key).upper() if envvar is True else envvar
 
-        # 0. Get hard set value.
+        # 1. Get hard set value with env prefix.
+        if env:
+            _key = ('environments', env) + key
+            if _key in self._config['hardset']:
+                return self._config['hardset'][_key], f'hardset:{env}'
+
+        # 2. Get hard set value without env prefix.
         if key in self._config['hardset']:
             return self._config['hardset'][key], 'hardset'
 
-        # 1. Get value from command line arguments.
+        # 3. Get value from command line arguments.
         if key in self._config['cliargs']:
             return self._config['cliargs'][key], 'cliargs'
 
-        # 2. Get value from environment with env prefix.
+        # 4. Get value from environment with env prefix.
         if env:
             name = 'SPINTA_' + env.upper() + '_' + envvar if envvar else None
             if name and name in self._config['environ']:
                 return self._config['environ'][name], f'environ:{env}'
 
-        # 3. Get value from environment without env prefix.
+        # 5. Get value from environment without env prefix.
         name = 'SPINTA_' + envvar if envvar else None
         if name and name in self._config['environ']:
             return self._config['environ'][name], 'environ'
 
-        # 4. Get value from env file with env prefix.
+        # 6. Get value from env file with env prefix.
         if env:
             name = 'SPINTA_' + env.upper() + '_' + envvar if envvar else None
             if name and name in self._config['envfile']:
                 return self._config['envfile'][name], f'envfile:{env}'
 
-        # 5. Get value from env file without env prefix.
+        # 7. Get value from env file without env prefix.
         name = 'SPINTA_' + envvar if envvar else None
         if name and name in self._config['envfile']:
             return self._config['envfile'][name], 'envfile'
 
-        # 6. Get value from default configs.
+        # 8. Get value from default configs.
         if key in self._config['default']:
             return self._config['default'][key], 'config'
 

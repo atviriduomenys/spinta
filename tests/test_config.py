@@ -24,7 +24,7 @@ def test_hardset():
 
     assert config.get('components', 'nodes', 'new') == 'component'
     assert config.get('manifests', 'new', 'path') == 'here'
-    assert config.keys('manifests') == ['default', 'new']
+    assert config.keys('manifests') == ['new']
 
 
 def test_update_config_from_cli():
@@ -220,7 +220,7 @@ def test_remove_keys():
         env_vars={
             'SPINTA_BACKENDS': 'one,two',
         },
-        hardset={
+        config={
             'backends': {
                 'one': {'dsn': '1'},
                 'two': {'dsn': '2'},

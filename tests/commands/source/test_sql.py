@@ -18,6 +18,16 @@ def sql(config):
 
 
 def test_sql(sql, context):
+    context.load({
+        'datasets': {
+            'default': {
+                'sql': {
+                    'db': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
+                },
+            }
+        },
+    })
+
     country = sa.Table(
         'tests_country', sql.schema,
         sa.Column('id', sa.Integer, primary_key=True),
