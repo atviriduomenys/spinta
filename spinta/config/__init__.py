@@ -1,6 +1,7 @@
-import logging
 import collections
 import copy
+import importlib
+import logging
 import operator
 import os
 import pathlib
@@ -157,20 +158,6 @@ CONFIG = {
             'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
         },
         'test': {
-            'backends': {
-                'default': {
-                    'backend': 'spinta.backends.postgresql:PostgreSQL',
-                    'dsn': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
-                },
-                'mongo': {
-                    'backend': 'spinta.backends.mongo:Mongo',
-                    'dsn': 'mongodb://admin:admin123@localhost:27017/',
-                    'db': 'spinta_tests',
-                },
-                'fs': {
-                    'backend': 'spinta.backends.fs:FileSystem',
-                },
-            },
             'manifests': {
                 'default': {
                     'backend': 'default',
@@ -390,6 +377,38 @@ class RawConfig:
             return self._config['default'][key], 'config'
 
         return default, 'default'
+
+
+def load_commands(modules):
+    for module_path in modules:
+        module = importlib.import_module(module_path)
+        path = pathlib.Path(module.__file__).resolve()
+        if path.name != '__init__.py':
+            continue
+        path = path.parent
+        base = path.parents[module_path.count('.')]
+        for path in path.glob('**/*.py'):
+            if path.name == '__init__.py':
+                module_path = path.parent.relative_to(base)
+            else:
+                module_path = path.relative_to(base).with_suffix('')
+            module_path = '.'.join(module_path.parts)
+            module = importlib.import_module(module_path)
+
+
+def create_context(**kwargs):
+    # Calling internal method, because internal method is patched in tests.
+    return _create_context(**kwargs)
+
+
+def _create_context(**kwargs):
+    config = RawConfig()
+    config.read(**kwargs)
+    load_commands(config.get('commands', 'modules', cast=list))
+    Context = config.get('components', 'core', 'context', cast=importstr)
+    context = Context()
+    context.set('config.raw', config)
+    return context
 
 
 def _traverse(value, path=()):

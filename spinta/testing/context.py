@@ -9,7 +9,6 @@ from spinta.components import Node
 from spinta.auth import AdminToken
 from spinta.urlparams import get_model_by_name
 from spinta import components
-from spinta.utils.commands import load_commands
 from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
 
 
@@ -131,12 +130,15 @@ class ContextForTests:
         config = self.get('config.raw')
 
         if overrides:
-            config.hardset(overrides)
+            config.hardset({
+                'environments': {
+                    'test': overrides,
+                }
+            })
 
         self.set('config', components.Config())
         store = self.set('store', components.Store())
 
-        load_commands(config.get('commands', 'modules', cast=list))
         commands.load(self, self.get('config'), config)
         commands.check(self, self.get('config'))
         commands.load(self, store, config)

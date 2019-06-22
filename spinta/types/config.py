@@ -49,6 +49,7 @@ def load(context: Context, config: components.Config, raw: RawConfig) -> compone
     config.scope_max_length = raw.get('scope_max_length', cast=int)
     config.default_auth_client = raw.get('default_auth_client')
     config.datasets = raw.get('datasets', default={})
+    config.env = raw.get('env')
 
     return config
 

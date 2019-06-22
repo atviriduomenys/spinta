@@ -27,7 +27,6 @@ from spinta import commands
 from spinta.renderer import render
 from spinta.utils.idgen import get_new_id
 from spinta.utils.changes import get_patch_changes
-from spinta.exceptions import NotFound
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).

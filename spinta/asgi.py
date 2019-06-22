@@ -3,11 +3,9 @@ import logging
 from spinta.api import app, set_context
 from spinta.commands import load, wait, prepare, check
 from spinta.components import Store
-from spinta.utils.commands import load_commands
 from spinta import components
-from spinta.config import RawConfig
 from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
-from spinta.utils.imports import importstr
+from spinta.config import create_context
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,22 +13,17 @@ logging.basicConfig(
 )
 
 
-c = RawConfig()
-c.read()
-
-load_commands(c.get('commands', 'modules', cast=list))
-
-Context = c.get('components', 'core', 'context', cast=importstr)
-context = Context()
+context = create_context()
+rc = context.get('config.raw')
 config = context.set('config', components.Config())
 store = context.set('store', Store())
 
-load(context, config, c)
+load(context, config, rc)
 check(context, config)
-load(context, store, c)
+load(context, store, rc)
 check(context, store)
 
-wait(context, store, c)
+wait(context, store, rc)
 
 prepare(context, store.internal)
 prepare(context, store)

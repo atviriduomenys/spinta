@@ -8,16 +8,35 @@ from click.testing import CliRunner
 from spinta import api
 from spinta.testing.context import ContextForTests
 from spinta.testing.client import TestClient
-from spinta.config import RawConfig
+from spinta.config import RawConfig, load_commands
 from spinta.utils.imports import importstr
 
 
 @pytest.fixture(scope='session')
 def config():
     config = RawConfig()
-    config.read({
-        'env': 'test',
-    })
+    config.read(
+        hardset={
+            'env': 'test',
+        },
+        config={
+            'backends': {
+                'default': {
+                    'backend': 'spinta.backends.postgresql:PostgreSQL',
+                    'dsn': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
+                },
+                'mongo': {
+                    'backend': 'spinta.backends.mongo:Mongo',
+                    'dsn': 'mongodb://admin:admin123@localhost:27017/',
+                    'db': 'spinta_tests',
+                },
+                'fs': {
+                    'backend': 'spinta.backends.fs:FileSystem',
+                },
+            },
+        },
+    )
+    load_commands(config.get('commands', 'modules', cast=list))
     return config
 
 
@@ -53,8 +72,8 @@ def context(mocker, tmpdir, config, postgresql, mongo):
     Context = config.get('components', 'core', 'context', cast=importstr)
     Context = type('ContextForTests', (ContextForTests, Context), {})
     context = Context()
-
     context.set('config.raw', config)
+    mocker.patch('spinta.config._create_context', return_value=context)
 
     yield context
 
@@ -76,9 +95,10 @@ def app(context, mocker):
 
 
 @pytest.fixture
-def cli(context):
+def cli(context, mocker):
+    def _load_context(context, rc):
+        if not context.loaded:
+            context.load()
+    mocker.patch('spinta.cli._load_context', _load_context)
     runner = CliRunner()
-    runner.env.update({
-        'SPINTA_ENV': 'test',
-    })
     return runner

@@ -1,40 +1,25 @@
 import json
-import operator
 import pathlib
 import uuid
 
 import click
 import tqdm
 
-from spinta.config import RawConfig
-from spinta.utils.commands import load_commands
 from spinta.components import Store
 from spinta import commands
 from spinta import components
-from spinta.utils.imports import importstr
 from spinta.utils.itertools import consume
 from spinta.auth import AdminToken
+from spinta.config import create_context
 
 
 @click.group()
 @click.option('--option', '-o', multiple=True, help='Set configuration option, example: `-o option.name=value`.')
 @click.pass_context
 def main(ctx, option):
-    c = RawConfig()
-    c.read(cli_args=option)
-
-    load_commands(c.get('commands', 'modules', cast=list))
-
-    Context = c.get('components', 'core', 'context', cast=importstr)
-    context = Context()
-    config = context.set('config', components.Config())
-    store = context.set('store', Store())
-
-    commands.load(context, config, c)
-    commands.check(context, config)
-    commands.load(context, store, c)
-    commands.check(context, store)
-
+    context = create_context(cli_args=option)
+    rc = context.get('config.raw')
+    _load_context(context, rc)
     ctx.ensure_object(dict)
     ctx.obj['context'] = context
 
@@ -67,14 +52,15 @@ def pull(ctx, source, model, push, export):
     context = ctx.obj['context']
     store = context.get('store')
 
-    commands.prepare(context, store.internal)
-    commands.prepare(context, store)
+    if context.get('config').env != 'test':
+        commands.prepare(context, store.internal)
+        commands.prepare(context, store)
+
+        # TODO: probably commands should also use an exsiting token in order to
+        #       track who changed what.
+        context.set('auth.token', AdminToken())
 
     dataset = store.manifests['default'].objects['dataset'][source]
-
-    # TODO: probably commands should also use an exsiting token in order to
-    #       track who changed what.
-    context.set('auth.token', AdminToken())
 
     with context.enter():
         context.bind('transaction', store.backends['default'].transaction, write=push)
@@ -126,8 +112,8 @@ def run(ctx):
 @main.command()
 @click.pass_context
 def config(ctx):
-    config = RawConfig()
-    config.read()
+    context = ctx.obj['context']
+    config = context.get('config.raw')
     config.dump()
 
 
@@ -216,3 +202,12 @@ def client_add(ctx, path):
         f"Remember this client secret, because only a secure hash of\n"
         f"client secret will be stored in the config file."
     )
+
+
+def _load_context(context, rc):
+    config = context.set('config', components.Config())
+    store = context.set('store', Store())
+    commands.load(context, config, rc)
+    commands.check(context, config)
+    commands.load(context, store, rc)
+    commands.check(context, store)
