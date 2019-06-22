@@ -22,7 +22,8 @@ class Dataset(Node):
         'owner': {'type': 'string'},
         'stars': {'type': 'integer'},
         'website': {'type': 'url', 'description': "Website of this dataset."},
-        'resources': {'type': 'object', 'description': "Dataset resources."}
+        'resources': {'type': 'object', 'description': "Dataset resources."},
+        'flags': {'type': 'array'},
     }
 
     def __init__(self):
@@ -42,6 +43,7 @@ class Resource(Node):
         'type': {'type': 'string'},
         'source': {'type': 'string'},
         'objects': {'type': 'object', 'default': {}},
+        'flags': {'type': 'array'},
     }
 
 
@@ -56,6 +58,7 @@ class Model(Node):
         'extends': {'type': 'string'},
         'canonical': {'type': 'boolean', 'default': False},
         'endpoint': {},
+        'flags': {'type': 'array'},
     }
 
     property_type = 'dataset.property'
@@ -88,6 +91,7 @@ class Property(Node):
         'model': {'required': True},
         'hidden': {'type': 'boolean', 'inherit': True, 'default': False},
         'place': {'required': True},
+        'flags': {'type': 'array'},
     }
 
     def __init__(self):

@@ -1,3 +1,4 @@
+import logging
 import collections
 import copy
 import operator
@@ -9,6 +10,8 @@ from ruamel.yaml import YAML
 from spinta.utils.imports import importstr
 
 yaml = YAML(typ='safe')
+
+log = logging.getLogger(__name__)
 
 
 CONFIG = {
@@ -202,6 +205,7 @@ class RawConfig:
             )
 
         # Default configuration.
+        log.info("Reading config from '%s:CONFIG'.", __name__)
         self._add_config(CONFIG)
 
         # Add CLI args
@@ -216,9 +220,11 @@ class RawConfig:
 
         # Environment files.
         if env_files is None or env_files is True:
+            log.info("Reading config from '%s'.", pathlib.Path('.env').resolve())
             self._add_env_file('.env')
         elif isinstance(env_files, list):
             for env_file in env_files:
+                log.info("Reading config from '%s'.", pathlib.Path(env_file).resolve())
                 self._add_env_file(env_file)
 
         # Hard set configuration values.
@@ -231,6 +237,7 @@ class RawConfig:
 
         # Override defaults from other locations.
         for _config in self.get('config', cast=list, default=[]):
+            log.info("Reading config from %r.", _config)
             if _config.endswith(('.yml', '.yaml')):
                 _config = pathlib.Path(_config)
                 _config = yaml.load(_config.read_text())

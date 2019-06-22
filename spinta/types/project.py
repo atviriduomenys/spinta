@@ -43,6 +43,7 @@ def load(context: Context, project: Project, data: dict, manifest: Manifest):
 
     for name, obj in data.get('objects', {}).items():
         project.objects[name] = load_node(context, Model(), {
+            'type': 'model',
             'name': name,
             'path': project.path,
             'parent': project,

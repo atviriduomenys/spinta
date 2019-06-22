@@ -1,3 +1,5 @@
+import logging
+
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scanner import ScannerError
@@ -8,6 +10,8 @@ from spinta.components import Context, Manifest
 from spinta.config import RawConfig
 
 yaml = YAML(typ='safe')
+
+log = logging.getLogger(__name__)
 
 
 @load.register()
@@ -21,6 +25,8 @@ def load(context: Context, manifest: Manifest, c: RawConfig):
 
     manifest.tree = {}
     manifest.endpoints = {}
+
+    log.info('Loading manifest %r: %s', manifest.name, manifest.path.resolve())
 
     for file in manifest.path.glob('**/*.yml'):
         if is_ignored(ignore, manifest.path, file):
