@@ -12,28 +12,37 @@ from spinta.config import RawConfig, load_commands
 from spinta.utils.imports import importstr
 
 
+@pytest.fixture()
+def spinta_test_config():
+    return {
+        'backends': {
+            'default': {
+                'backend': 'spinta.backends.postgresql:PostgreSQL',
+                'dsn': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
+            },
+            'mongo': {
+                'backend': 'spinta.backends.mongo:Mongo',
+                'dsn': 'mongodb://admin:admin123@localhost:27017/',
+                'db': 'spinta_tests',
+            },
+            'fs': {
+                'backend': 'spinta.backends.fs:FileSystem',
+            },
+        },
+    }
+
+
 @pytest.fixture(scope='session')
-def config():
+def config(spinta_test_config):
     config = RawConfig()
     config.read(
         hardset={
             'env': 'test',
         },
         config={
-            'backends': {
-                'default': {
-                    'backend': 'spinta.backends.postgresql:PostgreSQL',
-                    'dsn': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
-                },
-                'mongo': {
-                    'backend': 'spinta.backends.mongo:Mongo',
-                    'dsn': 'mongodb://admin:admin123@localhost:27017/',
-                    'db': 'spinta_tests',
-                },
-                'fs': {
-                    'backend': 'spinta.backends.fs:FileSystem',
-                },
-            },
+            'environments': {
+                'test': spinta_test_config,
+            }
         },
     )
     load_commands(config.get('commands', 'modules', cast=list))
