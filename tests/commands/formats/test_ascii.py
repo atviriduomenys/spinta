@@ -9,19 +9,19 @@ def test_export_ascii(context, app, mocker):
 
     context.push([
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '1',
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '2',
             'code': 'lv',
             'title': 'LATVIA',
         },
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '2',
             'code': 'lv',
             'title': 'Latvia',
@@ -29,14 +29,14 @@ def test_export_ascii(context, app, mocker):
     ])
 
     app.authorize([
-        'spinta_country_ds_csv_rs_countries_getall',
-        'spinta_country_ds_csv_rs_countries_search',
-        'spinta_country_ds_csv_rs_countries_changes',
+        'spinta_country_dataset_csv_resource_countries_getall',
+        'spinta_country_dataset_csv_resource_countries_search',
+        'spinta_country_dataset_csv_resource_countries_changes',
     ])
 
-    assert app.get('country/:ds/csv/:rs/countries/:sort/code/:format/ascii').text == (
+    assert app.get('country/:dataset/csv/:resource/countries/:sort/code/:format/ascii').text == (
         '\n\n'
-        'Table: country/:ds/csv/:rs/countries\n'
+        'Table: country/:dataset/csv/:resource/countries\n'
         'id   code     title     revision\n'
         '================================\n'
         '1    lt     Lithuania   REV     \n'
@@ -46,7 +46,7 @@ def test_export_ascii(context, app, mocker):
     changes = context.changes('country', dataset='csv', resource='countries')
     ids = [c['change_id'] for c in changes]
     txn = [c['transaction_id'] for c in changes]
-    assert app.get('country/:ds/csv/:rs/countries/:changes/:format/ascii').text == (
+    assert app.get('country/:dataset/csv/:resource/countries/:changes/:format/ascii').text == (
         'change_id   transaction_id   id            datetime            action   change.code   change.title\n'
         '==================================================================================================\n'
         f'{ids[0]:<12}{txn[0]:<13}    1    2019-03-06T16:15:00.816308   insert   lt            Lithuania   \n'

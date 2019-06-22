@@ -20,7 +20,7 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.config import RawConfig
 from spinta.common import NA
 from spinta.types.type import Type, File, PrimaryKey, Ref
-from spinta.exceptions import MultipleRowsException, NoResultsException
+from spinta.exceptions import FoundMultiple, NotFound
 from spinta.utils.response import get_request_data
 from spinta.auth import check_scope
 from spinta import commands
@@ -96,12 +96,12 @@ class PostgreSQL(Backend):
 
         elif len(result) == 0:
             if default is NA:
-                raise NoResultsException("No results where found.")
+                raise NotFound("No results where found.")
             else:
                 return default
 
         else:
-            raise MultipleRowsException("Multiple rows were found.")
+            raise FoundMultiple("Multiple rows were found.")
 
 
 class ReadTransaction:

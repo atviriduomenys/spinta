@@ -20,7 +20,7 @@ def test_pull(responses, cli, context):
         'http://example.com/ countries.csv {}\n'
         '\n'
         '\n'
-        'Table: country/:ds/csv/:rs/countries\n'
+        'Table: country/:dataset/csv/:resource/countries\n'
         '                   id                      code    title \n'
         '=========================================================\n'
         '552c4c243ec8c98c313255ea9bf16ee286591f8c   lt     Lietuva\n'
@@ -38,7 +38,7 @@ def test_pull(responses, cli, context):
         for row in context.getall('country', dataset='csv', resource='countries')
     )
     assert rows == [
-        ('ee', 'Estija', 'country/:ds/csv/:rs/countries'),
-        ('lt', 'Lietuva', 'country/:ds/csv/:rs/countries'),
-        ('lv', 'Latvija', 'country/:ds/csv/:rs/countries'),
+        ('ee', 'Estija', 'country/:dataset/csv/:resource/countries'),
+        ('lt', 'Lietuva', 'country/:dataset/csv/:resource/countries'),
+        ('lv', 'Latvija', 'country/:dataset/csv/:resource/countries'),
     ]

@@ -90,10 +90,10 @@ RULES = {
     'contents': {
         'maxargs': 0,
     },
-    'ds': {
+    'dataset': {
         'cast': Path(),
     },
-    'rs': {
+    'resource': {
         'cast': Path(),
     },
     'changes': {

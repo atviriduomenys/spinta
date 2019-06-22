@@ -45,18 +45,18 @@ def test_changes(context):
 def test_show_with_joins(context):
     context.push([
         {
-            'type': 'continent/:ds/dependencies/:rs/continents',
+            'type': 'continent/:dataset/dependencies/:resource/continents',
             'id': '1',
             'title': 'Europe',
         },
         {
-            'type': 'country/:ds/dependencies/:rs/continents',
+            'type': 'country/:dataset/dependencies/:resource/continents',
             'id': '1',
             'title': 'Lithuania',
             'continent': '1',
         },
         {
-            'type': 'capital/:ds/dependencies/:rs/continents',
+            'type': 'capital/:dataset/dependencies/:resource/continents',
             'id': '1',
             'title': 'Vilnius',
             'country': '1',

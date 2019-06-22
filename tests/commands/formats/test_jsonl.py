@@ -8,28 +8,28 @@ def test_export_json(context, app, mocker):
 
     context.push([
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '1',
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '2',
             'code': 'lv',
             'title': 'LATVIA',
         },
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '2',
             'code': 'lv',
             'title': 'Latvia',
         },
     ])
 
-    app.authorize(['spinta_country_ds_csv_rs_countries_getall'])
+    app.authorize(['spinta_country_dataset_csv_resource_countries_getall'])
 
-    resp = app.get('country/:ds/csv/:rs/countries/:format/jsonl')
+    resp = app.get('country/:dataset/csv/:resource/countries/:format/jsonl')
     data = [json.loads(line) for line in resp.text.splitlines()]
     assert data == [
         {
@@ -37,13 +37,13 @@ def test_export_json(context, app, mocker):
             'id': '1',
             'revision': 'REV',
             'title': 'Lithuania',
-            'type': 'country/:ds/csv/:rs/countries'
+            'type': 'country/:dataset/csv/:resource/countries'
         },
         {
             'code': 'lv',
             'id': '2',
             'revision': 'REV',
             'title': 'Latvia',
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
         },
     ]

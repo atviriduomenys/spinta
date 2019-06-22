@@ -26,7 +26,7 @@ resources:
       country:
         source: "/continents/{continent}/countries.csv"
         dependencies:
-          continent: continent/:ds/dependencies/:rs/continents.continent_id
+          continent: continent/:dataset/dependencies/:resource/continents.continent_id
         properties:
           id:
             type: pk
@@ -46,8 +46,8 @@ resources:
       capital:
         source: "/continents/{continent}/countries/{country}/captials.csv"
         dependencies:
-          continent: country/:ds/dependencies/:rs/continents.continent.continent_id
-          country: country/:ds/dependencies/:rs/continents.country_id
+          continent: country/:dataset/dependencies/:resource/continents.continent.continent_id
+          country: country/:dataset/dependencies/:resource/continents.country_id
         properties:
           id:
             type: pk

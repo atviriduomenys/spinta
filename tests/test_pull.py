@@ -32,7 +32,7 @@ def test_csv(context, responses, mocker):
 
     assert context.getall('continent', dataset='dependencies', resource='continents') == [
         {
-            'type': 'continent/:ds/dependencies/:rs/continents',
+            'type': 'continent/:dataset/dependencies/:resource/continents',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
             'revision': 'REVISION',
             'title': 'Europe',
@@ -41,7 +41,7 @@ def test_csv(context, responses, mocker):
     ]
     assert context.getall('country', dataset='dependencies', resource='continents') == [
         {
-            'type': 'country/:ds/dependencies/:rs/continents',
+            'type': 'country/:dataset/dependencies/:resource/continents',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
             'revision': 'REVISION',
             'title': 'Lithuania',
@@ -51,7 +51,7 @@ def test_csv(context, responses, mocker):
     ]
     assert context.getall('capital', dataset='dependencies', resource='continents') == [
         {
-            'type': 'capital/:ds/dependencies/:rs/continents',
+            'type': 'capital/:dataset/dependencies/:resource/continents',
             'id': '23fcdb953846e7c709d2967fb549de67d975c010',
             'revision': 'REVISION',
             'title': 'Vilnius',
@@ -69,7 +69,7 @@ def test_no_push(context, responses):
 
     assert list(context.pull('dependencies', push=False)) == [
         {
-            'type': 'continent/:ds/dependencies/:rs/continents',
+            'type': 'continent/:dataset/dependencies/:resource/continents',
             'id': get_ref_id('1'),
             'title': 'Europe',
             'continent_id': '1',
@@ -95,12 +95,12 @@ def test_generator(context, responses):
 
     assert context.pull('generator', push=False) == [
         {
-            'type': 'continent/:ds/generator/:rs/continents',
+            'type': 'continent/:dataset/generator/:resource/continents',
             'id': '9675e909a3e67c169ed9406e6c21358d46d6d1b1',
             'title': 'Europe',
         },
         {
-            'type': 'continent/:ds/generator/:rs/continents',
+            'type': 'continent/:dataset/generator/:resource/continents',
             'id': '43f647075f78797b76e258206538b40b7b3f52dd',
             'title': 'Europe',
         },

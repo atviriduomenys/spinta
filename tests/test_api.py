@@ -55,8 +55,8 @@ def test_directory(app):
             ('turas', '/rinkimai/turas'),
         ],
         'datasets': [
-            {'name': 'json/data', 'link': '/rinkimai/:ds/json/:rs/data', 'canonical': False},
-            {'name': 'xlsx/data', 'link': '/rinkimai/:ds/xlsx/:rs/data', 'canonical': False},
+            {'name': 'json/data', 'link': '/rinkimai/:dataset/json/:resource/data', 'canonical': False},
+            {'name': 'xlsx/data', 'link': '/rinkimai/:dataset/xlsx/:resource/data', 'canonical': False},
         ],
         'header': [],
         'data': [],
@@ -87,10 +87,10 @@ def test_model(context, app):
         ],
         'items': [],
         'datasets': [
-            {'canonical': False, 'link': '/country/:ds/csv/:rs/countries', 'name': 'csv/countries'},
-            {'canonical': False, 'link': '/country/:ds/denorm/:rs/orgs', 'name': 'denorm/orgs'},
-            {'canonical': False, 'link': '/country/:ds/dependencies/:rs/continents', 'name': 'dependencies/continents'},
-            {'canonical': False, 'link': '/country/:ds/sql/:rs/db', 'name': 'sql/db'},
+            {'canonical': False, 'link': '/country/:dataset/csv/:resource/countries', 'name': 'csv/countries'},
+            {'canonical': False, 'link': '/country/:dataset/denorm/:resource/orgs', 'name': 'denorm/orgs'},
+            {'canonical': False, 'link': '/country/:dataset/dependencies/:resource/continents', 'name': 'dependencies/continents'},
+            {'canonical': False, 'link': '/country/:dataset/sql/:resource/db', 'name': 'sql/db'},
         ],
         'header': ['id', 'title', 'code', 'revision'],
         'data': [
@@ -135,10 +135,10 @@ def test_model_get(context, app):
         ],
         'items': [],
         'datasets': [
-            {'canonical': False, 'link': '/country/:ds/csv/:rs/countries', 'name': 'csv/countries'},
-            {'canonical': False, 'link': '/country/:ds/denorm/:rs/orgs', 'name': 'denorm/orgs'},
-            {'canonical': False, 'link': '/country/:ds/dependencies/:rs/continents', 'name': 'dependencies/continents'},
-            {'canonical': False, 'link': '/country/:ds/sql/:rs/db', 'name': 'sql/db'},
+            {'canonical': False, 'link': '/country/:dataset/csv/:resource/countries', 'name': 'csv/countries'},
+            {'canonical': False, 'link': '/country/:dataset/denorm/:resource/orgs', 'name': 'denorm/orgs'},
+            {'canonical': False, 'link': '/country/:dataset/dependencies/:resource/continents', 'name': 'dependencies/continents'},
+            {'canonical': False, 'link': '/country/:dataset/sql/:resource/db', 'name': 'sql/db'},
         ],
         'header': [],
         'data': [],
@@ -164,14 +164,14 @@ def test_dataset(context, app, mocker):
 
     context.push([
         {
-            'type': 'rinkimai/:ds/json/:rs/data',
+            'type': 'rinkimai/:dataset/json/:resource/data',
             'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 1',
         },
     ])
 
-    app.authorize(['spinta_rinkimai_ds_json_rs_data_getall'])
-    resp = app.get('/rinkimai/:ds/json/:rs/data', headers={'accept': 'text/html'})
+    app.authorize(['spinta_rinkimai_dataset_json_resource_data_getall'])
+    resp = app.get('/rinkimai/:dataset/json/:resource/data', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -179,8 +179,8 @@ def test_dataset(context, app, mocker):
         'location': [
             ('root', '/'),
             ('rinkimai', '/rinkimai'),
-            (':ds/json/:rs/data', None),
-            (':changes', '/rinkimai/:ds/json/:rs/data/:changes'),
+            (':dataset/json/:resource/data', None),
+            (':changes', '/rinkimai/:dataset/json/:resource/data/:changes'),
         ],
         'items': [
             ('apygarda', '/rinkimai/apygarda'),
@@ -189,25 +189,39 @@ def test_dataset(context, app, mocker):
             ('turas', '/rinkimai/turas'),
         ],
         'datasets': [
-            {'canonical': False, 'link': '/rinkimai/:ds/json/:rs/data', 'name': 'json/data'},
-            {'canonical': False, 'link': '/rinkimai/:ds/xlsx/:rs/data', 'name': 'xlsx/data'},
+            {'canonical': False, 'link': '/rinkimai/:dataset/json/:resource/data', 'name': 'json/data'},
+            {'canonical': False, 'link': '/rinkimai/:dataset/xlsx/:resource/data', 'name': 'xlsx/data'},
         ],
         'header': ['id', 'pavadinimas', 'revision'],
         'data': [
             [
-                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data', 'value': 'df6b9e04'},
+                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
                 {'color': None, 'link': None, 'value': 'Rinkimai 1'},
                 {'color': None, 'link': None, 'value': 'REVISION'},
             ],
         ],
         'row': [],
         'formats': [
-            ('CSV', '/rinkimai/:ds/json/:rs/data/:format/csv'),
-            ('JSON', '/rinkimai/:ds/json/:rs/data/:format/json'),
-            ('JSONL', '/rinkimai/:ds/json/:rs/data/:format/jsonl'),
-            ('ASCII', '/rinkimai/:ds/json/:rs/data/:format/ascii'),
+            ('CSV', '/rinkimai/:dataset/json/:resource/data/:format/csv'),
+            ('JSON', '/rinkimai/:dataset/json/:resource/data/:format/json'),
+            ('JSONL', '/rinkimai/:dataset/json/:resource/data/:format/jsonl'),
+            ('ASCII', '/rinkimai/:dataset/json/:resource/data/:format/ascii'),
         ],
     }
+
+
+def test_dataset_url_wihtout_resource(context, app, mocker):
+    context.push([
+        {
+            'type': 'rinkimai/:dataset/json',
+            'id': get_ref_id('Rinkimai 1'),
+            'pavadinimas': 'Rinkimai 1',
+        },
+    ])
+
+    app.authorize(['spinta_rinkimai_dataset_json_resource_data_getall'])
+    resp = app.get('/rinkimai/:dataset/json', headers={'accept': 'text/html'})
+    assert resp.status_code == 200
 
 
 def test_nested_dataset(context, app, mocker):
@@ -215,14 +229,14 @@ def test_nested_dataset(context, app, mocker):
 
     context.push([
         {
-            'type': 'deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource',
+            'type': 'deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource',
             'id': get_ref_id('42'),
             'name': 'Nested One',
         },
     ])
 
-    app.authorize(['spinta_deeply_nested_model_name_ds_nested_da9add3385_getall'])
-    resp = app.get('deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource', headers={'accept': 'text/html'})
+    app.authorize(['spinta_deeply_nested_model_name_dataset_nest989f7f4d_getall'])
+    resp = app.get('deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -233,31 +247,31 @@ def test_nested_dataset(context, app, mocker):
             ('nested', '/deeply/nested'),
             ('model', '/deeply/nested/model'),
             ('name', '/deeply/nested/model/name'),
-            (':ds/nested/dataset/name/:rs/resource', None),
-            (':changes', '/deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource/:changes'),
+            (':dataset/nested/dataset/name/:resource/resource', None),
+            (':changes', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:changes'),
         ],
         'items': [],
         'datasets': [
             {
                 'canonical': False,
-                'link': '/deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource',
+                'link': '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource',
                 'name': 'nested/dataset/name/resource',
             },
         ],
         'header': ['id', 'name', 'revision'],
         'data': [
             [
-                {'color': None, 'link': '/deeply/nested/model/name/e2ff1ff0f7d663344abe821582b0908925e5b366/:ds/nested/dataset/name/:rs/resource', 'value': 'e2ff1ff0'},
+                {'color': None, 'link': '/deeply/nested/model/name/e2ff1ff0f7d663344abe821582b0908925e5b366/:dataset/nested/dataset/name/:resource/resource', 'value': 'e2ff1ff0'},
                 {'color': None, 'link': None, 'value': 'Nested One'},
                 {'color': None, 'link': None, 'value': 'REVISION'},
             ],
         ],
         'row': [],
         'formats': [
-            ('CSV', '/deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource/:format/csv'),
-            ('JSON', '/deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource/:format/json'),
-            ('JSONL', '/deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource/:format/jsonl'),
-            ('ASCII', '/deeply/nested/model/name/:ds/nested/dataset/name/:rs/resource/:format/ascii'),
+            ('CSV', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:format/csv'),
+            ('JSON', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:format/json'),
+            ('JSONL', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:format/jsonl'),
+            ('ASCII', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:format/ascii'),
         ],
     }
 
@@ -267,14 +281,14 @@ def test_dataset_key(context, app, mocker):
 
     context.push([
         {
-            'type': 'rinkimai/:ds/json/:rs/data',
+            'type': 'rinkimai/:dataset/json/:resource/data',
             'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 1',
         },
     ])
 
-    app.authorize(['spinta_rinkimai_ds_json_rs_data_getone'])
-    resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data', headers={'accept': 'text/html'})
+    app.authorize(['spinta_rinkimai_dataset_json_resource_data_getone'])
+    resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -282,19 +296,19 @@ def test_dataset_key(context, app, mocker):
         'location': [
             ('root', '/'),
             ('rinkimai', '/rinkimai'),
-            (':ds/json/:rs/data', '/rinkimai/:ds/json/:rs/data'),
+            (':dataset/json/:resource/data', '/rinkimai/:dataset/json/:resource/data'),
             ('df6b9e04', None),
-            (':changes', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:changes'),
+            (':changes', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes'),
         ],
         'formats': [
-            ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:format/csv'),
-            ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:format/json'),
-            ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:format/jsonl'),
-            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:format/ascii'),
+            ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/csv'),
+            ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/json'),
+            ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/jsonl'),
+            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/ascii'),
         ],
         'datasets': [
-            {'canonical': False, 'link': '/rinkimai/:ds/json/:rs/data', 'name': 'json/data'},
-            {'canonical': False, 'link': '/rinkimai/:ds/xlsx/:rs/data', 'name': 'xlsx/data'},
+            {'canonical': False, 'link': '/rinkimai/:dataset/json/:resource/data', 'name': 'json/data'},
+            {'canonical': False, 'link': '/rinkimai/:dataset/xlsx/:resource/data', 'name': 'xlsx/data'},
         ],
         'items': [
             ('apygarda', '/rinkimai/apygarda'),
@@ -307,11 +321,11 @@ def test_dataset_key(context, app, mocker):
         'row': [
             ('id', {
                 'color': None,
-                'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data',
+                'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data',
                 'value': 'df6b9e04ac9e2467690bcad6d9fd673af6e1919b',
             }),
             ('pavadinimas', {'color': None, 'link': None, 'value': 'Rinkimai 1'}),
-            ('type', {'color': None, 'link': None, 'value': 'rinkimai/:ds/json/:rs/data'}),
+            ('type', {'color': None, 'link': None, 'value': 'rinkimai/:dataset/json/:resource/data'}),
             ('revision', {'color': None, 'link': None, 'value': 'REVISION'}),
         ],
     }
@@ -323,21 +337,21 @@ def test_changes_single_object(context, app, mocker):
 
     context.push([
         {
-            'type': 'rinkimai/:ds/json/:rs/data',
+            'type': 'rinkimai/:dataset/json/:resource/data',
             'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 1',
         },
     ])
     context.push([
         {
-            'type': 'rinkimai/:ds/json/:rs/data',
+            'type': 'rinkimai/:dataset/json/:resource/data',
             'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 2',
         },
     ])
 
-    app.authorize(['spinta_rinkimai_ds_json_rs_data_changes'])
-    resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:changes', headers={'accept': 'text/html'})
+    app.authorize(['spinta_rinkimai_dataset_json_resource_data_changes'])
+    resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -345,19 +359,19 @@ def test_changes_single_object(context, app, mocker):
         'location': [
             ('root', '/'),
             ('rinkimai', '/rinkimai'),
-            (':ds/json/:rs/data', '/rinkimai/:ds/json/:rs/data'),
-            ('df6b9e04', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data'),
+            (':dataset/json/:resource/data', '/rinkimai/:dataset/json/:resource/data'),
+            ('df6b9e04', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data'),
             (':changes', None),
         ],
         'formats': [
-            ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:changes/:format/csv'),
-            ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:changes/:format/json'),
-            ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:changes/:format/jsonl'),
-            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data/:changes/:format/ascii'),
+            ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/csv'),
+            ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/json'),
+            ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/jsonl'),
+            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/ascii'),
         ],
         'datasets': [
-            {'canonical': False, 'link': '/rinkimai/:ds/json/:rs/data', 'name': 'json/data'},
-            {'canonical': False, 'link': '/rinkimai/:ds/xlsx/:rs/data', 'name': 'xlsx/data'},
+            {'canonical': False, 'link': '/rinkimai/:dataset/json/:resource/data', 'name': 'json/data'},
+            {'canonical': False, 'link': '/rinkimai/:dataset/xlsx/:resource/data', 'name': 'xlsx/data'},
         ],
         'items': [
             ('apygarda', '/rinkimai/apygarda'),
@@ -379,7 +393,7 @@ def test_changes_single_object(context, app, mocker):
                 {'color': None, 'link': None, 'value': resp.context['data'][0][1]['value']},
                 {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
                 {'color': None, 'link': None, 'value': 'patch'},
-                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data', 'value': 'df6b9e04'},
+                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
             ],
             [
@@ -387,7 +401,7 @@ def test_changes_single_object(context, app, mocker):
                 {'color': None, 'link': None, 'value': resp.context['data'][1][1]['value']},
                 {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
                 {'color': None, 'link': None, 'value': 'insert'},
-                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data', 'value': 'df6b9e04'},
+                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 1'},
             ],
         ],
@@ -401,21 +415,21 @@ def test_changes_object_list(context, app, mocker):
 
     context.push([
         {
-            'type': 'rinkimai/:ds/json/:rs/data',
+            'type': 'rinkimai/:dataset/json/:resource/data',
             'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 1',
         },
     ])
     context.push([
         {
-            'type': 'rinkimai/:ds/json/:rs/data',
+            'type': 'rinkimai/:dataset/json/:resource/data',
             'id': get_ref_id('Rinkimai 1'),
             'pavadinimas': 'Rinkimai 2',
         },
     ])
 
-    app.authorize(['spinta_rinkimai_ds_json_rs_data_changes'])
-    resp = app.get('/rinkimai/:ds/json/:rs/data/:changes', headers={'accept': 'text/html'})
+    app.authorize(['spinta_rinkimai_dataset_json_resource_data_changes'])
+    resp = app.get('/rinkimai/:dataset/json/:resource/data/:changes', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -423,18 +437,18 @@ def test_changes_object_list(context, app, mocker):
         'location': [
             ('root', '/'),
             ('rinkimai', '/rinkimai'),
-            (':ds/json/:rs/data', '/rinkimai/:ds/json/:rs/data'),
+            (':dataset/json/:resource/data', '/rinkimai/:dataset/json/:resource/data'),
             (':changes', None),
         ],
         'formats': [
-            ('CSV', '/rinkimai/:ds/json/:rs/data/:changes/:format/csv'),
-            ('JSON', '/rinkimai/:ds/json/:rs/data/:changes/:format/json'),
-            ('JSONL', '/rinkimai/:ds/json/:rs/data/:changes/:format/jsonl'),
-            ('ASCII', '/rinkimai/:ds/json/:rs/data/:changes/:format/ascii'),
+            ('CSV', '/rinkimai/:dataset/json/:resource/data/:changes/:format/csv'),
+            ('JSON', '/rinkimai/:dataset/json/:resource/data/:changes/:format/json'),
+            ('JSONL', '/rinkimai/:dataset/json/:resource/data/:changes/:format/jsonl'),
+            ('ASCII', '/rinkimai/:dataset/json/:resource/data/:changes/:format/ascii'),
         ],
         'datasets': [
-            {'canonical': False, 'link': '/rinkimai/:ds/json/:rs/data', 'name': 'json/data'},
-            {'canonical': False, 'link': '/rinkimai/:ds/xlsx/:rs/data', 'name': 'xlsx/data'},
+            {'canonical': False, 'link': '/rinkimai/:dataset/json/:resource/data', 'name': 'json/data'},
+            {'canonical': False, 'link': '/rinkimai/:dataset/xlsx/:resource/data', 'name': 'xlsx/data'},
         ],
         'items': [
             ('apygarda', '/rinkimai/apygarda'),
@@ -456,7 +470,7 @@ def test_changes_object_list(context, app, mocker):
                 {'color': None, 'link': None, 'value': resp.context['data'][0][1]['value']},
                 {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
                 {'color': None, 'link': None, 'value': 'patch'},
-                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data', 'value': 'df6b9e04'},
+                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
             ],
             [
@@ -464,7 +478,7 @@ def test_changes_object_list(context, app, mocker):
                 {'color': None, 'link': None, 'value': resp.context['data'][1][1]['value']},
                 {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
                 {'color': None, 'link': None, 'value': 'insert'},
-                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:ds/json/:rs/data', 'value': 'df6b9e04'},
+                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 1'},
             ],
         ],
@@ -475,19 +489,19 @@ def test_changes_object_list(context, app, mocker):
 def test_count(context, app):
     consume(context.push([
         {
-            'type': 'rinkimai/:ds/json/:rs/data',
+            'type': 'rinkimai/:dataset/json/:resource/data',
             'id': get_ref_id(1),
             'pavadinimas': 'Rinkimai 1',
         },
         {
-            'type': 'rinkimai/:ds/json/:rs/data',
+            'type': 'rinkimai/:dataset/json/:resource/data',
             'id': get_ref_id(2),
             'pavadinimas': 'Rinkimai 2',
         },
     ]))
 
-    app.authorize(['spinta_rinkimai_ds_json_rs_data_search'])
-    resp = app.get('/rinkimai/:ds/json/:rs/data/:count', headers={'accept': 'text/html'})
+    app.authorize(['spinta_rinkimai_dataset_json_resource_data_search'])
+    resp = app.get('/rinkimai/:dataset/json/:resource/data/:count', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')

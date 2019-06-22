@@ -10,9 +10,8 @@ from spinta.commands import load, wait, prepare, migrate, check, push
 from spinta.components import Context, Store, Manifest
 from spinta.utils.imports import importstr
 from spinta.config import RawConfig
-from spinta.exceptions import NotFound
-from spinta.utils.url import parse_url_path
 from spinta import commands
+from spinta.urlparams import get_model_by_name
 
 
 @load.register()
@@ -103,73 +102,6 @@ def push(context: Context, store: Store, stream: list):
     yield from push(context, store, (x for x in stream))
 
 
-def pull(self, dataset_name, params: dict = None, *, backend='default', ns='default'):
-    params = params or {}
-    dataset = self.objects[ns]['dataset'][dataset_name]
-    push = params.pop('push', True)
-    params = {
-        'models': params.get('models'),
-    }
-    data = self.run(dataset, {'pull': params}, backend=None, ns=ns)
-    if push:
-        return self.push(data, backend=backend, ns=ns)
-    else:
-        return data
-
-def get(self, model_name: str, object_id, params: dict = None, backend='default', ns='default'):
-    params = params or {}
-    model = get_model_from_params(self.objects, ns, model_name, params)
-    with self.config.backends[backend].transaction() as transaction:
-        params = {
-            'transaction': transaction,
-            'id': object_id,
-            'show': params.get('show'),
-        }
-        return self.run(model, {'get': params}, backend=backend, ns=ns)
-
-def getall(self, model_name: str, params: dict = None, *, backend='default', ns='default'):
-    params = params or {}
-    model = get_model_from_params(self.objects, ns, model_name, params)
-    with self.config.backends[backend].transaction() as transaction:
-        params = {
-            'transaction': transaction,
-            'sort': params.get('sort', [{'name': 'id', 'ascending': True}]),
-            'limit': params.get('limit'),
-            'offset': params.get('offset'),
-            'show': params.get('show'),
-            'count': params.get('count'),
-        }
-        yield from self.run(model, {'getall': params}, backend=backend, ns=ns)
-
-def changes(self, params: dict, *, backend='default', ns='default'):
-    model = get_model_from_params(self.objects, ns, params['path'], params)
-    with self.config.backends[backend].transaction() as transaction:
-        params = {
-            'transaction': transaction,
-            'limit': params.get('limit'),
-            'offset': params['changes'],
-            'id': params.get('id', {}).get('value'),
-        }
-        yield from self.run(model, {'changes': params}, backend=backend, ns=ns)
-
-def export(self, rows, fmt, params: dict = None, *, backend='default', ns='default'):
-    command = f'export.{fmt}'
-    if command not in self.available_commands:
-        raise Exception(f"Unknonwn format {fmt}.")
-    params = {
-        'wrap': True,
-        **(params or {}),
-        'rows': rows,
-    }
-
-    yield from self.run(self.manifest, {command: params}, backend=None, ns=ns)
-
-def wipe(self, model_name: str, backend='default', ns='default'):
-    model = get_model_by_name(context, self, ns, model_name)
-    with self.config.backends[backend].transaction() as transaction:
-        self.run(model, {'wipe': {'transaction': transaction}}, backend=backend, ns=ns)
-
-
 def find_subclasses(Class, modules):
     for module_path in modules:
         module = importlib.import_module(module_path)
@@ -186,35 +118,3 @@ def find_subclasses(Class, modules):
                 obj = getattr(module, obj_name)
                 if inspect.isclass(obj) and issubclass(obj, Class) and obj is not Class and obj.__module__ == module_path:
                     yield obj
-
-
-def get_model_by_name(context: Context, manifest: Manifest, name: str):
-    # XXX: use of this function is deprecated, use get_model_from_params
-    #      instead.
-    params = parse_url_path(context, name)
-    return get_model_from_params(manifest, params['path'], params)
-
-
-def get_model_from_params(manifest, name, params):
-    # Allow users to specify a different URL endpoint to make URL look
-    # nicer, but that is optional, they can still use model.name.
-    if name in manifest.endpoints:
-        name = manifest.endpoints[name]
-
-    if name not in manifest.tree:
-        raise NotFound(f"Model or collection {name!r} not found.")
-
-    if 'rs' in params:
-        dataset = params['ds']
-        if dataset not in manifest.objects['dataset']:
-            raise NotFound(f"Dataset {dataset!r} not found.")
-        resource = params['rs']
-        if resource not in manifest.objects['dataset'][dataset].resources:
-            raise NotFound(f"Resource ':ds/{dataset}/:rs/{resource}' not found.")
-        if name not in manifest.objects['dataset'][dataset].resources[resource].objects:
-            return None
-        return manifest.objects['dataset'][dataset].resources[resource].objects[name]
-    else:
-        if name not in manifest.objects['model']:
-            return None
-        return manifest.objects['model'][name]

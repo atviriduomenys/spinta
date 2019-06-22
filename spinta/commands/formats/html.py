@@ -138,30 +138,32 @@ def get_current_location(model, path, params):
     parts = path.split('/') if path else []
     loc = [('root', '/')]
 
-    if 'rs' in params:
+    if 'dataset' in params:
+        resource = model.parent.name
+
         if 'id' in params:
             if 'changes' in params:
                 loc += (
                     [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                    [(':ds/' + params['ds'] + '/:rs/' + params['rs'], '/' + '/'.join(parts + [':ds', params['ds'], ':rs', params['rs']]))] +
+                    [(':dataset/' + params['dataset'] + '/:resource/' + resource, '/' + '/'.join(parts + [':dataset', params['dataset'], ':resource', resource]))] +
                     [(params['id'][:8], '/' + build_url_path({
                         'path': path,
                         'id': params['id'],
-                        'ds': params['ds'],
-                        'rs': params['rs'],
+                        'dataset': params['dataset'],
+                        'resource': resource,
                     }))] +
                     [(':changes', None)]
                 )
             else:
                 loc += (
                     [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                    [(':ds/' + params['ds'] + '/:rs/' + params['rs'], '/' + '/'.join(parts + [':ds', params['ds'], ':rs', params['rs']]))] +
+                    [(':dataset/' + params['dataset'] + '/:resource/' + resource, '/' + '/'.join(parts + [':dataset', params['dataset'], ':resource', resource]))] +
                     [(params['id'][:8], None)] +
                     [(':changes', '/' + build_url_path({
                         'path': path,
                         'id': params['id'],
-                        'ds': params['ds'],
-                        'rs': params['rs'],
+                        'dataset': params['dataset'],
+                        'resource': resource,
                         'changes': None,
                     }))]
                 )
@@ -169,21 +171,21 @@ def get_current_location(model, path, params):
             if 'changes' in params:
                 loc += (
                     [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                    [(':ds/' + params['ds'] + '/:rs/' + params['rs'], '/' + build_url_path({
+                    [(':dataset/' + params['dataset'] + '/:resource/' + resource, '/' + build_url_path({
                         'path': path,
-                        'ds': params['ds'],
-                        'rs': params['rs'],
+                        'dataset': params['dataset'],
+                        'resource': resource,
                     }))] +
                     [(':changes', None)]
                 )
             else:
                 loc += (
                     [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                    [(':ds/' + params['ds'] + '/:rs/' + params['rs'], None)] +
+                    [(':dataset/' + params['dataset'] + '/:resource/' + resource, None)] +
                     [(':changes', '/' + build_url_path({
                         'path': path,
-                        'ds': params['ds'],
-                        'rs': params['rs'],
+                        'dataset': params['dataset'],
+                        'resource': resource,
                         'changes': None,
                     }))]
                 )
@@ -265,9 +267,9 @@ def get_cell(params: dict, prop, value, shorten=False, color=None):
 
     if prop.name == 'id' and value:
         extra = {}
-        if 'rs' in params:
-            extra['ds'] = params['ds']
-            extra['rs'] = params['rs']
+        if 'dataset' in params:
+            extra['dataset'] = params['dataset']
+            extra['resource'] = prop.model.parent.name
         link = '/' + build_url_path({
             'path': params['path'],
             'id': value,
@@ -277,9 +279,9 @@ def get_cell(params: dict, prop, value, shorten=False, color=None):
             value = value[:8]
     elif hasattr(prop, 'ref') and prop.ref and value:
         extra = {}
-        if 'rs' in params:
-            extra['ds'] = params['ds']
-            extra['rs'] = params['rs']
+        if 'dataset' in params:
+            extra['dataset'] = params['dataset']
+            extra['resource'] = prop.model.parent.name
         link = '/' + build_url_path({
             'path': prop.ref,
             'id': value,
@@ -347,7 +349,7 @@ def get_directory_datasets(datasets, path):
     if path in datasets:
         for dataset_, resources in sorted(datasets[path].items(), key=operator.itemgetter(0)):
             for resource in sorted(resources.values(), key=operator.attrgetter('name')):
-                link = ('/' if path else '') + path + '/:ds/' + dataset_ + '/:rs/' + resource.name
+                link = ('/' if path else '') + path + '/:dataset/' + dataset_ + '/:resource/' + resource.name
                 yield {
                     'name': dataset_ + '/' + resource.name,
                     'link': link,

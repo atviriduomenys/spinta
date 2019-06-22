@@ -1,5 +1,6 @@
 import datetime
 
+import pprintpp as pprint
 import starlette.testclient
 
 from spinta import auth
@@ -25,3 +26,10 @@ class TestClient(starlette.testclient.TestClient):
     def request(self, *args, **kwargs):
         self._spinta_context.load_if_not_loaded()
         return super().request(*args, **kwargs)
+
+    def getdata(self, *args, **kwargs):
+        resp = self.get(*args, **kwargs)
+        assert resp.status_code == 200, f'status_code: {resp.status_code}, response: {resp.text}'
+        resp = resp.json()
+        assert 'data' in resp, pprint.pformat(resp)
+        return resp['data']

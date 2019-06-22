@@ -6,12 +6,12 @@ def test_parse_url_path(context):
     context.load()
 
     assert parse_url_path(context, 'foo/bar') == {'path': 'foo/bar'}
-    assert parse_url_path(context, 'foo/bar/:ds/deeply/nested/name/:rs/res') == {'path': 'foo/bar', 'ds': 'deeply/nested/name', 'rs': 'res'}
-    assert parse_url_path(context, 'foo/bar/d12a126e085db85e78379284006d369a8247bfc7/:ds/vrk/:rs/data') == {
+    assert parse_url_path(context, 'foo/bar/:dataset/deeply/nested/name/:resource/res') == {'path': 'foo/bar', 'dataset': 'deeply/nested/name', 'resource': 'res'}
+    assert parse_url_path(context, 'foo/bar/d12a126e085db85e78379284006d369a8247bfc7/:dataset/vrk/:resource/data') == {
         'path': 'foo/bar',
         'id': 'd12a126e085db85e78379284006d369a8247bfc7',
-        'ds': 'vrk',
-        'rs': 'data',
+        'dataset': 'vrk',
+        'resource': 'data',
     }
     assert parse_url_path(context, 'foo/bar/:limit/100') == {'path': 'foo/bar', 'limit': 100}
 
@@ -20,7 +20,7 @@ def test_build_url_path(context):
     context.load()
 
     assert build_url_path({'path': 'foo/bar', 'id': '42'}) == 'foo/bar/42'
-    assert build_url_path({'path': 'foo/bar', 'id': '42', 'ds': 'gov/org', 'rs': 'data'}) == 'foo/bar/42/:ds/gov/org/:rs/data'
+    assert build_url_path({'path': 'foo/bar', 'id': '42', 'dataset': 'gov/org', 'resource': 'data'}) == 'foo/bar/42/:dataset/gov/org/:resource/data'
 
 
 def test_optional_argument(context):

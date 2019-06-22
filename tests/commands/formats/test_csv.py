@@ -9,19 +9,19 @@ def test_export_csv(context, app, mocker):
 
     consume(context.push([
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '1',
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '2',
             'code': 'lv',
             'title': 'LATVIA',
         },
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '2',
             'code': 'lv',
             'title': 'Latvia',
@@ -29,21 +29,21 @@ def test_export_csv(context, app, mocker):
     ]))
 
     app.authorize([
-        'spinta_country_ds_csv_rs_countries_getall',
-        'spinta_country_ds_csv_rs_countries_search',
-        'spinta_country_ds_csv_rs_countries_changes',
+        'spinta_country_dataset_csv_resource_countries_getall',
+        'spinta_country_dataset_csv_resource_countries_search',
+        'spinta_country_dataset_csv_resource_countries_changes',
     ])
 
-    assert app.get('country/:ds/csv/:rs/countries/:sort/code/:format/csv').text == (
+    assert app.get('country/:dataset/csv/:resource/countries/:sort/code/:format/csv').text == (
         'id,code,title,type,revision\r\n'
-        '1,lt,Lithuania,country/:ds/csv/:rs/countries,REV\r\n'
-        '2,lv,Latvia,country/:ds/csv/:rs/countries,REV\r\n'
+        '1,lt,Lithuania,country/:dataset/csv/:resource/countries,REV\r\n'
+        '2,lv,Latvia,country/:dataset/csv/:resource/countries,REV\r\n'
     )
 
     changes = context.changes('country', dataset='csv', resource='countries')
     ids = [c['change_id'] for c in changes]
     txn = [c['transaction_id'] for c in changes]
-    assert app.get('country/:ds/csv/:rs/countries/:changes/:format/csv').text == (
+    assert app.get('country/:dataset/csv/:resource/countries/:changes/:format/csv').text == (
         'change_id,transaction_id,id,datetime,action,change.code,change.title\r\n'
         f'{ids[0]},{txn[0]},1,2019-03-06T16:15:00.816308,insert,lt,Lithuania\r\n'
         f'{ids[1]},{txn[1]},2,2019-03-06T16:15:00.816308,insert,lv,LATVIA\r\n'

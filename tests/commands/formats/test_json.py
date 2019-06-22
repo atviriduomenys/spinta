@@ -7,19 +7,19 @@ def test_export_json(context, app, mocker):
 
     context.push([
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '69a33b149af7a7eeb25026c8cdc09187477ffe21',
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '2',
             'code': 'lv',
             'title': 'LATVIA',
         },
         {
-            'type': 'country/:ds/csv/:rs/countries',
+            'type': 'country/:dataset/csv/:resource/countries',
             'id': '2',
             'code': 'lv',
             'title': 'Latvia',
@@ -27,40 +27,40 @@ def test_export_json(context, app, mocker):
     ])
 
     app.authorize([
-        'spinta_country_ds_csv_rs_countries_getall',
-        'spinta_country_ds_csv_rs_countries_search',
-        'spinta_country_ds_csv_rs_countries_getone',
-        'spinta_country_ds_csv_rs_countries_changes',
+        'spinta_country_dataset_csv_resource_countries_getall',
+        'spinta_country_dataset_csv_resource_countries_search',
+        'spinta_country_dataset_csv_resource_countries_getone',
+        'spinta_country_dataset_csv_resource_countries_changes',
     ])
 
-    assert app.get('country/:ds/csv/:rs/countries/:sort/code/:format/json').json() == {
+    assert app.get('country/:dataset/csv/:resource/countries/:sort/code/:format/json').json() == {
         'data': [
             {
                 'code': 'lt',
                 'id': '69a33b149af7a7eeb25026c8cdc09187477ffe21',
                 'revision': 'REV',
                 'title': 'Lithuania',
-                'type': 'country/:ds/csv/:rs/countries',
+                'type': 'country/:dataset/csv/:resource/countries',
             },
             {
                 'code': 'lv',
                 'id': '2',
                 'revision': 'REV',
                 'title': 'Latvia',
-                'type': 'country/:ds/csv/:rs/countries',
+                'type': 'country/:dataset/csv/:resource/countries',
             },
         ],
     }
 
-    assert app.get('country/69a33b149af7a7eeb25026c8cdc09187477ffe21/:ds/csv/:rs/countries/:format/json').json() == {
+    assert app.get('country/69a33b149af7a7eeb25026c8cdc09187477ffe21/:dataset/csv/:resource/countries/:format/json').json() == {
         'code': 'lt',
         'id': '69a33b149af7a7eeb25026c8cdc09187477ffe21',
         'revision': 'REV',
         'title': 'Lithuania',
-        'type': 'country/:ds/csv/:rs/countries',
+        'type': 'country/:dataset/csv/:resource/countries',
     }
 
-    changes = app.get('country/:ds/csv/:rs/countries/:changes/:format/json').json()['data']
+    changes = app.get('country/:dataset/csv/:resource/countries/:changes/:format/json').json()['data']
     assert changes == [
         {
             'change_id': changes[0]['change_id'],
@@ -88,6 +88,6 @@ def test_export_json(context, app, mocker):
         },
     ]
 
-    assert app.get('country/:ds/csv/:rs/countries/:changes/1000/:format/json').json() == {
+    assert app.get('country/:dataset/csv/:resource/countries/:changes/1000/:format/json').json() == {
         'data': []
     }

@@ -17,7 +17,7 @@ def sql(config):
     schema.drop_all()
 
 
-def test_sql(config, sql, context):
+def test_sql(config, sql, context, app):
     context.load({
         'datasets': {
             'default': {
@@ -43,12 +43,14 @@ def test_sql(config, sql, context):
             {'kodas': 'ee', 'pavadinimas': 'Estija'},
         ])
 
-    assert consume(context.pull('sql')) == 3
-    assert consume(context.pull('sql')) == 0
+    assert len(context.pull('sql')) == 3
+    assert len(context.pull('sql')) == 0
 
-    assert sorted([(x['code'], x['title']) for x in context.getall('country')]) == []
-    assert sorted([(x['code'], x['title']) for x in context.getall('country', dataset='sql', resource='db')]) == [
-        ('ee', 'Estija'),
-        ('lt', 'Lietuva'),
-        ('lv', 'Latvija'),
+    app.authorize(['spinta_getall', 'spinta_search'])
+
+    assert app.getdata('/country') == []
+    assert app.getdata('/country/:dataset/sql/:show/code/title/:sort/code') == [
+        {'code': 'ee', 'title': 'Estija'},
+        {'code': 'lt', 'title': 'Lietuva'},
+        {'code': 'lv', 'title': 'Latvija'},
     ]

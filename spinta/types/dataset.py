@@ -5,15 +5,14 @@ import tempfile
 from spinta.commands import load, prepare, check, pull, getall, authorize, error
 from spinta.components import Context, Manifest, Node, Command, Action
 from spinta.utils.refs import get_ref_id
-from spinta.utils.url import parse_url_path
 from spinta.nodes import load_node
 from spinta.fetcher import Cache
-from spinta.types.store import get_model_from_params
 from spinta.types.type import load_type
 from spinta.auth import check_generated_scopes
 from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema, load_from_schema
 from spinta.utils.tree import add_path_to_tree
+from spinta.urlparams import get_model_by_name
 
 
 class Dataset(Node):
@@ -73,7 +72,7 @@ class Model(Node):
         self.canonical = False
 
     def get_type_value(self):
-        return f'{self.name}/:ds/{self.parent.parent.name}/:rs/{self.parent.name}'
+        return f'{self.name}/:dataset/{self.parent.parent.name}/:resource/{self.parent.name}'
 
 
 class Property(Node):
@@ -348,8 +347,7 @@ def _dependencies(context: Context, model, deps):
                     yield {name: value}
         else:
             model_name = list(model_names)[0]
-            params = parse_url_path(context, model_name)
-            depmodel = get_model_from_params(model.manifest, params['path'], params)
+            depmodel = get_model_by_name(context, model.manifest, model_name)
             for row in getall(context, depmodel, depmodel.backend, show=prop_names):
                 yield {
                     prop_name_mapping[k]: v

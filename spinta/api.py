@@ -20,7 +20,7 @@ from spinta.config import RawConfig
 from spinta.exceptions import DataError, NotFound
 from spinta.urlparams import Version
 from spinta.utils.response import create_http_response
-from spinta.utils.response import get_response_type
+from spinta.urlparams import get_response_type
 
 log = logging.getLogger(__name__)
 

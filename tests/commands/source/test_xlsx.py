@@ -20,7 +20,7 @@ def test_xlsx(context, responses, mocker):
     assert len(context.pull('xlsx')) > 0
     assert list(context.getall('rinkimai', dataset='xlsx', resource='data')) == [
         {
-            'type': 'rinkimai/:ds/xlsx/:rs/data',
+            'type': 'rinkimai/:dataset/xlsx/:resource/data',
             'id': rinkimai,
             'revision': 'REV',
             'data': '1992-10-25T00:00:00',
@@ -30,7 +30,7 @@ def test_xlsx(context, responses, mocker):
     ]
     assert list(context.getall('rinkimai/turas', dataset='xlsx', resource='data')) == [
         {
-            'type': 'rinkimai/turas/:ds/xlsx/:rs/data',
+            'type': 'rinkimai/turas/:dataset/xlsx/:resource/data',
             'id': turas,
             'revision': 'REV',
             'turas': 1,
@@ -39,7 +39,7 @@ def test_xlsx(context, responses, mocker):
     ]
     assert list(context.getall('rinkimai/apygarda', dataset='xlsx', resource='data')) == [
         {
-            'type': 'rinkimai/apygarda/:ds/xlsx/:rs/data',
+            'type': 'rinkimai/apygarda/:dataset/xlsx/:resource/data',
             'id': apygarda,
             'revision': 'REV',
             'numeris': 2,
@@ -50,7 +50,7 @@ def test_xlsx(context, responses, mocker):
     ]
     assert list(context.getall('rinkimai/apylinke', dataset='xlsx', resource='data')) == [
         {
-            'type': 'rinkimai/apylinke/:ds/xlsx/:rs/data',
+            'type': 'rinkimai/apylinke/:dataset/xlsx/:resource/data',
             'id': apylinke,
             'revision': 'REV',
             'numeris': 0,
@@ -62,7 +62,7 @@ def test_xlsx(context, responses, mocker):
     ]
     assert list(context.getall('rinkimai/kandidatas', dataset='xlsx', resource='data')) == [
         {
-            'type': 'rinkimai/kandidatas/:ds/xlsx/:rs/data',
+            'type': 'rinkimai/kandidatas/:dataset/xlsx/:resource/data',
             'id': '8159cf47118c31114c71a75ed06aa66b0476ad7a',
             'revision': 'REV',
             'vardas': 'NIJOLĖ',

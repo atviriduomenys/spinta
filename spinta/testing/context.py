@@ -7,7 +7,7 @@ from toposort import toposort
 from spinta import commands
 from spinta.components import Node
 from spinta.auth import AdminToken
-from spinta.types.store import get_model_by_name
+from spinta.urlparams import get_model_by_name
 from spinta import components
 from spinta.utils.commands import load_commands
 from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
