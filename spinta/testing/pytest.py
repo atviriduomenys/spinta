@@ -12,7 +12,7 @@ from spinta.config import RawConfig, load_commands
 from spinta.utils.imports import importstr
 
 
-@pytest.fixture()
+@pytest.fixture(scope='session')
 def spinta_test_config():
     return {
         'backends': {
