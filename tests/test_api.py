@@ -210,6 +210,28 @@ def test_dataset(context, app, mocker):
     }
 
 
+def test_dataset_with_show(context, app, mocker):
+    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REVISION')
+
+    context.push([
+        {
+            'type': 'rinkimai/:dataset/json/:resource/data',
+            'id': get_ref_id('Rinkimai 1'),
+            'pavadinimas': 'Rinkimai 1',
+        },
+    ])
+
+    app.authorize(['spinta_rinkimai_dataset_json_resource_data_search'])
+    resp = app.get('/rinkimai/:dataset/json/:show/pavadinimas', headers={'accept': 'text/html'})
+    assert resp.status_code == 200
+
+    resp.context.pop('request')
+    assert resp.context['header'] == ['pavadinimas']
+    assert [tuple(y['value'] for y in x) for x in resp.context['data']] == [
+        ('Rinkimai 1',),
+    ]
+
+
 def test_dataset_url_wihtout_resource(context, app, mocker):
     context.push([
         {

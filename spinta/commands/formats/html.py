@@ -317,7 +317,10 @@ def get_data(rows, model: Node, params: UrlParams):
         props = [prop]
         rows = [rows]
     else:
-        props = [p for p in model.properties.values() if p.name != 'type']
+        if params.show:
+            props = [p for p in model.properties.values() if p.name in params.show]
+        else:
+            props = [p for p in model.properties.values() if p.name != 'type']
 
     yield [prop.name for prop in props]
 
