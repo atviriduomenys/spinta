@@ -292,7 +292,19 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
                         try:
                             yield from _pull(context, model, source, dependency)
                         except Exception as e:
-                            context.error(f"Error while pulling model {model.name!r}, with dependency: {dependency!r} and source: {source!r}. Error: {e}")
+                            message = (
+                                '{exc}:\n'
+                                '  in dependency {dependency!r}\n'
+                                '  in model {model.name!r} {model}\n'
+                                '  in dataset {model.parent.name!r} {model.parent}\n'
+                                "  in file '{model.path}'\n"
+                                '  on backend {model.backend.name!r}\n'
+                            )
+                            raise Exception(format_error(message, {
+                                'exc': e,
+                                'model': model,
+                                'dependency': dependency,
+                            }))
 
 
 def _pull(context: Context, model: Model, source, dependency):
