@@ -111,10 +111,11 @@ def run(ctx):
 
 @main.command()
 @click.pass_context
-def config(ctx):
+@click.argument('name', nargs=-1, required=False)
+def config(ctx, name=None):
     context = ctx.obj['context']
     config = context.get('config.raw')
-    config.dump()
+    config.dump(name)
 
 
 @main.command()

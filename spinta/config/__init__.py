@@ -278,11 +278,21 @@ class RawConfig:
             else:
                 yield key, self.get(*key, cast=type(value), origin=origin)
 
-    def dump(self):
+    def dump(self, names=None):
+        print('{:<10} {:<20} {}'.format('Origin', 'Name', 'Value'))
+        print('{:-<10} {:-<20} {:-<40}'.format('', '', ''))
         for key, value, origin in sorted(self.getall(origin=True), key=operator.itemgetter(0)):
-            *key, name = key
-            name = len(key) * '  ' + name
-            print(f'{name:<20} {origin:<10} {value}')
+            if names:
+                for name in names:
+                    if '.'.join(key).startswith(name):
+                        break
+                else:
+                    continue
+            *pkey, key = key
+            key = len(pkey) * '  ' + key
+            if isinstance(value, list):
+                value = ' | '.join(value)
+            print(f'{origin:<10} {key:<20} {value}')
 
     def hardset(self, config, dirty=True):
         if dirty and not self._dirty:
