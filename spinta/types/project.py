@@ -1,6 +1,7 @@
 from spinta.commands import load, prepare, check
 from spinta.components import Context, Manifest, Node
 from spinta.nodes import load_node
+from spinta.utils.errors import format_error
 
 
 class Project(Node):
@@ -12,6 +13,7 @@ class Project(Node):
         'url': {'type': 'url'},
         'source_code': {'type': 'url'},
         'owner': {'type': 'string'},
+        'dataset': {'type': 'string'},
     }
 
 
@@ -28,13 +30,19 @@ class Impact:
 class Model(Node):
     schema = {
         'properties': {'type': 'object', 'default': {}},
+        'dataset': {'type': 'string', 'inherit': True},
+        'target': {'type': 'string'},
     }
 
 
 class Property(Node):
     schema = {
         'enum': {'type': 'array'},
+        'dataset': {'type': 'string', 'inherit': True},
+        'target': {'type': 'string'},
     }
+    # TODO: inherit type from model if not provided, type is needed for data
+    #       serialization.
 
 
 @load.register()
@@ -72,3 +80,14 @@ def prepare(context: Context, project: Project):
 def check(context: Context, project: Project):
     if project.owner and project.owner not in project.manifest.objects['owner']:
         context.error(f"Unknown owner {project.owner}.")
+
+    if project.dataset and project.dataset not in project.manifest.objects['dataset']:
+        # TODO add  similar 'dataset' checks for model and property.
+        message = (
+            f"Unknown dataset {project.dataset!r}:\n"
+            '  in project {project.name!r} {project}\n'
+            "  in file '{project.path}'\n"
+        )
+        raise Exception(format_error(message, {
+            'project': project,
+        }))
