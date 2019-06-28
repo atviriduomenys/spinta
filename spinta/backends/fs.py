@@ -143,6 +143,7 @@ async def getone(
     params: UrlParams,
     ref: bool = False,
 ):
+    authorize(context, action, prop)
     data = getone(context, prop, prop.model.backend, id_=params.id)
     if data is None:
         raise NotFound(f"File {prop.name!r} not found in {params.id!r}.")
