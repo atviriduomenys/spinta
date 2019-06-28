@@ -77,7 +77,7 @@ def test_crud(app):
 def test_add_existing_file(app, tmpdir):
     app.authorize([
         'spinta_photo_insert',
-        'spinta_photo_getone',
+        'spinta_photo_image_getone',
         'spinta_photo_image_patch',
     ])
 
