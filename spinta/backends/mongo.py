@@ -250,7 +250,7 @@ def update(
         {'id': id_},
         {'$set': {prop.name: data}}
     )
-    assert result.matched_count == 1 and result.modified_count == 1, (
+    assert result.matched_count == 1, (
         f"matched: {result.matched_count}, modified: {result.modified_count}"
     )
 
@@ -295,7 +295,7 @@ def _patch(table, id_, row, data):
         {'$set': changes},
     )
 
-    assert result.matched_count == 1 and result.modified_count == 1, (
+    assert result.matched_count == 1, (
         f"matched: {result.matched_count}, modified: {result.modified_count}"
     )
 
