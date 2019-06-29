@@ -5,6 +5,18 @@ import pytest
 
 from spinta.utils.itertools import consume
 from spinta.utils.refs import get_ref_id
+from spinta.utils.nestedstruct import flatten
+
+
+def test_version(app):
+    resp = app.get('/version')
+    assert resp.status_code == 200
+    assert sorted(flatten(resp.json())) == [
+        'api.version',
+        'build',
+        'implementation.name',
+        'implementation.version',
+    ]
 
 
 def test_app(app):

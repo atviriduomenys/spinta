@@ -111,6 +111,20 @@ if docs_path:
     # app.mount('/docs', StaticFiles(directory="uml", html=True))
 
 
+@app.route('/version', methods=['GET'])
+async def version(request: Request):
+    return JSONResponse({
+        'api': {
+            'version': '0.0.1'
+        },
+        'implementation': {
+            'name': 'Spinta',
+            'version': '0.0.1'
+        },
+        'build': None,
+    })
+
+
 @app.route('/auth/token', methods=['POST'])
 async def auth_token(request: Request):
     global context

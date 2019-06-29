@@ -1,8 +1,20 @@
 from typing import List
 
 
-def flatten(rows, sep='.', scan=100):
-    for row in rows:
+def flatten(data, sep='.', scan=100):
+    if isinstance(data, dict):
+        return _flatten_dict(data, sep)
+    else:
+        return _flatten_list(data, sep, scan)
+
+
+def _flatten_dict(data, sep='.'):
+    for item in flatten_nested_lists(data):
+        return {sep.join(k): v for k, v in item}
+
+
+def _flatten_list(data, sep='.', scan=100):
+    for row in data:
         for item in flatten_nested_lists(row):
             yield {sep.join(k): v for k, v in item}
 
