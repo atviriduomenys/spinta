@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import hashlib
 import itertools
 import re
@@ -389,7 +390,9 @@ def insert(
             id=data['id'],
             datetime=utcnow(),
             action=Action.INSERT.value,
-            change={k: v for k, v in data.items() if k not in {'id'}},
+            change=_fix_data_for_json({
+                k: v for k, v in data.items() if k not in {'id'}
+            }),
         ),
     )
 
@@ -447,7 +450,7 @@ def upsert(
             id=id_,
             datetime=utcnow(),
             action=action.value,
-            change=data,
+            change=_fix_data_for_json(data),
         ),
     )
 
@@ -484,7 +487,9 @@ def update(
             id=data['id'],
             datetime=utcnow(),
             action=Action.UPDATE.value,
-            change={k: v for k, v in data.items() if k not in {'id'}},
+            change=_fix_data_for_json({
+                k: v for k, v in data.items() if k not in {'id'}
+            }),
         ),
     )
 
@@ -525,7 +530,7 @@ def patch(
             id=data['id'],
             datetime=utcnow(),
             action=Action.PATCH.value,
-            change=data,
+            change=_fix_data_for_json(data),
         ),
     )
 
@@ -868,3 +873,17 @@ def get_changes_table(backend, table_name, id_type):
 @prepare.register()
 def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, show: typing.List[str] = None) -> dict:
     return prepare(context, action, model, backend, dict(value), show=show)
+
+
+def _fix_data_for_json(data):
+    # XXX: a temporary workaround
+    #
+    #      Changelog data are stored as JSON and data must be JSON serializable.
+    #      Probably there should be a command, that would make data JSON
+    #      serializable.
+    _data = {}
+    for k, v in data.items():
+        if isinstance(v, (datetime.datetime, datetime.date)):
+            v = v.isoformat()
+        _data[k] = v
+    return _data
