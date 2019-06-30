@@ -216,45 +216,6 @@ def upsert(
     return id_
 
 
-@commands.update.register()
-def update(
-    context: Context,
-    model: Model,
-    backend: Mongo,
-    *,
-    id_: str,
-    data: dict,
-):
-    table = backend.db[model.get_type_value()]
-    result = table.update_one(
-        {'id': id_},
-        {'$set': data}
-    )
-    assert result.matched_count == 1 and result.modified_count == 1, (
-        f"matched: {result.matched_count}, modified: {result.modified_count}"
-    )
-    return id_
-
-
-@commands.update.register()  # noqa
-def update(
-    context: Context,
-    prop: Property,
-    backend: Mongo,
-    *,
-    id_: str,
-    data: dict,
-):
-    table = backend.db[prop.model.get_type_value()]
-    result = table.update_one(
-        {'id': id_},
-        {'$set': {prop.name: data}}
-    )
-    assert result.matched_count == 1, (
-        f"matched: {result.matched_count}, modified: {result.modified_count}"
-    )
-
-
 @commands.patch.register()
 def patch(
     context: Context,
@@ -313,6 +274,165 @@ def delete(
     table = backend.db[model.get_type_value()]
     table.delete_one({'id': id_})
 
+
+@push.register()
+async def push(
+    context: Context,
+    request: Request,
+    prop: Property,
+    backend: Mongo,
+    *,
+    action: Action,
+    params: UrlParams,
+    ref: bool = False,
+):
+    """
+
+    Args:
+        ref: Update reference or data refered by reference.
+
+            This applies only to direct property updates. Update reference is
+            enabled, when property is named like this `prop:ref`, the `:ref`
+            suffix tells, that reference should be updated and `ref` argument is
+            set to True.
+
+            Most properties do not have references, but some do. So this only
+            applies to properties like File with external backend, ForeignKey
+            and etc.
+
+    """
+    if action == Action.INSERT:
+        raise HTTPException(status_code=400, detail=f"Can't POST to a property, use PUT or PATCH instead.")
+
+    authorize(context, action, prop)
+
+    data = await get_request_data(request)
+
+    data = load(context, prop.type, data)
+    check(context, prop.type, prop, backend, data, data=None, action=action)
+    data = prepare(context, prop.type, backend, data)
+
+    if action == Action.UPDATE:
+        commands.update(context, prop, backend, id_=params.id, data=data)
+    elif action == Action.PATCH:
+        commands.patch(context, prop, backend, id_=params.id, data=data)
+    elif action == Action.DELETE:
+        commands.delete(context, prop, backend, id_=params.id)
+    else:
+        raise Exception(f"Unknown action {action}.")
+
+    data = dump(context, backend, prop.type, data)
+    return render(context, request, prop, action, params, data)
+
+
+@commands.update.register()
+def update(
+    context: Context,
+    model: Model,
+    backend: Mongo,
+    *,
+    id_: str,
+    data: dict,
+):
+    table = backend.db[model.get_type_value()]
+    result = table.update_one(
+        {'id': id_},
+        {'$set': data}
+    )
+    assert result.matched_count == 1 and result.modified_count == 1, (
+        f"matched: {result.matched_count}, modified: {result.modified_count}"
+    )
+
+
+@commands.update.register()  # noqa
+def update(
+    context: Context,
+    prop: Property,
+    backend: Mongo,
+    *,
+    id_: str,
+    data: dict,
+):
+    table = backend.db[prop.model.get_type_value()]
+    result = table.update_one(
+        {'id': id_},
+        {'$set': {prop.name: data}}
+    )
+    assert result.matched_count == 1, (
+        f"matched: {result.matched_count}, modified: {result.modified_count}"
+    )
+
+
+@commands.patch.register()  # noqa
+def patch(
+    context: Context,
+    prop: Property,
+    backend: Mongo,
+    *,
+    id_: str,
+    data: dict,
+):
+    table = backend.db[prop.model.get_type_value()]
+    row = table.find_one({'id': id_}, {prop.name: 1})
+    if row is None:
+        type_ = prop.model.get_type_value()
+        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+
+    data = _patch_property(table, id_, prop, row, data)
+
+    if data is None:
+        # Nothing changed.
+        return None
+
+    # Track changes.
+    # TODO: add to changelog
+
+    return data
+
+
+def _patch_property(table, id_, prop, row, data):
+    changes = get_patch_changes(row[prop.name], data[prop.name])
+
+    if not changes:
+        # Nothing to update.
+        return None
+
+    result = table.update_one(
+        {'id': id_},
+        {'$set': {
+            prop.name: changes,
+        }},
+    )
+
+    if result.matched_count == 0:
+        type_ = prop.model.get_type_value()
+        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+
+    assert result.matched_count == 1, (
+        f"matched: {result.matched_count}, modified: {result.modified_count}"
+    )
+
+    return changes
+
+
+@commands.delete.register()  # noqa
+def delete(
+    context: Context,
+    prop: Property,
+    backend: Mongo,
+    *,
+    id_: str,
+):
+    table = backend.db[prop.model.get_type_value()]
+    result = table.update_one(
+        {'id': id_},
+        {'$set': {
+            prop.name: None,
+        }},
+    )
+    assert result.matched_count == 1, (
+        f"matched: {result.matched_count}, modified: {result.modified_count}"
+    )
 
 @getone.register()
 async def getone(
