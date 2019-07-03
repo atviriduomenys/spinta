@@ -57,10 +57,15 @@ def test_mongo_update_get(app):
     data = resp.json()
     id_ = data['id']
     revision = data['revision']
-    resp = app.put(f'/reports/{id_}', json={'status': '13'})
+    resp = app.put(f'/reports/{id_}', json={
+        'revision': revision,
+        'status': '13',
+    })
     assert resp.status_code == 200
+
     data = resp.json()
     assert data['revision'] != revision
+
     revision = data['revision']
     assert data == {
         'type': 'report',

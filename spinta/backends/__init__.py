@@ -8,7 +8,7 @@ from spinta.components import Context, Model, Property, Action, Node
 from spinta.commands import error, prepare, dump, check, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
-from spinta.exceptions import NotFound
+from spinta.exceptions import DataError, NotFound
 from spinta.utils.nestedstruct import build_show_tree
 
 
@@ -123,6 +123,9 @@ def check(context: Context, type: Type, prop: dataset.Property, backend: Backend
 
 
 def check_model_properties(context: Context, model: Model, backend, data: dict, action: Action):
+    if action == Action.UPDATE and 'revision' not in data:
+        raise DataError(f"'revision' must be given on update action.")
+
     for name, prop in model.properties.items():
         # For datasets, property type is optional.
         # XXX: but I think, it should be mandatory.

@@ -338,6 +338,8 @@ async def push(
         data['id'] = commands.upsert(context, model, backend, data=data)
 
     elif action == Action.UPDATE:
+        # FIXME: check if revision given in `data` matches the revision in database
+        # related to SPLAT-60
         commands.update(context, model, backend, id_=params.id, data=data)
         data['id'] = params.id
 

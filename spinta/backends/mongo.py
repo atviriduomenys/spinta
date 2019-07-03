@@ -125,6 +125,8 @@ async def push(
 
     elif action == Action.UPDATE:
         data['id'] = params.id
+        # FIXME: check if revision given in `data` matches the revision in database
+        # related to SPLAT-60
         data['revision'] = get_new_id('revision id')
         commands.update(context, model, backend, id_=params.id, data=data)
 
