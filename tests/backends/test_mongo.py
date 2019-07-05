@@ -132,7 +132,7 @@ def test_delete(context, app):
     assert ids[1] in data
 
     resp = app.delete(f'/report/{ids[0]}')
-    assert resp.status_code == 200, resp.text
+    assert resp.status_code == 204
 
     resp = app.get('/report').json()
     data = [x['id'] for x in resp['data']]

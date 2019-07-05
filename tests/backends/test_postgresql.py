@@ -97,7 +97,8 @@ def test_delete(context, app):
     assert ids[0] in data
     assert ids[1] in data
 
-    resp = app.delete(f'/country/{ids[0]}').json()
+    resp = app.delete(f'/country/{ids[0]}')
+    assert resp.status_code == 204
 
     resp = app.get('/country').json()
     data = [x['id'] for x in resp['data']]

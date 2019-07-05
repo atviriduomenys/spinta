@@ -253,10 +253,7 @@ def _prepare_query_result(
         return result
 
     elif action == Action.DELETE:
-        return {
-            'id': value['id'],
-            'type': model.get_type_value(),
-        }
+        return None
 
     else:
         raise Exception(f"Unknown action {action}.")
