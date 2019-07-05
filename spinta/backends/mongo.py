@@ -145,7 +145,13 @@ async def push(
 
     data = prepare(context, action, model, backend, data)
 
-    status_code = 201 if action == Action.INSERT else 200
+    if action == Action.INSERT:
+        status_code = 201
+    elif action == Action.DELETE:
+        status_code = 204
+    else:
+        status_code = 200
+
     return render(context, request, model, action, params, data, status_code=status_code)
 
 
