@@ -316,8 +316,6 @@ def _pull(context: Context, model: Model, source, dependency):
             elif prop.source:
                 data[prop.name] = _get_value_from_source(context, prop, prop.source, row, dependency)
 
-            if prop.type.name == 'ref':
-                print('HERE:', prop.type.name, prop.type.object)
             if prop.type.name == 'ref' and prop.type.object and prop.name in data:
                 data[prop.name] = get_ref_id(data[prop.name])
 
