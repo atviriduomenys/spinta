@@ -41,8 +41,8 @@ resources:
             source: 'Turas'
           rinkimai:
             type: ref
+            object: rinkimai
             source: ['Rinkimai']
-            ref: rinkimai
 
       rinkimai/apygarda:
         source:
@@ -59,13 +59,13 @@ resources:
             type: string
             source: 'Apygardos pavadinimas'
           rinkimai:
-            type: string
+            type: ref
+            object: rinkimai
             source: ['Rinkimai']
-            ref: rinkimai
           turas:
-            type: string
+            type: ref
+            object: rinkimai/turas
             source: ['Rinkimai', 'Turas']
-            ref: rinkimai/turas
 
       rinkimai/apylinke:
         source:
@@ -83,16 +83,16 @@ resources:
             source: 'Apylinkės pavadinimas'
           rinkimai:
             type: ref
+            object: rinkimai
             source: ['Rinkimai']
-            ref: rinkimai
           turas:
             type: ref
+            object: rinkimai/turas
             source: ['Rinkimai', 'Turas']
-            ref: rinkimai/turas
           apygarda:
             type: ref
+            object: rinkimai/apygarda
             source: ['Apygardos Nr.']
-            ref: rinkimai/apygarda
 
       rinkimai/kandidatas:
         source:
@@ -138,17 +138,17 @@ resources:
             source: 'Gauti balsai (iš anksto)'
           rinkimai:
             type: ref
+            object: rinkimai
             source: ['Rinkimai']
-            ref: rinkimai
           turas:
             type: ref
+            object: rinkimai/turas
             source: ['Rinkimai', 'Turas']
-            ref: rinkimai/turas
           apygarda:
             type: ref
+            object: rinkimai/apygarda
             source: ['Apygardos Nr.']
-            ref: rinkimai/apygarda
           apylinke:
             type: ref
+            object: rinkimai/apylinke
             source: ['Apygardos Nr.', 'Apylinkės Nr.']
-            ref: rinkimai/apylinke

@@ -201,13 +201,8 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
 
 @load.register()
 def load(context: Context, prop: Property, data: dict, manifest: Manifest):
-    load_node(context, prop, data, manifest)
-
-    # Load property type. For datasets, property type is optional.
-    if prop.type:
-        prop.type = load_type(context, prop, data, manifest)
-    else:
-        prop.type = None
+    prop = load_node(context, prop, data, manifest, check_unknowns=False)
+    prop.type = load_type(context, prop, data, manifest)
 
     # Load property source.
     if prop.source:
@@ -321,7 +316,9 @@ def _pull(context: Context, model: Model, source, dependency):
             elif prop.source:
                 data[prop.name] = _get_value_from_source(context, prop, prop.source, row, dependency)
 
-            if prop.ref and prop.name in data:
+            if prop.type.name == 'ref':
+                print('HERE:', prop.type.name, prop.type.object)
+            if prop.type.name == 'ref' and prop.type.object and prop.name in data:
                 data[prop.name] = get_ref_id(data[prop.name])
 
         if _check_key(data.get('id')):

@@ -373,7 +373,7 @@ class JoinManager:
             ref = refs[i]
             left_ref = refs[:i]
             right_ref = refs[:i] + (ref,)
-            model = self.model.parent.objects[model.properties[ref].ref]
+            model = self.model.parent.objects[model.properties[ref].type.object]
             if right_ref not in self.aliases:
                 self.aliases[right_ref] = _get_table(self.backend, model).main.alias()
                 left = self.aliases[left_ref]

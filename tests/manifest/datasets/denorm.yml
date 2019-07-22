@@ -19,8 +19,8 @@ resources:
             source: org
           country:
             type: ref
+            object: country
             source: kodas
-            ref: country
       country:
         source: orgs.csv
         properties:
