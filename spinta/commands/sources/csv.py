@@ -14,6 +14,7 @@ class Csv(Source):
 
 @pull.register()
 def pull(context: Context, source: Csv, node: Model, *, params: dict):
+    print(node.parent.source.name, source.name, params)
     base = node.parent.source.name
     url = urllib.parse.urljoin(base, source.name) if base else source.name
     url = url.format(**params)

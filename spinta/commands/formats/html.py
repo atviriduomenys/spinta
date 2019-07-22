@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException
 
 from spinta.types.type import Type
 from spinta.commands.formats import Format
-from spinta.components import Context, Action, UrlParams, Node
+from spinta.components import Context, Action, UrlParams, Node, Property
 from spinta.utils.url import build_url_path
 from spinta import commands
 from spinta.components import Model
@@ -277,13 +277,13 @@ def get_cell(params: dict, prop, value, shorten=False, color=None):
         })
         if shorten:
             value = value[:8]
-    elif hasattr(prop, 'ref') and prop.ref and value:
+    elif prop.type.name == 'ref' and prop.type.object and value:
         extra = {}
         if 'dataset' in params:
             extra['dataset'] = params['dataset']
             extra['resource'] = prop.model.parent.name
         link = '/' + build_url_path({
-            'path': prop.ref,
+            'path': prop.type.object,
             'id': value,
             **extra,
         })
@@ -311,7 +311,9 @@ def get_cell(params: dict, prop, value, shorten=False, color=None):
 
 def get_data(rows, model: Node, params: UrlParams):
     if params.count:
-        prop = Type()
+        prop = Property()
+        prop.type = Type()
+        prop.type.name = 'string'
         prop.name = 'count'
         prop.ref = None
         props = [prop]
