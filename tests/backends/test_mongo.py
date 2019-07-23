@@ -138,3 +138,21 @@ def test_delete(context, app):
     data = [x['id'] for x in resp['data']]
     assert ids[0] not in data
     assert ids[1] in data
+
+
+def test_escaping_chars(app):
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_report_getone',
+    ])
+
+    resp = app.post('/report', json={
+        'type': 'report',
+        'status': 'application/json',
+    })
+    assert resp.status_code == 201
+    data = resp.json()
+
+    resp = app.get(f'/report/{data["id"]}')
+    assert resp.status_code == 200
+    assert resp.json()['status'] == 'application/json'
