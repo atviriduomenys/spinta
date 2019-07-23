@@ -39,6 +39,12 @@ def load():
 
 
 @command()
+def load_search_params():
+    """Load search parameters as native python values.
+    """
+
+
+@command()
 def wait():
     """Wait while all database backends are up.
 

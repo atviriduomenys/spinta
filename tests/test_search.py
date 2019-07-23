@@ -12,6 +12,9 @@ test_data = [
             'note_type': 'simple',
             'create_date': datetime.datetime(2019, 3, 14),
         }],
+        'operating_licenses': [{
+            'license_types': ['valid'],
+        }],
     },
     {
         'type': 'report',
@@ -22,6 +25,9 @@ test_data = [
             'note': 'world',
             'note_type': 'daily',
             'create_date': datetime.datetime(2019, 4, 20),
+        }],
+        'operating_licenses': [{
+            'license_types': ['expired'],
         }],
     },
     {
@@ -351,3 +357,25 @@ def test_search_nested(context, app):
     # nested non existant field
     resp = app.get('/reports/:exact/notes.foo.bar/baz')
     assert resp.json()['error'] == "Unknown property 'notes.foo.bar'."
+
+    # nested `contains` search
+    resp = app.get('/reports/:contains/notes.note/bar')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r3['id']
+
+    resp = app.get('/reports/:contains/operating_licenses.license_types/lid')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r1['id']
+
+    # nested `startswith` search
+    resp = app.get('/reports/:startswith/notes.note/fo')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r3['id']
+
+    resp = app.get('/reports/:startswith/operating_licenses.license_types/exp')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r2['id']

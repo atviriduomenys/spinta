@@ -27,6 +27,16 @@ properties:
       }
   }
 
+  operating_licenses:
+    type: array
+    items:
+      type: object
+      properties:
+        license_types:
+          type: array
+          items:
+            type: string
+
   # FIXME: hide subresources before they are implemented
   #
   # pdf: {
