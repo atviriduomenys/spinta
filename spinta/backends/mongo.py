@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
 from spinta.backends import Backend, check_model_properties
-from spinta.commands import load, prepare, migrate, check, push, getone, getall, wipe, wait, authorize, dump, gen_object_id
+from spinta.commands import load, load_search_params, prepare, migrate, check, push, getone, getall, wipe, wait, authorize, dump, gen_object_id
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.types.type import Date
@@ -565,7 +565,7 @@ def getall(
 
         # for search to work on MongoDB, values must be compatible for
         # Mongo's BSON consumption, thus we need to use chained load and prepare
-        value = load(context, prop.type, qp['value'])
+        value = load_search_params(context, prop.type, qp['value'])
         value = prepare(context, prop.type, backend, value)
 
         # in case value is not a string - then just search for that value directly

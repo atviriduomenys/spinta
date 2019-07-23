@@ -21,6 +21,7 @@ def test_mongo_insert_get(app):
         'report_type': None,
         'update_time': None,
         'valid_from_date': None,
+        'operating_licenses': [],
     }
 
     # Read those objects from database.
@@ -36,6 +37,7 @@ def test_mongo_insert_get(app):
         'report_type': None,
         'update_time': None,
         'valid_from_date': None,
+        'operating_licenses': [],
     }
 
 
@@ -77,6 +79,7 @@ def test_mongo_update_get(app):
         'report_type': None,
         'update_time': None,
         'valid_from_date': None,
+        'operating_licenses': [],
     }
 
     # Read those objects from database.
@@ -92,6 +95,7 @@ def test_mongo_update_get(app):
         'report_type': None,
         'update_time': None,
         'valid_from_date': None,
+        'operating_licenses': [],
     }
 
     # Get all objects from database.
@@ -109,6 +113,7 @@ def test_mongo_update_get(app):
                 'update_time': None,
                 'valid_from_date': None,
                 'count': None,
+                'operating_licenses': [],
             },
         ]
     }

@@ -15,7 +15,8 @@ def test_report(app):
             'note': 'hello report',
             'note_type': 'test',
             'create_date': '2019-04-20',
-        }]
+        }],
+        'operating_licenses': [],
     })
     assert resp.status_code == 201
 
@@ -38,7 +39,8 @@ def test_report(app):
             'note': 'hello report',
             'note_type': 'test',
             'create_date': '2019-04-20',
-        }]
+        }],
+        'operating_licenses': [],
     }
 
 

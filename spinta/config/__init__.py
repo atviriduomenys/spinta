@@ -19,8 +19,9 @@ CONFIG = {
     'config': [],
     'commands': {
         'modules': [
-            'spinta.types',
             'spinta.backends',
+            'spinta.commands.search',
+            'spinta.types',
             'spinta.urlparams',
         ],
         'service': {
