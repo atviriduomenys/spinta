@@ -16,6 +16,14 @@ You can run the app using::
    make run
 
 
+System dependencies
+-------------------
+
+Archlinux::
+
+   sudo pacman -S --needed docker docker-compose $(pacman -Sgq base-devel)
+
+
 Diretory tree
 =============
 
