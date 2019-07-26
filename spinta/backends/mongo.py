@@ -9,18 +9,34 @@ import pymongo
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
-from spinta.backends import Backend, check_model_properties
-from spinta.commands import load, load_search_params, prepare, migrate, check, push, getone, getall, wipe, wait, authorize, dump, gen_object_id
-from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
-from spinta.config import RawConfig
-from spinta.types.type import Date
-from spinta.utils.idgen import get_new_id
-from spinta.exceptions import NotFound
 from spinta import commands
 from spinta.auth import check_scope
-from spinta.utils.changes import get_patch_changes
-from spinta.utils.response import get_request_data
+from spinta.backends import Backend, check_model_properties
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
+from spinta.config import RawConfig
+from spinta.exceptions import NotFound
 from spinta.renderer import render
+from spinta.types.type import Date
+from spinta.utils.changes import get_patch_changes
+from spinta.utils.idgen import get_new_id
+from spinta.utils.response import get_request_data
+
+from spinta.commands import (
+    authorize,
+    check,
+    dump,
+    gen_object_id,
+    getall,
+    getone,
+    load,
+    load_operator_value,
+    load_search_params,
+    migrate,
+    prepare,
+    push,
+    wait,
+    wipe,
+)
 
 
 class Mongo(Backend):
@@ -562,19 +578,17 @@ def getall(
             raise HTTPException(status_code=400, detail=f"Unknown property {qp['key']!r}.")
 
         prop = model.flatprops[qp['key']]
+        operator = qp.get('operator')
 
         # for search to work on MongoDB, values must be compatible for
         # Mongo's BSON consumption, thus we need to use chained load and prepare
-        value = load_search_params(context, prop.type, qp['value'])
-        value = prepare(context, prop.type, backend, value)
+        value = load_search_params(context, prop.type, backend, qp['value'], operator)
 
         # in case value is not a string - then just search for that value directly
         if isinstance(value, str):
             re_value = re.compile('^' + value + '$', re.IGNORECASE)
         else:
             re_value = value
-
-        operator = qp.get('operator')
 
         if operator == 'exact':
             search_expressions.append({

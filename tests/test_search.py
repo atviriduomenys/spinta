@@ -293,6 +293,13 @@ def test_search_contains(context, app):
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
+    # `contains` type check
+    resp = app.get('/reports/:contains/notes.create_date/2019-04-20')
+    assert resp.status_code == 400
+    assert resp.json() == {
+        "error": "'contains' requires string. Received value for 'notes.create_date' is '2019-04-20' of type '<class 'datetime.date'>'."
+    }
+
 
 def test_search_startswith(context, app):
     r1, r2, r3, = context.push(test_data)
@@ -329,6 +336,13 @@ def test_search_startswith(context, app):
     resp = app.get('/reports/:startswith/status/valid')
     data = resp.json()['data']
     assert len(data) == 0
+
+    # `startswith` type check
+    resp = app.get('/reports/:startswith/notes.create_date/2019-04-20')
+    assert resp.status_code == 400
+    assert resp.json() == {
+        "error": "'startswith' requires string. Received value for 'notes.create_date' is '2019-04-20' of type '<class 'datetime.date'>'."
+    }
 
 
 def test_search_nested(context, app):
