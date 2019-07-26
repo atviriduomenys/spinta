@@ -5,7 +5,7 @@ import typing
 
 from spinta.types.type import Type, DateTime, Date, Object, Array
 from spinta.components import Context, Model, Property, Action, Node
-from spinta.commands import error, prepare, dump, check, gen_object_id, is_object_id
+from spinta.commands import load_operator_value, error, prepare, dump, check, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
 from spinta.exceptions import DataError, NotFound
@@ -203,6 +203,15 @@ def prepare(
     show: typing.List[str] = None,
 ) -> dict:
     return _prepare_query_result(context, action, model, backend, value, show)
+
+
+@load_operator_value.register()
+def load_operator_value(context: Context, backend: Backend, type_: Type, value: object, *, operator: str):
+    if operator in ['startswith', 'contains'] and not isinstance(value, str):
+        raise DataError(' '.join((
+            f"'{operator}' requires string.",
+            f"Received value for '{type_.prop.place}' is '{value}' of type '{type(value)}'."
+        )))
 
 
 def _prepare_query_result(

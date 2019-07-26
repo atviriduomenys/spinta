@@ -45,6 +45,12 @@ def load_search_params():
 
 
 @command()
+def load_operator_value():
+    """Loads URL query operator value given by the user.
+    """
+
+
+@command()
 def wait():
     """Wait while all database backends are up.
 
