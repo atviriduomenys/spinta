@@ -17,7 +17,7 @@ from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
 from spinta.commands import prepare
 from spinta.config import RawConfig
-from spinta.exceptions import DataError, NotFound
+from spinta.exceptions import ConflictError, DataError, NotFound
 from spinta.urlparams import Version
 from spinta.utils.response import create_http_response
 from spinta.urlparams import get_response_type
@@ -163,6 +163,7 @@ async def homepage(request: Request):
 @app.exception_handler(DataError)
 @app.exception_handler(AuthlibHTTPError)
 @app.exception_handler(HTTPException)
+@app.exception_handler(ConflictError)
 async def http_exception(request, exc):
     global context
 
@@ -179,6 +180,9 @@ async def http_exception(request, exc):
         error = str(exc)
     elif isinstance(exc, NotFound):
         status_code = 404
+        error = str(exc)
+    elif isinstance(exc, ConflictError):
+        status_code = 409
         error = str(exc)
     else:
         status_code = 500

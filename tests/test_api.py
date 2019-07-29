@@ -91,6 +91,7 @@ def test_model(context, app):
     assert resp.status_code == 200
 
     resp.context.pop('request')
+    revision = resp.context['data'][0][-1]['value']
     assert resp.context == {
         'location': [
             ('root', '/'),
@@ -110,8 +111,7 @@ def test_model(context, app):
                 {'color': None, 'link': '/country/%s' % row['id'], 'value': row['id'][:8]},
                 {'color': None, 'link': None, 'value': 'Earth'},
                 {'color': None, 'link': None, 'value': 'er'},
-                # FIXME: revision should not be None
-                {'color': '#C1C1C1', 'link': None, 'value': ''},
+                {'color': None, 'link': None, 'value': revision},
             ],
         ],
         'row': [],
@@ -138,6 +138,7 @@ def test_model_get(context, app):
     assert resp.status_code == 200
 
     resp.context.pop('request')
+    revision = resp.context['row'][-1][1]['value']
     assert resp.context == {
         'location': [
             ('root', '/'),
@@ -159,8 +160,7 @@ def test_model_get(context, app):
             ('title', {'color': None, 'link': None, 'value': 'Earth'}),
             ('code', {'color': None, 'link': None, 'value': 'er'}),
             ('type', {'color': None, 'link': None, 'value': 'country'}),
-            # FIXME: revision should not be None
-            ('revision', {'color': '#C1C1C1', 'link': None, 'value': ''}),
+            ('revision', {'color': None, 'link': None, 'value': revision}),
         ],
         'formats': [
             ('CSV', '/country/%s/:format/csv' % row['id']),
@@ -557,13 +557,14 @@ def test_post(context, app):
     assert resp.status_code == 201
     data = resp.json()
     id_ = data['id']
+    revision = data['revision']
     assert uuid.UUID(id_).version == 4
     assert data == {
         'id': id_,
         'type': 'country',
         'code': 'er',
         'title': 'Earth',
-        'revision': None,
+        'revision': revision,
     }
 
     resp = app.get(f'/country/{id_}')
@@ -573,7 +574,7 @@ def test_post(context, app):
         'id': id_,
         'code': 'er',
         'title': 'Earth',
-        'revision': None,
+        'revision': revision,
     }
 
 

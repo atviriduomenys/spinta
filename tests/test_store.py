@@ -26,23 +26,27 @@ def test_schema_loader(context, app):
 
     app.authorize(['spinta_getone'])
 
-    assert app.get(f'/org/{org["id"]}').json() == {
+    resp = app.get(f'/org/{org["id"]}')
+    data = resp.json()
+    revision = data['revision']
+    assert data == {
         'id': org['id'],
         'govid': '0042',
         'title': 'My Org',
         'country': country['id'],
         'type': 'org',
-        # FIXME: revision should not be None.
-        'revision': None,
+        'revision': revision,
     }
 
-    assert app.get(f'/country/{country["id"]}').json() == {
+    resp = app.get(f'/country/{country["id"]}')
+    data = resp.json()
+    revision = data['revision']
+    assert data == {
         'id': country['id'],
         'code': 'lt',
         'title': 'Lithuania',
         'type': 'country',
-        # FIXME: revision should not be None.
-        'revision': None,
+        'revision': revision,
     }
 
 
@@ -56,11 +60,12 @@ def test_nested(app):
     assert resp.status_code == 201
     data = resp.json()
     id_ = data['id']
+    revision = data['revision']
 
     assert app.get(f'/nested/{id_}').json() == {
         'type': 'nested',
         'id': id_,
         # TODO: add nested structure support for PostgreSQL
         'some': [],
-        'revision': None,
+        'revision': revision,
     }
