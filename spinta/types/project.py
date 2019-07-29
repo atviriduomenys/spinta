@@ -12,6 +12,7 @@ class Project(Node):
         'impact': {'type': 'array', 'default': []},
         'url': {'type': 'url'},
         'source_code': {'type': 'url'},
+        'website': {'type': 'url'},
         'owner': {'type': 'string'},
         'dataset': {'type': 'string'},
     }

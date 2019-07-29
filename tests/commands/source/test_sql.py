@@ -3,8 +3,6 @@ import collections
 import pytest
 import sqlalchemy as sa
 
-from spinta.utils.itertools import consume
-
 SQL = collections.namedtuple('SQL', ('engine', 'schema'))
 
 

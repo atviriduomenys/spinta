@@ -36,8 +36,8 @@ resources:
             source: country
           continent:
             type: ref
+            object: continent
             source: continent
-            ref: continent
             dependency: true
           country_id:
             type: string
@@ -57,6 +57,6 @@ resources:
             source: capital
           country:
             type: ref
+            object: country
             source: country
-            ref: country
             dependency: true

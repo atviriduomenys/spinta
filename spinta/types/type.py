@@ -109,7 +109,7 @@ class BackRef(Type):
 
 class Generic(Type):
     schema = {
-        'model': {'type': 'string'},
+        'object': {'type': 'string'},
         'enum': {'type': 'array'},
     }
 
