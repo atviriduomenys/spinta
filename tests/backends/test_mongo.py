@@ -145,6 +145,68 @@ def test_delete(context, app):
     assert ids[1] in data
 
 
+def test_patch(app, context):
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_report_getone',
+        'spinta_report_patch',
+    ])
+
+    report_data = app.post('/report', json={
+            'type': 'report',
+            'status': '1',
+    }).json()
+    revision = report_data['revision']
+    id_ = report_data['id']
+
+    resp = app.patch(f'/report/{id_}',
+                     json={'status': '42'})
+    assert resp.status_code == 400
+    assert resp.json() == {'error': "'revision' must be given on rewrite operation."}
+
+    # test that revision mismatch is checked
+    resp = app.patch(f'/report/{id_}',
+                     json={'revision': 'r3v1510n', 'status': '42'})
+    assert resp.status_code == 409
+    assert resp.json() == {
+        'error': f"Given 'revision' value must match database. Given value: 'r3v1510n', existing value: '{revision}'."
+    }
+
+    # test that type mismatch is checked
+    resp = app.patch(f'/report/{id_}',
+                     json={'type': 'country', 'revision': revision, 'status': '42'})
+    assert resp.status_code == 409
+    assert resp.json() == {
+        'error': f"Given 'type' value must match database. Given value: 'country', existing value: 'report'."
+    }
+
+    # test that id mismatch is checked
+    resp = app.patch(f'/report/{id_}',
+                     json={'id': '1d3nt1ty', 'revision': revision, 'status': '42'})
+    assert resp.status_code == 409
+    assert resp.json() == {
+        'error': f"Given 'id' value must match database. Given value: '1d3nt1ty', existing value: '{id_}'."
+    }
+
+    # test that protected fields (id, type, revision) are accepted, but not PATCHED
+    resp = app.patch(f'/report/{id_}',
+                     json={
+                         'id': id_,
+                         'type': 'report',
+                         'revision': revision,
+                         'status': '42',
+                     })
+    assert resp.status_code == 200
+    resp_data = resp.json()
+
+    assert resp_data['id'] == id_
+    assert resp_data['type'] == 'report'
+    # new status patched
+    assert resp_data['status'] == '42'
+    # new revision created regardless of PATCH'ed JSON
+    assert resp_data['revision'] != revision
+
+
 def test_escaping_chars(app):
     app.authorize([
         'spinta_report_insert',

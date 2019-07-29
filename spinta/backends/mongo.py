@@ -29,7 +29,6 @@ from spinta.commands import (
     getall,
     getone,
     load,
-    load_operator_value,
     load_search_params,
     migrate,
     prepare,
@@ -107,8 +106,8 @@ def migrate(context: Context, backend: Mongo):
 
 
 @check.register()
-def check(context: Context, model: Model, backend: Mongo, data: dict, *, action: Action):
-    check_model_properties(context, model, backend, data, action)
+def check(context: Context, model: Model, backend: Mongo, data: dict, *, action: Action, id_: str):
+    check_model_properties(context, model, backend, data, action, id_)
 
 
 @push.register()
@@ -128,7 +127,7 @@ async def push(
     else:
         data = await get_request_data(request)
         data = load(context, model, data)
-        check(context, model, backend, data, action=action)
+        check(context, model, backend, data, action=action, id_=params.id)
         data = prepare(context, model, data, action=action)
 
     transaction = context.get('transaction')  # noqa
@@ -274,6 +273,10 @@ def _patch(table, id_, row, data):
     if not changes:
         # Nothing to update.
         return None
+
+    # sanity check that we are not PATCH'ing `id` and `type` fields
+    assert changes.get('id') is None
+    assert changes.get('type') is None
 
     result = table.update_one(
         {'id': id_},

@@ -15,19 +15,19 @@ from sqlalchemy.sql.expression import FunctionElement
 from starlette.requests import Request
 from starlette.exceptions import HTTPException
 
+from spinta import commands
+from spinta.auth import check_scope
 from spinta.backends import Backend, check_model_properties, check_type_value
 from spinta.commands import wait, load, prepare, migrate, check, push, getone, getall, wipe, authorize, dump, gen_object_id
+from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
-from spinta.common import NA
-from spinta.types.type import Type, File, PrimaryKey, Ref
 from spinta.exceptions import FoundMultiple, NotFound
-from spinta.utils.response import get_request_data
-from spinta.auth import check_scope
-from spinta import commands
 from spinta.renderer import render
-from spinta.utils.idgen import get_new_id
+from spinta.types.type import Type, File, PrimaryKey, Ref
 from spinta.utils.changes import get_patch_changes
+from spinta.utils.idgen import get_new_id
+from spinta.utils.response import get_request_data
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -275,8 +275,8 @@ def migrate(context: Context, backend: PostgreSQL):
 
 
 @check.register()
-def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action):
-    check_model_properties(context, model, backend, data, action)
+def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action, id_: str):
+    check_model_properties(context, model, backend, data, action, id_)
 
 
 @check.register()
@@ -323,7 +323,7 @@ async def push(
     else:
         data = await get_request_data(request)
         data = load(context, model, data)
-        check(context, model, backend, data, action=action)
+        check(context, model, backend, data, action=action, id_=params.id)
         data = prepare(context, model, data, action=action)
         data = {
             k: v
@@ -338,8 +338,6 @@ async def push(
         data['id'] = commands.upsert(context, model, backend, data=data)
 
     elif action == Action.UPDATE:
-        # FIXME: check if revision given in `data` matches the revision in database
-        # related to SPLAT-60
         commands.update(context, model, backend, id_=params.id, data=data)
         data['id'] = params.id
 
@@ -386,6 +384,9 @@ def insert(
 
     if not data.get('id'):
         data['id'] = gen_object_id(context, backend, model)
+
+    # FIXME: before creating revision check if there's no collision clash
+    data['revision'] = get_new_id('revision id')
 
     connection.execute(
         table.main.insert().values(data),
@@ -445,6 +446,8 @@ def upsert(
 
         id_ = row[table.main.c.id]
 
+        # FIXME: before creating revision check if there's no collision clash
+        data['revision'] = get_new_id('revision id')
         data = _patch(transaction, connection, table, id_, row, data)
 
         if data is None:
@@ -517,7 +520,7 @@ def patch(
 
     row = backend.get(
         connection,
-        [table.main.c.data, table.main.c.transaction_id],
+        [table.main],
         table.main.c.id == id_,
         default=None,
     )
@@ -525,6 +528,8 @@ def patch(
         type_ = model.get_type_value()
         raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
 
+    # FIXME: before creating revision check if there's no collision clash
+    data['revision'] = get_new_id('revision id')
     data = _patch(transaction, connection, table, id_, row, data)
 
     if data is None:
@@ -535,7 +540,7 @@ def patch(
     connection.execute(
         table.changes.insert().values(
             transaction_id=transaction.id,
-            id=data['id'],
+            id=id_,
             datetime=utcnow(),
             action=Action.PATCH.value,
             change=_fix_data_for_json(data),

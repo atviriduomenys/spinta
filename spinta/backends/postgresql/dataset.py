@@ -45,8 +45,8 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 
 
 @check.register()
-def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action):
-    check_model_properties(context, model, backend, data, action)
+def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action, id_: str):
+    check_model_properties(context, model, backend, data, action, id_)
 
 
 @push.register()
@@ -63,7 +63,7 @@ async def push(
 
     data = await get_request_data(request)
     data = commands.load(context, model, data)
-    check(context, model, backend, data, action=action)
+    check(context, model, backend, data, action=action, id_=params.id)
     data = prepare(context, model, data, action=action)
 
     if action == Action.INSERT:

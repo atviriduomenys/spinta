@@ -35,8 +35,7 @@ def test_crud(app):
     assert resp.json() == {
         'type': 'photo',
         'id': id_,
-        # FIXME: revision should not be None.
-        'revision': None,
+        'revision': resp.json()['revision'],
         'name': 'myphoto',
     }
 
@@ -68,8 +67,7 @@ def test_crud(app):
     assert resp.json() == {
         'id': id_,
         'name': 'myphoto',
-        # FIXME: revision should not be None.
-        'revision': None,
+        'revision': resp.json()['revision'],
         'type': 'photo',
     }
 

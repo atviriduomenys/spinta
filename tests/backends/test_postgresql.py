@@ -2,7 +2,6 @@ import sqlalchemy as sa
 
 from unittest.mock import MagicMock
 
-from spinta.utils.itertools import consume
 from spinta.backends.postgresql import get_table_name
 
 
@@ -29,16 +28,17 @@ def test_changes(context):
     with backend.transaction() as transaction:
         c = transaction.connection
         assert len(c.execute(sa.select([txn.c.id])).fetchall()) == 3
-        assert list(map(dict, c.execute(
+        result = list(map(dict, c.execute(
             sa.select([
                 changes.c.id,
                 changes.c.action,
                 changes.c.change,
             ]).order_by(changes.c.transaction_id)
-        ).fetchall())) == [
-            {'id': data['id'], 'action': 'insert', 'change': {'code': 'lt', 'title': 'Lithuania'}},
-            {'id': data['id'], 'action': 'patch', 'change': {'title': 'Lietuva'}},
-            {'id': data['id'], 'action': 'patch', 'change': {'code': 'lv', 'title': 'Latvia'}},
+        ).fetchall()))
+        assert result == [
+            {'id': data['id'], 'action': 'insert', 'change': {'code': 'lt', 'revision': result[0]['change']['revision'], 'title': 'Lithuania'}},
+            {'id': data['id'], 'action': 'patch', 'change': {'revision': result[1]['change']['revision'], 'title': 'Lietuva'}},
+            {'id': data['id'], 'action': 'patch', 'change': {'code': 'lv', 'revision': result[2]['change']['revision'], 'title': 'Latvia'}},
         ]
 
 
@@ -104,3 +104,68 @@ def test_delete(context, app):
     data = [x['id'] for x in resp['data']]
     assert ids[0] not in data
     assert ids[1] in data
+
+
+def test_patch(app, context):
+    app.authorize([
+        'spinta_country_insert',
+        'spinta_country_getone',
+        'spinta_org_insert',
+        'spinta_org_getone',
+        'spinta_org_patch',
+    ])
+
+    country_data = app.post('/country', json={
+        'type': 'country',
+        'code': 'lt',
+        'title': 'Lithuania',
+    }).json()
+    org_data = app.post('/org', json={
+            'type': 'org',
+            'title': 'My Org',
+            'govid': '0042',
+            'country': country_data['id'],
+    }).json()
+    revision = org_data['revision']
+    id_ = org_data['id']
+
+    resp = app.patch(f'/org/{org_data["id"]}',
+                     json={'title': 'foo org'})
+    assert resp.status_code == 400
+    assert resp.json() == {'error': "'revision' must be given on rewrite operation."}
+
+    # test that revision mismatch is checked
+    resp = app.patch(f'/org/{org_data["id"]}',
+                     json={'revision': 'r3v1510n', 'title': 'foo org'})
+    assert resp.status_code == 409
+    assert resp.json() == {'error': f"Given 'revision' value must match database. Given value: 'r3v1510n', existing value: '{revision}'."}
+
+    # test that type mismatch is checked
+    resp = app.patch(f'/org/{org_data["id"]}',
+                     json={'type': 'country', 'revision': org_data["revision"], 'title': 'foo org'})
+    assert resp.status_code == 409
+    assert resp.json() == {'error': f"Given 'type' value must match database. Given value: 'country', existing value: 'org'."}
+
+    # test that id mismatch is checked
+    resp = app.patch(f'/org/{org_data["id"]}',
+                     json={'id': '1d3nt1ty', 'revision': org_data["revision"], 'title': 'foo org'})
+    assert resp.status_code == 409
+    assert resp.json() == {'error': f"Given 'id' value must match database. Given value: '1d3nt1ty', existing value: '{id_}'."}
+
+    # test that protected fields (id, type, revision) are accepted, but not PATCHED
+    resp = app.patch(f'/org/{org_data["id"]}',
+                     json={
+                         'id': org_data["id"],
+                         'type': 'org',
+                         'revision': org_data["revision"],
+                         'title': 'foo org',
+                     })
+    assert resp.status_code == 200
+    resp_data = resp.json()
+
+    assert resp_data['id'] == id_
+    assert resp_data['type'] == 'org'
+    # new title patched
+    assert resp_data['title'] == 'foo org'
+    # new revision created regardless of PATCH'ed JSON
+    assert resp_data['revision'] != revision

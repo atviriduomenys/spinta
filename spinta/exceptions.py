@@ -8,3 +8,7 @@ class FoundMultiple(Exception):
 
 class DataError(Exception):
     pass
+
+
+class ConflictError(Exception):
+    pass

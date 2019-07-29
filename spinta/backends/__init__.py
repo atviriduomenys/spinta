@@ -5,10 +5,10 @@ import typing
 
 from spinta.types.type import Type, DateTime, Date, Object, Array
 from spinta.components import Context, Model, Property, Action, Node
-from spinta.commands import load_operator_value, error, prepare, dump, check, gen_object_id, is_object_id
+from spinta.commands import load_operator_value, error, prepare, dump, check, getone, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
-from spinta.exceptions import DataError, NotFound
+from spinta.exceptions import ConflictError, DataError, NotFound
 from spinta.utils.nestedstruct import build_show_tree
 
 
@@ -122,9 +122,23 @@ def check(context: Context, type: Type, prop: dataset.Property, backend: Backend
     check_type_value(type, value)
 
 
-def check_model_properties(context: Context, model: Model, backend, data: dict, action: Action):
-    if action == Action.UPDATE and 'revision' not in data:
-        raise DataError(f"'revision' must be given on update action.")
+def check_model_properties(context: Context, model: Model, backend, data: dict, action: Action, id: str):
+    REWRITE = [Action.UPDATE, Action.PATCH, Action.DELETE]
+
+    if action in REWRITE and 'revision' not in data:
+        raise DataError(f"'revision' must be given on rewrite operation.")
+
+    if action in REWRITE:
+        # FIXME: try to put query somewhere higher in the request handling stack.
+        # We do not want to hide expensive queries or call same thing multiple times.
+        row = getone(context, model, backend, id_=id)
+
+        for k in ['id', 'type', 'revision']:
+            if data.get(k) and row[k] != data[k]:
+                raise ConflictError(' '.join((
+                    f"Given '{k}' value must match database.",
+                    f"Given value: '{data[k]}', existing value: '{row[k]}'."
+                )))
 
     for name, prop in model.properties.items():
         # For datasets, property type is optional.
