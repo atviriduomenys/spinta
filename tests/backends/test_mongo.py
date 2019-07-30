@@ -156,13 +156,13 @@ def test_patch(app, context):
             'type': 'report',
             'status': '1',
     }).json()
-    revision = report_data['revision']
     id_ = report_data['id']
 
     resp = app.patch(f'/report/{id_}',
                      json={'status': '42'})
-    assert resp.status_code == 400
-    assert resp.json() == {'error': "'revision' must be given on rewrite operation."}
+    assert resp.status_code == 200
+    assert resp.json()['status'] == '42'
+    revision = resp.json()['revision']
 
     # test that revision mismatch is checked
     resp = app.patch(f'/report/{id_}',

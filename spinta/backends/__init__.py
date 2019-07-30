@@ -123,11 +123,10 @@ def check(context: Context, type: Type, prop: dataset.Property, backend: Backend
 
 
 def check_model_properties(context: Context, model: Model, backend, data: dict, action: Action, id: str):
-    REWRITE = [Action.UPDATE, Action.PATCH, Action.DELETE]
-
-    if action in REWRITE and 'revision' not in data:
+    if action in [Action.UPDATE, Action.DELETE] and 'revision' not in data:
         raise DataError(f"'revision' must be given on rewrite operation.")
 
+    REWRITE = [Action.UPDATE, Action.PATCH, Action.DELETE]
     if action in REWRITE:
         # FIXME: try to put query somewhere higher in the request handling stack.
         # We do not want to hide expensive queries or call same thing multiple times.
