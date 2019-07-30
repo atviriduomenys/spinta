@@ -126,13 +126,13 @@ def test_patch(app, context):
             'govid': '0042',
             'country': country_data['id'],
     }).json()
-    revision = org_data['revision']
     id_ = org_data['id']
 
     resp = app.patch(f'/org/{org_data["id"]}',
                      json={'title': 'foo org'})
-    assert resp.status_code == 400
-    assert resp.json() == {'error': "'revision' must be given on rewrite operation."}
+    assert resp.status_code == 200
+    assert resp.json()['title'] == 'foo org'
+    revision = resp.json()['revision']
 
     # test that revision mismatch is checked
     resp = app.patch(f'/org/{org_data["id"]}',
@@ -155,9 +155,9 @@ def test_patch(app, context):
     # test that protected fields (id, type, revision) are accepted, but not PATCHED
     resp = app.patch(f'/org/{org_data["id"]}',
                      json={
-                         'id': org_data["id"],
+                         'id': id_,
                          'type': 'org',
-                         'revision': org_data["revision"],
+                         'revision': revision,
                          'title': 'foo org',
                      })
     assert resp.status_code == 200
