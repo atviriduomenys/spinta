@@ -299,7 +299,9 @@ def delete(
     id_: str,
 ):
     table = backend.db[model.get_type_value()]
-    table.delete_one({'id': id_})
+    result = table.delete_one({'id': id_})
+    if result.deleted_count == 0:
+        raise NotFound(f"Resource with id {id_} is not found.")
 
 
 @push.register()

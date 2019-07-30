@@ -37,13 +37,8 @@ properties:
           items:
             type: string
 
-  # FIXME: hide subresources before they are implemented
-  #
-  # pdf: {
-  #     type: object,
-  #     hidden: true,
-  #     properties: {
-  #         body: {type: file},
-  #         content_type: {type: string}
-  #     }
-  # }
+  pdf: {
+      type: file,
+      backend: fs,
+      hidden: true,
+  }

@@ -1,3 +1,6 @@
+import pathlib
+
+
 def test_mongo_insert_get(app):
     app.authorize([
         'spinta_report_insert',
@@ -134,17 +137,32 @@ def test_put_non_existant_resource(app):
     }
 
 
-def test_delete(context, app):
+def test_delete(context, app, tmpdir):
     result = context.push([
         {'type': 'report', 'status': '1'},
         {'type': 'report', 'status': '2'},
     ])
     ids = [x['id'] for x in result]
 
+    # FIXME: `spinta_report_pdf_delete` gives access to:
+    # DELETE /report/ID/pdf
+    # DELETE /report/pdf/ID
     app.authorize([
         'spinta_report_getall',
         'spinta_report_delete',
+        'spinta_report_pdf_delete',
+        'spinta_report_pdf_update',
+        'spinta_report_pdf_getone',
     ])
+
+    pdf = pathlib.Path(tmpdir) / 'report.pdf'
+    pdf.write_bytes(b'REPORTDATA')
+
+    resp = app.put(f'/reports/{ids[0]}/pdf:ref', json={
+        'content_type': 'application/pdf',
+        'filename': str(pdf),
+    })
+    assert resp.status_code == 200
 
     resp = app.get('/report').json()
     data = [x['id'] for x in resp['data']]
@@ -153,6 +171,29 @@ def test_delete(context, app):
 
     resp = app.delete(f'/report/{ids[0]}')
     assert resp.status_code == 204
+
+    # multiple deletes should just return HTTP/404
+    resp = app.delete(f'/report/{ids[0]}')
+    assert resp.status_code == 404
+    assert resp.json() == {
+        'error': f"Resource with id {ids[0]} is not found."
+    }
+
+    # subresourses should be deleted
+    resp = app.delete(f'/report/{ids[0]}/pdf')
+    assert resp.status_code == 404
+    assert resp.json() == {
+        'error': f"Object 'report' with id {ids[0]!r} not found."
+    }
+
+    # subresourses should be deleted
+    resp = app.get(f'/report/{ids[0]}/pdf')
+    assert resp.status_code == 404
+    assert resp.json() == {
+        'error': f"Object 'report' with id {ids[0]!r} not found."
+    }
+    # FIXME: https://jira.tilaajavastuu.fi/browse/SPLAT-131
+    # assert pdf.is_file() is False
 
     resp = app.get('/report').json()
     data = [x['id'] for x in resp['data']]

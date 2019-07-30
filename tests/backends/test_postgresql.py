@@ -100,6 +100,13 @@ def test_delete(context, app):
     resp = app.delete(f'/country/{ids[0]}')
     assert resp.status_code == 204
 
+    # multiple deletes should just return HTTP/404
+    resp = app.delete(f'/country/{ids[0]}')
+    assert resp.status_code == 404
+    assert resp.json() == {
+        'error': f"Resource with id {ids[0]} is not found."
+    }
+
     resp = app.get('/country').json()
     data = [x['id'] for x in resp['data']]
     assert ids[0] not in data
