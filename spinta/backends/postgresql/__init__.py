@@ -587,10 +587,12 @@ def delete(
     connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
 
-    connection.execute(
+    res = connection.execute(
         table.main.delete().
         where(table.main.c.id == id_)
     )
+    if res.rowcount == 0:
+        raise NotFound(f"Resource with id {id_} is not found.")
 
     # Track changes.
     connection.execute(
