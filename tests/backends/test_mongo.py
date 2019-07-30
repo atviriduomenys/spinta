@@ -119,6 +119,21 @@ def test_mongo_update_get(app):
     }
 
 
+def test_put_non_existant_resource(app):
+    resp = app.get('/reports/4e67-256f9a7388f88ccc502570f434f289e8-057553c2')
+    assert resp.status_code == 404
+    assert resp.json() == {
+        'error': "Model or collection 'reports/4e67-256f9a7388f88ccc502570f434f289e8-057553c2' not found."
+    }
+
+    resp = app.put('/reports/4e67-256f9a7388f88ccc502570f434f289e8-057553c2',
+                   json={})
+    assert resp.status_code == 404
+    assert resp.json() == {
+        'error': "Model or collection 'reports/4e67-256f9a7388f88ccc502570f434f289e8-057553c2' not found."
+    }
+
+
 def test_delete(context, app):
     result = context.push([
         {'type': 'report', 'status': '1'},
