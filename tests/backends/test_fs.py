@@ -25,7 +25,7 @@ def test_crud(app):
     resp = app.put(f'/photos/{id_}/image', data=b'BINARYDATA', headers={
         'content-type': 'image/png',
         # TODO: with content-disposition header it is possible to specify file
-        #       name dierectly, but there should be option, to use model id as a
+        #       name directly, but there should be option, to use model id as a
         #       file name, but that is currently not implemented.
         'content-disposition': 'attachment; filename="myimg.png"',
     })
