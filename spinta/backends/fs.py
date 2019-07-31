@@ -83,6 +83,8 @@ async def push(
 ):
     authorize(context, action, prop)
 
+    data = getone(context, prop, prop.model.backend, id_=params.id)
+
     content_type = None
     filename = None
 
@@ -93,7 +95,6 @@ async def push(
         filename = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
 
     if content_type is None or filename is None:
-        data = getone(context, prop, prop.model.backend, id_=params.id)
         data = data or {}
         data.setdefault('content_type', None)
         data.setdefault('filename', None)
