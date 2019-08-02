@@ -228,6 +228,13 @@ def test_patch(app, context):
         'error': f"Given 'revision' value must match database. Given value: 'r3v1510n', existing value: '{revision}'."
     }
 
+    resp = app.patch(f'/report/{id_}',
+                     json={'revision': '', 'status': '42'})
+    assert resp.status_code == 409
+    assert resp.json() == {
+        'error': f"Given 'revision' value must match database. Given value: '', existing value: '{revision}'."
+    }
+
     # test that type mismatch is checked
     resp = app.patch(f'/report/{id_}',
                      json={'type': 'country', 'revision': revision, 'status': '42'})
