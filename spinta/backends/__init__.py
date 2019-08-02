@@ -133,10 +133,10 @@ def check_model_properties(context: Context, model: Model, backend, data: dict, 
         row = getone(context, model, backend, id_=id)
 
         for k in ['id', 'type', 'revision']:
-            if data.get(k) and row[k] != data[k]:
+            if data.get(k) is not None and row[k] != data[k]:
                 raise ConflictError(' '.join((
-                    f"Given '{k}' value must match database.",
-                    f"Given value: '{data[k]}', existing value: '{row[k]}'."
+                    f"Given {k!r} value must match database.",
+                    f"Given value: {data[k]!r}, existing value: {row[k]!r}."
                 )))
 
     for name, prop in model.properties.items():
