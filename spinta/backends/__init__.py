@@ -8,6 +8,7 @@ from spinta.components import Context, Model, Property, Action, Node
 from spinta.commands import load_operator_value, error, prepare, dump, check, getone, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
+from spinta.types.type import String
 from spinta.exceptions import ConflictError, DataError, NotFound
 from spinta.utils.nestedstruct import build_show_tree
 
@@ -222,9 +223,14 @@ def prepare(
 def load_operator_value(context: Context, backend: Backend, type_: Type, value: object, *, operator: str):
     if operator in ['startswith', 'contains'] and not isinstance(value, str):
         raise DataError(' '.join((
-            f"'{operator}' requires string.",
-            f"Received value for '{type_.prop.place}' is '{value}' of type '{type(value)}'."
+            f"Operator '{operator}' requires string.",
+            f"Received value for '{type_.prop.place}' is of type '{type(value)}'."
         )))
+
+    if operator in ['gt', 'gte', 'lt', 'lte'] and isinstance(type_, String):
+        raise DataError(
+            f"Operator {operator!r} received value for {type_.prop.place!r} of type {type_.name!r}."
+        )
 
 
 def _prepare_query_result(
