@@ -29,5 +29,5 @@ def load_search_params(
     # i.e. we search a string inside an array, thus we must load string
     # type_ and not the array type.
     value = load(context, type_.items.type, value)
-    load_operator_value(context, backend, type_, value, operator=operator)
+    load_operator_value(context, backend, type_.items.type, value, operator=operator)
     return prepare(context, type_, backend, value)

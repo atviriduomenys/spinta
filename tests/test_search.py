@@ -101,6 +101,13 @@ def test_search_gt(context, app):
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
+    # search for string value
+    resp = app.get('/reports/:gt/status/ok')
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "Operator 'gt' received value for 'status' of type 'string'."
+    }
+
     # multi field search
     # test if operators are joined with AND logic
     resp = app.get('/reports/:gt/count/40/:gt/count/10')
@@ -131,6 +138,13 @@ def test_search_gte(context, app):
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
+
+    # search for string value
+    resp = app.get('/reports/:gte/status/ok')
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "Operator 'gte' received value for 'status' of type 'string'."
+    }
 
     # multi field search
     # test if operators are joined with AND logic
@@ -164,6 +178,13 @@ def test_search_lt(context, app):
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
+    # search for string value
+    resp = app.get('/reports/:lt/status/ok')
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "Operator 'lt' received value for 'status' of type 'string'."
+    }
+
     # multi field search
     # test if operators are joined with AND logic
     resp = app.get('/reports/:lt/count/20/:gt/count/10')
@@ -194,6 +215,13 @@ def test_search_lte(context, app):
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
+
+    # search for string value
+    resp = app.get('/reports/:lte/status/ok')
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "Operator 'lte' received value for 'status' of type 'string'."
+    }
 
     # multi field search
     # test if operators are joined with AND logic
@@ -297,7 +325,7 @@ def test_search_contains(context, app):
     resp = app.get('/reports/:contains/notes.create_date/2019-04-20')
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "'contains' requires string. Received value for 'notes.create_date' is '2019-04-20' of type '<class 'datetime.date'>'."
+        "error": "Operator 'contains' requires string. Received value for 'notes.create_date' is of type '<class 'datetime.date'>'."
     }
 
 
@@ -341,7 +369,7 @@ def test_search_startswith(context, app):
     resp = app.get('/reports/:startswith/notes.create_date/2019-04-20')
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "'startswith' requires string. Received value for 'notes.create_date' is '2019-04-20' of type '<class 'datetime.date'>'."
+        "error": "Operator 'startswith' requires string. Received value for 'notes.create_date' is of type '<class 'datetime.date'>'."
     }
 
 
