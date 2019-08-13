@@ -611,7 +611,7 @@ def test_post_id(context, app):
         'code': 'er',
     })
     assert resp.status_code == 403
-    assert resp.json() == {"error": "insufficient_scope"}
+    assert resp.json() == {"error": "insufficient_scope: Missing scope: spinta_set_meta_fields"}
 
 
 def test_post_update(context, app):
@@ -639,7 +639,7 @@ def test_post_revision(context, app):
         'code': 'er',
     })
     assert resp.status_code == 400
-    assert resp.json() == {"error": "cannot create 'revision'"}
+    assert resp.json() == {"error": "Client cannot create 'revision'. It is set automatically"}
 
 
 @pytest.mark.skip('TODO')
@@ -669,7 +669,7 @@ def test_post_duplicate_id(context, app):
         'code': 'er',
     })
     assert resp.status_code == 400
-    assert resp.json() == {"error": "cannot create duplicate 'id'"}
+    assert resp.json() == {"error": "Client cannot create 'revision'. It is set automatically"}
 
 
 def test_post_non_json_content_type(context, app):
@@ -693,6 +693,16 @@ def test_post_bad_auth_header(context, app):
     })
     assert resp.status_code == 401
     assert resp.json() == {'error': 'unsupported_token_type'}
+
+
+def test_post_missing_auth_header(config, context, app):
+    context.load({'default_auth_client': None})
+    resp = app.post('/country', json={
+        'title': 'Earth',
+        'code': 'er',
+    })
+    assert resp.status_code == 401
+    assert resp.json() == {'error': 'missing_authorization: Missing "Authorization" in headers.'}
 
 
 def test_streaming_response(context, app):

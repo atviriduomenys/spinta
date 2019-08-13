@@ -7,7 +7,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine.result import RowProxy
 
 from starlette.requests import Request
-from starlette.exceptions import HTTPException
 
 from spinta.commands import prepare, check, push, getone, getall, changes, wipe, authorize, is_object_id
 from spinta.components import Context, Action, UrlParams
@@ -21,7 +20,7 @@ from spinta.backends.postgresql import MAIN_TABLE, CHANGES_TABLE
 from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
-from spinta.exceptions import NotFound
+from spinta.exceptions import NotFound, RevisionException
 from spinta.utils.response import get_request_data
 from spinta.utils.idgen import get_new_id
 from spinta.utils.changes import get_patch_changes
@@ -108,7 +107,7 @@ def insert(
         id_ = commands.gen_object_id(context, backend, model)
 
     if 'revision' in data.keys():
-        raise HTTPException(status_code=400, detail="cannot create 'revision'")
+        raise RevisionException()
     data['revision'] = get_new_id('revision id')
 
     connection.execute(
@@ -167,7 +166,7 @@ def upsert(
             id_ = commands.gen_object_id(context, backend, model)
 
         if 'revision' in data.keys():
-            raise HTTPException(status_code=400, detail="cannot create 'revision'")
+            raise RevisionException()
         data['revision'] = get_new_id('revision id')
 
         data = _fix_data_for_json(data)

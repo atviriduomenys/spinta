@@ -125,8 +125,9 @@ class Token(rfc6749.TokenMixin):
             scope = {scope}
         if self._validator.scope_insufficient(self, scope, operator):
             client_id = self._token['aud']
-            log.error(f"client {client_id!r} is missing required scope: %s", ', '.join(sorted(scope)))
-            raise InsufficientScopeError()
+            missing_scopes = ', '.join(sorted(scope))
+            log.error(f"client {client_id!r} is missing required scope: %s", missing_scopes)
+            raise InsufficientScopeError(description=f"Missing scope: {missing_scopes}")
 
     def get_expires_at(self):
         return self._token['exp']

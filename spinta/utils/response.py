@@ -101,5 +101,8 @@ def get_prop_from_params(model, params):
         prop = prop[:-len(':ref')]
 
     if prop not in model.properties:
-        raise HTTPException(status_code=404, detail=f"Unknown property {prop}.")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Resource {model.name!r} does not have property {prop!r}."
+        )
     return model.properties[prop], ref

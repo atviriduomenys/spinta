@@ -22,7 +22,7 @@ from spinta.commands import wait, load, prepare, migrate, check, push, getone, g
 from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
-from spinta.exceptions import FoundMultiple, NotFound
+from spinta.exceptions import FoundMultiple, NotFound, RevisionException
 from spinta.renderer import render
 from spinta.types.type import Type, File, PrimaryKey, Ref
 from spinta.utils.changes import get_patch_changes
@@ -380,7 +380,7 @@ def insert(
         check_scope(context, 'set_meta_fields')
 
     if 'revision' in data:
-        raise HTTPException(status_code=400, detail="cannot create 'revision'")
+        raise RevisionException()
 
     if not data.get('id'):
         data['id'] = gen_object_id(context, backend, model)
@@ -434,7 +434,7 @@ def upsert(
             data['id'] = gen_object_id(context, backend, model)
 
         if 'revision' in data.keys():
-            raise HTTPException(status_code=400, detail="cannot create 'revision'")
+            raise RevisionException()
         data['revision'] = get_new_id('revision id')
 
         connection.execute(

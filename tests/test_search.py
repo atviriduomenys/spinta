@@ -75,7 +75,10 @@ def test_search_exact(context, app):
 
     # single non-existing field search
     resp = app.get('/reports/:exact/state/o')
-    assert resp.json()['error'] == "Unknown property 'state'."
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "Resource 'report' does not contain field 'state'."
+    }
 
     # multple field search
     resp = app.get('/reports/:exact/status/invalid/:exact/report_type/stv')
@@ -398,7 +401,10 @@ def test_search_nested(context, app):
 
     # nested non existant field
     resp = app.get('/reports/:exact/notes.foo.bar/baz')
-    assert resp.json()['error'] == "Unknown property 'notes.foo.bar'."
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "Resource 'report' does not contain field 'notes.foo.bar'."
+    }
 
     # nested `contains` search
     resp = app.get('/reports/:contains/notes.note/bar')

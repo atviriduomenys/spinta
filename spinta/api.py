@@ -174,10 +174,18 @@ async def http_exception(request, exc):
         error = exc.detail
     elif isinstance(exc, AuthlibHTTPError):
         status_code = exc.status_code
-        error = exc.error
+        if exc.description:
+            # show overriden description
+            error = str(f'{exc.error}: {exc.description}')
+        elif exc.get_error_description():
+            # show dynamic description
+            error = str(f'{exc.error}: {exc.get_error_description()}')
+        else:
+            # if no description, show plain error string
+            error = exc.error
     elif isinstance(exc, DataError):
         status_code = 400
-        error = str(exc)
+        error = str(exc) or str(exc.message)
     elif isinstance(exc, NotFound):
         status_code = 404
         error = str(exc)
