@@ -14,7 +14,7 @@ from spinta.auth import check_scope
 from spinta.backends import Backend, check_model_properties
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
-from spinta.exceptions import NotFound
+from spinta.exceptions import NotFound, RevisionException
 from spinta.renderer import render
 from spinta.types.type import Date
 from spinta.utils.changes import get_patch_changes
@@ -186,7 +186,7 @@ def insert(
         data['id'] = gen_object_id(context, backend, model)
 
     if 'revision' in data:
-        raise HTTPException(status_code=400, detail="cannot create 'revision'")
+        raise RevisionException()
     # FIXME: before creating revision check if there's no collision clash
     data['revision'] = get_new_id('revision id')
 
@@ -219,7 +219,7 @@ def upsert(
             id_ = commands.gen_object_id(context, backend, model)
 
         if 'revision' in data.keys():
-            raise HTTPException(status_code=400, detail="cannot create 'revision'")
+            raise RevisionException()
         data['revision'] = get_new_id('revision id')
 
         table.insert_one(data)
@@ -580,7 +580,10 @@ def getall(
     query = query or []
     for qp in query:
         if qp['key'] not in model.flatprops:
-            raise HTTPException(status_code=400, detail=f"Unknown property {qp['key']!r}.")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Resource {model.name!r} does not contain field {qp['key']!r}."
+            )
 
         prop = model.flatprops[qp['key']]
         operator = qp.get('operator')

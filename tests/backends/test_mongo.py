@@ -137,6 +137,26 @@ def test_put_non_existant_resource(app):
     }
 
 
+def test_get_non_existant_subresource(app):
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_report_getone',
+    ])
+
+    resp = app.post('/reports', json={
+        'type': 'report',
+        'status': '42',
+    })
+    assert resp.status_code == 201
+    id_ = resp.json()['id']
+
+    resp = app.get(f'/reports/{id_}/foo')
+    assert resp.status_code == 404
+    assert resp.json() == {
+        "error": "Resource 'report' does not have property 'foo'."
+    }
+
+
 def test_delete(context, app, tmpdir):
     result = context.push([
         {'type': 'report', 'status': '1'},
