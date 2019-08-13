@@ -155,9 +155,9 @@ def test_patch(app, context):
 
     # test that id mismatch is checked
     resp = app.patch(f'/org/{org_data["id"]}',
-                     json={'id': '1d3nt1ty', 'revision': org_data["revision"], 'title': 'foo org'})
+                     json={'id': '0007ddec-092b-44b5-9651-76884e6081b4', 'revision': org_data["revision"], 'title': 'foo org'})
     assert resp.status_code == 409
-    assert resp.json() == {'error': f"Given 'id' value must match database. Given value: '1d3nt1ty', existing value: '{id_}'."}
+    assert resp.json() == {'error': f"Given 'id' value must match database. Given value: '0007ddec-092b-44b5-9651-76884e6081b4', existing value: '{id_}'."}
 
     # test that protected fields (id, type, revision) are accepted, but not PATCHED
     resp = app.patch(f'/org/{org_data["id"]}',
