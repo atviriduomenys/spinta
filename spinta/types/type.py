@@ -2,7 +2,7 @@ import typing
 
 from datetime import date, datetime
 
-from spinta.commands import load, error
+from spinta.commands import load, error, is_object_id
 from spinta.components import Context, Manifest, Node
 from spinta.exceptions import DataError
 from spinta.utils.schema import resolve_schema
@@ -218,6 +218,15 @@ def load(context: Context, type: Type, value: object) -> object:
 
 
 @load.register()
+def load(context: Context, type_: PrimaryKey, value: object) -> list:
+    model = type_.prop.model
+    backend = model.backend
+    if not is_object_id(context, backend, model, value):
+        raise DataError('ID value is not valid')
+    return value
+
+
+@load.register()
 def load(context: Context, type: Array, value: object) -> list:
     # loads value into native python list, including all list items
     array_item_type = type.items.type
@@ -250,6 +259,21 @@ def load(context: Context, type: Object, value: object) -> dict:
 
 @error.register()
 def error(exc: Exception, context: Context, type: Type):
+    message = (
+        '{exc}:\n'
+        '  in type {type.name!r} {type}\n'
+        '  in property {type.prop.name!r} {type.prop}>\n'
+        '  in model {type.prop.parent.name!r} {type.prop.parent}>\n'
+        '  in file {type.prop.path}\n'
+    )
+    raise Exception(format_error(message, {
+        'exc': exc,
+        'type': type,
+    }))
+
+
+@error.register()
+def error(exc: Exception, context: Context, type_: Type, value: object):
     message = (
         '{exc}:\n'
         '  in type {type.name!r} {type}\n'

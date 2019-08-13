@@ -605,8 +605,11 @@ def test_post_empty_content(context, app):
 def test_post_id(context, app):
     # tests 400 response when trying to create object with id
     app.authorize(['spinta_country_insert'])
+
+    # XXX: there's a funny thing that id value is loaded/validated first
+    # before it's checked that user has correct scope
     resp = app.post('/country', json={
-        'id': '42',
+        'id': '0007ddec-092b-44b5-9651-76884e6081b4',
         'title': 'Earth',
         'code': 'er',
     })
@@ -614,7 +617,7 @@ def test_post_id(context, app):
     assert resp.json() == {"error": "insufficient_scope: Missing scope: spinta_set_meta_fields"}
 
 
-def test_post_update(context, app):
+def test_post_update_postgres(context, app):
     # tests if update works with `id` present in the json
     app.authorize([
         'spinta_country_insert',
@@ -628,6 +631,90 @@ def test_post_update(context, app):
 
     assert resp.status_code == 201
     assert resp.json()['id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
+
+    # POST invalid id
+    resp = app.post('/country', json={
+        'id': 123,
+        'title': 'Finland',
+        'code': 'fi',
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': 'ID value is not valid'
+    }
+
+    # POST invalid id
+    resp = app.post('/country', json={
+        'id': '123',
+        'title': 'Finland',
+        'code': 'fi',
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': 'ID value is not valid'
+    }
+
+    # POST invalid id
+    resp = app.post('/country', json={
+        'id': None,
+        'title': 'Lithuania',
+        'code': 'lt',
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': 'ID value is not valid'
+    }
+
+
+def test_post_update_mongo(context, app):
+    # tests if update works with `id` present in the json
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_set_meta_fields',
+    ])
+    resp = app.post('/report', json={
+        'id': '0007ddec-092b-44b5-9651-76884e6081b4',
+        'status': '42',
+    })
+
+    assert resp.status_code == 201
+    assert resp.json()['id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
+
+    # POST invalid id
+    resp = app.post('/report', json={
+        'id': 123,
+        'status': '42',
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': 'ID value is not valid'
+    }
+
+    # POST invalid id
+    resp = app.post('/report', json={
+        'id': '123',
+        'status': '42',
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': 'ID value is not valid'
+    }
+
+    # POST invalid id
+    resp = app.post('/report', json={
+        'id': None,
+        'status': '42',
+    })
+
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': 'ID value is not valid'
+    }
 
 
 def test_post_revision(context, app):
