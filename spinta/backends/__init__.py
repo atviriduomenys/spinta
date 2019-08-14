@@ -11,6 +11,7 @@ from spinta.types import dataset
 from spinta.types.type import String
 from spinta.exceptions import ConflictError, DataError, NotFound
 from spinta.utils.nestedstruct import build_show_tree
+from spinta.utils.url import Operator
 
 
 class Backend:
@@ -227,16 +228,18 @@ def prepare(
 
 
 @load_operator_value.register()
-def load_operator_value(context: Context, backend: Backend, type_: Type, value: object, *, operator: str):
-    if operator in ['startswith', 'contains'] and not isinstance(value, str):
+def load_operator_value(context: Context, backend: Backend, type_: Type, value: object, *, query_params: dict):
+    operator = query_params['operator']
+    operator_name = query_params['name']
+    if operator in (Operator.STARTSWITH, Operator.CONTAINS) and not isinstance(type_, String):
         raise DataError(' '.join((
-            f"Operator '{operator}' requires string.",
-            f"Received value for '{type_.prop.place}' is of type '{type(value)}'."
+            f"Operator {operator_name!r} requires string.",
+            f"Received value for {type_.prop.place!r} is of type {type_.name!r}."
         )))
 
-    if operator in ['gt', 'gte', 'lt', 'lte'] and isinstance(type_, String):
+    if operator in [Operator.GT, Operator.GTE, Operator.LT, Operator.LTE] and isinstance(type_, String):
         raise DataError(
-            f"Operator {operator!r} received value for {type_.prop.place!r} of type {type_.name!r}."
+            f"Operator {operator_name!r} received value for {type_.prop.place!r} of type {type_.name!r}."
         )
 
 

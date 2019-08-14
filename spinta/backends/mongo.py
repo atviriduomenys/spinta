@@ -20,6 +20,7 @@ from spinta.types.type import Date
 from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
+from spinta.utils.url import Operator
 
 from spinta.commands import (
     authorize,
@@ -590,7 +591,7 @@ def getall(
 
         # for search to work on MongoDB, values must be compatible for
         # Mongo's BSON consumption, thus we need to use chained load and prepare
-        value = load_search_params(context, prop.type, backend, qp['value'], operator)
+        value = load_search_params(context, prop.type, backend, qp)
 
         # in case value is not a string - then just search for that value directly
         if isinstance(value, str):
@@ -598,35 +599,35 @@ def getall(
         else:
             re_value = value
 
-        if operator == 'exact':
+        if operator == Operator.EXACT:
             search_expressions.append({
                 qp['key']: re_value
             })
-        elif operator == 'gt':
+        elif operator == Operator.GT:
             search_expressions.append({
                 qp['key']: {
                     '$gt': re_value
                 }
             })
-        elif operator == 'gte':
+        elif operator == Operator.GTE:
             search_expressions.append({
                 qp['key']: {
                     '$gte': re_value
                 }
             })
-        elif operator == 'lt':
+        elif operator == Operator.LT:
             search_expressions.append({
                 qp['key']: {
                     '$lt': re_value
                 }
             })
-        elif operator == 'lte':
+        elif operator == Operator.LTE:
             search_expressions.append({
                 qp['key']: {
                     '$lte': re_value
                 }
             })
-        elif operator == 'ne':
+        elif operator == Operator.NE:
             # MongoDB's $ne operator does not consume regular expresions for values,
             # whereas `$not` requires an expression.
             # Thus if our search value is regular expression - search with $not, if
@@ -643,7 +644,7 @@ def getall(
                         '$ne': re_value
                     }
                 })
-        elif operator == 'contains':
+        elif operator == Operator.CONTAINS:
             try:
                 re_value = re.compile(value, re.IGNORECASE)
             except TypeError:
@@ -653,7 +654,7 @@ def getall(
             search_expressions.append({
                 qp['key']: re_value
             })
-        elif operator == 'startswith':
+        elif operator == Operator.STARTSWITH:
             # https://stackoverflow.com/a/3483399
             try:
                 re_value = re.compile('^' + value + '.*', re.IGNORECASE)
