@@ -328,7 +328,7 @@ def test_search_contains(context, app):
     resp = app.get('/reports/:contains/notes.create_date/2019-04-20')
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "Operator 'contains' requires string. Received value for 'notes.create_date' is of type '<class 'datetime.date'>'."
+        "error": "Operator 'contains' requires string. Received value for 'notes.create_date' is of type 'date'."
     }
 
 
@@ -372,7 +372,7 @@ def test_search_startswith(context, app):
     resp = app.get('/reports/:startswith/notes.create_date/2019-04-20')
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "Operator 'startswith' requires string. Received value for 'notes.create_date' is of type '<class 'datetime.date'>'."
+        "error": "Operator 'startswith' requires string. Received value for 'notes.create_date' is of type 'date'."
     }
 
 

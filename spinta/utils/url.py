@@ -1,3 +1,5 @@
+from enum import Enum
+
 from spinta.commands import is_object_id
 
 
@@ -60,17 +62,30 @@ class Property(Cast):
 
 class QueryParams(Cast):
 
-    def __init__(self, operator, **kwargs):
+    def __init__(self, name, operator, **kwargs):
+        self.name = name
         self.operator = operator
 
         super().__init__(**kwargs)
 
     def to_params(self, value):
         return {
+            'name': self.name,
             'operator': self.operator,
             'key': value[0],
             'value': value[1],
         }
+
+
+class Operator(Enum):
+    EXACT = 'exact'
+    GT = 'gt'
+    GTE = 'gte'
+    LT = 'lt'
+    LTE = 'lte'
+    NE = 'ne'
+    CONTAINS = 'contains'
+    STARTSWITH = 'startswith'
 
 
 RULES = {
@@ -122,56 +137,56 @@ RULES = {
         'maxargs': 0,
     },
     'exact': {
-        'cast': QueryParams('exact'),
+        'cast': QueryParams('exact', Operator.EXACT),
         'minargs': 2,
         'maxargs': 2,
         'multiple': True,
         'change_name': 'query_params',
     },
     'gt': {
-        'cast': QueryParams('gt'),
+        'cast': QueryParams('gt', Operator.GT),
         'minargs': 2,
         'maxargs': 2,
         'multiple': True,
         'change_name': 'query_params',
     },
     'gte': {
-        'cast': QueryParams('gte'),
+        'cast': QueryParams('gte', Operator.GTE),
         'minargs': 2,
         'maxargs': 2,
         'multiple': True,
         'change_name': 'query_params',
     },
     'lt': {
-        'cast': QueryParams('lt'),
+        'cast': QueryParams('lt', Operator.LT),
         'minargs': 2,
         'maxargs': 2,
         'multiple': True,
         'change_name': 'query_params',
     },
     'lte': {
-        'cast': QueryParams('lte'),
+        'cast': QueryParams('lte', Operator.LTE),
         'minargs': 2,
         'maxargs': 2,
         'multiple': True,
         'change_name': 'query_params',
     },
     'ne': {
-        'cast': QueryParams('ne'),
+        'cast': QueryParams('ne', Operator.NE),
         'minargs': 2,
         'maxargs': 2,
         'multiple': True,
         'change_name': 'query_params',
     },
     'contains': {
-        'cast': QueryParams('contains'),
+        'cast': QueryParams('contains', Operator.CONTAINS),
         'minargs': 2,
         'maxargs': 2,
         'multiple': True,
         'change_name': 'query_params',
     },
     'startswith': {
-        'cast': QueryParams('startswith'),
+        'cast': QueryParams('startswith', Operator.STARTSWITH),
         'minargs': 2,
         'maxargs': 2,
         'multiple': True,
