@@ -21,6 +21,7 @@ CONFIG = {
         'modules': [
             'spinta.backends',
             'spinta.commands.search',
+            'spinta.commands.version',
             'spinta.types',
             'spinta.urlparams',
         ],

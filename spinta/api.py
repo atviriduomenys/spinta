@@ -15,7 +15,7 @@ from starlette.staticfiles import StaticFiles
 
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
-from spinta.commands import prepare
+from spinta.commands import prepare, get_version
 from spinta.config import RawConfig
 from spinta.exceptions import ConflictError, DataError, NotFound
 from spinta.urlparams import Version
@@ -113,16 +113,9 @@ if docs_path:
 
 @app.route('/version', methods=['GET'])
 async def version(request: Request):
-    return JSONResponse({
-        'api': {
-            'version': '0.0.1'
-        },
-        'implementation': {
-            'name': 'Spinta',
-            'version': '0.0.1'
-        },
-        'build': None,
-    })
+    global context
+    version = get_version(context)
+    return JSONResponse(version)
 
 
 @app.route('/auth/token', methods=['POST'])
