@@ -68,6 +68,13 @@ def test_search_exact(context, app):
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
+    # single field search, non string type
+    resp = app.get('/reports/:exact/count/abc')
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "TypeError: field 'count' should receive value of 'integer' type."
+    }
+
     # single non-existing field value search
     resp = app.get('/reports/:exact/status/o')
     data = resp.json()['data']

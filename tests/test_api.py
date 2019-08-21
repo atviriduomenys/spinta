@@ -792,6 +792,92 @@ def test_post_missing_auth_header(config, context, app):
     assert resp.json() == {'error': 'missing_authorization: Missing "Authorization" in headers.'}
 
 
+def test_post_invalid_report_schema(app):
+    # tests validation of correct value types according to manifest's schema
+    app.authorize([
+        'spinta_report_insert',
+        'spinta_report_getone',
+    ])
+
+    # test integer validation
+    resp = app.post('/reports', json={
+        'count': '123',
+    })
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "TypeError: field 'count' should receive value of 'integer' type."
+    }
+
+    resp = app.post('/reports', json={
+        'count': False,
+    })
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "TypeError: field 'count' should receive value of 'integer' type."
+    }
+
+    resp = app.post('/reports', json={
+        'count': [1, 2, 3],
+    })
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "TypeError: field 'count' should receive value of 'integer' type."
+    }
+
+    resp = app.post('/reports', json={
+        'count': {'a': 1, 'b': 2},
+    })
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "TypeError: field 'count' should receive value of 'integer' type."
+    }
+
+    resp = app.post('/reports', json={
+        'count': 123,
+    })
+    assert resp.status_code == 201
+
+    # sanity check, that integers are still allowed.
+    resp = app.post('/reports', json={
+        'status': 42,
+    })
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "TypeError: field 'status' should receive value of 'string' type."
+    }
+
+    # test string validation
+    resp = app.post('/reports', json={
+        'status': True,
+    })
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "TypeError: field 'status' should receive value of 'string' type."
+    }
+
+    resp = app.post('/reports', json={
+        'status': [1, 2, 3],
+    })
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "TypeError: field 'status' should receive value of 'string' type."
+    }
+
+    resp = app.post('/reports', json={
+        'status': {'a': 1, 'b': 2},
+    })
+    assert resp.status_code == 400
+    assert resp.json() == {
+        'error': "TypeError: field 'status' should receive value of 'string' type."
+    }
+
+    # sanity check, that strings are still allowed.
+    resp = app.post('/reports', json={
+        'status': '42',
+    })
+    assert resp.status_code == 201
+
+
 def test_streaming_response(context, app):
     consume(context.push([
         {
