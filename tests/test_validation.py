@@ -8,7 +8,7 @@ def test_report(app):
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
-        'count': '42',
+        'count': 42,
         'valid_from_date': '2019-04-20',
         'update_time': '2019-04-20 03:14:15',
         'notes': [{
@@ -58,7 +58,7 @@ def test_invalid_report_int(app):
 
     assert resp.status_code == 400
     assert resp.json() == {
-        "error": "invalid literal for int() with base 10: 'c0unt'",
+        "error": "TypeError: field 'count' should receive value of 'integer' type.",
     }
 
 
@@ -197,7 +197,7 @@ def test_missing_report_object_property(app):
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
-        'count': '42',
+        'count': 42,
         'valid_from_date': '2019-04-20',
         'update_time': '2019-04-20 03:14:15',
         'notes': [{
@@ -245,7 +245,7 @@ def test_unknown_report_object_property(app):
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
-        'count': '42',
+        'count': 42,
         'valid_from_date': '2019-04-20',
         'update_time': '2019-04-20 03:14:15',
         'notes': [{

@@ -59,6 +59,15 @@ class String(Type):
         'enum': {'type': 'array'},
     }
 
+    def load(self, value: typing.Any):
+        if value is None or value is NA:
+            return value
+
+        if isinstance(value, str):
+            return value
+        else:
+            raise DataError(f'TypeError: field {self.prop.place!r} should receive value of {self.name!r} type.')
+
 
 class Integer(Type):
 
@@ -66,10 +75,10 @@ class Integer(Type):
         if value is None or value is NA:
             return value
 
-        try:
-            return int(value)
-        except ValueError as e:
-            raise DataError(f'{e}')
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+        else:
+            raise DataError(f'TypeError: field {self.prop.place!r} should receive value of {self.name!r} type.')
 
 
 class Number(Type):
