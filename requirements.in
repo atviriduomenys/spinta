@@ -13,6 +13,7 @@ python-multipart
 requests
 ruamel.yaml
 setuptools
+setuptools-scm
 sqlalchemy
 starlette
 texttable

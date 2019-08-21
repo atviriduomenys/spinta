@@ -178,6 +178,11 @@ def getall():
 
 
 @command()
+def get_version():
+    """Returns version dict for the api"""
+
+
+@command()
 def changes():
     """Changelog of a table."""
 
