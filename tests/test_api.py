@@ -244,7 +244,7 @@ def test_dataset_with_show(context, app, mocker):
     ]
 
 
-def test_dataset_url_wihtout_resource(context, app, mocker):
+def test_dataset_url_without_resource(context, app, mocker):
     context.push([
         {
             'type': 'rinkimai/:dataset/json',
@@ -615,6 +615,20 @@ def test_post_id(context, app):
     })
     assert resp.status_code == 403
     assert resp.json() == {"error": "insufficient_scope: Missing scope: spinta_set_meta_fields"}
+
+
+def test_insufficient_scope(context, app):
+    # tests 400 response when trying to create object with id
+    app.authorize(['spinta_country_getone'])
+
+    # XXX: there's a funny thing that id value is loaded/validated first
+    # before it's checked that user has correct scope
+    resp = app.post('/country', json={
+        'title': 'Earth',
+        'code': 'er',
+    })
+    assert resp.status_code == 403
+    assert resp.json() == {"error": "insufficient_scope: Missing scope: spinta_country_insert"}
 
 
 def test_post_update_postgres(context, app):
