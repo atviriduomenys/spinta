@@ -9,7 +9,7 @@ from spinta.components import Context
 @get_version.register()
 def get_version(context: Context):
     try:
-        version = get_distribution(__name__).version
+        version = get_distribution('spinta').version
     except DistributionNotFound:
         version = get_scm_version()
 
