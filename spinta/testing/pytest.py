@@ -111,3 +111,33 @@ def cli(context, mocker):
     mocker.patch('spinta.cli._load_context', _load_context)
     runner = CliRunner()
     return runner
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--backend",
+        action="append",
+        default=[],
+        help="run tests only for particular database backend ['postgres', 'mongo']",
+    )
+
+
+def pytest_generate_tests(metafunc):
+    # Get backend markers from test, if markers are set - leave test as is
+    backends = metafunc.definition.get_closest_marker('backends')
+    if not backends:
+        return
+
+    # If there are markers, get them, together with backend CLI options
+    backends = set(backends.args)
+    backend_cli_options = set(metafunc.config.getoption("backend"))
+
+    # If backend CLI options are not empty
+    # then get common markers from test and CLI options
+    if backend_cli_options:
+        backends = backends.intersection(backend_cli_options)
+
+    # Parametrize our test with calculated backends.
+    # If we pass to CLI backend option, which does not have a test marker,
+    # then pytest will skip the test all together.
+    metafunc.parametrize('backend', backends)

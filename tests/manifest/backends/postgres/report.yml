@@ -1,8 +1,7 @@
 ---
 type: model
-name: report
-endpoint: reports
-backend: mongo
+name: backends/postgres/report
+endpoint: backends/postgres/reports
 title: "Report"
 version: 1
 date: "2019-04-17"
