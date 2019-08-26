@@ -29,6 +29,7 @@ def test_app(app):
             ('root', '/'),
         ],
         'items': [
+            ('backends', '/backends'),
             ('capital', '/capital'),
             ('continent', '/continent'),
             ('country', '/country'),
@@ -914,3 +915,10 @@ def test_streaming_response(context, app):
         ('fi', 'Finland'),
         ('lt', 'Lithuania'),
     ]
+
+
+@pytest.mark.backends('postgres', 'mongo')
+def test_multi_backends(backend, app):
+    app.authorize([f'spinta_backends_{backend}_report_insert'])
+    resp = app.post(f'/backends/{backend}/reports', json={'status': '42'})
+    assert resp.status_code == 201
