@@ -86,6 +86,10 @@ def context(mocker, tmpdir, config, postgresql, mongo):
 
     yield context
 
+    # At this point, transaction must be closed, if it is not, then something is
+    # wrong. Find out why transaction was not property closed.
+    assert context.has('transaction') is False
+
     config.restore()
     if context.loaded:
         context.wipe_all()
