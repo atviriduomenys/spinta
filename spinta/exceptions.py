@@ -17,3 +17,8 @@ class ConflictError(Exception):
 class RevisionException(DataError):
     def __init__(self):
         self.message = "Client cannot create 'revision'. It is set automatically"
+
+
+class UniqueConstraintError(DataError):
+    def __init__(self, *, prop_name=None, model_name=None):
+        self.message = f"{prop_name!r} is unique for {model_name!r} and a duplicate value is found in database."

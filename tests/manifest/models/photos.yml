@@ -5,8 +5,7 @@ endpoint: photos
 version: 1
 date: "2019-05-30"
 properties:
-  id:
-    type: pk
+  id: {type: pk}
   revision:
     type: string
   name:

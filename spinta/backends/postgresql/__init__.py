@@ -22,7 +22,7 @@ from spinta.commands import wait, load, prepare, migrate, check, push, getone, g
 from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
-from spinta.exceptions import FoundMultiple, NotFound, RevisionException
+from spinta.exceptions import FoundMultiple, NotFound, RevisionException, UniqueConstraintError
 from spinta.renderer import render
 from spinta.types.type import Type, File, PrimaryKey, Ref
 from spinta.utils.changes import get_patch_changes
@@ -280,24 +280,29 @@ def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, ac
 
 
 @check.register()
-def check(context: Context, type: Type, prop: Property, backend: PostgreSQL, value: object, *, data: dict, action: Action):
-    check_type_value(type, value)
+def check(context: Context, type_: Type, prop: Property, backend: PostgreSQL, value: object, *, data: dict, action: Action):
+    check_type_value(type_, value)
 
     connection = context.get('transaction').connection
     table = backend.tables[prop.manifest.name][prop.model.name].main
 
-    if type.unique and value is not NA:
+    if type_.unique and value is not NA:
         if action == Action.UPDATE:
             condition = sa.and_(
                 table.c[prop.name] == value,
                 table.c['id'] != data['id'],
             )
+        # PATCH requests are allowed to send protected fields in requests JSON
+        # PATCH handling will use those fields for validating data, though
+        # won't change them.
+        elif action == Action.PATCH and type_.prop.name in {'id', 'type', 'revision'}:
+            return
         else:
             condition = table.c[prop.name] == value
         not_found = object()
         result = backend.get(connection, table.c[prop.name], condition, default=not_found)
         if result is not not_found:
-            raise Exception(f"{prop.name!r} is unique for {prop.model.name!r} and a duplicate value is found in database.")
+            raise UniqueConstraintError(prop_name=prop.name, model_name=prop.model.name)
 
 
 @check.register()
