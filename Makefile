@@ -41,7 +41,7 @@ dist: env/bin/pip
 
 .PHONY: run
 run: env
-	env/bin/uvicorn spinta.asgi:app --debug
+	AUTHLIB_INSECURE_TRANSPORT=1 env/bin/uvicorn spinta.asgi:app --debug
 
 .PHONY: psql
 psql:
