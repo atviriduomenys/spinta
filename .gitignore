@@ -2,6 +2,7 @@
 *.pyc
 /.coverage
 /.dockerignore
+/.eggs/
 /.env
 /build/
 /env/

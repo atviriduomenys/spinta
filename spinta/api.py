@@ -1,17 +1,19 @@
 import pkg_resources as pres
 import uvicorn
 import logging
+import asyncio
+import typing
 
 from authlib.common.errors import AuthlibHTTPError
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import Response, JSONResponse, StreamingResponse
 from starlette.templating import Jinja2Templates
-from starlette.types import Receive, Send, Scope
 from starlette.staticfiles import StaticFiles
+from starlette.types import Receive, Scope, Send
 
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
@@ -35,32 +37,26 @@ context = None
 
 class ContextMiddleware(BaseHTTPMiddleware):
 
-    async def asgi(self, receive: Receive, send: Send, scope: Scope) -> None:
-        global context
-
-        # TODO: Temporary fix for https://github.com/encode/starlette/issues/472
-        # --------------------------8<--------------------------
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         self._orig_send = send
-        # -------------------------->8--------------------------
-
         with context.enter():
-            request = Request(scope, receive=receive)
-            response = await self.call_next(request)
-            await response(receive, send)
+            await super().__call__(scope, receive, send)
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        return await call_next(request)
 
     # TODO: Temporary fix for https://github.com/encode/starlette/issues/472
-    # --------------------------8<--------------------------
-    async def call_next(self, request: Request):
-        import asyncio
-        from starlette.responses import StreamingResponse
-
-        inner = self.app(dict(request))
+    async def call_next(self, request: Request) -> Response:
         loop = asyncio.get_event_loop()
         queue = asyncio.Queue()  # type: asyncio.Queue
 
+        scope = request.scope
+        receive = request.receive
+        send = queue.put
+
         async def coro() -> None:
             try:
-                await inner(request.receive, queue.put)
+                await self.app(scope, receive, send)
             finally:
                 await queue.put(None)
 
@@ -70,15 +66,14 @@ class ContextMiddleware(BaseHTTPMiddleware):
             task.result()
             raise RuntimeError("No response returned.")
 
-        scope = dict(request)
-        if 'http.response.template' in scope.get("extensions", {}):
+        if "http.response.template" in scope.get("extensions", {}):
             if message["type"] == "http.response.template":
                 await self._orig_send(message)
                 message = await queue.get()
 
-        assert message["type"] == "http.response.start", message['type']
+        assert message["type"] == "http.response.start"
 
-        async def body_stream():
+        async def body_stream() -> typing.AsyncGenerator[bytes, None]:
             while True:
                 message = await queue.get()
                 if message is None:
@@ -92,7 +87,6 @@ class ContextMiddleware(BaseHTTPMiddleware):
         )
         response.raw_headers = message["headers"]
         return response
-    # -------------------------->8--------------------------
 
 
 app.add_middleware(ContextMiddleware)
@@ -103,12 +97,7 @@ raw_config.read()
 docs_path = raw_config.get('docs_path')
 
 if docs_path:
-    # FIXME: after upgrading to starlette >= 0.12.0, index.html can be served
-    # automatically with html=True flag. Otherwise we need to explicitly
-    # call for `index.html` in the URL, e.g. `/docs/index.html`. Without
-    # doing this HTTP/404 will be raised.
-    app.mount('/docs', StaticFiles(directory=docs_path))
-    # app.mount('/docs', StaticFiles(directory="uml", html=True))
+    app.mount('/docs', StaticFiles(directory=docs_path, html=True))
 
 
 @app.route('/version', methods=['GET'])
