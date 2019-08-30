@@ -97,12 +97,7 @@ raw_config.read()
 docs_path = raw_config.get('docs_path')
 
 if docs_path:
-    # FIXME: after upgrading to starlette >= 0.12.0, index.html can be served
-    # automatically with html=True flag. Otherwise we need to explicitly
-    # call for `index.html` in the URL, e.g. `/docs/index.html`. Without
-    # doing this HTTP/404 will be raised.
-    app.mount('/docs', StaticFiles(directory=docs_path))
-    # app.mount('/docs', StaticFiles(directory="uml", html=True))
+    app.mount('/docs', StaticFiles(directory=docs_path, html=True))
 
 
 @app.route('/version', methods=['GET'])
