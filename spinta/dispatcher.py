@@ -28,9 +28,9 @@ def command(name: str = None, schema: dict = None):
 
 class Command(Dispatcher):
 
-    def register(self, schema=None):
+    def register(self, *signature_types, schema=None):
         def _(func):
-            types = tuple(_find_func_types(func))
+            types = signature_types or tuple(_find_func_types(func))
             self.add(types, func)
             return self
         return _

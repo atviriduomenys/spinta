@@ -744,34 +744,76 @@ def test_post_revision(context, app):
     assert resp.json() == {"error": "Client cannot create 'revision'. It is set automatically"}
 
 
-@pytest.mark.skip('TODO')
-def test_post_duplicate_id(context, app):
+@pytest.mark.backends('postgres', 'mongo')
+def test_post_duplicate_id(backend, app):
     # tests 400 response when trying to create object with id which exists
     app.authorize([
-        'spinta_country_insert',
-        'spinta_country_update',
+        f'spinta_backends_{backend}_report_insert',
+        f'spinta_backends_{backend}_report_update',
         'spinta_set_meta_fields',
     ])
-    resp = app.post('/country', json={
-        'title': 'Earth',
-        'code': 'er',
+    resp = app.post(f'/backends/{backend}/reports', json={
+        'status': 'valid',
+        'count': 42,
     })
     assert resp.status_code == 201
     data = resp.json()
-    id = data['id']
+    id_ = data['id']
 
-    # TODO: this raises:
-    #
-    #           sqlalchemy.exc.IntegrityError: (psycopg2.errors.UniqueViolation) duplicate key value violates unique constraint
-    #
-    #       Should be handled some how and returned 400 error.
-    resp = app.post('/country', json={
-        'id': id,
-        'title': 'Earth',
-        'code': 'er',
+    resp = app.post(f'/backends/{backend}/reports', json={
+        'id': id_,
+        'status': 'valid',
+        'count': 42,
     })
     assert resp.status_code == 400
-    assert resp.json() == {"error": "Client cannot create 'revision'. It is set automatically"}
+    assert resp.json() == {"error": f"'id' is unique for 'backends/{backend}/report' and a duplicate value is found in database."}
+
+
+@pytest.mark.skip("SPLAT-146: PATCH requests should be able to update id")
+@pytest.mark.backends('postgres', 'mongo')
+def test_patch_duplicate_id(backend, app):
+    # tests that duplicate ID detection works with PATCH requests
+    app.authorize([
+        f'spinta_backends_{backend}_report_insert',
+        f'spinta_backends_{backend}_report_getone',
+        f'spinta_backends_{backend}_report_patch',
+        'spinta_set_meta_fields',
+    ])
+
+    report_data = app.post(f'/backends/{backend}/reports', json={
+        'type': 'report',
+        'status': '1',
+    }).json()
+    id_ = report_data['id']
+
+    # try to PATCH id with set_meta_fields scope
+    # this should be successful because id that we want to setup
+    # does not exist in database
+    resp = app.patch(f'/backends/{backend}/reports/{id_}',
+                     json={'id': '0007ddec-092b-44b5-9651-76884e6081b4'})
+    assert resp.status_code == 200
+    id_ = resp.json()['id']
+    assert id_ == '0007ddec-092b-44b5-9651-76884e6081b4'
+
+    # try to patch report with id of itself
+    resp = app.patch(f'/backends/{backend}/reports/{id_}',
+                     json={'id': '0007ddec-092b-44b5-9651-76884e6081b4'})
+    assert resp.status_code == 200
+    assert resp.json()['id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
+
+    # try to PATCH id with set_meta_fields scope
+    # this should not be successful because id that we want to setup
+    # already exists in database
+    resp = app.post(f'/backends/{backend}/reports', json={
+        'type': 'report',
+        'status': '1',
+    })
+    existing_id = resp.json()['id']
+
+    resp = app.patch(f'/backends/{backend}/reports/{id_}',
+                     json={'id': existing_id})
+    assert resp.status_code == 400
+    assert resp.json() == {"error": f"'id' is unique for 'backends/{backend}/report' and a duplicate value is found in database."}
 
 
 def test_post_non_json_content_type(context, app):

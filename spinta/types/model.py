@@ -3,7 +3,7 @@ from spinta.commands import load, check, error, authorize, prepare
 from spinta.components import Context, Manifest, Node, Model, Property, Action
 from spinta.exceptions import DataError
 from spinta.nodes import load_node
-from spinta.types.type import Type, load_type
+from spinta.types.type import PrimaryKey, Type, load_type
 from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema
 from spinta.utils.tree import add_path_to_tree
@@ -48,6 +48,9 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
 def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
     prop = load_node(context, prop, data, manifest, check_unknowns=False)
     prop.type = load_type(context, prop, data, manifest)
+
+    if isinstance(prop.type, PrimaryKey):
+        prop.type.unique = True
 
     # Check if there any unknown params were given.
     known_params = set(resolve_schema(prop, Node).keys()) | set(resolve_schema(prop.type, Type).keys())

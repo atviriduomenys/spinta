@@ -11,12 +11,13 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.auth import check_scope
-from spinta.backends import Backend, check_model_properties
+from spinta.backends import Backend, check_model_properties, check_type_value
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
+from spinta.common import NA
 from spinta.config import RawConfig
-from spinta.exceptions import NotFound, RevisionException
+from spinta.exceptions import NotFound, RevisionException, UniqueConstraintError
 from spinta.renderer import render
-from spinta.types.type import Date
+from spinta.types.type import Date, File, Type
 from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
@@ -109,6 +110,30 @@ def migrate(context: Context, backend: Mongo):
 @check.register()
 def check(context: Context, model: Model, backend: Mongo, data: dict, *, action: Action, id_: str):
     check_model_properties(context, model, backend, data, action, id_)
+
+
+@check.register()
+def check(context: Context, type_: File, prop: Property, backend: Mongo, value: dict, *, data: dict, action: Action):
+    if prop.backend.name != backend.name:
+        check(context, type_, prop, prop.backend, value, data=data, action=action)
+
+
+@check.register()
+def check(context: Context, type_: Type, prop: Property, backend: Mongo, value: object, *, data: dict, action: Action):
+    check_type_value(type_, value)
+
+    model = prop.model
+    table = backend.db[model.get_type_value()]
+
+    if type_.unique and value is not NA:
+        # PATCH requests are allowed to send protected fields in requests JSON
+        # PATCH handling will use those fields for validating data, though
+        # won't change them.
+        if action == Action.PATCH and type_.prop.name in {'id', 'type', 'revision'}:
+            return
+        result = table.find_one({'id': data['id']})
+        if result is not None:
+            raise UniqueConstraintError(prop_name=prop.name, model_name=model.name)
 
 
 @push.register()
