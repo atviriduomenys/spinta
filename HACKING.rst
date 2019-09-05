@@ -198,7 +198,7 @@ Additional clients can be created using this command::
 
 But currently `app.authorize` does not support using another client, currently
 only `baa448a8-205c-4faa-a048-a10e4b32a136` is always used, but that can be
-easly changed if needed.
+easily changed if needed.
 
 By default `app.authorize` will not call `/auth/token` endpoint to get access
 token, because access token is generated internally giving access to all
@@ -229,6 +229,133 @@ real server. All you need to do is this:
       assert resp.status_code == 200
 
 By default, it is assumed, then you are using local server (`make run`) and
-token will be generated internaly. But you can pass `creds` argument to
+token will be generated internally. But you can pass `creds` argument to
 `app.authorize` to get token via `/auth/token`. This will allow to run tests on
 any external server and this should work with any existing test.
+
+
+Context
+-------
+
+In Spinta `context` is used to pass variables that are commonly used in
+multiple places.
+
+Also `context` is passed as first argument to all commands and it is also used
+to override commands, because each project using Spinta should have its own
+`context` class. Which context class should be used is defined in
+`components.core.context` configuration parameter. By default `context` class
+is set to `spinta.components:Context`.
+
+In tests, `spinta.testing.context:ContextForTests` class is used. But in tests,
+it is made sure, that `ContextForTests` always extends whatever is set in
+`components.core.context` configuration parameter.
+
+In tests, you get `context` from fixture called `context`. This fixture is
+defined in `spinta.testing.pytest`.
+
+Normally context is loaded on Starlette startup, startup handler is defined in
+`spinta.api:create_app_context`. But in tests, context loading is postponed, to
+give possibility for tests to override configuration, before context is loaded.
+Test context can be loaded by calling `context.load` or
+`context.load_if_not_loaded`. Text context can be loaded only once. Test
+context is automatically loaded on any `app` call and any database access call
+from test context.
+
+Once context is loaded, it has a global state which is kept through whole
+process life time.
+
+For each http request, context is forked via
+`spinta.middlewares:ContextMiddleware`.  Forked context inherits all values
+defined in global state, but all values are copied to make it thread-safe.
+
+Context has states. Each state inherits all values from a previous state. Each
+state can be modified, without effecting previous states. There are two ways,
+how to create new sates: forking and activating new state with `with`
+statement.
+
+Here is an example how forking works:
+
+.. code-block:: python
+
+    base = Context('base')
+    with base.fork('fork') as fork:
+        ...
+
+Here `fork` context has a new state and also inherits all values from `base`.
+
+Here is an example how to create new state using `with` statement:
+
+.. code-block:: python
+
+    context = Context('base')
+    with context:
+        with context:
+            ...
+
+Using `with` statement same context instance can be reused, to create new
+states. This way of creating new states is not thread safe.
+
+All this is needed to have isolated context states. When new context state is
+created, you can add new values or override inherited ones without affecting
+previous states. Currently this is mostly used to initialize context at startup
+which is quite expensive operation, because we need to read configuration, load
+manifest YAML files, etc. And once we have this base state, we can run each
+http request under new state inheriting everything from base.
+
+Context can be manipulated using these methods:
+
+- `context.set(name, value)` - set a value in context directly.
+
+- `context.bind(name, factory, *args, **kwargs)` - bind a callable `factory` to
+  get value. This factory will be called on first `name` access and then
+  retrieved value is cached in current and on a previous state were it was
+  bound. In case of a fork, factories are always called and cached in each fork
+  separately, to ensure thread safety.
+
+- `context.attach(name, cmgr)` - attach a context manager to current state.
+  This context manager is activated on first `name` access and is deactivated
+  when current context scope ends.
+
+  If context manager was attached on a previous state, then it will be
+  activated in that previous state. Context managers can be activated only in a
+  single context instance, that means, you can't have context manager defined
+  in a previous fork and activate it in another fork.
+
+- `context.get(name)` - access value of given `name`, if `name` points to a
+  factory, then factory will be called to get value, if `name` points to
+  context manager, then context manager will be activated.
+
+- `context.has(name, local=False, value=False)` - check if `name` is defined.
+  If `local` is true, check if `name` was defined in current state, if `value`
+  is true, check if `name` was has value (means factory is called or context
+  manager is activated).
+
+
+Here are some examples:
+
+.. code-block:: python
+
+    context = Context('base')
+    context.set('a', 1)
+    with context:
+        context.get('a')      # returns: 1
+        context.set('a', 2)
+        context.get('a')      # returns: 2
+        context.set('a', 3)   # error, 'a' was already set in this scope
+
+    context.get('a')          # returns: 1, base value was restored
+
+
+.. code-block:: python
+
+    def f():
+        return 42
+
+    context = Context('base')
+    context.bind('a', f)
+    with context:
+        context.get('a')      # returns 42, `f` is called and value is cache in
+                              # current scope
+        context.get('a')      # returns 42, `f` is not called
+
+    context.get('a')          # returns 42, `f` is not called

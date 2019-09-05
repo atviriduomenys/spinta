@@ -19,6 +19,9 @@ class Backend:
         'name': 'backend',
     }
 
+    def __repr__(self):
+        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}) at 0x{id(self):02x}>'
+
     @contextlib.contextmanager
     def transaction(self):
         raise NotImplementedError

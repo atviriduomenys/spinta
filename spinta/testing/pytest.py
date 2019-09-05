@@ -72,7 +72,7 @@ def mongo(config):
 
 
 @pytest.fixture
-def context(mocker, tmpdir, config, postgresql, mongo):
+def context(request, mocker, tmpdir, config, postgresql, mongo):
     mocker.patch.dict(os.environ, {
         'AUTHLIB_INSECURE_TRANSPORT': '1',
         'SPINTA_BACKENDS_FS_PATH': str(tmpdir),
@@ -80,7 +80,7 @@ def context(mocker, tmpdir, config, postgresql, mongo):
 
     Context = config.get('components', 'core', 'context', cast=importstr)
     Context = type('ContextForTests', (ContextForTests, Context), {})
-    context = Context()
+    context = Context('pytest')
     context.set('config.raw', config)
     mocker.patch('spinta.config._create_context', return_value=context)
 
@@ -90,7 +90,12 @@ def context(mocker, tmpdir, config, postgresql, mongo):
     # wrong. Find out why transaction was not property closed.
     assert context.has('transaction') is False
 
+    # In `context.load` if config orverrides are provided, config is modified,
+    # we need to restore it.
     config.restore()
+
+    # If context was not loaded, then it means, that database was not touched.
+    # All database operations require fully loaded context.
     if context.loaded:
         context.wipe_all()
 
@@ -103,16 +108,20 @@ def responses():
 
 @pytest.fixture
 def app(context, mocker):
-    mocker.patch('spinta.api.context', context)
-    return TestClient(context, api.app)
+    mocker.patch('spinta.api._load_context', lambda context: context)
+    client = TestClient(context, api.app)
+    # Attache test client in order to execute startup and shutdown events. These
+    # events will be treggerend in `context.load()`. Starlette TestClient
+    # triggers startup and shutdown events with TestClient.__enter__ and
+    # TestClient.__exit__. That is why, we need to attach TestClient to the
+    # context and trigger it later, on context load.
+    context.attach('client', client)
+    return client
 
 
 @pytest.fixture
 def cli(context, mocker):
-    def _load_context(context, rc):
-        if not context.loaded:
-            context.load()
-    mocker.patch('spinta.cli._load_context', _load_context)
+    mocker.patch('spinta.cli._load_context', lambda context, rc: context.load_if_not_loaded())
     runner = CliRunner()
     return runner
 
@@ -123,6 +132,13 @@ def pytest_addoption(parser):
         action="append",
         default=[],
         help="run tests only for particular database backend ['postgres', 'mongo']",
+    )
+
+
+def pytest_configure(config):
+    # https://docs.pytest.org/en/latest/mark.html#registering-marks
+    config.addinivalue_line(
+        "markers", "backends(*backends): mark test to run multiple times with each backend specified"
     )
 
 

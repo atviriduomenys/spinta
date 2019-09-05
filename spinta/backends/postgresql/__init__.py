@@ -66,7 +66,7 @@ class PostgreSQL(Backend):
         with self.engine.begin() as connection:
             if write:
                 table = self.tables['internal']['transaction']
-                result = self.engine.execute(
+                result = connection.execute(
                     table.main.insert().values(
                         datetime=utcnow(),
                         client_type='',

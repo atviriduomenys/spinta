@@ -4,59 +4,194 @@ import dataclasses
 
 
 class Context:
-    # TODO: Use contextvars to prevent issues in concurent execution flow.
-    #
-    #       Since Context is a global variable, all changes to it must be async
-    #       and thread safe.
 
-    def __init__(self):
-        self._factory = [{}]
-        self._context = [{}]
-        self._exitstack = []
-        self._names = [set()]
+    def __init__(self, name, parent=None):
+        self._name = name
+        self._parent = parent
 
-    def bind(self, name, creator, *args, **kwargs):
-        self._set_name(name)
-        self._factory[-1][name] = (creator, args, kwargs)
+        # Bellow all attributes are lists, these lists are context state stacks.
+        # When context is forked or new state is activated, then new item is
+        # appended to each list, possibly taking shallow copy from previous
+        # state. This way, each state can be changed independently.
+
+        # Names defined in current context. Names from inherited context are not
+        # listed here.
+        self._local_names = [set()]
+        self._exitstack = [contextlib.ExitStack()]
+        # Context managers.
+        self._cmgrs = [{}]
+
+        if parent:
+            self._factory = [parent._factory[-1].copy()]
+            self._context = [parent._context[-1].copy()]
+            self._names = [parent._names[-1].copy()]
+        else:
+            self._factory = [{}]
+            self._context = [{}]
+            self._names = [set()]
+
+    def __repr__(self):
+        name = []
+        parent = self
+        while parent is not None:
+            name.append(f'{parent._name}:{len(parent._context) - 1}')
+            parent = parent._parent
+        name = ' < '.join(reversed(name))
+        return f'<{self.__class__.__module__}.{self.__class__.__name__}({name}) at 0x{id(self):02x}>'
+
+    def __enter__(self):
+        self._context.append(self._context[-1].copy())
+        self._exitstack.append(contextlib.ExitStack())
+        self._names.append(self._names[-1].copy())
+        self._local_names.append(set())
+        self._factory.append({})
+        self._cmgrs.append({})
+
+    def __exit__(self, *exc):
+        self._context.pop()
+        self._exitstack.pop().close()
+        self._names.pop()
+        self._local_names.pop()
+        self._factory.pop()
+        self._cmgrs.pop()
+
+    @contextlib.contextmanager
+    def fork(self, name):
+        """Fork this context manager by creating new state.
+
+        This will create new Context class instance based on current state.
+
+        `name` argument is used to identify forked state, this is mostly used
+        for debugging, because usually you want to know which state you are
+        currently in.
+
+        Forking can be used, when you need to pass context to a function, that
+        is executed concurrently.
+
+        Keep in mind, that attached context managers are not copied to the
+        forked context. This is because most context managers can be activated
+        only once, that is why they must be activated in the same state they
+        were attached. If attached context managers were activated before
+        creating fork, then activated value will be available in forked state.
+
+        For example if we have 'f' context manager attached like this:
+
+            >>> from contextlib import contextmanager as cm
+            >>> base = Context('base')
+            >>> base.attach('f', cm(lambda: iter([42]))())
+
+        We can't access it from a fork:
+
+            >>> with base.fork('fork') as fork:  # doctest: +IGNORE_EXCEPTION_DETAIL
+            ...     fork.get('f')
+            Traceback (most recent call last):
+            Exception: Unknown context variable 'f'.
+
+        But if 'f' was already activated from base:
+
+            >>> base.get('f')
+            42
+
+        Then it is also available in a fork:
+
+            >>> with base.fork('fork') as fork:
+            ...     fork.get('f')
+            42
+
+        """
+        context = self.__class__(name, self)
+        with context._exitstack[-1]:
+            yield context
+
+    def bind(self, name, factory, *args, **kwargs):
+        """Bind a callable to the context.
+
+        Value of returned by this callable will be cached and callable will be
+        called only when first accessed. Subsequent access to this context name
+        will return value from cache.
+        """
+        self._set_local_name(name)
+        self._factory[-1][name] = (factory, args, kwargs)
+
+    def attach(self, name, cmgr):
+        """Attach new context manager to this context.
+
+        Attached context managers are lazy, they will enter only when accessed
+        for the first time. Active context managers will exit, when whole
+        context exits.
+        """
+        self._set_local_name(name)
+        self._cmgrs[-1][name] = cmgr
 
     def set(self, name, value):
-        self._set_name(name)
-        return self._set_value(name, value)
+        """Set `name` to `value` in current context."""
+        self._set_local_name(name)
+        self._context[-1][name] = value
+        return value
 
     def get(self, name):
+        """Get a value from context.
+
+        If value was previously set, just return it.
+
+        If value was bound as a callback, then call the callback once and set
+        returned value to the context.
+
+        If value was attached as context manager, then find where it was
+        attached, enter attached context and return its value.
+
+        Raises error, if given `name` was not set, bound or attached previously.
+        """
+
         if name in self._context[-1]:
             return self._context[-1][name]
 
-        if name not in self._factory[-1]:
-            raise Exception(f"Unknown context variable {name!r}.")
+        # If value is not in current state, then we need to find a factory or
+        # a context manager (cmgr) and get value from there. When `name` is
+        # found as factory or cmgr, then first we set value in previous state
+        # and then set same value in current state.
+        stacks = [
+            (self._factory, self._get_factory_value),
+            (self._cmgrs, self._get_cmgr_value),
+        ]
+        for stack, value_getter in stacks:
+            for state in range(len(stack) - 1, -1, -1):
+                if name in stack[state]:
+                    if name not in self._context[state]:
+                        # Get value and set in on a previous state.
+                        self._context[state][name] = value_getter(state, name)
+                    if len(self._context) - 1 > state:
+                        # If value was found not in current state, then update
+                        # current state with value from previous state.
+                        self._context[-1][name] = self._context[state][name]
+                    return self._context[-1][name]
 
-        factory, args, kwargs = self._factory[-1][name]
-        return self._set_value(name, factory(*args, **kwargs))
+        raise Exception(f"Unknown context variable {name!r}.")
 
-    def has(self, name):
-        return name in self._context[-1]
+    def _get_factory_value(self, state, name):
+        factory, args, kwargs = self._factory[state][name]
+        return factory(*args, **kwargs)
 
-    def attach(self, value):
-        return self._exitstack[-1].enter_context(value)
+    def _get_cmgr_value(self, state, name):
+        cmgr = self._cmgrs[state][name]
+        return self._exitstack[state].enter_context(cmgr)
 
-    @contextlib.contextmanager
-    def enter(self):
-        self.enter_stack()
-        with self._exitstack[-1]:
-            yield
-        self.leave_stack()
+    def has(self, name, local=False, value=False):
+        """Check if given name exist in context.
 
-    def enter_stack(self):
-        self._factory.append({**self._factory[-1]})
-        self._context.append({**self._context[-1]})
-        self._exitstack.append(contextlib.ExitStack())
-        self._names.append(set())
+        If `local` is `True`, check only names defined in this context, do not
+        look in values defined in parent contexts.
 
-    def leave_stack(self):
-        self._exitstack.pop()
-        self._context.pop()
-        self._factory.pop()
-        self._names.pop()
+        If `value` is `True`, check only evaluated names. Exclude all bound or
+        attached values, that has not yet been accessed.
+        """
+        if local and value:
+            return name in self._local_names[-1] and name in self._context[-1]
+        if local:
+            return name in self._local_names[-1]
+        if value:
+            return name in self._context[-1]
+        return name in self._names[-1]
 
     def error(self, message):
         # TODO: Use of this method is deprecated, raise exceptions directly.
@@ -64,17 +199,12 @@ class Context:
         #       New way of handling errors is through `spinta.commands.error`.
         raise Exception(message)
 
-    def _set_name(self, name):
-        if name in self._names[-1]:
+    def _set_local_name(self, name):
+        # Prevent redefining local names, but allow to redefine inherited names.
+        if name in self._local_names[-1]:
             raise Exception(f"Context variable {name!r} has been already set.")
+        self._local_names[-1].add(name)
         self._names[-1].add(name)
-
-    def _set_value(self, name, value):
-        if isinstance(value, contextlib.AbstractContextManager):
-            self._context[-1][name] = self._exitstack[-1].enter_context(value)
-        else:
-            self._context[-1][name] = value
-        return self._context[-1][name]
 
 
 class _CommandsConfig:
@@ -145,6 +275,9 @@ class Node:
         self.parent = None
         self.path = None
         self.type = None
+
+    def __repr__(self):
+        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>'
 
 
 class Model(Node):

@@ -50,6 +50,7 @@ def load(context: Context, config: components.Config, raw: RawConfig) -> compone
     config.default_auth_client = raw.get('default_auth_client')
     config.datasets = raw.get('datasets', default={})
     config.env = raw.get('env')
+    config.docs_path = raw.get('docs_path', default=None)
 
     return config
 

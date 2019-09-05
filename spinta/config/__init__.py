@@ -460,9 +460,10 @@ def _get_inner_keys(config: dict):
             ('a', 'b'): ['c', 'd'],
         }
 
-    This is needed for Config class, in order to be able to do things like this:
+    This is needed for `RawConfig` class, in order to be able to do things like
+    this:
 
-        >>> config.keys('a', 'b')
+        config.keys('a', 'b')
         ['c', 'd']
 
     And this functionality is needed, because of environment variables. For
