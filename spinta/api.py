@@ -75,6 +75,9 @@ async def create_app_context():
     if config.docs_path:
         app.mount('/docs', StaticFiles(directory=config.docs_path, html=True))
 
+    # This reoute matches everything, so it must be added last.
+    app.add_route('/{path:path}', homepage, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
+
 
 @app.route('/version', methods=['GET'])
 async def version(request: Request):
@@ -93,7 +96,6 @@ async def auth_token(request: Request):
     })
 
 
-@app.route('/{path:path}', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
 async def homepage(request: Request):
     context = request.state.context
 
