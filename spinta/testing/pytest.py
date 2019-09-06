@@ -90,7 +90,7 @@ def context(request, mocker, tmpdir, config, postgresql, mongo):
     # wrong. Find out why transaction was not property closed.
     assert context.has('transaction') is False
 
-    # In `context.load` if config orverrides are provided, config is modified,
+    # In `context.load` if config overrides are provided, config is modified,
     # we need to restore it.
     config.restore()
 
@@ -102,7 +102,7 @@ def context(request, mocker, tmpdir, config, postgresql, mongo):
     if context.has('store'):
         # Make sure all connections are released, since next test will create
         # another connection pool and connection pool is not reused between
-        # tests. Maybe it would be a good idea to reuse samke connection between
+        # tests. Maybe it would be a good idea to reuse same connection between
         # all tests?
         engine = context.get('store').manifests['default'].backend.engine
         engine.dispose()
@@ -118,8 +118,8 @@ def responses():
 def app(context, mocker):
     mocker.patch('spinta.api._load_context', lambda context: context)
     client = TestClient(context, api.app)
-    # Attache test client in order to execute startup and shutdown events. These
-    # events will be treggerend in `context.load()`. Starlette TestClient
+    # Attach test client in order to execute startup and shutdown events. These
+    # events will be triggered in `context.load()`. Starlette TestClient
     # triggers startup and shutdown events with TestClient.__enter__ and
     # TestClient.__exit__. That is why, we need to attach TestClient to the
     # context and trigger it later, on context load.

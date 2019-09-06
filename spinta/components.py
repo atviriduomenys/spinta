@@ -75,6 +75,31 @@ class Context:
         Forking can be used, when you need to pass context to a function, that
         is executed concurrently.
 
+        Example:
+
+            def hard_answer():
+                return 42
+
+            base = Context('base')
+            base.set('easy_answer', 42)
+            base.bind('hard_answer', hard_answer)
+
+            with base.fork('fork') as fork:
+
+                # Takes answer from cache, because it was set.
+                fork.get('easy_answer')
+
+                # Calls `hard_answer` function, even if it was already called
+                # for `base`, because we can't modify `base` to ensure thread
+                # safety.
+
+            # Calls `hard_answer` function, even it was already called in
+            # `fork`, to ensure thread safety.
+            base.get('hard_answer')
+
+            # Takes hard answer from cache.
+            base.get('hard_answer')
+
         """
         context = self.__class__(name, self)
         with context._exitstack[-1]:
@@ -83,7 +108,7 @@ class Context:
     def bind(self, name, factory, *args, **kwargs):
         """Bind a callable to the context.
 
-        Value of returned by this callable will be cached and callable will be
+        Value returned by this callable will be cached and callable will be
         called only when first accessed. Subsequent access to this context name
         will return value from cache.
         """
@@ -96,6 +121,11 @@ class Context:
         Attached context manager factory is lazy, it will be created only when
         accessed for the first time. Active context managers will exit, when
         whole context exits.
+
+        More information about context managers:
+
+        https://www.python.org/dev/peps/pep-0343/
+        https://docs.python.org/3/library/contextlib.html
         """
         self._set_local_name(name)
         self._cmgrs[-1][name] = (factory, args, kwargs)
@@ -118,6 +148,32 @@ class Context:
         attached, enter attached context and return its value.
 
         Raises error, if given `name` was not set, bound or attached previously.
+
+        Example with bind:
+
+            # State #1
+            context = Context('base')
+
+            # Bind a factory on state #1
+            context.bind('foo', bar)
+
+            with context:
+                # State #2
+
+                with context:
+                    # State #3
+
+                    # After calling `bar` function `foo` is cache in current
+                    # state #3 and in previous state #1.
+                    context.get('foo')
+
+                # Back to state #2. State #3 is removed along with cached `foo`
+                # value.
+
+                # Takes 'foo' value from state #1 cache, `bar` function will not
+                # be called.
+                context.get('foo')
+
         """
 
         if name in self._context[-1]:
@@ -135,7 +191,10 @@ class Context:
             for state in range(len(stack) - 1, -1, -1):
                 if name in stack[state]:
                     if name not in self._context[state]:
-                        # Get value and set in on a previous state.
+                        # Get value and set it on a previous state. This way, if
+                        # we exit from current state, value stays in previous
+                        # state an can be reused by others state between
+                        # previous and current state.
                         self._context[state][name] = value_getter(state, name)
                     if len(self._context) - 1 > state:
                         # If value was found not in current state, then update
@@ -155,7 +214,7 @@ class Context:
         return self._exitstack[state].enter_context(cmgr)
 
     def has(self, name, local=False, value=False):
-        """Check if given name exist in context.
+        """Check if given name exists in context.
 
         If `local` is `True`, check only names defined in this context, do not
         look in values defined in parent contexts.

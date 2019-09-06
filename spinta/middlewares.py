@@ -8,6 +8,15 @@ from starlette.types import Receive, Scope, Send
 
 
 class ContextMiddleware(BaseHTTPMiddleware):
+    """Adds `request.state.context`.
+
+    There is a global `context`, where all heavy things are preloaded as
+    startup. This preloading happens on Starlette's 'startup' event.
+
+    `ContextMiddleware` creates a fork of global preloaded context for each
+    request and assigns it to `request.state.context`. Forked context can be
+    modified in each request without effecting global context.
+    """
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         self._orig_send = send

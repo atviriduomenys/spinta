@@ -126,9 +126,9 @@ class ContextForTests:
             context.wipe(store.internal.objects['model']['transaction'])
 
     def load(self, overrides=None):
-        # We pass context to tests unloaded, by duing this, we give test
+        # We pass context to tests unloaded, by doing this, we give test
         # functions opportunity to call `context.load` manually and provide
-        # `overrides` for config, this way each test can configurate context in
+        # `overrides` for config, this way each test can configure context in
         # anyway they want.
         #
         # If test function does not explicitly call `context.load`, then it will
