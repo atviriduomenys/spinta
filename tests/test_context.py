@@ -3,6 +3,7 @@ import contextlib
 import unittest.mock
 
 import pytest
+import sqlalchemy as sa
 
 from spinta.components import Context
 
@@ -25,7 +26,7 @@ def test_bind_overwrite():
     assert context.get('a') == 1
 
 
-def test_attach():
+def test_attach_in_fork():
     context = Context('test')
 
     @contextlib.contextmanager
@@ -35,16 +36,71 @@ def test_attach():
         state['active'] = False
 
     state = {'active': None}
-    _cmgr = cmgr(state)
-    assert state['active'] is None
-
-    with context.fork('sub') as context_:
-        context_.attach('cmgr', _cmgr)
+    with context.fork('sub') as fork:
+        fork.attach('cmgr', cmgr, state)
         assert state['active'] is None
 
-        context_.get('cmgr')
+        fork.get('cmgr')
         assert state['active'] is True
 
+    assert state['active'] is False
+
+
+def test_attach_in_state():
+    context = Context('test')
+
+    @contextlib.contextmanager
+    def cmgr(state):
+        state['active'] = True
+        yield
+        state['active'] = False
+
+    state = {'active': None}
+    with context:
+        context.attach('cmgr', cmgr, state)
+        assert state['active'] is None
+
+        context.get('cmgr')
+        assert state['active'] is True
+
+    assert state['active'] is False
+
+
+def test_attach_in_nested_state():
+    context = Context('test')
+
+    @contextlib.contextmanager
+    def cmgr(state):
+        state['active'] = True
+        yield
+        state['active'] = False
+
+    state = {'active': None}
+    context.attach('cmgr', cmgr, state)
+    with context:
+        assert state['active'] is None
+        context.get('cmgr')
+        assert state['active'] is True
+    assert state['active'] is True
+
+
+def test_attach_in_nested_fork():
+    base = Context('base')
+
+    @contextlib.contextmanager
+    def cmgr(state):
+        state['active'] = True
+        yield
+        state['active'] = False
+
+    state = {'active': None}
+    base.attach('cmgr', cmgr, state)
+    with base.fork('fork') as fork:
+        with fork:
+            assert state['active'] is None
+            fork.get('cmgr')
+            assert state['active'] is True
+        assert state['active'] is True
     assert state['active'] is False
 
 
@@ -81,13 +137,23 @@ def test_bind_and_resolve_in_prev_state():
     assert len(f.mock_calls) == 1
 
 
-def test_bind_and_resolve_in_prev_fork():
+def test_bind_and_resolve_in_current_fork():
     f = unittest.mock.Mock(return_value=42)
     base = Context('base')
     base.bind('a', f)
     with base.fork('fork') as fork:
         assert fork.get('a') == 42
     assert base.get('a') == 42
+    assert len(f.mock_calls) == 2
+
+
+def test_bind_and_resolve_in_prev_fork():
+    f = unittest.mock.Mock(return_value=42)
+    base = Context('base')
+    base.bind('a', f)
+    assert base.get('a') == 42
+    with base.fork('fork') as fork:
+        assert fork.get('a') == 42
     assert len(f.mock_calls) == 2
 
 

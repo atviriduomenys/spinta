@@ -37,7 +37,7 @@ class ContextForTests:
             with self:
                 store = self.get('store')
                 self.set('auth.token', AdminToken())
-                self.attach('transaction', store.manifests['default'].backend.transaction(write=write))
+                self.attach('transaction', store.manifests['default'].backend.transaction, write=write)
                 yield self
 
     def pull(self, dataset: str, *, models: list = None, push: bool = True):

@@ -306,20 +306,22 @@ Context can be manipulated using these methods:
 
 - `context.set(name, value)` - set a value in context directly.
 
+  All directly set values are always copied between forks. Copies are shallow,
+  that means, in order to ensure thread safety, you should only read values,
+  bet do not change them. If you need to change values, then use `attach`
+  instead and construct values on request. This way, each new fork fill call
+  bound factory to get fresh values.
+
 - `context.bind(name, factory, *args, **kwargs)` - bind a callable `factory` to
   get value. This factory will be called on first `name` access and then
   retrieved value is cached in current and on a previous state were it was
   bound. In case of a fork, factories are always called and cached in each fork
   separately, to ensure thread safety.
 
-- `context.attach(name, cmgr)` - attach a context manager to current state.
-  This context manager is activated on first `name` access and is deactivated
-  when current context scope ends.
-
-  If context manager was attached on a previous state, then it will be
-  activated in that previous state. Context managers can be activated only in a
-  single context instance, that means, you can't have context manager defined
-  in a previous fork and activate it in another fork.
+- `context.attach(name, factory, *args, **kwargs)` - attach a context manager
+  factory to current state. This context manager factory is activated on first
+  `name` access and is deactivated when current context scope ends. Attach
+  works pretty much the same way as bind.
 
 - `context.get(name)` - access value of given `name`, if `name` points to a
   factory, then factory will be called to get value, if `name` points to

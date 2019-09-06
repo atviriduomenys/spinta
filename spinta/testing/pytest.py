@@ -99,6 +99,14 @@ def context(request, mocker, tmpdir, config, postgresql, mongo):
     if context.loaded:
         context.wipe_all()
 
+    if context.has('store'):
+        # Make sure all connections are released, since next test will create
+        # another connection pool and connection pool is not reused between
+        # tests. Maybe it would be a good idea to reuse samke connection between
+        # all tests?
+        engine = context.get('store').manifests['default'].backend.engine
+        engine.dispose()
+
 
 @pytest.fixture
 def responses():
@@ -115,7 +123,7 @@ def app(context, mocker):
     # triggers startup and shutdown events with TestClient.__enter__ and
     # TestClient.__exit__. That is why, we need to attach TestClient to the
     # context and trigger it later, on context load.
-    context.attach('client', client)
+    context.attach('client', lambda: client)
     return client
 
 

@@ -66,7 +66,7 @@ def pull(ctx, source, model, push, export):
     dataset = store.manifests['default'].objects['dataset'][source]
 
     with context:
-        context.attach('transaction', store.backends['default'].transaction(write=push))
+        context.attach('transaction', store.backends['default'].transaction, write=push)
 
         rows = commands.pull(context, dataset, models=model)
         rows = commands.push(context, store, rows) if push else rows

@@ -18,14 +18,21 @@ class Context:
         # listed here.
         self._local_names = [set()]
         self._exitstack = [contextlib.ExitStack()]
-        # Context managers.
-        self._cmgrs = [{}]
 
         if parent:
+            self._cmgrs = [parent._cmgrs[-1].copy()]
             self._factory = [parent._factory[-1].copy()]
-            self._context = [parent._context[-1].copy()]
             self._names = [parent._names[-1].copy()]
+
+            # We only copy explicitly set keys, and exclude keys coming from
+            # `bind` or `attach`.
+            copy_keys = set(parent._context[-1]) - (
+                set(parent._cmgrs[-1]) | set(parent._factory[-1])
+            )
+            parent_context = parent._context[-1]
+            self._context = [{k: parent_context[k] for k in copy_keys}]
         else:
+            self._cmgrs = [{}]
             self._factory = [{}]
             self._context = [{}]
             self._names = [set()]
@@ -68,36 +75,6 @@ class Context:
         Forking can be used, when you need to pass context to a function, that
         is executed concurrently.
 
-        Keep in mind, that attached context managers are not copied to the
-        forked context. This is because most context managers can be activated
-        only once, that is why they must be activated in the same state they
-        were attached. If attached context managers were activated before
-        creating fork, then activated value will be available in forked state.
-
-        For example if we have 'f' context manager attached like this:
-
-            >>> from contextlib import contextmanager as cm
-            >>> base = Context('base')
-            >>> base.attach('f', cm(lambda: iter([42]))())
-
-        We can't access it from a fork:
-
-            >>> with base.fork('fork') as fork:  # doctest: +IGNORE_EXCEPTION_DETAIL
-            ...     fork.get('f')
-            Traceback (most recent call last):
-            Exception: Unknown context variable 'f'.
-
-        But if 'f' was already activated from base:
-
-            >>> base.get('f')
-            42
-
-        Then it is also available in a fork:
-
-            >>> with base.fork('fork') as fork:
-            ...     fork.get('f')
-            42
-
         """
         context = self.__class__(name, self)
         with context._exitstack[-1]:
@@ -113,15 +90,15 @@ class Context:
         self._set_local_name(name)
         self._factory[-1][name] = (factory, args, kwargs)
 
-    def attach(self, name, cmgr):
-        """Attach new context manager to this context.
+    def attach(self, name, factory, *args, **kwargs):
+        """Attach new context manager factory to this state.
 
-        Attached context managers are lazy, they will enter only when accessed
-        for the first time. Active context managers will exit, when whole
-        context exits.
+        Attached context manager factory is lazy, it will be created only when
+        accessed for the first time. Active context managers will exit, when
+        whole context exits.
         """
         self._set_local_name(name)
-        self._cmgrs[-1][name] = cmgr
+        self._cmgrs[-1][name] = (factory, args, kwargs)
 
     def set(self, name, value):
         """Set `name` to `value` in current context."""
@@ -173,7 +150,8 @@ class Context:
         return factory(*args, **kwargs)
 
     def _get_cmgr_value(self, state, name):
-        cmgr = self._cmgrs[state][name]
+        factory, args, kwargs = self._cmgrs[state][name]
+        cmgr = factory(*args, **kwargs)
         return self._exitstack[state].enter_context(cmgr)
 
     def has(self, name, local=False, value=False):

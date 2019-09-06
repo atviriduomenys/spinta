@@ -271,7 +271,7 @@ def _check_ref(context: Context, dataset: Dataset, prop: Property):
 @pull.register()
 def pull(context: Context, dataset: Dataset, *, models: list = None):
     with context:
-        context.attach('tmpdir', tempfile.TemporaryDirectory(prefix='spinta-pull-cache-'))
+        context.attach('tmpdir', tempfile.TemporaryDirectory, prefix='spinta-pull-cache-')
         context.bind('cache', Cache, path=pathlib.Path(context.get('tmpdir')))
         context.bind('requests', requests.Session)
 
