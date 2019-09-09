@@ -99,7 +99,7 @@ def context(request, mocker, tmpdir, config, postgresql, mongo):
     if context.loaded:
         context.wipe_all()
 
-    if context.has('store'):
+    if context.has('store') and 'defaul' in context.get('store').manifests:
         # Make sure all connections are released, since next test will create
         # another connection pool and connection pool is not reused between
         # tests. Maybe it would be a good idea to reuse same connection between

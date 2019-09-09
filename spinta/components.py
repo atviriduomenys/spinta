@@ -92,6 +92,7 @@ class Context:
                 # Calls `hard_answer` function, even if it was already called
                 # for `base`, because we can't modify `base` to ensure thread
                 # safety.
+                fork.get('hard_answer')
 
             # Calls `hard_answer` function, even it was already called in
             # `fork`, to ensure thread safety.
@@ -163,7 +164,7 @@ class Context:
                 with context:
                     # State #3
 
-                    # After calling `bar` function `foo` is cache in current
+                    # After calling `bar` function `foo` is cached in current
                     # state #3 and in previous state #1.
                     context.get('foo')
 
