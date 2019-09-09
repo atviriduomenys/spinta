@@ -418,7 +418,7 @@ def _create_context(**kwargs):
     config.read(**kwargs)
     load_commands(config.get('commands', 'modules', cast=list))
     Context = config.get('components', 'core', 'context', cast=importstr)
-    context = Context()
+    context = Context('base')
     context.set('config.raw', config)
     return context
 
