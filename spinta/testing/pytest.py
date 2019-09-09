@@ -10,6 +10,7 @@ from spinta.testing.context import ContextForTests
 from spinta.testing.client import TestClient
 from spinta.config import RawConfig, load_commands
 from spinta.utils.imports import importstr
+from spinta import commands
 
 
 @pytest.fixture(scope='session')
@@ -99,13 +100,9 @@ def context(request, mocker, tmpdir, config, postgresql, mongo):
     if context.loaded:
         context.wipe_all()
 
-    if context.has('store') and 'defaul' in context.get('store').manifests:
-        # Make sure all connections are released, since next test will create
-        # another connection pool and connection pool is not reused between
-        # tests. Maybe it would be a good idea to reuse same connection between
-        # all tests?
-        engine = context.get('store').manifests['default'].backend.engine
-        engine.dispose()
+    if context.has('store'):
+        for backend in context.get('store').backends.values():
+            commands.unload_backend(context, backend)
 
 
 @pytest.fixture

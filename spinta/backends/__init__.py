@@ -12,6 +12,7 @@ from spinta.types.type import String
 from spinta.exceptions import ConflictError, DataError, NotFound
 from spinta.utils.nestedstruct import build_show_tree
 from spinta.utils.url import Operator
+from spinta import commands
 
 
 class Backend:
@@ -228,6 +229,11 @@ def prepare(
     show: typing.List[str] = None,
 ) -> dict:
     return _prepare_query_result(context, action, model, backend, value, show)
+
+
+@commands.unload_backend.register()
+def unload_backend(context: Context, backend: Backend):
+    pass
 
 
 @load_operator_value.register()

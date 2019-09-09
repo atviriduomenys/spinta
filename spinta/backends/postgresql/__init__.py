@@ -898,6 +898,15 @@ def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL,
     return prepare(context, action, model, backend, dict(value), show=show)
 
 
+@commands.unload_backend.register()
+def unload(context: Context, backend: PostgreSQL):
+    # Make sure all connections are released, since next test will create
+    # another connection pool and connection pool is not reused between
+    # tests. Maybe it would be a good idea to reuse same connection between
+    # all tests?
+    backend.engine.dispose()
+
+
 def _fix_data_for_json(data):
     # XXX: a temporary workaround
     #

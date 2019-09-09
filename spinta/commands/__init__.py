@@ -239,3 +239,13 @@ def contents():
 @command()
 def render():
     """Render response to the clinet."""
+
+
+@command()
+def unload_backend():
+    """Unload database backend.
+
+    Currently this is only used in tests and only for PostgreSQL, after each
+    tests, all sqlalchemy connections are disposed to avoid leaving open
+    connections between tests.
+    """
