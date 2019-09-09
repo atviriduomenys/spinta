@@ -1,28 +1,26 @@
 import pkg_resources as pres
-import uvicorn
 import logging
-import asyncio
-import typing
 
 from authlib.common.errors import AuthlibHTTPError
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.requests import Request
-from starlette.responses import Response, JSONResponse, StreamingResponse
+from starlette.requests import Request, State
+from starlette.responses import JSONResponse
 from starlette.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
-from starlette.types import Receive, Scope, Send
 
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
 from spinta.commands import prepare, get_version
-from spinta.config import RawConfig
 from spinta.exceptions import ConflictError, DataError, NotFound
 from spinta.urlparams import Version
 from spinta.utils.response import create_http_response
 from spinta.urlparams import get_response_type
+from spinta import commands, components
+from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
+from spinta.config import create_context
+from spinta.middlewares import ContextMiddleware
 
 log = logging.getLogger(__name__)
 
@@ -30,88 +28,66 @@ templates = Jinja2Templates(
     directory=pres.resource_filename('spinta', 'templates'),
 )
 
-app = Starlette()
 
-context = None
+class StarletteWithState(Starlette):
 
-
-class ContextMiddleware(BaseHTTPMiddleware):
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        self._orig_send = send
-        with context.enter():
-            await super().__call__(scope, receive, send)
-
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        return await call_next(request)
-
-    # TODO: Temporary fix for https://github.com/encode/starlette/issues/472
-    async def call_next(self, request: Request) -> Response:
-        loop = asyncio.get_event_loop()
-        queue = asyncio.Queue()  # type: asyncio.Queue
-
-        scope = request.scope
-        receive = request.receive
-        send = queue.put
-
-        async def coro() -> None:
-            try:
-                await self.app(scope, receive, send)
-            finally:
-                await queue.put(None)
-
-        task = loop.create_task(coro())
-        message = await queue.get()
-        if message is None:
-            task.result()
-            raise RuntimeError("No response returned.")
-
-        if "http.response.template" in scope.get("extensions", {}):
-            if message["type"] == "http.response.template":
-                await self._orig_send(message)
-                message = await queue.get()
-
-        assert message["type"] == "http.response.start"
-
-        async def body_stream() -> typing.AsyncGenerator[bytes, None]:
-            while True:
-                message = await queue.get()
-                if message is None:
-                    break
-                assert message["type"] == "http.response.body"
-                yield message["body"]
-            task.result()
-
-        response = StreamingResponse(
-            status_code=message["status"], content=body_stream()
-        )
-        response.raw_headers = message["headers"]
-        return response
+    def __init__(self, *args, **kwargs):
+        # TODO: remove this, when https://github.com/encode/starlette/pull/618
+        #       is released. Also, keep in mind, that starlette.requests.State
+        #       was moved to starlette.datastructures.State.
+        self.state = State()
+        super().__init__(*args, **kwargs)
 
 
+app = StarletteWithState()
 app.add_middleware(ContextMiddleware)
 
-# FIXME: configuration should be loaded at one of the entry points: ASGI, CLI, etc.
-raw_config = RawConfig()
-raw_config.read()
-docs_path = raw_config.get('docs_path')
 
-if docs_path:
-    app.mount('/docs', StaticFiles(directory=docs_path, html=True))
+def _load_context(context: components.Context):
+    rc = context.get('config.raw')
+
+    config = context.set('config', components.Config())
+    store = context.set('store', components.Store())
+
+    commands.load(context, config, rc)
+    commands.check(context, config)
+    commands.load(context, store, rc)
+    commands.check(context, store)
+
+    commands.wait(context, store, rc)
+
+    prepare(context, store.internal)
+    prepare(context, store)
+
+    context.set('auth.server', AuthorizationServer(context))
+    context.set('auth.resource_protector', ResourceProtector(context, BearerTokenValidator))
+
+
+@app.on_event('startup')
+async def create_app_context():
+    context = create_context()
+    _load_context(context)
+
+    config = context.get('config')
+    app.debug = config.debug
+    app.state.context = context
+
+    if config.docs_path:
+        app.mount('/docs', StaticFiles(directory=config.docs_path, html=True))
+
+    # This reoute matches everything, so it must be added last.
+    app.add_route('/{path:path}', homepage, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
 
 
 @app.route('/version', methods=['GET'])
 async def version(request: Request):
-    global context
-    version = get_version(context)
+    version = get_version(request.state.context)
     return JSONResponse(version)
 
 
 @app.route('/auth/token', methods=['POST'])
 async def auth_token(request: Request):
-    global context
-
-    auth = context.get('auth.server')
+    auth = request.state.context.get('auth.server')
     return auth.create_token_response({
         'method': request.method,
         'url': str(request.url),
@@ -120,9 +96,8 @@ async def auth_token(request: Request):
     })
 
 
-@app.route('/{path:path}', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
 async def homepage(request: Request):
-    global context
+    context = request.state.context
 
     context.set('auth.request', get_auth_request({
         'method': request.method,
@@ -147,8 +122,6 @@ async def homepage(request: Request):
 @app.exception_handler(HTTPException)
 @app.exception_handler(ConflictError)
 async def http_exception(request, exc):
-    global context
-
     log.exception('Error: %s', exc)
 
     if isinstance(exc, HTTPException):
@@ -182,7 +155,7 @@ async def http_exception(request, exc):
         "error": error,
     }
 
-    fmt = get_response_type(context, request, request)
+    fmt = get_response_type(request.state.context, request, request)
     if fmt == 'json':
         return JSONResponse(response, status_code=status_code)
     else:
@@ -192,21 +165,3 @@ async def http_exception(request, exc):
             'request': request,
         }
         return templates.TemplateResponse('error.html', response, status_code=status_code)
-
-
-def run(context):
-    set_context(context)
-    app.debug = context.get('config').debug
-    uvicorn.run(app, host='0.0.0.0', port=8000)
-
-
-def set_context(context_):
-    global context
-    if context is not None:
-        raise Exception("Context was already set.")
-    context = context_
-
-    store = context.get('store')
-    manifest = store.manifests['default']
-    log.info("Spinta has started!")
-    log.info('manifest: %s', manifest.path.resolve())

@@ -1,6 +1,7 @@
 import json
 import pathlib
 import uuid
+import logging
 
 import click
 import tqdm
@@ -11,6 +12,8 @@ from spinta import components
 from spinta.utils.itertools import consume
 from spinta.auth import AdminToken
 from spinta.config import create_context
+
+log = logging.getLogger(__name__)
 
 
 @click.group()
@@ -62,8 +65,8 @@ def pull(ctx, source, model, push, export):
 
     dataset = store.manifests['default'].objects['dataset'][source]
 
-    with context.enter():
-        context.bind('transaction', store.backends['default'].transaction, write=push)
+    with context:
+        context.attach('transaction', store.backends['default'].transaction, write=push)
 
         rows = commands.pull(context, dataset, models=model)
         rows = commands.push(context, store, rows) if push else rows
@@ -105,8 +108,17 @@ def pull(ctx, source, model, push, export):
 @main.command()
 @click.pass_context
 def run(ctx):
+    import uvicorn
     import spinta.api
-    spinta.api.run(ctx.obj['context'])
+
+    context = ctx.obj['context']
+    spinta.api.context_var.set(context)
+    store = context.get('store')
+    manifest = store.manifests['default']
+    log.info("Spinta has started!")
+    log.info('manifest: %s', manifest.path.resolve())
+    spinta.api.app.debug = context.get('config').debug
+    uvicorn.run(spinta.api.app, host='0.0.0.0', port=8000)
 
 
 @main.command()

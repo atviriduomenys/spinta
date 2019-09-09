@@ -74,6 +74,9 @@ class Model(Node):
         self.extends = None
         self.canonical = False
 
+    def __repr__(self):
+        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}, resource={self.parent.name!r}, dataset={self.parent.parent.name!r})>'
+
     def get_type_value(self):
         return f'{self.name}/:dataset/{self.parent.parent.name}/:resource/{self.parent.name}'
 
@@ -267,9 +270,9 @@ def _check_ref(context: Context, dataset: Dataset, prop: Property):
 
 @pull.register()
 def pull(context: Context, dataset: Dataset, *, models: list = None):
-    with context.enter():
-        tmpdir = context.attach(tempfile.TemporaryDirectory(prefix='spinta-pull-cache-'))
-        context.bind('cache', Cache, path=pathlib.Path(tmpdir))
+    with context:
+        context.attach('tmpdir', tempfile.TemporaryDirectory, prefix='spinta-pull-cache-')
+        context.bind('cache', Cache, path=pathlib.Path(context.get('tmpdir')))
         context.bind('requests', requests.Session)
 
         for resource in dataset.resources.values():

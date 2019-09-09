@@ -66,7 +66,7 @@ class PostgreSQL(Backend):
         with self.engine.begin() as connection:
             if write:
                 table = self.tables['internal']['transaction']
-                result = self.engine.execute(
+                result = connection.execute(
                     table.main.insert().values(
                         datetime=utcnow(),
                         client_type='',
@@ -271,6 +271,9 @@ class ModelTables(typing.NamedTuple):
 
 @migrate.register()
 def migrate(context: Context, backend: PostgreSQL):
+    # XXX: I found, that this some times leaks connection, you can check that by
+    #      comparing `backend.engine.pool.checkedin()` before and after this
+    #      line.
     backend.schema.create_all(checkfirst=True)
 
 
@@ -893,6 +896,15 @@ def get_changes_table(backend, table_name, id_type):
 @prepare.register()
 def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, show: typing.List[str] = None) -> dict:
     return prepare(context, action, model, backend, dict(value), show=show)
+
+
+@commands.unload_backend.register()
+def unload(context: Context, backend: PostgreSQL):
+    # Make sure all connections are released, since next test will create
+    # another connection pool and connection pool is not reused between
+    # tests. Maybe it would be a good idea to reuse same connection between
+    # all tests?
+    backend.engine.dispose()
 
 
 def _fix_data_for_json(data):

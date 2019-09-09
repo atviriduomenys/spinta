@@ -12,12 +12,16 @@ from spinta.types.type import String
 from spinta.exceptions import ConflictError, DataError, NotFound
 from spinta.utils.nestedstruct import build_show_tree
 from spinta.utils.url import Operator
+from spinta import commands
 
 
 class Backend:
     metadata = {
         'name': 'backend',
     }
+
+    def __repr__(self):
+        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}) at 0x{id(self):02x}>'
 
     @contextlib.contextmanager
     def transaction(self):
@@ -225,6 +229,11 @@ def prepare(
     show: typing.List[str] = None,
 ) -> dict:
     return _prepare_query_result(context, action, model, backend, value, show)
+
+
+@commands.unload_backend.register()
+def unload_backend(context: Context, backend: Backend):
+    pass
 
 
 @load_operator_value.register()

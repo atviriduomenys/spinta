@@ -28,7 +28,7 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
         return await commands.contents(context, request, params=params)
 
     if request.method == 'GET':
-        context.set('transaction', manifest.backend.transaction())
+        context.attach('transaction', manifest.backend.transaction)
         if params.changes:
             return await commands.changes(context, request, model, model.backend, action=Action.CHANGES, params=params)
         elif params.id:
@@ -42,7 +42,7 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
             action = Action.SEARCH if params.search else Action.GETALL
             return await commands.getall(context, request, model, model.backend, action=action, params=params)
     else:
-        context.bind('transaction', manifest.backend.transaction, write=True)
+        context.attach('transaction', manifest.backend.transaction, write=True)
         action = METHOD_TO_ACTION[request.method]
         if prop and ref:
             return await commands.push(context, request, prop, model.backend, action=action, params=params)
