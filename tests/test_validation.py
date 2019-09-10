@@ -1,3 +1,6 @@
+from spinta.testing.utils import get_error_codes, get_error_context
+
+
 def test_report(app):
     app.authorize([
         'spinta_report_insert',
@@ -57,8 +60,11 @@ def test_invalid_report_int(app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "TypeError: field 'count' should receive value of 'integer' type.",
+    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
+    assert get_error_context(resp.json(), "PropertyTypeError") == {
+        "type_name": "integer",
+        "model": "report",
+        "prop": "count",
     }
 
 
@@ -75,9 +81,7 @@ def test_invalid_report_date(app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Invalid isoformat string: '2019-04'",
-    }
+    assert get_error_codes(resp.json()) == ["DateTypeError"]
 
 
 def test_non_string_report_date(app):
@@ -93,9 +97,7 @@ def test_non_string_report_date(app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "fromisoformat: argument must be str",
-    }
+    assert get_error_codes(resp.json()) == ["DateTypeError"]
 
 
 def test_invalid_report_datetime(app):
@@ -111,9 +113,7 @@ def test_invalid_report_datetime(app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Invalid isoformat string: '2019-04'",
-    }
+    assert get_error_codes(resp.json()) == ["DateTimeTypeError"]
 
 
 def test_non_string_report_datetime(app):
@@ -129,9 +129,7 @@ def test_non_string_report_datetime(app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "fromisoformat: argument must be str",
-    }
+    assert get_error_codes(resp.json()) == ["DateTimeTypeError"]
 
 
 def test_invalid_report_array(app):
@@ -147,9 +145,7 @@ def test_invalid_report_array(app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Invalid array type: <class 'dict'>",
-    }
+    assert get_error_codes(resp.json()) == ["ArrayTypeError"]
 
 
 def test_invalid_report_array_object(app):
@@ -165,9 +161,7 @@ def test_invalid_report_array_object(app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Invalid object type: <class 'str'>",
-    }
+    assert get_error_codes(resp.json()) == ["ObjectTypeError"]
 
 
 def test_invalid_nested_object_property(app):
@@ -182,9 +176,7 @@ def test_invalid_nested_object_property(app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Invalid object type: <class 'str'>",
-    }
+    assert get_error_codes(resp.json()) == ["ObjectTypeError"]
 
 
 def test_missing_report_object_property(app):
@@ -230,8 +222,10 @@ def test_unknown_report_property(app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Unknown params: 'random_prop'",
+    assert get_error_codes(resp.json()) == ["UnknownModelPropertiesError"]
+    assert get_error_context(resp.json(), "UnknownModelPropertiesError") == {
+        "props_list": "'random_prop'",
+        "model": "report",
     }
 
 
@@ -255,6 +249,9 @@ def test_unknown_report_object_property(app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Unknown params: 'rand_prop'",
+    assert get_error_codes(resp.json()) == ["UnknownObjectPropertiesError"]
+    assert get_error_context(resp.json(), "UnknownObjectPropertiesError") == {
+        "props_list": "'rand_prop'",
+        "model": "report",
+        "prop": "notes",
     }

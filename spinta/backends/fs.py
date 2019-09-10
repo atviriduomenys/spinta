@@ -10,7 +10,7 @@ from spinta.commands import load, prepare, migrate, check, push, getone, wipe, w
 from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.types.type import File
-from spinta.exceptions import DataError, NotFound
+from spinta.exceptions import FileDoesNotExistError, FileNotFoundInResourceError
 from spinta import commands
 from spinta.renderer import render
 
@@ -61,7 +61,13 @@ def migrate(context: Context, backend: FileSystem):
 def check(context: Context, type: File, prop: Property, backend: FileSystem, value: dict, *, data: dict, action: Action):
     path = backend.path / value['filename']
     if not path.exists():
-        raise DataError(f"File {path} does not exist.")
+        # FIXME: Probably, instead of showing absolute path,
+        # we should show path relative to backend.path. For security reasons.
+        raise FileDoesNotExistError(
+            model=prop.model.name,
+            prop=prop.place,
+            path=str(path)
+        )
 
 
 @check.register()
@@ -147,7 +153,9 @@ async def getone(
     authorize(context, action, prop)
     data = getone(context, prop, prop.model.backend, id_=params.id)
     if data is None:
-        raise NotFound(f"File {prop.name!r} not found in {params.id!r}.")
+        raise FileNotFoundInResourceError(model=prop.model.name,
+                                          prop=prop.place,
+                                          id_=params.id)
     filename = data['filename'] or params.id
     return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
 

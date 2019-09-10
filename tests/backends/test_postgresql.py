@@ -3,6 +3,7 @@ import sqlalchemy as sa
 from unittest.mock import MagicMock
 
 from spinta.backends.postgresql import get_table_name
+from spinta.testing.utils import get_error_codes, get_error_context
 
 
 def test_get_table_name():
@@ -103,8 +104,10 @@ def test_delete(context, app):
     # multiple deletes should just return HTTP/404
     resp = app.delete(f'/country/{ids[0]}')
     assert resp.status_code == 404
-    assert resp.json() == {
-        'error': f"Resource with id {ids[0]} is not found."
+    assert get_error_codes(resp.json()) == ["ResourceNotFoundError"]
+    assert get_error_context(resp.json(), "ResourceNotFoundError") == {
+        "id_": ids[0],
+        "model": "country",
     }
 
     resp = app.get('/country').json()
@@ -145,19 +148,37 @@ def test_patch(app, context):
     resp = app.patch(f'/org/{org_data["id"]}',
                      json={'revision': 'r3v1510n', 'title': 'foo org'})
     assert resp.status_code == 409
-    assert resp.json() == {'error': f"Given 'revision' value must match database. Given value: 'r3v1510n', existing value: '{revision}'."}
+    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
+    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
+        "given_value": "r3v1510n",
+        "existing_value": revision,
+        "model": "org",
+        "prop": "revision",
+    }
 
     # test that type mismatch is checked
     resp = app.patch(f'/org/{org_data["id"]}',
                      json={'type': 'country', 'revision': org_data["revision"], 'title': 'foo org'})
     assert resp.status_code == 409
-    assert resp.json() == {'error': f"Given 'type' value must match database. Given value: 'country', existing value: 'org'."}
+    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
+    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
+        "given_value": "country",
+        "existing_value": "org",
+        "model": "org",
+        "prop": "type",
+    }
 
     # test that id mismatch is checked
     resp = app.patch(f'/org/{org_data["id"]}',
                      json={'id': '0007ddec-092b-44b5-9651-76884e6081b4', 'revision': org_data["revision"], 'title': 'foo org'})
     assert resp.status_code == 409
-    assert resp.json() == {'error': f"Given 'id' value must match database. Given value: '0007ddec-092b-44b5-9651-76884e6081b4', existing value: '{id_}'."}
+    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
+    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
+        "given_value": "0007ddec-092b-44b5-9651-76884e6081b4",
+        "existing_value": id_,
+        "model": "org",
+        "prop": "id",
+    }
 
     # test that protected fields (id, type, revision) are accepted, but not PATCHED
     resp = app.patch(f'/org/{org_data["id"]}',

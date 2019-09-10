@@ -6,7 +6,7 @@ import typing
 from multipledispatch.dispatcher import Dispatcher
 
 from starlette.exceptions import HTTPException
-from spinta.exceptions import DataError, NotFound
+from spinta.exceptions import BaseError
 from authlib.common.errors import AuthlibHTTPError
 
 _commands = {}
@@ -38,7 +38,7 @@ class Command(Dispatcher):
     def __call__(self, *args, **kwargs):
         try:
             return super().__call__(*args, **kwargs)
-        except (NotFound, DataError, AuthlibHTTPError, HTTPException):
+        except (BaseError, AuthlibHTTPError, HTTPException):
             raise
         except Exception as exc:
             types = tuple([type(arg) for arg in (exc,) + args])

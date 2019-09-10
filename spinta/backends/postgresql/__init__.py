@@ -22,12 +22,19 @@ from spinta.commands import wait, load, prepare, migrate, check, push, getone, g
 from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
-from spinta.exceptions import FoundMultiple, NotFound, RevisionException, UniqueConstraintError
 from spinta.renderer import render
 from spinta.types.type import Type, File, PrimaryKey, Ref
 from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
+
+from spinta.exceptions import (
+    MultipleRowsFound,
+    NotFoundError,
+    RevisionError,
+    ResourceNotFoundError,
+    UniqueConstraintError,
+)
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -96,12 +103,12 @@ class PostgreSQL(Backend):
 
         elif len(result) == 0:
             if default is NA:
-                raise NotFound("No results where found.")
+                raise NotFoundError()
             else:
                 return default
 
         else:
-            raise FoundMultiple("Multiple rows were found.")
+            raise MultipleRowsFound()
 
 
 class ReadTransaction:
@@ -305,7 +312,7 @@ def check(context: Context, type_: Type, prop: Property, backend: PostgreSQL, va
         not_found = object()
         result = backend.get(connection, table.c[prop.name], condition, default=not_found)
         if result is not not_found:
-            raise UniqueConstraintError(prop_name=prop.name, model_name=prop.model.name)
+            raise UniqueConstraintError(model=prop.model.name, prop=prop.place)
 
 
 @check.register()
@@ -388,7 +395,8 @@ def insert(
         check_scope(context, 'set_meta_fields')
 
     if 'revision' in data:
-        raise RevisionException()
+        # FIXME: revision should have model for context
+        raise RevisionError()
 
     if not data.get('id'):
         data['id'] = gen_object_id(context, backend, model)
@@ -442,7 +450,8 @@ def upsert(
             data['id'] = gen_object_id(context, backend, model)
 
         if 'revision' in data.keys():
-            raise RevisionException()
+            # FIXME: revision should have model for context
+            raise RevisionError()
         data['revision'] = get_new_id('revision id')
 
         connection.execute(
@@ -534,7 +543,7 @@ def patch(
     )
     if row is None:
         type_ = model.get_type_value()
-        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+        raise ResourceNotFoundError(model=type_, id_=id_)
 
     # FIXME: before creating revision check if there's no collision clash
     data['revision'] = get_new_id('revision id')
@@ -600,7 +609,7 @@ def delete(
         where(table.main.c.id == id_)
     )
     if res.rowcount == 0:
-        raise NotFound(f"Resource with id {id_} is not found.")
+        raise ResourceNotFoundError(model=model.name, id_=id_)
 
     # Track changes.
     connection.execute(

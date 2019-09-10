@@ -20,7 +20,7 @@ from spinta.backends.postgresql import MAIN_TABLE, CHANGES_TABLE
 from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
-from spinta.exceptions import NotFound, RevisionException
+from spinta.exceptions import ResourceNotFoundError, RevisionError
 from spinta.utils.response import get_request_data
 from spinta.utils.idgen import get_new_id
 from spinta.utils.changes import get_patch_changes
@@ -107,7 +107,8 @@ def insert(
         id_ = commands.gen_object_id(context, backend, model)
 
     if 'revision' in data.keys():
-        raise RevisionException()
+        # FIXME: revision should have model for context
+        raise RevisionError()
     data['revision'] = get_new_id('revision id')
 
     connection.execute(
@@ -166,7 +167,8 @@ def upsert(
             id_ = commands.gen_object_id(context, backend, model)
 
         if 'revision' in data.keys():
-            raise RevisionException()
+            # FIXME: revision should have model for context
+            raise RevisionError()
         data['revision'] = get_new_id('revision id')
 
         data = _fix_data_for_json(data)
@@ -241,7 +243,7 @@ def patch(
     )
     if row is None:
         type_ = model.get_type_value()
-        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+        raise ResourceNotFoundError(model=type_, id_=id_)
 
     data = _patch(transaction, connection, table, id_, row, data)
 

@@ -15,7 +15,6 @@ from spinta.backends import Backend, check_model_properties, check_type_value
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.common import NA
 from spinta.config import RawConfig
-from spinta.exceptions import NotFound, RevisionException, UniqueConstraintError
 from spinta.renderer import render
 from spinta.types.type import Date, File, Type
 from spinta.utils.changes import get_patch_changes
@@ -37,6 +36,12 @@ from spinta.commands import (
     push,
     wait,
     wipe,
+)
+from spinta.exceptions import (
+    ModelPropertyError,
+    ResourceNotFoundError,
+    RevisionError,
+    UniqueConstraintError,
 )
 
 
@@ -133,7 +138,7 @@ def check(context: Context, type_: Type, prop: Property, backend: Mongo, value: 
             return
         result = table.find_one({'id': data['id']})
         if result is not None:
-            raise UniqueConstraintError(prop_name=prop.name, model_name=model.name)
+            raise UniqueConstraintError(model=model.name, prop=prop.place)
 
 
 @push.register()
@@ -212,7 +217,8 @@ def insert(
         data['id'] = gen_object_id(context, backend, model)
 
     if 'revision' in data:
-        raise RevisionException()
+        # FIXME: revision should have model for context
+        raise RevisionError()
     # FIXME: before creating revision check if there's no collision clash
     data['revision'] = get_new_id('revision id')
 
@@ -245,7 +251,8 @@ def upsert(
             id_ = commands.gen_object_id(context, backend, model)
 
         if 'revision' in data.keys():
-            raise RevisionException()
+            # FIXME: revision should have model for context
+            raise RevisionError()
         data['revision'] = get_new_id('revision id')
 
         table.insert_one(data)
@@ -279,7 +286,8 @@ def patch(
     row = table.find_one({'id': id_})
     if row is None:
         type_ = model.get_type_value()
-        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+        # TODO: do not leak implementation details to clients, use id instead of id_
+        raise ResourceNotFoundError(model=type_, id_=id_)
 
     data = _patch(table, id_, row, data)
 
@@ -324,10 +332,11 @@ def delete(
     *,
     id_: str,
 ):
-    table = backend.db[model.get_type_value()]
+    model_name = model.get_type_value()
+    table = backend.db[model_name]
     result = table.delete_one({'id': id_})
     if result.deleted_count == 0:
-        raise NotFound(f"Resource with id {id_} is not found.")
+        raise ResourceNotFoundError(model=model_name, id_=id_)
 
 
 @push.register()
@@ -431,7 +440,7 @@ def patch(
     row = table.find_one({'id': id_}, {prop.name: 1})
     if row is None:
         type_ = prop.model.get_type_value()
-        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+        raise ResourceNotFoundError(model=type_, id_=id_)
 
     data = _patch_property(table, id_, prop, row, data)
 
@@ -461,7 +470,7 @@ def _patch_property(table, id_, prop, row, data):
 
     if result.matched_count == 0:
         type_ = prop.model.get_type_value()
-        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+        raise ResourceNotFoundError(model=type_, id_=id_)
 
     assert result.matched_count == 1, (
         f"matched: {result.matched_count}, modified: {result.modified_count}"
@@ -518,7 +527,7 @@ def getone(
     data = table.find_one({'id': id_})
     if data is None:
         type_ = model.get_type_value()
-        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+        raise ResourceNotFoundError(model=type_, id_=id_)
     return data
 
 
@@ -551,7 +560,7 @@ def getone(
     data = table.find_one({'id': id_}, {prop.name: 1})
     if data is None:
         type_ = prop.model.get_type_value()
-        raise NotFound(f"Object {type_!r} with id {id_!r} not found.")
+        raise ResourceNotFoundError(model=type_, id_=id_)
     return data.get(prop.name)
 
 
@@ -606,9 +615,9 @@ def getall(
     query = query or []
     for qp in query:
         if qp['key'] not in model.flatprops:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Resource {model.name!r} does not contain field {qp['key']!r}."
+            raise ModelPropertyError(
+                model=model.name,
+                query_param=qp['key'],
             )
 
         prop = model.flatprops[qp['key']]

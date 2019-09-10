@@ -9,7 +9,7 @@ from spinta.commands import load_operator_value, error, prepare, dump, check, ge
 from spinta.common import NA
 from spinta.types import dataset
 from spinta.types.type import String
-from spinta.exceptions import ConflictError, DataError, NotFound
+from spinta.exceptions import SearchOperatorTypeError, SearchStringOperatorError, MissingRevisionOnRewriteError, UnknownModelPropertiesError, ModelPropertyValueConflictError
 from spinta.utils.nestedstruct import build_show_tree
 from spinta.utils.url import Operator
 from spinta import commands
@@ -130,7 +130,7 @@ def check(context: Context, type: Type, prop: dataset.Property, backend: Backend
 
 def check_model_properties(context: Context, model: Model, backend, data: dict, action: Action, id: str):
     if action in [Action.UPDATE, Action.DELETE] and 'revision' not in data:
-        raise DataError(f"'revision' must be given on rewrite operation.")
+        raise MissingRevisionOnRewriteError(model=model.name)
 
     REWRITE = [Action.UPDATE, Action.PATCH, Action.DELETE]
     if action in REWRITE:
@@ -140,10 +140,12 @@ def check_model_properties(context: Context, model: Model, backend, data: dict, 
 
         for k in ['id', 'type', 'revision']:
             if k in data and row[k] != data[k]:
-                raise ConflictError(' '.join((
-                    f"Given {k!r} value must match database.",
-                    f"Given value: {data[k]!r}, existing value: {row[k]!r}."
-                )))
+                raise ModelPropertyValueConflictError(
+                    model=model.name,
+                    prop=k,
+                    given_value=data[k],
+                    existing_value=row[k],
+                )
 
     for name, prop in model.properties.items():
         # For datasets, property type is optional.
@@ -241,14 +243,19 @@ def load_operator_value(context: Context, backend: Backend, type_: Type, value: 
     operator = query_params['operator']
     operator_name = query_params['name']
     if operator in (Operator.STARTSWITH, Operator.CONTAINS) and not isinstance(type_, String):
-        raise DataError(' '.join((
-            f"Operator {operator_name!r} requires string.",
-            f"Received value for {type_.prop.place!r} is of type {type_.name!r}."
-        )))
+        raise SearchStringOperatorError(
+            model=type_.prop.model.name,
+            prop=type_.prop.place,
+            operator_name=operator_name,
+            type_name=type_.name,
+        )
 
     if operator in [Operator.GT, Operator.GTE, Operator.LT, Operator.LTE] and isinstance(type_, String):
-        raise DataError(
-            f"Operator {operator_name!r} received value for {type_.prop.place!r} of type {type_.name!r}."
+        raise SearchOperatorTypeError(
+            model=type_.prop.model.name,
+            prop=type_.prop.place,
+            operator_name=operator_name,
+            type_name=type_.name,
         )
 
 
@@ -271,7 +278,10 @@ def _prepare_query_result(
                 if not prop.hidden
             }
             if unknown_properties:
-                raise NotFound("Unknown properties for show: %s" % ', '.join(sorted(unknown_properties)))
+                raise UnknownModelPropertiesError(
+                    model.name,
+                    props_list=', '.join(sorted(unknown_properties))
+                 )
             show = build_show_tree(show)
 
         for prop in model.properties.values():
