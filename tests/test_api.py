@@ -3,6 +3,7 @@ import datetime
 
 import pytest
 
+from spinta.testing.utils import get_error_codes, get_error_context
 from spinta.utils.itertools import consume
 from spinta.utils.refs import get_ref_id
 from spinta.utils.nestedstruct import flatten
@@ -588,7 +589,7 @@ def test_post_invalid_json(context, app):
         "code": "er"
     ]""")
     assert resp.status_code == 400
-    assert resp.json() == {"error": "not a valid json"}
+    assert get_error_codes(resp.json()) == ["JSONError"]
 
 
 def test_post_empty_content(context, app):
@@ -600,7 +601,7 @@ def test_post_empty_content(context, app):
     }
     resp = app.post('/country', headers=headers, json=None)
     assert resp.status_code == 400
-    assert resp.json() == {"error": "not a valid json"}
+    assert get_error_codes(resp.json()) == ["JSONError"]
 
 
 def test_post_id(context, app):
@@ -615,7 +616,7 @@ def test_post_id(context, app):
         'code': 'er',
     })
     assert resp.status_code == 403
-    assert resp.json() == {"error": "insufficient_scope: Missing scope: spinta_set_meta_fields"}
+    assert get_error_codes(resp.json()) == ["InsufficientScopeError"]
 
 
 def test_insufficient_scope(context, app):
@@ -629,7 +630,7 @@ def test_insufficient_scope(context, app):
         'code': 'er',
     })
     assert resp.status_code == 403
-    assert resp.json() == {"error": "insufficient_scope: Missing scope: spinta_country_insert"}
+    assert get_error_codes(resp.json()) == ["InsufficientScopeError"]
 
 
 def test_post_update_postgres(context, app):
@@ -655,9 +656,7 @@ def test_post_update_postgres(context, app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': 'ID value is not valid'
-    }
+    assert get_error_codes(resp.json()) == ["IDInvalidError"]
 
     # POST invalid id
     resp = app.post('/country', json={
@@ -667,9 +666,7 @@ def test_post_update_postgres(context, app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': 'ID value is not valid'
-    }
+    assert get_error_codes(resp.json()) == ["IDInvalidError"]
 
     # POST invalid id
     resp = app.post('/country', json={
@@ -679,9 +676,7 @@ def test_post_update_postgres(context, app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': 'ID value is not valid'
-    }
+    assert get_error_codes(resp.json()) == ["IDInvalidError"]
 
 
 def test_post_update_mongo(context, app):
@@ -705,9 +700,7 @@ def test_post_update_mongo(context, app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': 'ID value is not valid'
-    }
+    assert get_error_codes(resp.json()) == ["IDInvalidError"]
 
     # POST invalid id
     resp = app.post('/report', json={
@@ -716,9 +709,7 @@ def test_post_update_mongo(context, app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': 'ID value is not valid'
-    }
+    assert get_error_codes(resp.json()) == ["IDInvalidError"]
 
     # POST invalid id
     resp = app.post('/report', json={
@@ -727,9 +718,7 @@ def test_post_update_mongo(context, app):
     })
 
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': 'ID value is not valid'
-    }
+    assert get_error_codes(resp.json()) == ["IDInvalidError"]
 
 
 def test_post_revision(context, app):
@@ -741,7 +730,7 @@ def test_post_revision(context, app):
         'code': 'er',
     })
     assert resp.status_code == 400
-    assert resp.json() == {"error": "Client cannot create 'revision'. It is set automatically"}
+    assert get_error_codes(resp.json()) == ["RevisionError"]
 
 
 @pytest.mark.backends('postgres', 'mongo')
@@ -766,7 +755,11 @@ def test_post_duplicate_id(backend, app):
         'count': 42,
     })
     assert resp.status_code == 400
-    assert resp.json() == {"error": f"'id' is unique for 'backends/{backend}/report' and a duplicate value is found in database."}
+    assert get_error_codes(resp.json()) == ["UniqueConstraintError"]
+    assert get_error_context(resp.json(), "UniqueConstraintError") == {
+        "model": f"backends/{backend}/report",
+        "prop": "id",
+    }
 
 
 @pytest.mark.skip("SPLAT-146: PATCH requests should be able to update id")
@@ -825,7 +818,7 @@ def test_post_non_json_content_type(context, app):
         "code": "er"
     })
     assert resp.status_code == 415
-    assert resp.json() == {"error": "Only 'application/json' content-type is supported, got 'application/text'."}
+    assert get_error_codes(resp.json()) == ["HTTPException"]
 
 
 def test_post_bad_auth_header(context, app):
@@ -836,7 +829,7 @@ def test_post_bad_auth_header(context, app):
         'code': 'er',
     })
     assert resp.status_code == 401
-    assert resp.json() == {'error': 'unsupported_token_type'}
+    assert get_error_codes(resp.json()) == ["UnsupportedTokenTypeError"]
 
 
 def test_post_missing_auth_header(config, context, app):
@@ -846,7 +839,7 @@ def test_post_missing_auth_header(config, context, app):
         'code': 'er',
     })
     assert resp.status_code == 401
-    assert resp.json() == {'error': 'missing_authorization: Missing "Authorization" in headers.'}
+    assert get_error_codes(resp.json()) == ["MissingAuthorizationError"]
 
 
 def test_post_invalid_report_schema(app):
@@ -861,32 +854,44 @@ def test_post_invalid_report_schema(app):
         'count': '123',
     })
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "TypeError: field 'count' should receive value of 'integer' type."
+    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
+    assert get_error_context(resp.json(), "PropertyTypeError") == {
+        "type_name": "integer",
+        "model": "report",
+        "prop": "count",
     }
 
     resp = app.post('/reports', json={
         'count': False,
     })
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "TypeError: field 'count' should receive value of 'integer' type."
+    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
+    assert get_error_context(resp.json(), "PropertyTypeError") == {
+        "type_name": "integer",
+        "model": "report",
+        "prop": "count",
     }
 
     resp = app.post('/reports', json={
         'count': [1, 2, 3],
     })
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "TypeError: field 'count' should receive value of 'integer' type."
+    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
+    assert get_error_context(resp.json(), "PropertyTypeError") == {
+        "type_name": "integer",
+        "model": "report",
+        "prop": "count",
     }
 
     resp = app.post('/reports', json={
         'count': {'a': 1, 'b': 2},
     })
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "TypeError: field 'count' should receive value of 'integer' type."
+    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
+    assert get_error_context(resp.json(), "PropertyTypeError") == {
+        "type_name": "integer",
+        "model": "report",
+        "prop": "count",
     }
 
     resp = app.post('/reports', json={
@@ -899,8 +904,11 @@ def test_post_invalid_report_schema(app):
         'status': 42,
     })
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "TypeError: field 'status' should receive value of 'string' type."
+    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
+    assert get_error_context(resp.json(), "PropertyTypeError") == {
+        "type_name": "string",
+        "model": "report",
+        "prop": "status",
     }
 
     # test string validation
@@ -908,24 +916,33 @@ def test_post_invalid_report_schema(app):
         'status': True,
     })
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "TypeError: field 'status' should receive value of 'string' type."
+    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
+    assert get_error_context(resp.json(), "PropertyTypeError") == {
+        "type_name": "string",
+        "model": "report",
+        "prop": "status",
     }
 
     resp = app.post('/reports', json={
         'status': [1, 2, 3],
     })
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "TypeError: field 'status' should receive value of 'string' type."
+    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
+    assert get_error_context(resp.json(), "PropertyTypeError") == {
+        "type_name": "string",
+        "model": "report",
+        "prop": "status",
     }
 
     resp = app.post('/reports', json={
         'status': {'a': 1, 'b': 2},
     })
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "TypeError: field 'status' should receive value of 'string' type."
+    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
+    assert get_error_context(resp.json(), "PropertyTypeError") == {
+        "type_name": "string",
+        "model": "report",
+        "prop": "status",
     }
 
     # sanity check, that strings are still allowed.

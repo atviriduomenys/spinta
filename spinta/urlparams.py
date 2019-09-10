@@ -6,7 +6,12 @@ from spinta.commands import prepare
 from spinta.components import Context, Manifest
 from spinta.utils.url import parse_url_path
 from spinta.components import UrlParams, Version
-from spinta.exceptions import NotFound, FoundMultiple
+from spinta.exceptions import (
+    DatasetNotFoundError,
+    DatasetResourceNotFoundError,
+    ModelNotFoundError,
+    MultipleDatasetModelsFoundError,
+)
 
 
 @prepare.register()
@@ -57,7 +62,7 @@ def get_model_by_name(context: Context, manifest: Manifest, name: str):
     _prepare_model_params(params)
     model = get_model_from_params(manifest, params)
     if model is None:
-        raise NotFound(f"Model {name!r} not found.")
+        raise ModelNotFoundError(model=name)
     return model
 
 
@@ -70,18 +75,18 @@ def get_model_from_params(manifest, params):
         name = manifest.endpoints[name]
 
     if name not in manifest.tree:
-        raise NotFound(f"Model or collection {name!r} not found.")
+        raise ModelNotFoundError(model=name)
 
     if params.dataset:
         dataset = manifest.objects['dataset'].get(params.dataset)
         if dataset is None:
-            raise NotFound(f"Dataset ':dataset/{params.dataset}' not found.")
+            raise DatasetNotFoundError(dataset_name=params.dataset)
         if params.resource:
             resource = dataset.resources.get(params.resource)
             if resource is None:
-                raise NotFound(
-                    f"Resource ':dataset/{params.dataset}/:resource/{params.resource}'"
-                    " not found."
+                raise DatasetResourceNotFoundError(
+                    dataset_name=params.dataset,
+                    resource_name=params.resource,
                 )
             return resource.objects.get(name)
         else:
@@ -95,10 +100,8 @@ def get_model_from_params(manifest, params):
             elif len(models) == 1:
                 return models[0]
             else:
-                raise FoundMultiple(
-                    f"Found multiple {name!r} models  in {params.dataset!r} "
-                    "dataset. By more specific by providing resource name."
-                )
+                raise MultipleDatasetModelsFoundError(name=name,
+                                                      dataset=params.dataset)
     else:
         return manifest.objects['model'].get(name)
 

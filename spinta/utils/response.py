@@ -7,6 +7,7 @@ from starlette.requests import Request
 from spinta import commands
 from spinta.urlparams import get_model_from_params
 from spinta.components import Context, Action, UrlParams
+from spinta.exceptions import JSONError
 
 
 METHOD_TO_ACTION = {
@@ -78,10 +79,7 @@ async def get_request_data(request):
     try:
         data = await request.json()
     except json.decoder.JSONDecodeError:
-        raise HTTPException(
-            status_code=400,
-            detail="not a valid json",
-        )
+        raise JSONError()
 
     return data
 

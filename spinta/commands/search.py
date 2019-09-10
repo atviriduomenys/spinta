@@ -1,7 +1,7 @@
 from spinta.backends import Backend
 from spinta.commands import load, load_search_params, load_operator_value, prepare
 from spinta.components import Context
-from spinta.exceptions import DataError
+from spinta.exceptions import PropertyTypeError
 from spinta.types.type import Array, Integer, Type
 
 
@@ -32,7 +32,7 @@ def load_search_params(
     try:
         value = int(query_params['value'])
     except ValueError:
-        raise DataError(f'TypeError: field {type_.prop.place!r} should receive value of {type_.name!r} type.')
+        raise PropertyTypeError(type_)
 
     value = load(context, type_, value)
     load_operator_value(context, backend, type_, value, query_params=query_params)

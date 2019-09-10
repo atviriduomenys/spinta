@@ -1,5 +1,7 @@
 import pathlib
 
+from spinta.testing.utils import get_error_codes, get_error_context
+
 
 def test_crud(app):
     app.authorize([
@@ -59,8 +61,11 @@ def test_crud(app):
 
     resp = app.get(f'/photos/{id_}/image')
     assert resp.status_code == 404
-    assert resp.json() == {
-        'error': f"File 'image' not found in '{id_}'.",
+    assert get_error_codes(resp.json()) == ["FileNotFoundInResourceError"]
+    assert get_error_context(resp.json(), "FileNotFoundInResourceError") == {
+        "model": "photo",
+        "prop": "image",
+        "id_": id_,
     }
 
     resp = app.get(f'/photos/{id_}')
@@ -120,8 +125,11 @@ def test_add_missing_file(app, tmpdir):
         },
     })
     assert resp.status_code == 400, resp.text
-    assert resp.json() == {
-        'error': f'File {image} does not exist.'
+    assert get_error_codes(resp.json()) == ["FileDoesNotExistError"]
+    assert get_error_context(resp.json(), "FileDoesNotExistError") == {
+        "model": "photo",
+        "prop": "image",
+        "path": str(image),
     }
 
 
@@ -144,8 +152,11 @@ def test_add_missing_file_as_prop(app, tmpdir):
         'filename': str(image),
     })
     assert resp.status_code == 400, resp.text
-    assert resp.json() == {
-        'error': f'File {image} does not exist.'
+    assert get_error_codes(resp.json()) == ["FileDoesNotExistError"]
+    assert get_error_context(resp.json(), "FileDoesNotExistError") == {
+        "model": "photo",
+        "prop": "image",
+        "path": str(image),
     }
 
 

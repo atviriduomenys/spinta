@@ -1,5 +1,7 @@
 import datetime
 
+from spinta.testing.utils import get_error_codes, get_error_context
+
 
 test_data = [
     {
@@ -71,9 +73,7 @@ def test_search_exact(context, app):
     # single field search, non string type
     resp = app.get('/reports/:exact/count/abc')
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "TypeError: field 'count' should receive value of 'integer' type."
-    }
+    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
 
     # single non-existing field value search
     resp = app.get('/reports/:exact/status/o')
@@ -83,8 +83,10 @@ def test_search_exact(context, app):
     # single non-existing field search
     resp = app.get('/reports/:exact/state/o')
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "Resource 'report' does not contain field 'state'."
+    assert get_error_codes(resp.json()) == ["ModelPropertyError"]
+    assert get_error_context(resp.json(), "ModelPropertyError") == {
+        "query_param": "state",
+        "model": "report",
     }
 
     # multple field search
@@ -114,8 +116,12 @@ def test_search_gt(context, app):
     # search for string value
     resp = app.get('/reports/:gt/status/ok')
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "Operator 'gt' received value for 'status' of type 'string'."
+    assert get_error_codes(resp.json()) == ["SearchOperatorTypeError"]
+    assert get_error_context(resp.json(), "SearchOperatorTypeError") == {
+        "operator_name": "gt",
+        "type_name": "string",
+        "model": "report",
+        "prop": "status",
     }
 
     # multi field search
@@ -152,8 +158,12 @@ def test_search_gte(context, app):
     # search for string value
     resp = app.get('/reports/:gte/status/ok')
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "Operator 'gte' received value for 'status' of type 'string'."
+    assert get_error_codes(resp.json()) == ["SearchOperatorTypeError"]
+    assert get_error_context(resp.json(), "SearchOperatorTypeError") == {
+        "operator_name": "gte",
+        "type_name": "string",
+        "model": "report",
+        "prop": "status",
     }
 
     # multi field search
@@ -191,8 +201,12 @@ def test_search_lt(context, app):
     # search for string value
     resp = app.get('/reports/:lt/status/ok')
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "Operator 'lt' received value for 'status' of type 'string'."
+    assert get_error_codes(resp.json()) == ["SearchOperatorTypeError"]
+    assert get_error_context(resp.json(), "SearchOperatorTypeError") == {
+        "operator_name": "lt",
+        "type_name": "string",
+        "model": "report",
+        "prop": "status",
     }
 
     # multi field search
@@ -229,8 +243,12 @@ def test_search_lte(context, app):
     # search for string value
     resp = app.get('/reports/:lte/status/ok')
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "Operator 'lte' received value for 'status' of type 'string'."
+    assert get_error_codes(resp.json()) == ["SearchOperatorTypeError"]
+    assert get_error_context(resp.json(), "SearchOperatorTypeError") == {
+        "operator_name": "lte",
+        "type_name": "string",
+        "model": "report",
+        "prop": "status",
     }
 
     # multi field search
@@ -334,8 +352,12 @@ def test_search_contains(context, app):
     # `contains` type check
     resp = app.get('/reports/:contains/notes.create_date/2019-04-20')
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Operator 'contains' requires string. Received value for 'notes.create_date' is of type 'date'."
+    assert get_error_codes(resp.json()) == ["SearchStringOperatorError"]
+    assert get_error_context(resp.json(), "SearchStringOperatorError") == {
+        "operator_name": "contains",
+        "type_name": "date",
+        "model": "report",
+        "prop": "notes.create_date",
     }
 
 
@@ -378,9 +400,7 @@ def test_search_startswith(context, app):
     # `startswith` type check
     resp = app.get('/reports/:startswith/notes.create_date/2019-04-20')
     assert resp.status_code == 400
-    assert resp.json() == {
-        "error": "Operator 'startswith' requires string. Received value for 'notes.create_date' is of type 'date'."
-    }
+    assert get_error_codes(resp.json()) == ["SearchStringOperatorError"]
 
 
 def test_search_nested(context, app):
@@ -409,8 +429,10 @@ def test_search_nested(context, app):
     # nested non existant field
     resp = app.get('/reports/:exact/notes.foo.bar/baz')
     assert resp.status_code == 400
-    assert resp.json() == {
-        'error': "Resource 'report' does not contain field 'notes.foo.bar'."
+    assert get_error_codes(resp.json()) == ["ModelPropertyError"]
+    assert get_error_context(resp.json(), "ModelPropertyError") == {
+        "query_param": "notes.foo.bar",
+        "model": "report",
     }
 
     # nested `contains` search

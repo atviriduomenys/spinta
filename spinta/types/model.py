@@ -1,7 +1,7 @@
 from spinta.auth import check_generated_scopes
 from spinta.commands import load, check, error, authorize, prepare
 from spinta.components import Context, Manifest, Node, Model, Property, Action
-from spinta.exceptions import DataError
+from spinta.exceptions import UnknownModelPropertiesError
 from spinta.nodes import load_node
 from spinta.types.type import PrimaryKey, Type, load_type
 from spinta.utils.errors import format_error
@@ -57,7 +57,10 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
     given_params = set(data.keys())
     unknown_params = given_params - known_params
     if unknown_params:
-        raise Exception("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
+        raise UnknownModelPropertiesError(
+            model=prop.model.name,
+            props_list=', '.join(map(repr, sorted(unknown_params))),
+        )
 
     return prop
 
@@ -67,7 +70,10 @@ def load(context: Context, model: Model, data: dict) -> dict:
     # check that given data does not have more keys, than model's schema
     unknown_params = set(data.keys()) - set(model.properties.keys())
     if unknown_params:
-        raise DataError("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
+        raise UnknownModelPropertiesError(
+            model=model.name,
+            props_list=', '.join(map(repr, sorted(unknown_params))),
+        )
 
     result = {}
     for name, prop in model.properties.items():

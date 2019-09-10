@@ -4,10 +4,19 @@ from datetime import date, datetime
 
 from spinta.commands import load, error, is_object_id
 from spinta.components import Context, Manifest, Node
-from spinta.exceptions import DataError
 from spinta.utils.schema import resolve_schema
 from spinta.utils.errors import format_error
 from spinta.common import NA
+
+from spinta.exceptions import (
+    ArrayTypeError,
+    DateTypeError,
+    DateTimeTypeError,
+    IDInvalidError,
+    ObjectTypeError,
+    PropertyTypeError,
+    UnknownObjectPropertiesError
+)
 
 
 class Type:
@@ -38,8 +47,10 @@ class Date(Type):
 
         try:
             return date.fromisoformat(value)
-        except (ValueError, TypeError) as e:
-            raise DataError(f'{e}')
+        except (ValueError, TypeError):
+            # FIXME: should inherit from PropertyError with `model` and `prop`
+            # as context
+            raise DateTypeError(date=value)
 
 
 class DateTime(Type):
@@ -50,8 +61,10 @@ class DateTime(Type):
 
         try:
             return datetime.fromisoformat(value)
-        except (ValueError, TypeError) as e:
-            raise DataError(f'{e}')
+        except (ValueError, TypeError):
+            # FIXME: should inherit from PropertyError with `model` and `prop`
+            # as context
+            raise DateTimeTypeError(date=value)
 
 
 class String(Type):
@@ -66,7 +79,9 @@ class String(Type):
         if isinstance(value, str):
             return value
         else:
-            raise DataError(f'TypeError: field {self.prop.place!r} should receive value of {self.name!r} type.')
+            # FIXME: should inherit from PropertyError with `model` and `prop`
+            # as context
+            raise PropertyTypeError(self)
 
 
 class Integer(Type):
@@ -78,7 +93,9 @@ class Integer(Type):
         if isinstance(value, int) and not isinstance(value, bool):
             return value
         else:
-            raise DataError(f'TypeError: field {self.prop.place!r} should receive value of {self.name!r} type.')
+            # FIXME: should inherit from PropertyError with `model` and `prop`
+            # as context
+            raise PropertyTypeError(self)
 
 
 class Number(Type):
@@ -135,7 +152,9 @@ class Array(Type):
         if isinstance(value, list):
             return list(value)
         else:
-            raise DataError(f'Invalid array type: {type(value)}')
+            # FIXME: should inherit from PropertyError with `model` and `prop`
+            # as context
+            raise ArrayTypeError(value=value)
 
 
 class Object(Type):
@@ -150,7 +169,9 @@ class Object(Type):
         if isinstance(value, dict):
             return dict(value)
         else:
-            raise DataError(f'Invalid object type: {type(value)}')
+            # FIXME: should inherit from PropertyError with `model` and `prop`
+            # as context
+            raise ObjectTypeError(value=value)
 
 
 class File(Type):
@@ -221,9 +242,9 @@ def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
 
 
 @load.register()
-def load(context: Context, type: Type, value: object) -> object:
+def load(context: Context, type_: Type, value: object) -> object:
     # loads value to python native value according to given type
-    return type.load(value)
+    return type_.load(value)
 
 
 @load.register()
@@ -231,15 +252,15 @@ def load(context: Context, type_: PrimaryKey, value: object) -> list:
     model = type_.prop.model
     backend = model.backend
     if not is_object_id(context, backend, model, value):
-        raise DataError('ID value is not valid')
+        raise IDInvalidError()
     return value
 
 
 @load.register()
-def load(context: Context, type: Array, value: object) -> list:
+def load(context: Context, type_: Array, value: object) -> list:
     # loads value into native python list, including all list items
-    array_item_type = type.items.type
-    loaded_array = type.load(value)
+    array_item_type = type_.items.type
+    loaded_array = type_.load(value)
     if value is None or value is NA:
         return value
     new_loaded_array = []
@@ -249,17 +270,21 @@ def load(context: Context, type: Array, value: object) -> list:
 
 
 @load.register()
-def load(context: Context, type: Object, value: object) -> dict:
+def load(context: Context, type_: Object, value: object) -> dict:
     # loads value into native python dict, including all dict's items
-    loaded_obj = type.load(value)
+    loaded_obj = type_.load(value)
 
-    # check that given obj does not have more keys, than type's schema
-    unknown_params = set(loaded_obj.keys()) - set(type.properties.keys())
+    # check that given obj does not have more keys, than type_'s schema
+    unknown_params = set(loaded_obj.keys()) - set(type_.properties.keys())
     if unknown_params:
-        raise DataError("Unknown params: %s" % ', '.join(map(repr, sorted(unknown_params))))
+        raise UnknownObjectPropertiesError(
+            model=type_.prop.model.name,
+            prop=type_.prop.place,
+            props_list=', '.join(map(repr, sorted(unknown_params))),
+        )
 
     new_loaded_obj = {}
-    for k, v in type.properties.items():
+    for k, v in type_.properties.items():
         # only load value keys which are available in schema
         if k in loaded_obj:
             new_loaded_obj[k] = load(context, v.type, loaded_obj[k])
@@ -267,7 +292,7 @@ def load(context: Context, type: Object, value: object) -> dict:
 
 
 @error.register()
-def error(exc: Exception, context: Context, type: Type):
+def error(exc: Exception, context: Context, type_: Type):
     message = (
         '{exc}:\n'
         '  in type {type.name!r} {type}\n'
@@ -277,7 +302,7 @@ def error(exc: Exception, context: Context, type: Type):
     )
     raise Exception(format_error(message, {
         'exc': exc,
-        'type': type,
+        'type': type_,
     }))
 
 
@@ -292,5 +317,5 @@ def error(exc: Exception, context: Context, type_: Type, value: object):
     )
     raise Exception(format_error(message, {
         'exc': exc,
-        'type': type,
+        'type': type_,
     }))
