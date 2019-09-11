@@ -51,6 +51,7 @@ def load(context: Context, config: components.Config, raw: RawConfig) -> compone
     config.datasets = raw.get('datasets', default={})
     config.env = raw.get('env')
     config.docs_path = raw.get('docs_path', default=None)
+    config.always_show_id = raw.get('always_show_id', default=False)
 
     return config
 

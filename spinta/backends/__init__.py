@@ -268,8 +268,8 @@ def _prepare_query_result(
     show: typing.List[str],
 ):
     if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
+        config = context.get('config')
         value = {**value, 'type': model.get_type_value()}
-        result = {}
 
         if show is not None:
             unknown_properties = set(show) - {
@@ -281,9 +281,14 @@ def _prepare_query_result(
                 raise UnknownModelPropertiesError(
                     model.name,
                     props_list=', '.join(sorted(unknown_properties))
-                 )
+                )
+
+            if config.always_show_id and 'id' not in show:
+                show = ['id'] + show
+
             show = build_show_tree(show)
 
+        result = {}
         for prop in model.properties.values():
             if prop.hidden:
                 continue

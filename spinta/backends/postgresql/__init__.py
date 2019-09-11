@@ -908,7 +908,7 @@ def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL,
 
 
 @commands.unload_backend.register()
-def unload(context: Context, backend: PostgreSQL):
+def unload_backend(context: Context, backend: PostgreSQL):
     # Make sure all connections are released, since next test will create
     # another connection pool and connection pool is not reused between
     # tests. Maybe it would be a good idea to reuse same connection between
