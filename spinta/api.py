@@ -5,7 +5,7 @@ from authlib.common.errors import AuthlibHTTPError
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
-from starlette.requests import Request, State
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
@@ -28,18 +28,7 @@ templates = Jinja2Templates(
     directory=pres.resource_filename('spinta', 'templates'),
 )
 
-
-class StarletteWithState(Starlette):
-
-    def __init__(self, *args, **kwargs):
-        # TODO: remove this, when https://github.com/encode/starlette/pull/618
-        #       is released. Also, keep in mind, that starlette.requests.State
-        #       was moved to starlette.datastructures.State.
-        self.state = State()
-        super().__init__(*args, **kwargs)
-
-
-app = StarletteWithState()
+app = Starlette()
 app.add_middleware(ContextMiddleware)
 
 
