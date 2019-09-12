@@ -2,7 +2,6 @@ import ujson as json
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.responses import Response
 from starlette.responses import StreamingResponse
 
 from spinta.commands.formats import Format
@@ -107,7 +106,4 @@ def _render(
         )
 
     else:
-        # FIXME: https://github.com/encode/starlette/pull/556
-        if data is None:
-            return Response(b'null', media_type='application/json', status_code=status_code, )
         return JSONResponse(data, status_code=status_code)
