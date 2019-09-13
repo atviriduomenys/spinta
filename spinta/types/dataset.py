@@ -1,3 +1,4 @@
+import itertools
 import pathlib
 import requests
 import tempfile
@@ -13,6 +14,8 @@ from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema, load_from_schema
 from spinta.utils.tree import add_path_to_tree
 from spinta.urlparams import get_model_by_name
+from spinta import commands
+from spinta import exceptions
 
 
 class Dataset(Node):
@@ -46,9 +49,25 @@ class Resource(Node):
         'flags': {'type': 'array'},
     }
 
+    def models(self):
+        for objects in self.objects.values():
+            yield from objects.values()
+
+    def get_model_origin(self, model: str):
+        origins = [origin for origin, objects in self.objects.items() if model in objects]
+        if len(origins) == 1:
+            return origins[0]
+        if len(origins) > 1:
+            raise Exception(
+                f"More than one origin found for {model!r} model. Found origins: " +
+                ', '.join(map(repr, origins)) + '.'
+            )
+        raise Exception(f"Can't find model {model!r}.")
+
 
 class Model(Node):
     schema = {
+        'origin': {'type': 'string'},
         'source': {'type': 'array'},
         'identity': {'type': 'array', 'required': False},
         'properties': {'type': 'object', 'default': {}},
@@ -64,6 +83,7 @@ class Model(Node):
     property_type = 'dataset.property'
 
     def __init__(self):
+        self.origin = None
         self.source = None
         self.identity = None
         self.properties = {}
@@ -75,10 +95,24 @@ class Model(Node):
         self.canonical = False
 
     def __repr__(self):
-        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}, resource={self.parent.name!r}, dataset={self.parent.parent.name!r})>'
+        return (
+            f'<{self.__class__.__module__}.{self.__class__.__name__}('
+            f' name={self.name!r},'
+            f' dataset={self.parent.parent.name!r}'
+            f' resource={self.parent.name!r},'
+            f' origin={self.origin!r},'
+            ')>'
+        )
 
     def get_type_value(self):
-        return f'{self.name}/:dataset/{self.parent.parent.name}/:resource/{self.parent.name}'
+        elements = (
+            (':dataset', self.parent.parent.name),
+            (':resource', self.parent.name),
+            (':origin', self.origin),
+        )
+        return f'{self.name}/' + '/'.join(itertools.chain.from_iterable(
+            (k, v) for k, v in elements if v
+        ))
 
 
 class Property(Node):
@@ -143,15 +177,20 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
         resource.source = load_source(context, resource, params)
 
     # Load models
-    for name, params in (data.get('objects') or {}).items():
-        params = {
-            'type': 'model',
-            'path': resource.path,
-            'name': name,
-            'parent': resource,
-            **(params or {}),
-        }
-        resource.objects[name] = load(context, Model(), params, manifest)
+    resource.objects = {}
+    for origin, objects in (data.get('objects') or {}).items():
+        if origin not in resource.objects:
+            resource.objects[origin] = {}
+        for name, params in (objects or {}).items():
+            params = {
+                'type': 'model',
+                'path': resource.path,
+                'name': name,
+                'origin': origin,
+                'parent': resource,
+                **(params or {}),
+            }
+            resource.objects[origin][name] = load(context, Model(), params, manifest)
 
     return resource
 
@@ -278,7 +317,7 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
         for resource in dataset.resources.values():
             prepare(context, resource.source, resource)
 
-            for model in resource.objects.values():
+            for model in resource.models():
                 if model.source is None:
                     continue
 
@@ -294,7 +333,9 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
                                 '{exc}:\n'
                                 '  in dependency {dependency!r}\n'
                                 '  in model {model.name!r} {model}\n'
-                                '  in dataset {model.parent.name!r} {model.parent}\n'
+                                '  in origin {model.origin!r}\n'
+                                '  in resource {model.parent.name!r} {model.parent}\n'
+                                '  in dataset {model.parent.parent.name!r} {model.parent.parent}\n'
                                 "  in file '{model.path}'\n"
                                 '  on backend {model.backend.name!r}\n'
                             )
@@ -484,3 +525,34 @@ def load_source(context: Context, node: Node, params: dict):
     from spinta.commands.sources import Source
     source = load_from_schema(Source, source, schema, params)
     return load(context, source, node)
+
+
+@commands.get_referenced_model.register()
+def get_referenced_model(context: Context, model: Model, ref: str):
+    # Self reference.
+    if model.name == ref:
+        return model
+
+    # Return model from same origin.
+    if ref in model.parent.objects[model.origin]:
+        return model.parent.objects[model.origin][ref]
+
+    # Return model from same resource.
+    for origin in model.parent.objects.values():
+        if ref in origin:
+            return origin[ref]
+
+    # Return model from same dataset.
+    for resource in model.parent.parent.resources.values():
+        if resource.name == model.parent.name:
+            # We already checked this resource.
+            continue
+        for origin in model.parent.objects.values():
+            if ref in origin:
+                return origin[ref]
+
+    # Return canonical model from same manifest.
+    if ref in model.manifest.objects['model']:
+        return model.manifest.objects['model'][ref]
+
+    raise exceptions.ModelReferenceNotFound(model=model.get_type_value(), ref=ref)

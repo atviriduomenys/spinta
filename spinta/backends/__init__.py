@@ -179,7 +179,7 @@ def is_object_id(context: Context, value: str):
             candidates.add((model.backend.__class__, model.__class__))
         for dataset_ in manifest.objects.get('dataset', {}).values():
             for resource in dataset_.resources.values():
-                for model in resource.objects.values():
+                for model in resource.models():
                     candidates.add((model.backend.__class__, model.__class__))
 
     # Currently all models use UUID, but dataset models use id generated from

@@ -1,6 +1,10 @@
 class BaseError(Exception):
+    # XXX: Probably this should be None, not "", we don't want to return errors
+    #      with empty error message.
     template = ""
     typ = None
+    # XXX: I think, status code for base error should be 500, and
+    #      UserError(BaseError) should have 400 status code.
     status_code = 400
 
     def __init__(self, **kwargs):
@@ -17,7 +21,6 @@ class BaseError(Exception):
             "context": self.context,
         }
         return error
-
 
 
 # XXX: should we rename this as it clashes with python builtin `SystemError`?
@@ -182,3 +185,13 @@ class DatasetResourceNotFoundError(SystemError):
     # FIXME: change dataset_name to dataset and resource_name to resource
     template = "Resource ':dataset/{dataset_name}/:resource/{resource_name}' not found."
     status_code = 404
+
+
+class DatasetModelOriginNotFoundError(SystemError):
+    template = "Resource ':dataset/{dataset}/:resource/{resource}/:origin/{origin}' not found."
+    status_code = 404
+
+
+class ModelReferenceNotFound(ModelError):
+    tempalte = "Reference {ref!r}, relative to {model!r} not found."
+    status_code = 500

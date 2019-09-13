@@ -8,6 +8,8 @@ from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema
 from spinta.utils.tree import add_path_to_tree
 from spinta.common import NA
+from spinta import commands
+from spinta import exceptions
 
 
 @load.register()
@@ -161,3 +163,11 @@ def authorize(context: Context, action: Action, model: Model):
 def authorize(context: Context, action: Action, prop: Property):
     name = prop.model.get_type_value() + '_' + prop.place
     check_generated_scopes(context, name, action.value)
+
+
+@commands.get_referenced_model.register()
+def get_referenced_model(context: Context, model: Model, ref: str):
+    if ref in model.manifest.objects['model']:
+        return model.manifest.objects['model'][ref]
+
+    raise exceptions.ModelReferenceNotFound(model=model.get_type_value(), ref=ref)

@@ -18,11 +18,13 @@ class ContextForTests:
         super().__init__(name, parent)
         self.loaded = parent.loaded if parent else False
 
-    def _get_model(self, model: typing.Union[str, Node], dataset: str, resource: str):
+    def _get_model(self, model: typing.Union[str, Node], dataset: str, resource: str, origin: str = None):
         if isinstance(model, str):
             store = self.get('store')
             if resource:
-                return store.manifests['default'].objects['dataset'][dataset].resources[resource].objects[model]
+                resource = store.manifests['default'].objects['dataset'][dataset].resources[resource]
+                origin = resource.get_model_origin(model) if origin is None else origin
+                return resource.objects[origin][model]
             else:
                 return store.manifests['default'].objects['model'][model]
         else:
@@ -120,7 +122,7 @@ class ContextForTests:
             # topologically sort them. At least for now.
             for dataset in store.manifests['default'].objects['dataset'].values():
                 for resource in dataset.resources.values():
-                    for model in resource.objects.values():
+                    for model in resource.models():
                         context.wipe(model)
 
             context.wipe(store.internal.objects['model']['transaction'])

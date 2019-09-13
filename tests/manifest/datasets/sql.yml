@@ -7,15 +7,16 @@ resources:
   db:
     type: sql
     objects:
-      country:
-        source: tests_country
-        properties:
-          id:
-            type: pk
-            source: kodas
-          code:
-            type: string
-            source: kodas
-          title:
-            type: string
-            source: pavadinimas
+      "":
+        country:
+          source: tests_country
+          properties:
+            id:
+              type: pk
+              source: kodas
+            code:
+              type: string
+              source: kodas
+            title:
+              type: string
+              source: pavadinimas

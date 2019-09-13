@@ -163,7 +163,7 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
     # Prepare backend for datasets.
     for dataset in manifest.objects.get('dataset', {}).values():
         for resource in dataset.resources.values():
-            for model in resource.objects.values():
+            for model in resource.models():
                 if model.backend.name == backend.name:
                     prepare(context, backend, model)
 

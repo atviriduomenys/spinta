@@ -8,9 +8,10 @@ resources:
     type: csv
     source: https://example.com/resource.csv
     objects:
-      deeply/nested/model/name:
-        properties:
-          id:
-            type: pk
-          name:
-            type: string
+      "":
+        deeply/nested/model/name:
+          properties:
+            id:
+              type: pk
+            name:
+              type: string
