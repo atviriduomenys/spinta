@@ -293,7 +293,7 @@ class Manifest:
         yield from self.objects['model'].values()
         for dataset in self.objects['dataset'].values():
             for resource in dataset.resources.values():
-                yield from resource.objects.values()
+                yield from resource.models()
 
 
 class Node:
@@ -423,7 +423,9 @@ class UrlParams:
     model: str
     id: str
     properties: list
+    resource: str
     dataset: str
+    origin: str
     changes: str
     sort: list
     limit: int

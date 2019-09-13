@@ -8,28 +8,29 @@ resources:
     type: csv
     source: http://example.com/
     objects:
-      org:
-        source: orgs.csv
-        properties:
-          id:
-            type: pk
-            source: govid
-          title:
-            type: string
-            source: org
-          country:
-            type: ref
-            object: country
-            source: kodas
-      country:
-        source: orgs.csv
-        properties:
-          id:
-            type: pk
-            source: kodas
-          code:
-            type: string
-            source: kodas
-          title:
-            type: string
-            source: šalis
+      "":
+        org:
+          source: orgs.csv
+          properties:
+            id:
+              type: pk
+              source: govid
+            title:
+              type: string
+              source: org
+            country:
+              type: ref
+              object: country
+              source: kodas
+        country:
+          source: orgs.csv
+          properties:
+            id:
+              type: pk
+              source: kodas
+            code:
+              type: string
+              source: kodas
+            title:
+              type: string
+              source: šalis

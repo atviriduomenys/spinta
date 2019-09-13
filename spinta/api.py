@@ -1,3 +1,5 @@
+from typing import Type
+
 import pkg_resources as pres
 import logging
 
@@ -6,7 +8,7 @@ from authlib.common.errors import AuthlibHTTPError
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import Response, JSONResponse
 from starlette.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
 
@@ -68,6 +70,11 @@ async def create_app_context():
     app.add_route('/{path:path}', homepage, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
 
 
+@app.route('/favicon.ico', methods=['GET'])
+async def favicon(request: Request):
+    return Response('', media_type='text/plain', status_code=404)
+
+
 @app.route('/version', methods=['GET'])
 async def version(request: Request):
     version = get_version(request.state.context)
@@ -98,7 +105,7 @@ async def homepage(request: Request):
 
     config = context.get('config')
 
-    UrlParams = config.components['urlparams']['component']
+    UrlParams: Type[components.UrlParams] = config.components['urlparams']['component']
     params = prepare(context, UrlParams(), Version(), request)
 
     return await create_http_response(context, params, request)

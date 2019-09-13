@@ -1,5 +1,7 @@
 import datetime
 
+import pytest
+
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
@@ -46,42 +48,51 @@ test_data = [
 ]
 
 
-def test_search_exact(context, app):
-    r1, r2, r3, = context.push(test_data)
+def _push_test_data(context, model):
+    return context.push({**data, 'type': model} for data in test_data)
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report/:dataset/test'
+)
+def test_search_exact(model, context, app):
+    r1, r2, r3, = _push_test_data(context, model)
 
     app.authorize(['spinta_report_search'])
 
     # single field search
-    resp = app.get('/reports/:exact/status/ok')
+    resp = app.get(f'/{model}/:exact/status/ok')
+    pp(resp.json())
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # single field search, case-insensitive
-    resp = app.get('/reports/:exact/status/OK')
+    resp = app.get(f'/{model}/:exact/status/OK')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # single field search, non string type
-    resp = app.get('/reports/:exact/count/13')
+    resp = app.get(f'/{model}/:exact/count/13')
     data = resp.json()['data']
 
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
-    # single field search, non string type
-    resp = app.get('/reports/:exact/count/abc')
+    # single field fsearch, non string type
+    resp = app.get('/{model}/:exact/count/abc')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["PropertyTypeError"]
 
     # single non-existing field value search
-    resp = app.get('/reports/:exact/status/o')
+    resp = app.get(f'/{model}/:exact/status/o')
     data = resp.json()['data']
     assert len(data) == 0
 
     # single non-existing field search
-    resp = app.get('/reports/:exact/state/o')
+    resp = app.get(f'/{model}/:exact/state/o')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["ModelPropertyError"]
     assert get_error_context(resp.json(), "ModelPropertyError") == {
@@ -90,14 +101,14 @@ def test_search_exact(context, app):
     }
 
     # multple field search
-    resp = app.get('/reports/:exact/status/invalid/:exact/report_type/stv')
+    resp = app.get(f'/{model}/:exact/status/invalid/:exact/report_type/stv')
     data = resp.json()['data']
 
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # same field searched multiple times is joined with AND operation by default
-    resp = app.get('/reports/:exact/status/invalid/:exact/status/ok')
+    resp = app.get(f'/{model}/:exact/status/invalid/:exact/status/ok')
     data = resp.json()['data']
     assert len(data) == 0
 

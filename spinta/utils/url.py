@@ -76,6 +76,9 @@ class QueryParams(Cast):
             'value': value[1],
         }
 
+    def to_string(self, value):
+        return [value['key'], value['value']]
+
 
 class Operator(Enum):
     EXACT = 'exact'
@@ -109,6 +112,9 @@ RULES = {
         'cast': Path(),
     },
     'resource': {
+        'cast': Path(),
+    },
+    'origin': {
         'cast': Path(),
     },
     'changes': {
@@ -263,17 +269,31 @@ def parse_url_path(context, path):
     return params
 
 
+def _undo_changed_names(params: dict):
+    # XXX: I think, this change_name thing should be removed, because it is not
+    #      clean how to build URL back using thos changed names. This code below
+    #      is just a quick workaround.
+    for k, v in params.items():
+        # Currently this is the only thing with changed name.
+        if k == 'query_params':
+            for x in v:
+                yield x['name'], x
+        else:
+            yield k, v
+
+
 def build_url_path(params):
     params = dict(params)
     parts = []
     sort_by = list(RULES.keys())
 
     def sort_key(value):
-        if value not in sort_by:
-            sort_by.append(value)
-        return sort_by.index(value)
+        v = value[0]  # Sort only by key.
+        if v not in sort_by:
+            sort_by.append(v)
+        return sort_by.index(v)
 
-    for k, v in sorted(params.items(), key=sort_key):
+    for k, v in sorted(_undo_changed_names(params), key=sort_key):
         rules = RULES.get(k)
         if rules is None:
             raise Exception(f"Unknown URl parameter {k!r}.")

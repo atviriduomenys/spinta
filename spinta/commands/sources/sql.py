@@ -17,7 +17,7 @@ def prepare(context: Context, source: Sql, node: Resource):
     source.meta = sa.MetaData(source.engine)
     source.meta.reflect(only=[
         source.name
-        for model in node.objects.values()
+        for model in node.models()
         for source in model.source
         if model.source
     ])

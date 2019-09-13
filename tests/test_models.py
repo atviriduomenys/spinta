@@ -44,8 +44,10 @@ def test_engine_name_overshadow_other(context, tmpdir):
                 'resources': {
                     'res': {
                         'objects': {
-                            'rep': {
-                                'endpoint': 'report',
+                            '': {
+                                'rep': {
+                                    'endpoint': 'report',
+                                }
                             }
                         }
                     }

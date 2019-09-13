@@ -8,15 +8,16 @@ resources:
     type: csv
     source: http://example.com/
     objects:
-      country:
-        source: countries.csv
-        properties:
-          id:
-            type: pk
-            source: kodas
-          code:
-            type: string
-            source: kodas
-          title:
-            type: string
-            source: šalis
+      "":
+        country:
+          source: countries.csv
+          properties:
+            id:
+              type: pk
+              source: kodas
+            code:
+              type: string
+              source: kodas
+            title:
+              type: string
+              source: šalis

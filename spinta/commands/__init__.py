@@ -249,3 +249,8 @@ def unload_backend():
     tests, all sqlalchemy connections are disposed to avoid leaving open
     connections between tests.
     """
+
+
+@command()
+def get_referenced_model():
+    """Find referenced model by given property type."""
