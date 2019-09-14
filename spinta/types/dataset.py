@@ -8,7 +8,7 @@ from spinta.components import Context, Manifest, Node, Command, Action
 from spinta.utils.refs import get_ref_id
 from spinta.nodes import load_node
 from spinta.fetcher import Cache
-from spinta.types.type import load_type
+from spinta.types.type import Object, load_type
 from spinta.auth import check_generated_scopes
 from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema, load_from_schema
@@ -556,3 +556,8 @@ def get_referenced_model(context: Context, model: Model, ref: str):
         return model.manifest.objects['model'][ref]
 
     raise exceptions.ModelReferenceNotFound(model=model.get_type_value(), ref=ref)
+
+
+@commands.make_json_serializable.register()
+def make_json_serializable(model: Model, value: dict) -> dict:
+    return commands.make_json_serializable[Object, dict](model, value)

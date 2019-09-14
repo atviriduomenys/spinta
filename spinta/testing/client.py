@@ -21,7 +21,8 @@ class TestClient(starlette.testclient.TestClient):
         self._requests_session_base_url = base_url.rstrip('/')
 
     def authmodel(self, model, actions, creds=None):
-        self.authmodel(get_model_scopes(self._spinta_context, model, actions), creds=creds)
+        scopes = get_model_scopes(self._spinta_context, model, actions)
+        self.authorize(scopes, creds=creds)
 
     def authorize(self, scopes=None, creds=None):
         if creds:

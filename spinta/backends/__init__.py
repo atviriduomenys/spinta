@@ -314,3 +314,54 @@ def _prepare_query_result(
 
     else:
         raise Exception(f"Unknown action {action}.")
+
+
+@commands.make_json_serializable.register()
+def make_json_serializable(model: Model, value: dict) -> dict:
+    return commands.make_json_serializable[Object, dict](model, value)
+
+
+@commands.make_json_serializable.register()
+def make_json_serializable(type_: Type, value: object):
+    return value
+
+
+@commands.make_json_serializable.register()
+def make_json_serializable(type_: DateTime, value: datetime.datetime):
+    return value.isoformat()
+
+
+@commands.make_json_serializable.register()
+def make_json_serializable(type_: Date, value: datetime.date):
+    return value.isoformat()
+
+
+@commands.make_json_serializable.register()
+def make_json_serializable(type_: Date, value: datetime.datetime):
+    return value.date().isoformat()
+
+
+def _get_json_serializable_props(type_: Object, value: dict):
+    for k, v in value.items():
+        if k in type_.properties:
+            yield type_.properties[k], v
+        else:
+            Exception(f"Unknown {k} key in {type_!r} object.")
+
+
+@commands.make_json_serializable.register()
+def make_json_serializable(type_: Object, value: dict):
+    return {
+        prop.name: commands.make_json_serializable(prop.type, v)
+        for prop, v in _get_json_serializable_props(type_, value)
+    }
+
+
+@commands.make_json_serializable.register()
+def make_json_serializable(type_: Array, value: list):
+    return [make_json_serializable(type_.items.type, v) for v in value]
+
+
+@commands.make_json_serializable.register()
+def make_json_serializable(type_: Array, value: type(None)):
+    return []

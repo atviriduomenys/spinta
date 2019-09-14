@@ -47,6 +47,12 @@ class Command(Dispatcher):
             else:
                 raise
 
+    def __getitem__(self, types):
+        func = self.dispatch(*types)
+        if not func:
+            raise NotImplementedError('Could not find signature for {self.name}: <{str_signature(types)}>')
+        return func
+
     def print_methods(self, *args, **kwargs):
         """Print all commands method in resolution order."""
         if args:

@@ -734,8 +734,8 @@ def test_post_revision(context, app):
 
 
 @pytest.mark.models(
-    'backends/postgres/reports',
-    'backends/mongo/reports',
+    'backends/postgres/report',
+    'backends/mongo/report',
 )
 def test_post_duplicate_id(model, app):
     # tests 400 response when trying to create object with id which exists
@@ -984,5 +984,5 @@ def test_streaming_response(context, app):
 )
 def test_multi_backends(model, app):
     app.authmodel(model, ['insert'])
-    resp = app.post(f'/model', json={'status': '42'})
+    resp = app.post(f'/{model}', json={'status': '42'})
     assert resp.status_code == 201
