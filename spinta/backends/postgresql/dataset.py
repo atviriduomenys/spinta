@@ -28,6 +28,7 @@ from spinta.utils.idgen import get_new_id
 from spinta.utils.changes import get_patch_changes
 from spinta import exceptions
 from spinta.utils.url import Operator
+from spinta.types.type import String
 
 
 @prepare.register()
@@ -114,6 +115,8 @@ def insert(
         # FIXME: revision should have model for context
         raise RevisionError()
     data['revision'] = get_new_id('revision id')
+
+    data = commands.make_json_serializable(model, data)
 
     connection.execute(
         table.main.insert().values({
@@ -455,7 +458,7 @@ def getall(
 
     else:
         qry = sa.select(_getall_show(table, jm, show))
-        qry = _getall_query(qry, jm, query)
+        qry = _getall_query(context, backend, model, qry, jm, query)
         qry = _getall_order_by(qry, table, jm, sort)
         qry = _getall_offset(qry, offset)
         qry = _getall_limit(qry, limit)
@@ -489,7 +492,14 @@ def _getall_show(table: sa.Table, jm: JoinManager, show: typing.List[str]):
     return [jm(name).label(name) for name in show]
 
 
-def _getall_query(context: Context, backend: PostgreSQL, model: Model, qry, jm: JoinManager, query: Optional[List[dict]]):
+def _getall_query(
+    context: Context,
+    backend: PostgreSQL,
+    model: Model,
+    qry,
+    jm: JoinManager,
+    query: Optional[List[dict]]
+):
     where = []
     for qp in query or []:
         if qp['key'] not in model.flatprops:
@@ -501,7 +511,13 @@ def _getall_query(context: Context, backend: PostgreSQL, model: Model, qry, jm: 
         operator = qp.get('operator')
         value = commands.load_search_params(context, prop.type, backend, qp)
         if operator == Operator.EXACT:
-            where.append(jm(qp['key']) == value)
+            field = jm(qp['key'])
+            if isinstance(prop.type, String):
+                field = sa.func.lower(field.astext)
+                value = value.lower()
+            else:
+                value = sa.cast(value, JSONB)
+            where.append(field == value)
         else:
             raise NotImplementedError(f"Operator {operator!r} is not implemented for postgresql dataset models.")
     if where:

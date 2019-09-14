@@ -259,3 +259,8 @@ def make_json_serializable():
 @command()
 def get_referenced_model():
     """Find referenced model by given property type."""
+
+
+@command()
+def make_json_serializable():
+    """Convert given Python-native value to a JSON serializable value."""

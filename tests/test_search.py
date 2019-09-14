@@ -59,11 +59,10 @@ def _push_test_data(context, model):
 def test_search_exact(model, context, app):
     r1, r2, r3, = _push_test_data(context, model)
 
-    app.authorize(['spinta_report_search'])
+    app.authmodel(model, ['search'])
 
     # single field search
     resp = app.get(f'/{model}/:exact/status/ok')
-    pp(resp.json())
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
@@ -82,7 +81,7 @@ def test_search_exact(model, context, app):
     assert data[0]['id'] == r3['id']
 
     # single field fsearch, non string type
-    resp = app.get('/{model}/:exact/count/abc')
+    resp = app.get(f'/{model}/:exact/count/abc')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["PropertyTypeError"]
 
@@ -97,7 +96,7 @@ def test_search_exact(model, context, app):
     assert get_error_codes(resp.json()) == ["ModelPropertyError"]
     assert get_error_context(resp.json(), "ModelPropertyError") == {
         "query_param": "state",
-        "model": "report",
+        "model": model,
     }
 
     # multple field search
