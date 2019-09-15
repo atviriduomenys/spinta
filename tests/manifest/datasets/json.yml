@@ -8,12 +8,13 @@ resources:
     type: json
     source: http://example.com/data.json
     objects:
-      rinkimai:
-        source: response
-        properties:
-          id:
-            type: pk
-            source: id
-          pavadinimas:
-            type: string
-            source: label
+      "":
+        rinkimai:
+          source: response
+          properties:
+            id:
+              type: pk
+              source: id
+            pavadinimas:
+              type: string
+              source: label

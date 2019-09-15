@@ -1,184 +1,323 @@
-class BaseError(Exception):
-    template = ""
-    typ = None
-    status_code = 400
+from typing import Optional, Any, Dict, Iterable
 
-    def __init__(self, **kwargs):
-        self.context = kwargs
-        self.message = self.template.format(**self.context)
-        super().__init__(self.message)
+import logging
+import traceback
 
-    def error(self):
-        error = {
-            "code": type(self).__name__,
-            "type": self.typ,
-            "template": self.template,
-            "message": self.message,
-            "context": self.context,
+
+log = logging.getLogger(__name__)
+
+
+def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: dict):
+    """Resolve value from given kwargs and schema."""
+    # Extend context by calling get_error_context command on first positional
+    # argument of Node or Type type.
+    if this:
+        from spinta import commands
+        schema = {
+            **commands.get_error_context(this),
+            **schema,
         }
-        return error
+        kwargs = {**kwargs, 'this': this}
+
+    context = {}
+    known = set()
+    for k, path in schema.items():
+        path = path or k
+        name, *names = path.split('.')
+        known.add(name)
+        value = kwargs
+        for name in [name] + names:
+            if name.endswith('()'):
+                name = name[:-2]
+                func = True
+            else:
+                func = False
+            if isinstance(value, dict):
+                value = kwargs.get(name)
+            elif hasattr(value, name):
+                value = getattr(value, name)
+            else:
+                value = '[UNKNOWN]'
+                break
+            if func:
+                value = value()
+        context[k] = value
+
+    # Check if unknown and missing keyword arguments, but only log the situation
+    # without breaking original error.
+    given = set(kwargs)
+    unknown = given - known
+    if unknown:
+        unknown = ', '.join(map(repr, sorted(unknown)))
+        log.error("Unknown BaseError kwargs: %s.", unknown, stack_info=True)
+    missing = known - given
+    if missing:
+        missing = ', '.join(map(repr, sorted(missing)))
+        log.error("Missing BaseError kwargs: %s.", missing, stack_info=True)
+
+    return context
 
 
-
-# XXX: should we rename this as it clashes with python builtin `SystemError`?
-class SystemError(BaseError):
-    typ = "system"
-
-
-class ModelError(BaseError):
-    typ = "model"
-
-    def __init__(self, **kwargs):
-        # model must be given as kwarg
-        self.model = kwargs["model"]
-        super().__init__(**kwargs)
-
-    def error(self):
-        base_error = super().error()
-        base_error["model"] = self.model
-        return base_error
+def error_response(error):
+    return {
+        'type': error.type,
+        'code': type(error).__name__,
+        'template': error.template,
+        'context': error.context,
+        'message': error.message,
+    }
 
 
-class PropertyError(BaseError):
-    typ = "property"
+class BaseError(Exception):
+    type = None
+    status_code = 500
+    template = None
+    context = {}
 
-    def __init__(self, **kwargs):
-        # model and prop must be given as kwargs
-        # FIXME: client facing context should have `property` instead of `prop`.
-        self.model = kwargs["model"]
-        self.prop = kwargs["prop"]
-        super().__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        if len(args) == 0:
+            this = None
+        elif len(args) == 1:
+            this = args[0]
+        else:
+            this = None
+            log.error("Only one positional argument is alowed, but %d was givent.", len(args), stack_info=True)
 
-    def error(self):
-        base_error = super().error()
-        base_error["model"] = self.model
-        base_error["prop"] = self.prop
-        return base_error
+        from spinta.components import Node
+        from spinta.types.datatype import DataType
+        self.type = 'system'
+        if this:
+            if isinstance(this, Node):
+                self.type = this.type
+            elif isinstance(this, DataType):
+                self.type = this.prop.type
+
+        self.context = resolve_context_vars(self.context, this, kwargs)
+        self.message = self.template.format(**self.context)
+
+        super().__init__(
+            self.message + '\n' +
+            '  Context:\n' +
+            ''.join(
+                f'    {k}: {v}\n'
+                for k, v in self.context.items()
+            )
+        )
 
 
-class PropertyTypeError(PropertyError):
-    # FIXME: change type_name to type
-    template = 'Field {prop!r} should receive value of {type_name!r} type.'
+class MultipleErrors(Exception):
 
-    def __init__(self, type_):
-        super().__init__(model=type_.prop.model.name,
-                         prop=type_.prop.place,
-                         type_name=type_.name,)
+    def __init__(self, errors: Iterable[BaseError]):
+        self.errors = list(errors)
+        super().__init__('Multiple errors:\n' + ''.join([
+            ' - ' + error.template.format(**error.context) + '\n' +
+            '     Context:\n' +
+            ''.join(
+                f'      {k}: {v}\n'
+                for k, v in error.context.items()
+            )
+            for error in self.errors
+        ]))
 
 
-class ModelPropertyValueConflictError(PropertyError):
-    template = ' '.join((
-        "Property value must match database.",
-        "Given value: {given_value!r}, existing value: {existing_value!r}."
-    ))
+class ConflictingValue(BaseError):
     status_code = 409
+    template = "Conflicting value."
+    context = {
+        'given': None,
+        'expected': None,
+    }
 
 
-class UnknownObjectPropertiesError(PropertyError):
-    template = "Object does not contain given properties: {props_list}"
+class UniqueConstraint(BaseError):
+    status_code = 400
+    template = "Given value already exists."
 
 
-class UniqueConstraintError(PropertyError):
-    template = "{prop!r} is unique for {model!r} and a duplicate value is found in database."
+class InvalidOperandValue(BaseError):
+    status_code = 400
+    template = "Invalid operand value for {operator!r} operator."
+    context = {
+        'operator': None,
+    }
 
 
-class FileNotFoundInResourceError(PropertyError):
-    template = "File {prop!r} not found in {id_!r}."
+class ResourceNotFound(BaseError):
     status_code = 404
+    template = "Resource {id!r} not found."
+    context = {
+        'id': None,
+    }
 
 
-class SearchOperatorTypeError(PropertyError):
-    # FIXME: change type_name to type and operator_name to operator
-    template = "Operator {operator_name!r} received value for {prop!r} of type {type_name!r}."
-
-
-class SearchStringOperatorError(PropertyError):
-    # FIXME: change type_name to type and operator_name to operator
-    template = ' '.join((
-        "Operator {operator_name!r} requires string.",
-        "Received value for {prop!r} is of type {type_name!r}."
-    ))
-
-
-class FileDoesNotExistError(PropertyError):
-    template = "File {path!r} does not exist."
-
-
-# FIXME: this error is very similar to UnknownModelPropertiesErroro
-# maybe it's possible to combine them
-class ModelPropertyError(ModelError):
-    template = "Model {model!r} does not contain field {query_param!r}."
-
-
-class UnknownModelPropertiesError(ModelError):
-    template = "Model does not contain given properties: {props_list}"
-
-
-class ResourceNotFoundError(ModelError):
-    template = "Resource {model!r} with id {id_!r} does not exist."
+class ModelNotFound(BaseError):
     status_code = 404
-
-
-class ModelNotFoundError(ModelError):
     template = "Model {model!r} not found."
-    status_code = 404
+    context = {
+        'model': None,
+    }
 
 
-class MissingRevisionOnRewriteError(ModelError):
+class MissingRevisionOnRewriteError(BaseError):
+    status_code = 400
     template = "'revision' must be given on rewrite operation."
 
 
 # FIXME: Probably it would be useful to also include original error
 # from JSON parser, to tell user what exactly is wrong with given JSON.
-class JSONError(SystemError):
+class JSONError(BaseError):
+    status_code = 400
     template = "Not a valid json"
+    context = {
+        'error': None,
+    }
 
 
-class IDInvalidError(SystemError):
-    template = "ID value is not valid"
+class InvalidValue(BaseError):
+    status_code = 400
+    template = "Invalid value."
 
 
-class DateTypeError(SystemError):
-    template = "Invalid isoformat date value: {date!r}"
-
-
-class DateTimeTypeError(SystemError):
-    template = "Invalid isoformat datetime value: {date!r}"
-
-
-class ArrayTypeError(SystemError):
-    template = "Invalid array value: {value!r}"
-
-
-class ObjectTypeError(SystemError):
-    template = "Invalid object value: {value!r}"
-
-
-class MultipleRowsFound(SystemError):
+class MultipleRowsFound(BaseError):
     template = "Multiple rows were found."
 
 
-class MultipleDatasetModelsFoundError(SystemError):
+class MultipleDatasetModelsFoundError(BaseError):
     template = ("Found multiple {name!r} models in {dataset!r} "
                 "dataset. Be more specific by providing resource name.")
 
 
-class RevisionError(SystemError):
-    template = "Client cannot create 'revision'. It is set automatically"
+class ManagedProperty(BaseError):
+    status_code = 400
+    template = "Value of this property is managed automatically and cannot be set manually."
+    context = {
+        'property': None,
+    }
 
 
-class NotFoundError(SystemError):
+class NotFoundError(BaseError):
     template = "No results where found."
     status_code = 404
 
 
-class DatasetNotFoundError(SystemError):
+class DatasetNotFoundError(BaseError):
     # FIXME: change dataset_name to dataset
-    template = "Dataset ':dataset/{dataset_name}' not found."
+    template = "Dataset {dataset_name!r} not found."
     status_code = 404
 
 
-class DatasetResourceNotFoundError(SystemError):
+class DatasetResourceNotFoundError(BaseError):
     # FIXME: change dataset_name to dataset and resource_name to resource
     template = "Resource ':dataset/{dataset_name}/:resource/{resource_name}' not found."
     status_code = 404
+
+
+class DatasetModelOriginNotFoundError(BaseError):
+    template = "Resource ':dataset/{dataset}/:resource/{resource}/:origin/{origin}' not found."
+    status_code = 404
+
+
+class ModelReferenceNotFound(BaseError):
+    tempalte = "Reference {ref!r}, relative to {model!r} not found."
+
+
+class SourceNotSet(BaseError):
+    template = (
+        "Dataset {dataset!r} resource {resource!r} source is not set. "
+        "Make sure {resource!r} name parameter in {path} or environment variable {envvar} is set."
+    )
+    status_code = 404
+
+
+class InvalidManifestFile(BaseError):
+    template = "Error while parsing {filename!r} file: {error}"
+    context = {
+        'manifest': None,  # Manifest name.
+        'filename': None,
+        'error': None,  # Error message indicating why manifest file is invalid.
+    }
+
+
+class UnknownProjectOwner(BaseError):
+    template = "Unknown owner {owner}."
+    context = {
+        'owner': 'this.owner'
+    }
+
+
+class UnknownProjectDataset(BaseError):
+    template = "Unknown project dataset."
+    context = {
+        'manifest': 'project.parent.name',
+        'dataset': 'project.dataset',
+        'project': 'project.name',
+        'filename': 'project.path',
+    }
+
+
+class MissingRequiredProperty(BaseError):
+    template = "Property {property!r} is required."
+    context = {
+        'property': 'prop',
+    }
+
+
+class FileNotFound(BaseError):
+    status_code = 400
+    template = "File {file!r} not found."
+    context = {
+        'file': None,
+    }
+
+
+class UnknownModelReference(BaseError):
+    template = "Unknown model reference given in {param!r} parameter."
+    context = {
+        'param': None,
+        'reference': None,
+    }
+
+
+class InvalidDependencyValue(BaseError):
+    template = "Dependency must be in 'object/name.property' form, got: {dependency!r}."
+    context = {
+        'dependency': None,
+    }
+
+
+class MultipleModelsInDependencies(BaseError):
+    template = "Dependencies are allowed only from single model, but more than one model found: {models}."
+    context = {
+        'models': None,
+    }
+
+
+class MultipleCommandCallsInDependencies(BaseError):
+    template = "Only one command call is allowed."
+
+
+class MultipleCallsOrModelsInDependencies(BaseError):
+    template = "Only one command call or one model is allowed in dependencies."
+
+
+class InvalidSource(BaseError):
+    template = "Invalid source. {error}"
+    context = {
+        'source': 'source.type',
+        'error': None,
+    }
+
+
+class UnknownParameter(BaseError):
+    template = "Unknown parameter {parameter!r}."
+    context = {
+        'parameter': 'param',
+    }
+
+
+class UnknownProperty(BaseError):
+    status_code = 400
+    template = "Unknown property {property!r}."
+    context = {
+        'property': None,
+    }

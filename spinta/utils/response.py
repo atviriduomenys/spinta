@@ -78,8 +78,8 @@ async def get_request_data(request):
 
     try:
         data = await request.json()
-    except json.decoder.JSONDecodeError:
-        raise JSONError()
+    except json.decoder.JSONDecodeError as e:
+        raise JSONError(error=str(e))
 
     return data
 

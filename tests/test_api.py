@@ -3,7 +3,7 @@ import datetime
 
 import pytest
 
-from spinta.testing.utils import get_error_codes, get_error_context
+from spinta.testing.utils import get_error_codes, get_error_context, get_model_scopes
 from spinta.utils.itertools import consume
 from spinta.utils.refs import get_ref_id
 from spinta.utils.nestedstruct import flatten
@@ -656,7 +656,7 @@ def test_post_update_postgres(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # POST invalid id
     resp = app.post('/country', json={
@@ -666,7 +666,7 @@ def test_post_update_postgres(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # POST invalid id
     resp = app.post('/country', json={
@@ -676,7 +676,7 @@ def test_post_update_postgres(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_post_update_mongo(context, app):
@@ -700,7 +700,7 @@ def test_post_update_mongo(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # POST invalid id
     resp = app.post('/report', json={
@@ -709,7 +709,7 @@ def test_post_update_mongo(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # POST invalid id
     resp = app.post('/report', json={
@@ -718,7 +718,7 @@ def test_post_update_mongo(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_post_revision(context, app):
@@ -730,18 +730,17 @@ def test_post_revision(context, app):
         'code': 'er',
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["RevisionError"]
+    assert get_error_codes(resp.json()) == ["ManagedProperty"]
 
 
-@pytest.mark.backends('postgres', 'mongo')
-def test_post_duplicate_id(backend, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post_duplicate_id(model, app):
     # tests 400 response when trying to create object with id which exists
-    app.authorize([
-        f'spinta_backends_{backend}_report_insert',
-        f'spinta_backends_{backend}_report_update',
-        'spinta_set_meta_fields',
-    ])
-    resp = app.post(f'/backends/{backend}/reports', json={
+    app.authmodel(model, ['insert', 'update'])
+    resp = app.post(f'/{model}', json={
         'status': 'valid',
         'count': 42,
     })
@@ -749,31 +748,34 @@ def test_post_duplicate_id(backend, app):
     data = resp.json()
     id_ = data['id']
 
-    resp = app.post(f'/backends/{backend}/reports', json={
+    resp = app.post(f'/{model}', json={
         'id': id_,
         'status': 'valid',
         'count': 42,
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["UniqueConstraintError"]
-    assert get_error_context(resp.json(), "UniqueConstraintError") == {
-        "model": f"backends/{backend}/report",
-        "prop": "id",
+    assert get_error_codes(resp.json()) == ["UniqueConstraint"]
+    assert get_error_context(resp.json(), "UniqueConstraint") == {
+        'schema': f'tests/manifest/{model}.yml',
+        'manifest': 'default',
+        'model': model,
+        'property': 'id',
     }
 
 
 @pytest.mark.skip("SPLAT-146: PATCH requests should be able to update id")
-@pytest.mark.backends('postgres', 'mongo')
-def test_patch_duplicate_id(backend, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_patch_duplicate_id(model, context, app):
     # tests that duplicate ID detection works with PATCH requests
-    app.authorize([
-        f'spinta_backends_{backend}_report_insert',
-        f'spinta_backends_{backend}_report_getone',
-        f'spinta_backends_{backend}_report_patch',
-        'spinta_set_meta_fields',
-    ])
+    app.authorize(
+        get_model_scopes(context, model, ['insert', 'getone', 'patch']) +
+        ['spinta_set_meta_fields'],
+    )
 
-    report_data = app.post(f'/backends/{backend}/reports', json={
+    report_data = app.post(f'/{model}', json={
         'type': 'report',
         'status': '1',
     }).json()
@@ -782,31 +784,33 @@ def test_patch_duplicate_id(backend, app):
     # try to PATCH id with set_meta_fields scope
     # this should be successful because id that we want to setup
     # does not exist in database
-    resp = app.patch(f'/backends/{backend}/reports/{id_}',
-                     json={'id': '0007ddec-092b-44b5-9651-76884e6081b4'})
+    resp = app.patch(f'/{model}/{id_}', json={
+        'id': '0007ddec-092b-44b5-9651-76884e6081b4',
+    })
     assert resp.status_code == 200
     id_ = resp.json()['id']
     assert id_ == '0007ddec-092b-44b5-9651-76884e6081b4'
 
     # try to patch report with id of itself
-    resp = app.patch(f'/backends/{backend}/reports/{id_}',
-                     json={'id': '0007ddec-092b-44b5-9651-76884e6081b4'})
+    resp = app.patch(f'/{model}/{id_}', json={
+        'id': '0007ddec-092b-44b5-9651-76884e6081b4',
+    })
     assert resp.status_code == 200
     assert resp.json()['id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
 
     # try to PATCH id with set_meta_fields scope
     # this should not be successful because id that we want to setup
     # already exists in database
-    resp = app.post(f'/backends/{backend}/reports', json={
+    resp = app.post(f'/{model}', json={
         'type': 'report',
         'status': '1',
     })
     existing_id = resp.json()['id']
 
-    resp = app.patch(f'/backends/{backend}/reports/{id_}',
+    resp = app.patch(f'/{model}/{id_}',
                      json={'id': existing_id})
     assert resp.status_code == 400
-    assert resp.json() == {"error": f"'id' is unique for 'backends/{backend}/report' and a duplicate value is found in database."}
+    assert resp.json() == {"error": f"'id' is unique for '{model}' and a duplicate value is found in database."}
 
 
 def test_post_non_json_content_type(context, app):
@@ -854,44 +858,52 @@ def test_post_invalid_report_schema(app):
         'count': '123',
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "integer",
-        "model": "report",
-        "prop": "count",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'count',
+        'type': 'integer',
     }
 
     resp = app.post('/reports', json={
         'count': False,
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "integer",
-        "model": "report",
-        "prop": "count",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'count',
+        'type': 'integer',
     }
 
     resp = app.post('/reports', json={
         'count': [1, 2, 3],
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "integer",
-        "model": "report",
-        "prop": "count",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'count',
+        'type': 'integer',
     }
 
     resp = app.post('/reports', json={
         'count': {'a': 1, 'b': 2},
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "integer",
-        "model": "report",
-        "prop": "count",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'count',
+        'type': 'integer',
     }
 
     resp = app.post('/reports', json={
@@ -904,11 +916,13 @@ def test_post_invalid_report_schema(app):
         'status': 42,
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
     }
 
     # test string validation
@@ -916,33 +930,39 @@ def test_post_invalid_report_schema(app):
         'status': True,
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
     }
 
     resp = app.post('/reports', json={
         'status': [1, 2, 3],
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
     }
 
     resp = app.post('/reports', json={
         'status': {'a': 1, 'b': 2},
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
     }
 
     # sanity check, that strings are still allowed.
@@ -976,8 +996,11 @@ def test_streaming_response(context, app):
     ]
 
 
-@pytest.mark.backends('postgres', 'mongo')
-def test_multi_backends(backend, app):
-    app.authorize([f'spinta_backends_{backend}_report_insert'])
-    resp = app.post(f'/backends/{backend}/reports', json={'status': '42'})
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_multi_backends(model, app):
+    app.authmodel(model, ['insert'])
+    resp = app.post(f'/{model}', json={'status': '42'})
     assert resp.status_code == 201

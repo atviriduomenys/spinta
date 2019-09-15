@@ -5,6 +5,7 @@ import requests
 import starlette.testclient
 
 from spinta import auth
+from spinta.testing.utils import get_model_scopes
 
 
 class TestClient(starlette.testclient.TestClient):
@@ -18,6 +19,10 @@ class TestClient(starlette.testclient.TestClient):
     def start_session(self, base_url):
         self._requests_session = requests.Session()
         self._requests_session_base_url = base_url.rstrip('/')
+
+    def authmodel(self, model, actions, creds=None):
+        scopes = get_model_scopes(self._spinta_context, model, actions)
+        self.authorize(scopes, creds=creds)
 
     def authorize(self, scopes=None, creds=None):
         if creds:

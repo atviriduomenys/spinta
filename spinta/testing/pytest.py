@@ -133,36 +133,36 @@ def cli(context, mocker):
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--backend",
+        "--model",
         action="append",
         default=[],
-        help="run tests only for particular database backend ['postgres', 'mongo']",
+        help="run tests only for particular model ['postgres', 'mongo', 'postgres/datasets']",
     )
 
 
 def pytest_configure(config):
     # https://docs.pytest.org/en/latest/mark.html#registering-marks
     config.addinivalue_line(
-        "markers", "backends(*backends): mark test to run multiple times with each backend specified"
+        "markers", "models(*models): mark test to run multiple times with each model specified"
     )
 
 
 def pytest_generate_tests(metafunc):
-    # Get backend markers from test, if markers are set - leave test as is
-    backends = metafunc.definition.get_closest_marker('backends')
-    if not backends:
+    # Get model markers from test, if markers are set - leave test as is
+    models = metafunc.definition.get_closest_marker('models')
+    if not models:
         return
 
-    # If there are markers, get them, together with backend CLI options
-    backends = set(backends.args)
-    backend_cli_options = set(metafunc.config.getoption("backend"))
+    # If there are markers, get them, together with model CLI options
+    models = set(models.args)
+    model_cli_options = set(metafunc.config.getoption('model'))
 
-    # If backend CLI options are not empty
+    # If model CLI options are not empty
     # then get common markers from test and CLI options
-    if backend_cli_options:
-        backends = backends.intersection(backend_cli_options)
+    if model_cli_options:
+        models = models.intersection(model_cli_options)
 
-    # Parametrize our test with calculated backends.
-    # If we pass to CLI backend option, which does not have a test marker,
+    # Parametrize our test with calculated models.
+    # If we pass to CLI model option, which does not have a test marker,
     # then pytest will skip the test all together.
-    metafunc.parametrize('backend', backends)
+    metafunc.parametrize('model', models)

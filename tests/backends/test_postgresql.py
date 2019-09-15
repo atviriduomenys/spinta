@@ -104,10 +104,12 @@ def test_delete(context, app):
     # multiple deletes should just return HTTP/404
     resp = app.delete(f'/country/{ids[0]}')
     assert resp.status_code == 404
-    assert get_error_codes(resp.json()) == ["ResourceNotFoundError"]
-    assert get_error_context(resp.json(), "ResourceNotFoundError") == {
-        "id_": ids[0],
-        "model": "country",
+    assert get_error_codes(resp.json()) == ["ResourceNotFound"]
+    assert get_error_context(resp.json(), "ResourceNotFound") == {
+        'schema': 'tests/manifest/models/country.yml',
+        'manifest': 'default',
+        'model': 'country',
+        'id': ids[0],
     }
 
     resp = app.get('/country').json()
@@ -148,46 +150,51 @@ def test_patch(app, context):
     resp = app.patch(f'/org/{org_data["id"]}',
                      json={'revision': 'r3v1510n', 'title': 'foo org'})
     assert resp.status_code == 409
-    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
-    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
-        "given_value": "r3v1510n",
-        "existing_value": revision,
-        "model": "org",
-        "prop": "revision",
+    assert get_error_codes(resp.json()) == ["ConflictingValue"]
+    assert get_error_context(resp.json(), "ConflictingValue") == {
+        'schema': 'tests/manifest/models/org.yml',
+        'manifest': 'default',
+        'model': 'org',
+        'property': 'revision',
+        'given': 'r3v1510n',
+        'expected': revision,
     }
 
     # test that type mismatch is checked
     resp = app.patch(f'/org/{org_data["id"]}',
                      json={'type': 'country', 'revision': org_data["revision"], 'title': 'foo org'})
     assert resp.status_code == 409
-    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
-    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
-        "given_value": "country",
-        "existing_value": "org",
-        "model": "org",
-        "prop": "type",
+    assert get_error_codes(resp.json()) == ["ConflictingValue"]
+    assert get_error_context(resp.json(), "ConflictingValue") == {
+        'schema': 'tests/manifest/models/org.yml',
+        'manifest': 'default',
+        'model': 'org',
+        'property': 'type',
+        'given': 'country',
+        'expected': 'org',
     }
 
     # test that id mismatch is checked
     resp = app.patch(f'/org/{org_data["id"]}',
                      json={'id': '0007ddec-092b-44b5-9651-76884e6081b4', 'revision': org_data["revision"], 'title': 'foo org'})
     assert resp.status_code == 409
-    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
-    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
-        "given_value": "0007ddec-092b-44b5-9651-76884e6081b4",
-        "existing_value": id_,
-        "model": "org",
-        "prop": "id",
+    assert get_error_codes(resp.json()) == ["ConflictingValue"]
+    assert get_error_context(resp.json(), "ConflictingValue") == {
+        'schema': 'tests/manifest/models/org.yml',
+        'manifest': 'default',
+        'model': 'org',
+        'property': 'id',
+        'given': '0007ddec-092b-44b5-9651-76884e6081b4',
+        'expected': id_,
     }
 
     # test that protected fields (id, type, revision) are accepted, but not PATCHED
-    resp = app.patch(f'/org/{org_data["id"]}',
-                     json={
-                         'id': id_,
-                         'type': 'org',
-                         'revision': revision,
-                         'title': 'foo org',
-                     })
+    resp = app.patch(f'/org/{org_data["id"]}', json={
+        'id': id_,
+        'type': 'org',
+        'revision': revision,
+        'title': 'foo org',
+    })
     assert resp.status_code == 200
     resp_data = resp.json()
 

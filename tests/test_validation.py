@@ -60,11 +60,13 @@ def test_invalid_report_int(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "integer",
-        "model": "report",
-        "prop": "count",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'count',
+        'type': 'integer',
     }
 
 
@@ -81,7 +83,7 @@ def test_invalid_report_date(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["DateTypeError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_non_string_report_date(app):
@@ -97,7 +99,7 @@ def test_non_string_report_date(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["DateTypeError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_invalid_report_datetime(app):
@@ -113,7 +115,7 @@ def test_invalid_report_datetime(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["DateTimeTypeError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_non_string_report_datetime(app):
@@ -129,7 +131,7 @@ def test_non_string_report_datetime(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["DateTimeTypeError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_invalid_report_array(app):
@@ -145,7 +147,7 @@ def test_invalid_report_array(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["ArrayTypeError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_invalid_report_array_object(app):
@@ -161,7 +163,7 @@ def test_invalid_report_array_object(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["ObjectTypeError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_invalid_nested_object_property(app):
@@ -176,7 +178,7 @@ def test_invalid_nested_object_property(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["ObjectTypeError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_missing_report_object_property(app):
@@ -222,10 +224,12 @@ def test_unknown_report_property(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["UnknownModelPropertiesError"]
-    assert get_error_context(resp.json(), "UnknownModelPropertiesError") == {
-        "props_list": "'random_prop'",
-        "model": "report",
+    assert get_error_codes(resp.json()) == ["UnknownProperty"]
+    assert get_error_context(resp.json(), "UnknownProperty") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'random_prop',
     }
 
 
@@ -249,9 +253,10 @@ def test_unknown_report_object_property(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["UnknownObjectPropertiesError"]
-    assert get_error_context(resp.json(), "UnknownObjectPropertiesError") == {
-        "props_list": "'rand_prop'",
-        "model": "report",
-        "prop": "notes",
+    assert get_error_codes(resp.json()) == ["UnknownProperty"]
+    assert get_error_context(resp.json(), "UnknownProperty") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'notes.rand_prop',
     }

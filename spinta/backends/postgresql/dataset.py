@@ -1,3 +1,5 @@
+from typing import Optional, List
+
 import datetime
 import string
 import typing
@@ -20,10 +22,13 @@ from spinta.backends.postgresql import MAIN_TABLE, CHANGES_TABLE
 from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
-from spinta.exceptions import ResourceNotFoundError, RevisionError
+from spinta.exceptions import ResourceNotFound, ManagedProperty
 from spinta.utils.response import get_request_data
 from spinta.utils.idgen import get_new_id
 from spinta.utils.changes import get_patch_changes
+from spinta import exceptions
+from spinta.utils.url import Operator
+from spinta.types.datatype import String
 
 
 @prepare.register()
@@ -107,9 +112,10 @@ def insert(
         id_ = commands.gen_object_id(context, backend, model)
 
     if 'revision' in data.keys():
-        # FIXME: revision should have model for context
-        raise RevisionError()
+        raise ManagedProperty(model, property='revision')
     data['revision'] = get_new_id('revision id')
+
+    data = commands.make_json_serializable(model, data)
 
     connection.execute(
         table.main.insert().values({
@@ -167,8 +173,7 @@ def upsert(
             id_ = commands.gen_object_id(context, backend, model)
 
         if 'revision' in data.keys():
-            # FIXME: revision should have model for context
-            raise RevisionError()
+            raise ManagedProperty(model, property='revision')
         data['revision'] = get_new_id('revision id')
 
         data = _fix_data_for_json(data)
@@ -242,8 +247,7 @@ def patch(
         default=None,
     )
     if row is None:
-        type_ = model.get_type_value()
-        raise ResourceNotFoundError(model=type_, id_=id_)
+        raise ResourceNotFound(model, id=id_)
 
     data = _patch(transaction, connection, table, id_, row, data)
 
@@ -374,7 +378,7 @@ class JoinManager:
             ref = refs[i]
             left_ref = refs[:i]
             right_ref = refs[:i] + (ref,)
-            model = self.model.parent.objects[model.properties[ref].type.object]
+            model = self.model.parent.objects[model.origin][model.properties[ref].dtype.object]
             if right_ref not in self.aliases:
                 self.aliases[right_ref] = _get_table(self.backend, model).main.alias()
                 left = self.aliases[left_ref]
@@ -420,6 +424,7 @@ async def getall(
         offset=params.offset,
         limit=params.limit,
         count=params.count,
+        query=params.query,
     )
     return render(context, request, model, action, params, data)
 
@@ -437,23 +442,25 @@ def getall(
     offset: int = None,
     limit: int = None,
     count: bool = False,
+    query: Optional[List[dict]] = None,
 ):
     connection = context.get('transaction').connection
     table = _get_table(backend, model).main
     jm = JoinManager(backend, model, table)
 
     if count:
-        query = sa.select([sa.func.count()]).select_from(table)
-        result = connection.execute(query)
+        qry = sa.select([sa.func.count()]).select_from(table)
+        result = connection.execute(qry)
         return {'count': result.scalar()}
 
     else:
-        query = sa.select(_getall_show(table, jm, show))
-        query = _getall_order_by(query, table, jm, sort)
-        query = _getall_offset(query, offset)
-        query = _getall_limit(query, limit)
+        qry = sa.select(_getall_show(table, jm, show))
+        qry = _getall_query(context, backend, model, qry, jm, query)
+        qry = _getall_order_by(qry, table, jm, sort)
+        qry = _getall_offset(qry, offset)
+        qry = _getall_limit(qry, limit)
 
-        result = connection.execute(query)
+        result = connection.execute(qry)
 
         if len(jm.aliases) > 1:
             # FIXME: currently `prepare` does not support joins, but that should
@@ -482,7 +489,37 @@ def _getall_show(table: sa.Table, jm: JoinManager, show: typing.List[str]):
     return [jm(name).label(name) for name in show]
 
 
-def _getall_order_by(query, table: sa.Table, jm: JoinManager, sort: typing.List[typing.Dict[str, str]]):
+def _getall_query(
+    context: Context,
+    backend: PostgreSQL,
+    model: Model,
+    qry,
+    jm: JoinManager,
+    query: Optional[List[dict]]
+):
+    where = []
+    for qp in query or []:
+        if qp['key'] not in model.flatprops:
+            raise exceptions.UnknownProperty(model, property=qp['key'])
+        prop = model.flatprops[qp['key']]
+        operator = qp.get('operator')
+        value = commands.load_search_params(context, prop.dtype, backend, qp)
+        if operator == Operator.EXACT:
+            field = jm(qp['key'])
+            if isinstance(prop.dtype, String):
+                field = sa.func.lower(field.astext)
+                value = value.lower()
+            else:
+                value = sa.cast(value, JSONB)
+            where.append(field == value)
+        else:
+            raise NotImplementedError(f"Operator {operator!r} is not implemented for postgresql dataset models.")
+    if where:
+        qry = qry.where(sa.and_(*where))
+    return qry
+
+
+def _getall_order_by(qry, table: sa.Table, jm: JoinManager, sort: typing.List[typing.Dict[str, str]]):
     if sort:
         db_sort_keys = []
         for sort_key in sort:
@@ -497,23 +534,23 @@ def _getall_order_by(query, table: sa.Table, jm: JoinManager, sort: typing.List[
                 column = column.desc()
 
             db_sort_keys.append(column)
-        return query.order_by(*db_sort_keys)
+        return qry.order_by(*db_sort_keys)
     else:
-        return query
+        return qry
 
 
-def _getall_offset(query, offset):
+def _getall_offset(qry, offset):
     if offset:
-        return query.offset(offset)
+        return qry.offset(offset)
     else:
-        return query
+        return qry
 
 
-def _getall_limit(query, limit):
+def _getall_limit(qry, limit):
     if limit:
-        return query.limit(limit)
+        return qry.limit(limit)
     else:
-        return query
+        return qry
 
 
 @changes.register()
@@ -550,12 +587,12 @@ def changes(
     connection = context.get('transaction').connection
     table = _get_table(backend, model).changes
 
-    query = sa.select([table]).order_by(table.c.change_id)
-    query = _changes_id(table, query, id_)
-    query = _changes_offset(table, query, offset)
-    query = _changes_limit(query, limit)
+    qry = sa.select([table]).order_by(table.c.change_id)
+    qry = _changes_id(table, qry, id_)
+    qry = _changes_offset(table, qry, offset)
+    qry = _changes_limit(qry, limit)
 
-    result = connection.execute(query)
+    result = connection.execute(qry)
 
     for row in result:
         yield {
@@ -568,34 +605,34 @@ def changes(
         }
 
 
-def _changes_id(table, query, id_):
+def _changes_id(table, qry, id_):
     if id_:
-        return query.where(table.c.id == id_)
+        return qry.where(table.c.id == id_)
     else:
-        return query
+        return qry
 
 
-def _changes_offset(table, query, offset):
+def _changes_offset(table, qry, offset):
     if offset:
         if offset > 0:
             offset = offset
         else:
             offset = (
-                query.with_only_columns([
+                qry.with_only_columns([
                     sa.func.max(table.c.change_id) - abs(offset),
                 ]).
                 order_by(None).alias()
             )
-        return query.where(table.c.change_id > offset)
+        return qry.where(table.c.change_id > offset)
     else:
-        return query
+        return qry
 
 
-def _changes_limit(query, limit):
+def _changes_limit(qry, limit):
     if limit:
-        return query.limit(limit)
+        return qry.limit(limit)
     else:
-        return query
+        return qry
 
 
 @wipe.register()

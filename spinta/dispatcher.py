@@ -35,17 +35,12 @@ class Command(Dispatcher):
             return self
         return _
 
-    def __call__(self, *args, **kwargs):
-        try:
-            return super().__call__(*args, **kwargs)
-        except (BaseError, AuthlibHTTPError, HTTPException):
-            raise
-        except Exception as exc:
-            types = tuple([type(arg) for arg in (exc,) + args])
-            if 'error' in _commands and self is not _commands['error'] and _commands['error'].dispatch(*types):
-                _commands['error'](exc, *args, **kwargs)
-            else:
-                raise
+    def __getitem__(self, types):
+        types = types if isinstance(types, tuple) else (types,)
+        func = self.dispatch(*types)
+        if not func:
+            raise NotImplementedError('Could not find signature for {self.name}: <{str_signature(types)}>')
+        return func
 
     def print_methods(self, *args, **kwargs):
         """Print all commands method in resolution order."""

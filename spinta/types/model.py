@@ -1,13 +1,16 @@
+from typing import Dict
+
 from spinta.auth import check_generated_scopes
-from spinta.commands import load, check, error, authorize, prepare
+from spinta.commands import load, check, authorize, prepare
 from spinta.components import Context, Manifest, Node, Model, Property, Action
-from spinta.exceptions import UnknownModelPropertiesError
 from spinta.nodes import load_node
-from spinta.types.type import PrimaryKey, Type, load_type
+from spinta.types.datatype import PrimaryKey, DataType, load_type
 from spinta.utils.errors import format_error
-from spinta.utils.schema import resolve_schema
+from spinta.utils.schema import resolve_schema, check_unkown_params
 from spinta.utils.tree import add_path_to_tree
 from spinta.common import NA
+from spinta import commands
+from spinta import exceptions
 
 
 @load.register()
@@ -47,32 +50,25 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
 @load.register()
 def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
     prop = load_node(context, prop, data, manifest, check_unknowns=False)
-    prop.type = load_type(context, prop, data, manifest)
-
-    if isinstance(prop.type, PrimaryKey):
-        prop.type.unique = True
-
-    # Check if there any unknown params were given.
-    known_params = set(resolve_schema(prop, Node).keys()) | set(resolve_schema(prop.type, Type).keys())
-    given_params = set(data.keys())
-    unknown_params = given_params - known_params
-    if unknown_params:
-        raise UnknownModelPropertiesError(
-            model=prop.model.name,
-            props_list=', '.join(map(repr, sorted(unknown_params))),
-        )
-
+    prop.type = 'property'
+    prop.dtype = load_type(context, prop, data, manifest)
+    check_unkown_params(
+        [resolve_schema(prop, Node), resolve_schema(prop.dtype, DataType)],
+        data, prop,
+    )
+    if isinstance(prop.dtype, PrimaryKey):
+        prop.dtype.unique = True
     return prop
 
 
 @load.register()
 def load(context: Context, model: Model, data: dict) -> dict:
     # check that given data does not have more keys, than model's schema
-    unknown_params = set(data.keys()) - set(model.properties.keys())
-    if unknown_params:
-        raise UnknownModelPropertiesError(
-            model=model.name,
-            props_list=', '.join(map(repr, sorted(unknown_params))),
+    unknown_props = set(data.keys()) - set(model.properties.keys())
+    if unknown_props:
+        raise exceptions.MultipleErrors(
+            exceptions.UnknownProperty(model, property=prop)
+            for prop in sorted(unknown_props)
         )
 
     result = {}
@@ -81,16 +77,14 @@ def load(context: Context, model: Model, data: dict) -> dict:
         if name in ('id', 'revision', 'type') and name not in data:
             continue
         value = data.get(name, NA)
-        result[name] = load(context, prop.type, value)
+        result[name] = load(context, prop.dtype, value)
     return result
 
 
 @check.register()
 def check(context: Context, model: Model):
     if 'id' not in model.properties:
-        context.error("Primary key is required, add `id` property to the model.")
-    if model.properties['id'].type == 'pk':
-        context.deprecation("`id` property must specify real type like 'string' or 'integer'. Use of 'pk' is deprecated.")
+        raise MissingRequiredProperty(model, prop='id')
 
 
 @prepare.register()
@@ -100,56 +94,13 @@ def prepare(context: Context, model: Model, data: dict, *, action: Action) -> di
     result = {}
     for name, prop in model.properties.items():
         value = data.get(name, NA)
-        value = prepare(context, prop.type, backend, value)
+        value = prepare(context, prop.dtype, backend, value)
         if action == Action.UPDATE:
             result[name] = None if value is NA else value
         else:
             if value is not NA:
                 result[name] = value
     return result
-
-
-@error.register()
-def error(exc: Exception, context: Context, model: Model):
-    message = (
-        '{exc}:\n'
-        '  in model {model.name!r} {model}\n'
-        "  in file '{model.path}'\n"
-        '  on backend {model.backend.name!r}\n'
-    )
-    raise Exception(format_error(message, {
-        'exc': exc,
-        'model': model,
-    }))
-
-
-@error.register()
-def error(exc: Exception, context: Context, model: Model, data: dict, manifest: Manifest):
-    error(exc, context, model)
-
-
-@error.register()
-def error(exc: Exception, context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
-    parents = []
-    while True:
-        message = '  in property {prop.name!r} {prop}\n'
-        parents.append(format_error(message, {'prop': prop}))
-        if hasattr(prop, 'parent') and isinstance(prop.parent, Property):
-            prop = prop.parent
-        else:
-            break
-    message = (
-        '{exc}:\n'
-        '{parents}'
-        '  in model {prop.model.name!r} {prop.model.model}\n'
-        "  in file '{prop.model.path}'\n"
-        '  on backend {prop.backend.name!r}\n'
-    )
-    raise Exception(format_error(message, {
-        'exc': exc,
-        'prop': prop,
-        'parents': ''.join(parents)
-    }))
 
 
 @authorize.register()
@@ -161,3 +112,18 @@ def authorize(context: Context, action: Action, model: Model):
 def authorize(context: Context, action: Action, prop: Property):
     name = prop.model.get_type_value() + '_' + prop.place
     check_generated_scopes(context, name, action.value)
+
+
+@commands.get_referenced_model.register()
+def get_referenced_model(context: Context, model: Model, ref: str):
+    if ref in model.manifest.objects['model']:
+        return model.manifest.objects['model'][ref]
+
+    raise exceptions.ModelReferenceNotFound(model=model.get_type_value(), ref=ref)
+
+
+@commands.get_error_context.register()
+def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
+    context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
+    context['property'] = f'{prefix}.place'
+    return context

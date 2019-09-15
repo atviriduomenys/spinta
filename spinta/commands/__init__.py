@@ -2,11 +2,6 @@ from spinta.dispatcher import command
 
 
 @command()
-def error():
-    pass
-
-
-@command()
 def load():
     """Load primitive data structures to python-native objects.
 
@@ -249,3 +244,18 @@ def unload_backend():
     tests, all sqlalchemy connections are disposed to avoid leaving open
     connections between tests.
     """
+
+
+@command()
+def get_referenced_model():
+    """Find referenced model by given property type."""
+
+
+@command()
+def make_json_serializable():
+    """Convert given Python-native value to a JSON serializable value."""
+
+
+@command()
+def get_error_context():
+    """Get error context for a given object."""
