@@ -22,13 +22,13 @@ from spinta.backends.postgresql import MAIN_TABLE, CHANGES_TABLE
 from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
-from spinta.exceptions import ResourceNotFoundError, RevisionError
+from spinta.exceptions import ResourceNotFound, ManagedProperty
 from spinta.utils.response import get_request_data
 from spinta.utils.idgen import get_new_id
 from spinta.utils.changes import get_patch_changes
 from spinta import exceptions
 from spinta.utils.url import Operator
-from spinta.types.type import String
+from spinta.types.datatype import String
 
 
 @prepare.register()
@@ -112,8 +112,7 @@ def insert(
         id_ = commands.gen_object_id(context, backend, model)
 
     if 'revision' in data.keys():
-        # FIXME: revision should have model for context
-        raise RevisionError()
+        raise ManagedProperty(model, property='revision')
     data['revision'] = get_new_id('revision id')
 
     data = commands.make_json_serializable(model, data)
@@ -174,8 +173,7 @@ def upsert(
             id_ = commands.gen_object_id(context, backend, model)
 
         if 'revision' in data.keys():
-            # FIXME: revision should have model for context
-            raise RevisionError()
+            raise ManagedProperty(model, property='revision')
         data['revision'] = get_new_id('revision id')
 
         data = _fix_data_for_json(data)
@@ -249,8 +247,7 @@ def patch(
         default=None,
     )
     if row is None:
-        type_ = model.get_type_value()
-        raise ResourceNotFoundError(model=type_, id_=id_)
+        raise ResourceNotFound(model, id=id_)
 
     data = _patch(transaction, connection, table, id_, row, data)
 
@@ -381,7 +378,7 @@ class JoinManager:
             ref = refs[i]
             left_ref = refs[:i]
             right_ref = refs[:i] + (ref,)
-            model = self.model.parent.objects[model.origin][model.properties[ref].type.object]
+            model = self.model.parent.objects[model.origin][model.properties[ref].dtype.object]
             if right_ref not in self.aliases:
                 self.aliases[right_ref] = _get_table(self.backend, model).main.alias()
                 left = self.aliases[left_ref]
@@ -503,16 +500,13 @@ def _getall_query(
     where = []
     for qp in query or []:
         if qp['key'] not in model.flatprops:
-            raise exceptions.ModelPropertyError(
-                model=model.get_type_value(),
-                query_param=qp['key'],
-            )
+            raise exceptions.UnknownProperty(model, property=qp['key'])
         prop = model.flatprops[qp['key']]
         operator = qp.get('operator')
-        value = commands.load_search_params(context, prop.type, backend, qp)
+        value = commands.load_search_params(context, prop.dtype, backend, qp)
         if operator == Operator.EXACT:
             field = jm(qp['key'])
-            if isinstance(prop.type, String):
+            if isinstance(prop.dtype, String):
                 field = sa.func.lower(field.astext)
                 value = value.lower()
             else:

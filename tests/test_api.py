@@ -656,7 +656,7 @@ def test_post_update_postgres(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # POST invalid id
     resp = app.post('/country', json={
@@ -666,7 +666,7 @@ def test_post_update_postgres(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # POST invalid id
     resp = app.post('/country', json={
@@ -676,7 +676,7 @@ def test_post_update_postgres(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_post_update_mongo(context, app):
@@ -700,7 +700,7 @@ def test_post_update_mongo(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # POST invalid id
     resp = app.post('/report', json={
@@ -709,7 +709,7 @@ def test_post_update_mongo(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # POST invalid id
     resp = app.post('/report', json={
@@ -718,7 +718,7 @@ def test_post_update_mongo(context, app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["IDInvalidError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 def test_post_revision(context, app):
@@ -730,7 +730,7 @@ def test_post_revision(context, app):
         'code': 'er',
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["RevisionError"]
+    assert get_error_codes(resp.json()) == ["ManagedProperty"]
 
 
 @pytest.mark.models(
@@ -754,10 +754,12 @@ def test_post_duplicate_id(model, app):
         'count': 42,
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["UniqueConstraintError"]
-    assert get_error_context(resp.json(), "UniqueConstraintError") == {
-        "model": model,
-        "prop": "id",
+    assert get_error_codes(resp.json()) == ["UniqueConstraint"]
+    assert get_error_context(resp.json(), "UniqueConstraint") == {
+        'schema': f'tests/manifest/{model}.yml',
+        'manifest': 'default',
+        'model': model,
+        'property': 'id',
     }
 
 
@@ -856,44 +858,52 @@ def test_post_invalid_report_schema(app):
         'count': '123',
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "integer",
-        "model": "report",
-        "prop": "count",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'count',
+        'type': 'integer',
     }
 
     resp = app.post('/reports', json={
         'count': False,
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "integer",
-        "model": "report",
-        "prop": "count",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'count',
+        'type': 'integer',
     }
 
     resp = app.post('/reports', json={
         'count': [1, 2, 3],
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "integer",
-        "model": "report",
-        "prop": "count",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'count',
+        'type': 'integer',
     }
 
     resp = app.post('/reports', json={
         'count': {'a': 1, 'b': 2},
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "integer",
-        "model": "report",
-        "prop": "count",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'count',
+        'type': 'integer',
     }
 
     resp = app.post('/reports', json={
@@ -906,11 +916,13 @@ def test_post_invalid_report_schema(app):
         'status': 42,
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
     }
 
     # test string validation
@@ -918,33 +930,39 @@ def test_post_invalid_report_schema(app):
         'status': True,
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
     }
 
     resp = app.post('/reports', json={
         'status': [1, 2, 3],
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
     }
 
     resp = app.post('/reports', json={
         'status': {'a': 1, 'b': 2},
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
-    assert get_error_context(resp.json(), "PropertyTypeError") == {
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
+    assert get_error_context(resp.json(), "InvalidValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
     }
 
     # sanity check, that strings are still allowed.

@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 
-from spinta.types.type import Type
+from spinta.types.datatype import DataType
 from spinta.commands.formats import Format
 from spinta.components import Context, Action, UrlParams, Node, Property
 from spinta.utils.url import build_url_path
@@ -243,13 +243,13 @@ def get_cell(context: Context, params: dict, prop, value, shorten=False, color=N
 
     if prop.name == 'id' and value:
         model = prop.model
-    elif prop.type.name == 'ref' and prop.type.object and value:
-        model = commands.get_referenced_model(context, prop.model, prop.type.object)
+    elif prop.dtype.name == 'ref' and prop.dtype.object and value:
+        model = commands.get_referenced_model(context, prop.model, prop.dtype.object)
 
     if model:
         link = '/' + build_url_path(get_model_link_params(model, pk=value))
 
-    if prop.type.name in ('ref', 'pk') and shorten and isinstance(value, str):
+    if prop.dtype.name in ('ref', 'pk') and shorten and isinstance(value, str):
         value = value[:8]
 
     if isinstance(value, datetime.datetime):
@@ -274,8 +274,8 @@ def get_cell(context: Context, params: dict, prop, value, shorten=False, color=N
 def get_data(context: Context, rows, model: Node, params: UrlParams):
     if params.count:
         prop = Property()
-        prop.type = Type()
-        prop.type.name = 'string'
+        prop.dtype = DataType()
+        prop.dtype.name = 'string'
         prop.name = 'count'
         prop.ref = None
         props = [prop]

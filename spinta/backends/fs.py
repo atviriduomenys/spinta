@@ -9,8 +9,8 @@ from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, check, push, getone, wipe, wait, authorize
 from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams
 from spinta.config import RawConfig
-from spinta.types.type import File
-from spinta.exceptions import FileDoesNotExistError, FileNotFoundInResourceError
+from spinta.types.datatype import File
+from spinta.exceptions import FileNotFound, ResourceNotFound
 from spinta import commands
 from spinta.renderer import render
 
@@ -35,17 +35,17 @@ def prepare(context: Context, backend: FileSystem, manifest: Manifest):
 
 
 @prepare.register()
-def prepare(context: Context, backend: FileSystem, type: File):
+def prepare(context: Context, backend: FileSystem, dtype: File):
     pass
 
 
 @prepare.register()
-def prepare(context: Context, backend: FileSystem, type: File):
+def prepare(context: Context, backend: FileSystem, dtype: File):
     pass
 
 
 @prepare.register()
-def prepare(context: Context, type: File, backend: Backend, value: Attachment):
+def prepare(context: Context, dtype: File, backend: Backend, value: Attachment):
     return {
         'filename': value.filename,
         'content_type': value.content_type,
@@ -58,22 +58,16 @@ def migrate(context: Context, backend: FileSystem):
 
 
 @check.register()
-def check(context: Context, type: File, prop: Property, backend: FileSystem, value: dict, *, data: dict, action: Action):
+def check(context: Context, dtype: File, prop: Property, backend: FileSystem, value: dict, *, data: dict, action: Action):
     path = backend.path / value['filename']
     if not path.exists():
-        # FIXME: Probably, instead of showing absolute path,
-        # we should show path relative to backend.path. For security reasons.
-        raise FileDoesNotExistError(
-            model=prop.model.name,
-            prop=prop.place,
-            path=str(path)
-        )
+        raise FileNotFound(prop, file=value['filename'])
 
 
 @check.register()
-def check(context: Context, type: File, prop: Property, backend: Backend, value: dict, *, data: dict, action: Action):
+def check(context: Context, dtype: File, prop: Property, backend: Backend, value: dict, *, data: dict, action: Action):
     if prop.backend.name != backend.name:
-        check(context, type, prop, prop.backend, value, data=data, action=action)
+        check(context, dtype, prop, prop.backend, value, data=data, action=action)
 
 
 @push.register()
@@ -153,9 +147,7 @@ async def getone(
     authorize(context, action, prop)
     data = getone(context, prop, prop.model.backend, id_=params.id)
     if data is None:
-        raise FileNotFoundInResourceError(model=prop.model.name,
-                                          prop=prop.place,
-                                          id_=params.id)
+        raise ResourceNotFound(prop, id=params.id)
     filename = data['filename'] or params.id
     return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
 

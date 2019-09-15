@@ -1,7 +1,8 @@
-from spinta.commands import load, prepare, pull, error
+from spinta.commands import load, prepare, pull
 from spinta.components import Context, Node
 from spinta.types.dataset import Resource, Property
 from spinta.utils.errors import format_error
+from spinta import commands
 
 
 class Source:
@@ -17,13 +18,26 @@ def load(context: Context, source: Source, node: Node):
     return source
 
 
+def dataset_source_config_name(resource: Resource):
+    dataset = resource.parent
+    manifest = dataset.parent
+    return [
+        'datasets',
+        manifest.name,
+        dataset.name.replace('/', '_'),
+        resource.name.replace('/', '_'),
+    ]
+
+
+def dataset_source_envvar_name(resource: Resource):
+    return '_'.join(['SPINTA'] + dataset_source_config_name(resource)).upper()
+
+
 @load.register()
 def load(context: Context, source: Source, node: Resource):
     config = context.get('config')
     if not source.name:
-        dataset = node.parent
-        manifest = dataset.parent
-        source.name = config.raw.get('datasets', manifest.name, dataset.name.replace('/', '_'), node.name.replace('/', '_'), default=None)
+        source.name = config.raw.get(*dataset_source_config_name(node), default=None)
     return source
 
 
@@ -37,16 +51,8 @@ def pull(context: Context, source: Source, node: Property, *, data):
     return data[source.name]
 
 
-@error.register()
-def error(exc: Exception, context: Context, source: Source, node: Resource):
-    message = (
-        '{exc}:\n'
-        '  in resource {resource.name!r} {resource}\n'
-        '  in dataset {resource.parent.name!r} {resource.parent}\n'
-        "  in file '{resource.path}'\n"
-        '  on backend {resource.backend.name!r}\n'
-    )
-    raise Exception(format_error(message, {
-        'exc': exc,
-        'resource': node,
-    }))
+@commands.get_error_context.register()
+def get_error_context(source: Source):
+    context = commands.get_error_context[Node](source.node, prefix='this.node')
+    context['source'] = 'this.type'
+    return context

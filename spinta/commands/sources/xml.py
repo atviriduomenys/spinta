@@ -41,4 +41,8 @@ def pull(context: Context, source: Xml, node: Property, *, data: etree.ElementBa
     elif len(result) == 0:
         return None
     else:
-        context.error(f"More than one value returned for {source.name!r}: {data!r}")
+        raise extensions.InvalidSource(
+            node,
+            source=source,
+            error=f"More than one value returned for {source.name!r}: {data!r}",
+        )

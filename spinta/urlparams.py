@@ -13,7 +13,7 @@ from spinta.exceptions import (
     BaseError,
     DatasetNotFoundError,
     DatasetResourceNotFoundError,
-    ModelNotFoundError,
+    ModelNotFound,
     MultipleDatasetModelsFoundError,
     DatasetModelOriginNotFoundError,
 )
@@ -68,7 +68,7 @@ def get_model_by_name(context: Context, manifest: Manifest, name: str):
     _prepare_model_params(params)
     model = get_model_from_params(manifest, params)
     if model is None:
-        raise ModelNotFoundError(model=name)
+        raise ModelNotFound(model=name)
     return model
 
 
@@ -129,7 +129,7 @@ def get_model_from_params(manifest, params: UrlParams):
         name = manifest.endpoints[name]
 
     if name not in manifest.tree:
-        raise ModelNotFoundError(model=name)
+        raise ModelNotFound(model=name)
 
     if params.dataset:
         # TODO: write tests for this thing below
@@ -161,7 +161,7 @@ def get_model_from_params(manifest, params: UrlParams):
             name,
             origins,
             # FIXME: add dataset, resource and origin to error context
-            ModelNotFoundError,
+            ModelNotFound,
             model=name,
         )
 

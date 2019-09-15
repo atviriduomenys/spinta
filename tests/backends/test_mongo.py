@@ -127,12 +127,12 @@ def test_mongo_update_get(app):
 def test_put_non_existant_resource(app):
     resp = app.get('/reports/4e67-256f9a7388f88ccc502570f434f289e8-057553c2')
     assert resp.status_code == 404
-    assert get_error_codes(resp.json()) == ["ModelNotFoundError"]
+    assert get_error_codes(resp.json()) == ["ModelNotFound"]
 
     resp = app.put('/reports/4e67-256f9a7388f88ccc502570f434f289e8-057553c2',
                    json={})
     assert resp.status_code == 404
-    assert get_error_codes(resp.json()) == ["ModelNotFoundError"]
+    assert get_error_codes(resp.json()) == ["ModelNotFound"]
 
 
 def test_get_non_existant_subresource(app):
@@ -194,19 +194,24 @@ def test_delete(context, app, tmpdir):
     # multiple deletes should just return HTTP/404
     resp = app.delete(f'/report/{ids[0]}')
     assert resp.status_code == 404
-    assert get_error_codes(resp.json()) == ["ResourceNotFoundError"]
-    assert get_error_context(resp.json(), "ResourceNotFoundError") == {
-        "id_": ids[0],
-        "model": "report",
+    assert get_error_codes(resp.json()) == ["ResourceNotFound"]
+    assert get_error_context(resp.json(), "ResourceNotFound") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        "id": ids[0],
     }
 
     # subresourses should be deleted
     resp = app.delete(f'/report/{ids[0]}/pdf')
     assert resp.status_code == 404
-    assert get_error_codes(resp.json()) == ["ResourceNotFoundError"]
-    assert get_error_context(resp.json(), "ResourceNotFoundError") == {
-        "id_": ids[0],
-        "model": "report",
+    assert get_error_codes(resp.json()) == ["ResourceNotFound"]
+    assert get_error_context(resp.json(), "ResourceNotFound") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'pdf',
+        "id": ids[0],
     }
 
     # FIXME: https://jira.tilaajavastuu.fi/browse/SPLAT-131
@@ -241,58 +246,68 @@ def test_patch(app, context):
     resp = app.patch(f'/report/{id_}',
                      json={'revision': 'r3v1510n', 'status': '42'})
     assert resp.status_code == 409
-    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
-    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
-        "given_value": "r3v1510n",
-        "existing_value": revision,
-        "model": "report",
-        "prop": "revision",
+    assert get_error_codes(resp.json()) == ["ConflictingValue"]
+    assert get_error_context(resp.json(), "ConflictingValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'revision',
+        'given': 'r3v1510n',
+        'expected': revision,
     }
 
     resp = app.patch(f'/report/{id_}',
                      json={'revision': '', 'status': '42'})
     assert resp.status_code == 409
-    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
-    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
-        "given_value": "",
-        "existing_value": revision,
-        "model": "report",
-        "prop": "revision",
+    assert get_error_codes(resp.json()) == ["ConflictingValue"]
+    assert get_error_context(resp.json(), "ConflictingValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'revision',
+        'given': '',
+        'expected': revision,
     }
 
     resp = app.patch(f'/report/{id_}',
                      json={'revision': None, 'status': '42'})
     assert resp.status_code == 409
-    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
-    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
-        "given_value": None,
-        "existing_value": revision,
-        "model": "report",
-        "prop": "revision",
+    assert get_error_codes(resp.json()) == ["ConflictingValue"]
+    assert get_error_context(resp.json(), "ConflictingValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'revision',
+        'given': None,
+        'expected': revision,
     }
 
     # test that type mismatch is checked
     resp = app.patch(f'/report/{id_}',
                      json={'type': 'country', 'revision': revision, 'status': '42'})
     assert resp.status_code == 409
-    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
-    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
-        "given_value": "country",
-        "existing_value": "report",
-        "model": "report",
-        "prop": "type",
+    assert get_error_codes(resp.json()) == ["ConflictingValue"]
+    assert get_error_context(resp.json(), "ConflictingValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'type',
+        'given': 'country',
+        'expected': 'report',
     }
 
     # test that id mismatch is checked
     resp = app.patch(f'/report/{id_}',
                      json={'id': '0007ddec-092b-44b5-9651-76884e6081b4', 'revision': revision, 'status': '42'})
     assert resp.status_code == 409
-    assert get_error_codes(resp.json()) == ["ModelPropertyValueConflictError"]
-    assert get_error_context(resp.json(), "ModelPropertyValueConflictError") == {
-        "given_value": "0007ddec-092b-44b5-9651-76884e6081b4",
-        "existing_value": id_,
-        "model": "report",
-        "prop": "id",
+    assert get_error_codes(resp.json()) == ["ConflictingValue"]
+    assert get_error_context(resp.json(), "ConflictingValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'id',
+        'given': '0007ddec-092b-44b5-9651-76884e6081b4',
+        'expected': id_,
     }
 
     # test that protected fields (id, type, revision) are accepted, but not PATCHED

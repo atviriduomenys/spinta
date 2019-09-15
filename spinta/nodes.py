@@ -1,11 +1,13 @@
 from spinta.components import Context, Manifest, Node
 from spinta.utils.schema import resolve_schema
+from spinta import exceptions
 
 
 def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, check_unknowns=True) -> Node:
     na = object()
     store = context.get('store')
     node.manifest = manifest
+    node.type = data['type']
     node.path = data['path']
     node.name = data['name']
     node.parent = data['parent']
@@ -14,7 +16,7 @@ def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, c
     for name in set(node_schema) | set(data):
         if name not in node_schema:
             if check_unknowns:
-                _load_node_error(context, node, f"Unknown option {name!r}.")
+                raise exceptions.UnknownParameter(node, param=name)
             else:
                 continue
         schema = node_schema[name]
@@ -25,18 +27,10 @@ def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, c
             else:
                 value = None
         if schema.get('required', False) and value is na:
-            _load_node_error(context, node, f"Missing requied option {name!r}.")
+            raise exceptions.MissingRequiredProperty(node, prop=name)
         if schema.get('type') == 'backend' and isinstance(value, str):
             value = store.backends[value]
         if value is na:
             value = schema.get('default')
         setattr(node, name, value)
     return node
-
-
-def _load_node_error(context, node, message):
-    raise Exception(
-        f"Error while loading <{node.name!r}: "
-        f"{node.__class__.__module__}.{node.__class__.__name__}> from "
-        f"{node.path}: {message}"
-    )

@@ -111,8 +111,8 @@ class ContextForTests:
                 if model.name not in graph:
                     graph[model.name] = set()
                 for prop in model.properties.values():
-                    if prop.type.name == 'ref':
-                        graph[prop.type.object].add(model.name)
+                    if prop.dtype.name == 'ref':
+                        graph[prop.dtype.object].add(model.name)
 
             for models in toposort(graph):
                 for name in models:
