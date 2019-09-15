@@ -231,12 +231,6 @@ class Context:
             return name in self._context[-1]
         return name in self._names[-1]
 
-    def error(self, message):
-        # TODO: Use of this method is deprecated, raise exceptions directly.
-        #
-        #       New way of handling errors is through `spinta.commands.error`.
-        raise Exception(message)
-
     def _set_local_name(self, name):
         # Prevent redefining local names, but allow to redefine inherited names.
         if name in self._local_names[-1]:

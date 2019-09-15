@@ -12,6 +12,7 @@ from spinta import components
 from spinta.utils.itertools import consume
 from spinta.auth import AdminToken
 from spinta.config import create_context
+from spinta import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -63,46 +64,54 @@ def pull(ctx, source, model, push, export):
         #       track who changed what.
         context.set('auth.token', AdminToken())
 
-    dataset = store.manifests['default'].objects['dataset'][source]
 
-    with context:
-        context.attach('transaction', store.backends['default'].transaction, write=push)
+    if source in store.manifests['default'].objects['dataset']:
+        dataset = store.manifests['default'].objects['dataset'][source]
+    else:
+        raise click.ClickException(str(exceptions.DatasetNotFoundError(dataset_name=source)))
 
-        rows = commands.pull(context, dataset, models=model)
-        rows = commands.push(context, store, rows) if push else rows
+    try:
+        with context:
+            context.attach('transaction', store.backends['default'].transaction, write=push)
 
-        if export is None and push is False:
-            export = 'stdout'
+            rows = commands.pull(context, dataset, models=model)
+            rows = commands.push(context, store, rows) if push else rows
 
-        if export:
-            path = None
+            if export is None and push is False:
+                export = 'stdout'
 
-            if export == 'stdout':
-                fmt = 'ascii'
-            elif export.startswith('stdout:'):
-                fmt = export.split(':', 1)[1]
-            else:
-                path = pathlib.Path(export)
-                fmt = export.suffix.strip('.')
+            if export:
+                path = None
 
-            config = context.get('config')
+                if export == 'stdout':
+                    fmt = 'ascii'
+                elif export.startswith('stdout:'):
+                    fmt = export.split(':', 1)[1]
+                else:
+                    path = pathlib.Path(export)
+                    fmt = export.suffix.strip('.')
 
-            if fmt not in config.exporters:
-                raise click.UsageError(f"unknown export file type {fmt!r}")
+                config = context.get('config')
 
-            exporter = config.exporters[fmt]
-            chunks = exporter(rows)
+                if fmt not in config.exporters:
+                    raise click.UsageError(f"unknown export file type {fmt!r}")
 
-            if path is None:
-                for chunk in chunks:
-                    print(chunk, end='')
-            else:
-                with export.open('wb') as f:
+                exporter = config.exporters[fmt]
+                chunks = exporter(rows)
+
+                if path is None:
                     for chunk in chunks:
-                        f.write(chunk)
+                        print(chunk, end='')
+                else:
+                    with export.open('wb') as f:
+                        for chunk in chunks:
+                            f.write(chunk)
 
-        else:
-            consume(tqdm.tqdm(rows, desc=source))
+            else:
+                consume(tqdm.tqdm(rows, desc=source))
+    except exceptions.BaseError as e:
+        print()
+        raise click.ClickException(str(e))
 
 
 @main.command()

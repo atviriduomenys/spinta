@@ -16,7 +16,7 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.common import NA
 from spinta.config import RawConfig
 from spinta.renderer import render
-from spinta.types.type import Date, File, Type
+from spinta.types.datatype import Date, File, DataType
 from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
@@ -38,11 +38,11 @@ from spinta.commands import (
     wipe,
 )
 from spinta.exceptions import (
-    ModelPropertyError,
-    ResourceNotFoundError,
-    RevisionError,
-    UniqueConstraintError,
+    ResourceNotFound,
+    ManagedProperty,
+    UniqueConstraint,
 )
+from spinta import exceptions
 
 
 class Mongo(Backend):
@@ -118,27 +118,27 @@ def check(context: Context, model: Model, backend: Mongo, data: dict, *, action:
 
 
 @check.register()
-def check(context: Context, type_: File, prop: Property, backend: Mongo, value: dict, *, data: dict, action: Action):
+def check(context: Context, dtype: File, prop: Property, backend: Mongo, value: dict, *, data: dict, action: Action):
     if prop.backend.name != backend.name:
-        check(context, type_, prop, prop.backend, value, data=data, action=action)
+        check(context, dtype, prop, prop.backend, value, data=data, action=action)
 
 
 @check.register()
-def check(context: Context, type_: Type, prop: Property, backend: Mongo, value: object, *, data: dict, action: Action):
-    check_type_value(type_, value)
+def check(context: Context, dtype: DataType, prop: Property, backend: Mongo, value: object, *, data: dict, action: Action):
+    check_type_value(dtype, value)
 
     model = prop.model
     table = backend.db[model.get_type_value()]
 
-    if type_.unique and value is not NA:
+    if dtype.unique and value is not NA:
         # PATCH requests are allowed to send protected fields in requests JSON
         # PATCH handling will use those fields for validating data, though
         # won't change them.
-        if action == Action.PATCH and type_.prop.name in {'id', 'type', 'revision'}:
+        if action == Action.PATCH and dtype.prop.name in {'id', 'type', 'revision'}:
             return
         result = table.find_one({'id': data['id']})
         if result is not None:
-            raise UniqueConstraintError(model=model.name, prop=prop.place)
+            raise UniqueConstraint(prop)
 
 
 @push.register()
@@ -217,8 +217,7 @@ def insert(
         data['id'] = gen_object_id(context, backend, model)
 
     if 'revision' in data:
-        # FIXME: revision should have model for context
-        raise RevisionError()
+        raise ManagedProperty(model, property='revision')
     # FIXME: before creating revision check if there's no collision clash
     data['revision'] = get_new_id('revision id')
 
@@ -251,8 +250,7 @@ def upsert(
             id_ = commands.gen_object_id(context, backend, model)
 
         if 'revision' in data.keys():
-            # FIXME: revision should have model for context
-            raise RevisionError()
+            raise ManagedProperty(model, property='revision')
         data['revision'] = get_new_id('revision id')
 
         table.insert_one(data)
@@ -285,9 +283,7 @@ def patch(
 
     row = table.find_one({'id': id_})
     if row is None:
-        type_ = model.get_type_value()
-        # TODO: do not leak implementation details to clients, use id instead of id_
-        raise ResourceNotFoundError(model=type_, id_=id_)
+        raise ResourceNotFound(model, id=id_)
 
     data = _patch(table, id_, row, data)
 
@@ -332,11 +328,10 @@ def delete(
     *,
     id_: str,
 ):
-    model_name = model.get_type_value()
-    table = backend.db[model_name]
+    table = backend.db[model.get_type_value()]
     result = table.delete_one({'id': id_})
     if result.deleted_count == 0:
-        raise ResourceNotFoundError(model=model_name, id_=id_)
+        raise ResourceNotFound(model, id=id_)
 
 
 @push.register()
@@ -372,9 +367,9 @@ async def push(
 
     data = await get_request_data(request)
 
-    data = load(context, prop.type, data)
-    check(context, prop.type, prop, backend, data, data=None, action=action)
-    data = prepare(context, prop.type, backend, data)
+    data = load(context, prop.dtype, data)
+    check(context, prop.dtype, prop, backend, data, data=None, action=action)
+    data = prepare(context, prop.dtype, backend, data)
 
     if action == Action.UPDATE:
         commands.update(context, prop, backend, id_=params.id, data=data)
@@ -385,7 +380,7 @@ async def push(
     else:
         raise Exception(f"Unknown action {action}.")
 
-    data = dump(context, backend, prop.type, data)
+    data = dump(context, backend, prop.dtype, data)
     return render(context, request, prop, action, params, data)
 
 
@@ -439,8 +434,7 @@ def patch(
     table = backend.db[prop.model.get_type_value()]
     row = table.find_one({'id': id_}, {prop.name: 1})
     if row is None:
-        type_ = prop.model.get_type_value()
-        raise ResourceNotFoundError(model=type_, id_=id_)
+        raise ResourceNotFound(prop, id=id_)
 
     data = _patch_property(table, id_, prop, row, data)
 
@@ -469,8 +463,7 @@ def _patch_property(table, id_, prop, row, data):
     )
 
     if result.matched_count == 0:
-        type_ = prop.model.get_type_value()
-        raise ResourceNotFoundError(model=type_, id_=id_)
+        raise ResourceNotFound(prop, id=id_)
 
     assert result.matched_count == 1, (
         f"matched: {result.matched_count}, modified: {result.modified_count}"
@@ -526,8 +519,7 @@ def getone(
     table = backend.db[model.get_type_value()]
     data = table.find_one({'id': id_})
     if data is None:
-        type_ = model.get_type_value()
-        raise ResourceNotFoundError(model=type_, id_=id_)
+        raise ResourceNotFound(model, id=id_)
     return data
 
 
@@ -544,7 +536,7 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, backend, id_=params.id)
-    data = dump(context, backend, prop.type, data)
+    data = dump(context, backend, prop.dtype, data)
     return render(context, request, prop, action, params, data)
 
 
@@ -559,8 +551,7 @@ def getone(
     table = backend.db[prop.model.get_type_value()]
     data = table.find_one({'id': id_}, {prop.name: 1})
     if data is None:
-        type_ = prop.model.get_type_value()
-        raise ResourceNotFoundError(model=type_, id_=id_)
+        raise ResourceNotFound(prop, id=id_)
     return data.get(prop.name)
 
 
@@ -615,17 +606,14 @@ def getall(
     query = query or []
     for qp in query:
         if qp['key'] not in model.flatprops:
-            raise ModelPropertyError(
-                model=model.name,
-                query_param=qp['key'],
-            )
+            raise exceptions.UnknownProperty(model, property=qp['key'])
 
         prop = model.flatprops[qp['key']]
         operator = qp.get('operator')
 
         # for search to work on MongoDB, values must be compatible for
         # Mongo's BSON consumption, thus we need to use chained load and prepare
-        value = load_search_params(context, prop.type, backend, qp)
+        value = load_search_params(context, prop.dtype, backend, qp)
 
         # in case value is not a string - then just search for that value directly
         if isinstance(value, str):
@@ -736,6 +724,6 @@ def wipe(context: Context, model: Model, backend: Mongo):
 
 
 @prepare.register()
-def prepare(context: Context, type: Date, backend: Mongo, value: date) -> datetime:
+def prepare(context: Context, dtype: Date, backend: Mongo, value: date) -> datetime:
     # prepares date values for Mongo store, they must be converted to datetime
     return datetime(value.year, value.month, value.day)

@@ -61,11 +61,13 @@ def test_crud(app):
 
     resp = app.get(f'/photos/{id_}/image')
     assert resp.status_code == 404
-    assert get_error_codes(resp.json()) == ["FileNotFoundInResourceError"]
-    assert get_error_context(resp.json(), "FileNotFoundInResourceError") == {
-        "model": "photo",
-        "prop": "image",
-        "id_": id_,
+    assert get_error_codes(resp.json()) == ["ResourceNotFound"]
+    assert get_error_context(resp.json(), "ResourceNotFound") == {
+        'schema': 'tests/manifest/models/photos.yml',
+        'manifest': 'default',
+        'model': 'photo',
+        'property': 'image',
+        'id': id_,
     }
 
     resp = app.get(f'/photos/{id_}')
@@ -125,11 +127,13 @@ def test_add_missing_file(app, tmpdir):
         },
     })
     assert resp.status_code == 400, resp.text
-    assert get_error_codes(resp.json()) == ["FileDoesNotExistError"]
-    assert get_error_context(resp.json(), "FileDoesNotExistError") == {
-        "model": "photo",
-        "prop": "image",
-        "path": str(image),
+    assert get_error_codes(resp.json()) == ["FileNotFound"]
+    assert get_error_context(resp.json(), "FileNotFound") == {
+        'schema': 'tests/manifest/models/photos.yml',
+        'manifest': 'default',
+        'model': 'photo',
+        'property': 'image',
+        'file': str(image),
     }
 
 
@@ -152,11 +156,13 @@ def test_add_missing_file_as_prop(app, tmpdir):
         'filename': str(image),
     })
     assert resp.status_code == 400, resp.text
-    assert get_error_codes(resp.json()) == ["FileDoesNotExistError"]
-    assert get_error_context(resp.json(), "FileDoesNotExistError") == {
-        "model": "photo",
-        "prop": "image",
-        "path": str(image),
+    assert get_error_codes(resp.json()) == ["FileNotFound"]
+    assert get_error_context(resp.json(), "FileNotFound") == {
+        'schema': 'tests/manifest/models/photos.yml',
+        'manifest': 'default',
+        'model': 'photo',
+        'property': 'image',
+        'file': str(image),
     }
 
 

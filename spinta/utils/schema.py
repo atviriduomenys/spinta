@@ -1,3 +1,7 @@
+from typing import Union, List, Type
+
+from spinta import exceptions
+
 na = object()
 
 
@@ -24,7 +28,7 @@ def resolve_schema(obj, Base):
         if cls is Base:
             break
     else:
-        raise Exception(f"Could not find specified base {Base!r} on {obj.__clas__}.")
+        raise Exception(f"Could not find specified base {Base!r} on {obj.__class__}.")
     bases = reversed(bases)
     schema = {}
     for cls in bases:
@@ -33,14 +37,12 @@ def resolve_schema(obj, Base):
     return schema
 
 
-def load_from_schema(Base: type, obj: object, schema: dict, params: dict, check_unknowns=True):
+def load_from_schema(Base: type, obj: object, params: dict, check_unknowns=True):
     schema = resolve_schema(obj, Base)
     for name in set(schema) | set(params):
         if name not in schema:
             if check_unknowns:
-                continue
-                # TODO: temporarily commented this out.
-                # raise Exception(f"Unknown param {name!r} of {obj!r}.")
+                raise exceptions.UnknownParameter(obj, param=name)
             else:
                 continue
         value = params.get(name, na)
@@ -55,3 +57,18 @@ def _get_value(obj: object, schema: dict, name: str, value: object):
     if value is na:
         value = schema.get('default')
     return value
+
+
+def check_unkown_params(
+    schema: Union[List[dict], dict],
+    data: dict, node,
+):
+    schemas = schema if isinstance(schema, list) else [schema]
+    known_params = set.union(*(set(s.keys()) for s in schemas))
+    given_params = set(data.keys())
+    unknown_params = given_params - known_params
+    if unknown_params:
+        raise exceptions.MultipleErrors(
+            exceptions.UnknownParameter(node, param=param)
+            for param in sorted(unknown_params)
+        )

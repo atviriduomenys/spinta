@@ -23,7 +23,7 @@ from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.renderer import render
-from spinta.types.type import Type, File, PrimaryKey, Ref
+from spinta.types.datatype import DataType, File, PrimaryKey, Ref
 from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
@@ -31,9 +31,9 @@ from spinta.utils.response import get_request_data
 from spinta.exceptions import (
     MultipleRowsFound,
     NotFoundError,
-    RevisionError,
-    ResourceNotFoundError,
-    UniqueConstraintError,
+    ManagedProperty,
+    ResourceNotFound,
+    UniqueConstraint,
 )
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
@@ -196,70 +196,71 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 
 
 @prepare.register()
-def prepare(context: Context, backend: PostgreSQL, type: Type):
-    if type.prop.backend.name != backend.name:
+def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
+    if dtype.prop.backend.name != backend.name:
         # If property backend differs from modle backend, then no columns should
         # be added to the table. If some property types requires adding column
         # even for a property with different backend, then this type must
         # implement prepare command add do custom logic there.
         return
 
-    if type.name == 'type':
+    if dtype.name == 'type':
         return
-    elif type.name == 'string':
-        return sa.Column(type.prop.name, sa.Text)
-    elif type.name == 'date':
-        return sa.Column(type.prop.name, sa.Date)
-    elif type.name == 'datetime':
-        return sa.Column(type.prop.name, sa.DateTime)
-    elif type.name == 'integer':
-        return sa.Column(type.prop.name, sa.Integer)
-    elif type.name == 'number':
-        return sa.Column(type.prop.name, sa.Float)
-    elif type.name == 'boolean':
-        return sa.Column(type.prop.name, sa.Boolean)
-    elif type.name in ('spatial', 'image'):
+    elif dtype.name == 'string':
+        return sa.Column(dtype.prop.name, sa.Text)
+    elif dtype.name == 'date':
+        return sa.Column(dtype.prop.name, sa.Date)
+    elif dtype.name == 'datetime':
+        return sa.Column(dtype.prop.name, sa.DateTime)
+    elif dtype.name == 'integer':
+        return sa.Column(dtype.prop.name, sa.Integer)
+    elif dtype.name == 'number':
+        return sa.Column(dtype.prop.name, sa.Float)
+    elif dtype.name == 'boolean':
+        return sa.Column(dtype.prop.name, sa.Boolean)
+    elif dtype.name in ('spatial', 'image'):
         # TODO: these property types currently are not implemented
-        return sa.Column(type.prop.name, sa.Text)
-    elif type.name in UNSUPPORTED_TYPES:
+        return sa.Column(dtype.prop.name, sa.Text)
+    elif dtype.name in UNSUPPORTED_TYPES:
         return
     else:
-        raise Exception(f"Unknown property type {type.name!r}.")
+        raise Exception(f"Unknown property type {dtype.name!r}.")
 
 
 @prepare.register()
-def prepare(context: Context, backend: PostgreSQL, type: PrimaryKey):
-    if type.prop.manifest.name == 'internal':
-        return sa.Column(type.prop.name, BIGINT, primary_key=True)
+def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
+    if dtype.prop.manifest.name == 'internal':
+        return sa.Column(dtype.prop.name, BIGINT, primary_key=True)
     else:
-        return sa.Column(type.prop.name, UUID(), primary_key=True)
+        return sa.Column(dtype.prop.name, UUID(), primary_key=True)
 
 
 @prepare.register()
-def prepare(context: Context, backend: PostgreSQL, type: Ref):
-    ref_model = type.prop.model.manifest.objects['model'][type.object]
+def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
+    # TODO: rename dtype.object to dtype.model
+    ref_model = dtype.prop.model.manifest.objects['model'][dtype.object]
     table_name = get_table_name(backend, ref_model.manifest.name, ref_model.name)
     if ref_model.manifest.name == 'internal':
         column_type = sa.Integer()
     else:
         column_type = UUID()
     return [
-        sa.Column(type.prop.name, column_type),
+        sa.Column(dtype.prop.name, column_type),
         sa.ForeignKeyConstraint(
-            [type.prop.name], [f'{table_name}.id'],
-            name=_get_pg_name(f'fk_{type.prop.model.name}_{type.prop.name}'),
+            [dtype.prop.name], [f'{table_name}.id'],
+            name=_get_pg_name(f'fk_{dtype.prop.model.name}_{dtype.prop.name}'),
         )
     ]
 
 
 @prepare.register()
-def prepare(context: Context, backend: PostgreSQL, type: File):
-    if type.prop.backend.name == backend.name:
-        return sa.Column(type.prop.name, sa.LargeBinary)
+def prepare(context: Context, backend: PostgreSQL, dtype: File):
+    if dtype.prop.backend.name == backend.name:
+        return sa.Column(dtype.prop.name, sa.LargeBinary)
     else:
         # If file property has a different backend, then here we just need to
         # save file name of file stored externally.
-        return sa.Column(type.prop.name, JSONB)
+        return sa.Column(dtype.prop.name, JSONB)
 
 
 def _get_pg_name(name):
@@ -290,13 +291,13 @@ def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, ac
 
 
 @check.register()
-def check(context: Context, type_: Type, prop: Property, backend: PostgreSQL, value: object, *, data: dict, action: Action):
-    check_type_value(type_, value)
+def check(context: Context, dtype: DataType, prop: Property, backend: PostgreSQL, value: object, *, data: dict, action: Action):
+    check_type_value(dtype, value)
 
     connection = context.get('transaction').connection
     table = backend.tables[prop.manifest.name][prop.model.name].main
 
-    if type_.unique and value is not NA:
+    if dtype.unique and value is not NA:
         if action == Action.UPDATE:
             condition = sa.and_(
                 table.c[prop.name] == value,
@@ -305,20 +306,20 @@ def check(context: Context, type_: Type, prop: Property, backend: PostgreSQL, va
         # PATCH requests are allowed to send protected fields in requests JSON
         # PATCH handling will use those fields for validating data, though
         # won't change them.
-        elif action == Action.PATCH and type_.prop.name in {'id', 'type', 'revision'}:
+        elif action == Action.PATCH and dtype.prop.name in {'id', 'type', 'revision'}:
             return
         else:
             condition = table.c[prop.name] == value
         not_found = object()
         result = backend.get(connection, table.c[prop.name], condition, default=not_found)
         if result is not not_found:
-            raise UniqueConstraintError(model=prop.model.name, prop=prop.place)
+            raise UniqueConstraint(prop)
 
 
 @check.register()
-def check(context: Context, type: File, prop: Property, backend: PostgreSQL, value: dict, *, data: dict, action: Action):
+def check(context: Context, dtype: File, prop: Property, backend: PostgreSQL, value: dict, *, data: dict, action: Action):
     if prop.backend.name != backend.name:
-        check(context, type, prop, prop.backend, value, data=data, action=action)
+        check(context, dtype, prop, prop.backend, value, data=data, action=action)
 
 
 @push.register()
@@ -343,7 +344,7 @@ async def push(
         data = {
             k: v
             for k, v in data.items()
-            if model.properties[k].type.name not in UNSUPPORTED_TYPES
+            if model.properties[k].dtype.name not in UNSUPPORTED_TYPES
         }
 
     if action == Action.INSERT:
@@ -396,7 +397,7 @@ def insert(
 
     if 'revision' in data:
         # FIXME: revision should have model for context
-        raise RevisionError()
+        raise ManagedProperty(model, property='revision')
 
     if not data.get('id'):
         data['id'] = gen_object_id(context, backend, model)
@@ -450,8 +451,7 @@ def upsert(
             data['id'] = gen_object_id(context, backend, model)
 
         if 'revision' in data.keys():
-            # FIXME: revision should have model for context
-            raise RevisionError()
+            raise ManagedProperty(model, property='revision')
         data['revision'] = get_new_id('revision id')
 
         connection.execute(
@@ -542,8 +542,7 @@ def patch(
         default=None,
     )
     if row is None:
-        type_ = model.get_type_value()
-        raise ResourceNotFoundError(model=type_, id_=id_)
+        raise ResourceNotFound(model, id=id_)
 
     # FIXME: before creating revision check if there's no collision clash
     data['revision'] = get_new_id('revision id')
@@ -609,7 +608,7 @@ def delete(
         where(table.main.c.id == id_)
     )
     if res.rowcount == 0:
-        raise ResourceNotFoundError(model=model.name, id_=id_)
+        raise ResourceNotFound(model, id=id_)
 
     # Track changes.
     connection.execute(
@@ -656,9 +655,9 @@ async def push(
 
     data = await get_request_data(request)
 
-    data = load(context, prop.type, data)
-    check(context, prop.type, prop, backend, data, data=None, action=action)
-    data = prepare(context, prop.type, backend, data)
+    data = load(context, prop.dtype, data)
+    check(context, prop.dtype, prop, backend, data, data=None, action=action)
+    data = prepare(context, prop.dtype, backend, data)
 
     if action == Action.UPDATE:
         commands.update(context, prop, backend, id_=params.id, data=data)
@@ -669,7 +668,7 @@ async def push(
     else:
         raise Exception(f"Unknown action {action}.")
 
-    data = dump(context, backend, prop.type, data)
+    data = dump(context, backend, prop.dtype, data)
     return render(context, request, prop, action, params, data)
 
 
@@ -782,7 +781,7 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, backend, id_=params.id)
-    data = dump(context, backend, prop.type, data)
+    data = dump(context, backend, prop.dtype, data)
     return render(context, request, prop, action, params, data)
 
 
