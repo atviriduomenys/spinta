@@ -7,6 +7,7 @@ from spinta.components import Context, Manifest, Node, Model
 from spinta.utils.schema import resolve_schema
 from spinta.utils.errors import format_error
 from spinta.common import NA
+# TODO: rename all imports of commands and exceptions to look like this one
 from spinta import commands
 
 from spinta.exceptions import (
@@ -358,7 +359,7 @@ def make_json_serializable(type_: Object, value: dict):
 
 
 @commands.make_json_serializable.register()  # noqa
-def make_json_serializable(type_: Array, value: type(None)):
+def make_json_serializable(type_: Object, value: type(None)):
     return {}
 
 
@@ -367,6 +368,7 @@ def make_json_serializable(type_: Array, value: list):
     return [make_json_serializable(type_.items.type, v) for v in value]
 
 
+# TODO: add tests for make_json_serializable
 @commands.make_json_serializable.register()  # noqa
 def make_json_serializable(type_: Array, value: type(None)):
     return []
