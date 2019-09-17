@@ -476,7 +476,9 @@ def load_source(context: Context, node: Node, params: dict):
 
 
 @commands.get_referenced_model.register()
-def get_referenced_model(context: Context, model: Model, ref: str):
+def get_referenced_model(context: Context, prop: Property, ref: str):
+    model = prop.model
+
     # Self reference.
     if model.name == ref:
         return model
@@ -503,7 +505,7 @@ def get_referenced_model(context: Context, model: Model, ref: str):
     if ref in model.manifest.objects['model']:
         return model.manifest.objects['model'][ref]
 
-    raise exceptions.ModelReferenceNotFound(model=model.get_type_value(), ref=ref)
+    raise exceptions.ModelReferenceNotFound(prop, ref=ref)
 
 
 @commands.make_json_serializable.register()
@@ -512,7 +514,16 @@ def make_json_serializable(model: Model, value: dict) -> dict:
 
 
 @commands.get_error_context.register()
+def get_error_context(model: Model, *, prefix='this') -> Dict[str, str]:
+    context = commands.get_error_context[Node](model, prefix=prefix)
+    context['backend'] = f'{prefix}.backend.name'
+    context['origin'] = f'{prefix}.origin'
+    return context
+
+
+@commands.get_error_context.register()  # noqa
 def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
     context['property'] = f'{prefix}.place'
+    context['backend'] = f'{prefix}.backend.name'
     return context

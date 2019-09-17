@@ -64,11 +64,11 @@ def pull(ctx, source, model, push, export):
         #       track who changed what.
         context.set('auth.token', AdminToken())
 
-
-    if source in store.manifests['default'].objects['dataset']:
-        dataset = store.manifests['default'].objects['dataset'][source]
+    manifest = store.manifests['default']
+    if source in manifest.objects['dataset']:
+        dataset = manifest.objects['dataset'][source]
     else:
-        raise click.ClickException(str(exceptions.DatasetNotFoundError(dataset_name=source)))
+        raise click.ClickException(str(exceptions.NodeNotFound(manifest, type='dataset', name=source)))
 
     try:
         with context:

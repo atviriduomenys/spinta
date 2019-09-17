@@ -115,11 +115,13 @@ def authorize(context: Context, action: Action, prop: Property):
 
 
 @commands.get_referenced_model.register()
-def get_referenced_model(context: Context, model: Model, ref: str):
+def get_referenced_model(context: Context, prop: Property, ref: str):
+    model = prop.model
+
     if ref in model.manifest.objects['model']:
         return model.manifest.objects['model'][ref]
 
-    raise exceptions.ModelReferenceNotFound(model=model.get_type_value(), ref=ref)
+    raise exceptions.ModelReferenceNotFound(prop, ref=ref)
 
 
 @commands.get_error_context.register()

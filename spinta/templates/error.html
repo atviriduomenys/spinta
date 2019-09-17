@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
     <body>
-        <h1>Error</h1>
-        <p>{{ error }}</p>
+        {% for error in errors %}
+        <h1>{{ error.code }}</h1>
+        <p>{{ error.message }}</p>
+        {% endfor %}
     </body>
 </html>

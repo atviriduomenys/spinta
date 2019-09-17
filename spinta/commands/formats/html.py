@@ -244,7 +244,7 @@ def get_cell(context: Context, params: dict, prop, value, shorten=False, color=N
     if prop.name == 'id' and value:
         model = prop.model
     elif prop.dtype.name == 'ref' and prop.dtype.object and value:
-        model = commands.get_referenced_model(context, prop.model, prop.dtype.object)
+        model = commands.get_referenced_model(context, prop, prop.dtype.object)
 
     if model:
         link = '/' + build_url_path(get_model_link_params(model, pk=value))
