@@ -3,10 +3,12 @@ import typing
 from datetime import date, datetime
 
 from spinta.commands import load, error, is_object_id
-from spinta.components import Context, Manifest, Node
+from spinta.components import Context, Manifest, Node, Model
 from spinta.utils.schema import resolve_schema
 from spinta.utils.errors import format_error
 from spinta.common import NA
+# TODO: rename all imports of commands and exceptions to look like this one
+from spinta import commands
 
 from spinta.exceptions import (
     ArrayTypeError,
@@ -319,3 +321,54 @@ def error(exc: Exception, context: Context, type_: Type, value: object):
         'exc': exc,
         'type': type_,
     }))
+
+
+@commands.make_json_serializable.register()  # noqa
+def make_json_serializable(model: Model, value: dict):
+    return {
+        prop.name: make_json_serializable(prop.type, value[prop.name])
+        for prop in model.properties.values()
+        if prop.name in value
+    }
+
+@commands.make_json_serializable.register()  # noqa
+def make_json_serializable(type_: Type, value: object):
+    return value
+
+
+@commands.make_json_serializable.register()  # noqa
+def make_json_serializable(type_: DateTime, value: datetime):
+    return value.isoformat()
+
+
+@commands.make_json_serializable.register()  # noqa
+def make_json_serializable(type_: Date, value: date):
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    else:
+        return value.isoformat()
+
+
+@commands.make_json_serializable.register()  # noqa
+def make_json_serializable(type_: Object, value: dict):
+    return {
+        prop.name: make_json_serializable(prop.type, value[prop.name])
+        for prop in type_.properties.values()
+        if prop.name in value
+    }
+
+
+@commands.make_json_serializable.register()  # noqa
+def make_json_serializable(type_: Object, value: type(None)):
+    return {}
+
+
+@commands.make_json_serializable.register()  # noqa
+def make_json_serializable(type_: Array, value: list):
+    return [make_json_serializable(type_.items.type, v) for v in value]
+
+
+# TODO: add tests for make_json_serializable
+@commands.make_json_serializable.register()  # noqa
+def make_json_serializable(type_: Array, value: type(None)):
+    return []

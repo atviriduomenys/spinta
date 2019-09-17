@@ -249,3 +249,8 @@ def unload_backend():
     tests, all sqlalchemy connections are disposed to avoid leaving open
     connections between tests.
     """
+
+
+@command()
+def make_json_serializable():
+    """Convert given value into primitive JSON serializable value."""

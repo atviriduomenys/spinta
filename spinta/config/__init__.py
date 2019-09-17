@@ -134,6 +134,10 @@ CONFIG = {
     # Part of the scope will be replaced with a hash to fit scope_max_length.
     'scope_max_length': 60,
 
+    # If True, then 'id' property is always included into Action.SEARCH result,
+    # even if not explicitly askend.
+    'always_show_id': False,
+
     'default_auth_client': None,
 
     'env': 'dev',
