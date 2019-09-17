@@ -1,7 +1,6 @@
 from typing import Optional, Any, Dict, Iterable
 
 import logging
-import traceback
 
 
 log = logging.getLogger(__name__)
@@ -93,7 +92,11 @@ class BaseError(Exception):
                 self.type = this.prop.type
 
         self.context = resolve_context_vars(self.context, this, kwargs)
-        self.message = self.template.format(**self.context)
+        try:
+            self.message = self.template.format(**self.context)
+        except KeyError:
+            log.exception("Can't render error message for %s.", self.__class__.__name__)
+            self.message = self.template
 
         super().__init__(
             self.message + '\n' +
@@ -197,28 +200,22 @@ class ManagedProperty(BaseError):
 
 class NotFoundError(BaseError):
     template = "No results where found."
-    status_code = 404
+    status_code = 500
 
 
-class DatasetNotFoundError(BaseError):
-    # FIXME: change dataset_name to dataset
-    template = "Dataset {dataset_name!r} not found."
-    status_code = 404
-
-
-class DatasetResourceNotFoundError(BaseError):
-    # FIXME: change dataset_name to dataset and resource_name to resource
-    template = "Resource ':dataset/{dataset_name}/:resource/{resource_name}' not found."
-    status_code = 404
-
-
-class DatasetModelOriginNotFoundError(BaseError):
-    template = "Resource ':dataset/{dataset}/:resource/{resource}/:origin/{origin}' not found."
-    status_code = 404
+class NodeNotFound(BaseError):
+    template = "Node {name!r} of type {type!r} not found."
+    context = {
+        'type': None,
+        'name': None,
+    }
 
 
 class ModelReferenceNotFound(BaseError):
-    tempalte = "Reference {ref!r}, relative to {model!r} not found."
+    template = "Model reference {ref!r} not found."
+    context = {
+        'ref': None,
+    }
 
 
 class SourceNotSet(BaseError):

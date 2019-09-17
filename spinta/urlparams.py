@@ -1,7 +1,7 @@
 import cgi
 import itertools
 
-from typing import Optional, List, Type, Iterator, Union
+from typing import Optional, List, Iterator, Union
 
 from starlette.requests import Request
 
@@ -10,12 +10,9 @@ from spinta.components import Context, Manifest, Node
 from spinta.utils.url import parse_url_path
 from spinta.components import UrlParams, Version
 from spinta.exceptions import (
-    BaseError,
-    DatasetNotFoundError,
-    DatasetResourceNotFoundError,
+    NodeNotFound,
     ModelNotFound,
     MultipleDatasetModelsFoundError,
-    DatasetModelOriginNotFoundError,
 )
 
 
@@ -73,10 +70,7 @@ def get_model_by_name(context: Context, manifest: Manifest, name: str):
 
 
 def _get_nodes_by_name(
-    name: Optional[str],
-    nodes: List[dict],
-    _NotFoundError: Type[BaseError],
-    **kwargs
+    type_: str, name: Optional[str], candidates: List[dict],
 ) -> Iterator[Union[Node, dict]]:
     """Try to find nodes by given name in given list of node dicts.
 
@@ -104,20 +98,28 @@ def _get_nodes_by_name(
     resource and/or origin with empty name, then all resources and/or origins
     are considered.
     """
-    found = False
-    for node in nodes:
+    nodes = {}
+    found = name is None
+    for node, children in candidates:
         if name is None:
-            if '' in node:
-                yield node['']
-                found = True
+            if '' in children:
+                yield node, children['']
             else:
-                yield from node.values()
-                found = True
-        elif name in node:
-            yield node[name]
+                yield from zip(itertools.repeat(node), children.items())
+        elif name in children:
+            yield node, children[name]
             found = True
-    if name is not None and not found:
-        raise _NotFoundError(**kwargs)
+        else:
+            nodes[node.name] = node
+    if not found:
+        # Find closest single parent.
+        while len(nodes) > 1:
+            nodes = {
+                node.parent.name: node.parent
+                for node in nodes.values()
+            }
+        node = next(iter(nodes.values()))
+        raise NodeNotFound(node, type=type_, name=name)
 
 
 def get_model_from_params(manifest, params: UrlParams):
@@ -128,56 +130,43 @@ def get_model_from_params(manifest, params: UrlParams):
         # nicer, but that is optional, they can still use model.name.
         name = manifest.endpoints[name]
 
-    if name not in manifest.tree:
-        raise ModelNotFound(model=name)
-
     if params.dataset:
         # TODO: write tests for this thing below
-        datasets = _get_nodes_by_name(
-            params.dataset or '',
-            [manifest.objects['dataset']],
-            DatasetNotFoundError,
-            dataset_name=params.dataset,
-        )
+        datasets = _get_nodes_by_name('dataset', params.dataset or '', [
+            (manifest, manifest.objects['dataset']),
+        ])
 
-        resources = _get_nodes_by_name(
-            params.resource,
-            (x.resources for x in datasets),
-            DatasetResourceNotFoundError,
-            dataset_name=params.dataset,
-            resource_name=params.resource,
-        )
+        resources = _get_nodes_by_name('resource', params.resource, (
+            (dataset, dataset.resources) for _, dataset in datasets
+        ))
 
-        origins = _get_nodes_by_name(
-            params.origin,
-            (x.objects for x in resources),
-            DatasetModelOriginNotFoundError,
-            dataset=params.dataset,
-            resource=params.resource,
-            origin=params.origin,
-        )
+        origins = _get_nodes_by_name('origin', params.origin, (
+            (resource, resource.objects) for _, resource in resources
+        ))
 
-        models = _get_nodes_by_name(
-            name,
-            origins,
-            # FIXME: add dataset, resource and origin to error context
-            ModelNotFound,
-            model=name,
-        )
+        # FIXME: Here we lose origin in error context. I'm starting to thing,
+        #        that origin should be a normal node object too, not a bare
+        #        dict.
+        models = _get_nodes_by_name('model', name, (
+            (resource, origin) for resource, origin in origins
+        ))
 
         models = list(itertools.islice(models, 2))
 
         if len(models) == 0:
             return None
         elif len(models) == 1:
-            return models[0]
+            return models[0][1]
         else:
             # FIXME: add resource and origin to error context
             # FIXME: change name to model
             raise MultipleDatasetModelsFoundError(name=name, dataset=params.dataset)
 
-    else:
+    elif name in manifest.objects['model']:
         return manifest.objects['model'].get(name)
+
+    else:
+        raise ModelNotFound(model=name)
 
 
 def get_response_type(context: Context, request: Request, params: dict = None):

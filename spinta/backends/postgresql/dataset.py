@@ -22,7 +22,7 @@ from spinta.backends.postgresql import MAIN_TABLE, CHANGES_TABLE
 from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
-from spinta.exceptions import ResourceNotFound, ManagedProperty
+from spinta.exceptions import ManagedProperty
 from spinta.utils.response import get_request_data
 from spinta.utils.idgen import get_new_id
 from spinta.utils.changes import get_patch_changes
@@ -247,7 +247,7 @@ def patch(
         default=None,
     )
     if row is None:
-        raise ResourceNotFound(model, id=id_)
+        raise exceptions.ResourceNotFound(model, id=id_)
 
     data = _patch(transaction, connection, table, id_, row, data)
 
@@ -343,7 +343,9 @@ def getone(
 ):
     connection = context.get('transaction').connection
     table = _get_table(backend, model)
-    data = backend.get(connection, table.main.c.data, table.main.c.id == id_)
+    data = backend.get(connection, table.main.c.data, table.main.c.id == id_, default=None)
+    if data is None:
+        raise exceptions.ResourceNotFound(model, id=id_)
     return {**data, 'id': id_}
 
 

@@ -11,6 +11,7 @@ from spinta.commands import load, prepare, check
 from spinta.components import Context, Manifest, Node
 from spinta.config import RawConfig
 from spinta import commands
+from spinta import exceptions
 
 yaml = YAML(typ='safe')
 
@@ -114,6 +115,14 @@ def check(context: Context, manifest: Manifest):
 
 
 @commands.get_error_context.register()
+def get_error_context(manifest: Manifest, *, prefix='this') -> Dict[str, str]:
+    return {
+        'schema': f'{prefix}.path.__str__()',
+        'manifest': f'{prefix}.name'
+    }
+
+
+@commands.get_error_context.register()  # noqa
 def get_error_context(node: Node, *, prefix='this') -> Dict[str, str]:
     context = {
         'schema': f'{prefix}.path.__str__()',
@@ -122,10 +131,10 @@ def get_error_context(node: Node, *, prefix='this') -> Dict[str, str]:
     while True:
         name = prefix + ('.' if depth else '') + '.'.join(['parent'] * depth)
         if isinstance(node, Manifest):
-            context['manifest'] = name + '.name'
+            context['manifest'] = f'{name}.name'
             break
         else:
-            context[node.type] = name + '.name'
+            context[node.type] = f'{name}.name'
         depth += 1
         node = node.parent
     return context

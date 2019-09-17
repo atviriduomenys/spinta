@@ -1,5 +1,6 @@
 import datetime
 import json
+import operator
 
 
 def test_export_json(context, app, mocker):
@@ -30,7 +31,7 @@ def test_export_json(context, app, mocker):
     app.authorize(['spinta_country_dataset_csv_resource_countries_getall'])
 
     resp = app.get('country/:dataset/csv/:resource/countries/:format/jsonl')
-    data = [json.loads(line) for line in resp.text.splitlines()]
+    data = sorted([json.loads(line) for line in resp.text.splitlines()], key=operator.itemgetter('code'))
     assert data == [
         {
             'code': 'lt',
