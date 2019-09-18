@@ -300,22 +300,22 @@ def make_json_serializable(model: Model, value: dict) -> dict:
     return commands.make_json_serializable[Object, dict](model, value)
 
 
-@commands.make_json_serializable.register()
+@commands.make_json_serializable.register()  # noqa
 def make_json_serializable(dtype: DataType, value: object):
     return value
 
 
-@commands.make_json_serializable.register()
+@commands.make_json_serializable.register()  # noqa
 def make_json_serializable(dtype: DateTime, value: datetime.datetime):
     return value.isoformat()
 
 
-@commands.make_json_serializable.register()
+@commands.make_json_serializable.register()  # noqa
 def make_json_serializable(dtype: Date, value: datetime.date):
     return value.isoformat()
 
 
-@commands.make_json_serializable.register()
+@commands.make_json_serializable.register()  # noqa
 def make_json_serializable(dtype: Date, value: datetime.datetime):
     return value.date().isoformat()
 
@@ -328,7 +328,7 @@ def _get_json_serializable_props(dtype: Object, value: dict):
             Exception(f"Unknown {k} key in {dtype!r} object.")
 
 
-@commands.make_json_serializable.register()
+@commands.make_json_serializable.register()  # noqa
 def make_json_serializable(dtype: Object, value: dict):
     return {
         prop.name: commands.make_json_serializable(prop.dtype, v)
@@ -336,11 +336,6 @@ def make_json_serializable(dtype: Object, value: dict):
     }
 
 
-@commands.make_json_serializable.register()
+@commands.make_json_serializable.register()  # noqa
 def make_json_serializable(dtype: Array, value: list):
     return [make_json_serializable(dtype.items.dtype, v) for v in value]
-
-
-@commands.make_json_serializable.register()
-def make_json_serializable(dtype: Array, value: type(None)):
-    return []

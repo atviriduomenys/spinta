@@ -247,11 +247,6 @@ def unload_backend():
 
 
 @command()
-def make_json_serializable():
-    """Convert given value into primitive JSON serializable value."""
-
-
-@command()
 def get_referenced_model():
     """Find referenced model by given property type."""
 
