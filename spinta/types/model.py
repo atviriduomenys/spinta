@@ -5,7 +5,6 @@ from spinta.commands import load, check, authorize, prepare
 from spinta.components import Context, Manifest, Node, Model, Property, Action
 from spinta.nodes import load_node
 from spinta.types.datatype import PrimaryKey, DataType, load_type
-from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema, check_unkown_params
 from spinta.utils.tree import add_path_to_tree
 from spinta.common import NA
