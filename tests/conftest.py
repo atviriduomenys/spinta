@@ -1,4 +1,6 @@
 import snoop
+import pprint
+import pprintpp
 
 # See: https://github.com/alexmojaki/snoop
 snoop.install(
@@ -6,7 +8,10 @@ snoop.install(
     color=True,
 )
 
+# User pprintpp for nicer and more readable output.
+# https://github.com/alexmojaki/snoop/issues/13
+pprint.pformat = pprintpp.pformat
+
 pytest_plugins = [
     'spinta.testing.pytest',
 ]
-

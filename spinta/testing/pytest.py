@@ -85,24 +85,26 @@ def context(request, mocker, tmpdir, config, postgresql, mongo):
     context.set('config.raw', config)
     mocker.patch('spinta.config._create_context', return_value=context)
 
-    yield context
+    with context:
 
-    # At this point, transaction must be closed, if it is not, then something is
-    # wrong. Find out why transaction was not property closed.
-    assert context.has('transaction') is False
+        yield context
+
+        # At this point, transaction must be closed, if it is not, then something is
+        # wrong. Find out why transaction was not property closed.
+        assert context.has('transaction') is False
+
+        # If context was not loaded, then it means, that database was not touched.
+        # All database operations require fully loaded context.
+        if context.loaded:
+            context.wipe_all()
+
+        if context.has('store'):
+            for backend in context.get('store').backends.values():
+                commands.unload_backend(context, backend)
 
     # In `context.load` if config overrides are provided, config is modified,
     # we need to restore it.
     config.restore()
-
-    # If context was not loaded, then it means, that database was not touched.
-    # All database operations require fully loaded context.
-    if context.loaded:
-        context.wipe_all()
-
-    if context.has('store'):
-        for backend in context.get('store').backends.values():
-            commands.unload_backend(context, backend)
 
 
 @pytest.fixture

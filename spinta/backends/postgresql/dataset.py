@@ -456,7 +456,7 @@ def getall(
         return {'count': result.scalar()}
 
     else:
-        qry = sa.select(_getall_show(table, jm, show))
+        qry = _getall_show(table, jm, show)
         qry = _getall_query(context, backend, model, qry, jm, query)
         qry = _getall_order_by(qry, table, jm, sort)
         qry = _getall_offset(qry, offset)
@@ -485,20 +485,25 @@ def getall(
             )
 
 
-def _getall_show(table: sa.Table, jm: JoinManager, show: typing.List[str]):
-    if not show:
-        return [table]
-    return [jm(name).label(name) for name in show]
+def _getall_show(
+    table: sa.Table,
+    jm: JoinManager,
+    show: typing.List[str],
+) -> sa.sql.Select:
+    if show:
+        return sa.select([jm(name).label(name) for name in show])
+    else:
+        return sa.select([table])
 
 
 def _getall_query(
     context: Context,
     backend: PostgreSQL,
     model: Model,
-    qry,
+    qry: sa.sql.Select,
     jm: JoinManager,
     query: Optional[List[dict]]
-):
+) -> sa.sql.Select:
     where = []
     for qp in query or []:
         if qp['key'] not in model.flatprops:
@@ -521,7 +526,12 @@ def _getall_query(
     return qry
 
 
-def _getall_order_by(qry, table: sa.Table, jm: JoinManager, sort: typing.List[typing.Dict[str, str]]):
+def _getall_order_by(
+    qry: sa.sql.Select,
+    table: sa.Table,
+    jm: JoinManager,
+    sort: typing.List[typing.Dict[str, str]],
+) -> sa.sql.Select:
     if sort:
         db_sort_keys = []
         for sort_key in sort:
@@ -541,14 +551,14 @@ def _getall_order_by(qry, table: sa.Table, jm: JoinManager, sort: typing.List[ty
         return qry
 
 
-def _getall_offset(qry, offset):
+def _getall_offset(qry: sa.sql.Select, offset: Optional[int]) -> sa.sql.Select:
     if offset:
         return qry.offset(offset)
     else:
         return qry
 
 
-def _getall_limit(qry, limit):
+def _getall_limit(qry: sa.sql.Select, limit: Optional[int]) -> sa.sql.Select:
     if limit:
         return qry.limit(limit)
     else:

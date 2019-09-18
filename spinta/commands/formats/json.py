@@ -96,6 +96,9 @@ def _render(
     status_code: int,
 ):
     if action in (Action.GETALL, Action.SEARCH, Action.CHANGES):
+        # In python dict is also an iterable, but here we want a true iterable,
+        # a list or a generator of dicts.
+        assert not isinstance(data, dict), data
         return StreamingResponse(
             aiter(peek_and_stream(fmt(data))),
             status_code=status_code,

@@ -122,6 +122,11 @@ async def http_exception(request, exc):
     if isinstance(exc, MultipleErrors):
         # TODO: probably there should be a more sophisticated way to get status
         #       code from error list.
+        # XXX:  On the other hand, mxing status code is probably not a good
+        #       idea, so instead, MultipleErrors must have one status code for
+        #       all errros. And that should be inforced by MultipleErrors. If an
+        #       exception comes in with a different status code, then this
+        #       dhould be an error.
         status_code = exc.errors[0].status_code
         errors = [
             error_response(error)
