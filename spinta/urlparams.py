@@ -105,7 +105,7 @@ def _get_nodes_by_name(
             if '' in children:
                 yield node, children['']
             else:
-                yield from zip(itertools.repeat(node), children.items())
+                yield from zip(itertools.repeat(node), children.values())
         elif name in children:
             yield node, children[name]
             found = True
@@ -165,7 +165,7 @@ def get_model_from_params(manifest, params: UrlParams):
     elif name in manifest.objects['model']:
         return manifest.objects['model'].get(name)
 
-    else:
+    elif name not in manifest.tree:
         raise ModelNotFound(model=name)
 
 
