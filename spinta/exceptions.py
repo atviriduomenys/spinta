@@ -80,7 +80,7 @@ class BaseError(Exception):
             this = args[0]
         else:
             this = None
-            log.error("Only one positional argument is alowed, but %d was givent.", len(args), stack_info=True)
+            log.error("Only one positional argument is alowed, but %d was given.", len(args), stack_info=True)
 
         from spinta.components import Node
         from spinta.types.datatype import DataType
@@ -112,15 +112,15 @@ class MultipleErrors(Exception):
 
     def __init__(self, errors: Iterable[BaseError]):
         self.errors = list(errors)
-        super().__init__('Multiple errors:\n' + ''.join([
-            ' - ' + error.template.format(**error.context) + '\n' +
-            '     Context:\n' +
-            ''.join(
-                f'      {k}: {v}\n'
-                for k, v in error.context.items()
-            )
-            for error in self.errors
-        ]))
+        super().__init__(
+            'Multiple errors:\n' + ''.join([
+                ' - {error.message}\n' +
+                '     Context:\n' + ''.join(
+                    f'       {k}: {v}\n' for k, v in error.context.items()
+                )
+                for error in self.errors
+            ])
+        )
 
 
 class ConflictingValue(BaseError):
