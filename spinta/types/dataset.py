@@ -1,18 +1,23 @@
+from typing import Dict
+
+import itertools
 import pathlib
 import requests
 import tempfile
 
-from spinta.commands import load, prepare, check, pull, getall, authorize, error
+from spinta.commands import load, prepare, check, pull, getall, authorize
 from spinta.components import Context, Manifest, Node, Command, Action
 from spinta.utils.refs import get_ref_id
 from spinta.nodes import load_node
 from spinta.fetcher import Cache
-from spinta.types.type import load_type
+from spinta.types.datatype import DataType, Object, load_type
 from spinta.auth import check_generated_scopes
 from spinta.utils.errors import format_error
-from spinta.utils.schema import resolve_schema, load_from_schema
+from spinta.utils.schema import resolve_schema, load_from_schema, check_unkown_params
 from spinta.utils.tree import add_path_to_tree
 from spinta.urlparams import get_model_by_name
+from spinta import commands
+from spinta import exceptions
 
 
 class Dataset(Node):
@@ -46,9 +51,25 @@ class Resource(Node):
         'flags': {'type': 'array'},
     }
 
+    def models(self):
+        for objects in self.objects.values():
+            yield from objects.values()
+
+    def get_model_origin(self, model: str):
+        origins = [origin for origin, objects in self.objects.items() if model in objects]
+        if len(origins) == 1:
+            return origins[0]
+        if len(origins) > 1:
+            raise Exception(
+                f"More than one origin found for {model!r} model. Found origins: " +
+                ', '.join(map(repr, origins)) + '.'
+            )
+        raise Exception(f"Can't find model {model!r}.")
+
 
 class Model(Node):
     schema = {
+        'origin': {'type': 'string'},
         'source': {'type': 'array'},
         'identity': {'type': 'array', 'required': False},
         'properties': {'type': 'object', 'default': {}},
@@ -64,6 +85,7 @@ class Model(Node):
     property_type = 'dataset.property'
 
     def __init__(self):
+        self.origin = None
         self.source = None
         self.identity = None
         self.properties = {}
@@ -75,10 +97,24 @@ class Model(Node):
         self.canonical = False
 
     def __repr__(self):
-        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}, resource={self.parent.name!r}, dataset={self.parent.parent.name!r})>'
+        return (
+            f'<{self.__class__.__module__}.{self.__class__.__name__}('
+            f' name={self.name!r},'
+            f' dataset={self.parent.parent.name!r}'
+            f' resource={self.parent.name!r},'
+            f' origin={self.origin!r},'
+            ')>'
+        )
 
     def get_type_value(self):
-        return f'{self.name}/:dataset/{self.parent.parent.name}/:resource/{self.parent.name}'
+        elements = (
+            (':dataset', self.parent.parent.name),
+            (':resource', self.parent.name),
+            (':origin', self.origin),
+        )
+        return f'{self.name}/' + '/'.join(itertools.chain.from_iterable(
+            (k, v) for k, v in elements if v
+        ))
 
 
 class Property(Node):
@@ -89,7 +125,6 @@ class Property(Node):
         'const': {'type': 'any'},
         'enum': {'type': 'array'},
         'replace': {'type': 'object'},
-        'ref': {'type': 'string'},
         'dependency': {'type': 'boolean'},
         'model': {'required': True},
         'hidden': {'type': 'boolean', 'inherit': True, 'default': False},
@@ -104,7 +139,6 @@ class Property(Node):
         self.const = None
         self.enum = None
         self.replace = None
-        self.ref = None
         self.dependency = None
         self.hidden = False
 
@@ -113,13 +147,7 @@ class Property(Node):
 def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
     load_node(context, dataset, data, manifest)
 
-    # Load dataset source
-    if dataset.source:
-        params = dataset.source
-        params = params if isinstance(params, dict) else {'type': params}
-        dataset.source = load_source(context, dataset, params)
-
-    # Load models
+    # Load resources
     for name, params in (data.get('resources') or {}).items():
         params = {
             'path': dataset.path,
@@ -134,24 +162,32 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
 
 @load.register()
 def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
+    source_type = data.get('type')
+    data['type'] = 'resource'
     load_node(context, resource, data, manifest)
 
     # Load dataset source
-    if resource.type:
-        params = dict(data)
-        params['name'] = params.pop('source', None)
+    if source_type:
+        source = data.get('source')
+        params = source.copy() if isinstance(source, dict) else {'name': source}
+        params['type'] = source_type
         resource.source = load_source(context, resource, params)
 
     # Load models
-    for name, params in (data.get('objects') or {}).items():
-        params = {
-            'type': 'model',
-            'path': resource.path,
-            'name': name,
-            'parent': resource,
-            **(params or {}),
-        }
-        resource.objects[name] = load(context, Model(), params, manifest)
+    resource.objects = {}
+    for origin, objects in (data.get('objects') or {}).items():
+        if origin not in resource.objects:
+            resource.objects[origin] = {}
+        for name, params in (objects or {}).items():
+            params = {
+                'type': 'model',
+                'path': resource.path,
+                'name': name,
+                'origin': origin,
+                'parent': resource,
+                **(params or {}),
+            }
+            resource.objects[origin][name] = load(context, Model(), params, manifest)
 
     return resource
 
@@ -163,10 +199,11 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
     add_path_to_tree(manifest.tree, model.name)
 
     # Load model source
-    if model.source:
+    source = data.get('source')
+    if source:
         sources = []
-        for source in ensure_list(model.source):
-            params = source if isinstance(source, dict) else {'name': source}
+        for params in ensure_list(source):
+            params = params.copy() if isinstance(params, dict) else {'name': params}
             params['type'] = model.parent.source.type
             sources.append(load_source(context, model, params))
         model.source = sources
@@ -205,20 +242,25 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
 @load.register()
 def load(context: Context, prop: Property, data: dict, manifest: Manifest):
     prop = load_node(context, prop, data, manifest, check_unknowns=False)
-    prop.type = load_type(context, prop, data, manifest)
+    prop.type = 'property'
+    prop.dtype = load_type(context, prop, data, manifest)
+    check_unkown_params(
+        [resolve_schema(prop, Node), resolve_schema(prop.dtype, DataType)],
+        data, prop,
+    )
 
     # Load property source.
-    if prop.source:
-        if isinstance(prop.source, list):
+    source = data.get('source')
+    if source:
+        if isinstance(source, list):
             sources = []
-            for params in prop.source:
-                params = params if isinstance(params, dict) else {'name': params}
+            for params in source:
+                params = params.copy() if isinstance(params, dict) else {'name': params}
                 params['type'] = prop.parent.parent.source.type
                 sources.append(load_source(context, prop, params))
             prop.source = sources
         else:
-            params = prop.source
-            params = params if isinstance(params, dict) else {'name': params}
+            params = source.copy() if isinstance(source, dict) else {'name': source}
             params['type'] = prop.parent.parent.source.type
             prop.source = load_source(context, prop, params)
 
@@ -247,7 +289,7 @@ def check(context: Context, dataset: Dataset):
 
 def _check_owner(context: Context, dataset: Dataset):
     if dataset.owner and dataset.owner not in dataset.manifest.objects['owner']:
-        context.error(f"Can't find owner {dataset.owner!r}.")
+        raise exceptions.UnknownOwner(dataset)
 
 
 def _check_extends(context: Context, dataset: Dataset, model: Model):
@@ -260,12 +302,12 @@ def _check_extends(context: Context, dataset: Dataset, model: Model):
     if model.extends in dataset.manifest.objects['model']:
         return
 
-    context.error(f"Can't find model {model.name!r} specified in 'extends'.")
+    raise UnknownModelReference(model, param='extends', reference=model.extends)
 
 
 def _check_ref(context: Context, dataset: Dataset, prop: Property):
     if prop.ref and prop.ref not in dataset.objects and prop.ref not in dataset.manifest.objects['model']:
-        context.error(f"{prop.parent.name}.{prop.name} referenced an unknown object {prop.ref!r}.")
+        raise UnknownModelReference(prop, param='ref', reference=prop.ref)
 
 
 @pull.register()
@@ -278,7 +320,7 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
         for resource in dataset.resources.values():
             prepare(context, resource.source, resource)
 
-            for model in resource.objects.values():
+            for model in resource.models():
                 if model.source is None:
                     continue
 
@@ -294,7 +336,9 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
                                 '{exc}:\n'
                                 '  in dependency {dependency!r}\n'
                                 '  in model {model.name!r} {model}\n'
-                                '  in dataset {model.parent.name!r} {model.parent}\n'
+                                '  in origin {model.origin!r}\n'
+                                '  in resource {model.parent.name!r} {model.parent}\n'
+                                '  in dataset {model.parent.parent.name!r} {model.parent.parent}\n'
                                 "  in file '{model.path}'\n"
                                 '  on backend {model.backend.name!r}\n'
                             )
@@ -319,7 +363,7 @@ def _pull(context: Context, model: Model, source, dependency):
             elif prop.source:
                 data[prop.name] = _get_value_from_source(context, prop, prop.source, row, dependency)
 
-            if prop.type.name == 'ref' and prop.type.object and prop.name in data:
+            if prop.dtype.name == 'ref' and prop.dtype.object and prop.name in data:
                 data[prop.name] = get_ref_id(data[prop.name])
 
         if _check_key(data.get('id')):
@@ -339,7 +383,7 @@ def _dependencies(context: Context, model, deps):
                 continue
 
             if '.' not in dep:
-                context.error(f"Dependency must be in 'object/name.property' form, got: {dep}.")
+                raise exceptions.InvalidDependencyValue(model, dependency=dep)
             model_name, prop_name = dep.split('.', 1)
             model_names.add(model_name)
             prop_names.append(prop_name)
@@ -347,14 +391,14 @@ def _dependencies(context: Context, model, deps):
 
         if len(model_names) > 1:
             names = ', '.join(sorted(model_names))
-            context.error(f"Dependencies are allowed only from single model, but more than one model found: {names}.")
+            raise exceptions.MultipleModelsInDependencies(model, models=names)
 
         if len(command_calls) > 1:
-            context.error(f"Only one command call is allowed.")
+            raise exception.MultipleCommandCallsInDependencies(model)
 
         if len(command_calls) > 0:
             if len(model_names) > 0:
-                context.error(f"Only one command call or one model is allowed in dependencies.")
+                raise exceptions.MultipleCallsOrModelsInDependencies(model)
             for name, cmd in command_calls.items():
                 cmd = load(context, Command(), cmd, parent=model, scope='service')
                 for value in cmd(context):
@@ -399,61 +443,6 @@ def authorize(context: Context, action: Action, prop: Property):
     check_generated_scopes(context, name, action.value)
 
 
-@error.register()
-def error(exc: Exception, context: Context, dataset: Dataset):
-    message = (
-        '{exc}:\n'
-        '  in dataset {dataset.name!r} {dataset}\n'
-        "  in file '{dataset.path}'\n"
-        '  on backend {dataset.backend.name!r}\n'
-    )
-    raise Exception(format_error(message, {
-        'exc': exc,
-        'dataset': dataset,
-    }))
-
-
-@error.register()
-def error(exc: Exception, context: Context, dataset: Dataset, data: dict, manifest: Manifest):
-    error(exc, context, dataset)
-
-
-@error.register()
-def error(exc: Exception, context: Context, model: Model):
-    message = (
-        '{exc}:\n'
-        '  in model {model.name!r} {model}\n'
-        '  in dataset {model.parent.name!r} {model.parent}\n'
-        "  in file '{model.path}'\n"
-        '  on backend {model.backend.name!r}\n'
-    )
-    raise Exception(format_error(message, {
-        'exc': exc,
-        'model': model,
-    }))
-
-
-@error.register()
-def error(exc: Exception, context: Context, model: Model, data: dict, manifest: Manifest):
-    error(exc, context, model)
-
-
-@error.register()
-def error(exc: Exception, context: Context, prop: Property, data: dict, manifest: Manifest):
-    message = (
-        '{exc}:\n'
-        '  in property {prop.name!r} {prop}\n'
-        '  in model {prop.parent.name!r} {prop.model}\n'
-        '  in dataset {prop.model.parent.name!r} {prop.model.parent}\n'
-        "  in file '{prop.path}'\n"
-        '  on backend {prop.backend.name!r}\n'
-    )
-    raise Exception(format_error(message, {
-        'exc': exc,
-        'prop': prop,
-    }))
-
-
 def ensure_list(value):
     if isinstance(value, list):
         return value
@@ -467,20 +456,74 @@ def load_source(context: Context, node: Node, params: dict):
     config = context.get('config')
 
     # Find source component by source type.
-    source_type = params['type']
-    if f'{source_type}:{node.type}' in config.components['sources']:
-        Source = config.components['sources'][f'{source_type}:{node.type}']
+    type_ = params['type']
+    if f'{type_}:{node.type}' in config.components['sources']:
+        Source = config.components['sources'][f'{type_}:{node.type}']
     else:
-        Source = config.components['sources'][source_type]
+        Source = config.components['sources'][type_]
 
-    params = {
-        'node': node,
-        **params,
-    }
     source = Source()
-    schema = resolve_schema(source, Source)
+    source.type = type_
+    source.node = node
 
     # FIXME: refactor components to separate python module
     from spinta.commands.sources import Source
-    source = load_from_schema(Source, source, schema, params)
+    source = load_from_schema(Source, source, {
+        'node': node,
+        **params,
+    })
     return load(context, source, node)
+
+
+@commands.get_referenced_model.register()
+def get_referenced_model(context: Context, prop: Property, ref: str):
+    model = prop.model
+
+    # Self reference.
+    if model.name == ref:
+        return model
+
+    # Return model from same origin.
+    if ref in model.parent.objects[model.origin]:
+        return model.parent.objects[model.origin][ref]
+
+    # Return model from same resource.
+    for origin in model.parent.objects.values():
+        if ref in origin:
+            return origin[ref]
+
+    # Return model from same dataset.
+    for resource in model.parent.parent.resources.values():
+        if resource.name == model.parent.name:
+            # We already checked this resource.
+            continue
+        for origin in model.parent.objects.values():
+            if ref in origin:
+                return origin[ref]
+
+    # Return canonical model from same manifest.
+    if ref in model.manifest.objects['model']:
+        return model.manifest.objects['model'][ref]
+
+    raise exceptions.ModelReferenceNotFound(prop, ref=ref)
+
+
+@commands.make_json_serializable.register()
+def make_json_serializable(model: Model, value: dict) -> dict:
+    return commands.make_json_serializable[Object, dict](model, value)
+
+
+@commands.get_error_context.register()
+def get_error_context(model: Model, *, prefix='this') -> Dict[str, str]:
+    context = commands.get_error_context[Node](model, prefix=prefix)
+    context['backend'] = f'{prefix}.backend.name'
+    context['origin'] = f'{prefix}.origin'
+    return context
+
+
+@commands.get_error_context.register()  # noqa
+def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
+    context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
+    context['property'] = f'{prefix}.place'
+    context['backend'] = f'{prefix}.backend.name'
+    return context

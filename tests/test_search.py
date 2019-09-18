@@ -1,5 +1,7 @@
 import datetime
 
+import pytest
+
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
@@ -46,58 +48,62 @@ test_data = [
 ]
 
 
-def test_search_exact(context, app):
-    r1, r2, r3, = context.push(test_data)
+def _push_test_data(context, model):
+    return context.push({**data, 'type': model} for data in test_data)
 
-    app.authorize(['spinta_report_search'])
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report/:dataset/test'
+)
+def test_search_exact(model, context, app):
+    r1, r2, r3, = _push_test_data(context, model)
+
+    app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get('/reports/:exact/status/ok')
+    resp = app.get(f'/{model}/:exact/status/ok')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # single field search, case-insensitive
-    resp = app.get('/reports/:exact/status/OK')
+    resp = app.get(f'/{model}/:exact/status/OK')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # single field search, non string type
-    resp = app.get('/reports/:exact/count/13')
+    resp = app.get(f'/{model}/:exact/count/13')
     data = resp.json()['data']
 
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
-    # single field search, non string type
-    resp = app.get('/reports/:exact/count/abc')
+    # single field fsearch, non string type
+    resp = app.get(f'/{model}/:exact/count/abc')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["PropertyTypeError"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # single non-existing field value search
-    resp = app.get('/reports/:exact/status/o')
+    resp = app.get(f'/{model}/:exact/status/o')
     data = resp.json()['data']
     assert len(data) == 0
 
     # single non-existing field search
-    resp = app.get('/reports/:exact/state/o')
+    resp = app.get(f'/{model}/:exact/state/o')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["ModelPropertyError"]
-    assert get_error_context(resp.json(), "ModelPropertyError") == {
-        "query_param": "state",
-        "model": "report",
-    }
+    assert get_error_codes(resp.json()) == ["UnknownProperty"]
 
     # multple field search
-    resp = app.get('/reports/:exact/status/invalid/:exact/report_type/stv')
+    resp = app.get(f'/{model}/:exact/status/invalid/:exact/report_type/stv')
     data = resp.json()['data']
 
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # same field searched multiple times is joined with AND operation by default
-    resp = app.get('/reports/:exact/status/invalid/:exact/status/ok')
+    resp = app.get(f'/{model}/:exact/status/invalid/:exact/status/ok')
     data = resp.json()['data']
     assert len(data) == 0
 
@@ -116,12 +122,14 @@ def test_search_gt(context, app):
     # search for string value
     resp = app.get('/reports/:gt/status/ok')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["SearchOperatorTypeError"]
-    assert get_error_context(resp.json(), "SearchOperatorTypeError") == {
-        "operator_name": "gt",
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
+    assert get_error_context(resp.json(), "InvalidOperandValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
+        'operator': 'gt',
     }
 
     # multi field search
@@ -158,12 +166,14 @@ def test_search_gte(context, app):
     # search for string value
     resp = app.get('/reports/:gte/status/ok')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["SearchOperatorTypeError"]
-    assert get_error_context(resp.json(), "SearchOperatorTypeError") == {
-        "operator_name": "gte",
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
+    assert get_error_context(resp.json(), "InvalidOperandValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
+        'operator': 'gte',
     }
 
     # multi field search
@@ -201,12 +211,14 @@ def test_search_lt(context, app):
     # search for string value
     resp = app.get('/reports/:lt/status/ok')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["SearchOperatorTypeError"]
-    assert get_error_context(resp.json(), "SearchOperatorTypeError") == {
-        "operator_name": "lt",
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
+    assert get_error_context(resp.json(), "InvalidOperandValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
+        'operator': 'lt',
     }
 
     # multi field search
@@ -243,12 +255,14 @@ def test_search_lte(context, app):
     # search for string value
     resp = app.get('/reports/:lte/status/ok')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["SearchOperatorTypeError"]
-    assert get_error_context(resp.json(), "SearchOperatorTypeError") == {
-        "operator_name": "lte",
-        "type_name": "string",
-        "model": "report",
-        "prop": "status",
+    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
+    assert get_error_context(resp.json(), "InvalidOperandValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'status',
+        'type': 'string',
+        'operator': 'lte',
     }
 
     # multi field search
@@ -352,12 +366,14 @@ def test_search_contains(context, app):
     # `contains` type check
     resp = app.get('/reports/:contains/notes.create_date/2019-04-20')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["SearchStringOperatorError"]
-    assert get_error_context(resp.json(), "SearchStringOperatorError") == {
-        "operator_name": "contains",
-        "type_name": "date",
-        "model": "report",
-        "prop": "notes.create_date",
+    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
+    assert get_error_context(resp.json(), "InvalidOperandValue") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'notes.create_date',
+        'type': 'date',
+        'operator': 'contains',
     }
 
 
@@ -400,7 +416,7 @@ def test_search_startswith(context, app):
     # `startswith` type check
     resp = app.get('/reports/:startswith/notes.create_date/2019-04-20')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["SearchStringOperatorError"]
+    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
 
 
 def test_search_nested(context, app):
@@ -429,10 +445,12 @@ def test_search_nested(context, app):
     # nested non existant field
     resp = app.get('/reports/:exact/notes.foo.bar/baz')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["ModelPropertyError"]
-    assert get_error_context(resp.json(), "ModelPropertyError") == {
-        "query_param": "notes.foo.bar",
-        "model": "report",
+    assert get_error_codes(resp.json()) == ["UnknownProperty"]
+    assert get_error_context(resp.json(), "UnknownProperty") == {
+        'schema': 'tests/manifest/models/report.yml',
+        'manifest': 'default',
+        'model': 'report',
+        'property': 'notes.foo.bar',
     }
 
     # nested `contains` search

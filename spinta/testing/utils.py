@@ -1,6 +1,10 @@
+from typing import List
+
 from pathlib import Path
 
 from ruamel.yaml import YAML
+
+from spinta.utils.scopes import name_to_scope
 
 yaml = YAML(typ='safe')
 
@@ -27,3 +31,15 @@ def get_error_context(response, error_code):
             return err["context"]
     else:
         assert False
+
+
+def get_model_scopes(context, model, actions: List[str]):
+    context.load_if_not_loaded()
+    config = context.get('config')
+    return [
+        name_to_scope('{prefix}{name}_{action}', model, maxlen=config.scope_max_length, params={
+            'prefix': config.scope_prefix,
+            'action': action,
+        })
+        for action in actions
+    ]

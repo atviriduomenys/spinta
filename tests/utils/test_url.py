@@ -1,3 +1,4 @@
+from spinta.utils.url import Operator
 from spinta.utils.url import parse_url_path
 from spinta.utils.url import build_url_path
 
@@ -127,3 +128,22 @@ def test_properties(context):
         'id': 'bcc3a598-286e-4105-ba12-36e3a2202792',
         'format': 'csv',
     }
+
+
+def test_query_params(context):
+    context.load()
+
+    params = {
+        'path': 'model',
+        'query_params': [
+            {
+                'key': 'prop',
+                'name': 'exact',
+                'operator': Operator.EXACT,
+                'value': 'value',
+            },
+        ],
+    }
+
+    assert parse_url_path(context, 'model/:exact/prop/value') == params
+    assert build_url_path(params) == 'model/:exact/prop/value'

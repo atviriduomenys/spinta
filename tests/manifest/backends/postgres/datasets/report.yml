@@ -1,0 +1,43 @@
+---
+type: dataset
+name: test
+version: 1
+date: 2019-09-13
+resources:
+  '':
+    type: sql
+    objects:
+      '':
+        backends/postgres/report:
+          properties:
+            id: {type: pk}
+            revision: {type: string}
+            report_type: {type: string}
+            status: {type: string}
+            valid_from_date: {type: date}
+            update_time: {type: datetime}
+            count: {type: integer}
+          
+            notes:
+              type: array
+              items:
+                type: object
+                properties:
+                  note: {type: string}
+                  note_type: {type: string}
+                  create_date: {type: date}
+          
+            operating_licenses:
+              type: array
+              items:
+                type: object
+                properties:
+                  license_types:
+                    type: array
+                    items:
+                      type: string
+          
+            pdf:
+              type: file
+              backend: fs
+              hidden: true

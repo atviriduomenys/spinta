@@ -28,7 +28,7 @@ def pull(context: Context, source: Xlsx, node: Model, *, params: dict):
                 if len(row) > source.skip['column'] and row[source.skip['column']] in source.skip['value']:
                     break
             else:
-                context.error(f"Can't find header line: {source.skip!r}")
+                raise exceptions.InvalidSource(node, source=source, error=f"Can't find header line: {source.skip!r}.")
             rows = chain([row], rows)
         else:
             rows = islice(rows, source.skip, None)

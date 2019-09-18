@@ -2,6 +2,7 @@ import string
 
 
 def format_error(message, kwargs):
+    # TODO: deprecated and should be removed
     return Formatter().format(message, **kwargs)
 
 

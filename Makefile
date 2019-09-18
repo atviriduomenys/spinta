@@ -33,7 +33,7 @@ upgrade: env/bin/pip-compile
 
 .PHONY: test
 test: env
-	env/bin/py.test -vvxra --tb=native --log-level=debug --cov=spinta --cov-report=term-missing --doctest-modules tests spinta
+	env/bin/py.test -vvxra --log-level=debug --cov=spinta --cov-report=term-missing --doctest-modules tests spinta
 
 .PHONY: dist
 dist: env/bin/pip

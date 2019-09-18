@@ -231,12 +231,6 @@ class Context:
             return name in self._context[-1]
         return name in self._names[-1]
 
-    def error(self, message):
-        # TODO: Use of this method is deprecated, raise exceptions directly.
-        #
-        #       New way of handling errors is through `spinta.commands.error`.
-        raise Exception(message)
-
     def _set_local_name(self, name):
         # Prevent redefining local names, but allow to redefine inherited names.
         if name in self._local_names[-1]:
@@ -293,7 +287,7 @@ class Manifest:
         yield from self.objects['model'].values()
         for dataset in self.objects['dataset'].values():
             for resource in dataset.resources.values():
-                yield from resource.objects.values()
+                yield from resource.models()
 
 
 class Node:
@@ -423,7 +417,9 @@ class UrlParams:
     model: str
     id: str
     properties: list
+    resource: str
     dataset: str
+    origin: str
     changes: str
     sort: list
     limit: int

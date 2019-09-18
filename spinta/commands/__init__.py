@@ -2,11 +2,6 @@ from spinta.dispatcher import command
 
 
 @command()
-def error():
-    pass
-
-
-@command()
 def load():
     """Load primitive data structures to python-native objects.
 
@@ -252,5 +247,15 @@ def unload_backend():
 
 
 @command()
+def get_referenced_model():
+    """Find referenced model by given property type."""
+
+
+@command()
 def make_json_serializable():
-    """Convert given value into primitive JSON serializable value."""
+    """Convert given Python-native value to a JSON serializable value."""
+
+
+@command()
+def get_error_context():
+    """Get error context for a given object."""

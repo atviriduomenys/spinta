@@ -12,7 +12,7 @@ atomicwrites==1.3.0       # via pytest
 attrs==19.1.0             # via packaging, pytest
 authlib==0.11
 backcall==0.1.0           # via ipython
-certifi==2019.6.16        # via requests
+certifi==2019.9.11        # via requests
 cffi==1.12.3              # via cryptography
 chardet==3.0.4            # via requests
 cheap-repr==0.4.1         # via snoop
@@ -26,10 +26,10 @@ gunicorn==19.9.0
 h11==0.8.1                # via uvicorn
 httptools==0.0.13         # via uvicorn
 idna==2.8                 # via requests
-importlib-metadata==0.19  # via pluggy, pytest
+importlib-metadata==0.22  # via pluggy, pytest
 ipdb==0.12.2
 ipython-genutils==0.2.0   # via traitlets
-ipython==7.7.0
+ipython==7.8.0
 jedi==0.15.1              # via ipython
 jinja2==2.10.1
 lxml==4.4.1
@@ -41,7 +41,7 @@ packaging==19.1           # via pytest
 parso==0.5.1              # via jedi
 pexpect==4.7.0            # via ipython
 pickleshare==0.7.5        # via ipython
-pluggy==0.12.0            # via pytest
+pluggy==0.13.0            # via pytest
 pp-ez==0.2.0
 pprintpp==0.4.0
 prompt-toolkit==2.0.9     # via ipython
@@ -55,7 +55,7 @@ pyparsing==2.4.2          # via packaging
 pytest-asyncio==0.10.0
 pytest-cov==2.7.1
 pytest-mock==1.10.4
-pytest==5.1.1
+pytest==5.1.2
 python-multipart==0.0.5
 requests==2.22.0
 responses==0.10.6
@@ -63,11 +63,11 @@ ruamel.yaml.clib==0.1.2   # via ruamel.yaml
 ruamel.yaml==0.16.5
 setuptools-scm==3.3.3
 six==1.12.0               # via asttokens, cryptography, multipledispatch, packaging, prompt-toolkit, python-multipart, responses, snoop, sqlalchemy-utils, traitlets
-snoop==0.2.1
+snoop==0.2.2
 sqlalchemy-utils==0.34.2
 sqlalchemy==1.3.8
 sqlparse==0.3.0
-starlette==0.12.8
+starlette==0.12.9
 texttable==1.6.2
 toposort==1.5
 tqdm==4.35.0
@@ -75,10 +75,10 @@ traitlets==4.3.2          # via ipython
 ujson==1.35
 unidecode==1.1.1
 urllib3==1.25.3           # via requests
-uvicorn==0.8.6
-uvloop==0.12.2            # via uvicorn
+uvicorn==0.9.0
+uvloop==0.13.0            # via uvicorn
 wcwidth==0.1.7            # via prompt-toolkit, pytest
-websockets==7.0           # via uvicorn
+websockets==8.0.2         # via uvicorn
 xlrd==1.2.0
 zipp==0.6.0               # via importlib-metadata
 

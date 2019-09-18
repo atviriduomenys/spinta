@@ -1,3 +1,5 @@
+from typing import Dict
+
 import logging
 
 from ruamel.yaml import YAML
@@ -6,8 +8,10 @@ from ruamel.yaml.scanner import ScannerError
 
 from spinta.utils.path import is_ignored
 from spinta.commands import load, prepare, check
-from spinta.components import Context, Manifest
+from spinta.components import Context, Manifest, Node
 from spinta.config import RawConfig
+from spinta import commands
+from spinta import exceptions
 
 yaml = YAML(typ='safe')
 
@@ -35,15 +39,31 @@ def load(context: Context, manifest: Manifest, c: RawConfig):
         try:
             data = yaml.load(file.read_text())
         except (ParserError, ScannerError) as e:
-            context.error(f"{file}: {e}.")
+            raise exceptions.InvalidManifestFile(
+                manifest=name,
+                filename=file,
+                error=str(e),
+            )
         if not isinstance(data, dict):
-            raise Exception(f"{file}: expected dict got {data.__class__.__name__}.")
+            raise exceptions.InvalidManifestFile(
+                manifest=name,
+                filename=file,
+                error=f"Expected dict got {data.__class__.__name__}.",
+            )
 
         if 'type' not in data:
-            raise Exception(f"'type' is not defined in {file}.")
+            raise exceptions.InvalidManifestFile(
+                manifest=name,
+                filename=file,
+                error=f"Required parameter 'type' is not defined.",
+            )
 
         if data['type'] not in manifest.objects:
-            raise Exception(f"Unknown type {data['type']!r} in {file}.")
+            raise exceptions.InvalidManifestFile(
+                manifest=name,
+                filename=file,
+                error=f"Unknown type {data['type']!r}.",
+            )
 
         node = config.components['nodes'][data['type']]()
         data = {
@@ -55,7 +75,11 @@ def load(context: Context, manifest: Manifest, c: RawConfig):
         load(context, node, data, manifest)
 
         if node.name in manifest.objects[node.type]:
-            raise Exception(f"Object {node.type} with name {node.name} already exist.")
+            raise exceptions.InvalidManifestFile(
+                manifest=name,
+                filename=file,
+                error=f"Node {node.type} with name {node.name} already defined in {manifest.objects[node.type].path}.",
+            )
 
         manifest.objects[node.type][node.name] = node
 
@@ -88,3 +112,29 @@ def check(context: Context, manifest: Manifest):
     for model in manifest.find_all_models():
         if model.endpoint == model.name or model.endpoint in names:
             raise Exception(f"Endpoint name can't overshadow existing model names and {model.endpoint!r} is already a model name.")
+
+
+@commands.get_error_context.register()
+def get_error_context(manifest: Manifest, *, prefix='this') -> Dict[str, str]:
+    return {
+        'schema': f'{prefix}.path.__str__()',
+        'manifest': f'{prefix}.name'
+    }
+
+
+@commands.get_error_context.register()  # noqa
+def get_error_context(node: Node, *, prefix='this') -> Dict[str, str]:
+    context = {
+        'schema': f'{prefix}.path.__str__()',
+    }
+    depth = 0
+    while True:
+        name = prefix + ('.' if depth else '') + '.'.join(['parent'] * depth)
+        if isinstance(node, Manifest):
+            context['manifest'] = f'{name}.name'
+            break
+        else:
+            context[node.type] = f'{name}.name'
+        depth += 1
+        node = node.parent
+    return context

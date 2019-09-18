@@ -1,5 +1,5 @@
 from spinta.components import Context, Command, CommandList, Node
-from spinta.commands import load, error
+from spinta.commands import load
 
 
 @load.register()
@@ -33,8 +33,3 @@ def load(
         for x in data
     ]
     return command
-
-
-@error.register()
-def error(exc: Exception, context: Context, command: Command, data: object, **kwargs):
-    error(exc, context, command.parent)
