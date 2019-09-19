@@ -105,8 +105,11 @@ def test_delete(context, app):
     resp = app.delete(f'/country/{ids[0]}')
     assert resp.status_code == 404
     assert get_error_codes(resp.json()) == ["ResourceNotFound"]
-    assert get_error_context(resp.json(), "ResourceNotFound") == {
-        'schema': 'tests/manifest/models/country.yml',
+    assert get_error_context(
+        resp.json(),
+        "ResourceNotFound",
+        ["manifest", "model", "id"],
+    ) == {
         'manifest': 'default',
         'model': 'country',
         'id': ids[0],
@@ -151,13 +154,14 @@ def test_patch(app, context):
                      json={'revision': 'r3v1510n', 'title': 'foo org'})
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
-    assert get_error_context(resp.json(), "ConflictingValue") == {
-        'schema': 'tests/manifest/models/org.yml',
-        'manifest': 'default',
-        'model': 'org',
-        'property': 'revision',
+    assert get_error_context(
+        resp.json(),
+        "ConflictingValue",
+        ["given", "expected", "model"],
+    ) == {
         'given': 'r3v1510n',
         'expected': revision,
+        'model': 'org',
     }
 
     # test that type mismatch is checked
@@ -165,13 +169,14 @@ def test_patch(app, context):
                      json={'type': 'country', 'revision': org_data["revision"], 'title': 'foo org'})
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
-    assert get_error_context(resp.json(), "ConflictingValue") == {
-        'schema': 'tests/manifest/models/org.yml',
-        'manifest': 'default',
-        'model': 'org',
-        'property': 'type',
+    assert get_error_context(
+        resp.json(),
+        "ConflictingValue",
+        ["given", "expected", "model"],
+    ) == {
         'given': 'country',
         'expected': 'org',
+        'model': 'org',
     }
 
     # test that id mismatch is checked
@@ -179,13 +184,14 @@ def test_patch(app, context):
                      json={'id': '0007ddec-092b-44b5-9651-76884e6081b4', 'revision': org_data["revision"], 'title': 'foo org'})
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
-    assert get_error_context(resp.json(), "ConflictingValue") == {
-        'schema': 'tests/manifest/models/org.yml',
-        'manifest': 'default',
-        'model': 'org',
-        'property': 'id',
+    assert get_error_context(
+        resp.json(),
+        "ConflictingValue",
+        ["given", "expected", "model"],
+    ) == {
         'given': '0007ddec-092b-44b5-9651-76884e6081b4',
         'expected': id_,
+        'model': 'org',
     }
 
     # test that protected fields (id, type, revision) are accepted, but not PATCHED

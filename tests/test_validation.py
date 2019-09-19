@@ -61,8 +61,14 @@ def test_invalid_report_int(app):
 
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(resp.json(), "InvalidValue") == {
-        'schema': 'tests/manifest/models/report.yml',
+
+    # ignore schema manifest path in error context as
+    # it's problematic to get path in the CI tests
+    assert get_error_context(
+        resp.json(),
+        "InvalidValue",
+        ["manifest", "model", "property", "type"],
+    ) == {
         'manifest': 'default',
         'model': 'report',
         'property': 'count',
@@ -225,11 +231,13 @@ def test_unknown_report_property(app):
 
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["UnknownProperty"]
-    assert get_error_context(resp.json(), "UnknownProperty") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
+    assert get_error_context(
+        resp.json(),
+        "UnknownProperty",
+        ["property", "model"]
+    ) == {
         'property': 'random_prop',
+        'model': 'report',
     }
 
 
@@ -254,9 +262,11 @@ def test_unknown_report_object_property(app):
 
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["UnknownProperty"]
-    assert get_error_context(resp.json(), "UnknownProperty") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
+    assert get_error_context(
+        resp.json(),
+        "UnknownProperty",
+        ["property", "model"]
+    ) == {
         'property': 'notes.rand_prop',
+        'model': 'report',
     }
