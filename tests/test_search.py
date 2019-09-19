@@ -123,13 +123,12 @@ def test_search_gt(context, app):
     resp = app.get('/reports/:gt/status/ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
-    assert get_error_context(resp.json(), "InvalidOperandValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'status',
-        'type': 'string',
-        'operator': 'gt',
+    assert get_error_context(
+        resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
+    ) == {
+        "operator": "gt",
+        "model": "report",
+        "property": "status",
     }
 
     # multi field search
@@ -167,13 +166,12 @@ def test_search_gte(context, app):
     resp = app.get('/reports/:gte/status/ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
-    assert get_error_context(resp.json(), "InvalidOperandValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'status',
-        'type': 'string',
-        'operator': 'gte',
+    assert get_error_context(
+        resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
+    ) == {
+        "operator": "gte",
+        "model": "report",
+        "property": "status",
     }
 
     # multi field search
@@ -212,13 +210,12 @@ def test_search_lt(context, app):
     resp = app.get('/reports/:lt/status/ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
-    assert get_error_context(resp.json(), "InvalidOperandValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'status',
-        'type': 'string',
-        'operator': 'lt',
+    assert get_error_context(
+        resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
+    ) == {
+        "operator": "lt",
+        "model": "report",
+        "property": "status",
     }
 
     # multi field search
@@ -256,13 +253,12 @@ def test_search_lte(context, app):
     resp = app.get('/reports/:lte/status/ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
-    assert get_error_context(resp.json(), "InvalidOperandValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'status',
-        'type': 'string',
-        'operator': 'lte',
+    assert get_error_context(
+        resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
+    ) == {
+        "operator": "lte",
+        "model": "report",
+        "property": "status",
     }
 
     # multi field search
@@ -367,13 +363,12 @@ def test_search_contains(context, app):
     resp = app.get('/reports/:contains/notes.create_date/2019-04-20')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
-    assert get_error_context(resp.json(), "InvalidOperandValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'notes.create_date',
-        'type': 'date',
-        'operator': 'contains',
+    assert get_error_context(
+        resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
+    ) == {
+        "operator": "contains",
+        "model": "report",
+        "property": "notes.create_date",
     }
 
 
@@ -446,11 +441,13 @@ def test_search_nested(context, app):
     resp = app.get('/reports/:exact/notes.foo.bar/baz')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["UnknownProperty"]
-    assert get_error_context(resp.json(), "UnknownProperty") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'notes.foo.bar',
+    assert get_error_context(
+        resp.json(),
+        "UnknownProperty",
+        ["property", "model"]
+    ) == {
+        "property": "notes.foo.bar",
+        "model": "report",
     }
 
     # nested `contains` search
