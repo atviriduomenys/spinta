@@ -311,6 +311,58 @@ class Node:
     def __repr__(self):
         return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>'
 
+    def __contains__(self, node):
+        while node:
+            if node is self:
+                return True
+            node = node.parent
+        return False
+
+    def node_type(self):
+        """Return node type.
+
+        Usually node type is same as `Node.type` attribute, but in some cases,
+        there can be same `Node.type`, but with a different behaviour. For
+        example there are two types of `model` nodes, one is
+        `spinta.types.dataset.Model` and other is `spinta.components.Model`.
+        Both these nodes have `model` type, but `Node.node_type()` returns
+        different types, `model:dataset` and `model`.
+
+        In other words, there can be several types of model nodes, they mostly
+        act like normal models, but they are implemented differently.
+        """
+        return self.type
+
+    def model_type(self):
+        """Return model name and specifier.
+
+        This is a full and unique model type, used to identify a specific model.
+        """
+        specifier = self.model_specifier()
+        if specifier:
+            return f'{self.name}/{specifier}'
+        else:
+            return self.name
+
+    def model_specifier(self):
+        """Return model specifier.
+
+        There can by sever different kinds of models. For example
+        `model:dataset` always has a specifier, that looks like this
+        `:dataset/dsname`, also, `ns` models have `:ns` specifier.
+        """
+        raise NotImplementedError
+
+
+class Namespace(Node):
+    schema = {
+        'names': {'type': 'object'},
+        'models': {'type': 'object'},
+    }
+
+    def model_specifier(self):
+        return ':ns'
+
 
 class Model(Node):
     schema = {
@@ -334,8 +386,11 @@ class Model(Node):
         self.link = None
         self.properties = {}
 
-    def get_type_value(self):
+    def model_type(self):
         return self.name
+
+    def model_specifier(self):
+        return ''
 
 
 class Property(Node):
@@ -410,13 +465,12 @@ class Action(enum.Enum):
 
     CHANGES = 'changes'
 
-    CONTENTS = 'contents'
-
 
 class UrlParams:
     model: str
     id: str
     properties: list
+    ns: str
     resource: str
     dataset: str
     origin: str

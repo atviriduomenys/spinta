@@ -1,6 +1,8 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Union
 
 import datetime
+import json
+import logging
 import string
 import typing
 
@@ -11,7 +13,7 @@ from sqlalchemy.engine.result import RowProxy
 from starlette.requests import Request
 
 from spinta.commands import prepare, check, push, getone, getall, changes, wipe, authorize, is_object_id
-from spinta.components import Context, Action, UrlParams
+from spinta.components import Context, Action, UrlParams, Node
 from spinta.types.dataset import Model
 from spinta.backends import Backend, check_model_properties
 from spinta.backends.postgresql import PostgreSQL
@@ -29,11 +31,17 @@ from spinta.utils.changes import get_patch_changes
 from spinta import exceptions
 from spinta.utils.url import Operator
 from spinta.types.datatype import String
+from spinta.utils.streams import splitlines
+from spinta.urlparams import get_model_by_name
+from spinta.utils.errors import report_error
+
+
+log = logging.getLogger(__name__)
 
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, model: Model):
-    name = model.get_type_value()
+    name = model.model_type()
     table_name = get_table_name(backend, model.manifest.name, name, MAIN_TABLE)
     table = sa.Table(
         table_name, backend.schema,
@@ -63,13 +71,201 @@ async def push(
     action: Action,
     params: UrlParams,
 ):
-    authorize(context, action, model)
+    if _is_streaming_request(request):
+        return await _push_streaming_batch(context, request, model, backend, params=params)
+    else:
+        authorize(context, action, model)
+        return await _push_single_action(context, request, model, backend, action=action, params=params)
 
-    data = await get_request_data(request)
+
+async def _group_batch_actions(
+    context: Context,
+    request: Request,
+    scope: Node,
+    stop_on_error: bool = True,
+    batch_size: int = 1000,
+):
+    errors = 0
+    batch = []
+    batch_key = None
+    batch_return_key = None
+    known_actions = {x.value: x for x in Action}
+    transaction = context.get('transaction')
+    async for line in splitlines(request.stream()):
+        try:
+            payload = json.loads(line.strip())
+        except json.decoder.JSONDecodeError as e:
+            error = exceptions.JSONError(scope, error=str(e), transaction=transaction.id)
+            report_error(error, stop_on_error)
+            errors += 1
+            continue
+
+        # TODO: We need a proper data validation functions, something like that:
+        #
+        #           validate(payload, {
+        #               'type': 'object',
+        #               'properties': {
+        #                   '_op': {
+        #                       'type': 'string',
+        #                       'cast': str_to_action,
+        #                   }
+        #               }
+        #           })
+        if not isinstance(payload, dict):
+            error = exceptions.InvalidValue(scope)
+            report_error(error, stop_on_error)
+            errors += 1
+            continue
+
+        action = payload.get('_op')
+        if action not in known_actions:
+            error = exceptions.UnknownAction(
+                scope,
+                action=action,
+                supported_actions=list(known_actions.keys())
+            )
+            report_error(error, stop_on_error)
+            errors += 1
+            continue
+        action = known_actions[action]
+
+        node = payload.get('_type')
+        node = get_model_by_name(context, scope.manifest, node)
+        if node not in scope:
+            error = exceptions.OutOfScope(node, scope=scope)
+            report_error(error, stop_on_error)
+            errors += 1
+            continue
+
+        loop_key = action.value, node.model_type()
+
+        if batch_key is None:
+            batch_key = loop_key
+            batch_return_key = action, node
+
+        if loop_key != batch_key or len(batch) >= batch_size:
+            yield batch_return_key + (errors, batch)
+            batch_key = loop_key
+            batch_return_key = action, node
+            batch = []
+            errors = 0
+
+        batch.append(payload)
+
+    if batch:
+        yield batch_return_key + (errors, batch)
+
+
+STREAMING_CONTENT_TYPES = [
+    'application/x-jsonlines',
+    'application/x-ndjson',
+]
+
+
+def _is_streaming_request(request: Request):
+    content_type = request.headers.get('content-type')
+    return content_type in STREAMING_CONTENT_TYPES
+
+
+async def _push_streaming_batch(
+    context: Context,
+    request: Request,
+    scope: Node,
+    backend: PostgreSQL,
+    *,
+    params: UrlParams,
+    stop_on_error: bool = True,
+):
+    if not _is_streaming_request(request):
+        raise exceptions.UnknownContentType(
+            scope,
+            content_type=request.headers.get('content-type'),
+            supported_content_types=STREAMING_CONTENT_TYPES,
+        )
+
+    authorized: Dict[str, Union[bool, exceptions.BaseError]] = {}
+
+    stats = {
+        'errors': 0,
+        'insert': 0,
+    }
+    async for action, node, errors, batch in _group_batch_actions(context, request, scope):
+        stats['errors'] += errors
+
+        # Authorization.
+        action_and_node = action.value, node.model_type()
+        if action_and_node not in authorized:
+            try:
+                authorize(context, action, node)
+            except exceptions.InsufficientScopeError as e:
+                authorized[action_and_node] = e
+            else:
+                authorized[action_and_node] = True
+        if authorized[action_and_node] is not True:
+            stats['errors'] += len(batch)
+            exc = authorized[action_and_node]
+            report_error(exc, stop_on_error)
+            continue
+
+        # Execute actions.
+        if action == Action.INSERT:
+            try:
+                commands.insert_many(context, node, backend, batch=batch)
+            except exceptions.UserError as e:
+                stats['errors'] += len(batch)
+                report_error(e, stop_on_error)
+            else:
+                stats['insert'] += len(batch)
+
+        else:
+            stats['errors'] += len(batch)
+            error = exceptions.UnknownAction(
+                node,
+                action=action.value,
+                supported_actions=[
+                    Action.INSERT.value,
+                ],
+            )
+            report_error(error, stop_on_error)
+
+    status_code = 400 if stats['errors'] > 0 else 200
+    transaction = context.get('transaction')
+    response = {
+        'transaction': transaction.id,
+        'status': 'error' if stats['errors'] > 0 else 'ok',
+        'stats': stats,
+    }
+    return render(context, request, scope, params, response, status_code=status_code)
+
+
+async def _push_single_action(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    data = await get_request_data(model, request)
     data = commands.load(context, model, data)
     check(context, model, backend, data, action=action, id_=params.id)
     data = prepare(context, model, data, action=action)
+    data = _execute_action(context, model, backend, action=action, params=params, data=data)
+    data = prepare(context, action, model, backend, data)
+    status_code = 201 if action == Action.INSERT else 200
+    return render(context, request, model, params, data, action=action, status_code=status_code)
 
+
+def _execute_action(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+    data: dict,
+):
     if action == Action.INSERT:
         data['id'] = commands.insert(context, model, backend, data=data)
 
@@ -87,11 +283,6 @@ async def push(
 
     else:
         raise Exception(f"Unknown action: {action!r}.")
-
-    data = prepare(context, action, model, backend, data)
-
-    status_code = 201 if action == Action.INSERT else 200
-    return render(context, request, model, action, params, data, status_code=status_code)
 
 
 @commands.insert.register()
@@ -138,6 +329,58 @@ def insert(
     )
 
     return id_
+
+
+@commands.insert_many.register()
+def insert_many(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    batch: List[dict],
+    stop_on_error: bool = True,
+):
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    table = _get_table(backend, model)
+
+    values = []
+    changes = []
+    for data in batch:
+        if 'id' in data:
+            id_ = data['id']
+        else:
+            id_ = commands.gen_object_id(context, backend, model)
+
+        if 'revision' in data.keys():
+            error = ManagedProperty(model, property='revision')
+            report_error(error, stop_on_error)
+        data['revision'] = get_new_id(model.model_type())
+
+        data = commands.make_json_serializable(model, data)
+        values.append({
+            'id': id_,
+            'data': data,
+        })
+        changes.append({
+            'id': id_,
+            'change': data,
+        })
+
+    qry = table.main.insert().values(
+        transaction_id=transaction.id,
+        created=utcnow(),
+    )
+    connection.execute(qry, values)
+
+    qry = table.changes.insert().values(
+        transaction_id=transaction.id,
+        datetime=utcnow(),
+        action=Action.INSERT.value,
+    )
+    connection.execute(qry, changes)
+
+    return [x['data'] for x in values]
 
 
 @commands.upsert.register()
@@ -330,7 +573,7 @@ async def getone(
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.id)
     data = prepare(context, Action.GETONE, model, backend, data, show=params.show)
-    return render(context, request, model, action, params, data)
+    return render(context, request, model, params, data, action=action)
 
 
 @getone.register()
@@ -428,7 +671,7 @@ async def getall(
         count=params.count,
         query=params.query,
     )
-    return render(context, request, model, action, params, data)
+    return render(context, request, model, params, data, action=action)
 
 
 
@@ -577,13 +820,14 @@ async def changes(
 ):
     authorize(context, action, model)
     data = changes(context, model, backend, id_=params.id, limit=params.limit, offset=params.offset)
-    return render(context, request, model, action, params, (
+    data = (
         {
             **row,
             'datetime': row['datetime'].isoformat(),
         }
         for row in data
-    ))
+    )
+    return render(context, request, model, params, data, action=action)
 
 
 @changes.register()
@@ -658,7 +902,7 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
 
 
 def _get_table(backend, model):
-    return backend.tables[model.manifest.name][model.get_type_value()]
+    return backend.tables[model.manifest.name][model.model_type()]
 
 
 @is_object_id.register()

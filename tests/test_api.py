@@ -9,6 +9,15 @@ from spinta.utils.refs import get_ref_id
 from spinta.utils.nestedstruct import flatten
 
 
+def _cleaned_context(resp):
+    data = resp.context.copy()
+    data['data'] = [
+        {k: v['value'] for k, v in zip(resp.context['header'], d)}
+        for d in resp.context['data']
+    ]
+    return data
+
+
 def test_version(app):
     resp = app.get('/version')
     assert resp.status_code == 200
@@ -25,30 +34,31 @@ def test_app(app):
     assert resp.status_code == 200
 
     resp.context.pop('request')
-    assert resp.context == {
+    assert _cleaned_context(resp) == {
         'location': [
             ('root', '/'),
         ],
-        'items': [
-            ('backends', '/backends'),
-            ('capital', '/capital'),
-            ('continent', '/continent'),
-            ('country', '/country'),
-            ('deeply', '/deeply'),
-            ('nested', '/nested'),
-            ('org', '/org'),
-            ('photo', '/photo'),
-            # FIXME: /report should be /reports, because that is specified in
-            #        'endpoint' option of report model.
-            ('report', '/report'),
-            ('rinkimai', '/rinkimai'),
-            ('tenure', '/tenure'),
+        'header': ['id', 'type', 'name', 'specifier', 'title'],
+        'data': [
+            {'type': 'ns', 'specifier': ':ns', 'id': 'backends/:ns', 'name': 'backends', 'title': 'backends'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'capital/:ns', 'name': 'capital', 'title': 'capital'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'continent/:ns', 'name': 'continent', 'title': 'continent'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'country/:ns', 'name': 'country', 'title': 'country'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'deeply/:ns', 'name': 'deeply', 'title': 'deeply'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'nested/:ns', 'name': 'nested', 'title': 'nested'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'org/:ns', 'name': 'org', 'title': 'org'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'photo/:ns', 'name': 'photo', 'title': 'photo'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'report/:ns', 'name': 'report', 'title': 'report'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'rinkimai/:ns', 'name': 'rinkimai', 'title': 'rinkimai'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'tenure/:ns', 'name': 'tenure', 'title': 'tenure'},
         ],
-        'datasets': [],
-        'header': [],
-        'data': [],
         'row': [],
-        'formats': [],
+        'formats': [
+            ('CSV', '/:format/csv'),
+            ('JSON', '/:format/json'),
+            ('JSONL', '/:format/jsonl'),
+            ('ASCII', '/:format/ascii'),
+        ],
     }
 
 
@@ -57,25 +67,27 @@ def test_directory(app):
     assert resp.status_code == 200
 
     resp.context.pop('request')
-    assert resp.context == {
+    assert _cleaned_context(resp) == {
         'location': [
             ('root', '/'),
             ('rinkimai', None),
         ],
-        'items': [
-            ('apygarda', '/rinkimai/apygarda'),
-            ('apylinke', '/rinkimai/apylinke'),
-            ('kandidatas', '/rinkimai/kandidatas'),
-            ('turas', '/rinkimai/turas'),
+        'header': ['id', 'type', 'name', 'specifier', 'title'],
+        'data': [
+            {'type': 'ns', 'specifier': ':ns', 'id': 'rinkimai/apygarda/:ns', 'name': 'rinkimai/apygarda', 'title': 'apygarda'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'rinkimai/apylinke/:ns', 'name': 'rinkimai/apylinke', 'title': 'apylinke'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'rinkimai/kandidatas/:ns', 'name': 'rinkimai/kandidatas', 'title': 'kandidatas'},
+            {'type': 'ns', 'specifier': ':ns', 'id': 'rinkimai/turas/:ns', 'name': 'rinkimai/turas', 'title': 'turas'},
+            {'type': 'model:dataset', 'specifier': ':dataset/json/:resource/data', 'id': 'rinkimai/:dataset/json/:resource/data', 'name': 'rinkimai', 'title': ''},
+            {'type': 'model:dataset', 'specifier': ':dataset/xlsx/:resource/data', 'id': 'rinkimai/:dataset/xlsx/:resource/data', 'name': 'rinkimai', 'title': ''},
         ],
-        'datasets': [
-            {'name': 'json/data', 'link': '/rinkimai/:dataset/json/:resource/data', 'canonical': False},
-            {'name': 'xlsx/data', 'link': '/rinkimai/:dataset/xlsx/:resource/data', 'canonical': False},
-        ],
-        'header': [],
-        'data': [],
         'row': [],
-        'formats': [],
+        'formats': [
+            ('CSV', '/rinkimai/:format/csv'),
+            ('JSON', '/rinkimai/:format/json'),
+            ('JSONL', '/rinkimai/:format/jsonl'),
+            ('ASCII', '/rinkimai/:format/ascii'),
+        ],
     }
 
 
@@ -100,20 +112,12 @@ def test_model(context, app):
             ('country', None),
             (':changes', '/country/:changes'),
         ],
-        'items': [],
-        'datasets': [
-            {'canonical': False, 'link': '/country/:dataset/csv/:resource/countries', 'name': 'csv/countries'},
-            {'canonical': False, 'link': '/country/:dataset/denorm/:resource/orgs', 'name': 'denorm/orgs'},
-            {'canonical': False, 'link': '/country/:dataset/dependencies/:resource/continents', 'name': 'dependencies/continents'},
-            {'canonical': False, 'link': '/country/:dataset/sql/:resource/db', 'name': 'sql/db'},
-        ],
-        'header': ['id', 'title', 'code', 'revision'],
+        'header': ['id', 'title', 'code'],
         'data': [
             [
                 {'color': None, 'link': '/country/%s' % row['id'], 'value': row['id'][:8]},
                 {'color': None, 'link': None, 'value': 'Earth'},
                 {'color': None, 'link': None, 'value': 'er'},
-                {'color': None, 'link': None, 'value': revision},
             ],
         ],
         'row': [],
@@ -147,13 +151,6 @@ def test_model_get(context, app):
             ('country', '/country'),
             (row['id'][:8], None),
             (':changes', '/country/%s/:changes' % row['id']),
-        ],
-        'items': [],
-        'datasets': [
-            {'canonical': False, 'link': '/country/:dataset/csv/:resource/countries', 'name': 'csv/countries'},
-            {'canonical': False, 'link': '/country/:dataset/denorm/:resource/orgs', 'name': 'denorm/orgs'},
-            {'canonical': False, 'link': '/country/:dataset/dependencies/:resource/continents', 'name': 'dependencies/continents'},
-            {'canonical': False, 'link': '/country/:dataset/sql/:resource/db', 'name': 'sql/db'},
         ],
         'header': [],
         'data': [],
@@ -196,22 +193,11 @@ def test_dataset(context, app, mocker):
             (':dataset/json/:resource/data', None),
             (':changes', '/rinkimai/:dataset/json/:resource/data/:changes'),
         ],
-        'items': [
-            ('apygarda', '/rinkimai/apygarda'),
-            ('apylinke', '/rinkimai/apylinke'),
-            ('kandidatas', '/rinkimai/kandidatas'),
-            ('turas', '/rinkimai/turas'),
-        ],
-        'datasets': [
-            {'canonical': False, 'link': '/rinkimai/:dataset/json/:resource/data', 'name': 'json/data'},
-            {'canonical': False, 'link': '/rinkimai/:dataset/xlsx/:resource/data', 'name': 'xlsx/data'},
-        ],
-        'header': ['id', 'pavadinimas', 'revision'],
+        'header': ['id', 'pavadinimas'],
         'data': [
             [
                 {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
                 {'color': None, 'link': None, 'value': 'Rinkimai 1'},
-                {'color': None, 'link': None, 'value': 'REVISION'},
             ],
         ],
         'row': [],
@@ -286,20 +272,11 @@ def test_nested_dataset(context, app, mocker):
             (':dataset/nested/dataset/name/:resource/resource', None),
             (':changes', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:changes'),
         ],
-        'items': [],
-        'datasets': [
-            {
-                'canonical': False,
-                'link': '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource',
-                'name': 'nested/dataset/name/resource',
-            },
-        ],
-        'header': ['id', 'name', 'revision'],
+        'header': ['id', 'name'],
         'data': [
             [
                 {'color': None, 'link': '/deeply/nested/model/name/e2ff1ff0f7d663344abe821582b0908925e5b366/:dataset/nested/dataset/name/:resource/resource', 'value': 'e2ff1ff0'},
                 {'color': None, 'link': None, 'value': 'Nested One'},
-                {'color': None, 'link': None, 'value': 'REVISION'},
             ],
         ],
         'row': [],
@@ -341,16 +318,6 @@ def test_dataset_key(context, app, mocker):
             ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/json'),
             ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/jsonl'),
             ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/ascii'),
-        ],
-        'datasets': [
-            {'canonical': False, 'link': '/rinkimai/:dataset/json/:resource/data', 'name': 'json/data'},
-            {'canonical': False, 'link': '/rinkimai/:dataset/xlsx/:resource/data', 'name': 'xlsx/data'},
-        ],
-        'items': [
-            ('apygarda', '/rinkimai/apygarda'),
-            ('apylinke', '/rinkimai/apylinke'),
-            ('kandidatas', '/rinkimai/kandidatas'),
-            ('turas', '/rinkimai/turas'),
         ],
         'header': [],
         'data': [],
@@ -404,16 +371,6 @@ def test_changes_single_object(context, app, mocker):
             ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/json'),
             ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/jsonl'),
             ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/ascii'),
-        ],
-        'datasets': [
-            {'canonical': False, 'link': '/rinkimai/:dataset/json/:resource/data', 'name': 'json/data'},
-            {'canonical': False, 'link': '/rinkimai/:dataset/xlsx/:resource/data', 'name': 'xlsx/data'},
-        ],
-        'items': [
-            ('apygarda', '/rinkimai/apygarda'),
-            ('apylinke', '/rinkimai/apylinke'),
-            ('kandidatas', '/rinkimai/kandidatas'),
-            ('turas', '/rinkimai/turas'),
         ],
         'header': [
             'change_id',
@@ -481,16 +438,6 @@ def test_changes_object_list(context, app, mocker):
             ('JSON', '/rinkimai/:dataset/json/:resource/data/:changes/:format/json'),
             ('JSONL', '/rinkimai/:dataset/json/:resource/data/:changes/:format/jsonl'),
             ('ASCII', '/rinkimai/:dataset/json/:resource/data/:changes/:format/ascii'),
-        ],
-        'datasets': [
-            {'canonical': False, 'link': '/rinkimai/:dataset/json/:resource/data', 'name': 'json/data'},
-            {'canonical': False, 'link': '/rinkimai/:dataset/xlsx/:resource/data', 'name': 'xlsx/data'},
-        ],
-        'items': [
-            ('apygarda', '/rinkimai/apygarda'),
-            ('apylinke', '/rinkimai/apylinke'),
-            ('kandidatas', '/rinkimai/kandidatas'),
-            ('turas', '/rinkimai/turas'),
         ],
         'header': [
             'change_id',
@@ -816,7 +763,7 @@ def test_post_non_json_content_type(context, app):
         "code": "er"
     })
     assert resp.status_code == 415
-    assert get_error_codes(resp.json()) == ["HTTPException"]
+    assert get_error_codes(resp.json()) == ["UnknownContentType"]
 
 
 def test_post_bad_auth_header(context, app):

@@ -44,4 +44,4 @@ websockets==8.0.2         # via uvicorn
 xlrd==1.2.0
 
 # The following packages are considered to be unsafe in a requirements file:
-# setuptools
+# setuptools==41.2.0

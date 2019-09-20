@@ -1,7 +1,5 @@
-import collections
 import datetime
 import itertools
-import operator
 
 import pkg_resources as pres
 
@@ -14,7 +12,7 @@ from spinta.commands.formats import Format
 from spinta.components import Context, Action, UrlParams, Node, Property
 from spinta.utils.url import build_url_path
 from spinta import commands
-from spinta.components import Model
+from spinta.components import Namespace, Model
 from spinta.types import dataset
 
 
@@ -30,6 +28,7 @@ class Html(Format):
 def render(
     context: Context,
     request: Request,
+    ns: Namespace,
     fmt: Html,
     *,
     action: Action,
@@ -37,15 +36,7 @@ def render(
     data,
     status_code: int = 200,
 ):
-    templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
-    return templates.TemplateResponse('base.html', {
-        **get_template_context(context, None, params),
-        'request': request,
-        'header': [],
-        'data': [],
-        'row': [],
-        'formats': [],
-    })
+    return _render_model(context, request, ns, action, params, data)
 
 
 @commands.render.register()  # noqa
@@ -122,16 +113,8 @@ def get_output_formats(params: dict):
 
 
 def get_template_context(context: Context, model, params):
-    loc = get_current_location(model, params.path, params.params)
-    store = context.get('store')
-    manifest = store.manifests['default']
-    datasets_by_object = get_datasets_by_model(context)
-    items = get_directory_content(manifest.tree, params.path)
-    datasets = list(get_directory_datasets(datasets_by_object, params.path))
     return {
-        'location': loc,
-        'items': items,
-        'datasets': datasets,
+        'location': get_current_location(model, params.path, params.params),
     }
 
 
@@ -141,7 +124,12 @@ def get_current_location(model, path, params):
     if 'id' in params:
         pk = params['id']
         pks = params['id'][:8]
-    if 'dataset' in params:
+    if model.type == 'model:ns':
+        loc += (
+            [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
+            [(p, None) for p in parts[-1:]]
+        )
+    elif 'dataset' in params:
         name = '/'.join(itertools.chain(*(
             [f':{k}', v]
             for k, v in get_model_link_params(model).items()
@@ -171,7 +159,7 @@ def get_current_location(model, path, params):
                     [(name, None)] +
                     [(':changes', get_model_link(model, changes=None))]
                 )
-    elif model:
+    else:
         if 'id' in params:
             loc += (
                 [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
@@ -184,11 +172,6 @@ def get_current_location(model, path, params):
                 [(p, None) for p in parts[-1:]] +
                 [(':changes', get_model_link(model, changes=None))]
             )
-    else:
-        loc += (
-            [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
-            [(p, None) for p in parts[-1:]]
-        )
     return loc
 
 
@@ -241,7 +224,10 @@ def get_cell(context: Context, params: dict, prop, value, shorten=False, color=N
     link = None
     model = None
 
-    if prop.name == 'id' and value:
+    if prop.model.type == 'model:ns' and prop.name == 'id':
+        shorten = False
+        link = '/' + value
+    elif prop.name == 'id' and value:
         model = prop.model
     elif prop.dtype.name == 'ref' and prop.dtype.object and value:
         model = commands.get_referenced_model(context, prop, prop.dtype.object)
@@ -278,13 +264,15 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
         prop.dtype.name = 'string'
         prop.name = 'count'
         prop.ref = None
+        prop.model = model
         props = [prop]
         rows = [rows]
     else:
         if params.show:
             props = [p for p in model.properties.values() if p.name in params.show]
         else:
-            props = [p for p in model.properties.values() if p.name != 'type']
+            exclude = ('revision',) if model.type == 'model:ns' else ('type', 'revision')
+            props = [p for p in model.properties.values() if p.name not in exclude]
 
     yield [prop.name for prop in props]
 
@@ -293,43 +281,6 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
         for prop in props:
             row.append(get_cell(context, params.params, prop, data.get(prop.name), shorten=True))
         yield row
-
-
-def get_datasets_by_model(context):
-    store = context.get('store')
-    datasets = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(dict)))
-    for dataset_ in store.manifests['default'].objects.get('dataset', {}).values():
-        for resource in dataset_.resources.values():
-            for model in resource.models():
-                datasets[model.name][dataset_.name][resource.name][model.origin] = model
-    return datasets
-
-
-def get_directory_content(tree, path):
-    return [
-        (item, ('/' if path else '') + path + '/' + item)
-        for item in tree[path]
-    ]
-
-
-def get_directory_datasets(datasets, path):
-    if path in datasets:
-        for dataset_, resources in sorted(datasets[path].items(), key=operator.itemgetter(0)):
-            for resource, objects in sorted(resources.items(), key=operator.itemgetter(0)):
-                for origin, model in sorted(objects.items(), key=operator.itemgetter(0)):
-                    name = [dataset_]
-                    link = ('/' if path else '') + path + '/:dataset/' + dataset_
-                    if resource:
-                        name += [resource]
-                        link += '/:resource/' + resource
-                    if origin:
-                        name += [origin]
-                        link += '/:origin/' + origin
-                    yield {
-                        'name': '/'.join(name),
-                        'link': link,
-                        'canonical': model.canonical,
-                    }
 
 
 def get_model_link_params(model, *, pk=None, **extra):

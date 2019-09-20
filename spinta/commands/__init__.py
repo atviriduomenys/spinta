@@ -143,7 +143,17 @@ def insert():
 
 
 @command()
+def insert_many():
+    pass
+
+
+@command()
 def upsert():
+    pass
+
+
+@command()
+def upsert_many():
     pass
 
 
@@ -153,12 +163,27 @@ def update():
 
 
 @command()
+def update_many():
+    pass
+
+
+@command()
 def patch():
     pass
 
 
 @command()
+def patch_many():
+    pass
+
+
+@command()
 def delete():
+    pass
+
+
+@command()
+def delete_many():
     pass
 
 
@@ -217,16 +242,6 @@ def is_object_id():
     - Detect if given string is an object id of given backend and model.
 
         is_object_id(Context, Backend, Model, str) -> bool
-
-    """
-
-
-@command()
-def contents():
-    """Model namespace contents.
-
-    For example if we have two models named `foo/bar/baz` ant `foo/bar/bac`,
-    then if client requests `/foo/bar` they will get `[baz, bac]`.
 
     """
 

@@ -232,7 +232,7 @@ def query_client(context: Context, client_id: str):
     return client
 
 
-def check_generated_scopes(context: Context, name: str, action: str):
+def check_generated_scopes(context: Context, name: str, action: str) -> None:
     config = context.get('config')
     token = context.get('auth.token')
     prefix = config.scope_prefix

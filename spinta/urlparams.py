@@ -43,7 +43,6 @@ def prepare(context: Context, params: UrlParams, version: Version, request: Requ
 
     params.format = get_response_type(context, request, p)
     params.count = 'count' in p
-    params.contents = 'contents' in p
     return params
 
 
@@ -52,12 +51,13 @@ def _prepare_model_params(params: UrlParams):
     params.path = p['path']
     params.id = p.get('id')
     params.properties = p.get('properties')
+    params.ns = p.get('ns')
     params.dataset = p.get('dataset')
     params.resource = p.get('resource')
     params.origin = p.get('origin')
 
 
-def get_model_by_name(context: Context, manifest: Manifest, name: str):
+def get_model_by_name(context: Context, manifest: Manifest, name: str) -> Node:
     config = context.get('config')
     UrlParams = config.components['urlparams']['component']
     params = UrlParams()
@@ -65,7 +65,7 @@ def get_model_by_name(context: Context, manifest: Manifest, name: str):
     _prepare_model_params(params)
     model = get_model_from_params(manifest, params)
     if model is None:
-        raise ModelNotFound(model=name)
+        raise ModelNotFound(manifest, model=name)
     return model
 
 
@@ -130,7 +130,13 @@ def get_model_from_params(manifest, params: UrlParams):
         # nicer, but that is optional, they can still use model.name.
         name = manifest.endpoints[name]
 
-    if params.dataset:
+    if params.ns:
+        if name in manifest.objects['ns']:
+            return manifest.objects['ns'][name]
+        else:
+            raise ModelNotFound(manifest, model=name)
+
+    elif params.dataset:
         # TODO: write tests for this thing below
         datasets = _get_nodes_by_name('dataset', params.dataset or '', [
             (manifest, manifest.objects['dataset']),
@@ -165,7 +171,10 @@ def get_model_from_params(manifest, params: UrlParams):
     elif name in manifest.objects['model']:
         return manifest.objects['model'].get(name)
 
-    elif name not in manifest.tree:
+    elif name in manifest.objects['ns']:
+        return manifest.objects['ns'][name]
+
+    else:
         raise ModelNotFound(model=name)
 
 

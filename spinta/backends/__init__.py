@@ -243,7 +243,7 @@ def _prepare_query_result(
 ):
     if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
         config = context.get('config')
-        value = {**value, 'type': model.get_type_value()}
+        value = {**value, 'type': model.model_type()}
 
         if show is not None:
             unknown_properties = set(show) - {
@@ -277,7 +277,7 @@ def _prepare_query_result(
             if prop.hidden:
                 continue
             result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))
-        result['type'] = model.get_type_value()
+        result['type'] = model.model_type()
         return result
 
     elif action == Action.PATCH:
@@ -285,7 +285,7 @@ def _prepare_query_result(
         for k, v in value.items():
             prop = model.properties[k]
             result[prop.name] = dump(context, backend, prop.dtype, v)
-        result['type'] = model.get_type_value()
+        result['type'] = model.model_type()
         return result
 
     elif action == Action.DELETE:

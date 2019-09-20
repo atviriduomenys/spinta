@@ -128,7 +128,7 @@ def check(context: Context, dtype: DataType, prop: Property, backend: Mongo, val
     check_type_value(dtype, value)
 
     model = prop.model
-    table = backend.db[model.get_type_value()]
+    table = backend.db[model.model_type()]
 
     if dtype.unique and value is not NA:
         # PATCH requests are allowed to send protected fields in requests JSON
@@ -156,7 +156,7 @@ async def push(
     if action == Action.DELETE:
         data = {}
     else:
-        data = await get_request_data(request)
+        data = await get_request_data(model, request)
         data = load(context, model, data)
         check(context, model, backend, data, action=action, id_=params.id)
         data = prepare(context, model, data, action=action)
@@ -198,7 +198,7 @@ async def push(
     else:
         status_code = 200
 
-    return render(context, request, model, action, params, data, status_code=status_code)
+    return render(context, request, model, params, data, action=action, status_code=status_code)
 
 
 @commands.insert.register()
@@ -209,7 +209,7 @@ def insert(
     *,
     data: dict,
 ):
-    table = backend.db[model.get_type_value()]
+    table = backend.db[model.model_type()]
 
     if 'id' in data:
         check_scope(context, 'set_meta_fields')
@@ -235,7 +235,7 @@ def upsert(
     key: typing.List[str],
     data: dict,
 ):
-    table = backend.db[model.get_type_value()]
+    table = backend.db[model.model_type()]
 
     condition = []
     for k in key:
@@ -279,7 +279,7 @@ def patch(
     id_: str,
     data: dict,
 ):
-    table = backend.db[model.get_type_value()]
+    table = backend.db[model.model_type()]
 
     row = table.find_one({'id': id_})
     if row is None:
@@ -328,7 +328,7 @@ def delete(
     *,
     id_: str,
 ):
-    table = backend.db[model.get_type_value()]
+    table = backend.db[model.model_type()]
     result = table.delete_one({'id': id_})
     if result.deleted_count == 0:
         raise ResourceNotFound(model, id=id_)
@@ -365,7 +365,7 @@ async def push(
 
     authorize(context, action, prop)
 
-    data = await get_request_data(request)
+    data = await get_request_data(prop, request)
 
     data = load(context, prop.dtype, data)
     check(context, prop.dtype, prop, backend, data, data=None, action=action)
@@ -381,7 +381,7 @@ async def push(
         raise Exception(f"Unknown action {action}.")
 
     data = dump(context, backend, prop.dtype, data)
-    return render(context, request, prop, action, params, data)
+    return render(context, request, prop, params, data, action=action)
 
 
 @commands.update.register()
@@ -393,7 +393,7 @@ def update(
     id_: str,
     data: dict,
 ):
-    table = backend.db[model.get_type_value()]
+    table = backend.db[model.model_type()]
     result = table.update_one(
         {'id': id_},
         {'$set': data}
@@ -412,7 +412,7 @@ def update(
     id_: str,
     data: dict,
 ):
-    table = backend.db[prop.model.get_type_value()]
+    table = backend.db[prop.model.model_type()]
     result = table.update_one(
         {'id': id_},
         {'$set': {prop.name: data}}
@@ -431,7 +431,7 @@ def patch(
     id_: str,
     data: dict,
 ):
-    table = backend.db[prop.model.get_type_value()]
+    table = backend.db[prop.model.model_type()]
     row = table.find_one({'id': id_}, {prop.name: 1})
     if row is None:
         raise ResourceNotFound(prop, id=id_)
@@ -480,7 +480,7 @@ def delete(
     *,
     id_: str,
 ):
-    table = backend.db[prop.model.get_type_value()]
+    table = backend.db[prop.model.model_type()]
     result = table.update_one(
         {'id': id_},
         {'$set': {
@@ -505,7 +505,7 @@ async def getone(
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.id)
     data = prepare(context, action, model, backend, data)
-    return render(context, request, model, action, params, data)
+    return render(context, request, model, params, data, action=action)
 
 
 @getone.register()
@@ -516,7 +516,7 @@ def getone(
     *,
     id_: str,
 ):
-    table = backend.db[model.get_type_value()]
+    table = backend.db[model.model_type()]
     data = table.find_one({'id': id_})
     if data is None:
         raise ResourceNotFound(model, id=id_)
@@ -537,7 +537,7 @@ async def getone(
     authorize(context, action, prop)
     data = getone(context, prop, backend, id_=params.id)
     data = dump(context, backend, prop.dtype, data)
-    return render(context, request, prop, action, params, data)
+    return render(context, request, prop, params, data, action=action)
 
 
 @getone.register()
@@ -548,7 +548,7 @@ def getone(
     *,
     id_: str,
 ):
-    table = backend.db[prop.model.get_type_value()]
+    table = backend.db[prop.model.model_type()]
     data = table.find_one({'id': id_}, {prop.name: 1})
     if data is None:
         raise ResourceNotFound(prop, id=id_)
@@ -583,7 +583,7 @@ async def getall(
         count=params.count,
         query=params.query,
     )
-    return render(context, request, model, action, params, data)
+    return render(context, request, model, params, data, action=action)
 
 
 @getall.register()  # noqa
@@ -600,7 +600,7 @@ def getall(
     count: bool = False,
     query: typing.List[typing.Dict[str, str]] = None,
 ):
-    table = backend.db[model.get_type_value()]
+    table = backend.db[model.model_type()]
 
     search_expressions = []
     query = query or []
@@ -719,7 +719,7 @@ def getall(
 @wipe.register()
 def wipe(context: Context, model: Model, backend: Mongo):
     authorize(context, Action.WIPE, model)
-    table = backend.db[model.get_type_value()]
+    table = backend.db[model.model_type()]
     return table.delete_many({})
 
 

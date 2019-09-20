@@ -337,7 +337,7 @@ async def push(
     if action == Action.DELETE:
         data = {}
     else:
-        data = await get_request_data(request)
+        data = await get_request_data(model, request)
         data = load(context, model, data)
         check(context, model, backend, data, action=action, id_=params.id)
         data = prepare(context, model, data, action=action)
@@ -377,7 +377,7 @@ async def push(
     else:
         status_code = 200
 
-    return render(context, request, model, action, params, data, status_code=status_code)
+    return render(context, request, model, params, data, action=action, status_code=status_code)
 
 
 @commands.insert.register()
@@ -653,7 +653,7 @@ async def push(
 
     authorize(context, action, prop)
 
-    data = await get_request_data(request)
+    data = await get_request_data(prop, request)
 
     data = load(context, prop.dtype, data)
     check(context, prop.dtype, prop, backend, data, data=None, action=action)
@@ -669,7 +669,7 @@ async def push(
         raise Exception(f"Unknown action {action}.")
 
     data = dump(context, backend, prop.dtype, data)
-    return render(context, request, prop, action, params, data)
+    return render(context, request, prop, params, data, action=action)
 
 
 @commands.update.register()  # noqa
@@ -751,7 +751,7 @@ async def getone(
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.id)
     data = prepare(context, Action.GETONE, model, backend, data, show=params.show)
-    return render(context, request, model, action, params, data)
+    return render(context, request, model, params, data, action=action)
 
 
 @getone.register()
@@ -782,7 +782,7 @@ async def getone(
     authorize(context, action, prop)
     data = getone(context, prop, backend, id_=params.id)
     data = dump(context, backend, prop.dtype, data)
-    return render(context, request, prop, action, params, data)
+    return render(context, request, prop, params, data, action=action)
 
 
 @getone.register()
@@ -818,11 +818,11 @@ async def getall(
     # search=params.search,
 
     authorize(context, action, model)
-    result = getall(context, model, backend)
-    return render(context, request, model, action, params, (
+    result = (
         prepare(context, action, model, backend, row)
-        for row in result
-    ))
+        for row in getall(context, model, backend)
+    )
+    return render(context, request, model, params, result, action=action)
 
 
 @getall.register()
