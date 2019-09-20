@@ -130,7 +130,7 @@ async def push(
     if data != update:
         commands.update(context, prop, prop.model.backend, id_=params.id, data=update)
 
-    return render(context, request, prop, action, params, update)
+    return render(context, request, prop, params, update, action=action)
 
 
 @getone.register()

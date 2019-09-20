@@ -6,8 +6,8 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.urlparams import get_model_from_params
-from spinta.components import Context, Action, UrlParams
-from spinta.exceptions import JSONError
+from spinta.components import Context, Action, UrlParams, Node
+from spinta import exceptions
 
 
 METHOD_TO_ACTION = {
@@ -24,9 +24,6 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
 
     model = get_model_from_params(manifest, params)
     prop, ref = get_prop_from_params(model, params)
-
-    if model is None or params.contents:
-        return await commands.contents(context, request, params=params)
 
     if request.method == 'GET':
         context.attach('transaction', manifest.backend.transaction)
@@ -68,18 +65,19 @@ async def aiter(stream):
         yield data
 
 
-async def get_request_data(request):
+async def get_request_data(node: Node, request: Request):
     ct = request.headers.get('content-type')
     if ct != 'application/json':
-        raise HTTPException(
-            status_code=415,
-            detail=f"Only 'application/json' content-type is supported, got {ct!r}.",
+        raise exceptions.UnknownContentType(
+            node,
+            content_type=ct,
+            supported_content_types=['application/json'],
         )
 
     try:
         data = await request.json()
     except json.decoder.JSONDecodeError as e:
-        raise JSONError(error=str(e))
+        raise exceptions.JSONError(node, error=str(e))
 
     return data
 

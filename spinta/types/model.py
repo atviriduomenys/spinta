@@ -5,45 +5,19 @@ from spinta.commands import load, check, authorize, prepare
 from spinta.components import Context, Manifest, Node, Model, Property, Action
 from spinta.nodes import load_node
 from spinta.types.datatype import PrimaryKey, DataType, load_type
-from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema, check_unkown_params
-from spinta.utils.tree import add_path_to_tree
 from spinta.common import NA
 from spinta import commands
 from spinta import exceptions
+from spinta.nodes import load_namespace, load_model_properties
 
 
 @load.register()
 def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Model:
     load_node(context, model, data, manifest)
     manifest.add_model_endpoint(model)
-    add_path_to_tree(manifest.tree, model.name)
-
-    props = data.get('properties') or {}
-
-    # Add build-in properties.
-    props['type'] = {'type': 'string'}
-    props['revision'] = {'type': 'string'}
-
-    # 'id' is reserved for primary key.
-    if 'id' not in props:
-        props['id'] = {'type': 'pk'}
-    elif props['id'].get('type') != 'pk':
-        raise Exception("'id' property is reserved for primary key and must be of 'pk' type.")
-
-    model.flatprops = {}
-    model.properties = {}
-    for name, prop in props.items():
-        prop = {
-            'name': name,
-            'place': name,
-            'path': model.path,
-            'parent': model,
-            'model': model,
-            **prop,
-        }
-        model.flatprops[name] = model.properties[name] = load(context, Property(), prop, manifest)
-
+    load_namespace(context, manifest, model)
+    load_model_properties(context, model, Property, data.get('properties'))
     return model
 
 
@@ -84,7 +58,7 @@ def load(context: Context, model: Model, data: dict) -> dict:
 @check.register()
 def check(context: Context, model: Model):
     if 'id' not in model.properties:
-        raise MissingRequiredProperty(model, prop='id')
+        raise exceptions.MissingRequiredProperty(model, prop='id')
 
 
 @prepare.register()
@@ -105,12 +79,12 @@ def prepare(context: Context, model: Model, data: dict, *, action: Action) -> di
 
 @authorize.register()
 def authorize(context: Context, action: Action, model: Model):
-    check_generated_scopes(context, model.get_type_value(), action.value)
+    check_generated_scopes(context, model.model_type(), action.value)
 
 
 @authorize.register()
 def authorize(context: Context, action: Action, prop: Property):
-    name = prop.model.get_type_value() + '_' + prop.place
+    name = prop.model.model_type() + '_' + prop.place
     check_generated_scopes(context, name, action.value)
 
 

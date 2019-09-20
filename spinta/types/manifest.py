@@ -24,6 +24,8 @@ def load(context: Context, manifest: Manifest, c: RawConfig):
     ignore = c.get('ignore', default=[], cast=list)
 
     # Add all supported node types.
+    # XXX: Not sure if this is a good idea to hardcode 'ns' here, will see.
+    manifest.objects['ns'] = {}
     for name in config.components['nodes'].keys():
         manifest.objects[name] = {}
 
@@ -128,12 +130,12 @@ def get_error_context(node: Node, *, prefix='this') -> Dict[str, str]:
         'schema': f'{prefix}.path.__str__()',
     }
     depth = 0
-    while True:
+    while node:
         name = prefix + ('.' if depth else '') + '.'.join(['parent'] * depth)
         if isinstance(node, Manifest):
             context['manifest'] = f'{name}.name'
             break
-        else:
+        elif node.type:
             context[node.type] = f'{name}.name'
         depth += 1
         node = node.parent

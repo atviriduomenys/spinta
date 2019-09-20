@@ -1,3 +1,5 @@
+from typing import Optional
+
 from starlette.requests import Request
 
 from spinta.components import Context, Action, UrlParams, Node
@@ -8,9 +10,10 @@ def render(
     context: Context,
     request: Request,
     node: Node,
-    action: Action,
     params: UrlParams,
     data,
+    *,
+    action: Optional[Action] = None,
     status_code: int = 200,
 ):
     config = context.get('config')

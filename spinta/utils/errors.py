@@ -1,20 +1,10 @@
-import string
+import logging
+
+log = logging.getLogger(__name__)
 
 
-def format_error(message, kwargs):
-    # TODO: deprecated and should be removed
-    return Formatter().format(message, **kwargs)
-
-
-class Formatter(string.Formatter):
-
-    def get_field(self, field_name, args, kwargs):
-        fields = field_name.split('.')
-        first, fields = fields[0], fields[1:]
-        obj = kwargs.get(first)
-        for name in fields:
-            if hasattr(obj, name):
-                obj = getattr(obj, name)
-            else:
-                return '?', first
-        return obj, first
+def report_error(exc: Exception, stop_on_error: bool = True):
+    if stop_on_error:
+        raise exc
+    else:
+        log.error(str(exc))

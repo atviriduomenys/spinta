@@ -1,9 +1,19 @@
-from typing import Optional, Any, Dict, Iterable
+from typing import Optional, Any, Dict, Iterable, Tuple
 
 import logging
+import re
 
 
 log = logging.getLogger(__name__)
+
+
+class UnknownValue:
+
+    def __str__(self):
+        return '[UNKNOWN]'
+
+
+UNKNOWN_VALUE = UnknownValue()
 
 
 def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: dict):
@@ -18,12 +28,14 @@ def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: di
         }
         kwargs = {**kwargs, 'this': this}
 
+    added = set()
     context = {}
-    known = set()
     for k, path in schema.items():
         path = path or k
         name, *names = path.split('.')
-        known.add(name)
+        if name not in kwargs:
+            continue
+        added.add(name)
         value = kwargs
         for name in [name] + names:
             if name.endswith('()'):
@@ -32,29 +44,46 @@ def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: di
             else:
                 func = False
             if isinstance(value, dict):
-                value = kwargs.get(name)
+                value = value.get(name)
             elif hasattr(value, name):
                 value = getattr(value, name)
             else:
-                value = '[UNKNOWN]'
+                value = UNKNOWN_VALUE
                 break
             if func:
                 value = value()
-        context[k] = value
+        if value is not UNKNOWN_VALUE:
+            context[k] = value
 
-    # Check if unknown and missing keyword arguments, but only log the situation
-    # without breaking original error.
-    given = set(kwargs)
-    unknown = given - known
-    if unknown:
-        unknown = ', '.join(map(repr, sorted(unknown)))
-        log.error("Unknown BaseError kwargs: %s.", unknown, stack_info=True)
-    missing = known - given
-    if missing:
-        missing = ', '.join(map(repr, sorted(missing)))
-        log.error("Missing BaseError kwargs: %s.", missing, stack_info=True)
+    for k in set(kwargs) - added:
+        v = kwargs[k]
+        if not isinstance(v, (int, float, str)):
+            v = str(v)
+        context[k] = v
 
-    return context
+    # Return sorted context.
+    names = [
+        'manifest',
+        'schema',
+        'backend',
+        'dataset',
+        'resource',
+        'origin',
+        'model',
+        'property',
+        'type',
+    ]
+    names += [x for x in schema if x not in names]
+    names += [x for x in kwargs if x not in names]
+
+    def sort_key(item: Tuple[str, Any]) -> Tuple[int, str]:
+        key = item[0]
+        try:
+            return names.index(key), key
+        except ValueError:
+            return len(names), key
+
+    return {k: v for k, v in sorted(context.items(), key=sort_key)}
 
 
 def error_response(error):
@@ -65,6 +94,19 @@ def error_response(error):
         'context': error.context,
         'message': error.message,
     }
+
+
+def _render_template(template, context):
+    try:
+        return template.format(**context)
+    except KeyError:
+        context = context.copy()
+        template_vars_re = re.compile(r'\{(\w+)')
+        for match in template_vars_re.finditer(template):
+            name = match.group(1)
+            if name not in context:
+                context[name] = UNKNOWN_VALUE
+        return template.format(**context)
 
 
 class BaseError(Exception):
@@ -82,25 +124,21 @@ class BaseError(Exception):
             this = None
             log.error("Only one positional argument is alowed, but %d was given.", len(args), stack_info=True)
 
-        from spinta.components import Node
-        from spinta.types.datatype import DataType
-        self.type = 'system'
-        if this:
-            if isinstance(this, Node):
-                self.type = this.type
-            elif isinstance(this, DataType):
-                self.type = this.prop.type
+        self.type = this.type if this else 'system'
 
         self.context = resolve_context_vars(self.context, this, kwargs)
+
+        # Remove all unknown values.
+
         try:
-            self.message = self.template.format(**self.context)
+            self.message = _render_template(self.template, self.context)
         except KeyError:
             log.exception("Can't render error message for %s.", self.__class__.__name__)
             self.message = self.template
 
         super().__init__(
             self.message + '\n' +
-            '  Context:\n' +
+            ('  Context:\n' if self.context else '') +
             ''.join(
                 f'    {k}: {v}\n'
                 for k, v in self.context.items()
@@ -123,7 +161,11 @@ class MultipleErrors(Exception):
         )
 
 
-class ConflictingValue(BaseError):
+class UserError(BaseError):
+    status_code = 400
+
+
+class ConflictingValue(UserError):
     status_code = 409
     template = "Conflicting value."
     context = {
@@ -132,52 +174,33 @@ class ConflictingValue(BaseError):
     }
 
 
-class UniqueConstraint(BaseError):
-    status_code = 400
+class UniqueConstraint(UserError):
     template = "Given value already exists."
 
 
-class InvalidOperandValue(BaseError):
-    status_code = 400
+class InvalidOperandValue(UserError):
     template = "Invalid operand value for {operator!r} operator."
-    context = {
-        'operator': None,
-    }
 
 
-class ResourceNotFound(BaseError):
+class ResourceNotFound(UserError):
     status_code = 404
     template = "Resource {id!r} not found."
-    context = {
-        'id': None,
-    }
 
 
 class ModelNotFound(BaseError):
     status_code = 404
     template = "Model {model!r} not found."
-    context = {
-        'model': None,
-    }
 
 
-class MissingRevisionOnRewriteError(BaseError):
-    status_code = 400
+class MissingRevisionOnRewriteError(UserError):
     template = "'revision' must be given on rewrite operation."
 
 
-# FIXME: Probably it would be useful to also include original error
-# from JSON parser, to tell user what exactly is wrong with given JSON.
-class JSONError(BaseError):
-    status_code = 400
-    template = "Not a valid json"
-    context = {
-        'error': None,
-    }
+class JSONError(UserError):
+    template = "Invalid JSON."
 
 
-class InvalidValue(BaseError):
-    status_code = 400
+class InvalidValue(UserError):
     template = "Invalid value."
 
 
@@ -190,12 +213,8 @@ class MultipleDatasetModelsFoundError(BaseError):
                 "dataset. Be more specific by providing resource name.")
 
 
-class ManagedProperty(BaseError):
-    status_code = 400
+class ManagedProperty(UserError):
     template = "Value of this property is managed automatically and cannot be set manually."
-    context = {
-        'property': None,
-    }
 
 
 class NotFoundError(BaseError):
@@ -205,34 +224,22 @@ class NotFoundError(BaseError):
 
 class NodeNotFound(BaseError):
     template = "Node {name!r} of type {type!r} not found."
-    context = {
-        'type': None,
-        'name': None,
-    }
 
 
 class ModelReferenceNotFound(BaseError):
     template = "Model reference {ref!r} not found."
-    context = {
-        'ref': None,
-    }
 
 
-class SourceNotSet(BaseError):
+class SourceNotSet(UserError):
+    status_code = 404
     template = (
         "Dataset {dataset!r} resource {resource!r} source is not set. "
         "Make sure {resource!r} name parameter in {path} or environment variable {envvar} is set."
     )
-    status_code = 404
 
 
 class InvalidManifestFile(BaseError):
     template = "Error while parsing {filename!r} file: {error}"
-    context = {
-        'manifest': None,  # Manifest name.
-        'filename': None,
-        'error': None,  # Error message indicating why manifest file is invalid.
-    }
 
 
 class UnknownProjectOwner(BaseError):
@@ -259,34 +266,20 @@ class MissingRequiredProperty(BaseError):
     }
 
 
-class FileNotFound(BaseError):
-    status_code = 400
+class FileNotFound(UserError):
     template = "File {file!r} not found."
-    context = {
-        'file': None,
-    }
 
 
 class UnknownModelReference(BaseError):
     template = "Unknown model reference given in {param!r} parameter."
-    context = {
-        'param': None,
-        'reference': None,
-    }
 
 
 class InvalidDependencyValue(BaseError):
     template = "Dependency must be in 'object/name.property' form, got: {dependency!r}."
-    context = {
-        'dependency': None,
-    }
 
 
 class MultipleModelsInDependencies(BaseError):
     template = "Dependencies are allowed only from single model, but more than one model found: {models}."
-    context = {
-        'models': None,
-    }
 
 
 class MultipleCommandCallsInDependencies(BaseError):
@@ -301,7 +294,6 @@ class InvalidSource(BaseError):
     template = "Invalid source. {error}"
     context = {
         'source': 'source.type',
-        'error': None,
     }
 
 
@@ -312,9 +304,32 @@ class UnknownParameter(BaseError):
     }
 
 
-class UnknownProperty(BaseError):
-    status_code = 400
+class UnknownProperty(UserError):
     template = "Unknown property {property!r}."
     context = {
-        'property': None,
+        'property': 'prop',
+    }
+
+
+class UnknownContentType(UserError):
+    status_code = 415
+    template = "Unknown content type {content_type!r}."
+
+
+class UnknownAction(UserError):
+    template = "Unknown action {action!r}."
+
+
+class OutOfScope(UserError):
+    template = "{this!r} is out of given scope {scope!r}."
+    context = {
+        'scope': 'scope.name',
+    }
+
+
+class UnhandledException(BaseError):
+    status_code = 500
+    template = "Unhandled exception {exception}: {error}."
+    context = {
+        'exception': 'error.__class__.__name__',
     }

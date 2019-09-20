@@ -55,6 +55,9 @@ class Path(Cast):
     def to_params(self, value):
         return '/'.join(value)
 
+    def to_string(self, value):
+        return [value] if value else []
+
 
 class Property(Cast):
     pass
@@ -95,6 +98,7 @@ RULES = {
     'path': {
         'cast': Path(),
         'name': False,
+        'minargs': 0,
     },
     'id': {
         'maxargs': 1,
@@ -105,7 +109,7 @@ RULES = {
         'name': False,
         'minargs': 0,
     },
-    'contents': {
+    'ns': {
         'maxargs': 0,
     },
     'dataset': {

@@ -1,6 +1,9 @@
-from spinta.components import Context, Manifest, Node
+from typing import Optional, Type
+
+from spinta.components import Context, Manifest, Node, Namespace
 from spinta.utils.schema import resolve_schema
 from spinta import exceptions
+from spinta import commands
 
 
 def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, check_unknowns=True) -> Node:
@@ -34,3 +37,58 @@ def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, c
             value = schema.get('default')
         setattr(node, name, value)
     return node
+
+
+def load_namespace(context: Context, manifest: Manifest, node: Node):
+    parts = []
+    parent = manifest
+    for part in [''] + node.name.split('/'):
+        parts.append(part)
+        name = '/'.join(parts[1:])
+        if name not in manifest.objects['ns']:
+            ns = Namespace()
+            data = {
+                'type': 'ns',
+                'name': name,
+                'title': part,
+                'path': manifest.path,
+                'parent': parent,
+                'names': {},
+                'models': {},
+            }
+            manifest.objects['ns'][name] = load_node(context, ns, data, manifest)
+        else:
+            ns = manifest.objects['ns'][name]
+        if part and part not in parent.names:
+            parent.names[part] = ns
+        parent = ns
+    parent.models[node.model_type()] = node
+
+
+def load_model_properties(context: Context, model: Node, Prop: Type[Node], data: Optional[dict]) -> None:
+    data = data or {}
+
+    # Add build-in properties.
+    data['type'] = {'type': 'string'}
+    data['revision'] = {'type': 'string'}
+
+    # 'id' is reserved for primary key.
+    if 'id' not in data:
+        data['id'] = {'type': 'pk'}
+    elif data['id'].get('type') != 'pk':
+        raise Exception("'id' property is reserved for primary key and must be of 'pk' type.")
+
+    model.flatprops = {}
+    model.properties = {}
+    for name, params in data.items():
+        params = {
+            'name': name,
+            'place': name,
+            'path': model.path,
+            'parent': model,
+            'model': model,
+            **params,
+        }
+        prop = commands.load(context, Prop(), params, model.manifest)
+        model.properties[name] = prop
+        model.flatprops[name] = prop

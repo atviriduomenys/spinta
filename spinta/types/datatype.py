@@ -5,7 +5,6 @@ from datetime import date, datetime
 from spinta.commands import load, is_object_id
 from spinta.components import Context, Manifest, Node
 from spinta.utils.schema import resolve_schema
-from spinta.utils.errors import format_error
 from spinta.common import NA
 from spinta import commands
 from spinta import exceptions
@@ -166,30 +165,31 @@ def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> D
 @load.register()
 def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
     dtype.properties = {}
-    for name, prop in data.get('properties', {}).items():
+    for name, params in data.get('properties', {}).items():
         place = dtype.prop.place + '.' + name
-        prop = {
+        params = {
             'name': name,
             'place': place,
             'path': dtype.prop.path,
             'parent': dtype.prop,
             'model': dtype.prop.model,
-            **prop,
+            **params,
         }
-        dtype.prop.model.flatprops[place] = \
-        dtype.properties[name] = load(
+        prop = load(
             context,
             dtype.prop.__class__(),
-            prop,
+            params,
             dtype.prop.manifest,
         )
+        dtype.prop.model.flatprops[place] = prop
+        dtype.properties[name] = prop
     return dtype
 
 
 @load.register()
 def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> DataType:
     if 'items' in data:
-        prop = {
+        params = {
             'name': dtype.prop.name,
             'place': dtype.prop.place,
             'path': dtype.prop.path,
@@ -197,7 +197,7 @@ def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> Data
             'model': dtype.prop.model,
             **data['items'],
         }
-        dtype.items = load(context, dtype.prop.__class__(), prop, dtype.prop.manifest)
+        dtype.items = load(context, dtype.prop.__class__(), params, dtype.prop.manifest)
     else:
         dtype.items = None
     return dtype

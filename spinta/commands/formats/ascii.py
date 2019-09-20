@@ -10,7 +10,7 @@ from texttable import Texttable
 
 from spinta.commands.formats import Format
 from spinta.utils.nestedstruct import flatten
-from spinta.components import Context, Action, UrlParams
+from spinta.components import Context, Action, UrlParams, Model
 from spinta.types import dataset
 from spinta import commands
 from spinta.utils.response import aiter
@@ -70,7 +70,22 @@ class Ascii(Format):
                 yield from _draw(buffer, name, tnum, width)
 
 
-@commands.render.register()
+@commands.render.register()  # noqa
+def render(
+    context: Context,
+    request: Request,
+    model: Model,
+    fmt: Ascii,
+    *,
+    action: Action,
+    params: UrlParams,
+    data,
+    status_code: int = 200,
+):
+    return _render(fmt, params, data, status_code)
+
+
+@commands.render.register()  # noqa
 def render(
     context: Context,
     request: Request,
@@ -82,6 +97,10 @@ def render(
     data,
     status_code: int = 200,
 ):
+    return _render(fmt, params, data, status_code)
+
+
+def _render(fmt: Ascii, params: UrlParams, data, status_code):
     width = params.params.get('width')
     colwidth = params.params.get('colwidth')
 

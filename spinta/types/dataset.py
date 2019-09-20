@@ -12,12 +12,11 @@ from spinta.nodes import load_node
 from spinta.fetcher import Cache
 from spinta.types.datatype import DataType, Object, load_type
 from spinta.auth import check_generated_scopes
-from spinta.utils.errors import format_error
 from spinta.utils.schema import resolve_schema, load_from_schema, check_unkown_params
-from spinta.utils.tree import add_path_to_tree
 from spinta.urlparams import get_model_by_name
 from spinta import commands
 from spinta import exceptions
+from spinta.nodes import load_namespace, load_model_properties
 
 
 class Dataset(Node):
@@ -106,13 +105,16 @@ class Model(Node):
             ')>'
         )
 
-    def get_type_value(self):
+    def node_type(self):
+        return f'{self.type}:dataset'
+
+    def model_specifier(self):
         elements = (
             (':dataset', self.parent.parent.name),
             (':resource', self.parent.name),
             (':origin', self.origin),
         )
-        return f'{self.name}/' + '/'.join(itertools.chain.from_iterable(
+        return '/'.join(itertools.chain.from_iterable(
             (k, v) for k, v in elements if v
         ))
 
@@ -196,7 +198,8 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
 def load(context: Context, model: Model, data: dict, manifest: Manifest):
     load_node(context, model, data, manifest)
     manifest.add_model_endpoint(model)
-    add_path_to_tree(manifest.tree, model.name)
+    load_model_properties(context, model, Property, data.get('properties'))
+    load_namespace(context, manifest, model)
 
     # Load model source
     source = data.get('source')
@@ -209,32 +212,6 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest):
         model.source = sources
     else:
         model.source = []
-
-    props = data.get('properties') or {}
-
-    # Add build-in properties.
-    props['type'] = {'type': 'string'}
-    props['revision'] = {'type': 'string'}
-
-    # 'id' is reserved for primary key.
-    if 'id' not in props:
-        props['id'] = {'type': 'pk'}
-    elif props['id'].get('type') != 'pk':
-        raise Exception("'id' property is reserved for primary key and must be of 'pk' type.")
-
-    # Load model properties.
-    model.flatprops = {}
-    model.properties = {}
-    for name, params in props.items():
-        params = {
-            'name': name,
-            'place': name,
-            'path': model.path,
-            'parent': model,
-            'model': model,
-            **(params or {}),
-        }
-        model.flatprops[name] = model.properties[name] = load(context, Property(), params, manifest)
 
     return model
 
@@ -302,12 +279,12 @@ def _check_extends(context: Context, dataset: Dataset, model: Model):
     if model.extends in dataset.manifest.objects['model']:
         return
 
-    raise UnknownModelReference(model, param='extends', reference=model.extends)
+    raise exceptions.UnknownModelReference(model, param='extends', reference=model.extends)
 
 
 def _check_ref(context: Context, dataset: Dataset, prop: Property):
     if prop.ref and prop.ref not in dataset.objects and prop.ref not in dataset.manifest.objects['model']:
-        raise UnknownModelReference(prop, param='ref', reference=prop.ref)
+        raise exceptions.UnknownModelReference(prop, param='ref', reference=prop.ref)
 
 
 @pull.register()
@@ -332,27 +309,17 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
                         try:
                             yield from _pull(context, model, source, dependency)
                         except Exception as e:
-                            message = (
-                                '{exc}:\n'
-                                '  in dependency {dependency!r}\n'
-                                '  in model {model.name!r} {model}\n'
-                                '  in origin {model.origin!r}\n'
-                                '  in resource {model.parent.name!r} {model.parent}\n'
-                                '  in dataset {model.parent.parent.name!r} {model.parent.parent}\n'
-                                "  in file '{model.path}'\n"
-                                '  on backend {model.backend.name!r}\n'
+                            raise exceptions.UnhandledException(
+                                model,
+                                error=e,
+                                dependency=dependency,
                             )
-                            raise Exception(format_error(message, {
-                                'exc': e,
-                                'model': model,
-                                'dependency': dependency,
-                            }))
 
 
 def _pull(context: Context, model: Model, source, dependency):
     rows = pull(context, source, model, params=dependency)
     for row in rows:
-        data = {'type': model.get_type_value()}
+        data = {'type': model.model_type()}
         for prop in model.properties.values():
             if isinstance(prop.source, list):
                 data[prop.name] = [
@@ -394,7 +361,7 @@ def _dependencies(context: Context, model, deps):
             raise exceptions.MultipleModelsInDependencies(model, models=names)
 
         if len(command_calls) > 1:
-            raise exception.MultipleCommandCallsInDependencies(model)
+            raise exceptions.MultipleCommandCallsInDependencies(model)
 
         if len(command_calls) > 0:
             if len(model_names) > 0:
@@ -434,12 +401,12 @@ def _get_value_from_source(context: Context, prop: Property, source, data: dict,
 
 @authorize.register()
 def authorize(context: Context, action: Action, model: Model):
-    check_generated_scopes(context, model.get_type_value(), action.value)
+    check_generated_scopes(context, model.model_type(), action.value)
 
 
 @authorize.register()
 def authorize(context: Context, action: Action, prop: Property):
-    name = prop.model.get_type_value() + '_' + prop.place
+    name = prop.model.model_type() + '_' + prop.place
     check_generated_scopes(context, name, action.value)
 
 

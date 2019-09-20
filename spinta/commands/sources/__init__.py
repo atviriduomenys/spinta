@@ -1,7 +1,6 @@
 from spinta.commands import load, prepare, pull
 from spinta.components import Context, Node
 from spinta.types.dataset import Resource, Property
-from spinta.utils.errors import format_error
 from spinta import commands
 
 
