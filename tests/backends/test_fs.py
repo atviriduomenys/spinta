@@ -62,11 +62,13 @@ def test_crud(app):
     resp = app.get(f'/photos/{id_}/image')
     assert resp.status_code == 404
     assert get_error_codes(resp.json()) == ["ResourceNotFound"]
-    assert get_error_context(resp.json(), "ResourceNotFound") == {
-        'schema': 'tests/manifest/models/photos.yml',
-        'manifest': 'default',
-        'model': 'photo',
-        'property': 'image',
+    assert get_error_context(
+        resp.json(),
+        "ResourceNotFound",
+        ["model", "property", "id"]
+    ) == {
+        "model": "photo",
+        "property": "image",
         'id': id_,
     }
 
@@ -128,8 +130,11 @@ def test_add_missing_file(app, tmpdir):
     })
     assert resp.status_code == 400, resp.text
     assert get_error_codes(resp.json()) == ["FileNotFound"]
-    assert get_error_context(resp.json(), "FileNotFound") == {
-        'schema': 'tests/manifest/models/photos.yml',
+    assert get_error_context(
+        resp.json(),
+        "FileNotFound",
+        ["manifest", "model", "property", "file"],
+    ) == {
         'manifest': 'default',
         'model': 'photo',
         'property': 'image',
@@ -157,8 +162,11 @@ def test_add_missing_file_as_prop(app, tmpdir):
     })
     assert resp.status_code == 400, resp.text
     assert get_error_codes(resp.json()) == ["FileNotFound"]
-    assert get_error_context(resp.json(), "FileNotFound") == {
-        'schema': 'tests/manifest/models/photos.yml',
+    assert get_error_context(
+        resp.json(),
+        "FileNotFound",
+        ["manifest", "model", "property", "file"],
+    ) == {
         'manifest': 'default',
         'model': 'photo',
         'property': 'image',

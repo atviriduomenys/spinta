@@ -702,12 +702,6 @@ def test_post_duplicate_id(model, app):
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["UniqueConstraint"]
-    assert get_error_context(resp.json(), "UniqueConstraint") == {
-        'schema': f'tests/manifest/{model}.yml',
-        'manifest': 'default',
-        'model': model,
-        'property': 'id',
-    }
 
 
 @pytest.mark.skip("SPLAT-146: PATCH requests should be able to update id")
@@ -806,8 +800,11 @@ def test_post_invalid_report_schema(app):
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(resp.json(), "InvalidValue") == {
-        'schema': 'tests/manifest/models/report.yml',
+    assert get_error_context(
+        resp.json(),
+        "InvalidValue",
+        ["manifest", "model", "property", "type"],
+    ) == {
         'manifest': 'default',
         'model': 'report',
         'property': 'count',
@@ -819,39 +816,18 @@ def test_post_invalid_report_schema(app):
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(resp.json(), "InvalidValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'count',
-        'type': 'integer',
-    }
 
     resp = app.post('/reports', json={
         'count': [1, 2, 3],
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(resp.json(), "InvalidValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'count',
-        'type': 'integer',
-    }
 
     resp = app.post('/reports', json={
         'count': {'a': 1, 'b': 2},
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(resp.json(), "InvalidValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'count',
-        'type': 'integer',
-    }
 
     resp = app.post('/reports', json={
         'count': 123,
@@ -864,13 +840,6 @@ def test_post_invalid_report_schema(app):
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(resp.json(), "InvalidValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'status',
-        'type': 'string',
-    }
 
     # test string validation
     resp = app.post('/reports', json={
@@ -878,39 +847,18 @@ def test_post_invalid_report_schema(app):
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(resp.json(), "InvalidValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'status',
-        'type': 'string',
-    }
 
     resp = app.post('/reports', json={
         'status': [1, 2, 3],
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(resp.json(), "InvalidValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'status',
-        'type': 'string',
-    }
 
     resp = app.post('/reports', json={
         'status': {'a': 1, 'b': 2},
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
-    assert get_error_context(resp.json(), "InvalidValue") == {
-        'schema': 'tests/manifest/models/report.yml',
-        'manifest': 'default',
-        'model': 'report',
-        'property': 'status',
-        'type': 'string',
-    }
 
     # sanity check, that strings are still allowed.
     resp = app.post('/reports', json={
