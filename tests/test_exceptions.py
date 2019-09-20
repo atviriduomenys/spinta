@@ -130,12 +130,13 @@ def test_missing_var_in_template():
 def test_this_model(context):
     context.load_if_not_loaded()
     model = context.get('store').manifests['default'].objects['model']['org']
+    model.path = 'manifest/models/org.yml'
     error = Error(model)
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
         '    manifest: default\n'
-        '    schema: tests/manifest/models/org.yml\n'
+        '    schema: manifest/models/org.yml\n'
         '    model: org\n'
     )
 
@@ -143,12 +144,13 @@ def test_this_model(context):
 def test_this_model_property(context):
     context.load_if_not_loaded()
     prop = context.get('store').manifests['default'].objects['model']['org'].properties['title']
+    prop.model.path = 'manifest/models/org.yml'
     error = Error(prop)
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
         '    manifest: default\n'
-        '    schema: tests/manifest/models/org.yml\n'
+        '    schema: manifest/models/org.yml\n'
         '    model: org\n'
         '    property: title\n'
     )
@@ -157,12 +159,13 @@ def test_this_model_property(context):
 def test_this_model_property_dtype(context):
     context.load_if_not_loaded()
     dtype = context.get('store').manifests['default'].objects['model']['org'].properties['title'].dtype
+    dtype.prop.model.path = 'manifest/models/org.yml'
     error = Error(dtype)
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
         '    manifest: default\n'
-        '    schema: tests/manifest/models/org.yml\n'
+        '    schema: manifest/models/org.yml\n'
         '    model: org\n'
         '    property: title\n'
         '    type: string\n'
@@ -172,12 +175,13 @@ def test_this_model_property_dtype(context):
 def test_this_dataset_model(context):
     context.load_if_not_loaded()
     model = context.get('store').manifests['default'].objects['dataset']['test'].resources[''].objects['']['backends/postgres/report']
+    model.path = 'manifest/backends/postgres/datasets/report.yml'
     error = Error(model)
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
         '    manifest: default\n'
-        '    schema: tests/manifest/backends/postgres/datasets/report.yml\n'
+        '    schema: manifest/backends/postgres/datasets/report.yml\n'
         '    backend: default\n'
         '    dataset: test\n'
         '    resource: \n'
@@ -189,12 +193,13 @@ def test_this_dataset_model(context):
 def test_this_dataset_model_property(context):
     context.load_if_not_loaded()
     prop = context.get('store').manifests['default'].objects['dataset']['test'].resources[''].objects['']['backends/postgres/report'].properties['status']
+    prop.model.path = 'manifest/backends/postgres/datasets/report.yml'
     error = Error(prop)
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
         '    manifest: default\n'
-        '    schema: tests/manifest/backends/postgres/datasets/report.yml\n'
+        '    schema: manifest/backends/postgres/datasets/report.yml\n'
         '    backend: default\n'
         '    dataset: test\n'
         '    resource: \n'
