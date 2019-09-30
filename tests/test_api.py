@@ -4,9 +4,9 @@ import datetime
 import pytest
 
 from spinta.testing.utils import get_error_codes, get_error_context, get_model_scopes
+from spinta.utils.nestedstruct import flatten
 from spinta.utils.itertools import consume
 from spinta.utils.refs import get_ref_id
-from spinta.utils.nestedstruct import flatten
 
 
 def _cleaned_context(resp):
@@ -91,81 +91,117 @@ def test_directory(app):
     }
 
 
-def test_model(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_model(model, context, app):
     row, = context.push([
         {
-            'type': 'country',
-            'title': 'Earth',
-            'code': 'er',
+            "type": model,
+            "status": "ok",
+            "count": 42,
         },
     ])
 
-    app.authorize(['spinta_country_getall'])
-    resp = app.get('/country', headers={'accept': 'text/html'})
+    app.authmodel(model, ["getall"])
+    resp = app.get(f'/{model}', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
-    revision = resp.context['data'][0][-1]['value']
+
+    backend = model[len('backends/'):len(model) - len('/report')]
     assert resp.context == {
         'location': [
             ('root', '/'),
-            ('country', None),
-            (':changes', '/country/:changes'),
+            ('backends', '/backends'),
+            (backend, f'/backends/{backend}'),
+            ('report', None),
+            (':changes', f"/{model}/:changes"),
         ],
-        'header': ['id', 'title', 'code'],
+        'header': [
+            'id',
+            'report_type',
+            'status',
+            'valid_from_date',
+            'update_time',
+            'count',
+            'notes',
+            'operating_licenses',
+            'pdf',
+        ],
         'data': [
             [
-                {'color': None, 'link': '/country/%s' % row['id'], 'value': row['id'][:8]},
-                {'color': None, 'link': None, 'value': 'Earth'},
-                {'color': None, 'link': None, 'value': 'er'},
+                {'color': None, 'link': f"/{model}/%s" % row['id'], 'value': row['id'][:8]},
+                {'color': '#C1C1C1', 'link': None, 'value': ''},
+                {'color': None, 'link': None, 'value': 'ok'},
+                {'color': '#C1C1C1', 'link': None, 'value': ''},
+                {'color': '#C1C1C1', 'link': None, 'value': ''},
+                {'color': None, 'link': None, 'value': 42},
+                {'color': None, 'link': None, 'value': []},
+                {'color': None, 'link': None, 'value': []},
+                {'color': '#C1C1C1', 'link': None, 'value': ''},  # XXX: this is pdf value which should be hidden?
             ],
         ],
         'row': [],
         'formats': [
-            ('CSV', '/country/:format/csv'),
-            ('JSON', '/country/:format/json'),
-            ('JSONL', '/country/:format/jsonl'),
-            ('ASCII', '/country/:format/ascii'),
+            ('CSV', f'/{model}/:format/csv'),
+            ('JSON', f'/{model}/:format/json'),
+            ('JSONL', f'/{model}/:format/jsonl'),
+            ('ASCII', f'/{model}/:format/ascii'),
         ],
     }
 
 
-def test_model_get(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_model_get(model, context, app):
     row, = context.push([
         {
-            'type': 'country',
-            'title': 'Earth',
-            'code': 'er',
+            "type": model,
+            "status": "ok",
+            "count": 42,
         },
     ])
 
-    app.authorize(['spinta_country_getone'])
-    resp = app.get('/country/%s' % row['id'], headers={'accept': 'text/html'})
+    app.authmodel(model, ["getone"])
+    resp = app.get(f'/{model}/%s' % row['id'], headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
-    revision = resp.context['row'][-1][1]['value']
+    revision = resp.context['row'][1][1]['value']
+    backend = model[len('backends/'):len(model) - len('/report')]
     assert resp.context == {
         'location': [
             ('root', '/'),
-            ('country', '/country'),
+            ('backends', '/backends'),
+            (backend, f'/backends/{backend}'),
+            ('report', f'/{model}'),
             (row['id'][:8], None),
-            (':changes', '/country/%s/:changes' % row['id']),
+            (':changes', f'/{model}/%s/:changes' % row['id']),
         ],
         'header': [],
         'data': [],
         'row': [
-            ('id', {'color': None, 'link': '/country/%s' % row['id'], 'value': row['id']}),
-            ('title', {'color': None, 'link': None, 'value': 'Earth'}),
-            ('code', {'color': None, 'link': None, 'value': 'er'}),
-            ('type', {'color': None, 'link': None, 'value': 'country'}),
+            ('id', {'color': None, 'link': f'/{model}/%s' % row['id'], 'value': row['id']}),
             ('revision', {'color': None, 'link': None, 'value': revision}),
+            ('report_type', {'color': '#C1C1C1', 'link': None, 'value': ''}),
+            ('status', {'color': None, 'link': None, 'value': 'ok'}),
+            ('valid_from_date', {'color': '#C1C1C1', 'link': None, 'value': ''}),
+            ('update_time', {'color': '#C1C1C1', 'link': None, 'value': ''}),
+            ('count', {'color': None, 'link': None, 'value': 42}),
+            ('notes', {'color': None, 'link': None, 'value': []}),
+            ('operating_licenses', {'color': None, 'link': None, 'value': []}),
+            ('pdf', {'color': '#C1C1C1', 'link': None, 'value': ''}), # XXX: this is pdf value which should be hidden?
+            ('type', {'color': None, 'link': None, 'value': model}),
         ],
         'formats': [
-            ('CSV', '/country/%s/:format/csv' % row['id']),
-            ('JSON', '/country/%s/:format/json' % row['id']),
-            ('JSONL', '/country/%s/:format/jsonl' % row['id']),
-            ('ASCII', '/country/%s/:format/ascii' % row['id']),
+            ('CSV', f'/{model}/%s/:format/csv' % row['id']),
+            ('JSON', f'/{model}/%s/:format/json' % row['id']),
+            ('JSONL', f'/{model}/%s/:format/jsonl' % row['id']),
+            ('ASCII', f'/{model}/%s/:format/ascii' % row['id']),
         ],
     }
 
@@ -492,16 +528,17 @@ def test_count(context, app):
     assert resp.context['data'] == [[{'color': None, 'link': None, 'value': 2}]]
 
 
-def test_post(context, app):
-    app.authorize([
-        'spinta_country_insert',
-        'spinta_country_getone',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post(model, context, app):
+    app.authmodel(model, ['insert', 'getone'])
 
     # tests basic object creation
-    resp = app.post('/country', json={
-        'title': 'Earth',
-        'code': 'er',
+    resp = app.post(f'/{model}', json={
+        'status': 'ok',
+        'count': 42,
     })
     assert resp.status_code == 201
     data = resp.json()
@@ -510,171 +547,164 @@ def test_post(context, app):
     assert uuid.UUID(id_).version == 4
     assert data == {
         'id': id_,
-        'type': 'country',
-        'code': 'er',
-        'title': 'Earth',
+        'type': model,
         'revision': revision,
+        'report_type': None,
+        'status': 'ok',
+        'valid_from_date': None,
+        'update_time': None,
+        'count': 42,
+        'notes': [],
+        'operating_licenses': [],
     }
 
-    resp = app.get(f'/country/{id_}')
+    resp = app.get(f'/{model}/{id_}')
     assert resp.status_code == 200
     assert resp.json() == {
-        'type': 'country',
         'id': id_,
-        'code': 'er',
-        'title': 'Earth',
+        'type': model,
         'revision': revision,
+        'report_type': None,
+        'status': 'ok',
+        'valid_from_date': None,
+        'update_time': None,
+        'count': 42,
+        'notes': [],
+        'operating_licenses': [],
     }
 
 
-def test_post_invalid_json(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post_invalid_json(model, context, app):
     # tests 400 response on invalid json
-    app.authorize(['spinta_country_insert'])
+    app.authmodel(model, ['insert'])
     headers = {"content-type": "application/json"}
-    resp = app.post('/country', headers=headers, data="""{
-        "title": "Earth",
-        "code": "er"
+    resp = app.post(f'/{model}', headers=headers, data="""{
+        "status": "ok",
+        "count": 42
     ]""")
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["JSONError"]
 
 
-def test_post_empty_content(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post_empty_content(model, context, app):
     # tests posting empty content
-    app.authorize(['spinta_country_insert'])
+    app.authmodel(model, ['insert'])
     headers = {
         "content-length": "0",
         "content-type": "application/json",
     }
-    resp = app.post('/country', headers=headers, json=None)
+    resp = app.post(f'/{model}', headers=headers, json=None)
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["JSONError"]
 
 
-def test_post_id(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post_id(model, context, app):
     # tests 400 response when trying to create object with id
-    app.authorize(['spinta_country_insert'])
+    app.authmodel(model, ['insert'])
 
     # XXX: there's a funny thing that id value is loaded/validated first
     # before it's checked that user has correct scope
-    resp = app.post('/country', json={
+    resp = app.post(f'/{model}', json={
         'id': '0007ddec-092b-44b5-9651-76884e6081b4',
-        'title': 'Earth',
-        'code': 'er',
+        'status': 'ok',
+        'count': 42,
     })
     assert resp.status_code == 403
     assert get_error_codes(resp.json()) == ["InsufficientScopeError"]
 
 
-def test_insufficient_scope(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_insufficient_scope(model, context, app):
     # tests 400 response when trying to create object with id
-    app.authorize(['spinta_country_getone'])
+    app.authmodel(model, ['getone'])
 
     # XXX: there's a funny thing that id value is loaded/validated first
     # before it's checked that user has correct scope
-    resp = app.post('/country', json={
-        'title': 'Earth',
-        'code': 'er',
+    resp = app.post(f'/{model}', json={
+        'status': 'ok',
+        'count': 42,
     })
     assert resp.status_code == 403
     assert get_error_codes(resp.json()) == ["InsufficientScopeError"]
 
 
-def test_post_update_postgres(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post_update_postgres(model, context, app):
     # tests if update works with `id` present in the json
+    scope_model = model.replace('/', '_')
     app.authorize([
-        'spinta_country_insert',
+        f'spinta_{scope_model}_insert',
         'spinta_set_meta_fields',
     ])
-    resp = app.post('/country', json={
+    resp = app.post(f'/{model}', json={
         'id': '0007ddec-092b-44b5-9651-76884e6081b4',
-        'title': 'Earth',
-        'code': 'er',
+        'status': 'ok',
+        'count': 42,
     })
 
     assert resp.status_code == 201
     assert resp.json()['id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
 
     # POST invalid id
-    resp = app.post('/country', json={
+    resp = app.post(f'/{model}', json={
         'id': 123,
-        'title': 'Finland',
-        'code': 'fi',
+        'status': 'not-ok',
+        'count': 13,
     })
 
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # POST invalid id
-    resp = app.post('/country', json={
+    resp = app.post(f'/{model}', json={
         'id': '123',
-        'title': 'Finland',
-        'code': 'fi',
+        'status': 'not-ok',
+        'count': 13,
     })
 
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # POST invalid id
-    resp = app.post('/country', json={
+    resp = app.post(f'/{model}', json={
         'id': None,
-        'title': 'Lithuania',
-        'code': 'lt',
+        'status': 'not-ok',
+        'count': 13,
     })
 
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
-def test_post_update_mongo(context, app):
-    # tests if update works with `id` present in the json
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_set_meta_fields',
-    ])
-    resp = app.post('/report', json={
-        'id': '0007ddec-092b-44b5-9651-76884e6081b4',
-        'status': '42',
-    })
-
-    assert resp.status_code == 201
-    assert resp.json()['id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
-
-    # POST invalid id
-    resp = app.post('/report', json={
-        'id': 123,
-        'status': '42',
-    })
-
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidValue"]
-
-    # POST invalid id
-    resp = app.post('/report', json={
-        'id': '123',
-        'status': '42',
-    })
-
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidValue"]
-
-    # POST invalid id
-    resp = app.post('/report', json={
-        'id': None,
-        'status': '42',
-    })
-
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidValue"]
-
-
-def test_post_revision(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post_revision(model, context, app):
     # tests 400 response when trying to create object with revision
-    app.authorize(['spinta_country_insert'])
-    resp = app.post('/country', json={
+    app.authmodel(model, ['insert'])
+    resp = app.post(f"/{model}", json={
         'revision': 'r3v1510n',
-        'title': 'Earth',
-        'code': 'er',
+        'status': 'valid',
+        'count': 42,
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["ManagedProperty"]
@@ -754,48 +784,61 @@ def test_patch_duplicate_id(model, context, app):
     assert resp.json() == {"error": f"'id' is unique for '{model}' and a duplicate value is found in database."}
 
 
-def test_post_non_json_content_type(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post_non_json_content_type(model, context, app):
     # tests 400 response when trying to make non-json request
-    app.authorize(['spinta_country_insert'])
+    app.authmodel(model, ['insert'])
     headers = {"content-type": "application/text"}
-    resp = app.post('/country', headers=headers, json={
-        "title": "Earth",
-        "code": "er"
+    resp = app.post(f'/{model}', headers=headers, json={
+        'status': 'valid',
+        'count': 42,
     })
     assert resp.status_code == 415
     assert get_error_codes(resp.json()) == ["UnknownContentType"]
 
 
-def test_post_bad_auth_header(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post_bad_auth_header(model, context, app):
     # tests 400 response when authorization header is missing `Bearer `
     auth_header = {'authorization': 'Fail f00b4rb4z'}
-    resp = app.post('/country', headers=auth_header, json={
-        'title': 'Earth',
-        'code': 'er',
+    resp = app.post(f'/{model}', headers=auth_header, json={
+        'status': 'valid',
+        'count': 42,
     })
     assert resp.status_code == 401
     assert get_error_codes(resp.json()) == ["UnsupportedTokenTypeError"]
 
 
-def test_post_missing_auth_header(config, context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post_missing_auth_header(model, context, app):
     context.load({'default_auth_client': None})
-    resp = app.post('/country', json={
-        'title': 'Earth',
-        'code': 'er',
+    resp = app.post(f'/{model}', json={
+        'status': 'valid',
+        'count': 42,
     })
     assert resp.status_code == 401
     assert get_error_codes(resp.json()) == ["MissingAuthorizationError"]
 
 
-def test_post_invalid_report_schema(app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_post_invalid_report_schema(model, app):
     # tests validation of correct value types according to manifest's schema
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_report_getone',
-    ])
+    app.authmodel(model, ['insert', 'getone'])
 
     # test integer validation
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'count': '123',
     })
     assert resp.status_code == 400
@@ -806,88 +849,92 @@ def test_post_invalid_report_schema(app):
         ["manifest", "model", "property", "type"],
     ) == {
         'manifest': 'default',
-        'model': 'report',
+        'model': model,
         'property': 'count',
         'type': 'integer',
     }
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'count': False,
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'count': [1, 2, 3],
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'count': {'a': 1, 'b': 2},
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'count': 123,
     })
     assert resp.status_code == 201
 
     # sanity check, that integers are still allowed.
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'status': 42,
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # test string validation
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'status': True,
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'status': [1, 2, 3],
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'status': {'a': 1, 'b': 2},
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # sanity check, that strings are still allowed.
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'status': '42',
     })
     assert resp.status_code == 201
 
 
-def test_streaming_response(context, app):
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_streaming_response(model, context, app):
     consume(context.push([
         {
-            'type': 'country',
-            'code': 'fi',
-            'title': 'Finland',
+            'type': model,
+            'count': 42,
+            'status': 'ok',
         },
         {
-            'type': 'country',
-            'code': 'lt',
-            'title': 'Lithuania',
+            'type': model,
+            'count': 13,
+            'status': 'not-ok',
         },
     ]))
 
-    app.authorize(['spinta_country_getall'])
-    resp = app.get('/country').json()
+    app.authmodel(model, ['getall'])
+    resp = app.get(f'/{model}').json()
     data = resp['data']
-    data = sorted((x['code'], x['title']) for x in data)
+    data = sorted((x['count'], x['status']) for x in data)
     assert data == [
-        ('fi', 'Finland'),
-        ('lt', 'Lithuania'),
+        (13, 'not-ok'),
+        (42, 'ok'),
     ]
 
 

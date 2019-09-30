@@ -61,10 +61,10 @@ def test_crud(app):
 
     resp = app.get(f'/photos/{id_}/image')
     assert resp.status_code == 404
-    assert get_error_codes(resp.json()) == ["ResourceNotFound"]
+    assert get_error_codes(resp.json()) == ["ItemDoesNotExist"]
     assert get_error_context(
         resp.json(),
-        "ResourceNotFound",
+        "ItemDoesNotExist",
         ["model", "property", "id"]
     ) == {
         "model": "photo",

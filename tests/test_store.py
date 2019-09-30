@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_schema_loader(context, app):
     country, = context.push([
         {
@@ -50,22 +53,32 @@ def test_schema_loader(context, app):
     }
 
 
-def test_nested(app):
-    app.authorize(['spinta_insert', 'spinta_getone'])
+# FIXME: postgres nested objects
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_nested(model, app):
+    app.authmodel(model, ['insert', 'getone'])
 
-    resp = app.post('/nested', json={
-        'type': 'nested',
-        'some': [{'nested': {'structure': 'here'}}]
+    resp = app.post(f'/{model}', json={
+        'type': model,
+        'notes': [{'note': 'foo'}]
     })
     assert resp.status_code == 201
     data = resp.json()
     id_ = data['id']
     revision = data['revision']
 
-    assert app.get(f'/nested/{id_}').json() == {
-        'type': 'nested',
-        'id': id_,
-        # TODO: add nested structure support for PostgreSQL
-        'some': [],
-        'revision': revision,
-    }
+    data = app.get(f'/{model}/{id_}').json()
+    assert data['id'] == id_
+    assert data['type'] == model
+    assert data['revision'] == revision
+    assert data['notes'] == [{
+        'note': 'foo',
+        'note_type': None,
+        'create_date': None
+    }]

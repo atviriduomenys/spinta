@@ -5,10 +5,6 @@ import typing
 
 from multipledispatch.dispatcher import Dispatcher
 
-from starlette.exceptions import HTTPException
-from spinta.exceptions import BaseError
-from authlib.common.errors import AuthlibHTTPError
-
 _commands = {}
 
 

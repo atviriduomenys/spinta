@@ -41,7 +41,7 @@ def load(context: Context, model: Model, data: dict) -> dict:
     unknown_props = set(data.keys()) - set(model.properties.keys())
     if unknown_props:
         raise exceptions.MultipleErrors(
-            exceptions.UnknownProperty(model, property=prop)
+            exceptions.FieldNotInResource(model, property=prop)
             for prop in sorted(unknown_props)
         )
 

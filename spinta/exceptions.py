@@ -182,7 +182,7 @@ class InvalidOperandValue(UserError):
     template = "Invalid operand value for {operator!r} operator."
 
 
-class ResourceNotFound(UserError):
+class ItemDoesNotExist(UserError):
     status_code = 404
     template = "Resource {id!r} not found."
 
@@ -192,7 +192,7 @@ class ModelNotFound(BaseError):
     template = "Model {model!r} not found."
 
 
-class MissingRevisionOnRewriteError(UserError):
+class NoItemRevision(UserError):
     template = "'revision' must be given on rewrite operation."
 
 
@@ -304,7 +304,7 @@ class UnknownParameter(BaseError):
     }
 
 
-class UnknownProperty(UserError):
+class FieldNotInResource(UserError):
     template = "Unknown property {property!r}."
     context = {
         'property': 'prop',
@@ -333,3 +333,11 @@ class UnhandledException(BaseError):
     context = {
         'exception': 'error.__class__.__name__',
     }
+
+
+class NewItemHasIdAlready(UserError):
+    template = "New item has id already set"
+
+
+class NewItemHasRevisionAlready(UserError):
+    template = "New item has revision already set"

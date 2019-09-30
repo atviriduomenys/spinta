@@ -8,7 +8,7 @@ from spinta.components import Context, Model, Property, Action, Node
 from spinta.commands import load_operator_value, prepare, dump, check, getone, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
-from spinta.exceptions import MissingRevisionOnRewriteError, ConflictingValue
+from spinta.exceptions import NoItemRevision, ConflictingValue
 from spinta.utils.nestedstruct import build_show_tree
 from spinta.utils.url import Operator
 from spinta import commands
@@ -120,7 +120,7 @@ def check(context: Context, dtype: DataType, prop: dataset.Property, backend: Ba
 
 def check_model_properties(context: Context, model: Model, backend, data: dict, action: Action, id_: str):
     if action in [Action.UPDATE, Action.DELETE] and 'revision' not in data:
-        raise MissingRevisionOnRewriteError(model)
+        raise NoItemRevision(model)
 
     REWRITE = [Action.UPDATE, Action.PATCH, Action.DELETE]
     if action in REWRITE:
@@ -253,7 +253,7 @@ def _prepare_query_result(
             }
             if unknown_properties:
                 raise exceptions.MultipleErrors(
-                    exceptions.UnknownProperty(model, property=prop)
+                    exceptions.FieldNotInResource(model, property=prop)
                     for prop in sorted(unknown_properties)
                 )
 

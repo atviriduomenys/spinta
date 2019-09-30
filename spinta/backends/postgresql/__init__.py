@@ -32,7 +32,7 @@ from spinta.exceptions import (
     MultipleRowsFound,
     NotFoundError,
     ManagedProperty,
-    ResourceNotFound,
+    ItemDoesNotExist,
     UniqueConstraint,
 )
 
@@ -542,7 +542,7 @@ def patch(
         default=None,
     )
     if row is None:
-        raise ResourceNotFound(model, id=id_)
+        raise ItemDoesNotExist(model, id=id_)
 
     # FIXME: before creating revision check if there's no collision clash
     data['revision'] = get_new_id('revision id')
@@ -608,7 +608,7 @@ def delete(
         where(table.main.c.id == id_)
     )
     if res.rowcount == 0:
-        raise ResourceNotFound(model, id=id_)
+        raise ItemDoesNotExist(model, id=id_)
 
     # Track changes.
     connection.execute(
