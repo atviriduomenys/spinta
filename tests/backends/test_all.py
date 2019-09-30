@@ -1,23 +1,26 @@
 import pathlib
 
+import pytest
+
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
-def test_mongo_insert_get(app):
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_report_getone',
-    ])
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_insert_get(model, app):
+    app.authmodel(model, ['insert', 'getone'])
 
-    resp = app.post('/reports', json={
-        'type': 'report',
+    resp = app.post(f'/{model}', json={
+        'type': model,
         'status': '42',
     })
     assert resp.status_code == 201
 
     data = resp.json()
     assert data == {
-        'type': 'report',
+        'type': model,
         'id': data['id'],
         'revision': data['revision'],
         'status': '42',
@@ -31,9 +34,9 @@ def test_mongo_insert_get(app):
 
     # Read those objects from database.
     id_ = data['id']
-    resp = app.get(f'/reports/{id_}')
+    resp = app.get(f'/{model}/{id_}')
     assert resp.json() == {
-        'type': 'report',
+        'type': model,
         'revision': data['revision'],
         'id': id_,
         'status': '42',
@@ -46,16 +49,19 @@ def test_mongo_insert_get(app):
     }
 
 
-def test_mongo_update_get(app):
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_report_update',
-        'spinta_report_getone',
-        'spinta_report_getall',
-    ])
+# FIXME: postgres PUT requests do not work
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_update_get(model, app):
+    app.authmodel(model, ['insert', 'update', 'getone', 'getall'])
 
-    resp = app.post('/reports', json={
-        'type': 'report',
+    resp = app.post(f'/{model}', json={
+        'type': model,
         'status': '42',
     })
     assert resp.status_code == 201
@@ -64,7 +70,7 @@ def test_mongo_update_get(app):
     data = resp.json()
     id_ = data['id']
     revision = data['revision']
-    resp = app.put(f'/reports/{id_}', json={
+    resp = app.put(f'/{model}/{id_}', json={
         'revision': revision,
         'status': '13',
     })
@@ -75,7 +81,7 @@ def test_mongo_update_get(app):
 
     revision = data['revision']
     assert data == {
-        'type': 'report',
+        'type': model,
         'id': id_,
         'revision': data['revision'],
         'status': '13',
@@ -88,10 +94,10 @@ def test_mongo_update_get(app):
     }
 
     # Read those objects from database.
-    resp = app.get(f'/reports/{id_}')
+    resp = app.get(f'/{model}/{id_}')
     data = resp.json()
     assert data == {
-        'type': 'report',
+        'type': model,
         'revision': revision,
         'id': id_,
         'status': '13',
@@ -104,12 +110,12 @@ def test_mongo_update_get(app):
     }
 
     # Get all objects from database.
-    resp = app.get('/reports')
+    resp = app.get(f'/{model}')
     data = resp.json()
     assert data == {
         'data': [
             {
-                'type': 'report',
+                'type': model,
                 'id': id_,
                 'notes': [],
                 'report_type': None,
@@ -124,129 +130,142 @@ def test_mongo_update_get(app):
     }
 
 
-def test_put_non_existant_resource(app):
-    resp = app.get('/reports/4e67-256f9a7388f88ccc502570f434f289e8-057553c2')
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_put_non_existant_resource(model, app):
+    resp = app.get(f'/{model}/4e67-256f9a7388f88ccc502570f434f289e8-057553c2')
     assert resp.status_code == 404
     assert get_error_codes(resp.json()) == ["ModelNotFound"]
 
-    resp = app.put('/reports/4e67-256f9a7388f88ccc502570f434f289e8-057553c2',
+    resp = app.put(f'/{model}/4e67-256f9a7388f88ccc502570f434f289e8-057553c2',
                    json={})
     assert resp.status_code == 404
     assert get_error_codes(resp.json()) == ["ModelNotFound"]
 
 
-def test_get_non_existant_subresource(app):
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_report_getone',
-    ])
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_get_non_existant_subresource(model, app):
+    app.authmodel(model, ['insert', 'getone'])
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'type': 'report',
         'status': '42',
     })
     assert resp.status_code == 201
     id_ = resp.json()['id']
 
-    resp = app.get(f'/reports/{id_}/foo')
+    resp = app.get(f'/{model}/{id_}/foo')
     assert resp.status_code == 404
     assert resp.json() == {"errors": [{
         "code": "HTTPException",
-        "message": "Resource 'report' does not have property 'foo'.",
+        "message": f"Resource '{model}' does not have property 'foo'.",
     }]}
 
 
-def test_delete(context, app, tmpdir):
+# FIXME: postgres throws 500 when cannot find resource instead of 404
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_delete(model, context, app, tmpdir):
     result = context.push([
-        {'type': 'report', 'status': '1'},
-        {'type': 'report', 'status': '2'},
+        {'type': model, 'status': '1'},
+        {'type': model, 'status': '2'},
     ])
     ids = [x['id'] for x in result]
 
     # FIXME: `spinta_report_pdf_delete` gives access to:
     # DELETE /report/ID/pdf
     # DELETE /report/pdf/ID
-    app.authorize([
-        'spinta_report_getall',
-        'spinta_report_delete',
-        'spinta_report_pdf_delete',
-        'spinta_report_pdf_update',
-        'spinta_report_pdf_getone',
+    app.authmodel(model, [
+        'getall',
+        'delete',
+        'pdf_delete',
+        'pdf_update',
+        'pdf_getone',
     ])
 
     pdf = pathlib.Path(tmpdir) / 'report.pdf'
     pdf.write_bytes(b'REPORTDATA')
 
-    resp = app.put(f'/reports/{ids[0]}/pdf:ref', json={
+    resp = app.put(f'/{model}/{ids[0]}/pdf:ref', json={
         'content_type': 'application/pdf',
         'filename': str(pdf),
     })
     assert resp.status_code == 200
 
-    resp = app.get('/report').json()
+    resp = app.get(f'/{model}').json()
     data = [x['id'] for x in resp['data']]
     assert ids[0] in data
     assert ids[1] in data
 
-    resp = app.delete(f'/report/{ids[0]}')
+    resp = app.delete(f'/{model}/{ids[0]}')
     assert resp.status_code == 204
 
     # multiple deletes should just return HTTP/404
-    resp = app.delete(f'/report/{ids[0]}')
+    resp = app.delete(f'/{model}/{ids[0]}')
     assert resp.status_code == 404
-    assert get_error_codes(resp.json()) == ["ResourceNotFound"]
+    assert get_error_codes(resp.json()) == ["ItemDoesNotExist"]
     assert get_error_context(
         resp.json(),
-        "ResourceNotFound",
+        "ItemDoesNotExist",
         ["model", "id"],
     ) == {
-        "model": "report",
+        "model": model,
         "id": ids[0],
     }
 
     # subresourses should be deleted
-    resp = app.delete(f'/report/{ids[0]}/pdf')
+    resp = app.delete(f'/{model}/{ids[0]}/pdf')
     assert resp.status_code == 404
-    assert get_error_codes(resp.json()) == ["ResourceNotFound"]
+    assert get_error_codes(resp.json()) == ["ItemDoesNotExist"]
     assert get_error_context(
         resp.json(),
-        "ResourceNotFound",
+        "ItemDoesNotExist",
         ["model", "id"],
     ) == {
-        "model": "report",
+        "model": model,
         "id": ids[0],
     }
 
     # FIXME: https://jira.tilaajavastuu.fi/browse/SPLAT-131
     # assert pdf.is_file() is False
 
-    resp = app.get('/report').json()
+    resp = app.get(f'/{model}').json()
     data = [x['id'] for x in resp['data']]
     assert ids[0] not in data
     assert ids[1] in data
 
 
-def test_patch(app, context):
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_report_getone',
-        'spinta_report_patch',
-    ])
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_patch(model, app, context):
+    app.authmodel(model, ['insert', 'getone', 'patch'])
 
-    report_data = app.post('/report', json={
-            'type': 'report',
-            'status': '1',
+    report_data = app.post(f'/{model}', json={
+        'type': model,
+        'status': '1',
     }).json()
     id_ = report_data['id']
 
-    resp = app.patch(f'/report/{id_}',
+    resp = app.patch(f'/{model}/{id_}',
                      json={'status': '42'})
     assert resp.status_code == 200
     assert resp.json()['status'] == '42'
     revision = resp.json()['revision']
 
     # test that revision mismatch is checked
-    resp = app.patch(f'/report/{id_}',
+    resp = app.patch(f'/{model}/{id_}',
                      json={'revision': 'r3v1510n', 'status': '42'})
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
@@ -257,10 +276,10 @@ def test_patch(app, context):
     ) == {
         'given': 'r3v1510n',
         'expected': revision,
-        'model': 'report',
+        'model': model,
     }
 
-    resp = app.patch(f'/report/{id_}',
+    resp = app.patch(f'/{model}/{id_}',
                      json={'revision': '', 'status': '42'})
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
@@ -271,10 +290,10 @@ def test_patch(app, context):
     ) == {
         'given': '',
         'expected': revision,
-        'model': 'report',
+        'model': model,
     }
 
-    resp = app.patch(f'/report/{id_}',
+    resp = app.patch(f'/{model}/{id_}',
                      json={'revision': None, 'status': '42'})
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
@@ -285,11 +304,11 @@ def test_patch(app, context):
     ) == {
         'given': None,
         'expected': revision,
-        'model': 'report',
+        'model': model,
     }
 
     # test that type mismatch is checked
-    resp = app.patch(f'/report/{id_}',
+    resp = app.patch(f'/{model}/{id_}',
                      json={'type': 'country', 'revision': revision, 'status': '42'})
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
@@ -299,12 +318,12 @@ def test_patch(app, context):
         ["given", "expected", "model"],
     ) == {
         'given': 'country',
-        'expected': 'report',
-        'model': 'report',
+        'expected': model,
+        'model': model,
     }
 
     # test that id mismatch is checked
-    resp = app.patch(f'/report/{id_}',
+    resp = app.patch(f'/{model}/{id_}',
                      json={'id': '0007ddec-092b-44b5-9651-76884e6081b4', 'revision': revision, 'status': '42'})
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
@@ -315,14 +334,14 @@ def test_patch(app, context):
     ) == {
         'given': '0007ddec-092b-44b5-9651-76884e6081b4',
         'expected': id_,
-        'model': 'report',
+        'model': model,
     }
 
     # test that protected fields (id, type, revision) are accepted, but not PATCHED
-    resp = app.patch(f'/report/{id_}',
+    resp = app.patch(f'/{model}/{id_}',
                      json={
                          'id': id_,
-                         'type': 'report',
+                         'type': model,
                          'revision': revision,
                          'status': '42',
                      })
@@ -330,26 +349,27 @@ def test_patch(app, context):
     resp_data = resp.json()
 
     assert resp_data['id'] == id_
-    assert resp_data['type'] == 'report'
+    assert resp_data['type'] == model
     # new status patched
     assert resp_data['status'] == '42'
     # new revision created regardless of PATCH'ed JSON
     assert resp_data['revision'] != revision
 
 
-def test_escaping_chars(app):
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_report_getone',
-    ])
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_escaping_chars(model, app):
+    app.authmodel(model, ['insert', 'getone'])
 
-    resp = app.post('/report', json={
-        'type': 'report',
+    resp = app.post(f'/{model}', json={
+        'type': model,
         'status': 'application/json',
     })
     assert resp.status_code == 201
     data = resp.json()
 
-    resp = app.get(f'/report/{data["id"]}')
+    resp = app.get(f'/{model}/{data["id"]}')
     assert resp.status_code == 200
     assert resp.json()['status'] == 'application/json'

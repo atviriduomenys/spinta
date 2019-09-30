@@ -38,7 +38,7 @@ from spinta.commands import (
     wipe,
 )
 from spinta.exceptions import (
-    ResourceNotFound,
+    ItemDoesNotExist,
     ManagedProperty,
     UniqueConstraint,
 )
@@ -283,7 +283,7 @@ def patch(
 
     row = table.find_one({'id': id_})
     if row is None:
-        raise ResourceNotFound(model, id=id_)
+        raise ItemDoesNotExist(model, id=id_)
 
     data = _patch(table, id_, row, data)
 
@@ -331,7 +331,7 @@ def delete(
     table = backend.db[model.model_type()]
     result = table.delete_one({'id': id_})
     if result.deleted_count == 0:
-        raise ResourceNotFound(model, id=id_)
+        raise ItemDoesNotExist(model, id=id_)
 
 
 @push.register()
@@ -434,7 +434,7 @@ def patch(
     table = backend.db[prop.model.model_type()]
     row = table.find_one({'id': id_}, {prop.name: 1})
     if row is None:
-        raise ResourceNotFound(prop, id=id_)
+        raise ItemDoesNotExist(prop, id=id_)
 
     data = _patch_property(table, id_, prop, row, data)
 
@@ -463,7 +463,7 @@ def _patch_property(table, id_, prop, row, data):
     )
 
     if result.matched_count == 0:
-        raise ResourceNotFound(prop, id=id_)
+        raise ItemDoesNotExist(prop, id=id_)
 
     assert result.matched_count == 1, (
         f"matched: {result.matched_count}, modified: {result.modified_count}"
@@ -519,7 +519,7 @@ def getone(
     table = backend.db[model.model_type()]
     data = table.find_one({'id': id_})
     if data is None:
-        raise ResourceNotFound(model, id=id_)
+        raise ItemDoesNotExist(model, id=id_)
     return data
 
 
@@ -551,7 +551,7 @@ def getone(
     table = backend.db[prop.model.model_type()]
     data = table.find_one({'id': id_}, {prop.name: 1})
     if data is None:
-        raise ResourceNotFound(prop, id=id_)
+        raise ItemDoesNotExist(prop, id=id_)
     return data.get(prop.name)
 
 
@@ -606,7 +606,7 @@ def getall(
     query = query or []
     for qp in query:
         if qp['key'] not in model.flatprops:
-            raise exceptions.UnknownProperty(model, property=qp['key'])
+            raise exceptions.FieldNotInResource(model, property=qp['key'])
 
         prop = model.flatprops[qp['key']]
         operator = qp.get('operator')

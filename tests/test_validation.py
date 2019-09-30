@@ -1,14 +1,21 @@
+import pytest
+
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
-def test_report(app):
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_report_getone',
-    ])
+# FIXME: fix postgres
+# @pytest.mark.models(
+#     'backends/postgres/report',
+#     'backends/mongo/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_report(model, app):
+    app.authmodel(model, ['insert', 'getone'])
 
-    resp = app.post('/reports', json={
-        'type': 'report',
+    resp = app.post(f'/{model}', json={
+        'type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': 42,
@@ -25,14 +32,14 @@ def test_report(app):
 
     data = resp.json()
     id = data['id']
-    resp = app.get(f'/reports/{id}')
+    resp = app.get(f'/{model}/{id}')
     assert resp.status_code == 200
 
     data = resp.json()
     assert data == {
         'id': id,
         'revision': data['revision'],
-        'type': 'report',
+        'type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': 42,
@@ -47,13 +54,15 @@ def test_report(app):
     }
 
 
-def test_invalid_report_int(app):
-    app.authorize([
-        'spinta_report_insert',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_invalid_report_int(model, app):
+    app.authmodel(model, ['insert'])
 
-    resp = app.post('/reports', json={
-        'type': 'report',
+    resp = app.post(f'/{model}', json={
+        'type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': 'c0unt',  # invalid conversion to int
@@ -70,19 +79,21 @@ def test_invalid_report_int(app):
         ["manifest", "model", "property", "type"],
     ) == {
         'manifest': 'default',
-        'model': 'report',
+        'model': model,
         'property': 'count',
         'type': 'integer',
     }
 
 
-def test_invalid_report_date(app):
-    app.authorize([
-        'spinta_report_insert',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_invalid_report_date(model, app):
+    app.authmodel(model, ['insert'])
 
-    resp = app.post('/reports', json={
-        'type': 'report',
+    resp = app.post(f'/{model}', json={
+        'type': model,
         'report_type': 'simple',
         'status': 'valid',
         'valid_from_date': '2019-04',  # invalid conversion to date
@@ -92,12 +103,14 @@ def test_invalid_report_date(app):
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
-def test_non_string_report_date(app):
-    app.authorize([
-        'spinta_report_insert',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_non_string_report_date(model, app):
+    app.authmodel(model, ['insert'])
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -108,12 +121,14 @@ def test_non_string_report_date(app):
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
-def test_invalid_report_datetime(app):
-    app.authorize([
-        'spinta_report_insert',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_invalid_report_datetime(model, app):
+    app.authmodel(model, ['insert'])
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -124,12 +139,14 @@ def test_invalid_report_datetime(app):
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
-def test_non_string_report_datetime(app):
-    app.authorize([
-        'spinta_report_insert',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_non_string_report_datetime(model, app):
+    app.authmodel(model, ['insert'])
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -140,12 +157,14 @@ def test_non_string_report_datetime(app):
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
-def test_invalid_report_array(app):
-    app.authorize([
-        'spinta_report_insert',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_invalid_report_array(model, app):
+    app.authmodel(model, ['insert'])
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -156,12 +175,14 @@ def test_invalid_report_array(app):
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
-def test_invalid_report_array_object(app):
-    app.authorize([
-        'spinta_report_insert',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_invalid_report_array_object(model, app):
+    app.authmodel(model, ['insert'])
 
-    resp = app.post('/reports', json={
+    resp = app.post(f'/{model}', json={
         'type': 'report',
         'report_type': 'simple',
         'status': 'valid',
@@ -172,14 +193,16 @@ def test_invalid_report_array_object(app):
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
-def test_invalid_nested_object_property(app):
-    app.authorize([
-        'spinta_nested_insert',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_invalid_nested_object_property(model, app):
+    app.authmodel(model, ['insert'])
 
-    resp = app.post('/nested', json={
-        'some': [{
-            'nested': 'object' # invalid object property type
+    resp = app.post(f'/{model}', json={
+        'notes': [{
+            'note': 42 # invalid object property type
         }]
     })
 
@@ -187,14 +210,15 @@ def test_invalid_nested_object_property(app):
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
-def test_missing_report_object_property(app):
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_report_getone',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_missing_report_object_property(model, app):
+    app.authmodel(model, ['insert', 'getone'])
 
-    resp = app.post('/reports', json={
-        'type': 'report',
+    resp = app.post(f'/{model}', json={
+        'type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': 42,
@@ -208,14 +232,15 @@ def test_missing_report_object_property(app):
     assert resp.status_code == 201
 
 
-def test_unknown_report_property(app):
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_report_getone',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_unknown_report_property(model, app):
+    app.authmodel(model, ['insert', 'getone'])
 
-    resp = app.post('/reports', json={
-        'type': 'report',
+    resp = app.post(f'/{model}', json={
+        'type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': '42',
@@ -230,25 +255,26 @@ def test_unknown_report_property(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["UnknownProperty"]
+    assert get_error_codes(resp.json()) == ["FieldNotInResource"]
     assert get_error_context(
         resp.json(),
-        "UnknownProperty",
+        "FieldNotInResource",
         ["property", "model"]
     ) == {
         'property': 'random_prop',
-        'model': 'report',
+        'model': model,
     }
 
 
-def test_unknown_report_object_property(app):
-    app.authorize([
-        'spinta_report_insert',
-        'spinta_report_getone',
-    ])
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_unknown_report_object_property(model, app):
+    app.authmodel(model, ['insert', 'getone'])
 
-    resp = app.post('/reports', json={
-        'type': 'report',
+    resp = app.post(f'/{model}', json={
+        'type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': 42,
@@ -261,12 +287,12 @@ def test_unknown_report_object_property(app):
     })
 
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["UnknownProperty"]
+    assert get_error_codes(resp.json()) == ["FieldNotInResource"]
     assert get_error_context(
         resp.json(),
-        "UnknownProperty",
+        "FieldNotInResource",
         ["property", "model"]
     ) == {
         'property': 'notes.rand_prop',
-        'model': 'report',
+        'model': model,
     }

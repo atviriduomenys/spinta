@@ -266,7 +266,7 @@ def load(context: Context, dtype: Object, value: object) -> dict:
     unknown_props = set(loaded_obj.keys()) - set(dtype.properties.keys())
     if unknown_props:
         raise exceptions.MultipleErrors(
-            exceptions.UnknownProperty(dtype.prop.model, property=f'{dtype.prop.place}.{prop}')
+            exceptions.FieldNotInResource(dtype.prop.model, property=f'{dtype.prop.place}.{prop}')
             for prop in sorted(unknown_props)
         )
 

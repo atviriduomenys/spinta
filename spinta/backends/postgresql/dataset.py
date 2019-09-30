@@ -490,7 +490,7 @@ def patch(
         default=None,
     )
     if row is None:
-        raise exceptions.ResourceNotFound(model, id=id_)
+        raise exceptions.ItemDoesNotExist(model, id=id_)
 
     data = _patch(transaction, connection, table, id_, row, data)
 
@@ -588,7 +588,7 @@ def getone(
     table = _get_table(backend, model)
     data = backend.get(connection, table.main.c.data, table.main.c.id == id_, default=None)
     if data is None:
-        raise exceptions.ResourceNotFound(model, id=id_)
+        raise exceptions.ItemDoesNotExist(model, id=id_)
     return {**data, 'id': id_}
 
 
@@ -750,7 +750,7 @@ def _getall_query(
     where = []
     for qp in query or []:
         if qp['key'] not in model.flatprops:
-            raise exceptions.UnknownProperty(model, property=qp['key'])
+            raise exceptions.FieldNotInResource(model, property=qp['key'])
         prop = model.flatprops[qp['key']]
         operator = qp.get('operator')
         value = commands.load_search_params(context, prop.dtype, backend, qp)

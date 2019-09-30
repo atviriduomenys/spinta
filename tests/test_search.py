@@ -52,6 +52,12 @@ def _push_test_data(context, model):
     return context.push({**data, 'type': model} for data in test_data)
 
 
+# FIXME: postgres nested objects
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+#     'backends/postgres/report/:dataset/test'
+# )
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report/:dataset/test'
@@ -93,7 +99,7 @@ def test_search_exact(model, context, app):
     # single non-existing field search
     resp = app.get(f'/{model}/:exact/state/o')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["UnknownProperty"]
+    assert get_error_codes(resp.json()) == ["FieldNotInResource"]
 
     # multple field search
     resp = app.get(f'/{model}/:exact/status/invalid/:exact/report_type/stv')
@@ -108,366 +114,430 @@ def test_search_exact(model, context, app):
     assert len(data) == 0
 
 
-def test_search_gt(context, app):
-    r1, r2, r3, = context.push(test_data)
+# FIXME: postgres nested objects
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_search_gt(model, context, app):
+    r1, r2, r3, = _push_test_data(context, model)
 
-    app.authorize(['spinta_report_search'])
+    app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get('/reports/:gt/count/40')
+    resp = app.get(f'/{model}/:gt/count/40')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # search for string value
-    resp = app.get('/reports/:gt/status/ok')
+    resp = app.get(f'/{model}/:gt/status/ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
         resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
     ) == {
         "operator": "gt",
-        "model": "report",
+        "model": model,
         "property": "status",
     }
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:gt/count/40/:gt/count/10')
+    resp = app.get(f'/{model}/:gt/count/40/:gt/count/10')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:gt/count/40/:exact/report_type/vmi')
+    resp = app.get(f'/{model}/:gt/count/40/:exact/report_type/vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # test `greater_than` works as expected
-    resp = app.get('/reports/:gt/count/42')
+    resp = app.get(f'/{model}/:gt/count/42')
     data = resp.json()['data']
     assert len(data) == 0
 
 
-def test_search_gte(context, app):
-    r1, r2, r3, = context.push(test_data)
+# FIXME: postgres nested objects
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_search_gte(model, context, app):
+    r1, r2, r3, = _push_test_data(context, model)
 
-    app.authorize(['spinta_report_search'])
+    app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get('/reports/:gte/count/40')
+    resp = app.get(f'/{model}/:gte/count/40')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # search for string value
-    resp = app.get('/reports/:gte/status/ok')
+    resp = app.get(f'/{model}/:gte/status/ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
         resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
     ) == {
         "operator": "gte",
-        "model": "report",
+        "model": model,
         "property": "status",
     }
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:gte/count/40/:gt/count/10')
+    resp = app.get(f'/{model}/:gte/count/40/:gt/count/10')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:gte/count/40/:exact/report_type/vmi')
+    resp = app.get(f'/{model}/:gte/count/40/:exact/report_type/vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # test `greater_than` works as expected
-    resp = app.get('/reports/:gte/count/42')
+    resp = app.get(f'/{model}/:gte/count/42')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
 
-def test_search_lt(context, app):
-    r1, r2, r3, = context.push(test_data)
+# FIXME: postgres nested objects
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_search_lt(model, context, app):
+    r1, r2, r3, = _push_test_data(context, model)
 
-    app.authorize(['spinta_report_search'])
+    app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get('/reports/:lt/count/12')
+    resp = app.get(f'/{model}/:lt/count/12')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # search for string value
-    resp = app.get('/reports/:lt/status/ok')
+    resp = app.get(f'/{model}/:lt/status/ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
         resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
     ) == {
         "operator": "lt",
-        "model": "report",
+        "model": model,
         "property": "status",
     }
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:lt/count/20/:gt/count/10')
+    resp = app.get(f'/{model}/:lt/count/20/:gt/count/10')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:lt/count/50/:exact/report_type/vmi')
+    resp = app.get(f'/{model}/:lt/count/50/:exact/report_type/vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # test `lower_than` works as expected
-    resp = app.get('/reports/:lt/count/10')
+    resp = app.get(f'/{model}/:lt/count/10')
     data = resp.json()['data']
     assert len(data) == 0
 
 
-def test_search_lte(context, app):
-    r1, r2, r3, = context.push(test_data)
+# FIXME: postgres nested objects
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_search_lte(model, context, app):
+    r1, r2, r3, = _push_test_data(context, model)
 
-    app.authorize(['spinta_report_search'])
+    app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get('/reports/:lte/count/12')
+    resp = app.get(f'/{model}/:lte/count/12')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # search for string value
-    resp = app.get('/reports/:lte/status/ok')
+    resp = app.get(f'/{model}/:lte/status/ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
         resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
     ) == {
         "operator": "lte",
-        "model": "report",
+        "model": model,
         "property": "status",
     }
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:lte/count/20/:gt/count/10')
+    resp = app.get(f'/{model}/:lte/count/20/:gt/count/10')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:lte/count/50/:exact/report_type/vmi')
+    resp = app.get(f'/{model}/:lte/count/50/:exact/report_type/vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # test `lower_than` works as expected
-    resp = app.get('/reports/:lte/count/10')
+    resp = app.get(f'/{model}/:lte/count/10')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
 
-def test_search_ne(context, app):
-    r1, r2, r3, = context.push(test_data)
+# FIXME: postgres nested objects
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_search_ne(model, context, app):
+    r1, r2, r3, = _push_test_data(context, model)
 
-    app.authorize(['spinta_report_search'])
+    app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get('/reports/:ne/status/invalid')
+    resp = app.get(f'/{model}/:ne/status/invalid')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # single field search, case insensitive
-    resp = app.get('/reports/:ne/status/invAlID')
+    resp = app.get(f'/{model}/:ne/status/invAlID')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:ne/count/10/:ne/count/42')
+    resp = app.get(f'/{model}/:ne/count/10/:ne/count/42')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:ne/status/ok/:exact/report_type/vmi')
+    resp = app.get(f'/{model}/:ne/status/ok/:exact/report_type/vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
 
-def test_search_contains(context, app):
-    r1, r2, r3, = context.push(test_data)
+# FIXME: postgres nested objects
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_search_contains(model, context, app):
+    r1, r2, r3, = _push_test_data(context, model)
 
-    app.authorize(['spinta_report_search'])
+    app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get('/reports/:contains/report_type/vm')
+    resp = app.get(f'/{model}/:contains/report_type/vm')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # single field search, case insensitive
-    resp = app.get('/reports/:contains/report_type/vM')
+    resp = app.get(f'/{model}/:contains/report_type/vM')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:contains/status/valid/:contains/report_type/tv')
+    resp = app.get(f'/{model}/:contains/status/valid/:contains/report_type/tv')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # multi field search, case insensitive
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:contains/status/vAlId/:contains/report_type/TV')
+    resp = app.get(f'/{model}/:contains/status/vAlId/:contains/report_type/TV')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # multi field search
     # test if operators are joined with AND logic for same field
-    resp = app.get('/reports/:contains/report_type/vm/:contains/report_type/mi')
+    resp = app.get(f'/{model}/:contains/report_type/vm/:contains/report_type/mi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:contains/status/valid/:exact/report_type/vmi')
+    resp = app.get(f'/{model}/:contains/status/valid/:exact/report_type/vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # `contains` type check
-    resp = app.get('/reports/:contains/notes.create_date/2019-04-20')
+    resp = app.get(f'/{model}/:contains/notes.create_date/2019-04-20')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
         resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
     ) == {
         "operator": "contains",
-        "model": "report",
+        "model": model,
         "property": "notes.create_date",
     }
 
 
-def test_search_startswith(context, app):
-    r1, r2, r3, = context.push(test_data)
+# FIXME: postgres nested objects
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_search_startswith(model, context, app):
+    r1, r2, r3, = _push_test_data(context, model)
 
-    app.authorize(['spinta_report_search'])
+    app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get('/reports/:startswith/report_type/vm')
+    resp = app.get(f'/{model}/:startswith/report_type/vm')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # single field search, case insensitive
-    resp = app.get('/reports/:startswith/report_type/Vm')
+    resp = app.get(f'/{model}/:startswith/report_type/Vm')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:startswith/status/in/:startswith/report_type/vm')
+    resp = app.get(f'/{model}/:startswith/status/in/:startswith/report_type/vm')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get('/reports/:startswith/report_type/st/:exact/status/ok')
+    resp = app.get(f'/{model}/:startswith/report_type/st/:exact/status/ok')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # sanity check that `startswith` searches from the start
-    resp = app.get('/reports/:startswith/status/valid')
+    resp = app.get(f'/{model}/:startswith/status/valid')
     data = resp.json()['data']
     assert len(data) == 0
 
     # `startswith` type check
-    resp = app.get('/reports/:startswith/notes.create_date/2019-04-20')
+    resp = app.get(f'/{model}/:startswith/notes.create_date/2019-04-20')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
 
 
-def test_search_nested(context, app):
-    r1, r2, r3, = context.push(test_data)
+# FIXME: postgres nested objects
+# @pytest.mark.models(
+#     'backends/mongo/report',
+#     'backends/postgres/report',
+# )
+@pytest.mark.models(
+    'backends/mongo/report',
+)
+def test_search_nested(model, context, app):
+    r1, r2, r3, = _push_test_data(context, model)
 
-    app.authorize(['spinta_report_search'])
+    app.authmodel(model, ['search'])
 
     # nested `exact` search
-    resp = app.get('/reports/:exact/notes.note/foo bar')
+    resp = app.get(f'/{model}/:exact/notes.note/foo bar')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # nested `exact` search, case insensitive
-    resp = app.get('/reports/:exact/notes.note/foo BAR')
+    resp = app.get(f'/{model}/:exact/notes.note/foo BAR')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # nested `gt` search
-    resp = app.get('/reports/:gt/notes.create_date/2019-04-01')
+    resp = app.get(f'/{model}/:gt/notes.create_date/2019-04-01')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # nested non existant field
-    resp = app.get('/reports/:exact/notes.foo.bar/baz')
+    resp = app.get(f'/{model}/:exact/notes.foo.bar/baz')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["UnknownProperty"]
+    assert get_error_codes(resp.json()) == ["FieldNotInResource"]
     assert get_error_context(
         resp.json(),
-        "UnknownProperty",
+        "FieldNotInResource",
         ["property", "model"]
     ) == {
         "property": "notes.foo.bar",
-        "model": "report",
+        "model": model,
     }
 
     # nested `contains` search
-    resp = app.get('/reports/:contains/notes.note/bar')
+    resp = app.get(f'/{model}/:contains/notes.note/bar')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
-    resp = app.get('/reports/:contains/operating_licenses.license_types/lid')
+    resp = app.get(f'/{model}/:contains/operating_licenses.license_types/lid')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # nested `startswith` search
-    resp = app.get('/reports/:startswith/notes.note/fo')
+    resp = app.get(f'/{model}/:startswith/notes.note/fo')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
-    resp = app.get('/reports/:startswith/operating_licenses.license_types/exp')
+    resp = app.get(f'/{model}/:startswith/operating_licenses.license_types/exp')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']

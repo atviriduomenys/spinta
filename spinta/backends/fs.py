@@ -10,7 +10,7 @@ from spinta.commands import load, prepare, migrate, check, push, getone, wipe, w
 from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.types.datatype import File
-from spinta.exceptions import FileNotFound, ResourceNotFound
+from spinta.exceptions import FileNotFound, ItemDoesNotExist
 from spinta import commands
 from spinta.renderer import render
 
@@ -147,7 +147,7 @@ async def getone(
     authorize(context, action, prop)
     data = getone(context, prop, prop.model.backend, id_=params.id)
     if data is None:
-        raise ResourceNotFound(prop, id=params.id)
+        raise ItemDoesNotExist(prop, id=params.id)
     filename = data['filename'] or params.id
     return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
 
