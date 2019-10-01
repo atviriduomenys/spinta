@@ -128,7 +128,6 @@ def test_missing_var_in_template():
 
 
 def test_this_model(context):
-    context.load_if_not_loaded()
     model = context.get('store').manifests['default'].objects['model']['org']
     model.path = 'manifest/models/org.yml'
     error = Error(model)
@@ -142,7 +141,6 @@ def test_this_model(context):
 
 
 def test_this_model_property(context):
-    context.load_if_not_loaded()
     prop = context.get('store').manifests['default'].objects['model']['org'].properties['title']
     prop.model.path = 'manifest/models/org.yml'
     error = Error(prop)
@@ -157,7 +155,6 @@ def test_this_model_property(context):
 
 
 def test_this_model_property_dtype(context):
-    context.load_if_not_loaded()
     dtype = context.get('store').manifests['default'].objects['model']['org'].properties['title'].dtype
     dtype.prop.model.path = 'manifest/models/org.yml'
     error = Error(dtype)
@@ -173,7 +170,6 @@ def test_this_model_property_dtype(context):
 
 
 def test_this_dataset_model(context):
-    context.load_if_not_loaded()
     model = context.get('store').manifests['default'].objects['dataset']['test'].resources[''].objects['']['backends/postgres/report']
     model.path = 'manifest/backends/postgres/datasets/report.yml'
     error = Error(model)
@@ -191,7 +187,6 @@ def test_this_dataset_model(context):
 
 
 def test_this_dataset_model_property(context):
-    context.load_if_not_loaded()
     prop = context.get('store').manifests['default'].objects['dataset']['test'].resources[''].objects['']['backends/postgres/report'].properties['status']
     prop.model.path = 'manifest/backends/postgres/datasets/report.yml'
     error = Error(prop)

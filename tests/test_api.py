@@ -194,7 +194,7 @@ def test_model_get(model, context, app):
             ('count', {'color': None, 'link': None, 'value': 42}),
             ('notes', {'color': None, 'link': None, 'value': []}),
             ('operating_licenses', {'color': None, 'link': None, 'value': []}),
-            ('pdf', {'color': '#C1C1C1', 'link': None, 'value': ''}), # XXX: this is pdf value which should be hidden?
+            ('pdf', {'color': '#C1C1C1', 'link': None, 'value': ''}),  # XXX: this is pdf value which should be hidden?
             ('type', {'color': None, 'link': None, 'value': model}),
         ],
         'formats': [
@@ -788,7 +788,7 @@ def test_patch_duplicate_id(model, context, app):
     'backends/postgres/report',
     'backends/mongo/report',
 )
-def test_post_non_json_content_type(model, context, app):
+def test_post_non_json_content_type(model, app):
     # tests 400 response when trying to make non-json request
     app.authmodel(model, ['insert'])
     headers = {"content-type": "application/text"}
@@ -804,7 +804,7 @@ def test_post_non_json_content_type(model, context, app):
     'backends/postgres/report',
     'backends/mongo/report',
 )
-def test_post_bad_auth_header(model, context, app):
+def test_post_bad_auth_header(model, app):
     # tests 400 response when authorization header is missing `Bearer `
     auth_header = {'authorization': 'Fail f00b4rb4z'}
     resp = app.post(f'/{model}', headers=auth_header, json={
@@ -819,8 +819,8 @@ def test_post_bad_auth_header(model, context, app):
     'backends/postgres/report',
     'backends/mongo/report',
 )
-def test_post_missing_auth_header(model, context, app):
-    context.load({'default_auth_client': None})
+def test_post_missing_auth_header(model, context, app, mocker):
+    mocker.patch.object(context.get('config'), 'default_auth_client', None)
     resp = app.post(f'/{model}', json={
         'status': 'valid',
         'count': 42,
