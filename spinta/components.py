@@ -269,11 +269,15 @@ class Store:
 class Manifest:
 
     def __init__(self):
+        self.name = None
         self.objects = {}
 
         # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
         # name and endpoint for all of them should match.
         self.endpoints = {}
+
+    def __repr__(self):
+        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>'
 
     def add_model_endpoint(self, model):
         endpoint = model.endpoint

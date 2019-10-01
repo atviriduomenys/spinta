@@ -3,6 +3,8 @@ import collections
 import pytest
 import sqlalchemy as sa
 
+from spinta.testing.context import create_test_context
+
 SQL = collections.namedtuple('SQL', ('engine', 'schema'))
 
 
@@ -15,7 +17,8 @@ def sql(config):
     schema.drop_all()
 
 
-def test_sql(config, sql, context, app):
+def test_sql(config, sql, app):
+    context = create_test_context(config)
     context.load({
         'datasets': {
             'default': {

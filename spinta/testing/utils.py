@@ -37,7 +37,6 @@ def get_error_context(response, error_code, ctx_keys: List[str] = None):
 
 
 def get_model_scopes(context, model, actions: List[str]):
-    context.load_if_not_loaded()
     config = context.get('config')
     return [
         name_to_scope('{prefix}{name}_{action}', model, maxlen=config.scope_max_length, params={

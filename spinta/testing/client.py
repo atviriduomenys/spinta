@@ -37,7 +37,6 @@ class TestClient(starlette.testclient.TestClient):
         else:
             # Create access token using private key.
             context = self._spinta_context
-            context.load_if_not_loaded()
             private_key = auth.load_key(context, 'private.json')
             client_id = 'baa448a8-205c-4faa-a048-a10e4b32a136'
             client = auth.query_client(context, client_id)
@@ -59,7 +58,6 @@ class TestClient(starlette.testclient.TestClient):
             url = self._requests_session_base_url + url
             return self._requests_session.request(method, url, *args, **kwargs)
         else:
-            self._spinta_context.load_if_not_loaded()
             return super().request(method, url, *args, **kwargs)
 
     def getdata(self, *args, **kwargs):

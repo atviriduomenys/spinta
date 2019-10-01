@@ -1,4 +1,5 @@
 import os
+import pathlib
 
 import pytest
 import sqlalchemy_utils as su
@@ -6,10 +7,9 @@ from responses import RequestsMock
 from click.testing import CliRunner
 
 from spinta import api
-from spinta.testing.context import ContextForTests
+from spinta.testing.context import create_test_context
 from spinta.testing.client import TestClient
-from spinta.config import RawConfig, load_commands
-from spinta.utils.imports import importstr
+from spinta.config import RawConfig
 from spinta import commands
 
 
@@ -28,13 +28,14 @@ def spinta_test_config():
             },
             'fs': {
                 'backend': 'spinta.backends.fs:FileSystem',
+                'path': pathlib.Path() / 'var/files',
             },
         },
     }
 
 
 @pytest.fixture(scope='session')
-def config(spinta_test_config):
+def _config(spinta_test_config):
     config = RawConfig()
     config.read(
         hardset={
@@ -46,13 +47,18 @@ def config(spinta_test_config):
             }
         },
     )
-    load_commands(config.get('commands', 'modules', cast=list))
     return config
 
 
+@pytest.fixture()
+def config(_config, request):
+    request.addfinalizer(_config.restore)
+    return _config
+
+
 @pytest.fixture(scope='session')
-def postgresql(config):
-    dsn = config.get('backends', 'default', 'dsn', required=True)
+def postgresql(_config):
+    dsn = _config.get('backends', 'default', 'dsn', required=True)
     if su.database_exists(dsn):
         yield dsn
     else:
@@ -62,30 +68,34 @@ def postgresql(config):
 
 
 @pytest.fixture(scope='session')
-def mongo(config):
+def mongo(_config):
     yield
-    dsn = config.get('backends', 'mongo', 'dsn', required=False)
-    db = config.get('backends', 'mongo', 'db', required=False)
+    dsn = _config.get('backends', 'mongo', 'dsn', required=False)
+    db = _config.get('backends', 'mongo', 'db', required=False)
     if dsn and db:
         import pymongo
         client = pymongo.MongoClient(dsn)
         client.drop_database(db)
 
 
+@pytest.fixture(scope='session')
+def _context(_config, postgresql, mongo):
+    context = create_test_context(_config)
+    context.load()
+    yield context
+
+
 @pytest.fixture
-def context(request, mocker, tmpdir, config, postgresql, mongo):
+def context(_context, mocker, tmpdir, request):
     mocker.patch.dict(os.environ, {
         'AUTHLIB_INSECURE_TRANSPORT': '1',
-        'SPINTA_BACKENDS_FS_PATH': str(tmpdir),
     })
 
-    Context = config.get('components', 'core', 'context', cast=importstr)
-    Context = type('ContextForTests', (ContextForTests, Context), {})
-    context = Context('pytest')
-    context.set('config.raw', config)
-    mocker.patch('spinta.config._create_context', return_value=context)
+    with _context.fork('test') as context:
+        mocker.patch('spinta.config._create_context', return_value=context)
 
-    with context:
+        store = context.get('store')
+        mocker.patch.object(store.backends['fs'], 'path', pathlib.Path(tmpdir))
 
         yield context
 
@@ -96,15 +106,15 @@ def context(request, mocker, tmpdir, config, postgresql, mongo):
         # If context was not loaded, then it means, that database was not touched.
         # All database operations require fully loaded context.
         if context.loaded:
+            # XXX: Maybe instead of deleting everythin, we could rollback
+            #      transactions, once this kind of functionality will be
+            #      available? This should be more efficient.
+            store = context.get('store')
             context.wipe_all()
 
         if context.has('store'):
             for backend in context.get('store').backends.values():
                 commands.unload_backend(context, backend)
-
-    # In `context.load` if config overrides are provided, config is modified,
-    # we need to restore it.
-    config.restore()
 
 
 @pytest.fixture
@@ -115,20 +125,14 @@ def responses():
 
 @pytest.fixture
 def app(context, mocker):
-    mocker.patch('spinta.api._load_context', lambda context: context)
-    client = TestClient(context, api.app)
-    # Attach test client in order to execute startup and shutdown events. These
-    # events will be triggered in `context.load()`. Starlette TestClient
-    # triggers startup and shutdown events with TestClient.__enter__ and
-    # TestClient.__exit__. That is why, we need to attach TestClient to the
-    # context and trigger it later, on context load.
-    context.attach('client', lambda: client)
-    return client
+    mocker.patch('spinta.api._load_context')
+    context.attach('client', TestClient, context, api.app)
+    return context.get('client')
 
 
 @pytest.fixture
 def cli(context, mocker):
-    mocker.patch('spinta.cli._load_context', lambda context, rc: context.load_if_not_loaded())
+    mocker.patch('spinta.cli._load_context')
     runner = CliRunner()
     return runner
 

@@ -10,6 +10,19 @@ from spinta.auth import AdminToken
 from spinta.urlparams import get_model_by_name
 from spinta import components
 from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
+from spinta.utils.imports import importstr
+from spinta.config import load_commands
+
+
+def create_test_context(config, *, name='pytest'):
+    Context = config.get('components', 'core', 'context', cast=importstr)
+    Context = type('ContextForTests', (ContextForTests, Context), {})
+    context = Context(name)
+    context.set('config.raw', config)
+
+    load_commands(config.get('commands', 'modules', cast=list))
+
+    return context
 
 
 class ContextForTests:
@@ -32,7 +45,6 @@ class ContextForTests:
 
     @contextlib.contextmanager
     def transaction(self, *, write=False):
-        self.load_if_not_loaded()
         if self.has('transaction'):
             yield self
         else:
@@ -43,7 +55,6 @@ class ContextForTests:
                 yield self
 
     def pull(self, dataset: str, *, models: list = None, push: bool = True):
-        self.load_if_not_loaded()
         store = self.get('store')
         dataset = store.manifests['default'].objects['dataset'][dataset]
         models = models or []
@@ -56,7 +67,6 @@ class ContextForTests:
         return data
 
     def push(self, data):
-        self.load_if_not_loaded()
         result = []
         store = self.get('store')
         manifest = store.manifests['default']
@@ -78,30 +88,27 @@ class ContextForTests:
         return result
 
     def getone(self, model: str, id_, *, dataset: str = None, resource: str = None):
-        self.load_if_not_loaded()
         model = self._get_model(model, dataset, resource)
         with self.transaction() as context:
             return commands.getone(context, model, model.backend, id_=id_)
 
     def getall(self, model: str, *, dataset: str = None, resource: str = None, **kwargs):
-        self.load_if_not_loaded()
         model = self._get_model(model, dataset, resource)
         with self.transaction() as context:
             return list(commands.getall(context, model, model.backend, **kwargs))
 
     def changes(self, model: str, *, dataset: str = None, resource: str = None, **kwargs):
-        self.load_if_not_loaded()
         model = self._get_model(model, dataset, resource)
         with self.transaction() as context:
             return list(commands.changes(context, model, model.backend, **kwargs))
 
     def wipe(self, model: str, *, dataset: str = None, resource: str = None):
-        self.load_if_not_loaded()
         model = self._get_model(model, dataset, resource)
         with self.transaction() as context:
             commands.wipe(context, model, model.backend)
 
     def wipe_all(self):
+        store = self.get('store')
         with self.transaction() as context:
             store = context.get('store')
 
@@ -156,18 +163,11 @@ class ContextForTests:
         commands.check(self, self.get('config'))
         commands.load(self, store, config)
         commands.check(self, store)
+
         commands.prepare(self, store.internal)
         commands.migrate(self, store)
         commands.prepare(self, store)
         commands.migrate(self, store)
-
-        # `context` fixture might be requested without `app` fixture, in that
-        # case `client` will not be available.
-        if self.has('client'):
-            # By accessing client we will triger Starlette TestClient to enter
-            # context and by doing that, TestClient will trigger startup and
-            # shutdown events. And we want to trigger that in tests.
-            self.get('client')
 
         self.bind('auth.server', AuthorizationServer, self)
         self.bind('auth.resource_protector', ResourceProtector, self, BearerTokenValidator)
@@ -175,7 +175,3 @@ class ContextForTests:
         self.loaded = True
 
         return self
-
-    def load_if_not_loaded(self):
-        if not self.loaded:
-            self.load()

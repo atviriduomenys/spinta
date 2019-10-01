@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 import collections
 import copy
 import importlib
@@ -435,7 +437,7 @@ def _traverse(value, path=()):
         yield path, value
 
 
-def _get_inner_keys(config: dict):
+def _get_inner_keys(config: Dict[tuple, Any]):
     """Get inner keys for config.
 
     `config` is flattened dict, that looks like this:

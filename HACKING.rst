@@ -240,7 +240,7 @@ Context
 In Spinta `context` is used to pass variables that are commonly used in
 multiple places.
 
-Also `context` is passed as first argument to all commands and it is also used
+Also `context` is passed as first argument to most commands and it is also used
 to override commands, because each project using Spinta should have its own
 `context` class. Which context class should be used is defined in
 `components.core.context` configuration parameter. By default `context` class
@@ -253,13 +253,9 @@ it is made sure, that `ContextForTests` always extends whatever is set in
 In tests, you get `context` from fixture called `context`. This fixture is
 defined in `spinta.testing.pytest`.
 
-Normally context is loaded on Starlette startup, startup handler is defined in
-`spinta.api:create_app_context`. But in tests, context loading is postponed, to
-give possibility for tests to override configuration, before context is loaded.
-Test context can be loaded by calling `context.load` or
-`context.load_if_not_loaded`. Text context can be loaded only once. Test
-context is automatically loaded on any `app` call and any database access call
-from test context.
+Context is loaded on Starlette startup, startup handler is defined in
+`spinta.api:create_app_context`. In tests, context is loaded at the start of
+test session and this loaded context is reused in all tests.
 
 Once context is loaded, it has a global state which is kept through whole
 process life time.
