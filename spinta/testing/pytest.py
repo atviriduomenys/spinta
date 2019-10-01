@@ -10,7 +10,6 @@ from spinta import api
 from spinta.testing.context import create_test_context
 from spinta.testing.client import TestClient
 from spinta.config import RawConfig
-from spinta import commands
 
 
 @pytest.fixture(scope='session')
@@ -111,10 +110,6 @@ def context(_context, mocker, tmpdir, request):
             #      available? This should be more efficient.
             store = context.get('store')
             context.wipe_all()
-
-        if context.has('store'):
-            for backend in context.get('store').backends.values():
-                commands.unload_backend(context, backend)
 
 
 @pytest.fixture
