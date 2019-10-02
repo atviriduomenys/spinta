@@ -1,0 +1,14 @@
+---
+type: model
+name: backends/mongo/org
+backend: mongo
+title: "Organization"
+version: 1
+date: "2019-02-06"
+unique:
+  - [country, govid]
+properties:
+  id: {type: pk}
+  title: {type: string}
+  govid: {type: string, title: "Identification number", description: "Identification number assigned by government."}
+  country: {type: ref, object: backends/mongo/country}

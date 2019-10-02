@@ -1,17 +1,24 @@
 import pytest
 
 
-def test_schema_loader(context, app):
+@pytest.mark.models(
+    'backends/mongo/{}',
+    'backends/postgres/{}',
+)
+def test_schema_loader(model, context, app):
+    model_org = model.format('org')
+    model_country = model.format('country')
+
     country, = context.push([
         {
-            'type': 'country',
+            'type': model_country,
             'code': 'lt',
             'title': 'Lithuania',
         },
     ])
     org, = context.push([
         {
-            'type': 'org',
+            'type': model_org,
             'title': 'My Org',
             'govid': '0042',
             'country': country['id'],
@@ -20,16 +27,16 @@ def test_schema_loader(context, app):
 
     assert country == {
         'id': country['id'],
-        'type': 'country',
+        'type': model_country,
     }
     assert org == {
         'id': org['id'],
-        'type': 'org',
+        'type': model_org,
     }
 
     app.authorize(['spinta_getone'])
 
-    resp = app.get(f'/org/{org["id"]}')
+    resp = app.get(f'/{model_org}/{org["id"]}')
     data = resp.json()
     revision = data['revision']
     assert data == {
@@ -37,18 +44,18 @@ def test_schema_loader(context, app):
         'govid': '0042',
         'title': 'My Org',
         'country': country['id'],
-        'type': 'org',
+        'type': model_org,
         'revision': revision,
     }
 
-    resp = app.get(f'/country/{country["id"]}')
+    resp = app.get(f'/{model_country}/{country["id"]}')
     data = resp.json()
     revision = data['revision']
     assert data == {
         'id': country['id'],
         'code': 'lt',
         'title': 'Lithuania',
-        'type': 'country',
+        'type': model_country,
         'revision': revision,
     }
 
