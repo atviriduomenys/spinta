@@ -168,12 +168,9 @@ def test_get_non_existant_subresource(model, app):
 
 
 # FIXME: postgres throws 500 when cannot find resource instead of 404
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_delete(model, context, app, tmpdir):
     result = context.push([

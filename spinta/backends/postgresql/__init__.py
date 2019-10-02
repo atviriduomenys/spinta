@@ -106,7 +106,6 @@ class PostgreSQL(Backend):
                 raise NotFoundError()
             else:
                 return default
-
         else:
             raise MultipleRowsFound()
 
@@ -764,7 +763,13 @@ def getone(
 ):
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
-    result = backend.get(connection, table, table.c.id == id_)
+
+    # cast server error (NotFoundError, HTTP/500) to user error (HTTP/4xx)
+    try:
+        result = backend.get(connection, table, table.c.id == id_)
+    except NotFoundError:
+        raise ItemDoesNotExist(model, id=id_)
+
     return dict(result)
 
 
@@ -795,7 +800,11 @@ def getone(
 ):
     table = backend.tables[prop.manifest.name][prop.model.name].main
     connection = context.get('transaction').connection
-    return backend.get(connection, table.c[prop.name], table.c.id == id_)
+    try:
+        result = backend.get(connection, table.c[prop.name], table.c.id == id_)
+    except NotFoundError:
+        raise ItemDoesNotExist(prop.model, id=id_)
+    return result
 
 
 @getall.register()

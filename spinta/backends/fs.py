@@ -6,11 +6,11 @@ from starlette.requests import Request
 from starlette.responses import FileResponse
 
 from spinta.backends import Backend
-from spinta.commands import load, prepare, migrate, check, push, getone, wipe, wait, authorize
+from spinta.commands import dump, load, prepare, migrate, check, push, getone, wipe, wait, authorize
 from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.types.datatype import File
-from spinta.exceptions import FileNotFound, ItemDoesNotExist
+from spinta.exceptions import FileNotFound, ItemDoesNotExist, NotFoundError
 from spinta import commands
 from spinta.renderer import render
 
@@ -84,7 +84,6 @@ async def push(
     authorize(context, action, prop)
 
     data = getone(context, prop, prop.model.backend, id_=params.id)
-
     content_type = None
     filename = None
 
