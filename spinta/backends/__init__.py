@@ -4,13 +4,12 @@ import uuid
 import typing
 
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String
-from spinta.components import Context, Model, Property, Action, Node
+from spinta.components import Context, Model, Property, Action, Node, Operator
 from spinta.commands import load_operator_value, prepare, dump, check, getone, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
 from spinta.exceptions import ConflictingValue, ItemDoesNotExist, NoItemRevision, NotFoundError
 from spinta.utils.nestedstruct import build_show_tree
-from spinta.utils.url import Operator
 from spinta import commands
 from spinta import exceptions
 

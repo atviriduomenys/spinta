@@ -1,7 +1,7 @@
+from typing import Optional, List, Dict, Iterator, Union
+
 import cgi
 import itertools
-
-from typing import Optional, List, Iterator, Union
 
 from starlette.requests import Request
 
@@ -9,6 +9,8 @@ from spinta.commands import prepare
 from spinta.components import Context, Manifest, Node
 from spinta.utils.url import parse_url_path
 from spinta.components import UrlParams, Version
+from spinta.commands import is_object_id
+from spinta import exceptions
 from spinta.exceptions import (
     NodeNotFound,
     ModelNotFound,
@@ -19,54 +21,75 @@ from spinta.exceptions import (
 @prepare.register()
 def prepare(context: Context, params: UrlParams, version: Version, request: Request) -> UrlParams:
     path = request.path_params['path'].strip('/')
-    p = params.params = parse_url_path(context, path)
-    _prepare_model_params(params)
-    params.search = any([
-        'show' in p,
-        'sort' in p,
-        'limit' in p,
-        'offset' in p,
-        'count' in p,
-        'query_params' in p,
-    ])
-    params.sort = p.get('sort')
-    params.limit = p.get('limit')
-    params.show = p.get('show')
-    params.query = p.get('query_params')
-
-    if 'changes' in p:
-        params.changes = True
-        params.offset = p['changes'] or -10
-    else:
-        params.changes = False
-        params.offset = p.get('offset')
-
-    params.format = get_response_type(context, request, p)
-    params.count = 'count' in p
+    _prepare_urlparams_from_path(params, path)
+    _resolve_path(context, params)
+    params.format = get_response_type(context, request, params)
     return params
 
 
-def _prepare_model_params(params: UrlParams):
-    p = params.params
-    params.path = p['path']
-    params.id = p.get('id')
-    params.properties = p.get('properties')
-    params.ns = p.get('ns')
-    params.dataset = p.get('dataset')
-    params.resource = p.get('resource')
-    params.origin = p.get('origin')
+def _prepare_urlparams_from_path(params, path):
+    for param in parse_url_path(path):
+        name = param['name']
+        args = param['args']
+
+        if name == 'path':
+            params.path = args
+        elif name == 'ns':
+            params.ns = True
+        elif name in ('dataset', 'resource', 'origin'):
+            setattr(params, name, '/'.join(args))
+        elif name == 'select':
+            params.select = args
+        elif name == 'changelog':
+            params.changelog = True
+            params.changelog_offset = args[0] if args else None
+        else:
+            params.query.append(param)
+
+
+def _find_model_name_index(nss: Dict[str, Node], parts: List[str]):
+    for i, name in enumerate(itertools.accumulate(parts, '{}/{}'.format)):
+        if name not in nss:
+            return i
+    return len(parts)
+
+
+def _resolve_path(context: Context, params: UrlParams) -> None:
+    path = '/'.join(params.path)
+    manifest = context.get('store').manifests['default']
+    nss = manifest.objects['ns']
+    i = _find_model_name_index(nss, params.path)
+    parts = params.path[i:]
+    params.path = '/'.join(params.path[:i])
+    params.model = get_model_from_params(manifest, params)
+
+    if parts:
+        # Resolve ID.
+        params.pk = parts.pop()
+        if not is_object_id(context, params.model.backend, params.model, params.id):
+            raise ModelNotFound(model=path)
+
+    if parts:
+        # Resolve property (subresource).
+        prop = parts.pop()
+        if prop.endswith(':ref'):
+            params.propref = True
+            prop = prop[:-len(':ref')]
+        if prop not in params.model.flatprops:
+            raise exceptions.PropertyNotFound(params.model, name=prop)
+        params.prop = params.model.flatprops[prop]
+
+    if parts:
+        raise ModelNotFound(model=path)
 
 
 def get_model_by_name(context: Context, manifest: Manifest, name: str) -> Node:
     config = context.get('config')
     UrlParams = config.components['urlparams']['component']
     params = UrlParams()
-    params.params = parse_url_path(context, name)
-    _prepare_model_params(params)
-    model = get_model_from_params(manifest, params)
-    if model is None:
-        raise ModelNotFound(manifest, model=name)
-    return model
+    _prepare_urlparams_from_path(params, name)
+    _resolve_path(context, params)
+    return params.model
 
 
 def _get_nodes_by_name(
@@ -178,22 +201,19 @@ def get_model_from_params(manifest, params: UrlParams):
         raise ModelNotFound(model=name)
 
 
-def get_response_type(context: Context, request: Request, params: dict = None):
-    if params is None and 'path' in request.path_params:
-        path = request.path_params['path'].strip('/')
-        params = parse_url_path(context, path)
-    elif params is None:
-        params = {}
+def get_response_type(context: Context, request: Request, params: UrlParams = None):
+    config = context.get('config')
 
-    if 'format' in params:
-        return params['format']
+    if params is not None and params.fmt:
+        if params.fmt not in config.exporters:
+            raise exceptions.UnknownOutputFormat(name=params.fmt)
+        return params.fmt
 
     if 'accept' in request.headers and request.headers['accept']:
         formats = {
             'text/html': 'html',
             'application/xhtml+xml': 'html',
         }
-        config = context.get('config')
         for name, exporter in config.exporters.items():
             for media_type in exporter.accept_types:
                 formats[media_type] = name

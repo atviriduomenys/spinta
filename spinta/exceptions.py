@@ -192,6 +192,11 @@ class ModelNotFound(BaseError):
     template = "Model {model!r} not found."
 
 
+class PropertyNotFound(BaseError):
+    status_code = 404
+    template = "Property {name!r} not found."
+
+
 class NoItemRevision(UserError):
     template = "'revision' must be given on rewrite operation."
 
@@ -318,6 +323,10 @@ class UnknownContentType(UserError):
 
 class UnknownAction(UserError):
     template = "Unknown action {action!r}."
+
+
+class UnknownOutputFormat(UserError):
+    template = "Unknown output format {name}."
 
 
 class OutOfScope(UserError):

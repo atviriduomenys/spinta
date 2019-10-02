@@ -1,3 +1,5 @@
+from typing import List
+
 import enum
 import contextlib
 import dataclasses
@@ -471,23 +473,25 @@ class Action(enum.Enum):
 
 
 class UrlParams:
-    model: str
-    id: str
-    properties: list
-    ns: str
-    resource: str
-    dataset: str
-    origin: str
-    changes: str
-    sort: list
-    limit: int
-    offset: int
-    format: str
-    count: bool = False
-
-    # Deprecated, added for backwards compatibility.
-    params: dict
+    model: Node = None
+    pk: str = None
+    prop: Node = None
+    # Tells if we accessing property content or reference. Applies only for some
+    # property types, like references.
+    propref: bool = False
+    ns: bool = False
+    resource: str = None
+    dataset: str = None
+    origin: str = None
+    changelog: str = False
+    changelog_offset: str = None
+    fmt: str = None
+    query: List[dict] = None
 
 
 class Version:
     version: str
+
+
+class Operator(enum.Enum):
+    EQ = 'eq'

@@ -1,11 +1,9 @@
 import itertools
 import json
 
-from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.urlparams import get_model_from_params
 from spinta.components import Context, Action, UrlParams, Node
 from spinta import exceptions
 
@@ -22,32 +20,29 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
     store = context.get('store')
     manifest = store.manifests['default']
 
-    model = get_model_from_params(manifest, params)
-    prop, ref = get_prop_from_params(model, params)
-
     if request.method == 'GET':
         context.attach('transaction', manifest.backend.transaction)
-        if params.changes:
-            return await commands.changes(context, request, model, model.backend, action=Action.CHANGES, params=params)
-        elif params.id:
-            if prop and ref:
-                return await commands.getone(context, request, prop, model.backend, action=Action.GETONE, params=params)
-            elif prop:
-                return await commands.getone(context, request, prop, prop.backend, action=Action.GETONE, params=params)
+        if params.changelog:
+            return await commands.changes(context, request, params.model, params.model.backend, action=Action.CHANGES, params=params)
+        elif params.pk:
+            if params.prop and params.propref:
+                return await commands.getone(context, request, params.prop, params.model.backend, action=Action.GETONE, params=params)
+            elif params.prop:
+                return await commands.getone(context, request, params.prop, params.prop.backend, action=Action.GETONE, params=params)
             else:
-                return await commands.getone(context, request, model, model.backend, action=Action.GETONE, params=params)
+                return await commands.getone(context, request, params.model, params.model.backend, action=Action.GETONE, params=params)
         else:
-            action = Action.SEARCH if params.search else Action.GETALL
-            return await commands.getall(context, request, model, model.backend, action=action, params=params)
+            action = Action.SEARCH if params.query else Action.GETALL
+            return await commands.getall(context, request, params.model, params.model.backend, action=action, params=params)
     else:
         context.attach('transaction', manifest.backend.transaction, write=True)
         action = METHOD_TO_ACTION[request.method]
-        if prop and ref:
-            return await commands.push(context, request, prop, model.backend, action=action, params=params)
-        elif prop:
-            return await commands.push(context, request, prop, prop.backend, action=action, params=params)
+        if params.prop and params.propref:
+            return await commands.push(context, request, params.prop, params.model.backend, action=action, params=params)
+        elif params.prop:
+            return await commands.push(context, request, params.prop, params.prop.backend, action=action, params=params)
         else:
-            return await commands.push(context, request, model, model.backend, action=action, params=params)
+            return await commands.push(context, request, params.model, params.model.backend, action=action, params=params)
 
 
 def peek_and_stream(stream):
@@ -80,25 +75,3 @@ async def get_request_data(node: Node, request: Request):
         raise exceptions.JSONError(node, error=str(e))
 
     return data
-
-
-def get_prop_from_params(model, params):
-    if not params.properties:
-        return None, False
-    if len(params.properties) != 1:
-        raise HTTPException(status_code=400, detail=(
-            "only one property can be given, now "
-            "these properties were given: "
-        ) % ', '.join(map(repr, params.properties)))
-    prop = params.properties[0]
-    ref = False
-    if prop.endswith(':ref'):
-        ref = True
-        prop = prop[:-len(':ref')]
-
-    if prop not in model.properties:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Resource {model.name!r} does not have property {prop!r}."
-        )
-    return model.properties[prop], ref

@@ -12,7 +12,7 @@ from starlette.requests import Request
 from spinta import commands
 from spinta.auth import check_scope
 from spinta.backends import Backend, check_model_properties, check_type_value
-from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, Operator
 from spinta.common import NA
 from spinta.config import RawConfig
 from spinta.renderer import render
@@ -20,7 +20,6 @@ from spinta.types.datatype import Date, File, DataType
 from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
-from spinta.utils.url import Operator
 
 from spinta.commands import (
     authorize,
@@ -490,6 +489,7 @@ def delete(
     assert result.matched_count == 1, (
         f"matched: {result.matched_count}, modified: {result.modified_count}"
     )
+
 
 @getone.register()
 async def getone(
