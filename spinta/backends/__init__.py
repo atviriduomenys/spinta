@@ -8,7 +8,7 @@ from spinta.components import Context, Model, Property, Action, Node
 from spinta.commands import load_operator_value, prepare, dump, check, getone, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
-from spinta.exceptions import NoItemRevision, ConflictingValue
+from spinta.exceptions import ConflictingValue, ItemDoesNotExist, NoItemRevision, NotFoundError
 from spinta.utils.nestedstruct import build_show_tree
 from spinta.utils.url import Operator
 from spinta import commands
@@ -126,7 +126,10 @@ def check_model_properties(context: Context, model: Model, backend, data: dict, 
     if action in REWRITE:
         # FIXME: try to put query somewhere higher in the request handling stack.
         # We do not want to hide expensive queries or call same thing multiple times.
-        row = getone(context, model, backend, id_=id_)
+        try:
+            row = getone(context, model, backend, id_=id_)
+        except NotFoundError:
+            raise ItemDoesNotExist(model, id=id_)
 
         for k in ['id', 'type', 'revision']:
             if k in data and row[k] != data[k]:
