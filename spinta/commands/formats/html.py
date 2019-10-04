@@ -258,9 +258,9 @@ def get_cell(context: Context, params: dict, prop, value, shorten=False, color=N
 
 
 def get_data(context: Context, rows, model: Node, params: UrlParams):
-    # XXX: For things like aggregations, a dynamig model should be created with
-    #      all the properties comming from aggregates.
-    if next((True for p in params.query or [] if p['name'] == 'count'), False):
+    # XXX: For things like aggregations, a dynamic model should be created with
+    #      all the properties coming from aggregates.
+    if next((True for p in (params.query or []) if p['name'] == 'count'), False):
         prop = Property()
         prop.dtype = DataType()
         prop.dtype.name = 'string'
