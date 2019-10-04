@@ -23,7 +23,7 @@ from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.renderer import render
-from spinta.types.datatype import DataType, File, PrimaryKey, Ref
+from spinta.types.datatype import Array, DataType, File, Object, PrimaryKey, Ref
 from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
@@ -51,8 +51,6 @@ CACHE_TABLE = 'T'
 UNSUPPORTED_TYPES = [
     'backref',
     'generic',
-    'array',
-    'object',
 ]
 
 
@@ -260,6 +258,16 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File):
         # If file property has a different backend, then here we just need to
         # save file name of file stored externally.
         return sa.Column(dtype.prop.name, JSONB)
+
+
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, dtype: Array):
+    return sa.Column(dtype.prop.name, JSONB)
+
+
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, dtype: Object):
+    return sa.Column(dtype.prop.name, JSONB)
 
 
 def _get_pg_name(name):
