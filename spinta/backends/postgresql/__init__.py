@@ -23,7 +23,7 @@ from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.renderer import render
-from spinta.types.datatype import Array, DataType, File, Object, PrimaryKey, Ref
+from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref
 from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
@@ -921,6 +921,18 @@ def get_changes_table(backend, table_name, id_type):
 @prepare.register()
 def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, show: typing.List[str] = None) -> dict:
     return prepare(context, action, model, backend, dict(value), show=show)
+
+
+@prepare.register()
+def prepare(context: Context, dtype: DateTime, backend: PostgreSQL, value: datetime.datetime) -> object:
+    # prepare datetime value for storing in postgres
+    return dtype.prepare(value)
+
+
+@prepare.register()
+def prepare(context: Context, dtype: Date, backend: PostgreSQL, value: datetime.date) -> object:
+    # prepare date value for storing in postgres
+    return dtype.prepare(value)
 
 
 @commands.unload_backend.register()

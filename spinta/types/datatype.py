@@ -26,6 +26,10 @@ class DataType:
         return value
 
 
+    def prepare(self, valut: typing.Any):
+        raise NotImplementedError()
+
+
 class PrimaryKey(DataType):
     pass
 
@@ -41,6 +45,11 @@ class Date(DataType):
         except (ValueError, TypeError):
             raise exceptions.InvalidValue(self)
 
+    def prepare(self, value: date):
+        # prepare value for storing
+        # store date as isoformat string for JSONB compatibility
+        return value.isoformat()
+
 
 class DateTime(DataType):
 
@@ -52,6 +61,11 @@ class DateTime(DataType):
             return datetime.fromisoformat(value)
         except (ValueError, TypeError):
             raise exceptions.InvalidValue(self)
+
+    def prepare(self, value: date):
+        # prepare value for storing
+        # store date as isoformat string for JSONB compatibility
+        return value.isoformat()
 
 
 class String(DataType):
