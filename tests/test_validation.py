@@ -10,6 +10,7 @@ from spinta.testing.utils import get_error_codes, get_error_context
 # )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_report(model, app):
     app.authmodel(model, ['insert', 'getone'])

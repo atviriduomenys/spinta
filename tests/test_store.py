@@ -60,13 +60,9 @@ def test_schema_loader(model, context, app):
     }
 
 
-# FIXME: postgres nested objects
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_nested(model, app):
     app.authmodel(model, ['insert', 'getone'])

@@ -23,7 +23,7 @@ from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.config import RawConfig
 from spinta.renderer import render
-from spinta.types.datatype import DataType, File, PrimaryKey, Ref
+from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref
 from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
@@ -51,8 +51,6 @@ CACHE_TABLE = 'T'
 UNSUPPORTED_TYPES = [
     'backref',
     'generic',
-    'array',
-    'object',
 ]
 
 
@@ -260,6 +258,16 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File):
         # If file property has a different backend, then here we just need to
         # save file name of file stored externally.
         return sa.Column(dtype.prop.name, JSONB)
+
+
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, dtype: Array):
+    return sa.Column(dtype.prop.name, JSONB)
+
+
+@prepare.register()
+def prepare(context: Context, backend: PostgreSQL, dtype: Object):
+    return sa.Column(dtype.prop.name, JSONB)
 
 
 def _get_pg_name(name):
@@ -913,6 +921,26 @@ def get_changes_table(backend, table_name, id_type):
 @prepare.register()
 def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, show: typing.List[str] = None) -> dict:
     return prepare(context, action, model, backend, dict(value), show=show)
+
+
+@prepare.register()
+def prepare(context: Context, dtype: DateTime, backend: PostgreSQL, value: datetime.datetime) -> object:
+    # convert datetime object to isoformat string if it belongs
+    # to a nested property
+    if dtype.prop.parent is dtype.prop.model:
+        return value
+    else:
+        return value.isoformat()
+
+
+@prepare.register()
+def prepare(context: Context, dtype: Date, backend: PostgreSQL, value: datetime.date) -> object:
+    # convert date object to isoformat string if it belongs
+    # to a nested property
+    if dtype.prop.parent is dtype.prop.model:
+        return value
+    else:
+        return value.isoformat()
 
 
 @commands.unload_backend.register()
