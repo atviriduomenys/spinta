@@ -3,6 +3,8 @@ from typing import Optional, List, Dict, Iterator, Union
 import cgi
 import itertools
 
+import pyrql
+
 from starlette.requests import Request
 
 from spinta.commands import prepare
@@ -21,14 +23,21 @@ from spinta.exceptions import (
 @prepare.register()
 def prepare(context: Context, params: UrlParams, version: Version, request: Request) -> UrlParams:
     path = request.path_params['path'].strip('/')
-    _prepare_urlparams_from_path(params, path)
+    params.parsetree = parse_url_path(path)
+    if request.url.query:
+        rql = pyrql.parse(request.url.query)
+        if rql['name'] == 'and':
+            params.parsetree.extend(rql['args'])
+        else:
+            params.parsetree.append(rql)
+    _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
     params.format = get_response_type(context, request, params)
     return params
 
 
-def _prepare_urlparams_from_path(params, path):
-    for param in parse_url_path(path):
+def _prepare_urlparams_from_path(params):
+    for param in params.parsetree:
         name = param['name']
         args = param['args']
 
@@ -39,17 +48,37 @@ def _prepare_urlparams_from_path(params, path):
         elif name in ('dataset', 'resource', 'origin'):
             setattr(params, name, '/'.join(args))
         elif name == 'select':
+            # TODO: Traverse args and resolve all properties, etc.
             params.select = args
-        elif name == 'changelog':
-            params.changelog = True
-            params.changelog_offset = args[0] if args else None
+        elif name == 'sort':
+            # TODO: Traverse args and resolve all properties, etc.
+            params.sort = args
+        elif name == 'limit':
+            if len(args) == 2:
+                params.limit, params.offset = args
+            elif len(args) == 1:
+                params.limit = args[0]
+            else:
+                raise exceptions.InvalidValue(
+                    operator='limit',
+                    message="Too many arguments.",
+                )
+        elif name == 'count':
+            params.count = True
+        elif name == 'changes':
+            params.changes = True
+            params.changes_offset = args[0] if args else None
+        elif name == 'format':
+            params.fmt = args[0]
         else:
+            if params.query is None:
+                params.query = []
             params.query.append(param)
 
 
-def _find_model_name_index(nss: Dict[str, Node], parts: List[str]):
+def _find_model_name_index(nss: Dict[str, Node], endpoints: dict, parts: List[str]) -> int:
     for i, name in enumerate(itertools.accumulate(parts, '{}/{}'.format)):
-        if name not in nss:
+        if name not in nss and name not in endpoints:
             return i
     return len(parts)
 
@@ -58,25 +87,25 @@ def _resolve_path(context: Context, params: UrlParams) -> None:
     path = '/'.join(params.path)
     manifest = context.get('store').manifests['default']
     nss = manifest.objects['ns']
-    i = _find_model_name_index(nss, params.path)
+    i = _find_model_name_index(nss, manifest.endpoints, params.path)
     parts = params.path[i:]
     params.path = '/'.join(params.path[:i])
     params.model = get_model_from_params(manifest, params)
 
     if parts:
         # Resolve ID.
-        params.pk = parts.pop()
-        if not is_object_id(context, params.model.backend, params.model, params.id):
+        params.pk = parts.pop(0)
+        if not is_object_id(context, params.model.backend, params.model, params.pk):
             raise ModelNotFound(model=path)
 
     if parts:
         # Resolve property (subresource).
-        prop = parts.pop()
+        prop = parts.pop(0)
         if prop.endswith(':ref'):
             params.propref = True
             prop = prop[:-len(':ref')]
         if prop not in params.model.flatprops:
-            raise exceptions.PropertyNotFound(params.model, name=prop)
+            raise exceptions.PropertyNotFound(params.model, property=prop)
         params.prop = params.model.flatprops[prop]
 
     if parts:
@@ -87,7 +116,8 @@ def get_model_by_name(context: Context, manifest: Manifest, name: str) -> Node:
     config = context.get('config')
     UrlParams = config.components['urlparams']['component']
     params = UrlParams()
-    _prepare_urlparams_from_path(params, name)
+    params.parsetree = parse_url_path(name)
+    _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
     return params.model
 

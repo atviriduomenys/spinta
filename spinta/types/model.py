@@ -89,7 +89,7 @@ def authorize(context: Context, action: Action, prop: Property):
 
 
 @commands.get_referenced_model.register()
-def get_referenced_model(context: Context, prop: Property, ref: str):
+def get_referenced_model(context: Context, prop: Property, ref: str) -> Node:
     model = prop.model
 
     if ref in model.manifest.objects['model']:

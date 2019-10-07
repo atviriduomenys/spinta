@@ -9,7 +9,7 @@ from spinta.commands import load_operator_value, prepare, dump, check, getone, g
 from spinta.common import NA
 from spinta.types import dataset
 from spinta.exceptions import ConflictingValue, ItemDoesNotExist, NoItemRevision, NotFoundError
-from spinta.utils.nestedstruct import build_show_tree
+from spinta.utils.nestedstruct import build_select_tree
 from spinta import commands
 from spinta import exceptions
 
@@ -59,17 +59,17 @@ def prepare(context: Context, backend: Backend, prop: Property):
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, dtype: DataType, value: object, *, show: dict = None):
+def dump(context: Context, backend: Backend, dtype: DataType, value: object, *, select: dict = None):
     return value
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, dtype: DateTime, value: datetime.datetime, *, show: dict = None):
+def dump(context: Context, backend: Backend, dtype: DateTime, value: datetime.datetime, *, select: dict = None):
     return value.isoformat()
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, dtype: Date, value: datetime.date, *, show: dict = None):
+def dump(context: Context, backend: Backend, dtype: Date, value: datetime.date, *, select: dict = None):
     if isinstance(value, datetime.datetime):
         return value.date().isoformat()
     else:
@@ -77,28 +77,28 @@ def dump(context: Context, backend: Backend, dtype: Date, value: datetime.date, 
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, dtype: Object, value: dict, *, show: dict = None):
-    if show is None or show[dtype.prop.place]:
-        show_ = show
+def dump(context: Context, backend: Backend, dtype: Object, value: dict, *, select: dict = None):
+    if select is None or select[dtype.prop.place]:
+        select_ = select
     else:
-        show_ = {
+        select_ = {
             prop.place: set()
             for prop in dtype.properties.values()
         }
     return {
-        prop.name: dump(context, backend, prop.dtype, value.get(prop.name), show=show_)
+        prop.name: dump(context, backend, prop.dtype, value.get(prop.name), select=select_)
         for prop in dtype.properties.values()
-        if show_ is None or prop.place in show_
+        if select_ is None or prop.place in select_
     }
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, dtype: Array, value: list, *, show: dict = None):
-    return [dump(context, backend, dtype.items.dtype, v, show=show) for v in value]
+def dump(context: Context, backend: Backend, dtype: Array, value: list, *, select: dict = None):
+    return [dump(context, backend, dtype.items.dtype, v, select=select) for v in value]
 
 
 @dump.register()
-def dump(context: Context, backend: Backend, dtype: Array, value: type(None), *, show: dict = None):
+def dump(context: Context, backend: Backend, dtype: Array, value: type(None), *, select: dict = None):
     return []
 
 
@@ -202,9 +202,9 @@ def prepare(
     backend: Backend,
     value: dict,
     *,
-    show: typing.List[str] = None,
+    select: typing.List[str] = None,
 ) -> dict:
-    return _prepare_query_result(context, action, model, backend, value, show)
+    return _prepare_query_result(context, action, model, backend, value, select)
 
 
 @prepare.register()
@@ -215,9 +215,9 @@ def prepare(
     backend: Backend,
     value: dict,
     *,
-    show: typing.List[str] = None,
+    select: typing.List[str] = None,
 ) -> dict:
-    return _prepare_query_result(context, action, model, backend, value, show)
+    return _prepare_query_result(context, action, model, backend, value, select)
 
 
 @commands.unload_backend.register()
@@ -227,11 +227,12 @@ def unload_backend(context: Context, backend: Backend):
 
 @load_operator_value.register()
 def load_operator_value(context: Context, backend: Backend, dtype: DataType, value: object, *, query_params: dict):
-    operator = query_params['operator']
+    operator = query_params['name']
+    # FIXME: Original operator name must be preserved.
     operator_name = query_params['name']
-    if operator in (Operator.STARTSWITH, Operator.CONTAINS) and not isinstance(dtype, String):
+    if operator in ('startswith', 'contains') and not isinstance(dtype, String):
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
-    if operator in [Operator.GT, Operator.GTE, Operator.LT, Operator.LTE] and isinstance(dtype, String):
+    if operator in ('gt', 'ge', 'lt', 'le') and isinstance(dtype, String):
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
 
 
@@ -241,14 +242,14 @@ def _prepare_query_result(
     model: Node,
     backend: Backend,
     value: dict,
-    show: typing.List[str],
+    select: typing.List[str],
 ):
     if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
         config = context.get('config')
         value = {**value, 'type': model.model_type()}
 
-        if show is not None:
-            unknown_properties = set(show) - {
+        if select is not None:
+            unknown_properties = set(select) - {
                 name
                 for name, prop in model.flatprops.items()
                 if not prop.hidden
@@ -259,17 +260,17 @@ def _prepare_query_result(
                     for prop in sorted(unknown_properties)
                 )
 
-            if config.always_show_id and 'id' not in show:
-                show = ['id'] + show
+            if config.always_show_id and 'id' not in select:
+                select = ['id'] + select
 
-            show = build_show_tree(show)
+            select = build_select_tree(select)
 
         result = {}
         for prop in model.properties.values():
             if prop.hidden:
                 continue
-            if show is None or prop.place in show:
-                result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name), show=show)
+            if select is None or prop.place in select:
+                result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name), select=select)
 
         return result
 

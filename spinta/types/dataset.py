@@ -373,7 +373,7 @@ def _dependencies(context: Context, model, deps):
         else:
             model_name = list(model_names)[0]
             depmodel = get_model_by_name(context, model.manifest, model_name)
-            for row in getall(context, depmodel, depmodel.backend, show=prop_names):
+            for row in getall(context, depmodel, depmodel.backend, select=prop_names):
                 yield {
                     prop_name_mapping[k]: v
                     for k, v in row.items()

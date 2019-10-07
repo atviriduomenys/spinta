@@ -1,3 +1,5 @@
+from spinta import exceptions
+
 RULES = {
     'path': {
         'minargs': 0,
@@ -14,7 +16,8 @@ RULES = {
     'origin': {
         'minargs': 1,
     },
-    'changelog': {
+    'changes': {
+        'minargs': 0,
         'maxargs': 1,
     },
     'format': {
@@ -29,7 +32,7 @@ def apply_query_rules(RULES, params):
         args = param['args']
 
         if name not in RULES:
-            raise Exception(f"Unknown URL parameter {name!r}.")
+            raise exceptions.UnknownRequestParameter(name=name)
 
         rules = RULES[name]
         maxargs = rules.get('maxargs')

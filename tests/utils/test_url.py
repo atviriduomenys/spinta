@@ -32,7 +32,7 @@ def test_parse_url_path(path, query):
 def test_unknown_name():
     with pytest.raises(Exception) as e:
         parse_url_path('foo/bar/:unknown/name')
-    assert str(e.value) == "Unknown URL parameter 'unknown'."
+    assert str(e.value) == "Unknown request parameter 'unknown'.\n  Context:\n    name: unknown\n"
 
 
 def test_mingargs():

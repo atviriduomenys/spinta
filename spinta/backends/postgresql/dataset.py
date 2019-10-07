@@ -248,7 +248,7 @@ async def _push_single_action(
 ):
     data = await get_request_data(model, request)
     data = commands.load(context, model, data)
-    check(context, model, backend, data, action=action, id_=params.id)
+    check(context, model, backend, data, action=action, id_=params.pk)
     data = prepare(context, model, data, action=action)
     data = _execute_action(context, model, backend, action=action, params=params, data=data)
     data = prepare(context, action, model, backend, data)
@@ -272,13 +272,13 @@ def _execute_action(
         data['id'] = commands.upsert(context, model, backend, data=data)
 
     elif action == Action.UPDATE:
-        commands.update(context, model, backend, id_=params.id, data=data)
+        commands.update(context, model, backend, id_=params.pk, data=data)
 
     elif action == Action.PATCH:
-        commands.patch(context, model, backend, id_=params.id, data=data)
+        commands.patch(context, model, backend, id_=params.pk, data=data)
 
     elif action == Action.DELETE:
-        commands.delete(context, model, backend, id_=params.id)
+        commands.delete(context, model, backend, id_=params.pk)
 
     else:
         raise Exception(f"Unknown action: {action!r}.")
@@ -567,11 +567,10 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-    ref: bool = False,
 ):
     authorize(context, action, model)
-    data = getone(context, model, backend, id_=params.id)
-    data = prepare(context, Action.GETONE, model, backend, data, show=params.show)
+    data = getone(context, model, backend, id_=params.pk)
+    data = prepare(context, Action.GETONE, model, backend, data, select=params.select)
     return render(context, request, model, params, data, action=action)
 
 
@@ -644,7 +643,7 @@ async def getall(
     action: Action,
     params: UrlParams,
 ):
-    # show=_params.get('show'),
+    # select=_params.get('select'),
     # sort=_params.get('sort', [{'name': 'id', 'ascending': True}]),
     # offset=_params.get('offset'),
     # limit=_params.get('limit', 100),
@@ -652,7 +651,7 @@ async def getall(
     # search=params.search
     # ---
     # context: Context, request: Request, model: Model, backend: PostgreSQL, *,
-    # show: typing.List[str] = None,
+    # select: typing.List[str] = None,
     # sort: typing.List[typing.Dict[str, str]] = None,
     # offset=None, limit=None,
     # count: bool = False,
@@ -663,7 +662,7 @@ async def getall(
     data = commands.getall(
         context, model, model.backend,
         action=action,
-        show=params.show,
+        select=params.select,
         sort=params.sort,
         offset=params.offset,
         limit=params.limit,
@@ -681,7 +680,7 @@ def getall(
     backend: PostgreSQL,
     *,
     action: Action = Action.GETALL,
-    show: typing.List[str] = None,
+    select: typing.List[str] = None,
     sort: typing.Dict[str, dict] = None,
     offset: int = None,
     limit: int = None,
@@ -698,7 +697,7 @@ def getall(
         return {'count': result.scalar()}
 
     else:
-        qry = _getall_show(table, jm, show)
+        qry = _getall_select(table, jm, select)
         qry = _getall_query(context, backend, model, qry, jm, query)
         qry = _getall_order_by(qry, table, jm, sort)
         qry = _getall_offset(qry, offset)
@@ -711,9 +710,9 @@ def getall(
             #        be fixed, so for now skipping `prepare`.
             return (dict(row) for row in result)
 
-        if show:
+        if select:
             return (
-                prepare(context, action, model, backend, dict(row), show=show)
+                prepare(context, action, model, backend, dict(row), select=select)
                 for row in result
             )
         else:
@@ -721,19 +720,19 @@ def getall(
                 prepare(
                     context, action, model, backend,
                     {**row[table.c.data], 'id': row[table.c.id]},
-                    show=show,
+                    select=select,
                 )
                 for row in result
             )
 
 
-def _getall_show(
+def _getall_select(
     table: sa.Table,
     jm: JoinManager,
-    show: typing.List[str],
+    select: typing.List[str],
 ) -> sa.sql.Select:
-    if show:
-        return sa.select([jm(name).label(name) for name in show])
+    if select:
+        return sa.select([jm(name).label(name) for name in select])
     else:
         return sa.select([table])
 
@@ -748,13 +747,16 @@ def _getall_query(
 ) -> sa.sql.Select:
     where = []
     for qp in query or []:
-        if qp['key'] not in model.flatprops:
-            raise exceptions.FieldNotInResource(model, property=qp['key'])
-        prop = model.flatprops[qp['key']]
-        operator = qp.get('operator')
+        key = qp['args'][0]
+        # TODO: Fix RQL parser to support `foo.bar=baz` notation.
+        key = '.'.join(key) if isinstance(key, tuple) else key
+        if key not in model.flatprops:
+            raise exceptions.FieldNotInResource(model, property=key)
+        prop = model.flatprops[key]
+        name = qp['name']
         value = commands.load_search_params(context, prop.dtype, backend, qp)
-        if operator == Operator.EXACT:
-            field = jm(qp['key'])
+        if name == 'eq':
+            field = jm(prop.place)
             if isinstance(prop.dtype, String):
                 field = sa.func.lower(field.astext)
                 value = value.lower()
@@ -762,7 +764,7 @@ def _getall_query(
                 value = sa.cast(value, JSONB)
             where.append(field == value)
         else:
-            raise NotImplementedError(f"Operator {operator!r} is not implemented for postgresql dataset models.")
+            raise exceptions.UnknownOperator(prop, operator=name)
     if where:
         qry = qry.where(sa.and_(*where))
     return qry
@@ -775,18 +777,22 @@ def _getall_order_by(
     sort: typing.List[typing.Dict[str, str]],
 ) -> sa.sql.Select:
     if sort:
+        direction = {
+            '+': lambda c: c.asc(),
+            '-': lambda c: c.desc(),
+        }
         db_sort_keys = []
-        for sort_key in sort:
-            if sort_key['name'] == 'id':
+        for key in sort:
+            # Optional sort direction: sort(+key) or sort(key)
+            if len(key) == 1:
+                d, key = ('+',) + key
+            else:
+                d, key = key
+            if key == 'id':
                 column = table.c.id
             else:
-                column = jm(sort_key['name'])
-
-            if sort_key['ascending']:
-                column = column.asc()
-            else:
-                column = column.desc()
-
+                column = jm(key)
+            column = direction[d](column)
             db_sort_keys.append(column)
         return qry.order_by(*db_sort_keys)
     else:
@@ -818,7 +824,15 @@ async def changes(
     params: UrlParams,
 ):
     authorize(context, action, model)
-    data = changes(context, model, backend, id_=params.id, limit=params.limit, offset=params.offset)
+    data = changes(
+        context,
+        model,
+        backend,
+        id_=params.pk,
+        limit=params.limit,
+        offset=params.offset,
+        start=params.changes_offset,
+    )
     data = (
         {
             **row,
@@ -835,9 +849,10 @@ def changes(
     model: Model,
     backend: PostgreSQL,
     *,
-    id_: str = None,
+    id_: Optional[str] = None,
     limit: int = 100,
     offset: int = -10,
+    start: Optional[str] = None,
 ):
     connection = context.get('transaction').connection
     table = _get_table(backend, model).changes
@@ -846,6 +861,9 @@ def changes(
     qry = _changes_id(table, qry, id_)
     qry = _changes_offset(table, qry, offset)
     qry = _changes_limit(qry, limit)
+
+    if start:
+        qry = qry.where(table.c.change_id > start)
 
     result = connection.execute(qry)
 
@@ -910,8 +928,8 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: str):
 
 
 @prepare.register()
-def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, show: typing.List[str] = None) -> dict:
-    return prepare(context, action, model, backend, dict(value), show=show)
+def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, select: typing.List[str] = None) -> dict:
+    return prepare(context, action, model, backend, dict(value), select=select)
 
 
 def _fix_data_for_json(data):

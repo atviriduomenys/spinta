@@ -161,9 +161,22 @@ def test_get_non_existant_subresource(model, app):
 
     resp = app.get(f'/{model}/{id_}/foo')
     assert resp.status_code == 404
+    # FIXME: Fix error message, here model and resource is found, but model
+    #        preprety is not found.
     assert resp.json() == {"errors": [{
-        "code": "HTTPException",
-        "message": f"Resource '{model}' does not have property 'foo'.",
+        'type': 'model',
+        'code': 'PropertyNotFound',
+        'template': 'Property {property!r} not found.',
+        'message': "Property 'foo' not found.",
+        'context': {
+            'schema': f'tests/manifest/{model}.yml',
+            'manifest': 'default',
+            'model': model,
+            'property': 'foo',
+        },
+
+
+
     }]}
 
 

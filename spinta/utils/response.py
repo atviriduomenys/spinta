@@ -22,7 +22,7 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
 
     if request.method == 'GET':
         context.attach('transaction', manifest.backend.transaction)
-        if params.changelog:
+        if params.changes:
             return await commands.changes(context, request, params.model, params.model.backend, action=Action.CHANGES, params=params)
         elif params.pk:
             if params.prop and params.propref:
@@ -32,7 +32,15 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
             else:
                 return await commands.getone(context, request, params.model, params.model.backend, action=Action.GETONE, params=params)
         else:
-            action = Action.SEARCH if params.query else Action.GETALL
+            search = any((
+                params.query,
+                params.select,
+                params.limit is not None,
+                params.offset is not None,
+                params.sort,
+                params.count,
+            ))
+            action = Action.SEARCH if search else Action.GETALL
             return await commands.getall(context, request, params.model, params.model.backend, action=action, params=params)
     else:
         context.attach('transaction', manifest.backend.transaction, write=True)

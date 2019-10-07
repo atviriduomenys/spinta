@@ -50,7 +50,7 @@ def test_sql(config, sql, app):
     app.authorize(['spinta_getall', 'spinta_search'])
 
     assert app.getdata('/country') == []
-    assert app.getdata('/country/:dataset/sql/:show/code/title/:sort/code') == [
+    assert app.getdata('/country/:dataset/sql?select(code,title)&sort(+code)') == [
         {'code': 'ee', 'title': 'Estija'},
         {'code': 'lt', 'title': 'Lietuva'},
         {'code': 'lv', 'title': 'Latvija'},

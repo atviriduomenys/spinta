@@ -157,7 +157,7 @@ async def push(
     else:
         data = await get_request_data(model, request)
         data = load(context, model, data)
-        check(context, model, backend, data, action=action, id_=params.id)
+        check(context, model, backend, data, action=action, id_=params.pk)
         data = prepare(context, model, data, action=action)
 
     transaction = context.get('transaction')  # noqa
@@ -169,21 +169,21 @@ async def push(
         data['id'] = commands.upsert(context, model, backend, data=data)
 
     elif action == Action.UPDATE:
-        data['id'] = params.id
+        data['id'] = params.pk
         # FIXME: check if revision given in `data` matches the revision in database
         # related to SPLAT-60
         data['revision'] = get_new_id('revision id')
-        commands.update(context, model, backend, id_=params.id, data=data)
+        commands.update(context, model, backend, id_=params.pk, data=data)
 
     elif action == Action.PATCH:
-        data['id'] = params.id
+        data['id'] = params.pk
         data['revision'] = get_new_id('revision id')
-        commands.patch(context, model, backend, id_=params.id, data=data)
+        commands.patch(context, model, backend, id_=params.pk, data=data)
 
     elif action == Action.DELETE:
-        data['id'] = params.id
+        data['id'] = params.pk
         data['revision'] = get_new_id('revision id')
-        commands.delete(context, model, backend, id_=params.id)
+        commands.delete(context, model, backend, id_=params.pk)
 
     else:
         raise Exception(f"Unknown action: {action!r}.")
@@ -342,23 +342,7 @@ async def push(
     *,
     action: Action,
     params: UrlParams,
-    ref: bool = False,
 ):
-    """
-
-    Args:
-        ref: Update reference or data refered by reference.
-
-            This applies only to direct property updates. Update reference is
-            enabled, when property is named like this `prop:ref`, the `:ref`
-            suffix tells, that reference should be updated and `ref` argument is
-            set to True.
-
-            Most properties do not have references, but some do. So this only
-            applies to properties like File with external backend, ForeignKey
-            and etc.
-
-    """
     if action == Action.INSERT:
         raise HTTPException(status_code=400, detail=f"Can't POST to a property, use PUT or PATCH instead.")
 
@@ -371,11 +355,11 @@ async def push(
     data = prepare(context, prop.dtype, backend, data)
 
     if action == Action.UPDATE:
-        commands.update(context, prop, backend, id_=params.id, data=data)
+        commands.update(context, prop, backend, id_=params.pk, data=data)
     elif action == Action.PATCH:
-        commands.patch(context, prop, backend, id_=params.id, data=data)
+        commands.patch(context, prop, backend, id_=params.pk, data=data)
     elif action == Action.DELETE:
-        commands.delete(context, prop, backend, id_=params.id)
+        commands.delete(context, prop, backend, id_=params.pk)
     else:
         raise Exception(f"Unknown action {action}.")
 
@@ -500,10 +484,9 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-    ref: bool = False,
 ):
     authorize(context, action, model)
-    data = getone(context, model, backend, id_=params.id)
+    data = getone(context, model, backend, id_=params.pk)
     data = prepare(context, action, model, backend, data)
     return render(context, request, model, params, data, action=action)
 
@@ -532,10 +515,9 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-    ref: bool = False,
 ):
     authorize(context, action, prop)
-    data = getone(context, prop, backend, id_=params.id)
+    data = getone(context, prop, backend, id_=params.pk)
     data = dump(context, backend, prop.dtype, data)
     return render(context, request, prop, params, data, action=action)
 
@@ -576,7 +558,7 @@ async def getall(
     data = commands.getall(
         context, model, model.backend,
         action=action,
-        show=params.show,
+        select=params.select,
         sort=params.sort,
         offset=params.offset,
         limit=params.limit,
@@ -593,10 +575,11 @@ def getall(
     backend: Mongo,
     *,
     action: Action = Action.GETALL,
-    show: typing.List[str] = None,
+    select: typing.List[str] = None,
     sort: typing.Dict[str, dict] = None,
     offset: int = None,
     limit: int = None,
+    # XXX: Deprecated, count should be part of `select`.
     count: bool = False,
     query: typing.List[typing.Dict[str, str]] = None,
 ):
@@ -605,11 +588,16 @@ def getall(
     search_expressions = []
     query = query or []
     for qp in query:
-        if qp['key'] not in model.flatprops:
-            raise exceptions.FieldNotInResource(model, property=qp['key'])
+        key = qp['args'][0]
 
-        prop = model.flatprops[qp['key']]
-        operator = qp.get('operator')
+        # TODO: Fix RQL parser to support `foo.bar=baz` notation.
+        key = '.'.join(key) if isinstance(key, tuple) else key
+
+        if key not in model.flatprops:
+            raise exceptions.FieldNotInResource(model, property=key)
+
+        prop = model.flatprops[key]
+        name = qp['name']
 
         # for search to work on MongoDB, values must be compatible for
         # Mongo's BSON consumption, thus we need to use chained load and prepare
@@ -621,72 +609,64 @@ def getall(
         else:
             re_value = value
 
-        if operator == Operator.EXACT:
+        if name == 'eq':
             search_expressions.append({
-                qp['key']: re_value
+                prop.place: re_value
             })
-        elif operator == Operator.GT:
+        elif name == 'gt':
             search_expressions.append({
-                qp['key']: {
-                    '$gt': re_value
-                }
+                prop.place: {'$gt': re_value}
             })
-        elif operator == Operator.GTE:
+        elif name == 'ge':
             search_expressions.append({
-                qp['key']: {
-                    '$gte': re_value
-                }
+                prop.place: {'$gte': re_value}
             })
-        elif operator == Operator.LT:
+        elif name == 'lt':
             search_expressions.append({
-                qp['key']: {
-                    '$lt': re_value
-                }
+                prop.place: {'$lt': re_value}
             })
-        elif operator == Operator.LTE:
+        elif name == 'le':
             search_expressions.append({
-                qp['key']: {
-                    '$lte': re_value
-                }
+                prop.place: {'$lte': re_value}
             })
-        elif operator == Operator.NE:
+        elif name == 'ne':
             # MongoDB's $ne operator does not consume regular expresions for values,
             # whereas `$not` requires an expression.
             # Thus if our search value is regular expression - search with $not, if
             # not - use $ne
             if isinstance(re_value, re.Pattern):
                 search_expressions.append({
-                    qp['key']: {
-                        '$not': re_value
-                    }
+                    prop.place: {'$not': re_value}
                 })
             else:
                 search_expressions.append({
-                    qp['key']: {
-                        '$ne': re_value
-                    }
+                    prop.place: {'$ne': re_value}
                 })
-        elif operator == Operator.CONTAINS:
+        elif name == 'contains':
             try:
                 re_value = re.compile(value, re.IGNORECASE)
             except TypeError:
                 # in case value is not a string - then just search for that value directly
+                # XXX: Let's not guess, but check schema instead.
                 re_value = value
 
             search_expressions.append({
-                qp['key']: re_value
+                prop.place: re_value
             })
-        elif operator == Operator.STARTSWITH:
+        elif name == 'startswith':
             # https://stackoverflow.com/a/3483399
             try:
                 re_value = re.compile('^' + value + '.*', re.IGNORECASE)
             except TypeError:
                 # in case value is not a string - then just search for that value directly
+                # XXX: Let's not guess, but check schema instead.
                 re_value = value
 
             search_expressions.append({
-                qp['key']: re_value
+                prop.place: re_value
             })
+        else:
+            raise exceptions.UnknownOperator(prop, operator=name)
 
     search_query = {}
 
@@ -703,17 +683,18 @@ def getall(
         cursor = cursor.skip(offset)
 
     if sort:
+        direction = {
+            '-': pymongo.ASCENDING,
+            '+': pymongo.DESCENDING,
+        }
+        # Optional sort direction: sort(+key) or sort(key)
+        sort = ((('+',) + k) if len(k) == 1 else k for k in sort)
         cursor = cursor.sort([
-            (
-                sort_key['name'],
-                pymongo.ASCENDING if sort_key['ascending'] else
-                pymongo.DESCENDING,
-            )
-            for sort_key in sort
+            (k, direction[d]) for d, k in sort
         ])
 
     for row in cursor:
-        yield prepare(context, action, model, backend, row, show=show)
+        yield prepare(context, action, model, backend, row, select=select)
 
 
 @wipe.register()
