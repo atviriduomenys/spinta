@@ -925,14 +925,22 @@ def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL,
 
 @prepare.register()
 def prepare(context: Context, dtype: DateTime, backend: PostgreSQL, value: datetime.datetime) -> object:
-    # prepare datetime value for storing in postgres
-    return dtype.prepare(value)
+    # convert datetime object to isoformat string if it belongs
+    # to a nested property
+    if dtype.prop.parent is dtype.prop.model:
+        return value
+    else:
+        return value.isoformat()
 
 
 @prepare.register()
 def prepare(context: Context, dtype: Date, backend: PostgreSQL, value: datetime.date) -> object:
-    # prepare date value for storing in postgres
-    return dtype.prepare(value)
+    # convert date object to isoformat string if it belongs
+    # to a nested property
+    if dtype.prop.parent is dtype.prop.model:
+        return value
+    else:
+        return value.isoformat()
 
 
 @commands.unload_backend.register()
