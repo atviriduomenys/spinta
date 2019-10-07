@@ -12,7 +12,7 @@ from starlette.requests import Request
 from spinta import commands
 from spinta.auth import check_scope
 from spinta.backends import Backend, check_model_properties, check_type_value
-from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, Operator
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
 from spinta.common import NA
 from spinta.config import RawConfig
 from spinta.renderer import render
@@ -684,8 +684,8 @@ def getall(
 
     if sort:
         direction = {
-            '-': pymongo.ASCENDING,
-            '+': pymongo.DESCENDING,
+            '+': pymongo.ASCENDING,
+            '-': pymongo.DESCENDING,
         }
         # Optional sort direction: sort(+key) or sort(key)
         sort = ((('+',) + k) if len(k) == 1 else k for k in sort)

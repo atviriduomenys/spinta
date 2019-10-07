@@ -7,7 +7,6 @@ from spinta.utils.url import build_url_path
 @pytest.mark.parametrize('path, query', [
     ('', [{'name': 'path', 'args': []}]),
     (':dataset/test', [
-        {'name': 'path', 'args': []},
         {'name': 'dataset', 'args': ['test']},
     ]),
     ('foo/bar', [

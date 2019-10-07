@@ -511,7 +511,3 @@ class UrlParams:
 
 class Version:
     version: str
-
-
-class Operator(enum.Enum):
-    EQ = 'eq'

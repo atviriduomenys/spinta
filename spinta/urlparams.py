@@ -9,7 +9,7 @@ from starlette.requests import Request
 
 from spinta.commands import prepare
 from spinta.components import Context, Manifest, Node
-from spinta.utils.url import parse_url_path
+from spinta.utils import url as urlutil
 from spinta.components import UrlParams, Version
 from spinta.commands import is_object_id
 from spinta import exceptions
@@ -22,18 +22,28 @@ from spinta.exceptions import (
 
 @prepare.register()
 def prepare(context: Context, params: UrlParams, version: Version, request: Request) -> UrlParams:
-    path = request.path_params['path'].strip('/')
-    params.parsetree = parse_url_path(path)
-    if request.url.query:
-        rql = pyrql.parse(request.url.query)
-        if rql['name'] == 'and':
-            params.parsetree.extend(rql['args'])
-        else:
-            params.parsetree.append(rql)
+    params.parsetree = (
+        urlutil.parse_url_path(request.path_params['path'].strip('/')) +
+        parse_url_query(request.url.query)
+    )
+    prepare_urlparams(context, params, request)
+    return params
+
+
+def parse_url_query(query):
+    if not query:
+        return []
+    rql = pyrql.parse(query)
+    if rql['name'] == 'and':
+        return rql['args']
+    else:
+        return [rql]
+
+
+def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
     params.format = get_response_type(context, request, params)
-    return params
 
 
 def _prepare_urlparams_from_path(params):
@@ -49,19 +59,48 @@ def _prepare_urlparams_from_path(params):
             setattr(params, name, '/'.join(args))
         elif name == 'select':
             # TODO: Traverse args and resolve all properties, etc.
-            params.select = args
+            if params.select is None:
+                params.select = args
+            else:
+                params.select += args
         elif name == 'sort':
             # TODO: Traverse args and resolve all properties, etc.
-            params.sort = args
+            if params.sort is None:
+                params.sort = args
+            else:
+                params.sort += args
         elif name == 'limit':
+            if params.limit is not None:
+                raise exceptions.InvalidValue(
+                    operator='limit',
+                    message="Limit operator can be set only once.",
+                )
             if len(args) == 2:
-                params.limit, params.offset = args
+                if params.offset is not None:
+                    raise exceptions.InvalidValue(
+                        operator='offset',
+                        message="Offset operator can be set only once.",
+                    )
+                params.limit, params.offset = map(int, args)
             elif len(args) == 1:
-                params.limit = args[0]
+                params.limit = int(args[0])
             else:
                 raise exceptions.InvalidValue(
                     operator='limit',
                     message="Too many arguments.",
+                )
+        elif name == 'offset':
+            if params.offset is not None:
+                raise exceptions.InvalidValue(
+                    operator='offset',
+                    message="Offset operator can be set only once.",
+                )
+            if len(args) == 1:
+                params.offset = int(args[0])
+            else:
+                raise exceptions.InvalidValue(
+                    operator='offset',
+                    message="Too many or too few arguments. One argument is expected.",
                 )
         elif name == 'count':
             params.count = True
@@ -116,7 +155,7 @@ def get_model_by_name(context: Context, manifest: Manifest, name: str) -> Node:
     config = context.get('config')
     UrlParams = config.components['urlparams']['component']
     params = UrlParams()
-    params.parsetree = parse_url_path(name)
+    params.parsetree = urlutil.parse_url_path(name)
     _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
     return params.model

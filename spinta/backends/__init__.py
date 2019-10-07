@@ -4,7 +4,7 @@ import uuid
 import typing
 
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String
-from spinta.components import Context, Model, Property, Action, Node, Operator
+from spinta.components import Context, Model, Property, Action, Node
 from spinta.commands import load_operator_value, prepare, dump, check, getone, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
@@ -78,7 +78,7 @@ def dump(context: Context, backend: Backend, dtype: Date, value: datetime.date, 
 
 @dump.register()
 def dump(context: Context, backend: Backend, dtype: Object, value: dict, *, select: dict = None):
-    if select is None or select[dtype.prop.place]:
+    if select is None or '*' in select or select[dtype.prop.place]:
         select_ = select
     else:
         select_ = {
@@ -88,7 +88,7 @@ def dump(context: Context, backend: Backend, dtype: Object, value: dict, *, sele
     return {
         prop.name: dump(context, backend, prop.dtype, value.get(prop.name), select=select_)
         for prop in dtype.properties.values()
-        if select_ is None or prop.place in select_
+        if select_ is None or '*' in select_ or prop.place in select_
     }
 
 
@@ -253,7 +253,7 @@ def _prepare_query_result(
                 name
                 for name, prop in model.flatprops.items()
                 if not prop.hidden
-            }
+            } - {'*'}
             if unknown_properties:
                 raise exceptions.MultipleErrors(
                     exceptions.FieldNotInResource(model, property=prop)
@@ -265,11 +265,14 @@ def _prepare_query_result(
 
             select = build_select_tree(select)
 
+        elif action in (Action.GETALL, Action.SEARCH) and config.always_show_id:
+            select = ['id']
+
         result = {}
         for prop in model.properties.values():
             if prop.hidden:
                 continue
-            if select is None or prop.place in select:
+            if select is None or '*' in select or prop.place in select:
                 result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name), select=select)
 
         return result

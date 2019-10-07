@@ -1,3 +1,5 @@
+import urllib.parse
+
 from spinta import exceptions
 
 RULES = {
@@ -38,24 +40,27 @@ def apply_query_rules(RULES, params):
         maxargs = rules.get('maxargs')
         minargs = rules.get('minargs', 0 if maxargs == 0 else 1)
         if len(args) < minargs:
+            # FIXME: This should be an UserError.
             raise Exception(f"At least {minargs} argument is required for {name!r} URL parameter.")
 
         if maxargs is not None and len(args) > maxargs:
+            # FIXME: This should be an UserError.
             raise Exception(f"URL parameter {name!r} can only have {maxargs} arguments.")
     return params
 
 
 def parse_url_path(path):
     query = []
-    name = 'path'
+    name = None if path.startswith(':') else 'path'
     args = []
-    parts = path.split('/') if path else []
+    parts = map(urllib.parse.unquote, path.split('/')) if path else []
     for part in parts:
         if part.startswith(':'):
-            query.append({
-                'name': name,
-                'args': args,
-            })
+            if name is not None:
+                query.append({
+                    'name': name,
+                    'args': args,
+                })
             name = part[1:]
             args = []
         else:

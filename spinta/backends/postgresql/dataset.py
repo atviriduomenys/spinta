@@ -13,7 +13,7 @@ from sqlalchemy.engine.result import RowProxy
 from starlette.requests import Request
 
 from spinta.commands import prepare, check, push, getone, getall, changes, wipe, authorize, is_object_id
-from spinta.components import Context, Action, UrlParams, Node, Operator
+from spinta.components import Context, Action, UrlParams, Node
 from spinta.types.dataset import Model
 from spinta.backends import Backend, check_model_properties
 from spinta.backends.postgresql import PostgreSQL
