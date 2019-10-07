@@ -67,10 +67,6 @@ def test_schema_loader(model, context, app):
 def test_nested(model, app):
     app.authmodel(model, ['insert', 'getone'])
 
-    print('*' * 80)
-    print('posting model')
-    print('*' * 80)
-
     resp = app.post(f'/{model}', json={
         'type': model,
         'notes': [{'note': 'foo'}]
@@ -79,10 +75,6 @@ def test_nested(model, app):
     data = resp.json()
     id_ = data['id']
     revision = data['revision']
-
-    print('*' * 80)
-    print('getting model')
-    print('*' * 80)
 
     data = app.get(f'/{model}/{id_}').json()
     assert data['id'] == id_
