@@ -346,7 +346,7 @@ async def push(
     else:
         data = await get_request_data(model, request)
         data = load(context, model, data)
-        check(context, model, backend, data, action=action, id_=params.id)
+        check(context, model, backend, data, action=action, id_=params.pk)
         data = prepare(context, model, data, action=action)
         data = {
             k: v
@@ -361,16 +361,16 @@ async def push(
         data['id'] = commands.upsert(context, model, backend, data=data)
 
     elif action == Action.UPDATE:
-        commands.update(context, model, backend, id_=params.id, data=data)
-        data['id'] = params.id
+        commands.update(context, model, backend, id_=params.pk, data=data)
+        data['id'] = params.pk
 
     elif action == Action.PATCH:
-        commands.patch(context, model, backend, id_=params.id, data=data)
-        data['id'] = params.id
+        commands.patch(context, model, backend, id_=params.pk, data=data)
+        data['id'] = params.pk
 
     elif action == Action.DELETE:
-        commands.delete(context, model, backend, id_=params.id)
-        data['id'] = params.id
+        commands.delete(context, model, backend, id_=params.pk)
+        data['id'] = params.pk
 
     else:
         raise Exception(f"Unknown action {action!r}.")
@@ -667,11 +667,11 @@ async def push(
     data = prepare(context, prop.dtype, backend, data)
 
     if action == Action.UPDATE:
-        commands.update(context, prop, backend, id_=params.id, data=data)
+        commands.update(context, prop, backend, id_=params.pk, data=data)
     elif action == Action.PATCH:
-        commands.patch(context, prop, backend, id_=params.id, data=data)
+        commands.patch(context, prop, backend, id_=params.pk, data=data)
     elif action == Action.DELETE:
-        commands.delete(context, prop, backend, id_=params.id)
+        commands.delete(context, prop, backend, id_=params.pk)
     else:
         raise Exception(f"Unknown action {action}.")
 
@@ -696,9 +696,9 @@ def update(
         values({prop.name: data})
     )
     if result.rowcount == 0:
-        raise Exception("Property update failed, {prop} with {params.id} not found.")
+        raise Exception("Property update failed, {prop} with {id_} not found.")
     elif result.rowcount > 1:
-        raise Exception("Property update failed, {prop} with {params.id} has found and update {result.rowcount} rows.")
+        raise Exception("Property update failed, {prop} with {id_} has found and update {result.rowcount} rows.")
 
 
 @commands.patch.register()  # noqa
@@ -718,9 +718,9 @@ def patch(
         values({prop.name: data})
     )
     if result.rowcount == 0:
-        raise Exception("Property update failed, {prop} with {params.id} not found.")
+        raise Exception("Property update failed, {prop} with {id_} not found.")
     elif result.rowcount > 1:
-        raise Exception("Property update failed, {prop} with {params.id} has found and update {result.rowcount} rows.")
+        raise Exception("Property update failed, {prop} with {id_} has found and update {result.rowcount} rows.")
 
 
 @commands.delete.register()  # noqa
@@ -739,9 +739,9 @@ def delete(
         values({prop.name: None})
     )
     if result.rowcount == 0:
-        raise Exception("Property delete failed, {prop} with {params.id} not found.")
+        raise Exception("Property delete failed, {prop} with {id_} not found.")
     elif result.rowcount > 1:
-        raise Exception("Property delete failed, {prop} with {params.id} has found and update {result.rowcount} rows.")
+        raise Exception("Property delete failed, {prop} with {id_} has found and update {result.rowcount} rows.")
 
 
 @getone.register()
@@ -753,11 +753,10 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-    ref: bool = False,
 ):
     authorize(context, action, model)
-    data = getone(context, model, backend, id_=params.id)
-    data = prepare(context, Action.GETONE, model, backend, data, show=params.show)
+    data = getone(context, model, backend, id_=params.pk)
+    data = prepare(context, Action.GETONE, model, backend, data, select=params.select)
     return render(context, request, model, params, data, action=action)
 
 
@@ -790,10 +789,9 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-    ref: bool = False,
 ):
     authorize(context, action, prop)
-    data = getone(context, prop, backend, id_=params.id)
+    data = getone(context, prop, backend, id_=params.pk)
     data = dump(context, backend, prop.dtype, data)
     return render(context, request, prop, params, data, action=action)
 
@@ -919,8 +917,8 @@ def get_changes_table(backend, table_name, id_type):
 
 
 @prepare.register()
-def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, show: typing.List[str] = None) -> dict:
-    return prepare(context, action, model, backend, dict(value), show=show)
+def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, select: typing.List[str] = None) -> dict:
+    return prepare(context, action, model, backend, dict(value), select=select)
 
 
 @prepare.register()

@@ -1,3 +1,5 @@
+from typing import List, Optional, Tuple
+
 import enum
 import contextlib
 import dataclasses
@@ -471,22 +473,40 @@ class Action(enum.Enum):
 
 
 class UrlParams:
-    model: str
-    id: str
-    properties: list
-    ns: str
-    resource: str
-    dataset: str
-    origin: str
-    changes: str
-    sort: list
-    limit: int
-    offset: int
-    format: str
+    parsetree: List[dict]
+
+    model: Optional[Node] = None
+    pk: Optional[str] = None
+    prop: Optional[Node] = None
+    # Tells if we accessing property content or reference. Applies only for some
+    # property types, like references.
+    propref: bool = False
+
+    ns: bool = False
+    dataset: Optional[str] = None
+    resource: Optional[str] = None
+    origin: Optional[str] = None
+
+    changes: bool = False
+    changes_offset: Optional[str] = None
+
+    fmt: Optional[str] = None
+
+    select: Optional[List[str]] = None
+    sort: Optional[List[Tuple[str, Node]]] = None
+    limit: Optional[str] = None
+    offset: Optional[str] = None
+    # XXX: Deprecated, count should be part of `select`.
     count: bool = False
 
-    # Deprecated, added for backwards compatibility.
-    params: dict
+    query: Optional[List[dict]] = None
+
+    def changed_parsetree(self, change):
+        ptree = {x['name']: x['args'] for x in (self.parsetree or [])}
+        ptree.update(change)
+        return [
+            {'name': k, 'args': v} for k, v in ptree.items()
+        ]
 
 
 class Version:

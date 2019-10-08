@@ -34,7 +34,7 @@ def test_export_ascii(context, app, mocker):
         'spinta_country_dataset_csv_resource_countries_changes',
     ])
 
-    assert app.get('country/:dataset/csv/:resource/countries/:sort/code/:format/ascii').text == (
+    assert app.get('country/:dataset/csv/:resource/countries/:format/ascii?sort(+code)').text == (
         '\n\n'
         'Table: country/:dataset/csv/:resource/countries\n'
         'id   code     title     revision\n'

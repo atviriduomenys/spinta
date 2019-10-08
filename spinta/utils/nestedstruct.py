@@ -49,9 +49,9 @@ def flatten_nested_dicts(nested, field=()):
         yield (field, nested)
 
 
-def build_show_tree(show: List[str]):
+def build_select_tree(select: List[str]):
     tree = {}
-    for name in show:
+    for name in select:
         split = name, None
         while len(split) == 2:
             name, node = split

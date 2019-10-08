@@ -34,7 +34,7 @@ def test_export_csv(context, app, mocker):
         'spinta_country_dataset_csv_resource_countries_changes',
     ])
 
-    assert app.get('country/:dataset/csv/:resource/countries/:sort/code/:format/csv').text == (
+    assert app.get('country/:dataset/csv/:resource/countries/:format/csv?sort(+code)').text == (
         'id,code,title,type,revision\r\n'
         '1,lt,Lithuania,country/:dataset/csv/:resource/countries,REV\r\n'
         '2,lv,Latvia,country/:dataset/csv/:resource/countries,REV\r\n'

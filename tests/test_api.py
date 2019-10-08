@@ -258,7 +258,7 @@ def test_dataset_with_show(context, app, mocker):
     ])
 
     app.authorize(['spinta_rinkimai_dataset_json_resource_data_search'])
-    resp = app.get('/rinkimai/:dataset/json/:show/pavadinimas', headers={'accept': 'text/html'})
+    resp = app.get('/rinkimai/:dataset/json?select(pavadinimas)', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -520,7 +520,7 @@ def test_count(context, app):
     ]))
 
     app.authorize(['spinta_rinkimai_dataset_json_resource_data_search'])
-    resp = app.get('/rinkimai/:dataset/json/:resource/data/:count', headers={'accept': 'text/html'})
+    resp = app.get('/rinkimai/:dataset/json/:resource/data?count()', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')

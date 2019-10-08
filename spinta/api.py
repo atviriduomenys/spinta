@@ -165,7 +165,7 @@ async def http_exception(request, exc):
 
     response = {'errors': errors}
 
-    fmt = get_response_type(request.state.context, request, request)
+    fmt = get_response_type(request.state.context, request)
     if fmt == 'json':
         return JSONResponse(response, status_code=status_code)
     else:

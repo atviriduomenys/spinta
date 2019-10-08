@@ -64,7 +64,7 @@ def test_show_with_joins(context):
         },
     ])
 
-    result = context.getall('capital', dataset='dependencies', resource='continents', show=[
+    result = context.getall('capital', dataset='dependencies', resource='continents', select=[
         'id',
         'title',
         'country.title',

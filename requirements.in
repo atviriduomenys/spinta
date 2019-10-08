@@ -10,6 +10,7 @@ msgpack
 multipledispatch
 psycopg2-binary
 pymongo
+pyrql
 python-multipart
 requests
 ruamel.yaml

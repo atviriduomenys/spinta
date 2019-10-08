@@ -68,48 +68,48 @@ def test_search_exact(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}/:exact/status/ok')
+    resp = app.get(f'/{model}?status=ok')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # single field search, case-insensitive
-    resp = app.get(f'/{model}/:exact/status/OK')
+    resp = app.get(f'/{model}?status=OK')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # single field search, non string type
-    resp = app.get(f'/{model}/:exact/count/13')
+    resp = app.get(f'/{model}?count=13')
     data = resp.json()['data']
 
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # single field fsearch, non string type
-    resp = app.get(f'/{model}/:exact/count/abc')
+    resp = app.get(f'/{model}?count=abc')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # single non-existing field value search
-    resp = app.get(f'/{model}/:exact/status/o')
+    resp = app.get(f'/{model}?status=o')
     data = resp.json()['data']
     assert len(data) == 0
 
     # single non-existing field search
-    resp = app.get(f'/{model}/:exact/state/o')
+    resp = app.get(f'/{model}?state=o')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["FieldNotInResource"]
 
     # multple field search
-    resp = app.get(f'/{model}/:exact/status/invalid/:exact/report_type/stv')
+    resp = app.get(f'/{model}?status=invalid&report_type=stv')
     data = resp.json()['data']
 
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # same field searched multiple times is joined with AND operation by default
-    resp = app.get(f'/{model}/:exact/status/invalid/:exact/status/ok')
+    resp = app.get(f'/{model}?status=invalid&status=ok')
     data = resp.json()['data']
     assert len(data) == 0
 
@@ -128,13 +128,13 @@ def test_search_gt(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}/:gt/count/40')
+    resp = app.get(f'/{model}?count=gt=40')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # search for string value
-    resp = app.get(f'/{model}/:gt/status/ok')
+    resp = app.get(f'/{model}?status=gt=ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
@@ -147,20 +147,20 @@ def test_search_gt(model, context, app):
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:gt/count/40/:gt/count/10')
+    resp = app.get(f'/{model}?count=gt=40&count=gt=10')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:gt/count/40/:exact/report_type/vmi')
+    resp = app.get(f'/{model}?count=gt=40&report_type=vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # test `greater_than` works as expected
-    resp = app.get(f'/{model}/:gt/count/42')
+    resp = app.get(f'/{model}?count=gt=42')
     data = resp.json()['data']
     assert len(data) == 0
 
@@ -179,39 +179,39 @@ def test_search_gte(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}/:gte/count/40')
+    resp = app.get(f'/{model}?count=ge=40')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # search for string value
-    resp = app.get(f'/{model}/:gte/status/ok')
+    resp = app.get(f'/{model}?status=ge=ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
         resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
     ) == {
-        "operator": "gte",
+        "operator": "ge",
         "model": model,
         "property": "status",
     }
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:gte/count/40/:gt/count/10')
+    resp = app.get(f'/{model}?count=ge=40&count=gt=10')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:gte/count/40/:exact/report_type/vmi')
+    resp = app.get(f'/{model}?count=ge=40&report_type=vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # test `greater_than` works as expected
-    resp = app.get(f'/{model}/:gte/count/42')
+    resp = app.get(f'/{model}?count=ge=42')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
@@ -231,13 +231,13 @@ def test_search_lt(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}/:lt/count/12')
+    resp = app.get(f'/{model}?count=lt=12')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # search for string value
-    resp = app.get(f'/{model}/:lt/status/ok')
+    resp = app.get(f'/{model}?status=lt=ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
@@ -250,20 +250,20 @@ def test_search_lt(model, context, app):
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:lt/count/20/:gt/count/10')
+    resp = app.get(f'/{model}?count=lt=20&count=gt=10')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:lt/count/50/:exact/report_type/vmi')
+    resp = app.get(f'/{model}?count=lt=50&report_type=vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # test `lower_than` works as expected
-    resp = app.get(f'/{model}/:lt/count/10')
+    resp = app.get(f'/{model}?count=lt=10')
     data = resp.json()['data']
     assert len(data) == 0
 
@@ -282,39 +282,39 @@ def test_search_lte(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}/:lte/count/12')
+    resp = app.get(f'/{model}?count=le=12')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # search for string value
-    resp = app.get(f'/{model}/:lte/status/ok')
+    resp = app.get(f'/{model}?status=le=ok')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
         resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
     ) == {
-        "operator": "lte",
+        "operator": "le",
         "model": model,
         "property": "status",
     }
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:lte/count/20/:gt/count/10')
+    resp = app.get(f'/{model}?count=le=20&count=gt=10')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:lte/count/50/:exact/report_type/vmi')
+    resp = app.get(f'/{model}?count=le=50&report_type=vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # test `lower_than` works as expected
-    resp = app.get(f'/{model}/:lte/count/10')
+    resp = app.get(f'/{model}?count=le=10')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
@@ -334,27 +334,27 @@ def test_search_ne(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}/:ne/status/invalid')
+    resp = app.get(f'/{model}?status=ne=invalid')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # single field search, case insensitive
-    resp = app.get(f'/{model}/:ne/status/invAlID')
+    resp = app.get(f'/{model}?status=ne=invAlID')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:ne/count/10/:ne/count/42')
+    resp = app.get(f'/{model}?count=ne=10&count=ne=42')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:ne/status/ok/:exact/report_type/vmi')
+    resp = app.get(f'/{model}?status=ne=ok&report_type=vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
@@ -374,47 +374,47 @@ def test_search_contains(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}/:contains/report_type/vm')
+    resp = app.get(f'/{model}?contains(report_type,vm)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # single field search, case insensitive
-    resp = app.get(f'/{model}/:contains/report_type/vM')
+    resp = app.get(f'/{model}?contains(report_type,vM)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:contains/status/valid/:contains/report_type/tv')
+    resp = app.get(f'/{model}?contains(status,valid)&contains(report_type,tv)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # multi field search, case insensitive
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:contains/status/vAlId/:contains/report_type/TV')
+    resp = app.get(f'/{model}?contains(status,vAlId)&contains(report_type,TV)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # multi field search
     # test if operators are joined with AND logic for same field
-    resp = app.get(f'/{model}/:contains/report_type/vm/:contains/report_type/mi')
+    resp = app.get(f'/{model}?contains(report_type,vm)&contains(report_type,mi)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:contains/status/valid/:exact/report_type/vmi')
+    resp = app.get(f'/{model}?contains(status,valid)&report_type=vmi')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # `contains` type check
-    resp = app.get(f'/{model}/:contains/notes.create_date/2019-04-20')
+    resp = app.get(f'/{model}?contains(notes.create_date,2019-04-20)')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
@@ -440,38 +440,38 @@ def test_search_startswith(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}/:startswith/report_type/vm')
+    resp = app.get(f'/{model}?startswith(report_type,vm)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # single field search, case insensitive
-    resp = app.get(f'/{model}/:startswith/report_type/Vm')
+    resp = app.get(f'/{model}?startswith(report_type,Vm)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:startswith/status/in/:startswith/report_type/vm')
+    resp = app.get(f'/{model}?startswith(status,in)&startswith(report_type,vm)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}/:startswith/report_type/st/:exact/status/ok')
+    resp = app.get(f'/{model}?startswith(report_type,st)&status=ok')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # sanity check that `startswith` searches from the start
-    resp = app.get(f'/{model}/:startswith/status/valid')
+    resp = app.get(f'/{model}?startswith(status,valid)')
     data = resp.json()['data']
     assert len(data) == 0
 
     # `startswith` type check
-    resp = app.get(f'/{model}/:startswith/notes.create_date/2019-04-20')
+    resp = app.get(f'/{model}?startswith(notes.create_date,2019-04-20)')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
 
@@ -490,25 +490,25 @@ def test_search_nested(model, context, app):
     app.authmodel(model, ['search'])
 
     # nested `exact` search
-    resp = app.get(f'/{model}/:exact/notes.note/foo bar')
+    resp = app.get(f'/{model}?(notes,note)=foo bar')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # nested `exact` search, case insensitive
-    resp = app.get(f'/{model}/:exact/notes.note/foo BAR')
+    resp = app.get(f'/{model}?(notes,note)=foo BAR')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
     # nested `gt` search
-    resp = app.get(f'/{model}/:gt/notes.create_date/2019-04-01')
+    resp = app.get(f'/{model}?(notes,create_date)=gt=2019-04-01')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']
 
     # nested non existant field
-    resp = app.get(f'/{model}/:exact/notes.foo.bar/baz')
+    resp = app.get(f'/{model}?(notes,foo,bar)=baz')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["FieldNotInResource"]
     assert get_error_context(
@@ -521,23 +521,23 @@ def test_search_nested(model, context, app):
     }
 
     # nested `contains` search
-    resp = app.get(f'/{model}/:contains/notes.note/bar')
+    resp = app.get(f'/{model}?contains(notes.note,bar)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
-    resp = app.get(f'/{model}/:contains/operating_licenses.license_types/lid')
+    resp = app.get(f'/{model}?contains(operating_licenses.license_types,lid)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
     # nested `startswith` search
-    resp = app.get(f'/{model}/:startswith/notes.note/fo')
+    resp = app.get(f'/{model}?startswith(notes.note,fo)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r3['id']
 
-    resp = app.get(f'/{model}/:startswith/operating_licenses.license_types/exp')
+    resp = app.get(f'/{model}?startswith(operating_licenses.license_types,exp)')
     data = resp.json()['data']
     assert len(data) == 1
     assert data[0]['id'] == r2['id']

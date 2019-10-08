@@ -101,8 +101,17 @@ def render(
 
 
 def _render(fmt: Ascii, params: UrlParams, data, status_code):
-    width = params.params.get('width')
-    colwidth = params.params.get('colwidth')
+    # TODO: Move this low level code somewhere where it belongs.
+    # Parse params from RQL `?format(width(1),colwidth(1))`.
+    fparams = {
+        arg['name']: arg['args']
+        for p in params.parsetree
+        if p['name'] == 'format'
+        for arg in p['args']
+        if isinstance(arg, dict)
+    }
+    width = fparams['width'][0] if fparams.get('width') else None
+    colwidth = fparams['colwidth'][0] if fparams.get('colwidth') else None
 
     if width is None and colwidth is None and sys.stdin.isatty():
         _, width = map(int, subprocess.run(['stty', 'size'], capture_output=True).stdout.split())

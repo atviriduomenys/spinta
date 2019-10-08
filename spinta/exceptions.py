@@ -182,14 +182,23 @@ class InvalidOperandValue(UserError):
     template = "Invalid operand value for {operator!r} operator."
 
 
+class UnknownOperator(UserError):
+    template = "Unknown operator {operator!r}."
+
+
 class ItemDoesNotExist(UserError):
     status_code = 404
     template = "Resource {id!r} not found."
 
 
-class ModelNotFound(BaseError):
+class ModelNotFound(UserError):
     status_code = 404
     template = "Model {model!r} not found."
+
+
+class PropertyNotFound(UserError):
+    status_code = 404
+    template = "Property {property!r} not found."
 
 
 class NoItemRevision(UserError):
@@ -318,6 +327,14 @@ class UnknownContentType(UserError):
 
 class UnknownAction(UserError):
     template = "Unknown action {action!r}."
+
+
+class UnknownOutputFormat(UserError):
+    template = "Unknown output format {name}."
+
+
+class UnknownRequestParameter(UserError):
+    template = "Unknown request parameter {name!r}."
 
 
 class OutOfScope(UserError):

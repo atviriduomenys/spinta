@@ -200,7 +200,7 @@ def test_id_as_filename(app, tmpdir):
         'filename': id_,
     }
 
-    resp = app.get(f'/photos/{id_}/:show/name')
+    resp = app.get(f'/photos/{id_}?select(name)')
     assert resp.status_code == 200
     assert resp.json() == {
         'name': 'myphoto',

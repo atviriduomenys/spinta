@@ -1,3 +1,5 @@
+from typing import Optional
+
 import datetime
 import itertools
 
@@ -85,7 +87,7 @@ def _render_model(
         header = next(data)
         data = list(reversed(list(data)))
     elif action == Action.GETONE:
-        row = list(get_row(context, data, model, params.params))
+        row = list(get_row(context, data, model))
         data = []
     elif action in (Action.GETALL, Action.SEARCH):
         data = get_data(context, data, model, params)
@@ -99,47 +101,49 @@ def _render_model(
         'header': header,
         'data': data,
         'row': row,
-        'formats': get_output_formats(params.params),
+        'formats': get_output_formats(params),
     })
 
 
-def get_output_formats(params: dict):
+def get_output_formats(params: UrlParams):
     return [
-        ('CSV', '/' + build_url_path({**params, 'format': 'csv'})),
-        ('JSON', '/' + build_url_path({**params, 'format': 'json'})),
-        ('JSONL', '/' + build_url_path({**params, 'format': 'jsonl'})),
-        ('ASCII', '/' + build_url_path({**params, 'format': 'ascii'})),
+        # XXX I don't like that, there should be a better way to build links
+        #     from UrlParams instance.
+        ('CSV', '/' + build_url_path(params.changed_parsetree({'format': ['csv']}))),
+        ('JSON', '/' + build_url_path(params.changed_parsetree({'format': ['json']}))),
+        ('JSONL', '/' + build_url_path(params.changed_parsetree({'format': ['jsonl']}))),
+        ('ASCII', '/' + build_url_path(params.changed_parsetree({'format': ['ascii']}))),
     ]
 
 
 def get_template_context(context: Context, model, params):
     return {
-        'location': get_current_location(model, params.path, params.params),
+        'location': get_current_location(model, params),
     }
 
 
-def get_current_location(model, path, params):
-    parts = path.split('/') if path else []
+def get_current_location(model, params: UrlParams):
+    parts = params.path.split('/') if params.path else []
     loc = [('root', '/')]
-    if 'id' in params:
-        pk = params['id']
-        pks = params['id'][:8]
+    if params.pk:
+        pk = params.pk
+        pks = params.pk[:8]
     if model.type == 'model:ns':
         loc += (
             [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
             [(p, None) for p in parts[-1:]]
         )
-    elif 'dataset' in params:
+    elif params.dataset:
         name = '/'.join(itertools.chain(*(
-            [f':{k}', v]
-            for k, v in get_model_link_params(model).items()
-            if k in {'dataset', 'resource', 'origin'}
+            [f':{p["name"]}', '/'.join(p['args'])]
+            for p in get_model_link_params(model)
+            if p['name'] in {'dataset', 'resource', 'origin'}
         )))
         loc += [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)]
-        if 'id' in params or 'changes' in params:
+        if params.pk or params.changes:
             loc += [(name, get_model_link(model))]
-        if 'id' in params:
-            if 'changes' in params:
+        if params.pk:
+            if params.changes:
                 loc += (
                     [(pks, get_model_link(model, pk=pk))] +
                     [(':changes', None)]
@@ -147,30 +151,30 @@ def get_current_location(model, path, params):
             else:
                 loc += (
                     [(pks, None)] +
-                    [(':changes', get_model_link(model, pk=pk, changes=None))]
+                    [(':changes', get_model_link(model, pk=pk, changes=[]))]
                 )
         else:
-            if 'changes' in params:
+            if params.changes:
                 loc += (
                     [(':changes', None)]
                 )
             else:
                 loc += (
                     [(name, None)] +
-                    [(':changes', get_model_link(model, changes=None))]
+                    [(':changes', get_model_link(model, changes=[]))]
                 )
     else:
-        if 'id' in params:
+        if params.pk:
             loc += (
                 [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
                 [(pks, None)] +
-                [(':changes', get_model_link(model, pk=pk, changes=None))]
+                [(':changes', get_model_link(model, pk=pk, changes=[]))]
             )
         else:
             loc += (
                 [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
                 [(p, None) for p in parts[-1:]] +
-                [(':changes', get_model_link(model, changes=None))]
+                [(':changes', get_model_link(model, changes=[]))]
             )
     return loc
 
@@ -193,7 +197,7 @@ def get_changes(context: Context, rows, model, params: UrlParams):
             {'color': None, 'value': data['transaction_id'], 'link': None},
             {'color': None, 'value': data['datetime'], 'link': None},
             {'color': None, 'value': data['action'], 'link': None},
-            get_cell(context, params.params, model.properties['id'], data['id'], shorten=True),
+            get_cell(context, model.properties['id'], data['id'], shorten=True),
         ]
         for prop in props:
             if prop.name == 'revision':
@@ -204,18 +208,18 @@ def get_changes(context: Context, rows, model, params: UrlParams):
                 color = 'null'
             else:
                 color = None
-            row.append(get_cell(context, params.params, prop, current[data['id']].get(prop.name), shorten=True, color=color))
+            row.append(get_cell(context, prop, current[data['id']].get(prop.name), shorten=True, color=color))
         yield row
 
 
-def get_row(context: Context, row, model: Node, params: dict):
+def get_row(context: Context, row, model: Node):
     if row is None:
         raise HTTPException(status_code=404)
     for prop in model.properties.values():
-        yield prop.name, get_cell(context, params, prop, row.get(prop.name))
+        yield prop.name, get_cell(context, prop, row.get(prop.name))
 
 
-def get_cell(context: Context, params: dict, prop, value, shorten=False, color=None):
+def get_cell(context: Context, prop, value, shorten=False, color=None):
     COLORS = {
         'change': '#B2E2AD',
         'null': '#C1C1C1',
@@ -258,6 +262,8 @@ def get_cell(context: Context, params: dict, prop, value, shorten=False, color=N
 
 
 def get_data(context: Context, rows, model: Node, params: UrlParams):
+    # XXX: For things like aggregations, a dynamic model should be created with
+    #      all the properties coming from aggregates.
     if params.count:
         prop = Property()
         prop.dtype = DataType()
@@ -268,8 +274,8 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
         props = [prop]
         rows = [rows]
     else:
-        if params.show:
-            props = [p for p in model.properties.values() if p.name in params.show]
+        if params.select:
+            props = [p for p in model.properties.values() if p.name in params.select]
         else:
             exclude = ('revision',) if model.type == 'model:ns' else ('type', 'revision')
             props = [p for p in model.properties.values() if p.name not in exclude]
@@ -279,32 +285,48 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
     for data in rows:
         row = []
         for prop in props:
-            row.append(get_cell(context, params.params, prop, data.get(prop.name), shorten=True))
+            row.append(get_cell(context, prop, data.get(prop.name), shorten=True))
         yield row
 
 
-def get_model_link_params(model, *, pk=None, **extra):
-    params = {
-        'path': model.name,
-    }
+def get_model_link_params(model: Node, *, pk: Optional[str] = None, **extra):
+    ptree = [
+        {
+            'name': 'path',
+            'args': (
+                model.name.split('/') +
+                ([pk] if pk is not None else [])
+            ),
+        }
+    ]
 
     if isinstance(model, dataset.Model):
         dset = model.parent.parent
-        params['dataset'] = dset.name
+        ptree.append({
+            'name': 'dataset',
+            'args': [dset.name],
+        })
 
         resource = model.parent
         if resource.name:
-            params['resource'] = resource.name
+            ptree.append({
+                'name': 'resource',
+                'args': [resource.name],
+            })
 
         if model.origin:
-            params['origin'] = model.origin
+            ptree.append({
+                'name': 'origin',
+                'args': model.origin,
+            })
 
-    if pk is not None:
-        params['id'] = pk
+    for k, v in extra.items():
+        ptree.append({
+            'name': k,
+            'args': v,
+        })
 
-    params.update(extra)
-
-    return params
+    return ptree
 
 
 def get_model_link(*args, **kwargs):

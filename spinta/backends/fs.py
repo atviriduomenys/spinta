@@ -79,11 +79,11 @@ async def push(
     *,
     action: str,
     params: UrlParams,
-    ref: bool = False,
 ):
     authorize(context, action, prop)
 
-    data = getone(context, prop, prop.model.backend, id_=params.id)
+    data = getone(context, prop, prop.model.backend, id_=params.pk)
+
     content_type = None
     filename = None
 
@@ -102,7 +102,7 @@ async def push(
             content_type = data['content_type']
 
         if filename is None:
-            filename = data['filename'] or params.id
+            filename = data['filename'] or params.pk
     else:
         data = {
             'content_type': None,
@@ -127,7 +127,7 @@ async def push(
         raise Exception(f"Unknown action {action!r}.")
 
     if data != update:
-        commands.update(context, prop, prop.model.backend, id_=params.id, data=update)
+        commands.update(context, prop, prop.model.backend, id_=params.pk, data=update)
 
     return render(context, request, prop, params, update, action=action)
 
@@ -141,13 +141,12 @@ async def getone(
     *,
     action: str,
     params: UrlParams,
-    ref: bool = False,
 ):
     authorize(context, action, prop)
-    data = getone(context, prop, prop.model.backend, id_=params.id)
+    data = getone(context, prop, prop.model.backend, id_=params.pk)
     if data is None:
-        raise ItemDoesNotExist(prop, id=params.id)
-    filename = data['filename'] or params.id
+        raise ItemDoesNotExist(prop, id=params.pk)
+    filename = data['filename'] or params.pk
     return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
 
 

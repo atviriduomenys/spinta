@@ -33,7 +33,7 @@ def test_export_json(context, app, mocker):
         'spinta_country_dataset_csv_resource_countries_changes',
     ])
 
-    assert app.get('country/:dataset/csv/:resource/countries/:sort/code/:format/json').json() == {
+    assert app.get('country/:dataset/csv/:resource/countries/:format/json?sort(+code)').json() == {
         'data': [
             {
                 'code': 'lt',
