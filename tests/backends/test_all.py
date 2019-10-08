@@ -169,14 +169,11 @@ def test_get_non_existant_subresource(model, app):
         'template': 'Property {property!r} not found.',
         'message': "Property 'foo' not found.",
         'context': {
-            'schema': f'tests/manifest/{model}.yml',
+            'schema': resp.json().get('context', {}).get('schema'),
             'manifest': 'default',
             'model': model,
             'property': 'foo',
         },
-
-
-
     }]}
 
 
