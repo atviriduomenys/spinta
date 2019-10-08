@@ -149,7 +149,7 @@ def test_put_non_existant_resource(model, app):
     'backends/mongo/report',
     'backends/postgres/report',
 )
-def test_get_non_existant_subresource(model, app):
+def test_get_non_existant_subresource(model, context, app):
     app.authmodel(model, ['insert', 'getone'])
 
     resp = app.post(f'/{model}', json={
@@ -159,6 +159,7 @@ def test_get_non_existant_subresource(model, app):
     assert resp.status_code == 201
     id_ = resp.json()['id']
 
+    manifest = context.get('store').manifests['default']
     resp = app.get(f'/{model}/{id_}/foo')
     assert resp.status_code == 404
     # FIXME: Fix error message, here model and resource is found, but model
@@ -169,7 +170,7 @@ def test_get_non_existant_subresource(model, app):
         'template': 'Property {property!r} not found.',
         'message': "Property 'foo' not found.",
         'context': {
-            'schema': resp.json().get('context', {}).get('schema'),
+            'schema': f'{manifest.path}/{model}.yml',
             'manifest': 'default',
             'model': model,
             'property': 'foo',
