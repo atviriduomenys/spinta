@@ -5,7 +5,7 @@ import collections
 from toposort import toposort
 
 from spinta import commands
-from spinta.components import Node
+from spinta.components import Node, Action
 from spinta.auth import AdminToken
 from spinta.urlparams import get_model_by_name
 from spinta import components
@@ -77,6 +77,11 @@ class ContextForTests:
                 assert type_ is not None, d
                 model = get_model_by_name(context, manifest, type_)
                 if 'id' in d:
+                    action = Action.UPSERT
+                else:
+                    action = Action.INSERT
+                d = commands.prepare(context, model, d, action=action)
+                if action == Action.UPSERT:
                     id_ = commands.upsert(context, model, model.backend, key=['id'], data=d)
                 else:
                     id_ = commands.insert(context, model, model.backend, data=d)

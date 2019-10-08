@@ -17,6 +17,7 @@ from spinta.urlparams import get_model_by_name
 from spinta import commands
 from spinta import exceptions
 from spinta.nodes import load_namespace, load_model_properties
+from spinta import components
 
 
 class Dataset(Node):
@@ -494,3 +495,8 @@ def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
     context['property'] = f'{prefix}.place'
     context['backend'] = f'{prefix}.backend.name'
     return context
+
+
+@prepare.register()
+def prepare(context: Context, model: Model, data: dict, *, action: Action) -> dict:
+    return prepare[context.__class__, components.Model, dict](context, model, data, action=action)

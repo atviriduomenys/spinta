@@ -1,8 +1,7 @@
 import contextlib
+import datetime
 import re
 import typing
-
-from datetime import date, datetime
 
 import pymongo
 
@@ -705,6 +704,6 @@ def wipe(context: Context, model: Model, backend: Mongo):
 
 
 @prepare.register()
-def prepare(context: Context, dtype: Date, backend: Mongo, value: date) -> datetime:
+def prepare(context: Context, dtype: Date, backend: Mongo, value: datetime.date) -> datetime.datetime:
     # prepares date values for Mongo store, they must be converted to datetime
-    return datetime(value.year, value.month, value.day)
+    return datetime.datetime.combine(value, datetime.datetime.min.time())
