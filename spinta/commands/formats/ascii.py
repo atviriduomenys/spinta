@@ -101,7 +101,7 @@ def render(
 
 
 def _render(fmt: Ascii, params: UrlParams, data, status_code):
-    # TODO: Move this low lever code somewhere where it belongs.
+    # TODO: Move this low level code somewhere where it belongs.
     # Parse params from RQL `?format(width(1),colwidth(1))`.
     fparams = {
         arg['name']: arg['args']

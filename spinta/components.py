@@ -473,7 +473,7 @@ class Action(enum.Enum):
 
 
 class UrlParams:
-    parsetree: dict
+    parsetree: List[dict]
 
     model: Optional[Node] = None
     pk: Optional[str] = None

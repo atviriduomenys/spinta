@@ -228,8 +228,9 @@ def unload_backend(context: Context, backend: Backend):
 @load_operator_value.register()
 def load_operator_value(context: Context, backend: Backend, dtype: DataType, value: object, *, query_params: dict):
     operator = query_params['name']
-    # FIXME: Original operator name must be preserved.
-    operator_name = query_params['name']
+    # XXX: That is probably not a very reliable way of getting original operator
+    #      name. Maybe at least this should be documented some how.
+    operator_name = query_params.get('origin', operator)
     if operator in ('startswith', 'contains') and not isinstance(dtype, String):
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
     if operator in ('gt', 'ge', 'lt', 'le') and isinstance(dtype, String):
