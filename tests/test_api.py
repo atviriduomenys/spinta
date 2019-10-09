@@ -943,6 +943,42 @@ def test_streaming_response(model, context, app):
     'backends/mongo/report',
 )
 def test_multi_backends(model, app):
-    app.authmodel(model, ['insert'])
+    app.authmodel(model, ['insert', 'getone', 'getall', 'search'])
     resp = app.post(f'/{model}', json={'status': '42'})
     assert resp.status_code == 201
+    data = resp.json()
+    id_ = data['id']
+    revision = data['revision']
+
+    # return the object on GETONE
+    resp = app.get(f'/{model}/{id_}')
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['id'] == id_
+    assert data['revision'] == revision
+    assert data['type'] == model
+    assert data['status'] == '42'
+
+    # check that query parameters work on GETONE
+    resp = app.get(f'/{model}/{id_}?select(status)')
+    assert resp.status_code == 200
+    assert resp.json() == {
+        'status': '42',
+    }
+
+    # return the objects on GETALL
+    resp = app.get(f'/{model}')
+    assert resp.status_code == 200
+    assert len(resp.json()['data']) == 1
+    data = resp.json()['data'][0]
+    assert data['id'] == id_
+    assert data['revision'] == revision
+    assert data['type'] == model
+    assert data['status'] == '42'
+
+    # check that query parameters work on GETALL
+    resp = app.get(f'/{model}?select(status)')
+    assert resp.status_code == 200
+    assert resp.json()['data'] == [{
+        'status': '42',
+    }]
