@@ -834,7 +834,7 @@ async def getall(
 
     authorize(context, action, model)
     result = (
-        prepare(context, action, model, backend, row)
+        prepare(context, action, model, backend, row, select=params.select)
         for row in getall(context, model, backend)
     )
     return render(context, request, model, params, result, action=action)

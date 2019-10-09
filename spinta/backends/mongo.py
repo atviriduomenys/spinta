@@ -486,7 +486,7 @@ async def getone(
 ):
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.pk)
-    data = prepare(context, action, model, backend, data)
+    data = prepare(context, action, model, backend, data, select=params.select)
     return render(context, request, model, params, data, action=action)
 
 
