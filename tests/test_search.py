@@ -368,7 +368,7 @@ def test_search_ne(model, context, app):
 @pytest.mark.models(
     'backends/mongo/report',
 )
-def test_search_contains(model, context, app):
+def test_search_contains(model, context, app, mocker):
     r1, r2, r3, = _push_test_data(context, model)
 
     app.authmodel(model, ['search'])
@@ -423,6 +423,35 @@ def test_search_contains(model, context, app):
         "operator": "contains",
         "model": model,
         "property": "notes.create_date",
+    }
+
+    # `contains` with select
+    resp = app.get(f'/{model}?contains(report_type,vm)&select(count)')
+    assert resp.status_code == 200
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0] == {
+        'count': 42,
+    }
+
+    # `contains` with select and always_show_id
+    mocker.patch.object(context.get('config'), 'always_show_id', True)
+    resp = app.get(f'/{model}?contains(report_type,vm)&select(count)')
+    assert resp.status_code == 200
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0] == {
+        'id': r2['id'],
+        'count': 42,
+    }
+
+    # `contains` with always_show_id should return just id
+    resp = app.get(f'/{model}?contains(report_type,vm)')
+    assert resp.status_code == 200
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0] == {
+        'id': r2['id'],
     }
 
 
