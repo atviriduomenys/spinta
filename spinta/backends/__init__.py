@@ -204,6 +204,13 @@ def prepare(
     *,
     select: typing.List[str] = None,
 ) -> dict:
+    always_show_id = context.get('config').always_show_id
+
+    # if we must show id and it's not in select - always add it
+    if always_show_id:
+        select = select or []  # even if select was None - return id
+        if 'id' not in select:
+            select.append('id')
     return _prepare_query_result(context, action, model, backend, value, select)
 
 
