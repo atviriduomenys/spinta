@@ -49,13 +49,9 @@ def test_insert_get(model, app):
     }
 
 
-# FIXME: postgres PUT requests do not work
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_update_get(model, app):
     app.authmodel(model, ['insert', 'update', 'getone', 'getall'])
