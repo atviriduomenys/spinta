@@ -45,7 +45,8 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     )
     changes_table_name = get_table_name(backend, model.manifest.name, name, CHANGES_TABLE)
     changes_table = get_changes_table(backend, changes_table_name, sa.String(40))
-    backend.tables[model.manifest.name][name] = ModelTables(table, changes_table)
+    backend.tables[model.manifest.name][name] = ModelTables(main=table,
+                                                            changes=changes_table)
 
 
 @commands.insert.register()
