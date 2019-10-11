@@ -213,7 +213,10 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 
     backend.tables[model.manifest.name][model.name] = ModelTables(main_table, lists_table, changes_table)
 
-    backend.props_in_lists = list(_find_props_in_lists(model))
+    if backend.props_in_lists is None:
+        backend.props_in_lists = list(_find_props_in_lists(model))
+    else:
+        backend.props_in_lists.extend(list(_find_props_in_lists(model)))
 
 
 def _find_props_in_lists(node: Node, inlist: bool = False):
