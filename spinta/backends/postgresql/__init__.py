@@ -394,7 +394,7 @@ def _has_lists(node: Node):
         return True
 
 
-def _get_lists_only(value, place=()):
+def _get_lists_only(value):
     if isinstance(value, dict):
         result = {}
         for k, v in value.items():
