@@ -25,7 +25,7 @@ from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem
 from spinta.config import RawConfig
 from spinta.renderer import render
-from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String, Node
+from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String, Node, Integer
 from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
@@ -669,6 +669,13 @@ def _getall_query(
             jsonb = table.lists.c.data[prop.place]
             if _is_dtype(prop, String):
                 field = jsonb.astext
+            elif _is_dtype(prop, Integer):
+                field = jsonb.astext
+                # XXX: same as in Date/DateTime case, this type casting
+                # we can probably handle in some better way.
+                # AFAIK, what is happening, that for nested structure we store
+                # a JSONB blob and values we are searching for must be strings?
+                value = str(value)
             elif _is_dtype(prop, DateTime) or _is_dtype(prop, Date):
                 field = jsonb.astext
                 value = datetime.datetime.fromisoformat(value)
