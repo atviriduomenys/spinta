@@ -676,7 +676,7 @@ def _getall_query(
                 # AFAIK, what is happening, that for nested structure we store
                 # a JSONB blob and values we are searching for must be strings?
                 value = str(value)
-            elif _is_dtype(prop, DateTime) or _is_dtype(prop, Date):
+            elif _is_dtype(prop, DateTime):
                 field = jsonb.astext
                 value = datetime.datetime.fromisoformat(value)
                 if value.tzinfo is not None:
@@ -685,6 +685,10 @@ def _getall_query(
                     # Convert dates to utc and drop timezone information, we can't
                     # compare dates in JSONB.
                     value = value.astimezone(pytz.utc).replace(tzinfo=None)
+                value = value.isoformat()
+            elif _is_dtype(prop, Date):
+                field = jsonb.astext
+                value = datetime.date.fromisoformat(value)
                 value = value.isoformat()
             else:
                 value = sa.cast(value, JSONB)
