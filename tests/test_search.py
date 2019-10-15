@@ -368,6 +368,12 @@ def test_search_ne(model, context, app):
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
+    # test `ne` with nested structure
+    resp = app.get(f'/{model}?ne(notes.create_date,2019-02-01)&status=ne=invalid')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r1['id']
+
 
 @pytest.mark.models(
     'backends/mongo/report',
