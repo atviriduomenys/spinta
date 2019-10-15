@@ -165,6 +165,12 @@ def test_search_gt(model, context, app):
     data = resp.json()['_data']
     assert len(data) == 0
 
+    # test `gt` with nested structure and date type
+    resp = app.get(f'/{model}?gt(notes.create_date,2019-04-19)')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r2['id']
+
 
 @pytest.mark.models(
     'backends/mongo/report',
@@ -213,6 +219,12 @@ def test_search_gte(model, context, app):
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
+    # test `gte` with nested structure and date type
+    resp = app.get(f'/{model}?ge(notes.create_date,2019-04-20)')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r2['id']
+
 
 @pytest.mark.models(
     'backends/mongo/report',
@@ -259,6 +271,12 @@ def test_search_lt(model, context, app):
     resp = app.get(f'/{model}?count=lt=10')
     data = resp.json()['_data']
     assert len(data) == 0
+
+    # test `lt` with nested structure and date type
+    resp = app.get(f'/{model}?lt(notes.create_date,2019-02-02)')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r3['id']
 
 
 @pytest.mark.models(
@@ -307,6 +325,12 @@ def test_search_lte(model, context, app):
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
+
+    # test `lte` with nested structure and date type
+    resp = app.get(f'/{model}?le(notes.create_date,2019-02-01)')
+    data = resp.json()['data']
+    assert len(data) == 1
+    assert data[0]['id'] == r3['id']
 
 
 @pytest.mark.models(
