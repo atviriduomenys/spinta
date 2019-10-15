@@ -3,11 +3,6 @@ import pytest
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
-# FIXME: fix postgres
-# @pytest.mark.models(
-#     'backends/postgres/report',
-#     'backends/mongo/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',
