@@ -672,12 +672,8 @@ def _getall_query(
             if _is_dtype(prop, String):
                 field = jsonb.astext
             elif _is_dtype(prop, Integer):
-                field = jsonb.astext
-                # XXX: same as in Date/DateTime case, this type casting
-                # we can probably handle in some better way.
-                # AFAIK, what is happening, that for nested structure we store
-                # a JSONB blob and values we are searching for must be strings?
-                value = str(value)
+                field = jsonb
+                value = sa.cast(value, JSONB)
             elif _is_dtype(prop, DateTime):
                 field = jsonb.astext
                 value = datetime.datetime.fromisoformat(value)
