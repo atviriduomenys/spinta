@@ -30,7 +30,7 @@ from spinta.utils.changes import get_patch_changes
 from spinta.utils.idgen import get_new_id
 from spinta.utils.response import get_request_data
 from spinta import exceptions
-from spinta.utils.nestedstruct import flatten
+from spinta.utils.nestedstruct import flatten, parent_key_for_item
 
 from spinta.exceptions import (
     MultipleRowsFound,
@@ -200,6 +200,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             lists_table_name, backend.schema,
             sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction.id')),
             sa.Column('id', main_table.c.id.type, sa.ForeignKey(f'{main_table_name}.id')),  # reference to main table
+            sa.Column('key', sa.String),  # parent key of the data inside `data` column
             sa.Column('data', JSONB),
         )
     else:
@@ -378,6 +379,7 @@ def _update_lists_table(context: Context, model: Model, table: sa.Table, action:
             {
                 'transaction': transaction.id,
                 'id': pk,
+                'key': parent_key_for_item(item),
                 'data': item,
             }
             for item in flatten([data])
