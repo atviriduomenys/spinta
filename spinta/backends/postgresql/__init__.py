@@ -710,16 +710,32 @@ def _getall_query(
         elif name == 'lt':
             cond = field < value
         elif name == 'ne':
-            if jsonb is None:
-                cond = sa.or_(
-                    jsonb == JSONB.NULL,
-                    field != value,
-                )
-            else:
-                cond = sa.or_(
-                    field == None,  # noqa
-                    field != value,
-                )
+            key = parent_key_for_item({prop.place: None})
+
+            # Problem with not-equal query is that we want to filter out all
+            # resource ids from the lists table, that either do not have
+            # the item we are looking for or have the item, but it's value is
+            # not equal to the value we are searching for.
+            #
+            # select lists with a key for an item we are searching for
+            select_keys = sa.select([table.lists]).where(table.lists.c.key == key)
+
+            # select key ids, to be used later (XXX: can id's be reused from query above?)
+            select_key_ids = sa.select([table.lists.c.id]).where(table.lists.c.key == key)
+
+            # get keys which do not have the item we are searching form
+            select_non_keys = sa.select([table.lists], table.lists.c.id.notin_(select_key_ids))
+
+            # make a union to get a table from select_keys and select_non_keys,
+            # to combine results and get a table with resource ids, where
+            # item values are not equal to the value or either search items do
+            # not exist at all
+            temp_table = select_keys.union(select_non_keys).alias()
+
+            cond = sa.or_(
+                field == None,  # noqa
+                field != value,
+            )
         elif name == 'contains':
             cond = field.contains(value)
         elif name == 'startswith':
@@ -728,11 +744,19 @@ def _getall_query(
             raise exceptions.UnknownOperator(prop, operator=name)
 
         if jsonb is not None:
-            join = (
-                sa.select([table.lists.c.id, field], distinct=table.lists.c.id).
-                where(cond).
-                alias()
-            )
+            if name == 'ne':
+                # use temporary table we created for in the `ne` condition
+                join = (
+                    sa.select([temp_table.c.id, field], distinct=temp_table.c.id).
+                    where(cond).
+                    alias()
+                )
+            else:
+                join = (
+                    sa.select([table.lists.c.id, field], distinct=table.lists.c.id).
+                    where(cond).
+                    alias()
+                )
             joins.append((join, table.main.c.id == join.c.id))
         else:
             where.append(cond)
