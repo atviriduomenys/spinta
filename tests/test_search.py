@@ -374,6 +374,13 @@ def test_search_ne(model, context, app):
     assert len(data) == 1
     assert data[0]['id'] == r1['id']
 
+    # test `ne` with nested structures and not full data in all resources
+    resp = app.get(f'/{model}?ne(operating_licenses.license_types,valid)&sort(+count)')
+    data = resp.json()['data']
+    assert len(data) == 2
+    assert data[0]['id'] == r3['id']
+    assert data[1]['id'] == r2['id']
+
 
 @pytest.mark.models(
     'backends/mongo/report',
