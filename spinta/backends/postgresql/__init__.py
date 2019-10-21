@@ -730,7 +730,9 @@ def _getall_query(
             # to combine results and get a table with resource ids, where
             # item values are not equal to the value or either search items do
             # not exist at all
-            temp_table = select_keys.union(select_non_keys).alias()
+            temp_table = select_keys.union(select_non_keys).alias('temp_table')
+
+            field._orig[0].table = temp_table
 
             cond = sa.or_(
                 field == None,  # noqa
