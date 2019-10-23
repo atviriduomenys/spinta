@@ -710,6 +710,10 @@ def _getall_query(
         elif name == 'lt':
             cond = field < value
         elif name == 'ne':
+            raise NotImplementedError
+
+            # XXX: this implementation is not finished
+            # problem is with SQLAlchemy query generation
             key = parent_key_for_item({prop.place: None})
 
             # Problem with not-equal query is that we want to filter out all

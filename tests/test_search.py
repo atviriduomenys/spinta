@@ -333,6 +333,7 @@ def test_search_lte(model, context, app):
     assert data[0]['id'] == r3['id']
 
 
+@pytest.mark.skip('NotImplementedError')
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',
