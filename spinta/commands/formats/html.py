@@ -180,43 +180,54 @@ def get_current_location(model, params: UrlParams):
 
 
 def get_changes(context: Context, rows, model, params: UrlParams):
-    props = [p for p in model.properties.values() if p.name not in ('id', 'type')]
+    props = [
+        p for p in model.properties.values() if (
+            not p.name.startswith('_')
+        )
+    ]
 
     yield (
-        ['change_id', 'transaction_id', 'datetime', 'action', 'id'] +
+        ['_change', '_revision', '_transaction', '_created', '_op', '_id'] +
         [prop.name for prop in props if prop.name != 'revision']
     )
 
+    # XXX: With large changes sets this will consume a lot of memmory.
     current = {}
     for data in rows:
-        if data['id'] not in current:
-            current[data['id']] = {}
-        current[data['id']].update(data['change'])
+        id_ = data['_id']
+        if id_ not in current:
+            current[id_] = {}
+        current[id_].update({
+            k: v for k, v in data.items() if not k.startswith('_')
+        })
         row = [
-            {'color': None, 'value': data['change_id'], 'link': None},
-            {'color': None, 'value': data['transaction_id'], 'link': None},
-            {'color': None, 'value': data['datetime'], 'link': None},
-            {'color': None, 'value': data['action'], 'link': None},
-            get_cell(context, model.properties['id'], data['id'], shorten=True),
+            {'color': None, 'value': data['_change'], 'link': None},
+            {'color': None, 'value': data['_revision'], 'link': None},
+            {'color': None, 'value': data['_transaction'], 'link': None},
+            {'color': None, 'value': data['_created'], 'link': None},
+            {'color': None, 'value': data['_op'], 'link': None},
+            get_cell(context, model.properties['_id'], id_, shorten=True),
         ]
         for prop in props:
-            if prop.name == 'revision':
-                continue
-            if prop.name in data['change']:
+            if prop.name in data:
                 color = 'change'
             elif prop.name not in current:
                 color = 'null'
             else:
                 color = None
-            row.append(get_cell(context, prop, current[data['id']].get(prop.name), shorten=True, color=color))
+            value = current[id_].get(prop.name)
+            cell = get_cell(context, prop, value, shorten=True, color=color)
+            row.append(cell)
         yield row
 
 
 def get_row(context: Context, row, model: Node):
     if row is None:
         raise HTTPException(status_code=404)
+    include = {'_type', '_id', '_revision'}
     for prop in model.properties.values():
-        yield prop.name, get_cell(context, prop, row.get(prop.name))
+        if prop.name in include or not prop.name.startswith('_'):
+            yield prop.name, get_cell(context, prop, row.get(prop.name))
 
 
 def get_cell(context: Context, prop, value, shorten=False, color=None):
@@ -228,10 +239,10 @@ def get_cell(context: Context, prop, value, shorten=False, color=None):
     link = None
     model = None
 
-    if prop.model.type == 'model:ns' and prop.name == 'id':
+    if prop.model.type == 'model:ns' and prop.name == '_id':
         shorten = False
         link = '/' + value
-    elif prop.name == 'id' and value:
+    elif prop.name == '_id' and value:
         model = prop.model
     elif prop.dtype.name == 'ref' and prop.dtype.object and value:
         model = commands.get_referenced_model(context, prop, prop.dtype.object)
@@ -272,13 +283,20 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
         prop.ref = None
         prop.model = model
         props = [prop]
-        rows = [rows]
     else:
         if params.select:
             props = [p for p in model.properties.values() if p.name in params.select]
         else:
-            exclude = ('revision',) if model.type == 'model:ns' else ('type', 'revision')
-            props = [p for p in model.properties.values() if p.name not in exclude]
+            if model.type == 'model:ns':
+                include = {'_id', '_type'}
+            else:
+                include = {'_id'}
+            props = [
+                p for p in model.properties.values() if (
+                    p.name in include or
+                    not p.name.startswith('_')
+                )
+            ]
 
     yield [prop.name for prop in props]
 
@@ -317,7 +335,7 @@ def get_model_link_params(model: Node, *, pk: Optional[str] = None, **extra):
         if model.origin:
             ptree.append({
                 'name': 'origin',
-                'args': model.origin,
+                'args': [model.origin],
             })
 
     for k, v in extra.items():

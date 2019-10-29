@@ -55,6 +55,8 @@ def _prepare_urlparams_from_path(params):
             params.path = args
         elif name == 'ns':
             params.ns = True
+        elif name == 'all':
+            params.all = True
         elif name in ('dataset', 'resource', 'origin'):
             setattr(params, name, '/'.join(args))
         elif name == 'select':
@@ -109,6 +111,10 @@ def _prepare_urlparams_from_path(params):
             params.changes_offset = args[0] if args else None
         elif name == 'format':
             params.fmt = args[0]
+        elif name == 'summary':
+            params.summary = True
+        elif name == 'fault-tolerant':
+            params.fault_tolerant = True
         else:
             if params.query is None:
                 params.query = []
@@ -123,6 +129,9 @@ def _find_model_name_index(nss: Dict[str, Node], endpoints: dict, parts: List[st
 
 
 def _resolve_path(context: Context, params: UrlParams) -> None:
+    if params.path is None:
+        params.path = ''
+
     path = '/'.join(params.path)
     manifest = context.get('store').manifests['default']
     nss = manifest.objects['ns']
@@ -241,6 +250,10 @@ def get_model_from_params(manifest, params: UrlParams):
         origins = _get_nodes_by_name('origin', params.origin, (
             (resource, resource.objects) for _, resource in resources
         ))
+
+        if name == '':
+            next(origins)
+            return manifest.objects['ns'][name]
 
         # FIXME: Here we lose origin in error context. I'm starting to thing,
         #        that origin should be a normal node object too, not a bare

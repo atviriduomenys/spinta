@@ -29,7 +29,7 @@ def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, c
                 value = getattr(node.parent, name)
             else:
                 value = None
-        if schema.get('required', False) and value is na:
+        if schema.get('required', False) and (value is na or value is None):
             raise exceptions.MissingRequiredProperty(node, prop=name)
         if schema.get('type') == 'backend' and isinstance(value, str):
             value = store.backends[value]
@@ -55,6 +55,7 @@ def load_namespace(context: Context, manifest: Manifest, node: Node):
                 'parent': parent,
                 'names': {},
                 'models': {},
+                'backend': None,
             }
             manifest.objects['ns'][name] = load_node(context, ns, data, manifest)
         else:
@@ -69,14 +70,15 @@ def load_model_properties(context: Context, model: Node, Prop: Type[Node], data:
     data = data or {}
 
     # Add build-in properties.
-    data['type'] = {'type': 'string'}
-    data['revision'] = {'type': 'string'}
-
-    # 'id' is reserved for primary key.
-    if 'id' not in data:
-        data['id'] = {'type': 'pk'}
-    elif data['id'].get('type') != 'pk':
-        raise Exception("'id' property is reserved for primary key and must be of 'pk' type.")
+    data = {
+        '_op': {'type': 'string'},
+        '_type': {'type': 'string'},
+        '_id': {'type': 'pk', 'unique': True},
+        '_revision': {'type': 'string'},
+        '_transaction': {'type': 'integer'},
+        '_where': {'type': 'rql'},
+        **data,
+    }
 
     model.flatprops = {}
     model.properties = {}

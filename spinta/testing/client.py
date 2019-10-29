@@ -1,3 +1,5 @@
+from typing import Optional
+
 import datetime
 
 import pprintpp as pprint
@@ -15,6 +17,7 @@ class TestClient(starlette.testclient.TestClient):
         self._spinta_context = context
         self._requests_session = None
         self._requests_session_base_url = None
+        self._scopes = []
 
     def start_session(self, base_url):
         self._requests_session = requests.Session()
@@ -24,12 +27,15 @@ class TestClient(starlette.testclient.TestClient):
         scopes = get_model_scopes(self._spinta_context, model, actions)
         self.authorize(scopes, creds=creds)
 
-    def authorize(self, scopes=None, creds=None):
+    def authorize(self, scopes: Optional[list] = None, creds=None):
+        # Calling `authorize` multiple times, will preserve previous scopes.
+        self._scopes += [s for s in (scopes or []) if s not in self._scopes]
+
         if creds:
             # Request access token using /auth/token endpoint.
             resp = self.request('POST', '/auth/token', auth=creds, data={
                 'grant_type': 'client_credentials',
-                'scope': ' '.join(scopes),
+                'scope': ' '.join(self._scopes),
             })
             assert resp.status_code == 200, resp.text
             token = resp.json()['access_token']
@@ -42,7 +48,7 @@ class TestClient(starlette.testclient.TestClient):
             client = auth.query_client(context, client_id)
             grant_type = 'client_credentials'
             expires_in = int(datetime.timedelta(days=10).total_seconds())
-            token = auth.create_access_token(context, private_key, client, grant_type, expires_in, scopes=scopes)
+            token = auth.create_access_token(context, private_key, client, grant_type, expires_in, scopes=self._scopes)
 
         if self._requests_session:
             session = self._requests_session
@@ -64,5 +70,5 @@ class TestClient(starlette.testclient.TestClient):
         resp = self.get(*args, **kwargs)
         assert resp.status_code == 200, f'status_code: {resp.status_code}, response: {resp.text}'
         resp = resp.json()
-        assert 'data' in resp, pprint.pformat(resp)
-        return resp['data']
+        assert '_data' in resp, pprint.pformat(resp)
+        return resp['_data']

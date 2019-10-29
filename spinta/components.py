@@ -1,8 +1,11 @@
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, AsyncIterator
 
 import enum
 import contextlib
 import dataclasses
+import pathlib
+
+from spinta import exceptions
 
 
 class Context:
@@ -269,10 +272,18 @@ class Store:
 
 
 class Manifest:
+    type: str = 'manifest'
+    name: str
+    parent: None
+    objects: Dict[str, 'Node']
+    path: pathlib.Path
+    endpoints: Dict[str, str]
 
     def __init__(self):
         self.name = None
+        self.parent = None
         self.objects = {}
+        self.path = None
 
         # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
         # name and endpoint for all of them should match.
@@ -306,23 +317,27 @@ class Node:
         'description': {},
         'backend': {'type': 'backend', 'inherit': True, 'required': True},
     }
+    type: str
+    name: str
+    parent: 'Node'
+    manifest: 'Manifest'
+    path: pathlib.Path
 
     def __init__(self):
-        self.manifest = None
+        self.type = None
         self.name = None
         self.parent = None
+        self.manifest = None
         self.path = None
-        self.type = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>'
 
-    def __contains__(self, node):
-        while node:
-            if node is self:
-                return True
-            node = node.parent
-        return False
+    def __hash__(self) -> int:
+        # This is a recursive hash, goes down to all parents. There can be nodes
+        # with same type and name on different parts of nodes tree, that is why
+        # we have to also include parents.
+        return hash((self.type, self.name, self.parent))
 
     def node_type(self):
         """Return node type.
@@ -364,6 +379,9 @@ class Namespace(Node):
     schema = {
         'names': {'type': 'object'},
         'models': {'type': 'object'},
+        'backend': {'type': 'string', 'required': False},
+        'path': {'required': False},
+        'properties': {'default': {}},
     }
 
     def model_specifier(self):
@@ -428,6 +446,9 @@ class Property(Node):
         self.enum = None
         self.hidden = False
 
+    def __repr__(self):
+        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}, type={self.dtype.name!r})>'
+
 
 class Command:
 
@@ -471,10 +492,23 @@ class Action(enum.Enum):
 
     CHANGES = 'changes'
 
+    @classmethod
+    def has_value(cls, value):
+        return value in cls._value2member_map_
+
+    @classmethod
+    def by_value(cls, value):
+        return cls._value2member_map_[value]
+
+    @classmethod
+    def values(cls):
+        return list(cls._value2member_map_.keys())
+
 
 class UrlParams:
     parsetree: List[dict]
 
+    path: Optional[str] = None
     model: Optional[Node] = None
     pk: Optional[str] = None
     prop: Optional[Node] = None
@@ -483,6 +517,7 @@ class UrlParams:
     propref: bool = False
 
     ns: bool = False
+    all: bool = False
     dataset: Optional[str] = None
     resource: Optional[str] = None
     origin: Optional[str] = None
@@ -498,6 +533,10 @@ class UrlParams:
     offset: Optional[str] = None
     # XXX: Deprecated, count should be part of `select`.
     count: bool = False
+    # In batch requests, return summary of what was done.
+    summary: bool = False
+    # In batch requests, continue execution even if some actions fail.
+    fault_tolerant: bool = False
 
     query: Optional[List[dict]] = None
 
@@ -511,3 +550,55 @@ class UrlParams:
 
 class Version:
     version: str
+
+
+class DataItem:
+    model: Optional[Node] = None        # Data model.
+    prop: Optional[Node] = None         # Action on a property, not a whole model.
+    action: Optional[Action] = None     # Action.
+    payload: Optional[dict] = None      # Original data from request.
+    given: Optional[dict] = None        # Request data converted to Python-native data types.
+    saved: Optional[dict] = None        # Current data stored in database.
+    patch: Optional[dict] = None        # Patch that is going to be stored to database.
+    error: Optional[exceptions.UserError] = None  # Error while processing data.
+
+    def __init__(
+        self,
+        model: Optional[Node] = None,
+        prop: Optional[Node] = None,
+        action: Optional[Action] = None,
+        payload: Optional[dict] = None,
+        error: Optional[exceptions.UserError] = None,
+    ):
+        self.model = model
+        self.prop = prop
+        self.action = action
+        self.payload = payload
+        self.error = error
+
+    def copy(self, **kwargs) -> 'DataItem':
+        data = DataItem()
+        attrs = [
+            'model',
+            'prop',
+            'action',
+            'payload',
+            'given',
+            'saved',
+            'patch',
+            'error',
+        ]
+        assert len(set(kwargs) - set(attrs)) == 0
+        for name in attrs:
+            if name in kwargs:
+                setattr(data, name, kwargs[name])
+            elif hasattr(self, name):
+                value = getattr(self, name)
+                if isinstance(value, dict):
+                    setattr(data, name, value.copy())
+                else:
+                    setattr(data, name, value)
+        return data
+
+
+DataStream = AsyncIterator[DataItem]

@@ -18,8 +18,4 @@ def render(
 ):
     config = context.get('config')
     fmt = config.exporters[params.format]
-
-    if node:
-        return commands.render(context, request, node, fmt, action=action, params=params, data=data, status_code=status_code)
-    else:
-        return commands.render(context, request, fmt, action=action, params=params, data=data, status_code=status_code)
+    return commands.render(context, request, node, fmt, action=action, params=params, data=data, status_code=status_code)

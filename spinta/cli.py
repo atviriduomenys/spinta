@@ -1,18 +1,28 @@
+from typing import Optional, Iterable
+
+import asyncio
+import configparser
 import json
 import pathlib
 import uuid
 import logging
+import types
+import urllib.parse
 
 import click
 import tqdm
+import requests
 
-from spinta.components import Store
+from spinta.components import Store, DataStream
 from spinta import commands
 from spinta import components
-from spinta.utils.itertools import consume
 from spinta.auth import AdminToken
 from spinta.config import create_context
 from spinta import exceptions
+from spinta.commands.write import push_stream, dataitem_from_payload
+from spinta.commands.formats import Format
+from spinta.utils.aiotools import alist, aiter
+from spinta.auth import ResourceProtector, BearerTokenValidator
 
 log = logging.getLogger(__name__)
 
@@ -60,6 +70,7 @@ def pull(ctx, source, model, push, export):
         commands.prepare(context, store.internal)
         commands.prepare(context, store)
 
+    if not context.has('auth.token'):
         # TODO: probably commands should also use an exsiting token in order to
         #       track who changed what.
         context.set('auth.token', AdminToken())
@@ -74,15 +85,20 @@ def pull(ctx, source, model, push, export):
         with context:
             context.attach('transaction', store.backends['default'].transaction, write=push)
 
-            rows = commands.pull(context, dataset, models=model)
-            rows = commands.push(context, store, rows) if push else rows
+            path = None
+            exporter = None
+
+            stream = commands.pull(context, dataset, models=model)
+            if push:
+                stream = push_stream(context, aiter(
+                    dataitem_from_payload(context, dataset, data)
+                    for data in stream
+                ))
 
             if export is None and push is False:
                 export = 'stdout'
 
             if export:
-                path = None
-
                 if export == 'stdout':
                     fmt = 'ascii'
                 elif export.startswith('stdout:'):
@@ -97,21 +113,121 @@ def pull(ctx, source, model, push, export):
                     raise click.UsageError(f"unknown export file type {fmt!r}")
 
                 exporter = config.exporters[fmt]
-                chunks = exporter(rows)
 
-                if path is None:
-                    for chunk in chunks:
-                        print(chunk, end='')
-                else:
-                    with export.open('wb') as f:
-                        for chunk in chunks:
-                            f.write(chunk)
+            asyncio.run(
+                _process_stream(source, stream, exporter, path)
+            )
 
-            else:
-                consume(tqdm.tqdm(rows, desc=source))
     except exceptions.BaseError as e:
         print()
         raise click.ClickException(str(e))
+
+
+async def _process_stream(
+    source: str,
+    stream: DataStream,
+    exporter: Optional[Format] = None,
+    path: Optional[pathlib.Path] = None,
+) -> None:
+    if exporter:
+        # TODO: Probably exporters should support async generators.
+        if isinstance(stream, types.AsyncGeneratorType):
+            stream = await alist(stream)
+        chunks = exporter(stream)
+        if path is None:
+            for chunk in chunks:
+                print(chunk, end='')
+        else:
+            with path.open('wb') as f:
+                for chunk in chunks:
+                    f.write(chunk)
+    else:
+        with tqdm.tqdm(desc=source, ascii=True) as pbar:
+            async for _ in stream:
+                pbar.update(1)
+
+
+@main.command(help='Push data to external data store.')
+@click.argument('target')
+@click.option('--dataset', '-d', help="Push only specified dataset.")
+@click.option('--credentials', '-r', help="Credentials file.")
+@click.option('--client', '-c', help="Client name from credentials file.")
+@click.pass_context
+def push(ctx, target, dataset, credentials, client):
+    context = ctx.obj['context']
+    store = context.get('store')
+
+    if context.get('config').env != 'test':
+        commands.prepare(context, store.internal)
+        commands.prepare(context, store)
+
+    if not context.has('auth.token'):
+        # TODO: probably commands should also use an exsiting token in order to
+        #       track who changed what.
+        context.set('auth.token', AdminToken())
+        context.set('auth.resource_protector', ResourceProtector(context, BearerTokenValidator))
+
+    manifest = store.manifests['default']
+    if dataset and dataset not in manifest.objects['dataset']:
+        raise click.ClickException(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
+
+    ns = manifest.objects['ns']['']
+
+    with context:
+        token = _get_access_token(credentials, client, target)
+        headers = {
+            'Content-Type': 'application/x-ndjson',
+            'Authorization': f'Bearer {token}',
+        }
+        context.attach('transaction', manifest.backend.transaction)
+        stream = _read_data(context, ns, dataset)
+        resp = requests.post(target, headers=headers, data=stream)
+        if resp.status_code >= 400:
+            click.echo(resp.text)
+            raise click.Abort("Error while pushing data.")
+
+
+def _get_access_token(credsfile, client, url):
+    url = urllib.parse.urlparse(url)
+    section = f'{client}@{url.hostname}'
+    creds = configparser.ConfigParser()
+    creds.read(credsfile)
+    auth = (
+        creds.get(section, 'client_id'),
+        creds.get(section, 'client_secret'),
+    )
+    resp = requests.post(f'{url.scheme}://{url.netloc}/auth/token', auth=auth, data={
+        'grant_type': 'client_credentials',
+        'scope': creds.get(section, 'scopes'),
+    })
+    if resp.status_code >= 400:
+        click.echo(resp.text)
+        raise click.Abort("Can't get access token.")
+    return resp.json()['access_token']
+
+
+def _read_data(
+    context: components.Context,
+    ns: components.Namespace,
+    dataset: Optional[str] = None,
+) -> Iterable[dict]:
+    stream = commands.getall(
+        context, ns, None,
+        action=components.Action.GETALL,
+        dataset_=dataset,
+    )
+    for data in stream:
+        id_ = data['_id']
+        type_ = data['_type']
+        click.echo(f'{type_:42}  {id_}')
+        payload = {
+            '_op': 'upsert',
+            '_type': type_,
+            '_id': id_,
+            '_where': f'_id={id_}',
+            **{k: v for k, v in data.items() if not k.startswith('_')}
+        }
+        yield json.dumps(payload).encode('utf-8') + b'\n'
 
 
 @main.command()

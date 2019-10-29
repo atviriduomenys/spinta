@@ -5,8 +5,7 @@ from starlette.responses import JSONResponse
 from starlette.responses import StreamingResponse
 
 from spinta.commands.formats import Format
-from spinta.types import dataset
-from spinta.components import Context, Action, UrlParams, Model, Property
+from spinta.components import Context, Action, UrlParams, Node
 from spinta import commands
 from spinta.utils.response import aiter, peek_and_stream
 
@@ -17,7 +16,7 @@ class Json(Format):
         'application/json',
     }
     params = {}
-    container_name = 'data'
+    container_name = '_data'
 
     def __call__(self, data):
         yield f'{{"{self.container_name}":['
@@ -31,51 +30,7 @@ class Json(Format):
 def render(
     context: Context,
     request: Request,
-    model: Model,
-    fmt: Json,
-    *,
-    action: Action,
-    params: UrlParams,
-    data,
-    status_code: int = 200,
-):
-    return _render(context, request, fmt, action, params, data, status_code)
-
-
-@commands.render.register()  # noqa
-def render(
-    context: Context,
-    request: Request,
-    model: dataset.Model,
-    fmt: Json,
-    *,
-    action: Action,
-    params: UrlParams,
-    data,
-    status_code: int = 200,
-):
-    return _render(context, request, fmt, action, params, data, status_code)
-
-
-@commands.render.register()  # noqa
-def render(
-    context: Context,
-    request: Request,
-    prop: Property,
-    fmt: Json,
-    *,
-    action: Action,
-    params: UrlParams,
-    data,
-    status_code: int = 200,
-):
-    return _render(context, request, fmt, action, params, data, status_code)
-
-
-@commands.render.register()  # noqa
-def render(
-    context: Context,
-    request: Request,
+    node: Node,
     fmt: Json,
     *,
     action: Action,

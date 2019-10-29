@@ -16,7 +16,7 @@ resources:
             skip: {column: 0, value: ['Rinkimai', 'Rinkimų rūšis']}
             limit: 10
           properties:
-            id:
+            _id:
               type: pk
               source: ['Rinkimai']
             rusis:
@@ -34,7 +34,7 @@ resources:
             skip: 8
             limit: 10
           properties:
-            id:
+            _id:
               type: pk
               source: ['Rinkimai', 'Turas']
             turas:
@@ -50,7 +50,7 @@ resources:
             skip: 8
             limit: 10
           properties:
-            id:
+            _id:
               type: pk
               source: ['Apygardos Nr.']
             numeris:
@@ -73,7 +73,7 @@ resources:
             skip: 8
             limit: 10
           properties:
-            id:
+            _id:
               type: pk
               source: ['Apygardos Nr.', 'Apylinkės Nr.']
             numeris:
@@ -100,7 +100,7 @@ resources:
             skip: 8
             limit: 1
           properties:
-            id:
+            _id:
               type: pk
               source:
                 - 'Rinkimai'

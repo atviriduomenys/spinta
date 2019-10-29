@@ -5,7 +5,7 @@ title: "Nested structure"
 version: 1
 date: "2019-02-06"
 properties:
-  id: {type: pk}
+  _id: {type: pk}
   some:
     type: array
     items:

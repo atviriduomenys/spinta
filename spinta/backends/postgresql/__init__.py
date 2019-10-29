@@ -1,9 +1,12 @@
+from typing import AsyncIterator
+
 import contextlib
 import datetime
 import hashlib
 import itertools
 import re
 import typing
+import types
 
 import unidecode
 import sqlalchemy as sa
@@ -13,25 +16,19 @@ from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 from starlette.requests import Request
-from starlette.exceptions import HTTPException
 
 from spinta import commands
-from spinta.auth import check_scope
-from spinta.backends import Backend, check_model_properties, check_type_value
-from spinta.commands import wait, load, prepare, migrate, check, push, getone, getall, wipe, authorize, dump, gen_object_id
+from spinta.backends import Backend
+from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize, dump, complex_data_check
 from spinta.common import NA
-from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem
 from spinta.config import RawConfig
 from spinta.renderer import render
 from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref
-from spinta.utils.changes import get_patch_changes
-from spinta.utils.idgen import get_new_id
-from spinta.utils.response import get_request_data
 
 from spinta.exceptions import (
     MultipleRowsFound,
     NotFoundError,
-    ManagedProperty,
     ItemDoesNotExist,
     UniqueConstraint,
 )
@@ -51,6 +48,7 @@ CACHE_TABLE = 'T'
 UNSUPPORTED_TYPES = [
     'backref',
     'generic',
+    'rql',
 ]
 
 
@@ -179,7 +177,9 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     main_table_name = get_table_name(backend, model.manifest.name, model.name, MAIN_TABLE)
     main_table = sa.Table(
         main_table_name, backend.schema,
-        sa.Column('_transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
+        sa.Column('_transaction', sa.Integer, sa.ForeignKey('transaction._id')),
+        sa.Column('_created', sa.DateTime),
+        sa.Column('_updated', sa.DateTime),
         *columns,
     )
 
@@ -187,7 +187,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     changes_table_name = get_table_name(backend, model.manifest.name, model.name, CHANGES_TABLE)
     # XXX: not sure if I should pass main_table.c.id.type.__class__() or a
     #      shorter form.
-    changes_table = get_changes_table(backend, changes_table_name, main_table.c.id.type)
+    changes_table = get_changes_table(backend, changes_table_name, main_table.c._id.type)
 
     backend.tables[model.manifest.name][model.name] = ModelTables(main_table, changes_table)
 
@@ -195,10 +195,10 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
     if dtype.prop.backend.name != backend.name:
-        # If property backend differs from modle backend, then no columns should
-        # be added to the table. If some property types requires adding column
+        # If property backend differs from model backend, then no columns should
+        # be added to the table. If some property type require adding columns
         # even for a property with different backend, then this type must
-        # implement prepare command add do custom logic there.
+        # implement prepare command and do custom logic there.
         return
 
     if dtype.name == 'type':
@@ -227,9 +227,9 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
     if dtype.prop.manifest.name == 'internal':
-        return sa.Column(dtype.prop.name, BIGINT, primary_key=True)
+        return sa.Column('_id', BIGINT, primary_key=True)
     else:
-        return sa.Column(dtype.prop.name, UUID(), primary_key=True)
+        return sa.Column('_id', UUID(), primary_key=True)
 
 
 @prepare.register()
@@ -244,7 +244,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
     return [
         sa.Column(dtype.prop.name, column_type),
         sa.ForeignKeyConstraint(
-            [dtype.prop.name], [f'{table_name}.id'],
+            [dtype.prop.name], [f'{table_name}._id'],
             name=_get_pg_name(f'fk_{dtype.prop.model.name}_{dtype.prop.name}'),
         )
     ]
@@ -292,459 +292,120 @@ def migrate(context: Context, backend: PostgreSQL):
     backend.schema.create_all(checkfirst=True)
 
 
-@check.register()
-def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action, id_: str):
-    check_model_properties(context, model, backend, data, action, id_)
-
-
-@check.register()
-def check(context: Context, dtype: DataType, prop: Property, backend: PostgreSQL, value: object, *, data: dict, action: Action):
-    check_type_value(dtype, value)
-
-    connection = context.get('transaction').connection
-    table = backend.tables[prop.manifest.name][prop.model.name].main
-
+@complex_data_check.register()
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: DataType,
+    prop: Property,
+    backend: PostgreSQL,
+    value: object,
+):
     if dtype.unique and value is not NA:
-        if action == Action.UPDATE:
+        table = backend.tables[prop.manifest.name][prop.model.name].main
+
+        if data.action in (Action.UPDATE, Action.PATCH):
             condition = sa.and_(
                 table.c[prop.name] == value,
-                table.c['id'] != data['id'],
+                table.c._id != data.saved['_id'],
             )
         # PATCH requests are allowed to send protected fields in requests JSON
         # PATCH handling will use those fields for validating data, though
         # won't change them.
-        elif action == Action.PATCH and dtype.prop.name in {'id', 'type', 'revision'}:
+        elif data.action == Action.PATCH and dtype.prop.name in {'_id', '_type', '_revision'}:
             return
         else:
             condition = table.c[prop.name] == value
         not_found = object()
+        connection = context.get('transaction').connection
         result = backend.get(connection, table.c[prop.name], condition, default=not_found)
         if result is not not_found:
             raise UniqueConstraint(prop)
 
 
-@check.register()
-def check(context: Context, dtype: File, prop: Property, backend: PostgreSQL, value: dict, *, data: dict, action: Action):
-    if prop.backend.name != backend.name:
-        check(context, dtype, prop, prop.backend, value, data=data, action=action)
-
-
-@push.register()
-async def push(
-    context: Context,
-    request: Request,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-):
-    authorize(context, action, model)
-
-    if action == Action.DELETE:
-        data = {}
-    else:
-        data = await get_request_data(model, request)
-        data = load(context, model, data)
-        check(context, model, backend, data, action=action, id_=params.pk)
-        data = prepare(context, model, data, action=action)
-        data = {
-            k: v
-            for k, v in data.items()
-            if model.properties[k].dtype.name not in UNSUPPORTED_TYPES
-        }
-
-    if action == Action.INSERT:
-        data['id'] = commands.insert(context, model, backend, data=data)
-
-    elif action == Action.UPSERT:
-        data['id'] = commands.upsert(context, model, backend, data=data)
-
-    elif action == Action.UPDATE:
-        data['id'] = params.pk
-        # FIXME: check if revision given in `data` matches the revision in database
-        # related to SPLAT-60
-        data['revision'] = get_new_id('revision id')
-        commands.update(context, model, backend, id_=params.pk, data=data)
-
-    elif action == Action.PATCH:
-        commands.patch(context, model, backend, id_=params.pk, data=data)
-        data['id'] = params.pk
-
-    elif action == Action.DELETE:
-        commands.delete(context, model, backend, id_=params.pk)
-        data['id'] = params.pk
-
-    else:
-        raise Exception(f"Unknown action {action!r}.")
-
-    data = prepare(context, action, model, backend, data)
-
-    if action == Action.INSERT:
-        status_code = 201
-    elif action == Action.DELETE:
-        status_code = 204
-    else:
-        status_code = 200
-
-    return render(context, request, model, params, data, action=action, status_code=status_code)
-
-
 @commands.insert.register()
-def insert(
+async def insert(
     context: Context,
     model: Model,
     backend: PostgreSQL,
     *,
-    data: dict,
+    dstream: AsyncIterator[DataItem],
+    stop_on_error: bool = True,
 ):
     transaction = context.get('transaction')
     connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
-
-    if 'id' in data:
-        check_scope(context, 'set_meta_fields')
-
-    if 'revision' in data:
-        # FIXME: revision should have model for context
-        raise ManagedProperty(model, property='revision')
-
-    if not data.get('id'):
-        data['id'] = gen_object_id(context, backend, model)
-
-    # FIXME: before creating revision check if there's no collision clash
-    data['revision'] = get_new_id('revision id')
-
-    connection.execute(
-        table.main.insert().values(data),
-    )
-
-    # Track changes.
-    connection.execute(
-        table.changes.insert().values(
-            transaction_id=transaction.id,
-            id=data['id'],
-            datetime=utcnow(),
-            action=Action.INSERT.value,
-            change=_fix_data_for_json({
-                k: v for k, v in data.items() if k not in {'id'}
-            }),
-        ),
-    )
-
-    return data['id']
-
-
-@commands.upsert.register()
-def upsert(
-    context: Context,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    key: typing.List[str],
-    data: dict,
-):
-    transaction = context.get('transaction')
-    connection = transaction.connection
-    table = backend.tables[model.manifest.name][model.name]
-
-    condition = []
-    for k in key:
-        condition.append(table.main.c[k] == data[k])
-
-    row = backend.get(connection, table.main, sa.and_(*condition), default=None)
-
-    if row is None:
-        action = Action.INSERT
-
-        if 'id' not in data:
-            data['id'] = gen_object_id(context, backend, model)
-
-        if 'revision' in data.keys():
-            raise ManagedProperty(model, property='revision')
-        data['revision'] = get_new_id('revision id')
-
-        connection.execute(
-            table.main.insert().values(data),
+    async for data in dstream:
+        # TODO: Refactor this to insert batches with single query.
+        qry = table.main.insert().values(
+            _transaction=transaction.id,
+            _created=utcnow(),
         )
-
-    else:
-        action = Action.PATCH
-
-        id_ = row[table.main.c.id]
-
-        # FIXME: before creating revision check if there's no collision clash
-        data['revision'] = get_new_id('revision id')
-        data = _patch(transaction, connection, table, id_, row, data)
-
-        if data is None:
-            # Nothing changed.
-            return None
-
-    # Track changes.
-    connection.execute(
-        table.changes.insert().values(
-            transaction_id=transaction.id,
-            id=id_,
-            datetime=utcnow(),
-            action=action.value,
-            change=_fix_data_for_json(data),
-        ),
-    )
-
-    return id_
+        connection.execute(qry, [{
+            '_id': data.patch['_id'],
+            '_revision': data.patch['_revision'],
+            **{k: v for k, v in data.patch.items() if not k.startswith('_')},
+        }])
+        yield data
 
 
 @commands.update.register()
-def update(
+async def update(
     context: Context,
     model: Model,
     backend: PostgreSQL,
     *,
-    id_: str,
-    data: dict,
+    dstream: dict,
+    stop_on_error: bool = True,
 ):
     transaction = context.get('transaction')
     connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
 
-    result = connection.execute(
-        table.main.update().
-        where(table.main.c.id == id_).
-        values(data)
-    )
-    if result.rowcount == 0:
-        raise Exception("Update failed, {model} with {id_} not found.")
-    elif result.rowcount > 1:
-        raise Exception("Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
+    async for data in dstream:
+        if not data.patch:
+            yield data
+            continue
 
-    # Track changes.
-    connection.execute(
-        table.changes.insert().values(
-            transaction_id=transaction.id,
-            id=data['id'],
-            datetime=utcnow(),
-            action=Action.UPDATE.value,
-            change=_fix_data_for_json({
-                k: v for k, v in data.items() if k not in {'id'}
-            }),
-        ),
-    )
+        id_ = data.saved['_id']
 
+        # FIXME: Support patching nested properties.
+        values = {k: v for k, v in data.patch.items() if not k.startswith('_')}
+        values['_revision'] = data.patch['_revision']
+        if '_id' in data.patch:
+            values['_id'] = data.patch['_id']
 
-@commands.patch.register()
-def patch(
-    context: Context,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    id_: str,
-    data: dict,
-):
-    transaction = context.get('transaction')
-    connection = transaction.connection
-    table = backend.tables[model.manifest.name][model.name]
-
-    row = backend.get(
-        connection,
-        [table.main],
-        table.main.c.id == id_,
-        default=None,
-    )
-    if row is None:
-        raise ItemDoesNotExist(model, id=id_)
-
-    # FIXME: before creating revision check if there's no collision clash
-    data['revision'] = get_new_id('revision id')
-    data = _patch(transaction, connection, table, id_, row, data)
-
-    if data is None:
-        # Nothing changed.
-        return None
-
-    # Track changes.
-    connection.execute(
-        table.changes.insert().values(
-            transaction_id=transaction.id,
-            id=id_,
-            datetime=utcnow(),
-            action=Action.PATCH.value,
-            change=_fix_data_for_json(data),
-        ),
-    )
-
-
-def _patch(transaction, connection, table, id_, row, data):
-    changes = get_patch_changes(dict(row), data)
-
-    if not changes:
-        # Nothing to update.
-        return None
-
-    result = connection.execute(
-        table.main.update().
-        where(table.main.c.id == id_).
-        where(table.main.c._transaction_id == row[table.main.c._transaction_id]).
-        values(changes)
-    )
-
-    # TODO: Retries are needed if result.rowcount is 0, if such
-    #       situation happens, that means a concurrent transaction
-    #       changed the data and we need to reread it.
-    #
-    #       And assumption is made here, than in the same
-    #       transaction there are no concurrent updates, if this
-    #       assumption is false, then we need to check against
-    #       change_id instead of transaction_id.
-    assert result.rowcount > 0
-
-    return changes
+        result = connection.execute(
+            table.main.update().
+            where(table.main.c._id == id_).
+            where(table.main.c._revision == data.saved['_revision']).
+            values(values)
+        )
+        if result.rowcount == 0:
+            raise Exception("Update failed, {model} with {id_} not found.")
+        elif result.rowcount > 1:
+            raise Exception("Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
+        yield data
 
 
 @commands.delete.register()
-def delete(
+async def delete(
     context: Context,
     model: Model,
     backend: PostgreSQL,
     *,
-    id_: str,
+    dstream: AsyncIterator[DataItem],
+    stop_on_error: bool = True,
 ):
     transaction = context.get('transaction')
     connection = transaction.connection
     table = backend.tables[model.manifest.name][model.name]
-
-    res = connection.execute(
-        table.main.delete().
-        where(table.main.c.id == id_)
-    )
-    if res.rowcount == 0:
-        raise ItemDoesNotExist(model, id=id_)
-
-    # Track changes.
-    connection.execute(
-        table.changes.insert().values(
-            transaction_id=transaction.id,
-            id=id_,
-            datetime=utcnow(),
-            action=Action.DELETE.value,
-            change=None,
-        ),
-    )
-
-
-@push.register()
-async def push(
-    context: Context,
-    request: Request,
-    prop: Property,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-    ref: bool = False,
-):
-    """
-
-    Args:
-        ref: Update reference or data refered by reference.
-
-            This applies only to direct property updates. Update reference is
-            enabled, when property is named like this `prop:ref`, the `:ref`
-            suffix tells, that reference should be updated and `ref` argument is
-            set to True.
-
-            Most properties do not have references, but some do. So this only
-            applies to properties like File with external backend, ForeignKey
-            and etc.
-
-    """
-    if action == Action.INSERT:
-        raise HTTPException(status_code=400, detail=f"Can't POST to a property, use PUT or PATCH instead.")
-
-    authorize(context, action, prop)
-
-    data = await get_request_data(prop, request)
-
-    data = load(context, prop.dtype, data)
-    check(context, prop.dtype, prop, backend, data, data=None, action=action)
-    data = prepare(context, prop.dtype, backend, data)
-
-    if action == Action.UPDATE:
-        commands.update(context, prop, backend, id_=params.pk, data=data)
-    elif action == Action.PATCH:
-        commands.patch(context, prop, backend, id_=params.pk, data=data)
-    elif action == Action.DELETE:
-        commands.delete(context, prop, backend, id_=params.pk)
-    else:
-        raise Exception(f"Unknown action {action}.")
-
-    data = dump(context, backend, prop.dtype, data)
-    return render(context, request, prop, params, data, action=action)
-
-
-@commands.update.register()  # noqa
-def update(
-    context: Context,
-    prop: Property,
-    backend: PostgreSQL,
-    *,
-    id_: str,
-    data: dict,
-):
-    connection = context.get('transaction').connection
-    table = backend.tables[prop.model.manifest.name][prop.model.name]
-    result = connection.execute(
-        table.main.update().
-        where(table.main.c.id == id_).
-        values({prop.name: data})
-    )
-    if result.rowcount == 0:
-        raise Exception("Property update failed, {prop} with {id_} not found.")
-    elif result.rowcount > 1:
-        raise Exception("Property update failed, {prop} with {id_} has found and update {result.rowcount} rows.")
-
-
-@commands.patch.register()  # noqa
-def patch(
-    context: Context,
-    prop: Property,
-    backend: PostgreSQL,
-    *,
-    id_: str,
-    data: dict,
-):
-    connection = context.get('transaction').connection
-    table = backend.tables[prop.model.manifest.name][prop.model.name]
-    result = connection.execute(
-        table.main.update().
-        where(table.main.c.id == id_).
-        values({prop.name: data})
-    )
-    if result.rowcount == 0:
-        raise Exception("Property update failed, {prop} with {id_} not found.")
-    elif result.rowcount > 1:
-        raise Exception("Property update failed, {prop} with {id_} has found and update {result.rowcount} rows.")
-
-
-@commands.delete.register()  # noqa
-def delete(
-    context: Context,
-    prop: Property,
-    backend: PostgreSQL,
-    *,
-    id_: str,
-):
-    connection = context.get('transaction').connection
-    table = backend.tables[prop.model.manifest.name][prop.model.name]
-    result = connection.execute(
-        table.main.update().
-        where(table.main.c.id == id_).
-        values({prop.name: None})
-    )
-    if result.rowcount == 0:
-        raise Exception("Property delete failed, {prop} with {id_} not found.")
-    elif result.rowcount > 1:
-        raise Exception("Property delete failed, {prop} with {id_} has found and update {result.rowcount} rows.")
+    async for data in dstream:
+        connection.execute(
+            table.main.delete().
+            where(table.main.c._id == data.saved['_id'])
+        )
+        yield data
 
 
 @getone.register()
@@ -759,6 +420,8 @@ async def getone(
 ):
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.pk)
+    # TODO: All meta properties eventually should have `_` prefix.
+    data['id'] = data['_id']
     data = prepare(context, Action.GETONE, model, backend, data, select=params.select)
     return render(context, request, model, params, data, action=action)
 
@@ -773,13 +436,10 @@ def getone(
 ):
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
-
-    # cast server error (NotFoundError, HTTP/500) to user error (HTTP/4xx)
     try:
-        result = backend.get(connection, table, table.c.id == id_)
+        result = backend.get(connection, table, table.c._id == id_)
     except NotFoundError:
         raise ItemDoesNotExist(model, id=id_)
-
     return dict(result)
 
 
@@ -810,7 +470,7 @@ def getone(
     table = backend.tables[prop.manifest.name][prop.model.name].main
     connection = context.get('transaction').connection
     try:
-        result = backend.get(connection, table.c[prop.name], table.c.id == id_)
+        result = backend.get(connection, table.c[prop.name], table.c._id == id_)
     except NotFoundError:
         raise ItemDoesNotExist(prop.model, id=id_)
     return result
@@ -835,9 +495,13 @@ async def getall(
     # query_params=_params.get('query_params'),
     # search=params.search,
 
+    table = backend.tables[model.manifest.name][model.name].main
     authorize(context, action, model)
     result = (
-        prepare(context, action, model, backend, row, select=params.select)
+        prepare(context, action, model, backend, {
+            **row,
+            'id': row[table.c._id],
+        }, select=params.select)
         for row in getall(context, model, backend)
     )
     return render(context, request, model, params, result, action=action)
@@ -851,8 +515,90 @@ def getall(
 ):
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name].main
-    for row in connection.execute(sa.select([table])):
-        yield dict(row)
+    yield from connection.execute(sa.select([table]))
+
+
+@commands.changes.register()
+async def changes(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    authorize(context, action, model)
+    data = changes(context, model, backend, id_=params.pk, limit=params.limit, offset=params.offset)
+    data = (
+        {
+            **row,
+            '_created': row['_created'].isoformat(),
+        }
+        for row in data
+    )
+    return render(context, request, model, params, data, action=action)
+
+
+@changes.register()
+def changes(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    id_: str = None,
+    limit: int = 100,
+    offset: int = -10,
+):
+    connection = context.get('transaction').connection
+    table = backend.tables[model.manifest.name][model.name].changes
+
+    qry = sa.select([table]).order_by(table.c.change)
+    qry = _changes_id(table, qry, id_)
+    qry = _changes_offset(table, qry, offset)
+    qry = _changes_limit(qry, limit)
+
+    result = connection.execute(qry)
+    for row in result:
+        yield {
+            '_change': row[table.c.change],
+            '_revision': row[table.c.revision],
+            '_transaction': row[table.c.transaction],
+            '_id': row[table.c.id],
+            '_created': row[table.c.datetime],
+            '_op': row[table.c.action],
+            **dict(row[table.c.data]),
+        }
+
+
+def _changes_id(table, qry, id_):
+    if id_:
+        return qry.where(table.c.id == id_)
+    else:
+        return qry
+
+
+def _changes_offset(table, qry, offset):
+    if offset:
+        if offset > 0:
+            offset = offset
+        else:
+            offset = (
+                qry.with_only_columns([
+                    sa.func.max(table.c.change) - abs(offset),
+                ]).
+                order_by(None).alias()
+            )
+        return qry.where(table.c.change > offset)
+    else:
+        return qry
+
+
+def _changes_limit(qry, limit):
+    if limit:
+        return qry.limit(limit)
+    else:
+        return qry
 
 
 @wipe.register()
@@ -891,7 +637,7 @@ def get_table_name(backend: PostgreSQL, manifest: str, name: str, table_type=MAI
             return f'{name}_{table_type}'
 
     table = backend.tables['internal']['table'].main
-    table_id = backend.get(backend.engine, table.c.id, table.c.name == name, default=None)
+    table_id = backend.get(backend.engine, table.c._id, table.c.name == name, default=None)
     if table_id is None:
         result = backend.engine.execute(
             table.insert(),
@@ -909,12 +655,21 @@ def get_table_name(backend: PostgreSQL, manifest: str, name: str, table_type=MAI
 def get_changes_table(backend, table_name, id_type):
     table = sa.Table(
         table_name, backend.schema,
-        sa.Column('change_id', BIGINT, primary_key=True),
-        sa.Column('transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
+        # XXX: This will not work with multi master setup. Consider changing it
+        #      to UUID or something like that.
+        #
+        #      `change` should be monotonically incrementing, in order to
+        #      have that, we could always create new `change_id`, by querying,
+        #      previous `change_id` and increment it by one. This will create
+        #      duplicates, but we simply know, that these changes happened at at
+        #      the same time. So that's probably OK.
+        sa.Column('change', BIGINT, primary_key=True),
+        sa.Column('revision', sa.String(40)),
+        sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
         sa.Column('id', id_type),  # reference to main table
         sa.Column('datetime', sa.DateTime),
         sa.Column('action', sa.String(8)),  # insert, update, delete
-        sa.Column('change', JSONB),
+        sa.Column('data', JSONB),
     )
     return table
 
@@ -965,3 +720,36 @@ def _fix_data_for_json(data):
             v = v.isoformat()
         _data[k] = v
     return _data
+
+
+@commands.create_changelog_entry.register()
+async def create_changelog_entry(
+    context: Context,
+    model: (Model, Property),
+    backend: PostgreSQL,
+    *,
+    dstream: types.AsyncGeneratorType,
+) -> None:
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    if isinstance(model, Model):
+        table = backend.tables[model.manifest.name][model.name]
+    else:
+        table = backend.tables[model.model.manifest.name][model.model.name]
+    async for data in dstream:
+        qry = table.changes.insert().values(
+            transaction=transaction.id,
+            datetime=utcnow(),
+            action=Action.INSERT.value,
+        )
+        connection.execute(qry, [{
+            'id': data.saved['_id'] if data.saved else data.patch['_id'],
+            '_revision': data.patch['_revision'] if data.patch else data.saved['_revision'],
+            'transaction': transaction.id,
+            'datetime': utcnow(),
+            'action': data.action.value,
+            'data': _fix_data_for_json({
+                k: v for k, v in data.patch.items() if not k.startswith('_')
+            }),
+        }])
+        yield data

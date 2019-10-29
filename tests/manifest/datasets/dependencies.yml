@@ -14,7 +14,7 @@ resources:
         continent:
           source: "/continents.csv"
           properties:
-            id:
+            _id:
               type: pk
               source: id
             title:
@@ -23,13 +23,16 @@ resources:
             continent_id:
               type: string
               source: id
+            population:
+              type: integer
+              source: population
 
         country:
           source: "/continents/{continent}/countries.csv"
           dependencies:
             continent: continent/:dataset/dependencies/:resource/continents.continent_id
           properties:
-            id:
+            _id:
               type: pk
               source: id
             title:
@@ -50,7 +53,7 @@ resources:
             continent: country/:dataset/dependencies/:resource/continents.continent.continent_id
             country: country/:dataset/dependencies/:resource/continents.country_id
           properties:
-            id:
+            _id:
               type: pk
               source: id
             title:

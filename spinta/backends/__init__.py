@@ -1,14 +1,16 @@
+from typing import AsyncIterator, Union
+
 import contextlib
 import datetime
 import uuid
 import typing
 
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String
-from spinta.components import Context, Model, Property, Action, Node
-from spinta.commands import load_operator_value, prepare, dump, check, getone, gen_object_id, is_object_id
+from spinta.components import Context, Model, Property, Action, Node, DataItem
+from spinta.commands import load_operator_value, prepare, dump, gen_object_id, is_object_id
 from spinta.common import NA
 from spinta.types import dataset
-from spinta.exceptions import ConflictingValue, ItemDoesNotExist, NoItemRevision, NotFoundError
+from spinta.exceptions import ConflictingValue, NoItemRevision
 from spinta.utils.nestedstruct import build_select_tree
 from spinta import commands
 from spinta import exceptions
@@ -20,7 +22,10 @@ class Backend:
     }
 
     def __repr__(self):
-        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}) at 0x{id(self):02x}>'
+        return (
+            f'<{self.__class__.__module__}.{self.__class__.__name__}'
+            f'(name={self.name!r}) at 0x{id(self):02x}>'
+        )
 
     @contextlib.contextmanager
     def transaction(self):
@@ -102,47 +107,175 @@ def dump(context: Context, backend: Backend, dtype: Array, value: type(None), *,
     return []
 
 
-@check.register()
-def check(context: Context, model: Model, backend: Backend, data: dict):
-    check_model_properties(context, model, backend, data)
+@commands.simple_data_check.register()
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    model: (Model, dataset.Model),
+    backend: Backend,
+) -> None:
+    simple_model_properties_check(context, data, model, backend)
 
 
-@check.register()
-def check(context: Context, dtype: DataType, prop: Property, backend: Backend, value: object, *, data: dict, action: Action):
-    check_type_value(dtype, value)
+@commands.simple_data_check.register()  # noqa
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    prop: (Property, dataset.Property),
+    backend: Backend,
+) -> None:
+    simple_data_check(
+        context,
+        data,
+        prop.dtype,
+        prop,
+        backend,
+        data.given,
+    )
 
 
-@check.register()
-def check(context: Context, dtype: DataType, prop: dataset.Property, backend: Backend, value: object, *, data: dict, action: Action):
-    check_type_value(dtype, value)
-
-
-def check_model_properties(context: Context, model: Model, backend, data: dict, action: Action, id_: str):
-    if action in [Action.UPDATE, Action.DELETE] and 'revision' not in data:
-        raise NoItemRevision(model)
-
-    REWRITE = [Action.UPDATE, Action.PATCH, Action.DELETE]
-    if action in REWRITE:
-        # FIXME: try to put query somewhere higher in the request handling stack.
-        # We do not want to hide expensive queries or call same thing multiple times.
-        try:
-            row = getone(context, model, backend, id_=id_)
-        except NotFoundError:
-            raise ItemDoesNotExist(model, id=id_)
-
-        for k in ['id', 'type', 'revision']:
-            if k in data and row[k] != data[k]:
-                raise ConflictingValue(model.properties[k], given=data[k], expected=row[k])
-
+def simple_model_properties_check(
+    context: Context,
+    data: DataItem,
+    model: Model,
+    backend: Backend,
+) -> None:
     for name, prop in model.properties.items():
         # For datasets, property type is optional.
         # XXX: but I think, it should be mandatory.
         if prop.dtype is not None:
-            check(context, prop.dtype, prop, backend, data.get(name, NA), data=data, action=action)
+            if prop.backend.name == backend.name:
+                backend_ = backend
+            else:
+                backend_ = prop.backend
+            simple_data_check(
+                context,
+                data,
+                prop.dtype,
+                prop,
+                backend_,
+                data.given.get(name, NA),
+            )
+
+
+@commands.simple_data_check.register()  # noqa
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: DataType,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    check_type_value(dtype, value)
+
+
+@commands.simple_data_check.register()  # noqa
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: DataType,
+    prop: dataset.Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    check_type_value(dtype, value)
+
+
+@commands.complex_data_check.register()
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    model: Model,
+    backend: Backend,
+) -> None:
+    _complex_data_check(context, data, model, backend)
+
+
+@commands.complex_data_check.register()  # noqa
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    model: dataset.Model,
+    backend: Backend,
+) -> None:
+    _complex_data_check(context, data, model, backend)
+
+
+def _complex_data_check(
+    context: Context,
+    data: DataItem,
+    model: Model,
+    backend: Backend,
+) -> None:
+    # XXX: Maybe Action.DELETE should also provide revision.
+    updating = data.action in (Action.UPDATE, Action.PATCH)
+    if updating and '_revision' not in data.given:
+        raise NoItemRevision(model)
+
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
+        for k in ('_type', '_revision'):
+            if k in data.given and data.saved[k] != data.given[k]:
+                raise ConflictingValue(
+                    model.properties[k],
+                    given=data.given[k],
+                    expected=data.saved[k],
+                )
+
+    complex_model_properties_check(context, model, backend, data)
+
+
+def complex_model_properties_check(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    data: DataItem,
+) -> None:
+    for name, prop in model.properties.items():
+        # For datasets, property type is optional.
+        # XXX: But I think, it should be mandatory.
+        if prop.dtype is not None:
+            if prop.backend.name == backend.name:
+                backend_ = backend
+            else:
+                backend_ = prop.backend
+            complex_data_check(
+                context,
+                data,
+                prop.dtype,
+                prop,
+                backend_,
+                data.given.get(name, NA),
+            )
+
+
+@complex_data_check.register()
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: DataType,
+    prop: Property,
+    backend: Backend,
+    value: object,
+):
+    pass
+
+
+@complex_data_check.register()
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: DataType,
+    prop: dataset.Property,
+    backend: Backend,
+    value: object,
+):
+    pass
 
 
 def check_type_value(dtype: DataType, value: object):
     if dtype.required and (value is None or value is NA):
+        # FIXME: Raise a UserError
         raise Exception(f"{dtype.prop.name!r} is required for {dtype.prop.model.name!r}.")
 
 
@@ -247,7 +380,7 @@ def _prepare_query_result(
 ):
     if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
         config = context.get('config')
-        value = {**value, 'type': model.model_type()}
+        value = {**value, '_type': model.model_type()}
 
         if select is not None:
             unknown_properties = set(select) - {
@@ -261,30 +394,32 @@ def _prepare_query_result(
                     for prop in sorted(unknown_properties)
                 )
 
-            if config.always_show_id and 'id' not in select:
-                select = ['id'] + select
+            if config.always_show_id and '_id' not in select:
+                select = ['_id'] + select
 
             select = build_select_tree(select)
 
         elif action in (Action.GETALL, Action.SEARCH) and config.always_show_id:
-            select = ['id']
+            select = ['_id']
 
         result = {}
         for prop in model.properties.values():
-            if prop.hidden:
+            if prop.hidden or (prop.name.startswith('_') and prop.name not in ('_id', '_revision', '_type')):
                 continue
             if select is None or '*' in select or prop.place in select:
                 result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name), select=select)
 
         return result
 
-    elif action in (Action.INSERT, Action.UPDATE):
+    elif action in (Action.INSERT, Action.UPDATE, Action.UPSERT):
         result = {}
         for prop in model.properties.values():
             if prop.hidden:
                 continue
             result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))
-        result['type'] = model.model_type()
+        result['_type'] = model.model_type()
+        result['_id'] = value.get('_id')
+        result['_revision'] = value.get('_revision')
         return result
 
     elif action == Action.PATCH:
@@ -292,11 +427,17 @@ def _prepare_query_result(
         for k, v in value.items():
             prop = model.properties[k]
             result[prop.name] = dump(context, backend, prop.dtype, v)
-        result['type'] = model.model_type()
+        result['_type'] = model.model_type()
+        result['_id'] = value.get('_id')
+        result['_revision'] = value.get('_revision')
         return result
 
     elif action == Action.DELETE:
-        return None
+        result = {}
+        result['_type'] = model.model_type()
+        result['_id'] = value.get('_id')
+        result['_revision'] = value.get('_revision')
+        return result
 
     else:
         raise Exception(f"Unknown action {action}.")
@@ -346,3 +487,35 @@ def make_json_serializable(dtype: Object, value: dict):
 @commands.make_json_serializable.register()  # noqa
 def make_json_serializable(dtype: Array, value: list):
     return [make_json_serializable(dtype.items.dtype, v) for v in value]
+
+
+@commands.update.register()
+def update(
+    context: Context,
+    prop: (Property, dataset.Property),
+    backend: Backend,
+    *,
+    dstream: AsyncIterator[DataItem],
+    stop_on_error: bool = True,
+):
+    dstream = _prepare_property_for_update(prop, dstream)
+    return commands.update(
+        context, prop.model, prop.model.backend,
+        dstream=dstream,
+        stop_on_error=stop_on_error,
+    )
+
+
+async def _prepare_property_for_update(
+    prop: Union[Property, dataset.Property],
+    dstream: AsyncIterator[DataItem],
+) -> AsyncIterator[DataItem]:
+    async for data in dstream:
+        if data.patch:
+            data.patch = {
+                **{k: v for k, v in data.patch.items() if k.startswith('_')},
+                prop.name: {
+                    k: v for k, v in data.patch.items() if not k.startswith('_')
+                }
+            }
+        yield data

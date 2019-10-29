@@ -5,13 +5,11 @@ from responses import GET
 from spinta.utils.refs import get_ref_id
 
 
-def test_csv(context, responses, mocker):
-    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REVISION')
-
+def test_csv(app, context, responses):
     responses.add(
         GET, 'http://example.com/continents.csv',
         status=200, stream=True, content_type='text/plain; charset=utf-8',
-        body='id,continent\n1,Europe\n',
+        body='id,continent,population\n1,Europe,42\n',
     )
 
     responses.add(
@@ -30,52 +28,69 @@ def test_csv(context, responses, mocker):
     assert len(context.pull('dependencies', models=['country'])) == 1
     assert len(context.pull('dependencies', models=['capital'])) == 1
 
-    assert context.getall('continent', dataset='dependencies', resource='continents') == [
+    model = 'continent/:dataset/dependencies/:resource/continents'
+    app.authmodel(model, ['getall'])
+    data = app.get(f'/{model}').json()
+    assert data == {'_data': [
         {
-            'type': 'continent/:dataset/dependencies/:resource/continents',
-            'id': '23fcdb953846e7c709d2967fb549de67d975c010',
-            'revision': 'REVISION',
+            '_type': model,
+            '_id': '23fcdb953846e7c709d2967fb549de67d975c010',
+            '_revision': data['_data'][0]['_revision'],
             'title': 'Europe',
             'continent_id': '1',
+            'population': 42,
         },
-    ]
-    assert context.getall('country', dataset='dependencies', resource='continents') == [
+    ]}
+    model = 'country/:dataset/dependencies/:resource/continents'
+    app.authmodel(model, ['getall'])
+    data = app.get(f'/{model}').json()
+    assert data == {'_data': [
         {
-            'type': 'country/:dataset/dependencies/:resource/continents',
-            'id': '23fcdb953846e7c709d2967fb549de67d975c010',
-            'revision': 'REVISION',
+            '_type': model,
+            '_id': '23fcdb953846e7c709d2967fb549de67d975c010',
+            '_revision': data['_data'][0]['_revision'],
             'title': 'Lithuania',
             'continent': '23fcdb953846e7c709d2967fb549de67d975c010',
             'country_id': '1',
         },
-    ]
-    assert context.getall('capital', dataset='dependencies', resource='continents') == [
+    ]}
+    model = 'capital/:dataset/dependencies/:resource/continents'
+    app.authmodel(model, ['getall'])
+    data = app.get(f'/{model}').json()
+    assert data == {'_data': [
         {
-            'type': 'capital/:dataset/dependencies/:resource/continents',
-            'id': '23fcdb953846e7c709d2967fb549de67d975c010',
-            'revision': 'REVISION',
+            '_type': model,
+            '_id': '23fcdb953846e7c709d2967fb549de67d975c010',
+            '_revision': data['_data'][0]['_revision'],
             'title': 'Vilnius',
             'country': '23fcdb953846e7c709d2967fb549de67d975c010',
         },
-    ]
+    ]}
 
 
-def test_no_push(context, responses):
+def test_no_push(app, context, responses):
     responses.add(
         GET, 'http://example.com/continents.csv',
         status=200, stream=True, content_type='text/plain; charset=utf-8',
-        body='id,continent\n1,Europe\n',
+        body='id,continent,population\n1,Europe,42\n',
     )
 
+    id_ = get_ref_id('1')
     assert list(context.pull('dependencies', push=False)) == [
         {
-            'type': 'continent/:dataset/dependencies/:resource/continents',
-            'id': get_ref_id('1'),
+            '_op': 'upsert',
+            '_type': 'continent/:dataset/dependencies/:resource/continents',
+            '_id': id_,
+            '_where': f'_id={id_}',
             'title': 'Europe',
             'continent_id': '1',
+            'population': 42,
         },
     ]
-    assert context.getall('continent', dataset='dependencies', resource='continents') == []
+    model = 'continent/:dataset/dependencies/:resource/continents'
+    app.authmodel(model, ['getall'])
+    data = app.get(f'/{model}').json()
+    assert data == {'_data': []}
 
 
 def test_generator(context, responses):
@@ -95,13 +110,49 @@ def test_generator(context, responses):
 
     assert context.pull('generator', push=False) == [
         {
-            'type': 'continent/:dataset/generator/:resource/continents',
-            'id': '9675e909a3e67c169ed9406e6c21358d46d6d1b1',
+            '_op': 'upsert',
+            '_type': 'continent/:dataset/generator/:resource/continents',
+            '_id': '9675e909a3e67c169ed9406e6c21358d46d6d1b1',
+            '_where': '_id=9675e909a3e67c169ed9406e6c21358d46d6d1b1',
             'title': 'Europe',
         },
         {
-            'type': 'continent/:dataset/generator/:resource/continents',
-            'id': '43f647075f78797b76e258206538b40b7b3f52dd',
+            '_op': 'upsert',
+            '_type': 'continent/:dataset/generator/:resource/continents',
+            '_id': '43f647075f78797b76e258206538b40b7b3f52dd',
+            '_where': '_id=43f647075f78797b76e258206538b40b7b3f52dd',
             'title': 'Europe',
+        },
+    ]
+
+
+def test_convert_integers(app, context, responses):
+    responses.add(
+        GET, 'http://example.com/continents.csv',
+        status=200, stream=True, content_type='text/plain; charset=utf-8',
+        body='id,continent,population\n1,Europe,9\n2,Africa,10\n',
+    )
+
+    assert len(context.pull('dependencies', models=['continent'])) == 2
+
+    model = 'continent/:dataset/dependencies/:resource/continents'
+    app.authmodel(model, ['search'])
+    data = app.get(f'/{model}?sort(+_id)').json()['_data']
+    assert data == [
+        {
+            '_id': '23fcdb953846e7c709d2967fb549de67d975c010',
+            '_revision': data[0]['_revision'],
+            '_type': 'continent/:dataset/dependencies/:resource/continents',
+            'continent_id': '1',
+            'population': 9,
+            'title': 'Europe',
+        },
+        {
+            '_id': '6f9f652eb6dae29e4406f1737dd6043af6142090',
+            '_revision': data[1]['_revision'],
+            '_type': 'continent/:dataset/dependencies/:resource/continents',
+            'continent_id': '2',
+            'population': 10,
+            'title': 'Africa',
         },
     ]

@@ -11,7 +11,7 @@ resources:
       "":
         deeply/nested/model/name:
           properties:
-            id:
+            _id:
               type: pk
             name:
               type: string

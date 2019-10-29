@@ -1,3 +1,5 @@
+from typing import AsyncIterator
+
 import cgi
 import pathlib
 import shutil
@@ -6,8 +8,8 @@ from starlette.requests import Request
 from starlette.responses import FileResponse
 
 from spinta.backends import Backend
-from spinta.commands import load, prepare, migrate, check, push, getone, wipe, wait, authorize
-from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams
+from spinta.commands import load, prepare, migrate, push, getone, wipe, wait, authorize, complex_data_check
+from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams, DataItem
 from spinta.config import RawConfig
 from spinta.types.datatype import File
 from spinta.exceptions import FileNotFound, ItemDoesNotExist
@@ -57,17 +59,11 @@ def migrate(context: Context, backend: FileSystem):
     pass
 
 
-@check.register()
-def check(context: Context, dtype: File, prop: Property, backend: FileSystem, value: dict, *, data: dict, action: Action):
+@complex_data_check.register()
+def complex_data_check(context: Context, data: DataItem, dtype: File, prop: Property, backend: FileSystem, value: dict):
     path = backend.path / value['filename']
     if not path.exists():
         raise FileNotFound(prop, file=value['filename'])
-
-
-@check.register()
-def check(context: Context, dtype: File, prop: Property, backend: Backend, value: dict, *, data: dict, action: Action):
-    if prop.backend.name != backend.name:
-        check(context, dtype, prop, prop.backend, value, data=data, action=action)
 
 
 @push.register()
@@ -150,6 +146,21 @@ async def getone(
     return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
 
 
+@getone.register()
+async def getone(
+    context: Context,
+    prop: Property,
+    backend: FileSystem,
+    *,
+    id_: str,
+):
+    data = getone(context, prop, prop.model.backend, id_=id_)
+    if data is None:
+        raise ItemDoesNotExist(prop, id=id_)
+    filename = data['filename'] or id_
+    return (prop.backend.path / filename).read_bytes()
+
+
 @wipe.register()
 def wipe(context: Context, model: Model, backend: FileSystem):
     authorize(context, 'wipe', model)
@@ -158,3 +169,16 @@ def wipe(context: Context, model: Model, backend: FileSystem):
             shutil.rmtree(path)
         else:
             path.unlink()
+
+
+@commands.create_changelog_entry.register()
+def create_changelog_entry(
+    context: Context,
+    model: Property,
+    backend: FileSystem,
+    *,
+    dstream: AsyncIterator[DataItem],
+) -> AsyncIterator[DataItem]:
+    # FileSystem properties don't have change log, change log entry will be
+    # created on property model backend.
+    return dstream

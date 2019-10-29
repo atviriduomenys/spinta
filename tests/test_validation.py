@@ -16,7 +16,7 @@ def test_report(model, app):
     app.authmodel(model, ['insert', 'getone'])
 
     resp = app.post(f'/{model}', json={
-        'type': model,
+        '_type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': 42,
@@ -32,15 +32,15 @@ def test_report(model, app):
     assert resp.status_code == 201
 
     data = resp.json()
-    id = data['id']
+    id = data['_id']
     resp = app.get(f'/{model}/{id}')
     assert resp.status_code == 200
 
     data = resp.json()
     assert data == {
-        'id': id,
-        'revision': data['revision'],
-        'type': model,
+        '_id': id,
+        '_revision': data['_revision'],
+        '_type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': 42,
@@ -63,7 +63,7 @@ def test_invalid_report_int(model, app):
     app.authmodel(model, ['insert'])
 
     resp = app.post(f'/{model}', json={
-        'type': model,
+        '_type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': 'c0unt',  # invalid conversion to int
@@ -94,7 +94,7 @@ def test_invalid_report_date(model, app):
     app.authmodel(model, ['insert'])
 
     resp = app.post(f'/{model}', json={
-        'type': model,
+        '_type': model,
         'report_type': 'simple',
         'status': 'valid',
         'valid_from_date': '2019-04',  # invalid conversion to date
@@ -112,7 +112,7 @@ def test_non_string_report_date(model, app):
     app.authmodel(model, ['insert'])
 
     resp = app.post(f'/{model}', json={
-        'type': 'report',
+        '_type': 'report',
         'report_type': 'simple',
         'status': 'valid',
         'valid_from_date': 42,  # invalid conversion to date
@@ -130,7 +130,7 @@ def test_invalid_report_datetime(model, app):
     app.authmodel(model, ['insert'])
 
     resp = app.post(f'/{model}', json={
-        'type': 'report',
+        '_type': 'report',
         'report_type': 'simple',
         'status': 'valid',
         'update_time': '2019-04',  # invalid conversion to datetime
@@ -148,7 +148,7 @@ def test_non_string_report_datetime(model, app):
     app.authmodel(model, ['insert'])
 
     resp = app.post(f'/{model}', json={
-        'type': 'report',
+        '_type': 'report',
         'report_type': 'simple',
         'status': 'valid',
         'update_time': 42,  # invalid conversion to datetime
@@ -166,7 +166,7 @@ def test_invalid_report_array(model, app):
     app.authmodel(model, ['insert'])
 
     resp = app.post(f'/{model}', json={
-        'type': 'report',
+        '_type': 'report',
         'report_type': 'simple',
         'status': 'valid',
         'notes': {'foo': 'bar'},  # invalid conversion to array
@@ -184,7 +184,7 @@ def test_invalid_report_array_object(model, app):
     app.authmodel(model, ['insert'])
 
     resp = app.post(f'/{model}', json={
-        'type': 'report',
+        '_type': 'report',
         'report_type': 'simple',
         'status': 'valid',
         'notes': ['hello', 'world'],  # invalid array item type
@@ -203,7 +203,7 @@ def test_invalid_nested_object_property(model, app):
 
     resp = app.post(f'/{model}', json={
         'notes': [{
-            'note': 42 # invalid object property type
+            'note': 42  # invalid object property type
         }]
     })
 
@@ -219,7 +219,7 @@ def test_missing_report_object_property(model, app):
     app.authmodel(model, ['insert', 'getone'])
 
     resp = app.post(f'/{model}', json={
-        'type': model,
+        '_type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': 42,
@@ -241,7 +241,7 @@ def test_unknown_report_property(model, app):
     app.authmodel(model, ['insert', 'getone'])
 
     resp = app.post(f'/{model}', json={
-        'type': model,
+        '_type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': '42',
@@ -275,7 +275,7 @@ def test_unknown_report_object_property(model, app):
     app.authmodel(model, ['insert', 'getone'])
 
     resp = app.post(f'/{model}', json={
-        'type': model,
+        '_type': model,
         'report_type': 'simple',
         'status': 'valid',
         'count': 42,

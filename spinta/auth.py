@@ -135,6 +135,7 @@ class Token(rfc6749.TokenMixin):
 
             missing_scopes = ', '.join(sorted(scope))
             log.error(f"client {client_id!r} is missing required scope: %s", missing_scopes)
+            # FIXME: this should be wrapped into UserError.
             raise InsufficientScopeError(description=f"Missing scope: {missing_scopes}")
 
     def get_expires_at(self):

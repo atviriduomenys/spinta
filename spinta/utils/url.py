@@ -9,6 +9,10 @@ RULES = {
     'ns': {
         'maxargs': 0,
     },
+    # Recursivelly return all objects under that namespace.
+    'all': {
+        'maxargs': 0,
+    },
     'dataset': {
         'minargs': 1,
     },
@@ -24,6 +28,14 @@ RULES = {
     },
     'format': {
         'maxargs': 1,
+    },
+    # In batch requests, return summary of what was done.
+    'summary': {
+        'maxargs': 0,
+    },
+    # In batch requests, continue execution even if some actions fail.
+    'fault-tolerant': {
+        'maxargs': 0,
     },
 }
 

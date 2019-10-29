@@ -7,7 +7,7 @@ import pytest
     'backends/postgres/report',
     'backends/mongo/report',
 )
-def test_concurency(model, context, app):
+def test_concurency(model, app):
     app.authmodel(model, ["insert", "getone"])
 
     data = [
@@ -41,7 +41,7 @@ def test_concurency(model, context, app):
         5: 201,
     }
 
-    ids = {count: r.json()['id'] for count, r in responses.items()}
+    ids = {count: r.json()['_id'] for count, r in responses.items()}
     with ThreadPoolExecutor(max_workers) as executor:
         futures = {
             executor.submit(app.get, f'/{model}/{id_}'): count

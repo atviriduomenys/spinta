@@ -12,7 +12,7 @@ resources:
         org:
           source: orgs.csv
           properties:
-            id:
+            _id:
               type: pk
               source: govid
             title:
@@ -25,7 +25,7 @@ resources:
         country:
           source: orgs.csv
           properties:
-            id:
+            _id:
               type: pk
               source: kodas
             code:

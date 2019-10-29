@@ -22,6 +22,8 @@ CONFIG = {
     'commands': {
         'modules': [
             'spinta.backends',
+            'spinta.commands.read',
+            'spinta.commands.write',
             'spinta.commands.search',
             'spinta.commands.version',
             'spinta.types',
@@ -64,6 +66,7 @@ CONFIG = {
             'array': 'spinta.types.datatype:Array',
             'object': 'spinta.types.datatype:Object',
             'file': 'spinta.types.datatype:File',
+            'rql': 'spinta.types.datatype:RQL',
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',

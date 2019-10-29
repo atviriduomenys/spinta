@@ -1,10 +1,10 @@
-from typing import Optional, List, Dict, Union
+from typing import Optional, List
 
 import datetime
-import json
 import logging
 import string
 import typing
+import types
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
@@ -12,10 +12,10 @@ from sqlalchemy.engine.result import RowProxy
 
 from starlette.requests import Request
 
-from spinta.commands import prepare, check, push, getone, getall, changes, wipe, authorize, is_object_id
-from spinta.components import Context, Action, UrlParams, Node
-from spinta.types.dataset import Model
-from spinta.backends import Backend, check_model_properties
+from spinta.commands import prepare, getone, getall, changes, wipe, authorize, is_object_id
+from spinta.components import Context, Action, UrlParams, DataStream
+from spinta.types.dataset import Model, Property
+from spinta.backends import Backend
 from spinta.backends.postgresql import PostgreSQL
 from spinta.backends.postgresql import utcnow
 from spinta.backends.postgresql import get_table_name
@@ -24,16 +24,8 @@ from spinta.backends.postgresql import MAIN_TABLE, CHANGES_TABLE
 from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
-from spinta.exceptions import ManagedProperty
-from spinta.utils.response import get_request_data
-from spinta.utils.idgen import get_new_id
-from spinta.utils.changes import get_patch_changes
 from spinta import exceptions
 from spinta.types.datatype import String
-from spinta.utils.streams import splitlines
-from spinta.urlparams import get_model_by_name
-from spinta.utils.errors import report_error
-
 
 log = logging.getLogger(__name__)
 
@@ -45,506 +37,106 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     table = sa.Table(
         table_name, backend.schema,
         sa.Column('id', sa.String(40), primary_key=True),
+        sa.Column('revision', sa.String(40)),
         sa.Column('data', JSONB),
         sa.Column('created', sa.DateTime),
         sa.Column('updated', sa.DateTime, nullable=True),
-        sa.Column('transaction_id', sa.Integer, sa.ForeignKey('transaction.id')),
+        sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
     )
     changes_table_name = get_table_name(backend, model.manifest.name, name, CHANGES_TABLE)
     changes_table = get_changes_table(backend, changes_table_name, sa.String(40))
     backend.tables[model.manifest.name][name] = ModelTables(table, changes_table)
 
 
-@check.register()
-def check(context: Context, model: Model, backend: PostgreSQL, data: dict, *, action: Action, id_: str):
-    check_model_properties(context, model, backend, data, action, id_)
-
-
-@push.register()
-async def push(
-    context: Context,
-    request: Request,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-):
-    if _is_streaming_request(request):
-        return await _push_streaming_batch(context, request, model, backend, params=params)
-    else:
-        authorize(context, action, model)
-        return await _push_single_action(context, request, model, backend, action=action, params=params)
-
-
-async def _group_batch_actions(
-    context: Context,
-    request: Request,
-    scope: Node,
-    stop_on_error: bool = True,
-    batch_size: int = 1000,
-):
-    errors = 0
-    batch = []
-    batch_key = None
-    batch_return_key = None
-    known_actions = {x.value: x for x in Action}
-    transaction = context.get('transaction')
-    async for line in splitlines(request.stream()):
-        try:
-            payload = json.loads(line.strip())
-        except json.decoder.JSONDecodeError as e:
-            error = exceptions.JSONError(scope, error=str(e), transaction=transaction.id)
-            report_error(error, stop_on_error)
-            errors += 1
-            continue
-
-        # TODO: We need a proper data validation functions, something like that:
-        #
-        #           validate(payload, {
-        #               'type': 'object',
-        #               'properties': {
-        #                   '_op': {
-        #                       'type': 'string',
-        #                       'cast': str_to_action,
-        #                   }
-        #               }
-        #           })
-        if not isinstance(payload, dict):
-            error = exceptions.InvalidValue(scope)
-            report_error(error, stop_on_error)
-            errors += 1
-            continue
-
-        action = payload.get('_op')
-        if action not in known_actions:
-            error = exceptions.UnknownAction(
-                scope,
-                action=action,
-                supported_actions=list(known_actions.keys())
-            )
-            report_error(error, stop_on_error)
-            errors += 1
-            continue
-        action = known_actions[action]
-
-        node = payload.get('_type')
-        node = get_model_by_name(context, scope.manifest, node)
-        if node not in scope:
-            error = exceptions.OutOfScope(node, scope=scope)
-            report_error(error, stop_on_error)
-            errors += 1
-            continue
-
-        loop_key = action.value, node.model_type()
-
-        if batch_key is None:
-            batch_key = loop_key
-            batch_return_key = action, node
-
-        if loop_key != batch_key or len(batch) >= batch_size:
-            yield batch_return_key + (errors, batch)
-            batch_key = loop_key
-            batch_return_key = action, node
-            batch = []
-            errors = 0
-
-        batch.append(payload)
-
-    if batch:
-        yield batch_return_key + (errors, batch)
-
-
-STREAMING_CONTENT_TYPES = [
-    'application/x-jsonlines',
-    'application/x-ndjson',
-]
-
-
-def _is_streaming_request(request: Request):
-    content_type = request.headers.get('content-type')
-    return content_type in STREAMING_CONTENT_TYPES
-
-
-async def _push_streaming_batch(
-    context: Context,
-    request: Request,
-    scope: Node,
-    backend: PostgreSQL,
-    *,
-    params: UrlParams,
-    stop_on_error: bool = True,
-):
-    if not _is_streaming_request(request):
-        raise exceptions.UnknownContentType(
-            scope,
-            content_type=request.headers.get('content-type'),
-            supported_content_types=STREAMING_CONTENT_TYPES,
-        )
-
-    authorized: Dict[str, Union[bool, exceptions.BaseError]] = {}
-
-    stats = {
-        'errors': 0,
-        'insert': 0,
-    }
-    async for action, node, errors, batch in _group_batch_actions(context, request, scope):
-        stats['errors'] += errors
-
-        # Authorization.
-        action_and_node = action.value, node.model_type()
-        if action_and_node not in authorized:
-            try:
-                authorize(context, action, node)
-            except exceptions.InsufficientScopeError as e:
-                authorized[action_and_node] = e
-            else:
-                authorized[action_and_node] = True
-        if authorized[action_and_node] is not True:
-            stats['errors'] += len(batch)
-            exc = authorized[action_and_node]
-            report_error(exc, stop_on_error)
-            continue
-
-        # Execute actions.
-        if action == Action.INSERT:
-            try:
-                commands.insert_many(context, node, backend, batch=batch)
-            except exceptions.UserError as e:
-                stats['errors'] += len(batch)
-                report_error(e, stop_on_error)
-            else:
-                stats['insert'] += len(batch)
-
-        else:
-            stats['errors'] += len(batch)
-            error = exceptions.UnknownAction(
-                node,
-                action=action.value,
-                supported_actions=[
-                    Action.INSERT.value,
-                ],
-            )
-            report_error(error, stop_on_error)
-
-    status_code = 400 if stats['errors'] > 0 else 200
-    transaction = context.get('transaction')
-    response = {
-        'transaction': transaction.id,
-        'status': 'error' if stats['errors'] > 0 else 'ok',
-        'stats': stats,
-    }
-    return render(context, request, scope, params, response, status_code=status_code)
-
-
-async def _push_single_action(
-    context: Context,
-    request: Request,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-):
-    data = await get_request_data(model, request)
-    data = commands.load(context, model, data)
-    check(context, model, backend, data, action=action, id_=params.pk)
-    data = prepare(context, model, data, action=action)
-    data = _execute_action(context, model, backend, action=action, params=params, data=data)
-    data = prepare(context, action, model, backend, data)
-    status_code = 201 if action == Action.INSERT else 200
-    return render(context, request, model, params, data, action=action, status_code=status_code)
-
-
-def _execute_action(
-    context: Context,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-    data: dict,
-):
-    if action == Action.INSERT:
-        data['id'] = commands.insert(context, model, backend, data=data)
-
-    elif action == Action.UPSERT:
-        data['id'] = commands.upsert(context, model, backend, data=data)
-
-    elif action == Action.UPDATE:
-        commands.update(context, model, backend, id_=params.pk, data=data)
-
-    elif action == Action.PATCH:
-        commands.patch(context, model, backend, id_=params.pk, data=data)
-
-    elif action == Action.DELETE:
-        commands.delete(context, model, backend, id_=params.pk)
-
-    else:
-        raise Exception(f"Unknown action: {action!r}.")
-
-
 @commands.insert.register()
-def insert(
+async def insert(
     context: Context,
     model: Model,
     backend: PostgreSQL,
     *,
-    data: dict,
-):
-    transaction = context.get('transaction')
-    connection = transaction.connection
-    table = _get_table(backend, model)
-
-    if 'id' in data:
-        id_ = data['id']
-    else:
-        id_ = commands.gen_object_id(context, backend, model)
-
-    if 'revision' in data.keys():
-        raise ManagedProperty(model, property='revision')
-    data['revision'] = get_new_id('revision id')
-
-    data = commands.make_json_serializable(model, data)
-
-    connection.execute(
-        table.main.insert().values({
-            'id': id_,
-            'transaction_id': transaction.id,
-            'created': utcnow(),
-            'data': data,
-        })
-    )
-
-    # Track changes.
-    connection.execute(
-        table.changes.insert().values(
-            transaction_id=transaction.id,
-            id=id_,
-            datetime=utcnow(),
-            action=Action.INSERT.value,
-            change=data,
-        ),
-    )
-
-    return id_
-
-
-@commands.insert_many.register()
-def insert_many(
-    context: Context,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    batch: List[dict],
+    dstream: DataStream,
     stop_on_error: bool = True,
 ):
     transaction = context.get('transaction')
     connection = transaction.connection
     table = _get_table(backend, model)
 
-    values = []
-    changes = []
-    for data in batch:
-        if 'id' in data:
-            id_ = data['id']
-        else:
-            id_ = commands.gen_object_id(context, backend, model)
-
-        if 'revision' in data.keys():
-            error = ManagedProperty(model, property='revision')
-            report_error(error, stop_on_error)
-        data['revision'] = get_new_id(model.model_type())
-
-        data = commands.make_json_serializable(model, data)
-        values.append({
-            'id': id_,
-            'data': data,
-        })
-        changes.append({
-            'id': id_,
-            'change': data,
-        })
-
-    qry = table.main.insert().values(
-        transaction_id=transaction.id,
-        created=utcnow(),
-    )
-    connection.execute(qry, values)
-
-    qry = table.changes.insert().values(
-        transaction_id=transaction.id,
-        datetime=utcnow(),
-        action=Action.INSERT.value,
-    )
-    connection.execute(qry, changes)
-
-    return [x['data'] for x in values]
-
-
-@commands.upsert.register()
-def upsert(
-    context: Context,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    key: typing.List[str],
-    data: dict,
-):
-    transaction = context.get('transaction')
-    connection = transaction.connection
-    table = _get_table(backend, model)
-
-    condition = []
-    for k in key:
-        condition.append(table.main.c[k] == data[k])
-
-    row = backend.get(
-        connection,
-        [table.main.c.id, table.main.c.data, table.main.c.transaction_id],
-        sa.and_(*condition),
-        default=None,
-    )
-
-    if row is None:
-        action = Action.INSERT
-
-        if 'id' in data:
-            id_ = data['id']
-        else:
-            id_ = commands.gen_object_id(context, backend, model)
-
-        if 'revision' in data.keys():
-            raise ManagedProperty(model, property='revision')
-        data['revision'] = get_new_id('revision id')
-
-        data = _fix_data_for_json(data)
-
-        connection.execute(
-            table.main.insert().values({
-                'id': id_,
-                'transaction_id': transaction.id,
-                'created': utcnow(),
-                'data': data,
-            })
+    async for data in dstream:
+        # TODO: Optimize this and execute one query with multiple data row.
+        #
+        #       There are multiple issues with this:
+        #
+        #       - Between data rows there can be errors, we still want to keep
+        #         same order while returning data back, so probably we need to
+        #         split data chunks by appearing errors.
+        #
+        #       - If error happens while importing batch, we should yield
+        #         successful inserts, bet also report failed attempts to insert,
+        #         but I don't know how to do that with batches.
+        #
+        #       - If errors happened during batch insert, in the changelog we
+        #         need to add only successful insert.
+        #
+        #       So for now, I just insert rows one by one.
+        #
+        # TODO: Detect when duplicate constraint happens, and then report error
+        #       without interrupting transaction if stop_on_error is False.
+        qry = table.main.insert().values(
+            transaction=transaction.id,
+            created=utcnow(),
         )
-    else:
-        action = Action.PATCH
-
-        id_ = row[table.main.c.id]
-
-        data = _patch(transaction, connection, table, id_, row, data)
-
-        if data is None:
-            # Nothing changed.
-            return None
-
-        data = _fix_data_for_json(data)
-
-    # Track changes.
-    connection.execute(
-        table.changes.insert().values(
-            transaction_id=transaction.id,
-            id=id_,
-            datetime=utcnow(),
-            action=action.value,
-            change={
-                k: v for k, v in data.items() if k not in ('id', 'revision')
-            },
-        ),
-    )
-
-    return id_
+        connection.execute(qry, [{
+            'id': data.patch['_id'],
+            'revision': data.patch['_revision'],
+            'data': _fix_data_for_json(
+                {k: v for k, v in data.patch.items() if not k.startswith('_')},
+            )
+        }])
+        yield data
 
 
 @commands.update.register()
-def update(
+async def update(
     context: Context,
     model: Model,
     backend: PostgreSQL,
     *,
-    id_: str,
-    data: dict,
-):
-    raise NotImplementedError
-
-
-@commands.patch.register()
-def patch(
-    context: Context,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    id_: str,
-    data: dict,
+    dstream: DataStream,
+    stop_on_error: bool = True,
 ):
     transaction = context.get('transaction')
     connection = transaction.connection
     table = _get_table(backend, model)
+    async for data in dstream:
+        if not data.patch:
+            yield data
+            continue
 
-    row = backend.get(
-        connection,
-        [table.main.c.data, table.main.c.transaction_id],
-        table.main.c.id == id_,
-        default=None,
-    )
-    if row is None:
-        raise exceptions.ItemDoesNotExist(model, id=id_)
-
-    data = _patch(transaction, connection, table, id_, row, data)
-
-    if data is None:
-        # Nothing changed.
-        return None
-
-    # Track changes.
-    connection.execute(
-        table.changes.insert().values(
-            transaction_id=transaction.id,
-            id=id_,
-            datetime=utcnow(),
-            action=Action.PATCH.value,
-            change=data,
-        ),
-    )
-
-    return data
-
-
-def _patch(transaction, connection, table, id_, row, data):
-    changes = get_patch_changes(row[table.main.c.data], data)
-
-    if not changes:
-        # Nothing to update.
-        return None
-
-    data['revision'] = get_new_id('revision id')
-
-    data = _fix_data_for_json(data)
-
-    result = connection.execute(
-        table.main.update().
-        where(table.main.c.id == id_).
-        where(table.main.c.transaction_id == row[table.main.c.transaction_id]).
-        values({
-            'id': id_,
-            'transaction_id': transaction.id,
+        values = {
+            'revision': data.patch['_revision'],
+            'transaction': transaction.id,
             'updated': utcnow(),
-            'data': data,
-        })
-    )
+            'data': _fix_data_for_json({
+                # FIXME: Support patching nested properties.
+                **{k: v for k, v in data.saved.items() if not k.startswith('_')},
+                **{k: v for k, v in data.patch.items() if not k.startswith('_')},
+            }),
+        }
+        if '_id' in data.patch:
+            values['id'] = data.patch['_id']
+        result = connection.execute(
+            table.main.update().
+            where(table.main.c.id == data.saved['_id']).
+            where(table.main.c.revision == data.saved['_revision']).
+            values(values)
+        )
 
-    # TODO: Retries are needed if result.rowcount is 0, if such
-    #       situation happens, that means a concurrent transaction
-    #       changed the data and we need to reread it.
-    #
-    #       And assumption is made here, than in the same
-    #       transaction there are no concurrent updates, if this
-    #       assumption is false, then we need to check against
-    #       change_id instead of transaction_id.
-    assert result.rowcount > 0
+        # TODO: Retries are needed if result.rowcount is 0, if such
+        #       situation happens, that means a concurrent transaction
+        #       changed the data and we need to reread it.
+        assert result.rowcount == 1, result.rowcount
 
-    return changes
+        yield data
 
 
 @commands.delete.register()
@@ -553,7 +145,8 @@ def delete(
     model: Model,
     backend: PostgreSQL,
     *,
-    id_: str,
+    dstream: DataStream,
+    stop_on_error: bool = True,
 ):
     raise NotImplementedError
 
@@ -584,10 +177,14 @@ def getone(
 ):
     connection = context.get('transaction').connection
     table = _get_table(backend, model)
-    data = backend.get(connection, table.main.c.data, table.main.c.id == id_, default=None)
-    if data is None:
+    row = backend.get(connection, table.main, table.main.c.id == id_, default=None)
+    if row is None:
         raise exceptions.ItemDoesNotExist(model, id=id_)
-    return {**data, 'id': id_}
+    return {
+        '_id': row[table.main.c.id],
+        '_revision': row[table.main.c.revision],
+        **row[table.main.c.data],
+    }
 
 
 class JoinManager:
@@ -607,7 +204,8 @@ class JoinManager:
 
     """
 
-    def __init__(self, backend, model, table):
+    def __init__(self, context, backend, model, table):
+        self.context = context
         self.backend = backend
         self.model = model
         self.left = table
@@ -621,7 +219,10 @@ class JoinManager:
             ref = refs[i]
             left_ref = refs[:i]
             right_ref = refs[:i] + (ref,)
-            model = self.model.parent.objects[model.origin][model.properties[ref].dtype.object]
+            if ref not in model.properties:
+                raise exceptions.UnknownProperty(model, property=ref)
+            prop = model.properties[ref]
+            model = commands.get_referenced_model(self.context, prop, prop.dtype.object)
             if right_ref not in self.aliases:
                 self.aliases[right_ref] = _get_table(self.backend, model).main.alias()
                 left = self.aliases[left_ref]
@@ -689,12 +290,12 @@ def getall(
 ):
     connection = context.get('transaction').connection
     table = _get_table(backend, model).main
-    jm = JoinManager(backend, model, table)
+    jm = JoinManager(context, backend, model, table)
 
     if count:
         qry = sa.select([sa.func.count()]).select_from(table)
         result = connection.execute(qry)
-        return {'count': result.scalar()}
+        return [{'count': result.scalar()}]
 
     else:
         qry = _getall_select(table, jm, select)
@@ -718,8 +319,11 @@ def getall(
         else:
             return (
                 prepare(
-                    context, action, model, backend,
-                    {**row[table.c.data], 'id': row[table.c.id]},
+                    context, action, model, backend, {
+                        '_id': row[table.c.id],
+                        '_revision': row[table.c.revision],
+                        **row[table.c.data],
+                    },
                     select=select,
                 )
                 for row in result
@@ -833,13 +437,6 @@ async def changes(
         offset=params.offset,
         start=params.changes_offset,
     )
-    data = (
-        {
-            **row,
-            'datetime': row['datetime'].isoformat(),
-        }
-        for row in data
-    )
     return render(context, request, model, params, data, action=action)
 
 
@@ -857,24 +454,25 @@ def changes(
     connection = context.get('transaction').connection
     table = _get_table(backend, model).changes
 
-    qry = sa.select([table]).order_by(table.c.change_id)
+    qry = sa.select([table]).order_by(table.c.change)
     qry = _changes_id(table, qry, id_)
     qry = _changes_offset(table, qry, offset)
     qry = _changes_limit(qry, limit)
 
     if start:
-        qry = qry.where(table.c.change_id > start)
+        qry = qry.where(table.c.change > start)
 
     result = connection.execute(qry)
 
     for row in result:
         yield {
-            'change_id': row[table.c.change_id],
-            'transaction_id': row[table.c.transaction_id],
-            'id': row[table.c.id],
-            'datetime': row[table.c.datetime],
-            'action': row[table.c.action],
-            'change': row[table.c.change],
+            '_id': row[table.c.id],
+            '_change': row[table.c.change],
+            '_revision': row[table.c.revision],
+            '_transaction': row[table.c.transaction],
+            '_created': row[table.c.datetime].isoformat(),
+            '_op': row[table.c.action],
+            **dict(row[table.c.data]),
         }
 
 
@@ -892,11 +490,11 @@ def _changes_offset(table, qry, offset):
         else:
             offset = (
                 qry.with_only_columns([
-                    sa.func.max(table.c.change_id) - abs(offset),
+                    sa.func.max(table.c.change) - abs(offset),
                 ]).
                 order_by(None).alias()
             )
-        return qry.where(table.c.change_id > offset)
+        return qry.where(table.c.change > offset)
     else:
         return qry
 
@@ -943,3 +541,37 @@ def _fix_data_for_json(data):
             v = v.isoformat()
         _data[k] = v
     return _data
+
+
+@commands.create_changelog_entry.register()
+async def create_changelog_entry(
+    context: Context,
+    model: (Model, Property),
+    backend: PostgreSQL,
+    *,
+    dstream: types.AsyncGeneratorType,
+) -> None:
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    if isinstance(model, Model):
+        table = _get_table(backend, model)
+    else:
+        table = _get_table(backend, model.model)
+
+    async for data in dstream:
+        qry = table.changes.insert().values(
+            transaction=transaction.id,
+            datetime=utcnow(),
+            action=Action.INSERT.value,
+        )
+        connection.execute(qry, [{
+            'id': data.saved['_id'] if data.saved else data.patch['_id'],
+            'revision': data.patch['_revision'] if data.patch else data.saved['_revision'],
+            'transaction': transaction.id,
+            'datetime': utcnow(),
+            'action': data.action.value,
+            'data': _fix_data_for_json(
+                {k: v for k, v in data.patch.items() if not k.startswith('_')},
+            ),
+        }])
+        yield data
