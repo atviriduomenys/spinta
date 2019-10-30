@@ -22,8 +22,11 @@ class Json(Format):
         yield f'{{"{self.container_name}":['
         for i, row in enumerate(data):
             sep = ',' if i > 0 else ''
-            yield sep + json.dumps(row, ensure_ascii=False)
+            yield sep + json.dumps(self.data(row), ensure_ascii=False)
         yield ']}'
+
+    def data(self, data: dict) -> dict:
+        return data
 
 
 @commands.render.register()  # noqa
@@ -61,4 +64,4 @@ def _render(
         )
 
     else:
-        return JSONResponse(data, status_code=status_code)
+        return JSONResponse(fmt.data(data), status_code=status_code)

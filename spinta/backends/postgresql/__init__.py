@@ -469,11 +469,20 @@ def getone(
 ):
     table = backend.tables[prop.manifest.name][prop.model.name].main
     connection = context.get('transaction').connection
+    selectlist = [
+        table.c._id,
+        table.c._revision,
+        table.c[prop.name],
+    ]
     try:
-        result = backend.get(connection, table.c[prop.name], table.c._id == id_)
+        result = backend.get(connection, selectlist, table.c._id == id_)
     except NotFoundError:
         raise ItemDoesNotExist(prop.model, id=id_)
-    return result
+    return {
+        '_id': result[table.c._id],
+        '_revision': result[table.c._revision],
+        prop.name: result[table.c[prop.name]],
+    }
 
 
 @getall.register()

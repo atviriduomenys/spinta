@@ -235,6 +235,10 @@ class ManagedProperty(UserError):
     template = "Value of this property is managed automatically and cannot be set manually."
 
 
+class InvalidManagedPropertyName(UserError):
+    template = "Invalid managed property name. Exmpected name {name!r}, got {property!r}."
+
+
 class NotFoundError(BaseError):
     template = "No results where found."
     status_code = 500

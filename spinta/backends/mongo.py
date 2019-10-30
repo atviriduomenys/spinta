@@ -184,6 +184,12 @@ async def update(
             },
             {'$set': values}
         )
+        if result.matched_count == 0:
+            raise ItemDoesNotExist(
+                model,
+                id=data.saved['_id'],
+                revision=data.saved['_revision'],
+            )
         assert result.matched_count == 1 and result.modified_count == 1, (
             f"matched: {result.matched_count}, modified: {result.modified_count}"
         )
@@ -191,17 +197,28 @@ async def update(
 
 
 @commands.delete.register()
-def delete(
+async def delete(
     context: Context,
     model: Model,
     backend: Mongo,
     *,
-    id_: str,
+    dstream: dict,
+    stop_on_error: bool = True,
 ):
     table = backend.db[model.model_type()]
-    result = table.delete_one({'id': id_})
-    if result.deleted_count == 0:
-        raise ItemDoesNotExist(model, id=id_)
+    async for data in dstream:
+        result = table.delete_one({
+            '__id': data.saved['_id'],
+            '_revision': data.saved['_revision'],
+        })
+        if result.deleted_count == 0:
+            # FIXME: Respect stop_on_error flag.
+            raise ItemDoesNotExist(
+                model,
+                id=data.saved['_id'],
+                revision=data.saved['_revision'],
+            )
+        yield data
 
 
 @getone.register()
@@ -261,11 +278,18 @@ def getone(
     id_: str,
 ):
     table = backend.db[prop.model.model_type()]
-    data = table.find_one({'__id': id_}, {prop.name: 1})
+    data = table.find_one({'__id': id_}, {
+        '__id': 1,
+        '_revision': 1,
+        prop.name: 1,
+    })
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
-    data['_id'] = data['__id']
-    return data.get(prop.name)
+    return {
+        '_id': data['__id'],
+        '_revision': data['_revision'],
+        prop.name: data.get(prop.name),
+    }
 
 
 @getall.register()

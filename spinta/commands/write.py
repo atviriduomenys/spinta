@@ -71,7 +71,7 @@ async def push_stream(
         Action.DELETE: commands.delete,
     }
 
-    async for (model, prop, action), dstream in agroupby(stream, key=_stream_group_key):
+    async for (model, prop, backend, action), dstream in agroupby(stream, key=_stream_group_key):
         if model is None or action is None:
             async for data in dstream:
                 yield data
@@ -100,7 +100,7 @@ async def push_stream(
 
 
 def _stream_group_key(data: DataItem):
-    return data.model, data.prop, data.action
+    return data.model, data.prop, data.backend, data.action
 
 
 def is_streaming_request(request: Request):
@@ -136,13 +136,20 @@ async def _read_request_body(
     if isinstance(scope, (Property, dataset.Property)):
         model = scope.model
         prop = scope
+        propref = params.propref
     else:
         model = scope
         prop = None
+        propref = False
+
+    if prop and not propref:
+        backend = prop.backend
+    else:
+        backend = model.backend
 
     if action == Action.DELETE:
         payload = _add_where(params, {})
-        yield DataItem(model, prop, action, payload)
+        yield DataItem(model, prop, propref, backend, action, payload)
         return
 
     ct = request.headers.get('content-type')
@@ -160,6 +167,7 @@ async def _read_request_body(
 
     if '_data' in payload:
         for data in payload['_data']:
+            # TODO: Handler propref in batch case.
             yield dataitem_from_payload(context, scope, data, stop_on_error)
     else:
         payload = _add_where(params, payload)
@@ -169,9 +177,9 @@ async def _read_request_body(
         if '_op' in payload:
             action = _action_from_op(scope, payload, stop_on_error)
             if isinstance(action, exceptions.UserError):
-                yield DataItem(model, prop, payload=payload, error=action)
+                yield DataItem(model, prop, propref, backend, payload=payload, error=action)
 
-        yield DataItem(model, prop, action, payload)
+        yield DataItem(model, prop, propref, backend, action, payload)
 
 
 def _add_where(params: UrlParams, payload: dict):
@@ -238,14 +246,25 @@ def dataitem_from_payload(
     model = payload['_type']
     if '.' in model:
         model, prop = model.split('.', 1)
+        if prop.endswith(':ref'):
+            prop = prop[:-len(':ref')]
+            propref = True
+        else:
+            propref = False
     else:
         prop = None
+        propref = False
+
+    if prop and not propref:
+        backend = prop.backend
+    else:
+        backend = model.backend
 
     try:
         model = get_model_by_name(context, scope.manifest, model)
     except exceptions.UserError as error:
         report_error(error, stop_on_error)
-        return DataItem(model, payload=payload, error=error)
+        return DataItem(model, backend=backend, payload=payload, error=error)
 
     if model and prop:
         if prop in model.flatprops:
@@ -253,12 +272,12 @@ def dataitem_from_payload(
         else:
             error = exceptions.FieldNotInResource(model, property=prop)
             report_error(error, stop_on_error)
-            return DataItem(model, payload=payload, error=error)
+            return DataItem(model, backend=backend, payload=payload, error=error)
 
     if not commands.in_namespace(model, scope):
         error = exceptions.OutOfScope(model, scope=scope)
         report_error(error, stop_on_error)
-        return DataItem(model, prop, payload=payload, error=error)
+        return DataItem(model, prop, propref, backend, payload=payload, error=error)
 
     if '_op' not in payload:
         error = exceptions.MissingRequiredProperty(scope, prop='_op')
@@ -266,12 +285,12 @@ def dataitem_from_payload(
 
     action = _action_from_op(scope, payload, stop_on_error)
     if isinstance(action, exceptions.UserError):
-        return DataItem(model, prop, payload=payload, error=action)
+        return DataItem(model, prop, propref, backend, payload=payload, error=action)
 
     if '_where' in payload:
         payload['_where'] = pyrql.parse(payload['_where'])
 
-    return DataItem(model, prop, action, payload)
+    return DataItem(model, prop, propref, backend, action, payload)
 
 
 def _action_from_op(
@@ -303,8 +322,8 @@ async def prepare_data(
         try:
             if data.prop:
                 data.given = commands.load(context, data.prop.dtype, data.payload)
-                data.given = commands.prepare(context, data.prop.dtype, data.given, action=data.action)
-                commands.simple_data_check(context, data, data.prop.dtype, data.model.backend)
+                data.given = commands.prepare(context, data.prop, data.given, action=data.action)
+                commands.simple_data_check(context, data, data.prop, data.model.backend)
             else:
                 data.given = commands.load(context, data.model, data.payload)
                 data.given = commands.prepare(context, data.model, data.given, action=data.action)
@@ -331,7 +350,7 @@ async def read_existing_data(
                 rows = [commands.getone(
                     context,
                     data.prop,
-                    data.prop.backend,
+                    data.backend,
                     id_=data.given['_where']['args'][1],
                 )]
             else:
@@ -403,9 +422,21 @@ async def validate_data(
                 if '_revision' in data.given:
                     raise exceptions.ManagedProperty(data.model, property='_revision')
             if data.prop:
-                commands.complex_data_check(context, data, data.prop, data.prop.backend)
+                commands.complex_data_check(
+                    context,
+                    data,
+                    data.prop.dtype,
+                    data.prop,
+                    data.backend,
+                    data.given.get(data.prop.name),
+                )
             else:
-                commands.complex_data_check(context, data, data.model, data.model.backend)
+                commands.complex_data_check(
+                    context,
+                    data,
+                    data.model,
+                    data.model.backend,
+                )
         yield data
 
 

@@ -235,16 +235,12 @@ def complex_model_properties_check(
         # For datasets, property type is optional.
         # XXX: But I think, it should be mandatory.
         if prop.dtype is not None:
-            if prop.backend.name == backend.name:
-                backend_ = backend
-            else:
-                backend_ = prop.backend
             complex_data_check(
                 context,
                 data,
                 prop.dtype,
                 prop,
-                backend_,
+                data.backend,
                 data.given.get(name, NA),
             )
 

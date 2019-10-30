@@ -169,6 +169,13 @@ def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> D
 
 
 @load.register()
+def load(context: Context, dtype: PrimaryKey, data: dict, manifest: Manifest) -> DataType:
+    if dtype.prop.name != '_id':
+        raise exceptions.InvalidManagedPropertyName(dtype, name='_id')
+    return dtype
+
+
+@load.register()
 def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
     dtype.properties = {}
     for name, params in data.get('properties', {}).items():

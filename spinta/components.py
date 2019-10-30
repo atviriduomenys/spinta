@@ -555,6 +555,8 @@ class Version:
 class DataItem:
     model: Optional[Node] = None        # Data model.
     prop: Optional[Node] = None         # Action on a property, not a whole model.
+    propref: bool = False               # Action on property reference or instance.
+    backend: Optional['spinta.backends.Backend'] = None  # Model or property backend depending on prop and propref.
     action: Optional[Action] = None     # Action.
     payload: Optional[dict] = None      # Original data from request.
     given: Optional[dict] = None        # Request data converted to Python-native data types.
@@ -566,12 +568,16 @@ class DataItem:
         self,
         model: Optional[Node] = None,
         prop: Optional[Node] = None,
+        propref: bool = False,
+        backend: Optional['spinta.backends.Backend'] = None,
         action: Optional[Action] = None,
         payload: Optional[dict] = None,
         error: Optional[exceptions.UserError] = None,
     ):
         self.model = model
         self.prop = prop
+        self.propref = propref
+        self.backend = backend
         self.action = action
         self.payload = payload
         self.error = error
@@ -581,6 +587,8 @@ class DataItem:
         attrs = [
             'model',
             'prop',
+            'propref',
+            'backend',
             'action',
             'payload',
             'given',

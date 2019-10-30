@@ -142,12 +142,13 @@ async def getone(
     data = getone(context, prop, prop.model.backend, id_=params.pk)
     if data is None:
         raise ItemDoesNotExist(prop, id=params.pk)
+    data = data[prop.name]
     filename = data['filename'] or params.pk
     return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
 
 
 @getone.register()
-async def getone(
+def getone(
     context: Context,
     prop: Property,
     backend: FileSystem,
@@ -157,6 +158,7 @@ async def getone(
     data = getone(context, prop, prop.model.backend, id_=id_)
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
+    data = data[prop.name]
     filename = data['filename'] or id_
     return (prop.backend.path / filename).read_bytes()
 
