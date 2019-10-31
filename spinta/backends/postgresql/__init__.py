@@ -198,8 +198,8 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         lists_table_name = get_table_name(backend, model.manifest.name, model.name, LISTS_TABLE)
         lists_table = sa.Table(
             lists_table_name, backend.schema,
-            sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction.id')),
-            sa.Column('id', main_table.c.id.type, sa.ForeignKey(f'{main_table_name}.id')),  # reference to main table
+            sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
+            sa.Column('id', main_table.c._id.type, sa.ForeignKey(f'{main_table_name}._id')),  # reference to main table
             sa.Column('key', sa.String),  # parent key of the data inside `data` column
             sa.Column('data', JSONB),
         )
@@ -368,7 +368,7 @@ def _update_lists_table(context: Context, model: Model, table: sa.Table, action:
     if table is None:
         return
 
-    pk = data['id']
+    pk = data['_id']
     transaction = context.get('transaction')
     connection = transaction.connection
     if action != Action.INSERT:
@@ -437,7 +437,7 @@ async def insert(
         }])
 
         # Update lists table
-        _update_lists_table(context, model, table.lists, Action.INSERT, data)
+        _update_lists_table(context, model, table.lists, Action.INSERT, data.patch)
 
         yield data
 
@@ -480,7 +480,10 @@ async def update(
             raise Exception("Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
 
         # Update lists table
-        _update_lists_table(context, model, table.lists, data.action, data)
+        _update_lists_table(context, model, table.lists, data.action, {
+            **data.saved,
+            **data.patch,
+        })
 
         yield data
 
@@ -504,7 +507,10 @@ async def delete(
         )
 
         # Update lists table
-        _update_lists_table(context, model, table.lists, data.action, data)
+        _update_lists_table(context, model, table.lists, data.action, {
+            '_id': data.saved['_id'],
+            '_revision': data.saved['_revision'],
+        })
 
         yield data
 
@@ -763,7 +769,7 @@ def _getall_query(
                     where(cond).
                     alias()
                 )
-            joins.append((join, table.main.c.id == join.c.id))
+            joins.append((join, table.main.c._id == join.c.id))
         else:
             where.append(cond)
 
@@ -822,7 +828,7 @@ def _getall_order_by(
                     ]).alias()
                 )
                 alias = sa.select([subqry]).where(subqry.c.rn == 1).alias()
-                joins.append((alias, table.main.c.id == alias.c.id))
+                joins.append((alias, table.main.c._id == alias.c.id))
                 field = alias.c.value
             else:
                 field = table.main.c[prop.name]
