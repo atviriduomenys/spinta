@@ -12,6 +12,7 @@ psycopg2-binary
 pymongo
 pyrql
 python-multipart
+pytz
 requests
 ruamel.yaml
 setuptools

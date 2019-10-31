@@ -1,4 +1,4 @@
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional, List
 
 import contextlib
 import datetime
@@ -8,6 +8,7 @@ import re
 import typing
 import types
 
+import pytz
 import unidecode
 import sqlalchemy as sa
 import sqlalchemy.exc
@@ -24,7 +25,9 @@ from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem
 from spinta.config import RawConfig
 from spinta.renderer import render
-from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref
+from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String, Node, Integer
+from spinta import exceptions
+from spinta.utils.nestedstruct import flatten, parent_key_for_item
 
 from spinta.exceptions import (
     MultipleRowsFound,
@@ -42,6 +45,7 @@ NAMEDATALEN = 63
 PG_CLEAN_NAME_RE = re.compile(r'[^a-z0-9]+', re.IGNORECASE)
 
 MAIN_TABLE = 'M'
+LISTS_TABLE = 'L'
 CHANGES_TABLE = 'C'
 CACHE_TABLE = 'T'
 
@@ -63,6 +67,9 @@ class PostgreSQL(Backend):
     engine = None
     schema = None
     tables = None
+
+    # List of properties who are in lists.
+    props_in_lists: List[str] = None
 
     @contextlib.contextmanager
     def transaction(self, write=False):
@@ -183,13 +190,44 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         *columns,
     )
 
+    if _has_lists(model):
+        # Create table for nested lists.
+        lists_table_name = get_table_name(backend, model.manifest.name, model.name, LISTS_TABLE)
+        lists_table = sa.Table(
+            lists_table_name, backend.schema,
+            sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
+            sa.Column('id', main_table.c._id.type, sa.ForeignKey(f'{main_table_name}._id')),  # reference to main table
+            sa.Column('key', sa.String),  # parent key of the data inside `data` column
+            sa.Column('data', JSONB),
+        )
+    else:
+        lists_table = None
+
     # Create changes table.
     changes_table_name = get_table_name(backend, model.manifest.name, model.name, CHANGES_TABLE)
     # XXX: not sure if I should pass main_table.c.id.type.__class__() or a
     #      shorter form.
     changes_table = get_changes_table(backend, changes_table_name, main_table.c._id.type)
 
-    backend.tables[model.manifest.name][model.name] = ModelTables(main_table, changes_table)
+    backend.tables[model.manifest.name][model.name] = ModelTables(main_table, lists_table, changes_table)
+
+    if backend.props_in_lists is None:
+        backend.props_in_lists = list(_find_props_in_lists(model))
+    else:
+        backend.props_in_lists.extend(list(_find_props_in_lists(model)))
+
+
+def _find_props_in_lists(node: Node, inlist: bool = False):
+    if isinstance(node, Model):
+        for prop in node.properties.values():
+            yield from _find_props_in_lists(prop, inlist)
+    elif isinstance(node.dtype, Object):
+        for prop in node.dtype.properties.values():
+            yield from _find_props_in_lists(prop, inlist)
+    elif isinstance(node.dtype, Array):
+        yield from _find_props_in_lists(node.dtype.items, inlist=True)
+    elif inlist:
+        yield node.place
 
 
 @prepare.register()
@@ -280,6 +318,7 @@ def _get_pg_name(name):
 
 class ModelTables(typing.NamedTuple):
     main: sa.Table = None
+    lists: sa.Table = None
     changes: sa.Table = None
     cache: sa.Table = None
 
@@ -322,6 +361,54 @@ def check_unique_constraint(
         raise UniqueConstraint(prop)
 
 
+def _update_lists_table(context: Context, model: Model, table: sa.Table, action: Action, data: dict) -> None:
+    if table is None:
+        return
+
+    pk = data['_id']
+    transaction = context.get('transaction')
+    connection = transaction.connection
+    if action != Action.INSERT:
+        connection.execute(table.delete().where(table.c.id == pk))
+    data = _get_lists_only(data)
+    if data:
+        connection.execute(table.insert(), [
+            {
+                'transaction': transaction.id,
+                'id': pk,
+                'key': parent_key_for_item(item),
+                'data': item,
+            }
+            for item in flatten([data])
+        ])
+
+
+def _has_lists(node: Node):
+    if isinstance(node, Model):
+        for prop in node.properties.values():
+            if _has_lists(prop):
+                return True
+    elif isinstance(node.dtype, Object):
+        for prop in node.dtype.properties.values():
+            if _has_lists(prop):
+                return True
+    elif isinstance(node.dtype, Array):
+        return True
+
+
+def _get_lists_only(value):
+    if isinstance(value, dict):
+        result = {}
+        for k, v in value.items():
+            v = _get_lists_only(v)
+            if v is not None:
+                result[k] = v
+        if result:
+            return result
+    elif isinstance(value, list):
+        return value
+
+
 @commands.insert.register()
 async def insert(
     context: Context,
@@ -345,6 +432,10 @@ async def insert(
             '_revision': data.patch['_revision'],
             **{k: v for k, v in data.patch.items() if not k.startswith('_')},
         }])
+
+        # Update lists table
+        _update_lists_table(context, model, table.lists, Action.INSERT, data.patch)
+
         yield data
 
 
@@ -384,6 +475,13 @@ async def update(
             raise Exception("Update failed, {model} with {id_} not found.")
         elif result.rowcount > 1:
             raise Exception("Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
+
+        # Update lists table
+        _update_lists_table(context, model, table.lists, data.action, {
+            **data.saved,
+            **data.patch,
+        })
+
         yield data
 
 
@@ -404,6 +502,13 @@ async def delete(
             table.main.delete().
             where(table.main.c._id == data.saved['_id'])
         )
+
+        # Update lists table
+        _update_lists_table(context, model, table.lists, data.action, {
+            '_id': data.saved['_id'],
+            '_revision': data.saved['_revision'],
+        })
+
         yield data
 
 
@@ -494,23 +599,18 @@ async def getall(
     action: Action,
     params: UrlParams,
 ):
-    # TODO: add all the filtering support to postgresql
-    # show=_params.get('show'),
-    # sort=_params.get('sort', [{'name': 'id', 'ascending': True}]),
-    # offset=_params.get('offset'),
-    # limit=_params.get('limit', 100),
-    # count='count' in _params,
-    # query_params=_params.get('query_params'),
-    # search=params.search,
-
-    table = backend.tables[model.manifest.name][model.name].main
     authorize(context, action, model)
     result = (
-        prepare(context, action, model, backend, {
-            **row,
-            'id': row[table.c._id],
-        }, select=params.select)
-        for row in getall(context, model, backend)
+        prepare(context, action, model, backend, row, select=params.select)
+        for row in getall(
+            context, model, backend,
+            select=params.select,
+            sort=params.sort,
+            offset=params.offset,
+            limit=params.limit,
+            query=params.query,
+            # TODO: Add count support.
+        )
     )
     return render(context, request, model, params, result, action=action)
 
@@ -520,10 +620,237 @@ def getall(
     context: Context,
     model: Model,
     backend: PostgreSQL,
+    *,
+    select: typing.List[str] = None,
+    sort: typing.Dict[str, dict] = None,
+    offset: int = None,
+    limit: int = None,
+    query: typing.List[typing.Dict[str, str]] = None,
 ):
     connection = context.get('transaction').connection
-    table = backend.tables[model.manifest.name][model.name].main
-    yield from connection.execute(sa.select([table]))
+    table = backend.tables[model.manifest.name][model.name]
+
+    joins = []
+
+    # TODO: Select list must be taken from params.select.
+    qry = sa.select([table.main])
+    qry = _getall_query(context, model, backend, table, joins, qry, query)
+    qry = _getall_order_by(model, backend, qry, table, joins, sort)
+    qry = _getall_offset(qry, offset)
+    qry = _getall_limit(qry, limit)
+
+    if joins:
+        join = table.main
+        for alias, cond in joins:
+            join = join.join(alias, cond)
+        qry = qry.select_from(join)
+
+    for row in connection.execute(qry):
+        yield dict(row)
+
+
+def _getall_query(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    table: ModelTables,
+    joins: List[str],
+    qry: sa.sql.Select,
+    query: Optional[List[dict]],
+) -> sa.sql.Select:
+    where = []
+    for qp in query or []:
+        key = qp['args'][0]
+        # TODO: Fix RQL parser to support `foo.bar=baz` notation.
+        #       https://github.com/pjwerneck/pyrql/pull/2
+        key = '.'.join(key) if isinstance(key, tuple) else key
+        if key not in model.flatprops:
+            raise exceptions.FieldNotInResource(model, property=key)
+        prop = model.flatprops[key]
+        name = qp['name']
+        value = commands.load_search_params(context, prop.dtype, backend, qp)
+
+        if prop.place in backend.props_in_lists:
+            jsonb = table.lists.c.data[prop.place]
+            if _is_dtype(prop, String):
+                field = jsonb.astext
+            elif _is_dtype(prop, Integer):
+                field = jsonb
+                value = sa.cast(value, JSONB)
+            elif _is_dtype(prop, DateTime):
+                field = jsonb.astext
+                value = datetime.datetime.fromisoformat(value)
+                if value.tzinfo is not None:
+                    # XXX: Think below probably must be hander in a more proper way.
+                    # FIXME: Same conversion must be done when storing data.
+                    # Convert dates to utc and drop timezone information, we can't
+                    # compare dates in JSONB.
+                    value = value.astimezone(pytz.utc).replace(tzinfo=None)
+                value = value.isoformat()
+            elif _is_dtype(prop, Date):
+                field = jsonb.astext
+                value = datetime.date.fromisoformat(value)
+                value = value.isoformat()
+            else:
+                value = sa.cast(value, JSONB)
+                field = sa.cast(value, JSONB)
+        else:
+            jsonb = None
+            field = table.main.c[prop.name]
+
+        if isinstance(prop.dtype, String):
+            field = sa.func.lower(field)
+            value = value.lower()
+
+        if name == 'eq':
+            cond = field == value
+        elif name == 'ge':
+            cond = field >= value
+        elif name == 'gt':
+            cond = field > value
+        elif name == 'le':
+            cond = field <= value
+        elif name == 'lt':
+            cond = field < value
+        elif name == 'ne':
+            raise NotImplementedError
+
+            # XXX: this implementation is not finished
+            # problem is with SQLAlchemy query generation
+            key = parent_key_for_item({prop.place: None})
+
+            # Problem with not-equal query is that we want to filter out all
+            # resource ids from the lists table, that either do not have
+            # the item we are looking for or have the item, but it's value is
+            # not equal to the value we are searching for.
+            #
+            # select lists with a key for an item we are searching for
+            select_keys = sa.select([table.lists]).where(table.lists.c.key == key)
+
+            # select key ids, to be used later (XXX: can id's be reused from query above?)
+            select_key_ids = sa.select([table.lists.c.id]).where(table.lists.c.key == key)
+
+            # get keys which do not have the item we are searching form
+            select_non_keys = sa.select([table.lists], table.lists.c.id.notin_(select_key_ids))
+
+            # make a union to get a table from select_keys and select_non_keys,
+            # to combine results and get a table with resource ids, where
+            # item values are not equal to the value or either search items do
+            # not exist at all
+            temp_table = select_keys.union(select_non_keys).alias('temp_table')
+
+            field._orig[0].table = temp_table
+
+            cond = sa.or_(
+                field == None,  # noqa
+                field != value,
+            )
+        elif name == 'contains':
+            cond = field.contains(value)
+        elif name == 'startswith':
+            cond = field.startswith(value)
+        else:
+            raise exceptions.UnknownOperator(prop, operator=name)
+
+        if jsonb is not None:
+            if name == 'ne':
+                # use temporary table we created for in the `ne` condition
+                join = (
+                    sa.select([temp_table.c.id, field], distinct=temp_table.c.id).
+                    where(cond).
+                    alias()
+                )
+            else:
+                join = (
+                    sa.select([table.lists.c.id, field], distinct=table.lists.c.id).
+                    where(cond).
+                    alias()
+                )
+            joins.append((join, table.main.c._id == join.c.id))
+        else:
+            where.append(cond)
+
+    if where:
+        qry = qry.where(sa.and_(*where))
+
+    return qry
+
+
+def _is_dtype(prop, DataType):
+    return (
+        isinstance(prop.dtype, DataType) or (
+            isinstance(prop.dtype, Array) and
+            isinstance(prop.dtype.items.dtype, DataType)
+        )
+    )
+
+
+def _getall_order_by(
+    model: Model,
+    backend: PostgreSQL,
+    qry: sa.sql.Select,
+    table: ModelTables,
+    joins: List[str],
+    sort: typing.List[typing.Tuple[str, str]],
+) -> sa.sql.Select:
+    if sort:
+        direction = {
+            '+': lambda c: c.asc(),
+            '-': lambda c: c.desc(),
+        }
+        db_sort_keys = []
+        for key in sort:
+            # Optional sort direction: sort(+key) or sort(key)
+            # XXX: Probably move this to spinta/urlparams.py.
+            if len(key) == 1:
+                d, key = ('+',) + key
+            else:
+                d, key = key
+
+            if key not in model.flatprops:
+                raise exceptions.FieldNotInResource(model, property=key)
+
+            prop = model.flatprops[key]
+
+            if prop.place in backend.props_in_lists:
+                field = sa.cast(table.lists.c.data[prop.place], JSONB)
+                subqry = (
+                    sa.select([
+                        table.lists.c.id,
+                        field.label('value'),
+                        sa.func.row_number().over(
+                            partition_by=table.lists.c.id,
+                            order_by=direction[d](field),
+                        ).label('rn'),
+                    ]).alias()
+                )
+                alias = sa.select([subqry]).where(subqry.c.rn == 1).alias()
+                joins.append((alias, table.main.c._id == alias.c.id))
+                field = alias.c.value
+            else:
+                field = table.main.c[prop.name]
+
+            field = direction[d](field)
+
+            db_sort_keys.append(field)
+
+        return qry.order_by(*db_sort_keys)
+    else:
+        return qry
+
+
+def _getall_offset(qry: sa.sql.Select, offset: Optional[int]) -> sa.sql.Select:
+    if offset:
+        return qry.offset(offset)
+    else:
+        return qry
+
+
+def _getall_limit(qry: sa.sql.Select, limit: Optional[int]) -> sa.sql.Select:
+    if limit:
+        return qry.limit(limit)
+    else:
+        return qry
 
 
 @commands.changes.register()
@@ -613,13 +940,13 @@ def _changes_limit(qry, limit):
 def wipe(context: Context, model: Model, backend: PostgreSQL):
     authorize(context, Action.WIPE, model)
 
+    table = backend.tables[model.manifest.name][model.name]
     connection = context.get('transaction').connection
 
-    changes = backend.tables[model.manifest.name][model.name].changes
-    connection.execute(changes.delete())
-
-    main = backend.tables[model.manifest.name][model.name].main
-    connection.execute(main.delete())
+    if table.lists is not None:
+        connection.execute(table.lists.delete())
+    connection.execute(table.changes.delete())
+    connection.execute(table.main.delete())
 
 
 class utcnow(FunctionElement):

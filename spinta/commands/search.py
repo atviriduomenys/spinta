@@ -28,7 +28,7 @@ def load_search_params(
 
     # try to convert string search parameter to integer
     # query_params are always string, thus for type loading and validation
-    # to work, we need to covnert that query value string into appropriate type
+    # to work, we need to convert that query value string into appropriate type
     try:
         value = int(query_params['args'][1])
     except ValueError:

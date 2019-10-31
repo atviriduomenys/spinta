@@ -1,11 +1,11 @@
 from typing import List
 
 
-def flatten(data, sep='.', scan=100):
+def flatten(data, sep='.'):
     if isinstance(data, dict):
         return _flatten_dict(data, sep)
     else:
-        return _flatten_list(data, sep, scan)
+        return _flatten_list(data, sep)
 
 
 def _flatten_dict(data, sep='.'):
@@ -13,7 +13,7 @@ def _flatten_dict(data, sep='.'):
         return {sep.join(k): v for k, v in item}
 
 
-def _flatten_list(data, sep='.', scan=100):
+def _flatten_list(data, sep='.'):
     for row in data:
         for item in flatten_nested_lists(row):
             yield {sep.join(k): v for k, v in item}
@@ -61,3 +61,14 @@ def build_select_tree(select: List[str]):
                 tree[name].add(node)
             split = name.rsplit('.', 1)
     return tree
+
+
+def parent_key_for_item(item, sep='.'):
+    # returns a full path of the common parent for the keys in item
+    # e.g.
+    # item = ['foo.bar.baz', 'foo.bar.biz', 'foo.bar.buz.fuz']
+    # pk = parent_key_for_item(item)
+    # assert pk == 'foo.bar'
+    split_keys = [key.split(sep) for key in item.keys()]
+    shortest_key = min(split_keys, key=lambda x: len(x))
+    return sep.join(shortest_key[:-1])
