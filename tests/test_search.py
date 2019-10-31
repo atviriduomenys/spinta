@@ -62,14 +62,9 @@ def _push_test_data(app, model):
     return resp['_data']
 
 
-# FIXME: postgres nested objects
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-#     'backends/postgres/report/:dataset/test'
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
     'backends/postgres/report/:dataset/test'
 )
 def test_search_exact(model, context, app):
@@ -124,13 +119,9 @@ def test_search_exact(model, context, app):
     assert len(data) == 0
 
 
-# FIXME: postgres nested objects
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_search_gt(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -175,13 +166,9 @@ def test_search_gt(model, context, app):
     assert len(data) == 0
 
 
-# FIXME: postgres nested objects
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_search_gte(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -227,13 +214,9 @@ def test_search_gte(model, context, app):
     assert data[0]['_id'] == r2['_id']
 
 
-# FIXME: postgres nested objects
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_search_lt(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -278,13 +261,9 @@ def test_search_lt(model, context, app):
     assert len(data) == 0
 
 
-# FIXME: postgres nested objects
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_search_lte(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -330,13 +309,9 @@ def test_search_lte(model, context, app):
     assert data[0]['_id'] == r1['_id']
 
 
-# FIXME: postgres nested objects
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_search_ne(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -370,13 +345,9 @@ def test_search_ne(model, context, app):
     assert data[0]['_id'] == r2['_id']
 
 
-# FIXME: postgres nested objects
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_search_contains(model, context, app, mocker):
     r1, r2, r3, = _push_test_data(app, model)
@@ -465,13 +436,9 @@ def test_search_contains(model, context, app, mocker):
     }
 
 
-# FIXME: postgres nested objects
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_search_startswith(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -515,13 +482,9 @@ def test_search_startswith(model, context, app):
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
 
 
-# FIXME: postgres nested objects
-# @pytest.mark.models(
-#     'backends/mongo/report',
-#     'backends/postgres/report',
-# )
 @pytest.mark.models(
     'backends/mongo/report',
+    'backends/postgres/report',
 )
 def test_search_nested(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
