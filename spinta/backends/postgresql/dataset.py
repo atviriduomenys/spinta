@@ -378,7 +378,7 @@ def _getall_order_by(
     qry: sa.sql.Select,
     table: sa.Table,
     jm: JoinManager,
-    sort: typing.List[typing.Dict[str, str]],
+    sort: typing.List[typing.Tuple[str, str]],
 ) -> sa.sql.Select:
     if sort:
         direction = {

@@ -1,11 +1,11 @@
 from typing import List
 
 
-def flatten(data, sep='.', scan=100):
+def flatten(data, sep='.'):
     if isinstance(data, dict):
         return _flatten_dict(data, sep)
     else:
-        return _flatten_list(data, sep, scan)
+        return _flatten_list(data, sep)
 
 
 def _flatten_dict(data, sep='.'):
@@ -13,7 +13,7 @@ def _flatten_dict(data, sep='.'):
         return {sep.join(k): v for k, v in item}
 
 
-def _flatten_list(data, sep='.', scan=100):
+def _flatten_list(data, sep='.'):
     for row in data:
         for item in flatten_nested_lists(row):
             yield {sep.join(k): v for k, v in item}
