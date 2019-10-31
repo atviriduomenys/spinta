@@ -235,6 +235,16 @@ def complex_model_properties_check(
         # For datasets, property type is optional.
         # XXX: But I think, it should be mandatory.
         if prop.dtype is not None:
+            given = data.given.get(name, NA)
+            if prop.dtype.unique and given is not NA:
+                commands.check_unique_constraint(
+                    context,
+                    data,
+                    prop.dtype,
+                    prop,
+                    data.backend,
+                    given,
+                )
             complex_data_check(
                 context,
                 data,
@@ -250,19 +260,7 @@ def complex_data_check(
     context: Context,
     data: DataItem,
     dtype: DataType,
-    prop: Property,
-    backend: Backend,
-    value: object,
-):
-    pass
-
-
-@complex_data_check.register()
-def complex_data_check(
-    context: Context,
-    data: DataItem,
-    dtype: DataType,
-    prop: dataset.Property,
+    prop: (Property, dataset.Property),
     backend: Backend,
     value: object,
 ):
@@ -502,6 +500,23 @@ def update(
     )
 
 
+@commands.patch.register()
+def patch(
+    context: Context,
+    prop: (Property, dataset.Property),
+    backend: Backend,
+    *,
+    dstream: AsyncIterator[DataItem],
+    stop_on_error: bool = True,
+):
+    dstream = _prepare_property_for_update(prop, dstream)
+    return commands.update(
+        context, prop.model, prop.model.backend,
+        dstream=dstream,
+        stop_on_error=stop_on_error,
+    )
+
+
 async def _prepare_property_for_update(
     prop: Union[Property, dataset.Property],
     dstream: AsyncIterator[DataItem],
@@ -513,5 +528,35 @@ async def _prepare_property_for_update(
                 prop.name: {
                     k: v for k, v in data.patch.items() if not k.startswith('_')
                 }
+            }
+        yield data
+
+
+@commands.delete.register()
+def delete(
+    context: Context,
+    prop: (Property, dataset.Property),
+    backend: Backend,
+    *,
+    dstream: AsyncIterator[DataItem],
+    stop_on_error: bool = True,
+):
+    dstream = _prepare_property_for_delete(prop, dstream)
+    return commands.update(
+        context, prop.model, prop.model.backend,
+        dstream=dstream,
+        stop_on_error=stop_on_error,
+    )
+
+
+async def _prepare_property_for_delete(
+    prop: Union[Property, dataset.Property],
+    dstream: AsyncIterator[DataItem],
+) -> AsyncIterator[DataItem]:
+    async for data in dstream:
+        if data.patch:
+            data.patch = {
+                **{k: v for k, v in data.patch.items() if k.startswith('_')},
+                prop.name: None,
             }
         yield data

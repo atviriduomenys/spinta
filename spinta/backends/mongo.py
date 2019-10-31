@@ -9,9 +9,8 @@ import pymongo
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.backends import Backend, complex_data_check
+from spinta.backends import Backend
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataStream, DataItem
-from spinta.common import NA
 from spinta.config import RawConfig
 from spinta.renderer import render
 from spinta.types.datatype import Date, DataType
@@ -101,40 +100,39 @@ def migrate(context: Context, backend: Mongo):
     pass
 
 
-@complex_data_check.register()
-def complex_data_check(
+@commands.check_unique_constraint.register()
+def check_unique_constraint(
     context: Context,
     data: DataItem,
     dtype: DataType,
     prop: Property,
     backend: Mongo,
     value: object,
-) -> None:
-    if dtype.unique and value is not NA:
-        model = prop.model
-        table = backend.db[model.model_type()]
-        # XXX: Probably we should move this out of mongo backend and implement
-        #      this on spinta.commands.write. For example, read_existing_data
-        #      could try to read existing record if `_id` or any other unique
-        #      field is given. Also this would fix case, when multiple
-        #      properties are given as unique constraint.
-        if prop.name == '_id':
-            name = '__id'
-        else:
-            name = prop.name
-        # TODO: Add support for nested properties.
-        # FIXME: Exclude currently saved value.
-        #        In case of an update, exclude currently saved value from
-        #        uniqueness check.
-        if data.action in (Action.UPDATE, Action.PATCH):
-            result = table.find_one({
-                name: value,
-                '__id': {'$ne': data.saved['_id']},
-            })
-        else:
-            result = table.find_one({name: value})
-        if result is not None:
-            raise UniqueConstraint(prop, value=value)
+):
+    model = prop.model
+    table = backend.db[model.model_type()]
+    # XXX: Probably we should move this out of mongo backend and implement
+    #      this on spinta.commands.write. For example, read_existing_data
+    #      could try to read existing record if `_id` or any other unique
+    #      field is given. Also this would fix case, when multiple
+    #      properties are given as unique constraint.
+    if prop.name == '_id':
+        name = '__id'
+    else:
+        name = prop.name
+    # TODO: Add support for nested properties.
+    # FIXME: Exclude currently saved value.
+    #        In case of an update, exclude currently saved value from
+    #        uniqueness check.
+    if data.action in (Action.UPDATE, Action.PATCH):
+        result = table.find_one({
+            name: value,
+            '__id': {'$ne': data.saved['_id']},
+        })
+    else:
+        result = table.find_one({name: value})
+    if result is not None:
+        raise UniqueConstraint(prop, value=value)
 
 
 @commands.insert.register()

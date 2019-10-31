@@ -13,7 +13,7 @@ from sqlalchemy.engine.result import RowProxy
 from starlette.requests import Request
 
 from spinta.commands import prepare, getone, getall, changes, wipe, authorize, is_object_id
-from spinta.components import Context, Action, UrlParams, DataStream
+from spinta.components import Context, Action, UrlParams, DataStream, DataItem
 from spinta.types.dataset import Model, Property
 from spinta.backends import Backend
 from spinta.backends.postgresql import PostgreSQL
@@ -25,7 +25,7 @@ from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
 from spinta import exceptions
-from spinta.types.datatype import String
+from spinta.types.datatype import DataType, String
 
 log = logging.getLogger(__name__)
 
@@ -575,3 +575,33 @@ async def create_changelog_entry(
             ),
         }])
         yield data
+
+
+@commands.check_unique_constraint.register()
+def check_unique_constraint(
+    context: Context,
+    data: DataItem,
+    dtype: DataType,
+    prop: Property,
+    backend: PostgreSQL,
+    value: object,
+):
+    table = _get_table(backend, prop.model).main
+
+    if data.action in (Action.UPDATE, Action.PATCH):
+        condition = sa.and_(
+            table.c.data[prop.name] == sa.cast(value, JSONB),
+            table.c._id != data.saved['_id'],
+        )
+    # PATCH requests are allowed to send protected fields in requests JSON
+    # PATCH handling will use those fields for validating data, though
+    # won't change them.
+    elif data.action == Action.PATCH and dtype.prop.name in {'_id', '_type', '_revision'}:
+        return
+    else:
+        condition = table.c.data[prop.name] == sa.cast(value, JSONB)
+    not_found = object()
+    connection = context.get('transaction').connection
+    result = backend.get(connection, table.c.data[prop.name], condition, default=not_found)
+    if result is not not_found:
+        raise exceptions.UniqueConstraint(prop)

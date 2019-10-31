@@ -2,11 +2,9 @@ import uuid
 import datetime
 
 import pytest
-import pyrql
 
-from spinta.testing.utils import get_error_codes, get_error_context, get_model_scopes
+from spinta.testing.utils import get_error_codes, get_error_context
 from spinta.utils.nestedstruct import flatten
-from spinta.utils.itertools import consume
 from spinta.utils.refs import get_ref_id
 
 
@@ -680,11 +678,8 @@ def test_insufficient_scope(model, context, app):
 )
 def test_post_update_postgres(model, context, app):
     # tests if update works with `id` present in the json
-    scope_model = model.replace('/', '_')
-    app.authorize([
-        f'spinta_{scope_model}_insert',
-        'spinta_set_meta_fields',
-    ])
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel(model, ['insert'])
     resp = app.post(f'/{model}', json={
         '_id': '0007ddec-092b-44b5-9651-76884e6081b4',
         'status': 'ok',
@@ -766,54 +761,56 @@ def test_post_duplicate_id(model, app):
     assert get_error_codes(resp.json()) == ["UniqueConstraint"]
 
 
-@pytest.mark.skip("SPLAT-146: PATCH requests should be able to update id")
 @pytest.mark.models(
     'backends/postgres/report',
     'backends/mongo/report',
 )
 def test_patch_duplicate_id(model, context, app):
     # tests that duplicate ID detection works with PATCH requests
-    app.authorize(
-        get_model_scopes(context, model, ['insert', 'getone', 'patch']) +
-        ['spinta_set_meta_fields'],
-    )
+    app.authmodel(model, ['insert', 'getone', 'patch'])
+    app.authorize(['spinta_set_meta_fields'])
 
-    report_data = app.post(f'/{model}', json={
-        'type': 'report',
+    data = app.post(f'/{model}', json={
+        '_type': 'report',
         'status': '1',
     }).json()
-    id_ = report_data['id']
+    id_ = data['_id']
 
     # try to PATCH id with set_meta_fields scope
     # this should be successful because id that we want to setup
     # does not exist in database
     resp = app.patch(f'/{model}/{id_}', json={
-        'id': '0007ddec-092b-44b5-9651-76884e6081b4',
+        '_id': '0007ddec-092b-44b5-9651-76884e6081b4',
+        '_revision': data['_revision'],
     })
     assert resp.status_code == 200
-    id_ = resp.json()['id']
+    data = resp.json()
+    id_ = data['_id']
     assert id_ == '0007ddec-092b-44b5-9651-76884e6081b4'
 
     # try to patch report with id of itself
     resp = app.patch(f'/{model}/{id_}', json={
-        'id': '0007ddec-092b-44b5-9651-76884e6081b4',
+        '_id': '0007ddec-092b-44b5-9651-76884e6081b4',
+        '_revision': data['_revision'],
     })
     assert resp.status_code == 200
-    assert resp.json()['id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
+    assert resp.json()['_id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
 
     # try to PATCH id with set_meta_fields scope
     # this should not be successful because id that we want to setup
     # already exists in database
     resp = app.post(f'/{model}', json={
-        'type': 'report',
+        '_type': 'report',
         'status': '1',
     })
-    existing_id = resp.json()['id']
+    existing_id = resp.json()['_id']
 
-    resp = app.patch(f'/{model}/{id_}',
-                     json={'id': existing_id})
+    resp = app.patch(f'/{model}/{id_}', json={
+        '_id': existing_id,
+        '_revision': data['_revision'],
+    })
     assert resp.status_code == 400
-    assert resp.json() == {"error": f"'id' is unique for '{model}' and a duplicate value is found in database."}
+    assert get_error_codes(resp.json()) == ['UniqueConstraint']
 
 
 @pytest.mark.models(

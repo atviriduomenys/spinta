@@ -7,6 +7,7 @@ from spinta.types.dataset import Model
 from spinta.fetcher import fetch
 from spinta.commands import pull
 from spinta.commands.sources import Source
+from spinta import exceptions
 
 
 class Xlsx(Source):

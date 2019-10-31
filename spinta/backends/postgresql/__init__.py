@@ -19,7 +19,7 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.backends import Backend
-from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize, dump, complex_data_check
+from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize, dump
 from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem
 from spinta.config import RawConfig
@@ -292,8 +292,8 @@ def migrate(context: Context, backend: PostgreSQL):
     backend.schema.create_all(checkfirst=True)
 
 
-@complex_data_check.register()
-def complex_data_check(
+@commands.check_unique_constraint.register()
+def check_unique_constraint(
     context: Context,
     data: DataItem,
     dtype: DataType,
@@ -301,26 +301,25 @@ def complex_data_check(
     backend: PostgreSQL,
     value: object,
 ):
-    if dtype.unique and value is not NA:
-        table = backend.tables[prop.manifest.name][prop.model.name].main
+    table = backend.tables[prop.manifest.name][prop.model.name].main
 
-        if data.action in (Action.UPDATE, Action.PATCH):
-            condition = sa.and_(
-                table.c[prop.name] == value,
-                table.c._id != data.saved['_id'],
-            )
-        # PATCH requests are allowed to send protected fields in requests JSON
-        # PATCH handling will use those fields for validating data, though
-        # won't change them.
-        elif data.action == Action.PATCH and dtype.prop.name in {'_id', '_type', '_revision'}:
-            return
-        else:
-            condition = table.c[prop.name] == value
-        not_found = object()
-        connection = context.get('transaction').connection
-        result = backend.get(connection, table.c[prop.name], condition, default=not_found)
-        if result is not not_found:
-            raise UniqueConstraint(prop)
+    if data.action in (Action.UPDATE, Action.PATCH):
+        condition = sa.and_(
+            table.c[prop.name] == value,
+            table.c._id != data.saved['_id'],
+        )
+    # PATCH requests are allowed to send protected fields in requests JSON
+    # PATCH handling will use those fields for validating data, though
+    # won't change them.
+    elif data.action == Action.PATCH and dtype.prop.name in {'_id', '_type', '_revision'}:
+        return
+    else:
+        condition = table.c[prop.name] == value
+    not_found = object()
+    connection = context.get('transaction').connection
+    result = backend.get(connection, table.c[prop.name], condition, default=not_found)
+    if result is not not_found:
+        raise UniqueConstraint(prop)
 
 
 @commands.insert.register()

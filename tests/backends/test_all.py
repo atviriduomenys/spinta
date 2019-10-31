@@ -174,8 +174,6 @@ def test_get_non_existant_subresource(model, context, app):
     }]}
 
 
-# FIXME: postgres throws 500 when cannot find resource instead of 404
-@pytest.mark.skip('batch-refactoring')
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',

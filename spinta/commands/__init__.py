@@ -113,6 +113,14 @@ def complex_data_check():
 
 
 @command()
+def check_unique_constraint():
+    """Check if value is unique.
+
+    This check is only performed when peroperty has unique property set to true.
+    """
+
+
+@command()
 def prepare():
     """Prepare value.
 

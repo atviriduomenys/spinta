@@ -53,7 +53,7 @@ async def push(
     elif await is_batch(request, scope):
         status_code, response = await _batch_response(context, dstream)
     else:
-        status_code, response = await _simple_response(context, dstream)
+        status_code, response = await simple_response(context, dstream)
     return render(context, request, scope, params, response, status_code=status_code)
 
 
@@ -255,16 +255,11 @@ def dataitem_from_payload(
         prop = None
         propref = False
 
-    if prop and not propref:
-        backend = prop.backend
-    else:
-        backend = model.backend
-
     try:
         model = get_model_by_name(context, scope.manifest, model)
     except exceptions.UserError as error:
         report_error(error, stop_on_error)
-        return DataItem(model, backend=backend, payload=payload, error=error)
+        return DataItem(model, payload=payload, error=error)
 
     if model and prop:
         if prop in model.flatprops:
@@ -272,7 +267,12 @@ def dataitem_from_payload(
         else:
             error = exceptions.FieldNotInResource(model, property=prop)
             report_error(error, stop_on_error)
-            return DataItem(model, backend=backend, payload=payload, error=error)
+            return DataItem(model, payload=payload, error=error)
+
+    if prop and not propref:
+        backend = prop.backend
+    else:
+        backend = model.backend
 
     if not commands.in_namespace(model, scope):
         error = exceptions.OutOfScope(model, scope=scope)
@@ -497,7 +497,7 @@ async def _batch_response(context: Context, results: AsyncIterator[DataItem]) ->
     }
 
 
-async def _simple_response(context: Context, results: AsyncIterator[DataItem]) -> dict:
+async def simple_response(context: Context, results: AsyncIterator[DataItem]) -> dict:
     results = await alist(aslice(results, 2))
     assert len(results) == 1
     data = results[0]

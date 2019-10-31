@@ -1,7 +1,5 @@
 from typing import TypeVar, AsyncIterator, List, Callable, Optional, Tuple, Awaitable, Iterable
 
-import sys
-
 T = TypeVar('T')
 R = TypeVar('R')
 
@@ -22,7 +20,7 @@ class agroupby:
         key: Optional[Callable[[T], R]] = None,
     ) -> None:
         if key is None:
-            key = lambda x: x
+            key = lambda x: x  # noqa
         self.keyfunc = key
         self.it = iterable
         self.tgtkey = self.currkey = self.currvalue = object()
