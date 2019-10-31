@@ -11,7 +11,7 @@ resources:
         country:
           source: tests_country
           properties:
-            id:
+            _id:
               type: pk
               source: kodas
             code:

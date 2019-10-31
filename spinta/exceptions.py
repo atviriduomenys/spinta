@@ -12,6 +12,8 @@ class UnknownValue:
     def __str__(self):
         return '[UNKNOWN]'
 
+    __repr__ = __str__
+
 
 UNKNOWN_VALUE = UnknownValue()
 
@@ -96,17 +98,24 @@ def error_response(error):
     }
 
 
-def _render_template(template, context):
+def _render_template(error):
+    if error.type in error.context:
+        context = {
+            **error.context,
+            'this': f'<{error.type} name={error.context[error.type]!r}>',
+        }
+    else:
+        context = error.context
     try:
-        return template.format(**context)
+        return error.template.format(**context)
     except KeyError:
         context = context.copy()
         template_vars_re = re.compile(r'\{(\w+)')
-        for match in template_vars_re.finditer(template):
+        for match in template_vars_re.finditer(error.template):
             name = match.group(1)
             if name not in context:
                 context[name] = UNKNOWN_VALUE
-        return template.format(**context)
+        return error.template.format(**context)
 
 
 class BaseError(Exception):
@@ -131,7 +140,7 @@ class BaseError(Exception):
         # Remove all unknown values.
 
         try:
-            self.message = _render_template(self.template, self.context)
+            self.message = _render_template(self)
         except KeyError:
             log.exception("Can't render error message for %s.", self.__class__.__name__)
             self.message = self.template
@@ -152,7 +161,7 @@ class MultipleErrors(Exception):
         self.errors = list(errors)
         super().__init__(
             'Multiple errors:\n' + ''.join([
-                ' - {error.message}\n' +
+                f' - {error.message}\n' +
                 '     Context:\n' + ''.join(
                     f'       {k}: {v}\n' for k, v in error.context.items()
                 )
@@ -188,7 +197,7 @@ class UnknownOperator(UserError):
 
 class ItemDoesNotExist(UserError):
     status_code = 404
-    template = "Resource {id!r} not found."
+    template = "Resource {_id!r} not found."
 
 
 class ModelNotFound(UserError):
@@ -226,12 +235,16 @@ class ManagedProperty(UserError):
     template = "Value of this property is managed automatically and cannot be set manually."
 
 
+class InvalidManagedPropertyName(UserError):
+    template = "Invalid managed property name. Exmpected name {name!r}, got {property!r}."
+
+
 class NotFoundError(BaseError):
     template = "No results where found."
     status_code = 500
 
 
-class NodeNotFound(BaseError):
+class NodeNotFound(UserError):
     template = "Node {name!r} of type {type!r} not found."
 
 
@@ -338,7 +351,7 @@ class UnknownRequestParameter(UserError):
 
 
 class OutOfScope(UserError):
-    template = "{this!r} is out of given scope {scope!r}."
+    template = "{this} is out of given scope {scope!r}."
     context = {
         'scope': 'scope.name',
     }

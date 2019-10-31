@@ -23,4 +23,3 @@ def add_path_to_tree(tree: dict, path: str):
     name = '/'.join(parent)
     if name not in tree:
         tree[name] = []
-

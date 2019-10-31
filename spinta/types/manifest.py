@@ -29,7 +29,7 @@ def load(context: Context, manifest: Manifest, c: RawConfig):
     for name in config.components['nodes'].keys():
         manifest.objects[name] = {}
 
-    manifest.tree = {}
+    manifest.parent = None
     manifest.endpoints = {}
 
     log.info('Loading manifest %r: %s', manifest.name, manifest.path.resolve())

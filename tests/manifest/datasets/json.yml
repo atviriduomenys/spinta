@@ -12,7 +12,7 @@ resources:
         rinkimai:
           source: response
           properties:
-            id:
+            _id:
               type: pk
               source: id
             pavadinimas:

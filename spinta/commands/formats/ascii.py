@@ -35,8 +35,8 @@ class Ascii(Format):
 
         data = itertools.chain([peek], data)
 
-        if 'type' in peek:
-            groups = itertools.groupby(data, operator.itemgetter('type'))
+        if '_type' in peek:
+            groups = itertools.groupby(data, operator.itemgetter('_type'))
         else:
             groups = [(None, data)]
 
@@ -49,7 +49,7 @@ class Ascii(Format):
             rows = itertools.chain([peek], rows)
 
             if name:
-                cols = [k for k in peek.keys() if k != 'type']
+                cols = [k for k in peek.keys() if k != '_type']
             else:
                 cols = list(peek.keys())
 

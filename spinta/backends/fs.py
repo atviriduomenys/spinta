@@ -1,3 +1,5 @@
+from typing import AsyncIterator
+
 import cgi
 import pathlib
 import shutil
@@ -6,13 +8,15 @@ from starlette.requests import Request
 from starlette.responses import FileResponse
 
 from spinta.backends import Backend
-from spinta.commands import load, prepare, migrate, check, push, getone, wipe, wait, authorize
-from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams
+from spinta.commands import load, prepare, migrate, push, getone, wipe, wait, authorize, complex_data_check
+from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams, DataItem
 from spinta.config import RawConfig
-from spinta.types.datatype import File
+from spinta.types.datatype import DataType, File
 from spinta.exceptions import FileNotFound, ItemDoesNotExist
 from spinta import commands
 from spinta.renderer import render
+from spinta.commands.write import prepare_patch, simple_response
+from spinta.utils.aiotools import aiter
 
 
 class FileSystem(Backend):
@@ -40,11 +44,6 @@ def prepare(context: Context, backend: FileSystem, dtype: File):
 
 
 @prepare.register()
-def prepare(context: Context, backend: FileSystem, dtype: File):
-    pass
-
-
-@prepare.register()
 def prepare(context: Context, dtype: File, backend: Backend, value: Attachment):
     return {
         'filename': value.filename,
@@ -57,17 +56,26 @@ def migrate(context: Context, backend: FileSystem):
     pass
 
 
-@check.register()
-def check(context: Context, dtype: File, prop: Property, backend: FileSystem, value: dict, *, data: dict, action: Action):
-    path = backend.path / value['filename']
+@complex_data_check.register()
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: File,
+    prop: Property,
+    backend: Backend,
+    given: dict,
+):
+    complex_data_check[
+        context.__class__,
+        DataItem,
+        DataType,
+        Property,
+        Backend,
+        dict,
+    ](context, data, dtype, prop, backend, given)
+    path = prop.backend.path / given['filename']
     if not path.exists():
-        raise FileNotFound(prop, file=value['filename'])
-
-
-@check.register()
-def check(context: Context, dtype: File, prop: Property, backend: Backend, value: dict, *, data: dict, action: Action):
-    if prop.backend.name != backend.name:
-        check(context, dtype, prop, prop.backend, value, data=data, action=action)
+        raise FileNotFound(prop, file=given['filename'])
 
 
 @push.register()
@@ -82,54 +90,41 @@ async def push(
 ):
     authorize(context, action, prop)
 
-    data = getone(context, prop, prop.model.backend, id_=params.pk)
-
-    content_type = None
-    filename = None
-
-    if 'content-type' in request.headers:
-        content_type = request.headers['content-type']
+    data = DataItem(prop.model, prop, propref=True, backend=prop.model.backend)
+    data.saved = getone(context, prop, prop.model.backend, id_=params.pk)
+    data.given = {
+        'content_type': request.headers.get('content-type'),
+        'filename': None,
+    }
 
     if 'content-disposition' in request.headers:
-        filename = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
+        data.given['filename'] = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
 
-    if content_type is None or filename is None:
-        data = data or {}
-        data.setdefault('content_type', None)
-        data.setdefault('filename', None)
+    if not data.given['filename']:
+        data.given['filename'] = params.pk
 
-        if content_type is None:
-            content_type = data['content_type']
-
-        if filename is None:
-            filename = data['filename'] or params.pk
-    else:
-        data = {
-            'content_type': None,
-            'filename': None,
-        }
-
-    filepath = backend.path / filename
+    filepath = backend.path / data.given['filename']
 
     if action in (Action.UPDATE, Action.PATCH):
         with open(filepath, 'wb') as f:
             async for chunk in request.stream():
                 f.write(chunk)
-        update = {
-            'content_type': content_type,
-            'filename': filename,
-        }
+        dstream = aiter([data])
+        dstream = prepare_patch(context, dstream)
+        dstream = commands.update(context, prop, prop.model.backend, dstream=dstream)
+
     elif action == Action.DELETE:
         if filepath.exists():
             filepath.unlink()
-        update = None
+        dstream = aiter([data])
+        dstream = prepare_patch(context, dstream)
+        dstream = commands.delete(context, prop, prop.model.backend, dstream=dstream)
+
     else:
         raise Exception(f"Unknown action {action!r}.")
 
-    if data != update:
-        commands.update(context, prop, prop.model.backend, id_=params.pk, data=update)
-
-    return render(context, request, prop, params, update, action=action)
+    status_code, response = await simple_response(context, dstream)
+    return render(context, request, prop, params, response, status_code=status_code)
 
 
 @getone.register()
@@ -144,10 +139,27 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, prop.model.backend, id_=params.pk)
+    data = data[prop.name]
     if data is None:
         raise ItemDoesNotExist(prop, id=params.pk)
     filename = data['filename'] or params.pk
     return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    backend: FileSystem,
+    *,
+    id_: str,
+):
+    data = getone(context, prop, prop.model.backend, id_=id_)
+    if data is None:
+        raise ItemDoesNotExist(prop, id=id_)
+    data = data[prop.name]
+    filename = data['filename'] or id_
+    return (prop.backend.path / filename).read_bytes()
 
 
 @wipe.register()
@@ -158,3 +170,16 @@ def wipe(context: Context, model: Model, backend: FileSystem):
             shutil.rmtree(path)
         else:
             path.unlink()
+
+
+@commands.create_changelog_entry.register()
+def create_changelog_entry(
+    context: Context,
+    model: Property,
+    backend: FileSystem,
+    *,
+    dstream: AsyncIterator[DataItem],
+) -> AsyncIterator[DataItem]:
+    # FileSystem properties don't have change log, change log entry will be
+    # created on property model backend.
+    return dstream

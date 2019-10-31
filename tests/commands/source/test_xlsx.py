@@ -3,9 +3,7 @@ import pathlib
 from responses import GET
 
 
-def test_xlsx(context, responses, mocker):
-    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REV')
-
+def test_xlsx(app, context, responses, mocker):
     responses.add(
         GET, 'http://example.com/data.xlsx',
         status=200, content_type='application/vnd.ms-excel',
@@ -16,43 +14,52 @@ def test_xlsx(context, responses, mocker):
     turas = '1c89290ef09005b332e84dcaba7873951c19216f'
     apygarda = '025685077bbcf6e434a95b65b9a6f5fcef046861'
     apylinke = '629f0976c1a04dbe6cf3e71b3085ec555d3f63bf'
+    kandidatas = '8159cf47118c31114c71a75ed06aa66b0476ad7a'
 
-    assert len(context.pull('xlsx')) > 0
-    assert list(context.getall('rinkimai', dataset='xlsx', resource='data')) == [
+    app.authmodel('rinkimai/:dataset/xlsx/:resource/data', ['getall'])
+    app.authmodel('rinkimai/turas/:dataset/xlsx/:resource/data', ['getall'])
+    app.authmodel('rinkimai/apygarda/:dataset/xlsx/:resource/data', ['getall'])
+    app.authmodel('rinkimai/apylinke/:dataset/xlsx/:resource/data', ['getall'])
+    app.authmodel('rinkimai/kandidatas/:dataset/xlsx/:resource/data', ['getall'])
+
+    data = context.pull('xlsx')
+    assert len(data) > 0
+    data = {d['_id']: d for d in data}
+    assert app.getdata('/rinkimai/:dataset/xlsx/:resource/data') == [
         {
-            'type': 'rinkimai/:dataset/xlsx/:resource/data',
-            'id': rinkimai,
-            'revision': 'REV',
+            '_type': 'rinkimai/:dataset/xlsx/:resource/data',
+            '_id': rinkimai,
+            '_revision': data[rinkimai]['_revision'],
             'data': '1992-10-25T00:00:00',
             'rusis': 'Seimo rinkimai',
             'pavadinimas': '1992 m. spalio 25 d. Lietuvos Respublikos Seimo rinkimai',
         },
     ]
-    assert list(context.getall('rinkimai/turas', dataset='xlsx', resource='data')) == [
+    assert app.getdata('/rinkimai/turas/:dataset/xlsx/:resource/data') == [
         {
-            'type': 'rinkimai/turas/:dataset/xlsx/:resource/data',
-            'id': turas,
-            'revision': 'REV',
+            '_type': 'rinkimai/turas/:dataset/xlsx/:resource/data',
+            '_id': turas,
+            '_revision': data[turas]['_revision'],
             'turas': 1,
             'rinkimai': rinkimai,
         },
     ]
-    assert list(context.getall('rinkimai/apygarda', dataset='xlsx', resource='data')) == [
+    assert app.getdata('/rinkimai/apygarda/:dataset/xlsx/:resource/data') == [
         {
-            'type': 'rinkimai/apygarda/:dataset/xlsx/:resource/data',
-            'id': apygarda,
-            'revision': 'REV',
+            '_type': 'rinkimai/apygarda/:dataset/xlsx/:resource/data',
+            '_id': apygarda,
+            '_revision': data[apygarda]['_revision'],
             'numeris': 2,
             'pavadinimas': 'Senamiesčio',
             'rinkimai': rinkimai,
             'turas': turas,
         },
     ]
-    assert list(context.getall('rinkimai/apylinke', dataset='xlsx', resource='data')) == [
+    assert app.getdata('/rinkimai/apylinke/:dataset/xlsx/:resource/data') == [
         {
-            'type': 'rinkimai/apylinke/:dataset/xlsx/:resource/data',
-            'id': apylinke,
-            'revision': 'REV',
+            '_type': 'rinkimai/apylinke/:dataset/xlsx/:resource/data',
+            '_id': apylinke,
+            '_revision': data[apylinke]['_revision'],
             'numeris': 0,
             'pavadinimas': 'Balsai, suskaičiuoti apygardos rinkimų komisijoje',
             'rinkimai': rinkimai,
@@ -60,11 +67,11 @@ def test_xlsx(context, responses, mocker):
             'apygarda': apygarda,
         },
     ]
-    assert list(context.getall('rinkimai/kandidatas', dataset='xlsx', resource='data')) == [
+    assert app.getdata('/rinkimai/kandidatas/:dataset/xlsx/:resource/data') == [
         {
-            'type': 'rinkimai/kandidatas/:dataset/xlsx/:resource/data',
-            'id': '8159cf47118c31114c71a75ed06aa66b0476ad7a',
-            'revision': 'REV',
+            '_type': 'rinkimai/kandidatas/:dataset/xlsx/:resource/data',
+            '_id': kandidatas,
+            '_revision': data[kandidatas]['_revision'],
             'vardas': 'NIJOLĖ',
             'pavarde': 'VAITIEKŪNIENĖ',
             'lytis': 'Moteris',

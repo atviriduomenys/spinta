@@ -13,16 +13,16 @@ def test_insert_get(model, app):
     app.authmodel(model, ['insert', 'getone'])
 
     resp = app.post(f'/{model}', json={
-        'type': model,
+        '_type': model,
         'status': '42',
     })
     assert resp.status_code == 201
 
     data = resp.json()
     assert data == {
-        'type': model,
-        'id': data['id'],
-        'revision': data['revision'],
+        '_type': model,
+        '_id': data['_id'],
+        '_revision': data['_revision'],
         'status': '42',
         'notes': [],
         'count': None,
@@ -33,12 +33,12 @@ def test_insert_get(model, app):
     }
 
     # Read those objects from database.
-    id_ = data['id']
+    id_ = data['_id']
     resp = app.get(f'/{model}/{id_}')
     assert resp.json() == {
-        'type': model,
-        'revision': data['revision'],
-        'id': id_,
+        '_type': model,
+        '_revision': data['_revision'],
+        '_id': id_,
         'status': '42',
         'notes': [],
         'count': None,
@@ -57,29 +57,29 @@ def test_update_get(model, app):
     app.authmodel(model, ['insert', 'update', 'getone', 'getall'])
 
     resp = app.post(f'/{model}', json={
-        'type': model,
+        '_type': model,
         'status': '42',
     })
     assert resp.status_code == 201
 
     # change report status
     data = resp.json()
-    id_ = data['id']
-    revision = data['revision']
+    id_ = data['_id']
+    revision = data['_revision']
     resp = app.put(f'/{model}/{id_}', json={
-        'revision': revision,
+        '_revision': revision,
         'status': '13',
     })
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.json()
 
     data = resp.json()
-    assert data['revision'] != revision
+    assert data['_revision'] != revision
 
-    revision = data['revision']
+    revision = data['_revision']
     assert data == {
-        'type': model,
-        'id': id_,
-        'revision': data['revision'],
+        '_type': model,
+        '_id': id_,
+        '_revision': data['_revision'],
         'status': '13',
         'notes': [],
         'count': None,
@@ -93,9 +93,9 @@ def test_update_get(model, app):
     resp = app.get(f'/{model}/{id_}')
     data = resp.json()
     assert data == {
-        'type': model,
-        'revision': revision,
-        'id': id_,
+        '_type': model,
+        '_revision': revision,
+        '_id': id_,
         'status': '13',
         'notes': [],
         'count': None,
@@ -109,13 +109,13 @@ def test_update_get(model, app):
     resp = app.get(f'/{model}')
     data = resp.json()
     assert data == {
-        'data': [
+        '_data': [
             {
-                'type': model,
-                'id': id_,
+                '_type': model,
+                '_id': id_,
+                '_revision': revision,
                 'notes': [],
                 'report_type': None,
-                'revision': revision,
                 'status': '13',
                 'update_time': None,
                 'valid_from_date': None,
@@ -149,11 +149,11 @@ def test_get_non_existant_subresource(model, context, app):
     app.authmodel(model, ['insert', 'getone'])
 
     resp = app.post(f'/{model}', json={
-        'type': 'report',
+        '_type': 'report',
         'status': '42',
     })
     assert resp.status_code == 201
-    id_ = resp.json()['id']
+    id_ = resp.json()['_id']
 
     manifest = context.get('store').manifests['default']
     resp = app.get(f'/{model}/{id_}/foo')
@@ -174,28 +174,29 @@ def test_get_non_existant_subresource(model, context, app):
     }]}
 
 
-# FIXME: postgres throws 500 when cannot find resource instead of 404
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',
 )
-def test_delete(model, context, app, tmpdir):
-    result = context.push([
-        {'type': model, 'status': '1'},
-        {'type': model, 'status': '2'},
-    ])
-    ids = [x['id'] for x in result]
-
+def test_delete(model, app, tmpdir):
     # FIXME: `spinta_report_pdf_delete` gives access to:
     # DELETE /report/ID/pdf
     # DELETE /report/pdf/ID
     app.authmodel(model, [
+        'insert',
         'getall',
         'delete',
         'pdf_delete',
         'pdf_update',
         'pdf_getone',
     ])
+
+    resp = app.post(f'/{model}', json={'_data': [
+        {'_op': 'insert', '_type': model, 'status': '1'},
+        {'_op': 'insert', '_type': model, 'status': '2'},
+    ]})
+    assert resp.status_code == 200, resp.json()
+    ids = [x['_id'] for x in resp.json()['_data']]
 
     pdf = pathlib.Path(tmpdir) / 'report.pdf'
     pdf.write_bytes(b'REPORTDATA')
@@ -207,7 +208,7 @@ def test_delete(model, context, app, tmpdir):
     assert resp.status_code == 200
 
     resp = app.get(f'/{model}').json()
-    data = [x['id'] for x in resp['data']]
+    data = [x['_id'] for x in resp['_data']]
     assert ids[0] in data
     assert ids[1] in data
 
@@ -244,7 +245,7 @@ def test_delete(model, context, app, tmpdir):
     # assert pdf.is_file() is False
 
     resp = app.get(f'/{model}').json()
-    data = [x['id'] for x in resp['data']]
+    data = [x['_id'] for x in resp['_data']]
     assert ids[0] not in data
     assert ids[1] in data
 
@@ -254,110 +255,104 @@ def test_delete(model, context, app, tmpdir):
     'backends/postgres/report',
 )
 def test_patch(model, app, context):
+    app.authorize(['spinta_set_meta_fields'])
     app.authmodel(model, ['insert', 'getone', 'patch'])
 
     report_data = app.post(f'/{model}', json={
-        'type': model,
+        '_type': model,
         'status': '1',
     }).json()
-    id_ = report_data['id']
+    id_ = report_data['_id']
 
-    resp = app.patch(f'/{model}/{id_}',
-                     json={'status': '42'})
+    resp = app.patch(f'/{model}/{id_}', json={
+        '_revision': report_data['_revision'],
+        'status': '42',
+    })
     assert resp.status_code == 200
     assert resp.json()['status'] == '42'
-    revision = resp.json()['revision']
+    revision = resp.json()['_revision']
 
     # test that revision mismatch is checked
-    resp = app.patch(f'/{model}/{id_}',
-                     json={'revision': 'r3v1510n', 'status': '42'})
+    resp = app.patch(f'/{model}/{id_}', json={
+        '_revision': 'r3v1510n',
+        'status': '42',
+    })
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
-    assert get_error_context(
-        resp.json(),
-        "ConflictingValue",
-        ["given", "expected", "model"],
-    ) == {
+    assert get_error_context(resp.json(), "ConflictingValue", ["given", "expected", "model"]) == {
         'given': 'r3v1510n',
         'expected': revision,
         'model': model,
     }
 
-    resp = app.patch(f'/{model}/{id_}',
-                     json={'revision': '', 'status': '42'})
+    resp = app.patch(f'/{model}/{id_}', json={
+        '_revision': '',
+        'status': '42'
+    })
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
-    assert get_error_context(
-        resp.json(),
-        "ConflictingValue",
-        ["given", "expected", "model"],
-    ) == {
+    assert get_error_context(resp.json(), "ConflictingValue", ["given", "expected", "model"]) == {
         'given': '',
         'expected': revision,
         'model': model,
     }
 
-    resp = app.patch(f'/{model}/{id_}',
-                     json={'revision': None, 'status': '42'})
+    resp = app.patch(f'/{model}/{id_}', json={
+        '_revision': None,
+        'status': '42',
+    })
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
-    assert get_error_context(
-        resp.json(),
-        "ConflictingValue",
-        ["given", "expected", "model"],
-    ) == {
+    assert get_error_context(resp.json(), "ConflictingValue", ["given", "expected", "model"]) == {
         'given': None,
         'expected': revision,
         'model': model,
     }
 
     # test that type mismatch is checked
-    resp = app.patch(f'/{model}/{id_}',
-                     json={'type': 'country', 'revision': revision, 'status': '42'})
+    resp = app.patch(f'/{model}/{id_}', json={
+        '_type': 'country',
+        '_revision': revision,
+        'status': '42',
+    })
     assert resp.status_code == 409
     assert get_error_codes(resp.json()) == ["ConflictingValue"]
-    assert get_error_context(
-        resp.json(),
-        "ConflictingValue",
-        ["given", "expected", "model"],
-    ) == {
+    assert get_error_context(resp.json(), "ConflictingValue", ["given", "expected", "model"]) == {
         'given': 'country',
         'expected': model,
         'model': model,
     }
 
     # test that id mismatch is checked
-    resp = app.patch(f'/{model}/{id_}',
-                     json={'id': '0007ddec-092b-44b5-9651-76884e6081b4', 'revision': revision, 'status': '42'})
-    assert resp.status_code == 409
-    assert get_error_codes(resp.json()) == ["ConflictingValue"]
-    assert get_error_context(
-        resp.json(),
-        "ConflictingValue",
-        ["given", "expected", "model"],
-    ) == {
-        'given': '0007ddec-092b-44b5-9651-76884e6081b4',
-        'expected': id_,
-        'model': model,
-    }
-
-    # test that protected fields (id, type, revision) are accepted, but not PATCHED
-    resp = app.patch(f'/{model}/{id_}',
-                     json={
-                         'id': id_,
-                         'type': model,
-                         'revision': revision,
-                         'status': '42',
-                     })
+    resp = app.patch(f'/{model}/{id_}', json={
+        '_id': '0007ddec-092b-44b5-9651-76884e6081b4',
+        '_revision': revision,
+        'status': '42',
+    })
     assert resp.status_code == 200
-    resp_data = resp.json()
+    data = resp.json()
+    assert revision != data['_revision']
+    revision = data['_revision']
+    assert resp.json() == {
+        '_id': '0007ddec-092b-44b5-9651-76884e6081b4',
+        '_revision': revision,
+        '_type': model,
+    }
+    id_ = data['_id']
 
-    assert resp_data['id'] == id_
-    assert resp_data['type'] == model
-    # new status patched
-    assert resp_data['status'] == '42'
-    # new revision created regardless of PATCH'ed JSON
-    assert resp_data['revision'] != revision
+    # test that protected fields (_id, _type, _revision) are accepted, but not PATCHED
+    resp = app.patch(f'/{model}/{id_}', json={
+        '_id': id_,
+        '_type': model,
+        '_revision': revision,
+        'status': '42',
+    })
+    assert resp.status_code == 200
+    assert resp.json() == {
+        '_type': model,
+        '_id': id_,
+        '_revision': revision,
+    }
 
 
 @pytest.mark.models(
@@ -368,12 +363,12 @@ def test_escaping_chars(model, app):
     app.authmodel(model, ['insert', 'getone'])
 
     resp = app.post(f'/{model}', json={
-        'type': model,
+        '_type': model,
         'status': 'application/json',
     })
     assert resp.status_code == 201
     data = resp.json()
 
-    resp = app.get(f'/{model}/{data["id"]}')
+    resp = app.get(f'/{model}/{data["_id"]}')
     assert resp.status_code == 200
     assert resp.json()['status'] == 'application/json'

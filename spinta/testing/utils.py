@@ -17,8 +17,8 @@ def create_manifest_files(tmpdir, manifest):
 
 
 def get_error_codes(response):
-    assert response["errors"]
-    return [err["code"] for err in response["errors"]]
+    assert 'errors' in response, response
+    return [err['code'] for err in response['errors']]
 
 
 def get_error_context(response, error_code, ctx_keys: List[str] = None):

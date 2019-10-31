@@ -1,4 +1,4 @@
-from typing import Union, List, Type
+from typing import Union, List
 
 from spinta import exceptions
 

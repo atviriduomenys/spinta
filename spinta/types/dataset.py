@@ -1,5 +1,6 @@
 from typing import Dict
 
+import logging
 import itertools
 import pathlib
 import requests
@@ -18,6 +19,8 @@ from spinta import commands
 from spinta import exceptions
 from spinta.nodes import load_namespace, load_model_properties
 from spinta import components
+
+log = logging.getLogger(__name__)
 
 
 class Dataset(Node):
@@ -98,11 +101,11 @@ class Model(Node):
 
     def __repr__(self):
         return (
-            f'<{self.__class__.__module__}.{self.__class__.__name__}('
-            f' name={self.name!r},'
+            f'<{self.__class__.__module__}.{self.__class__.__name__}'
+            f'(name={self.name!r},'
             f' dataset={self.parent.parent.name!r}'
             f' resource={self.parent.name!r},'
-            f' origin={self.origin!r},'
+            f' origin={self.origin!r}'
             ')>'
         )
 
@@ -144,6 +147,9 @@ class Property(Node):
         self.replace = None
         self.dependency = None
         self.hidden = False
+
+    def __repr__(self):
+        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}, type={self.dtype.name!r})>'
 
 
 @load.register()
@@ -320,7 +326,7 @@ def pull(context: Context, dataset: Dataset, *, models: list = None):
 def _pull(context: Context, model: Model, source, dependency):
     rows = pull(context, source, model, params=dependency)
     for row in rows:
-        data = {'type': model.model_type()}
+        data = {'_type': model.model_type()}
         for prop in model.properties.values():
             if isinstance(prop.source, list):
                 data[prop.name] = [
@@ -334,8 +340,10 @@ def _pull(context: Context, model: Model, source, dependency):
             if prop.dtype.name == 'ref' and prop.dtype.object and prop.name in data:
                 data[prop.name] = get_ref_id(data[prop.name])
 
-        if _check_key(data.get('id')):
-            data['id'] = get_ref_id(data['id'])
+        if _check_key(data.get('_id')):
+            data['_id'] = get_ref_id(data['_id'])
+            data['_op'] = 'upsert'
+            data['_where'] = '_id=' + data['_id']
             yield data
 
 
@@ -397,7 +405,12 @@ def _get_value_from_source(context: Context, prop: Property, source, data: dict,
     if prop.dependency:
         return dependency.get(source.name)
     else:
-        return pull(context, source, prop, data=data)
+        value = pull(context, source, prop, data=data)
+        try:
+            value = commands.coerce_source_value(context, source, prop, prop.dtype, value)
+        except ValueError as e:
+            log.exception(str(exceptions.InvalidValue(prop.dtype, value=value, error=str(e))))
+        return value
 
 
 @authorize.register()
@@ -445,6 +458,9 @@ def load_source(context: Context, node: Node, params: dict):
 
 @commands.get_referenced_model.register()
 def get_referenced_model(context: Context, prop: Property, ref: str):
+    # XXX: I'm not sure if this is a good idea. I think, explicit reference
+    #      names would be more reliable.
+
     model = prop.model
 
     # Self reference.
@@ -465,7 +481,7 @@ def get_referenced_model(context: Context, prop: Property, ref: str):
         if resource.name == model.parent.name:
             # We already checked this resource.
             continue
-        for origin in model.parent.objects.values():
+        for origin in resource.objects.values():
             if ref in origin:
                 return origin[ref]
 

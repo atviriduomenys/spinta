@@ -7,7 +7,7 @@ title: "Report"
 version: 1
 date: "2019-04-17"
 properties:
-  id: {type: pk}
+  _id: {type: pk}
   revision: {type: string}
   report_type: {type: string}
   status: {type: string}

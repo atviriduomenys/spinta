@@ -87,6 +87,40 @@ def check():
 
 
 @command()
+def simple_data_check():
+    """Run a simple data check.
+
+    Check data by using restrictions given in schema, do not run any business
+    logic. Also simple data check should not do any database queries.
+
+    Simple data check is run early, before retrieving exisisting data from
+    database.
+
+    Later a complex data check is run with existing data loaded from database.
+    """
+
+
+@command()
+def complex_data_check():
+    """Run a complex data check.
+
+    At this point, simple data check is already done and data is passed simple
+    validation.
+
+    Complex data check will receive existing data in database, additional
+    queries can be run to do more complex validations.
+    """
+
+
+@command()
+def check_unique_constraint():
+    """Check if value is unique.
+
+    This check is only performed when peroperty has unique property set to true.
+    """
+
+
+@command()
 def prepare():
     """Prepare value.
 
@@ -274,3 +308,18 @@ def make_json_serializable():
 @command()
 def get_error_context():
     """Get error context for a given object."""
+
+
+@command()
+def in_namespace():
+    """Check if `a` is in `b` namespace."""
+
+
+@command()
+def create_changelog_entry():
+    """Create new changelog entry."""
+
+
+@command()
+def coerce_source_value():
+    """Coerce value received from external data source to python native type."""

@@ -4,9 +4,7 @@ import pathlib
 from responses import GET
 
 
-def test_xml(context, responses, mocker):
-    mocker.patch('spinta.backends.postgresql.dataset.get_new_id', return_value='REV')
-
+def test_xml(app, context, responses):
     responses.add(
         GET, 'http://example.com/data.xml',
         status=200, content_type='application/xml; charset=utf-8',
@@ -14,20 +12,24 @@ def test_xml(context, responses, mocker):
         stream=True,
     )
 
-    assert len(context.pull('xml')) == 8
-    assert sorted(context.getall('tenure', dataset='xml', resource='data'), key=operator.itemgetter('id'))[:2] == [
+    app.authmodel('tenure/:dataset/xml/:resource/data', ['getall'])
+
+    data = context.pull('xml')
+    assert len(data) == 8
+    data = {d['_id']: d for d in data}
+    assert sorted(app.getdata('/tenure/:dataset/xml/:resource/data'), key=operator.itemgetter('_id'))[:2] == [
         {
-            'type': 'tenure/:dataset/xml/:resource/data',
-            'id': '11a0764da48b674ce0c09982e7c43002b510d5b5',
-            'revision': 'REV',
+            '_type': 'tenure/:dataset/xml/:resource/data',
+            '_id': '11a0764da48b674ce0c09982e7c43002b510d5b5',
+            '_revision': data['11a0764da48b674ce0c09982e7c43002b510d5b5']['_revision'],
             'title': '1996–2000 metų kadencija',
             'since': '1996-11-25',
             'until': '2000-10-18',
         },
         {
-            'type': 'tenure/:dataset/xml/:resource/data',
-            'id': '1cc7ac9d26603972f6c471a284ff37b9868854d9',
-            'revision': 'REV',
+            '_type': 'tenure/:dataset/xml/:resource/data',
+            '_id': '1cc7ac9d26603972f6c471a284ff37b9868854d9',
+            '_revision': data['1cc7ac9d26603972f6c471a284ff37b9868854d9']['_revision'],
             'title': '2016–2020 metų kadencija',
             'since': '2016-11-14',
             'until': '',

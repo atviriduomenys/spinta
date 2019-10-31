@@ -2,6 +2,8 @@ import typing
 
 from datetime import date, datetime
 
+import pyrql
+
 from spinta.commands import load, is_object_id
 from spinta.components import Context, Manifest, Node
 from spinta.utils.schema import resolve_schema
@@ -157,8 +159,19 @@ class File(DataType):
     pass
 
 
+class RQL(DataType):
+    pass
+
+
 @load.register()
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
+    return dtype
+
+
+@load.register()
+def load(context: Context, dtype: PrimaryKey, data: dict, manifest: Manifest) -> DataType:
+    if dtype.prop.name != '_id':
+        raise exceptions.InvalidManagedPropertyName(dtype, name='_id')
     return dtype
 
 
@@ -237,6 +250,10 @@ def load(context: Context, dtype: DataType, value: object) -> object:
 
 @load.register()
 def load(context: Context, dtype: PrimaryKey, value: object) -> list:
+    if value is NA:
+        return value
+    if value is None:
+        raise exceptions.InvalidValue(dtype)
     model = dtype.prop.model
     backend = model.backend
     if not is_object_id(context, backend, model, value):
@@ -276,6 +293,15 @@ def load(context: Context, dtype: Object, value: object) -> dict:
         if k in loaded_obj:
             new_loaded_obj[k] = load(context, v.dtype, loaded_obj[k])
     return new_loaded_obj
+
+
+@load.register()
+def load(context: Context, dtype: RQL, value: str) -> dict:
+    rql = pyrql.parse(value)
+    if rql['name'] == 'and':
+        return rql['args']
+    else:
+        return [rql]
 
 
 @commands.get_error_context.register()

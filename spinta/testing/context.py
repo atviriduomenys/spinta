@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import typing
 import collections
@@ -5,13 +6,14 @@ import collections
 from toposort import toposort
 
 from spinta import commands
-from spinta.components import Node, Action
+from spinta.components import Node
 from spinta.auth import AdminToken
-from spinta.urlparams import get_model_by_name
 from spinta import components
 from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
 from spinta.utils.imports import importstr
 from spinta.config import load_commands
+from spinta.utils.aiotools import alist, aiter
+from spinta.commands.write import push_stream, dataitem_from_payload
 
 
 def create_test_context(config, *, name='pytest'):
@@ -60,52 +62,18 @@ class ContextForTests:
         models = models or []
         with self.transaction(write=push) as context:
             try:
-                data = list(commands.pull(context, dataset, models=models))
+                stream = list(commands.pull(context, dataset, models=models))
             except Exception:
                 raise Exception(f"Error while processing '{dataset.path}'.")
-            data = context.push(data) if push else data
-        return data
-
-    def push(self, data):
-        result = []
-        store = self.get('store')
-        manifest = store.manifests['default']
-        with self.transaction(write=True) as context:
-            for d in data:
-                d = dict(d)
-                type_ = d.pop('type', None)
-                assert type_ is not None, d
-                model = get_model_by_name(context, manifest, type_)
-                if 'id' in d:
-                    action = Action.UPSERT
-                else:
-                    action = Action.INSERT
-                d = commands.prepare(context, model, d, action=action)
-                if action == Action.UPSERT:
-                    id_ = commands.upsert(context, model, model.backend, key=['id'], data=d)
-                else:
-                    id_ = commands.insert(context, model, model.backend, data=d)
-                if id_ is not None:
-                    result.append({
-                        'type': type_,
-                        'id': id_,
-                    })
-        return result
-
-    def getone(self, model: str, id_, *, dataset: str = None, resource: str = None):
-        model = self._get_model(model, dataset, resource)
-        with self.transaction() as context:
-            return commands.getone(context, model, model.backend, id_=id_)
-
-    def getall(self, model: str, *, dataset: str = None, resource: str = None, **kwargs):
-        model = self._get_model(model, dataset, resource)
-        with self.transaction() as context:
-            return list(commands.getall(context, model, model.backend, **kwargs))
-
-    def changes(self, model: str, *, dataset: str = None, resource: str = None, **kwargs):
-        model = self._get_model(model, dataset, resource)
-        with self.transaction() as context:
-            return list(commands.changes(context, model, model.backend, **kwargs))
+            if push:
+                stream = push_stream(context, aiter(
+                    dataitem_from_payload(context, dataset, data)
+                    for data in stream
+                ))
+                # XXX: I don't like that, pull should be a coroutine.
+                stream = asyncio.get_event_loop().run_until_complete(alist(stream))
+                stream = [{**(d.saved or {}), **d.patch} for d in stream if d.patch]
+        return stream
 
     def wipe(self, model: str, *, dataset: str = None, resource: str = None):
         model = self._get_model(model, dataset, resource)

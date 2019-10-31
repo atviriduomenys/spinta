@@ -2,42 +2,32 @@ import contextlib
 import datetime
 import re
 import typing
+import types
 
 import pymongo
 
-from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.auth import check_scope
-from spinta.backends import Backend, check_model_properties, check_type_value
-from spinta.components import Context, Manifest, Model, Property, Action, UrlParams
-from spinta.common import NA
+from spinta.backends import Backend
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataStream, DataItem
 from spinta.config import RawConfig
 from spinta.renderer import render
-from spinta.types.datatype import Date, File, DataType
-from spinta.utils.changes import get_patch_changes
-from spinta.utils.idgen import get_new_id
-from spinta.utils.response import get_request_data
-
+from spinta.types.datatype import Date, DataType
 from spinta.commands import (
     authorize,
-    check,
     dump,
-    gen_object_id,
     getall,
     getone,
     load,
     load_search_params,
     migrate,
     prepare,
-    push,
     wait,
     wipe,
 )
 from spinta.exceptions import (
     ItemDoesNotExist,
-    ManagedProperty,
     UniqueConstraint,
 )
 from spinta import exceptions
@@ -110,368 +100,123 @@ def migrate(context: Context, backend: Mongo):
     pass
 
 
-@check.register()
-def check(context: Context, model: Model, backend: Mongo, data: dict, *, action: Action, id_: str):
-    check_model_properties(context, model, backend, data, action, id_)
-
-
-@check.register()
-def check(context: Context, dtype: File, prop: Property, backend: Mongo, value: dict, *, data: dict, action: Action):
-    if prop.backend.name != backend.name:
-        check(context, dtype, prop, prop.backend, value, data=data, action=action)
-
-
-@check.register()
-def check(context: Context, dtype: DataType, prop: Property, backend: Mongo, value: object, *, data: dict, action: Action):
-    check_type_value(dtype, value)
-
+@commands.check_unique_constraint.register()
+def check_unique_constraint(
+    context: Context,
+    data: DataItem,
+    dtype: DataType,
+    prop: Property,
+    backend: Mongo,
+    value: object,
+):
     model = prop.model
     table = backend.db[model.model_type()]
-
-    if dtype.unique and value is not NA:
-        # PATCH requests are allowed to send protected fields in requests JSON
-        # PATCH handling will use those fields for validating data, though
-        # won't change them.
-        if action == Action.PATCH and dtype.prop.name in {'id', 'type', 'revision'}:
-            return
-        result = table.find_one({'id': data['id']})
-        if result is not None:
-            raise UniqueConstraint(prop)
-
-
-@push.register()
-async def push(
-    context: Context,
-    request: Request,
-    model: Model,
-    backend: Mongo,
-    *,
-    action: Action,
-    params: UrlParams,
-):
-    authorize(context, action, model)
-
-    if action == Action.DELETE:
-        data = {}
+    # XXX: Probably we should move this out of mongo backend and implement
+    #      this on spinta.commands.write. For example, read_existing_data
+    #      could try to read existing record if `_id` or any other unique
+    #      field is given. Also this would fix case, when multiple
+    #      properties are given as unique constraint.
+    if prop.name == '_id':
+        name = '__id'
     else:
-        data = await get_request_data(model, request)
-        data = load(context, model, data)
-        check(context, model, backend, data, action=action, id_=params.pk)
-        data = prepare(context, model, data, action=action)
-
-    transaction = context.get('transaction')  # noqa
-
-    if action == Action.INSERT:
-        data['id'] = commands.insert(context, model, backend, data=data)
-
-    elif action == Action.UPSERT:
-        data['id'] = commands.upsert(context, model, backend, data=data)
-
-    elif action == Action.UPDATE:
-        data['id'] = params.pk
-        # FIXME: check if revision given in `data` matches the revision in database
-        # related to SPLAT-60
-        data['revision'] = get_new_id('revision id')
-        commands.update(context, model, backend, id_=params.pk, data=data)
-
-    elif action == Action.PATCH:
-        data['id'] = params.pk
-        data['revision'] = get_new_id('revision id')
-        commands.patch(context, model, backend, id_=params.pk, data=data)
-
-    elif action == Action.DELETE:
-        data['id'] = params.pk
-        data['revision'] = get_new_id('revision id')
-        commands.delete(context, model, backend, id_=params.pk)
-
+        name = prop.name
+    # TODO: Add support for nested properties.
+    # FIXME: Exclude currently saved value.
+    #        In case of an update, exclude currently saved value from
+    #        uniqueness check.
+    if data.action in (Action.UPDATE, Action.PATCH):
+        result = table.find_one({
+            name: value,
+            '__id': {'$ne': data.saved['_id']},
+        })
     else:
-        raise Exception(f"Unknown action: {action!r}.")
-
-    data = prepare(context, action, model, backend, data)
-
-    if action == Action.INSERT:
-        status_code = 201
-    elif action == Action.DELETE:
-        status_code = 204
-    else:
-        status_code = 200
-
-    return render(context, request, model, params, data, action=action, status_code=status_code)
+        result = table.find_one({name: value})
+    if result is not None:
+        raise UniqueConstraint(prop, value=value)
 
 
 @commands.insert.register()
-def insert(
+async def insert(
     context: Context,
     model: Model,
     backend: Mongo,
     *,
-    data: dict,
+    dstream: DataStream,
+    stop_on_error: bool = True,
 ):
     table = backend.db[model.model_type()]
-
-    if 'id' in data:
-        check_scope(context, 'set_meta_fields')
-    else:
-        data['id'] = gen_object_id(context, backend, model)
-
-    if 'revision' in data:
-        raise ManagedProperty(model, property='revision')
-    # FIXME: before creating revision check if there's no collision clash
-    data['revision'] = get_new_id('revision id')
-
-    table.insert_one(data)
-
-    return data['id']
-
-
-@commands.upsert.register()
-def upsert(
-    context: Context,
-    model: Model,
-    backend: Mongo,
-    *,
-    key: typing.List[str],
-    data: dict,
-):
-    table = backend.db[model.model_type()]
-
-    condition = []
-    for k in key:
-        condition.append({k: data[k]})
-
-    row = table.find_one({'$and': condition})
-
-    if row is None:
-        if 'id' in data:
-            id_ = data['id']
-        else:
-            id_ = commands.gen_object_id(context, backend, model)
-
-        if 'revision' in data.keys():
-            raise ManagedProperty(model, property='revision')
-        data['revision'] = get_new_id('revision id')
-
-        table.insert_one(data)
-
-    else:
-        id_ = row['_id']
-
-        data = _patch(table, id_, row, data)
-
-        if data is None:
-            # Nothing changed.
-            return None
-
-    # Track changes.
-    # TODO: add to changelog
-
-    return id_
-
-
-@commands.patch.register()
-def patch(
-    context: Context,
-    model: Model,
-    backend: Mongo,
-    *,
-    id_: str,
-    data: dict,
-):
-    table = backend.db[model.model_type()]
-
-    row = table.find_one({'id': id_})
-    if row is None:
-        raise ItemDoesNotExist(model, id=id_)
-
-    data = _patch(table, id_, row, data)
-
-    if data is None:
-        # Nothing changed.
-        return None
-
-    # Track changes.
-    # TODO: add to changelog
-
-    return data
-
-
-def _patch(table, id_, row, data):
-    changes = get_patch_changes(row, data)
-
-    if not changes:
-        # Nothing to update.
-        return None
-
-    # sanity check that we are not PATCH'ing `id` and `type` fields
-    assert changes.get('id') is None
-    assert changes.get('type') is None
-
-    result = table.update_one(
-        {'id': id_},
-        {'$set': changes},
-    )
-
-    assert result.matched_count == 1, (
-        f"matched: {result.matched_count}, modified: {result.modified_count}"
-    )
-
-    return changes
-
-
-@commands.delete.register()
-def delete(
-    context: Context,
-    model: Model,
-    backend: Mongo,
-    *,
-    id_: str,
-):
-    table = backend.db[model.model_type()]
-    result = table.delete_one({'id': id_})
-    if result.deleted_count == 0:
-        raise ItemDoesNotExist(model, id=id_)
-
-
-@push.register()
-async def push(
-    context: Context,
-    request: Request,
-    prop: Property,
-    backend: Mongo,
-    *,
-    action: Action,
-    params: UrlParams,
-):
-    if action == Action.INSERT:
-        raise HTTPException(status_code=400, detail=f"Can't POST to a property, use PUT or PATCH instead.")
-
-    authorize(context, action, prop)
-
-    data = await get_request_data(prop, request)
-
-    data = load(context, prop.dtype, data)
-    check(context, prop.dtype, prop, backend, data, data=None, action=action)
-    data = prepare(context, prop.dtype, backend, data)
-
-    if action == Action.UPDATE:
-        commands.update(context, prop, backend, id_=params.pk, data=data)
-    elif action == Action.PATCH:
-        commands.patch(context, prop, backend, id_=params.pk, data=data)
-    elif action == Action.DELETE:
-        commands.delete(context, prop, backend, id_=params.pk)
-    else:
-        raise Exception(f"Unknown action {action}.")
-
-    data = dump(context, backend, prop.dtype, data)
-    return render(context, request, prop, params, data, action=action)
+    async for data in dstream:
+        # TODO: Insert batches in a single query, using `insert_many`.
+        table.insert_one({
+            '__id': data.patch['_id'],
+            '_revision': data.patch['_revision'],
+            **{k: v for k, v in data.patch.items() if not k.startswith('_')},
+        })
+        data.saved = data.patch.copy()
+        yield data
 
 
 @commands.update.register()
-def update(
+async def update(
     context: Context,
     model: Model,
     backend: Mongo,
     *,
-    id_: str,
-    data: dict,
+    dstream: dict,
+    stop_on_error: bool = True,
 ):
     table = backend.db[model.model_type()]
-    result = table.update_one(
-        {'id': id_},
-        {'$set': data}
-    )
-    assert result.matched_count == 1 and result.modified_count == 1, (
-        f"matched: {result.matched_count}, modified: {result.modified_count}"
-    )
+    async for data in dstream:
+        if not data.patch:
+            yield data
+            continue
+
+        values = {k: v for k, v in data.patch.items() if not k.startswith('_')}
+        values['_revision'] = data.patch['_revision']
+        if '_id' in data.patch:
+            values['__id'] = data.patch['_id']
+        result = table.update_one(
+            {
+                '__id': data.saved['_id'],
+                '_revision': data.saved['_revision'],
+            },
+            {'$set': values}
+        )
+        if result.matched_count == 0:
+            raise ItemDoesNotExist(
+                model,
+                id=data.saved['_id'],
+                revision=data.saved['_revision'],
+            )
+        assert result.matched_count == 1 and result.modified_count == 1, (
+            f"matched: {result.matched_count}, modified: {result.modified_count}"
+        )
+        yield data
 
 
-@commands.update.register()  # noqa
-def update(
+@commands.delete.register()
+async def delete(
     context: Context,
-    prop: Property,
+    model: Model,
     backend: Mongo,
     *,
-    id_: str,
-    data: dict,
+    dstream: dict,
+    stop_on_error: bool = True,
 ):
-    table = backend.db[prop.model.model_type()]
-    result = table.update_one(
-        {'id': id_},
-        {'$set': {prop.name: data}}
-    )
-    assert result.matched_count == 1, (
-        f"matched: {result.matched_count}, modified: {result.modified_count}"
-    )
-
-
-@commands.patch.register()  # noqa
-def patch(
-    context: Context,
-    prop: Property,
-    backend: Mongo,
-    *,
-    id_: str,
-    data: dict,
-):
-    table = backend.db[prop.model.model_type()]
-    row = table.find_one({'id': id_}, {prop.name: 1})
-    if row is None:
-        raise ItemDoesNotExist(prop, id=id_)
-
-    data = _patch_property(table, id_, prop, row, data)
-
-    if data is None:
-        # Nothing changed.
-        return None
-
-    # Track changes.
-    # TODO: add to changelog
-
-    return data
-
-
-def _patch_property(table, id_, prop, row, data):
-    changes = get_patch_changes(row[prop.name], data[prop.name])
-
-    if not changes:
-        # Nothing to update.
-        return None
-
-    result = table.update_one(
-        {'id': id_},
-        {'$set': {
-            prop.name: changes,
-        }},
-    )
-
-    if result.matched_count == 0:
-        raise ItemDoesNotExist(prop, id=id_)
-
-    assert result.matched_count == 1, (
-        f"matched: {result.matched_count}, modified: {result.modified_count}"
-    )
-
-    return changes
-
-
-@commands.delete.register()  # noqa
-def delete(
-    context: Context,
-    prop: Property,
-    backend: Mongo,
-    *,
-    id_: str,
-):
-    table = backend.db[prop.model.model_type()]
-    result = table.update_one(
-        {'id': id_},
-        {'$set': {
-            prop.name: None,
-        }},
-    )
-    assert result.matched_count == 1, (
-        f"matched: {result.matched_count}, modified: {result.modified_count}"
-    )
+    table = backend.db[model.model_type()]
+    async for data in dstream:
+        result = table.delete_one({
+            '__id': data.saved['_id'],
+            '_revision': data.saved['_revision'],
+        })
+        if result.deleted_count == 0:
+            # FIXME: Respect stop_on_error flag.
+            raise ItemDoesNotExist(
+                model,
+                id=data.saved['_id'],
+                revision=data.saved['_revision'],
+            )
+        yield data
 
 
 @getone.register()
@@ -499,9 +244,10 @@ def getone(
     id_: str,
 ):
     table = backend.db[model.model_type()]
-    data = table.find_one({'id': id_})
+    data = table.find_one({'__id': id_})
     if data is None:
         raise ItemDoesNotExist(model, id=id_)
+    data['_id'] = data['__id']
     return data
 
 
@@ -530,10 +276,18 @@ def getone(
     id_: str,
 ):
     table = backend.db[prop.model.model_type()]
-    data = table.find_one({'id': id_}, {prop.name: 1})
+    data = table.find_one({'__id': id_}, {
+        '__id': 1,
+        '_revision': 1,
+        prop.name: 1,
+    })
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
-    return data.get(prop.name)
+    return {
+        '_id': data['__id'],
+        '_revision': data['_revision'],
+        prop.name: data.get(prop.name),
+    }
 
 
 @getall.register()
@@ -598,6 +352,11 @@ def getall(
         prop = model.flatprops[key]
         name = qp['name']
 
+        if key == '_id':
+            key = '__id'
+        elif key.startswith('_'):
+            raise exceptions.FieldNotInResource(model, property=key)
+
         # for search to work on MongoDB, values must be compatible for
         # Mongo's BSON consumption, thus we need to use chained load and prepare
         value = load_search_params(context, prop.dtype, backend, qp)
@@ -610,23 +369,23 @@ def getall(
 
         if name == 'eq':
             search_expressions.append({
-                prop.place: re_value
+                key: re_value
             })
         elif name == 'gt':
             search_expressions.append({
-                prop.place: {'$gt': re_value}
+                key: {'$gt': re_value}
             })
         elif name == 'ge':
             search_expressions.append({
-                prop.place: {'$gte': re_value}
+                key: {'$gte': re_value}
             })
         elif name == 'lt':
             search_expressions.append({
-                prop.place: {'$lt': re_value}
+                key: {'$lt': re_value}
             })
         elif name == 'le':
             search_expressions.append({
-                prop.place: {'$lte': re_value}
+                key: {'$lte': re_value}
             })
         elif name == 'ne':
             # MongoDB's $ne operator does not consume regular expresions for values,
@@ -635,11 +394,11 @@ def getall(
             # not - use $ne
             if isinstance(re_value, re.Pattern):
                 search_expressions.append({
-                    prop.place: {'$not': re_value}
+                    key: {'$not': re_value}
                 })
             else:
                 search_expressions.append({
-                    prop.place: {'$ne': re_value}
+                    key: {'$ne': re_value}
                 })
         elif name == 'contains':
             try:
@@ -650,7 +409,7 @@ def getall(
                 re_value = value
 
             search_expressions.append({
-                prop.place: re_value
+                key: re_value
             })
         elif name == 'startswith':
             # https://stackoverflow.com/a/3483399
@@ -662,7 +421,7 @@ def getall(
                 re_value = value
 
             search_expressions.append({
-                prop.place: re_value
+                key: re_value
             })
         else:
             raise exceptions.UnknownOperator(prop, operator=name)
@@ -693,6 +452,7 @@ def getall(
         ])
 
     for row in cursor:
+        row['_id'] = row.pop('__id')
         yield prepare(context, action, model, backend, row, select=select)
 
 
@@ -707,3 +467,28 @@ def wipe(context: Context, model: Model, backend: Mongo):
 def prepare(context: Context, dtype: Date, backend: Mongo, value: datetime.date) -> datetime.datetime:
     # prepares date values for Mongo store, they must be converted to datetime
     return datetime.datetime.combine(value, datetime.datetime.min.time())
+
+
+@commands.create_changelog_entry.register()
+async def create_changelog_entry(
+    context: Context,
+    model: (Model, Property),
+    backend: Mongo,
+    *,
+    dstream: types.AsyncGeneratorType,
+) -> None:
+    transaction = context.get('transaction')
+    if isinstance(model, Model):
+        table = backend.db[model.model_type() + '__changelog']
+    else:
+        table = backend.db[model.model.model_type() + '__changelog']
+    async for data in dstream:
+        table.insert_one({
+            '__id': data.saved['_id'] if data.saved else data.patch['_id'],
+            '_revision': data.patch['_revision'] if data.patch else data.saved['_revision'],
+            '_op': data.action.value,
+            '_transaction': transaction.id,
+            '_created': datetime.datetime.now(),
+            **{k: v for k, v in data.patch.items() if not k.startswith('_')},
+        })
+        yield data

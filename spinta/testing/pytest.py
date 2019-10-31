@@ -94,7 +94,8 @@ def context(_context, mocker, tmpdir, request):
         mocker.patch('spinta.config._create_context', return_value=context)
 
         store = context.get('store')
-        mocker.patch.object(store.backends['fs'], 'path', pathlib.Path(tmpdir))
+        if 'fs' in store.backends:
+            mocker.patch.object(store.backends['fs'], 'path', pathlib.Path(tmpdir))
 
         yield context
 

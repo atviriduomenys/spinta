@@ -12,7 +12,7 @@ resources:
         country:
           source: countries.csv
           properties:
-            id:
+            _id:
               type: pk
               source: kodas
             code:

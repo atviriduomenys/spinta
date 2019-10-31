@@ -39,6 +39,10 @@ test: env
 dist: env/bin/pip
 	env/bin/python setup.py sdist bdist_wheel
 
+.PHONY: publish
+publish:
+	twine upload dist/*
+
 .PHONY: run
 run: env
 	AUTHLIB_INSECURE_TRANSPORT=1 env/bin/uvicorn spinta.asgi:app --debug

@@ -5,6 +5,7 @@ from spinta.types.dataset import Model, Property
 from spinta.fetcher import fetch
 from spinta.commands.sources import Source
 from spinta.commands import pull
+from spinta import exceptions
 
 
 class Xml(Source):
@@ -41,7 +42,7 @@ def pull(context: Context, source: Xml, node: Property, *, data: etree.ElementBa
     elif len(result) == 0:
         return None
     else:
-        raise extensions.InvalidSource(
+        raise exceptions.InvalidSource(
             node,
             source=source,
             error=f"More than one value returned for {source.name!r}: {data!r}",

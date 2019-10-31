@@ -47,18 +47,22 @@ def load(context: Context, model: Model, data: dict) -> dict:
 
     result = {}
     for name, prop in model.properties.items():
-        # if private model property is not in data - ignore it's loading
-        if name in ('id', 'revision', 'type') and name not in data:
-            continue
         value = data.get(name, NA)
-        result[name] = load(context, prop.dtype, value)
+        value = load(context, prop.dtype, value)
+        if value is not NA:
+            result[name] = value
     return result
+
+
+@load.register()
+def load(context: Context, prop: Property, value: object) -> object:
+    return load(context, prop.dtype, value)
 
 
 @check.register()
 def check(context: Context, model: Model):
-    if 'id' not in model.properties:
-        raise exceptions.MissingRequiredProperty(model, prop='id')
+    if '_id' not in model.properties:
+        raise exceptions.MissingRequiredProperty(model, prop='_id')
 
 
 @prepare.register()
@@ -69,12 +73,16 @@ def prepare(context: Context, model: Model, data: dict, *, action: Action) -> di
     for name, prop in model.properties.items():
         value = data.get(name, NA)
         value = prepare(context, prop.dtype, backend, value)
-        if action == Action.UPDATE:
+        if action == Action.UPDATE and not name.startswith('_'):
             result[name] = None if value is NA else value
-        else:
-            if value is not NA:
-                result[name] = value
+        elif value is not NA:
+            result[name] = value
     return result
+
+
+@prepare.register()
+def prepare(context: Context, prop: Property, value: object, *, action: Action) -> object:
+    return prepare(context, prop.dtype, prop.backend, value)
 
 
 @authorize.register()

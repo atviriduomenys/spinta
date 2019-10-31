@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+
+import argparse
+import pathlib
+import re
+import sys
+
+from subprocess import run
+
+version_re = re.compile(r'^\d+.\d+.\d+$')
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Release new Spinta version.')
+    parser.add_argument('version', help='new version number')
+    args = parser.parse_args()
+
+    if not version_re.match(args.version):
+        print("Error: Invalid version number, should be `n.n.n`.")
+        return 1
+
+    existing_versions = run(['git', 'tag'], encoding='utf-8', check=True, capture_output=True).stdout
+    existing_versions = existing_versions.split()
+    if args.version in existing_versions:
+        print(f"Error: Version {args.version} already exist.")
+        return 1
+
+    dist = pathlib.Path('dist')
+    dist.mkdir(exist_ok=True)
+
+    for file in dist.glob(f'spinta-{args.version}*'):
+        file.unlink()
+
+    if run(['git', 'diff-index', '--quiet', 'HEAD', '--']).returncode:
+        print("Error: You have uncommited changes, can't release new version.")
+        return 1
+
+    run(['git', 'tag', '-a', '-m', f"New {args.version} release", args.version])
+
+    run(['env/bin/python', 'setup.py', 'sdist', 'bdist_wheel'])
+
+    if not (dist / f'spinta-{args.version}.tar.gz').exists():
+        print(f"Error: Can't find package with clean version, make sure you don't have any uncommited changes.")
+        return 1
+
+    distfiles = [str(f) for f in dist.glob(f'spinta-{args.version}*')]
+    run(['twine', 'upload'] + distfiles)
+
+
+if __name__ == "__main__":
+    sys.exit(main() or 0)
