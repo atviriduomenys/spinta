@@ -669,7 +669,7 @@ def _getall_query(
             jsonb = table.lists.c.data[prop.place]
             if _is_dtype(prop, String):
                 field = jsonb.astext
-            elif _is_dtype(prop, DateTime):
+            elif _is_dtype(prop, DateTime) or _is_dtype(prop, Date):
                 field = jsonb.astext
                 value = datetime.datetime.fromisoformat(value)
                 if value.tzinfo is not None:

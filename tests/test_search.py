@@ -503,6 +503,12 @@ def test_search_nested(model, context, app):
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
+    # nested `exact` search with dates
+    resp = app.get(f'/{model}?(notes,create_date)=2019-03-14')
+    data = resp.json()['_data']
+    assert len(data) == 1
+    assert data[0]['_id'] == r1['_id']
+
     # nested `gt` search
     resp = app.get(f'/{model}?(notes,create_date)=gt=2019-04-01')
     data = resp.json()['_data']
