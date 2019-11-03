@@ -6,6 +6,8 @@ date: "2019-05-17"
 resources:
   db:
     type: sql
+    source:
+      schema: public
     objects:
       "":
         country:

@@ -50,6 +50,7 @@ class Resource(Node):
     schema = {
         'type': {'type': 'string'},
         'source': {'type': 'string'},
+        'sourceparams': {'type': 'object'},
         'objects': {'type': 'object', 'default': {}},
         'flags': {'type': 'array'},
     }

@@ -371,3 +371,7 @@ class NewItemHasIdAlready(UserError):
 
 class NewItemHasRevisionAlready(UserError):
     template = "New item has revision already set"
+
+
+class ModelSourceNotFound(UserError):
+    template = "Model source {table!r} not found."

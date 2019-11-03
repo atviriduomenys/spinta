@@ -9,7 +9,10 @@ from spinta import exceptions
 
 
 class Sql(Source):
-    pass
+    schema = {
+        # XXX: Not sure if this is a good idea to overshadow schema defined in class.
+        'schema': {'type': 'string', 'default': None},
+    }
 
 
 @prepare.register()
@@ -24,7 +27,7 @@ def prepare(context: Context, source: Sql, node: Resource):
         )
     source.engine = sa.create_engine(source.name)
     source.meta = sa.MetaData(source.engine)
-    source.meta.reflect(only=[
+    source.meta.reflect(schema=source.schema, only=[
         source.name
         for model in node.models()
         for source in model.source
@@ -36,6 +39,10 @@ def prepare(context: Context, source: Sql, node: Resource):
 def pull(context: Context, source: Sql, node: Model, *, params: dict):
     sql = node.parent.source
     name = source.name.format(**params)
+    if sql.schema:
+        name = f'{sql.schema}.{name}'
+    if name not in sql.meta.tables:
+        raise exceptions.ModelSourceNotFound(source, source=name)
     query = sa.select([sql.meta.tables[name]])
     for row in sql.engine.execute(query):
         yield dict(row)
