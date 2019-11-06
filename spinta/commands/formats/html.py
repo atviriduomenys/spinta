@@ -24,6 +24,7 @@ class Html(Format):
         'text/html',
     }
     params = {}
+    streamable = False
 
 
 @commands.render.register()
@@ -102,6 +103,7 @@ def _render_model(
         'data': data,
         'row': row,
         'formats': get_output_formats(params),
+        'limit_enforced': params.limit_enforced,
     })
 
 

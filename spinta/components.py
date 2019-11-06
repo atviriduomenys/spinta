@@ -531,6 +531,8 @@ class UrlParams:
     sort: Optional[List[Tuple[str, Node]]] = None
     limit: Optional[str] = None
     offset: Optional[str] = None
+    # Limit can be enforced even it is is not explicitly given in URL.
+    limit_enforced: bool = False
     # XXX: Deprecated, count should be part of `select`.
     count: bool = False
     # In batch requests, return summary of what was done.

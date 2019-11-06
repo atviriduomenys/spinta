@@ -78,6 +78,10 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        {% if limit_enforced and data|length >= 100 %}
+        <p>Number of rows is limited up to 100 rows.</p>
+        {% endif %}
         {% endif %}
 
         {% if row %}
