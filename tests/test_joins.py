@@ -20,11 +20,32 @@ def test_select_with_joins(app):
                 'continent': '1',
             },
             {
+                '_type': 'country/:dataset/dependencies/:resource/continents',
+                '_op': 'insert',
+                '_id': '3',
+                'title': 'Latvia',
+                'continent': '1',
+            },
+            {
                 '_type': 'capital/:dataset/dependencies/:resource/continents',
                 '_op': 'insert',
                 '_id': '3',
                 'title': 'Vilnius',
                 'country': '2',
+            },
+            {
+                '_type': 'capital/:dataset/dependencies/:resource/continents',
+                '_op': 'insert',
+                '_id': '4',
+                'title': 'Kaunas',
+                'country': '2',
+            },
+            {
+                '_type': 'capital/:dataset/dependencies/:resource/continents',
+                '_op': 'insert',
+                '_id': '5',
+                'title': 'Ryga',
+                'country': '3',
             },
         ]
     })
@@ -32,14 +53,24 @@ def test_select_with_joins(app):
     # XXX: Maybe we should require `search` scope also for linked models? Now,
     #      we only have access to `continent`, but using foreign keys, we can
     #      also access country and continent.
-    resp = app.get('/capital/:dataset/dependencies/:resource/continents?select(_id,title,country.title,country.continent.title)')
-    assert resp.json() == {
-        '_data': [
-            {
-                'country.continent.title': 'Europe',
-                'country.title': 'Lithuania',
-                'title': 'Vilnius',
-                '_id': '3',
-            },
-        ],
-    }
+    resp = app.get('/capital/:dataset/dependencies/:resource/continents?select(_id,title,country.title,country.continent.title)&sort(+_id)')
+    assert resp.json()['_data'] == [
+        {
+            '_id': '3',
+            'title': 'Vilnius',
+            'country.title': 'Lithuania',
+            'country.continent.title': 'Europe',
+        },
+        {
+            '_id': '4',
+            'title': 'Kaunas',
+            'country.title': 'Lithuania',
+            'country.continent.title': 'Europe',
+        },
+        {
+            '_id': '5',
+            'title': 'Ryga',
+            'country.title': 'Latvia',
+            'country.continent.title': 'Europe',
+        },
+    ]
