@@ -516,7 +516,9 @@ class UrlParams:
     # property types, like references.
     propref: bool = False
 
+    # List only models names
     ns: bool = False
+    # Recursively select all models in a givne namespace
     all: bool = False
     dataset: Optional[str] = None
     resource: Optional[str] = None
