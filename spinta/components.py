@@ -527,7 +527,8 @@ class UrlParams:
     changes: bool = False
     changes_offset: Optional[str] = None
 
-    fmt: Optional[str] = None
+    format: Optional[str] = None
+    formatparams: dict
 
     select: Optional[List[str]] = None
     sort: Optional[List[Tuple[str, Node]]] = None
