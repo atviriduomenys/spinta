@@ -57,3 +57,43 @@ def test_export_json(app, mocker):
             '_type': 'country/:dataset/csv/:resource/countries',
         },
     ]
+
+
+def test_export_jsonl_with_all(app):
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('continent/:dataset/dependencies/:resource/continents', ['insert', 'getall'])
+    app.authmodel('country/:dataset/dependencies/:resource/continents', ['insert', 'getall'])
+    app.authmodel('capital/:dataset/dependencies/:resource/continents', ['insert', 'getall'])
+
+    resp = app.post('/', json={'_data': [
+        {
+            '_type': 'continent/:dataset/dependencies/:resource/continents',
+            '_op': 'insert',
+            '_id': '1',
+            'title': 'Europe',
+        },
+        {
+            '_type': 'country/:dataset/dependencies/:resource/continents',
+            '_op': 'insert',
+            '_id': '2',
+            'title': 'Lithuania',
+            'continent': '1',
+        },
+        {
+            '_type': 'capital/:dataset/dependencies/:resource/continents',
+            '_op': 'insert',
+            '_id': '3',
+            'title': 'Vilnius',
+            'country': '2',
+        },
+    ]})
+    assert resp.status_code == 200, resp.json()
+
+    resp = app.get('/:all/:dataset/dependencies/:resource/continents?format(jsonl)')
+    assert resp.status_code == 200, resp.json()
+    data = [json.loads(d) for d in resp.text.splitlines()]
+    assert sorted((d['_id'], d['title']) for d in data) == [
+        ('1', 'Europe'),
+        ('2', 'Lithuania'),
+        ('3', 'Vilnius')
+    ]

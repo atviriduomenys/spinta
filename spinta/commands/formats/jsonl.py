@@ -4,7 +4,7 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
 from spinta.commands.formats import Format
-from spinta.components import Context, Action, UrlParams, Model
+from spinta.components import Context, Action, UrlParams, Model, Node
 from spinta import commands
 from spinta.types import dataset
 
@@ -37,6 +37,21 @@ def render(
     context: Context,
     request: Request,
     model: dataset.Model,
+    fmt: JsonLines,
+    *,
+    action: Action,
+    params: UrlParams,
+    data,
+    status_code: int = 200,
+):
+    return _render(fmt, data, status_code)
+
+
+@commands.render.register()  # noqa
+def render(
+    context: Context,
+    request: Request,
+    node: Node,
     fmt: JsonLines,
     *,
     action: Action,
