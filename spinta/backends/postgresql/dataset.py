@@ -229,8 +229,10 @@ class JoinManager:
                 left = self.aliases[left_ref]
                 right = self.aliases[right_ref]
                 self.left = self.left.outerjoin(right, left.c.data[ref] == right.c.id)
-        if name == 'id':
+        if name == '_id':
             return self.aliases[refs].c.id
+        elif name == '_revision':
+            return self.aliases[refs].c.revision
         else:
             return self.aliases[refs].c.data[name]
 

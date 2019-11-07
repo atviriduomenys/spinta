@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union, List
 
 import datetime
 import itertools
@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Ref
 from spinta.commands.formats import Format
 from spinta.components import Context, Action, UrlParams, Node, Property
 from spinta.utils.url import build_url_path
@@ -285,9 +285,11 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
         prop.ref = None
         prop.model = model
         props = [prop]
+        header = ['count']
     else:
         if params.select:
-            props = [p for p in model.properties.values() if p.name in params.select]
+            header = params.select
+            props = _get_props_from_select(context, model, params.select)
         else:
             if model.type == 'model:ns':
                 include = {'_id', '_type'}
@@ -299,14 +301,47 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
                     not p.name.startswith('_')
                 )
             ]
+            header = [p.name for p in props]
 
-    yield [prop.name for prop in props]
+    yield header
 
     for data in rows:
         row = []
-        for prop in props:
-            row.append(get_cell(context, prop, data.get(prop.name), shorten=True))
+        for name, prop in zip(header, props):
+            row.append(get_cell(context, prop, data.get(name), shorten=True))
         yield row
+
+
+def _get_props_from_select(
+    context: Context,
+    model: Union[Model, dataset.Model],
+    select: List[str],
+) -> List[Union[Property, dataset.Property]]:
+    props = []
+    for name in select:
+        if name in model.flatprops:
+            prop = model.flatprops[name]
+        else:
+            parts = name.split('.')
+            prop = _find_lined_prop(context, model, parts[0], parts[1:])
+        props.append(prop)
+    return props
+
+
+def _find_lined_prop(
+    context: Context,
+    model: Union[Model, dataset.Model],
+    name: str,
+    parts: List[str],
+) -> Union[Property, dataset.Property, None]:
+    # TODO: Add support for nested properties, now only references are
+    #       supported.
+    prop = model.properties.get(name)
+    if parts and prop and isinstance(prop.dtype, Ref):
+        model = commands.get_referenced_model(context, prop, prop.dtype.object)
+        return _find_lined_prop(context, model, parts[0], parts[1:])
+    else:
+        return prop
 
 
 def get_model_link_params(model: Node, *, pk: Optional[str] = None, **extra):
