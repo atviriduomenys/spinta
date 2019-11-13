@@ -13,7 +13,7 @@ from spinta.backends import Backend
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataStream, DataItem
 from spinta.config import RawConfig
 from spinta.renderer import render
-from spinta.types.datatype import Date, DataType
+from spinta.types.datatype import Date, DataType, File, Object
 from spinta.commands import (
     authorize,
     dump,
@@ -29,6 +29,7 @@ from spinta.commands import (
 from spinta.exceptions import (
     ItemDoesNotExist,
     UniqueConstraint,
+    UnavailableSubresource,
 )
 from spinta import exceptions
 
@@ -256,13 +257,28 @@ async def getone(
     context: Context,
     request: Request,
     prop: Property,
+    dtype: DataType,
+    backend: Mongo,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    dtype: (Object, File),
     backend: Mongo,
     *,
     action: Action,
     params: UrlParams,
 ):
     authorize(context, action, prop)
-    data = getone(context, prop, backend, id_=params.pk)
+    data = getone(context, prop, dtype, backend, id_=params.pk)
     data = dump(context, backend, prop.dtype, data)
     return render(context, request, prop, params, data, action=action)
 
@@ -271,6 +287,7 @@ async def getone(
 def getone(
     context: Context,
     prop: Property,
+    dtype: DataType,
     backend: Mongo,
     *,
     id_: str,
@@ -288,6 +305,26 @@ def getone(
         '_revision': data['_revision'],
         prop.name: data.get(prop.name),
     }
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    dtype: Object,
+    backend: Mongo,
+    *,
+    id_: str,
+):
+    table = backend.db[prop.model.model_type()]
+    data = table.find_one({'__id': id_}, {
+        '__id': 1,
+        '_revision': 1,
+        prop.name: 1,
+    })
+    if data is None:
+        raise ItemDoesNotExist(prop, id=id_)
+    return data.get(prop.name)
 
 
 @getall.register()

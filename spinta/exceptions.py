@@ -375,3 +375,11 @@ class NewItemHasRevisionAlready(UserError):
 
 class ModelSourceNotFound(UserError):
     template = "Model source {table!r} not found."
+
+
+class UnavailableSubresource(UserError):
+    template = "Subresources only of type Object and File are accessible"
+    context = {
+        'prop': None,
+        'prop_type': None,
+    }

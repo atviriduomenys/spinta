@@ -26,9 +26,9 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
             return await commands.changes(context, request, params.model, params.model.backend, action=Action.CHANGES, params=params)
         elif params.pk:
             if params.prop and params.propref:
-                return await commands.getone(context, request, params.prop, params.model.backend, action=Action.GETONE, params=params)
+                return await commands.getone(context, request, params.prop, params.prop.dtype, params.model.backend, action=Action.GETONE, params=params)
             elif params.prop:
-                return await commands.getone(context, request, params.prop, params.prop.backend, action=Action.GETONE, params=params)
+                return await commands.getone(context, request, params.prop, params.prop.dtype, params.prop.backend, action=Action.GETONE, params=params)
             else:
                 return await commands.getone(context, request, params.model, params.model.backend, action=Action.GETONE, params=params)
         else:

@@ -84,7 +84,7 @@ async def push_stream(
         dstream = prepare_patch(context, dstream)
         if prop:
             dstream = cmds[action](
-                context, prop, prop.backend, dstream=dstream,
+                context, prop, prop.dtype, prop.backend, dstream=dstream,
                 stop_on_error=stop_on_error,
             )
         else:

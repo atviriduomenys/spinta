@@ -111,14 +111,14 @@ async def push(
                 f.write(chunk)
         dstream = aiter([data])
         dstream = prepare_patch(context, dstream)
-        dstream = commands.update(context, prop, prop.model.backend, dstream=dstream)
+        dstream = commands.update(context, prop, prop.dtype, prop.model.backend, dstream=dstream)
 
     elif action == Action.DELETE:
         if filepath.exists():
             filepath.unlink()
         dstream = aiter([data])
         dstream = prepare_patch(context, dstream)
-        dstream = commands.delete(context, prop, prop.model.backend, dstream=dstream)
+        dstream = commands.delete(context, prop, prop.dtype, prop.model.backend, dstream=dstream)
 
     else:
         raise Exception(f"Unknown action {action!r}.")
@@ -132,6 +132,7 @@ async def getone(
     context: Context,
     request: Request,
     prop: Property,
+    dtype: DataType,
     backend: FileSystem,
     *,
     action: str,
@@ -150,6 +151,7 @@ async def getone(
 def getone(
     context: Context,
     prop: Property,
+    dtype: DataType,
     backend: FileSystem,
     *,
     id_: str,

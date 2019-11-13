@@ -1,0 +1,35 @@
+---
+type: model
+name: backends/mongo/subitem
+endpoint: backends/mongo/subitems
+backend: mongo
+title: "Subitem"
+version: 1
+date: "2019-11-13"
+properties:
+  _id: {type: pk}
+  _revision: {type: string}
+  scalar: {type: string}
+
+  subarray:
+    type: array
+    items:
+      type: object
+      properties:
+          foo: {type: string}
+
+  subobj:
+    type: object
+    properties:
+      subprop: {type: string}
+
+  hidden_subobj:
+    type: object
+    hidden: true
+    properties:
+      hidden: {type: string}
+
+  pdf:
+    type: file
+    backend: fs
+    hidden: true

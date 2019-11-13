@@ -487,6 +487,7 @@ def make_json_serializable(dtype: Array, value: list):
 def update(
     context: Context,
     prop: (Property, dataset.Property),
+    dtype: DataType,
     backend: Backend,
     *,
     dstream: AsyncIterator[DataItem],
@@ -504,6 +505,7 @@ def update(
 def patch(
     context: Context,
     prop: (Property, dataset.Property),
+    dtype: DataType,
     backend: Backend,
     *,
     dstream: AsyncIterator[DataItem],
@@ -536,6 +538,7 @@ async def _prepare_property_for_update(
 def delete(
     context: Context,
     prop: (Property, dataset.Property),
+    dtype: DataType,
     backend: Backend,
     *,
     dstream: AsyncIterator[DataItem],

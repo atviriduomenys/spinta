@@ -34,6 +34,7 @@ from spinta.exceptions import (
     NotFoundError,
     ItemDoesNotExist,
     UniqueConstraint,
+    UnavailableSubresource,
 )
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
@@ -552,13 +553,28 @@ async def getone(
     context: Context,
     request: Request,
     prop: Property,
+    dtype: DataType,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    dtype: Object,
     backend: PostgreSQL,
     *,
     action: Action,
     params: UrlParams,
 ):
     authorize(context, action, prop)
-    data = getone(context, prop, backend, id_=params.pk)
+    data = getone(context, prop, dtype, backend, id_=params.pk)
     data = dump(context, backend, prop.dtype, data)
     return render(context, request, prop, params, data, action=action)
 
@@ -567,6 +583,7 @@ async def getone(
 def getone(
     context: Context,
     prop: Property,
+    dtype: DataType,
     backend: PostgreSQL,
     *,
     id_: str,
@@ -587,6 +604,29 @@ def getone(
         '_revision': result[table.c._revision],
         prop.name: result[table.c[prop.name]],
     }
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    dtype: Object,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+):
+    table = backend.tables[prop.manifest.name][prop.model.name].main
+    connection = context.get('transaction').connection
+    selectlist = [
+        table.c._id,
+        table.c._revision,
+        table.c[prop.name],
+    ]
+    try:
+        result = backend.get(connection, selectlist, table.c._id == id_)
+    except NotFoundError:
+        raise ItemDoesNotExist(prop.model, id=id_)
+    return result[table.c[prop.name]]
 
 
 @getall.register()
