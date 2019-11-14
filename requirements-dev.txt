@@ -87,4 +87,4 @@ xlrd==1.2.0
 zipp==0.6.0               # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
-# setuptools==41.4.0
+# setuptools==41.6.0
