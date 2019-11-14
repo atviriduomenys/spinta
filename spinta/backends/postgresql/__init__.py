@@ -567,7 +567,7 @@ async def getone(
     context: Context,
     request: Request,
     prop: Property,
-    dtype: Object,
+    dtype: (Object, File),
     backend: PostgreSQL,
     *,
     action: Action,

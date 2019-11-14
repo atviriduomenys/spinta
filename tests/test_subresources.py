@@ -46,3 +46,12 @@ def test_get_subresource(model, app):
     assert resp.json() == {
         'hidden': 'secret',
     }
+
+
+@pytest.mark.skip('NotImplemented')
+@pytest.mark.models(
+    'backends/mongo/subitem',
+    'backends/postgres/subitem',
+)
+def test_get_subresource_file(model, app):
+    pass

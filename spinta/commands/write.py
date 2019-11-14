@@ -350,6 +350,7 @@ async def read_existing_data(
                 rows = [commands.getone(
                     context,
                     data.prop,
+                    data.prop.dtype,
                     data.backend,
                     id_=data.given['_where']['args'][1],
                 )]

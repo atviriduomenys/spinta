@@ -91,7 +91,7 @@ async def push(
     authorize(context, action, prop)
 
     data = DataItem(prop.model, prop, propref=True, backend=prop.model.backend)
-    data.saved = getone(context, prop, prop.model.backend, id_=params.pk)
+    data.saved = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
     data.given = {
         'content_type': request.headers.get('content-type'),
         'filename': None,
@@ -139,7 +139,27 @@ async def getone(
     params: UrlParams,
 ):
     authorize(context, action, prop)
-    data = getone(context, prop, prop.model.backend, id_=params.pk)
+    data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
+    data = data[prop.name]
+    if data is None:
+        raise ItemDoesNotExist(prop, id=params.pk)
+    filename = data['filename'] or params.pk
+    return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    dtype: File,
+    backend: FileSystem,
+    *,
+    action: str,
+    params: UrlParams,
+):
+    authorize(context, action, prop)
+    data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
     data = data[prop.name]
     if data is None:
         raise ItemDoesNotExist(prop, id=params.pk)
@@ -152,6 +172,23 @@ def getone(
     context: Context,
     prop: Property,
     dtype: DataType,
+    backend: FileSystem,
+    *,
+    id_: str,
+):
+    data = getone(context, prop, prop.model.backend, id_=id_)
+    if data is None:
+        raise ItemDoesNotExist(prop, id=id_)
+    data = data[prop.name]
+    filename = data['filename'] or id_
+    return (prop.backend.path / filename).read_bytes()
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    dtype: File,
     backend: FileSystem,
     *,
     id_: str,
