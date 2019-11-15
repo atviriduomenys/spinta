@@ -38,16 +38,3 @@ properties:
     type: file
     backend: fs
     hidden: true
-
-  sync:
-    type: object
-    hidden: true
-    properties:
-        sync_revision: {type: string}
-        sync_resources:
-            type: array
-            items:
-                type: object
-                properties:
-                    sync_id: {type: string}
-                    sync_source: {type: string}
