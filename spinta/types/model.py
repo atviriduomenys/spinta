@@ -92,8 +92,13 @@ def authorize(context: Context, action: Action, model: Model):
 
 @authorize.register()
 def authorize(context: Context, action: Action, prop: Property):
-    name = prop.model.model_type() + '_' + prop.place
-    check_generated_scopes(context, name, action.value)
+    # if property is hidden - specific scope must be provided
+    # otherwise generic model scope is enough
+    if prop.hidden:
+        name = prop.model.model_type() + '_' + prop.place
+        check_generated_scopes(context, name, action.value)
+    else:
+        check_generated_scopes(context, prop.model.model_type(), action.value)
 
 
 @commands.get_referenced_model.register()

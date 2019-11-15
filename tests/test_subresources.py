@@ -7,8 +7,7 @@ from spinta.testing.utils import get_error_context
     'backends/postgres/subitem',
 )
 def test_get_subresource(model, app):
-    # XXX: if there's non-hidden subresource, then we should not ask for scope
-    app.authmodel(model, ['insert', 'getone', 'subobj_getone', 'hidden_subobj_getone'])
+    app.authmodel(model, ['insert', 'getone', 'hidden_subobj_getone'])
 
     resp = app.post(f'/{model}', json={'_data': [
         {
