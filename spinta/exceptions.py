@@ -379,7 +379,3 @@ class ModelSourceNotFound(UserError):
 
 class UnavailableSubresource(UserError):
     template = "Subresources only of type Object and File are accessible"
-    context = {
-        'prop': None,
-        'prop_type': None,
-    }

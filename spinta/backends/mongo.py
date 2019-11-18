@@ -300,31 +300,12 @@ def getone(
     })
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
-    return {
+    result = {
         '_id': data['__id'],
         '_revision': data['_revision'],
-        prop.name: data.get(prop.name),
+        **(data[table.c[prop.name]] or {}),
     }
-
-
-@getone.register()
-def getone(
-    context: Context,
-    prop: Property,
-    dtype: Object,
-    backend: Mongo,
-    *,
-    id_: str,
-):
-    table = backend.db[prop.model.model_type()]
-    data = table.find_one({'__id': id_}, {
-        '__id': 1,
-        '_revision': 1,
-        prop.name: 1,
-    })
-    if data is None:
-        raise ItemDoesNotExist(prop, id=id_)
-    return data.get(prop.name)
+    return result
 
 
 @getall.register()

@@ -596,37 +596,16 @@ def getone(
         table.c[prop.name],
     ]
     try:
-        result = backend.get(connection, selectlist, table.c._id == id_)
+        data = backend.get(connection, selectlist, table.c._id == id_)
     except NotFoundError:
         raise ItemDoesNotExist(prop.model, id=id_)
-    return {
-        '_id': result[table.c._id],
-        '_revision': result[table.c._revision],
-        prop.name: result[table.c[prop.name]],
+
+    result = {
+        '_id': data[table.c._id],
+        '_revision': data[table.c._revision],
+        **(data[table.c[prop.name]] or {}),
     }
-
-
-@getone.register()
-def getone(
-    context: Context,
-    prop: Property,
-    dtype: Object,
-    backend: PostgreSQL,
-    *,
-    id_: str,
-):
-    table = backend.tables[prop.manifest.name][prop.model.name].main
-    connection = context.get('transaction').connection
-    selectlist = [
-        table.c._id,
-        table.c._revision,
-        table.c[prop.name],
-    ]
-    try:
-        result = backend.get(connection, selectlist, table.c._id == id_)
-    except NotFoundError:
-        raise ItemDoesNotExist(prop.model, id=id_)
-    return result[table.c[prop.name]]
+    return result
 
 
 @getall.register()
