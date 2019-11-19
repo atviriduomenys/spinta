@@ -1,23 +1,29 @@
 import pathlib
 
+import pytest
+
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
-def test_crud(app):
-    app.authorize([
-        'spinta_photo_insert',
-        'spinta_photo_update',
-        'spinta_photo_image_update',
-        'spinta_photo_patch',
-        'spinta_photo_delete',
-        'spinta_photo_getone',
-        'spinta_photo_image_getone',
-        'spinta_photo_image_delete',
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_crud(model, app):
+    app.authmodel(model, [
+        'insert',
+        'update',
+        'image_update',
+        'patch',
+        'delete',
+        'getone',
+        'image_getone',
+        'image_delete',
     ])
 
     # Create a new photo resource.
-    resp = app.post('/photos', json={
-        '_type': 'photo',
+    resp = app.post(f'/{model}', json={
+        '_type': model,
         'name': 'myphoto',
     })
     assert resp.status_code == 201, resp.text
@@ -26,7 +32,7 @@ def test_crud(app):
     revision = data['_revision']
 
     # PUT image to just create photo resource.
-    resp = app.put(f'/photos/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
         'content-type': 'image/png',
         # TODO: with content-disposition header it is possible to specify file
         #       name directly, but there should be option, to use model id as a
@@ -35,10 +41,10 @@ def test_crud(app):
     })
     assert resp.status_code == 200, resp.text
 
-    resp = app.get(f'/photos/{id_}')
+    resp = app.get(f'/{model}/{id_}')
     data = resp.json()
     assert data == {
-        '_type': 'photo',
+        '_type': model,
         '_id': id_,
         '_revision': data['_revision'],
         'name': 'myphoto',
@@ -46,68 +52,65 @@ def test_crud(app):
     assert data['_revision'] != revision
     revision = data['_revision']
 
-    resp = app.get(f'/photos/{id_}/image:ref')
+    resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.json() == {
         '_id': id_,
         '_revision': revision,
-        'image': {
-            'content_type': 'image/png',
-            'filename': 'myimg.png',
-        }
+        'content_type': 'image/png',
+        'filename': 'myimg.png',
     }
 
-    resp = app.get(f'/photos/{id_}/image')
+    resp = app.get(f'/{model}/{id_}/image')
     assert resp.content == b'BINARYDATA'
 
-    resp = app.delete(f'/photos/{id_}/image')
+    resp = app.delete(f'/{model}/{id_}/image')
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data == {
         '_id': id_,
         '_revision': data['_revision'],
-        'image': None,
+        'image': None
     }
     assert data['_revision'] != revision
     revision = data['_revision']
 
-    resp = app.get(f'/photos/{id_}/image:ref')
+    resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.status_code == 200
     assert resp.json() == {
         '_id': id_,
         '_revision': revision,
-        'image': None,
     }
 
-    resp = app.get(f'/photos/{id_}/image')
+    resp = app.get(f'/{model}/{id_}/image')
     assert resp.status_code == 404
     assert get_error_codes(resp.json()) == ['ItemDoesNotExist']
     assert get_error_context(resp.json(), 'ItemDoesNotExist', ['model', 'property', 'id']) == {
-        'model': 'photo',
+        'model': model,
         'property': 'image',
         'id': id_,
     }
 
-    resp = app.get(f'/photos/{id_}')
+    resp = app.get(f'/{model}/{id_}')
     assert resp.json() == {
-        '_type': 'photo',
+        '_type': model,
         '_id': id_,
         '_revision': revision,
         'name': 'myphoto',
     }
 
 
-def test_add_existing_file(app, tmpdir):
-    app.authorize([
-        'spinta_photo_insert',
-        'spinta_photo_image_getone',
-        'spinta_photo_image_patch',
-    ])
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_add_existing_file(model, app, tmpdir):
+    app.authmodel(model, ['insert', 'image_getone', 'image_patch'])
 
     image = pathlib.Path(tmpdir) / 'image.png'
     image.write_bytes(b'IMAGEDATA')
 
-    resp = app.post('/photos', json={
-        '_type': 'photo',
+    resp = app.post(f'/{model}', json={
+        '_type': model,
         'name': 'myphoto',
         'image': {
             'content_type': 'image/png',
@@ -117,26 +120,27 @@ def test_add_existing_file(app, tmpdir):
     assert resp.status_code == 201, resp.text
     id_ = resp.json()['_id']
 
-    resp = app.patch(f'/photos/{id_}/image:ref', json={
+    resp = app.patch(f'/{model}/{id_}/image:ref', json={
         'content_type': 'image/png',
         'filename': str(image),
     })
     assert resp.status_code == 200
 
-    resp = app.get(f'/photos/{id_}/image')
+    resp = app.get(f'/{model}/{id_}/image')
     assert resp.content == b'IMAGEDATA'
 
 
-def test_add_missing_file(app, tmpdir):
-    app.authorize([
-        'spinta_photo_insert',
-        'spinta_photo_getone',
-    ])
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_add_missing_file(model, app, tmpdir):
+    app.authmodel(model, ['insert', 'getone'])
 
     image = pathlib.Path(tmpdir) / 'missing.png'
 
-    resp = app.post('/photos', json={
-        '_type': 'photo',
+    resp = app.post(f'/{model}', json={
+        '_type': model,
         'name': 'myphoto',
         'image': {
             'content_type': 'image/png',
@@ -147,27 +151,27 @@ def test_add_missing_file(app, tmpdir):
     assert get_error_codes(resp.json()) == ['FileNotFound']
     assert get_error_context(resp.json(), 'FileNotFound', ['manifest', 'model', 'property', 'file']) == {
         'manifest': 'default',
-        'model': 'photo',
+        'model': model,
         'property': 'image',
         'file': str(image),
     }
 
 
-def test_add_missing_file_as_prop(app, tmpdir):
-    app.authorize([
-        'spinta_photo_insert',
-        'spinta_photo_getone',
-        'spinta_photo_image_update',
-    ])
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_add_missing_file_as_prop(model, app, tmpdir):
+    app.authmodel(model, ['insert', 'getone', 'image_update'])
 
-    resp = app.post('/photos', json={
-        '_type': 'photo',
+    resp = app.post(f'/{model}', json={
+        '_type': model,
         'name': 'myphoto',
     })
     id_ = resp.json()['_id']
 
     image = pathlib.Path(tmpdir) / 'missing.png'
-    resp = app.put(f'/photos/{id_}/image:ref', json={
+    resp = app.put(f'/{model}/{id_}/image:ref', json={
         'image': {
             'content_type': 'image/png',
             'filename': str(image),
@@ -177,44 +181,41 @@ def test_add_missing_file_as_prop(app, tmpdir):
     assert get_error_codes(resp.json()) == ['FileNotFound']
     assert get_error_context(resp.json(), 'FileNotFound', ['manifest', 'model', 'property', 'file']) == {
         'manifest': 'default',
-        'model': 'photo',
+        'model': model,
         'property': 'image',
         'file': str(image),
     }
 
 
-def test_id_as_filename(app, tmpdir):
-    app.authorize([
-        'spinta_photo_insert',
-        'spinta_photo_getone',
-        'spinta_photo_image_update',
-        'spinta_photo_image_getone',
-    ])
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_id_as_filename(model, app, tmpdir):
+    app.authmodel(model, ['insert', 'getone', 'image_update', 'image_getone'])
 
-    resp = app.post('/photos', json={
-        '_type': 'photo',
+    resp = app.post(f'/{model}', json={
+        '_type': model,
         'name': 'myphoto',
     })
     id_ = resp.json()['_id']
 
-    resp = app.put(f'/photos/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
         'content-type': 'image/png',
     })
     assert resp.status_code == 200, resp.text
 
-    resp = app.get(f'/photos/{id_}/image:ref')
+    resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.status_code == 200
     data = resp.json()
     assert resp.json() == {
         '_id': id_,
         '_revision': data['_revision'],
-        'image': {
-            'content_type': 'image/png',
-            'filename': id_,
-        },
+        'content_type': 'image/png',
+        'filename': id_,
     }
 
-    resp = app.get(f'/photos/{id_}?select(name)')
+    resp = app.get(f'/{model}/{id_}?select(name)')
     assert resp.status_code == 200
     assert resp.json() == {
         'name': 'myphoto',

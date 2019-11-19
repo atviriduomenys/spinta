@@ -1,0 +1,13 @@
+---
+type: model
+name: backends/postgres/photo
+endpoint: backends/postgres/photos
+version: 1
+date: "2019-05-30"
+properties:
+  name:
+    type: string
+  image:
+    type: file
+    backend: fs
+    hidden: true
