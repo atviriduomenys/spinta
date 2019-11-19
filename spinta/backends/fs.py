@@ -132,26 +132,6 @@ async def getone(
     context: Context,
     request: Request,
     prop: Property,
-    dtype: DataType,
-    backend: FileSystem,
-    *,
-    action: str,
-    params: UrlParams,
-):
-    authorize(context, action, prop)
-    data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
-    data = data[prop.name]
-    if data is None:
-        raise ItemDoesNotExist(prop, id=params.pk)
-    filename = data['filename'] or params.pk
-    return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
-
-
-@getone.register()
-async def getone(
-    context: Context,
-    request: Request,
-    prop: Property,
     dtype: File,
     backend: FileSystem,
     *,
