@@ -303,7 +303,7 @@ def getone(
     result = {
         '_id': data['__id'],
         '_revision': data['_revision'],
-        **(data[table.c[prop.name]] or {}),
+        **(data.get(prop.name) or {}),
     }
     return result
 
