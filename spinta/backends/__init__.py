@@ -90,11 +90,11 @@ def dump(context: Context, backend: Backend, dtype: Object, value: dict, *, sele
             prop.place: set()
             for prop in dtype.properties.values()
         }
-    return {
-        prop.name: dump(context, backend, prop.dtype, value.get(prop.name), select=select_)
-        for prop in dtype.properties.values()
-        if select_ is None or '*' in select_ or prop.place in select_
-    }
+    result = {}
+    for prop in dtype.properties.values():
+        if not prop.name.startswith('_') and (select_ is None or '*' in select_ or prop.place in select_):
+            result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name), select=select_)
+    return result
 
 
 @dump.register()
@@ -408,7 +408,7 @@ def _prepare_query_result(
     elif action in (Action.INSERT, Action.UPDATE, Action.UPSERT):
         result = {}
         for prop in model.properties.values():
-            if prop.hidden:
+            if prop.hidden or (prop.name.startswith('_') and prop.name not in ('_id', '_revision', '_type')):
                 continue
             result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))
         result['_type'] = model.model_type()
