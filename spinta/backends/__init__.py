@@ -330,8 +330,9 @@ def prepare(
     value: dict,
     *,
     select: typing.List[str] = None,
+    property_: Property = None,
 ) -> dict:
-    return _prepare_query_result(context, action, model, backend, value, select)
+    return _prepare_query_result(context, action, model, backend, value, select, property_=property_)
 
 
 @prepare.register()
@@ -371,6 +372,8 @@ def _prepare_query_result(
     backend: Backend,
     value: dict,
     select: typing.List[str],
+    *,
+    property_: Property = None,
 ):
     if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
         config = context.get('config')
@@ -407,7 +410,14 @@ def _prepare_query_result(
 
     elif action in (Action.INSERT, Action.UPDATE, Action.UPSERT):
         result = {}
-        for prop in model.properties.values():
+
+        if property_:
+            props = property_.dtype.properties.values()
+            value.update(value.pop(property_.name, {}))
+        else:
+            props = model.properties.values()
+
+        for prop in props:
             if prop.hidden or (prop.name.startswith('_') and prop.name not in ('_id', '_revision', '_type')):
                 continue
             result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))

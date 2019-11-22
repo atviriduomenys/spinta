@@ -525,7 +525,10 @@ def _get_simple_response(context: Context, data: DataItem) -> dict:
     elif data.saved:
         resp['_revision'] = data.saved['_revision']
     if data.action and data.model:
-        resp = commands.prepare(context, data.action, data.model, data.model.backend, resp)
+        if data.prop:
+            resp = commands.prepare(context, data.action, data.model, data.model.backend, resp, property_=data.prop)
+        else:
+            resp = commands.prepare(context, data.action, data.model, data.model.backend, resp)
     resp = {k: v for k, v in resp.items() if k in ('_id', '_revision', '_type') or not k.startswith('_')}
     if data.error is not None:
         return {
