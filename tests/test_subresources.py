@@ -143,6 +143,20 @@ def test_put_subresource(model, app):
     assert data['_type'] == model
     assert data['_revision'] != revision_
     assert data['fooh'] == 'changed secret'
+    revision_ = data['_revision']
+
+    # GET full resource
+    resp = app.get(f'/{model}/{id_}')
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == {
+        '_id': id_,
+        '_type': model,
+        '_revision': revision_,
+        'scalar': '42',
+        'subarray': [{'foo': 'foobarbaz'}],
+        'subobj': {'bar': None, 'foo': 'changed'},
+    }
 
 
 @pytest.mark.models(
