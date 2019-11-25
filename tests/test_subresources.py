@@ -115,10 +115,10 @@ def test_put_subresource(model, app):
     })
     assert resp.status_code == 200
     data = resp.json()
-    assert data['subprop'] == 'changed'
     assert data['_id'] == id_
     assert data['_type'] == model
     assert data['_revision'] != revision_
+    assert data['subprop'] == 'changed'
     revision_ = data['_revision']
 
     # Test that revision is required in json data
@@ -126,6 +126,17 @@ def test_put_subresource(model, app):
         'subprop': 'changed',
     })
     assert resp.status_code == 400
+
+    resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
+        '_revision': revision_,
+        'hidden': 'changed secret',
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['_id'] == id_
+    assert data['_type'] == model
+    assert data['_revision'] != revision_
+    assert data['hidden'] == 'changed secret'
 
 
 @pytest.mark.models(
@@ -226,11 +237,13 @@ def test_get_subresource_file(model, app, tmpdir):
     ]})
     assert resp.status_code == 200, resp.json()
     id_ = resp.json()['_data'][0]['_id']
+    revision_ = resp.json()['_data'][0]['_revision']
 
     pdf = pathlib.Path(tmpdir) / 'report.pdf'
     pdf.write_bytes(b'REPORTDATA')
 
     resp = app.put(f'/{model}/{id_}/pdf:ref', json={
+        '_revision': revision_,
         'content_type': 'application/pdf',
         'filename': str(pdf),
     })

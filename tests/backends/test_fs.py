@@ -169,9 +169,11 @@ def test_add_missing_file_as_prop(model, app, tmpdir):
         'name': 'myphoto',
     })
     id_ = resp.json()['_id']
+    revision_ = resp.json()['_revision']
 
     image = pathlib.Path(tmpdir) / 'missing.png'
     resp = app.put(f'/{model}/{id_}/image:ref', json={
+        '_revision': revision_,
         'image': {
             'content_type': 'image/png',
             'filename': str(image),
