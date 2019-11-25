@@ -411,14 +411,23 @@ def _prepare_query_result(
     elif action in (Action.INSERT, Action.UPDATE, Action.UPSERT):
         result = {}
 
-        if property_:
+        if property_ and property_.dtype.name == 'object':
             props = property_.dtype.properties.values()
             value.update(value.pop(property_.name, {}))
         else:
             props = model.properties.values()
 
         for prop in props:
-            if prop.hidden or (prop.name.startswith('_') and prop.name not in ('_id', '_revision', '_type')):
+            if property_ and property_.dtype.name == 'object':
+                prop_in_property = prop.name in property_.dtype.properties.keys()
+                hide_hidden_prop = prop.hidden and not prop_in_property
+            else:
+                hide_hidden_prop = prop.hidden
+
+            if (
+                (hide_hidden_prop) or
+                (prop.name.startswith('_') and prop.name not in ('_id', '_revision', '_type'))
+            ):
                 continue
             result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))
         result['_type'] = model.model_type()
