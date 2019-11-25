@@ -20,10 +20,12 @@ def test_get_subresource(model, app):
                 'foo': 'foobarbaz',
             }],
             'subobj': {
-                'subprop': 'foobar123',
+                'foo': 'foobar123',
+                'bar': 42,
             },
             'hidden_subobj': {
-                'hidden': 'secret',
+                'fooh': 'secret',
+                'barh': 1337,
             }
         }
     ]})
@@ -48,13 +50,15 @@ def test_get_subresource(model, app):
     resp = app.get(f'/{model}/{id_}/subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        'subprop': 'foobar123',
+        'foo': 'foobar123',
+        'bar': 42,
     }
 
     resp = app.get(f'/{model}/{id_}/hidden_subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        'hidden': 'secret',
+        'fooh': 'secret',
+        'barh': 1337,
     }
 
 
@@ -76,10 +80,12 @@ def test_put_subresource(model, app):
                 'foo': 'foobarbaz',
             }],
             'subobj': {
-                'subprop': 'foobar123',
+                'foo': 'foobar123',
+                'bar': 42,
             },
             'hidden_subobj': {
-                'hidden': 'secret',
+                'fooh': 'secret',
+                'barh': 1337,
             }
         }
     ]})
@@ -111,32 +117,32 @@ def test_put_subresource(model, app):
     # PUT with object property
     resp = app.put(f'/{model}/{id_}/subobj', json={
         '_revision': revision_,
-        'subprop': 'changed',
+        'foo': 'changed',
     })
     assert resp.status_code == 200
     data = resp.json()
     assert data['_id'] == id_
     assert data['_type'] == model
     assert data['_revision'] != revision_
-    assert data['subprop'] == 'changed'
+    assert data['foo'] == 'changed'
     revision_ = data['_revision']
 
     # Test that revision is required in json data
     resp = app.put(f'/{model}/{id_}/subobj', json={
-        'subprop': 'changed',
+        'foo': 'changed',
     })
     assert resp.status_code == 400
 
     resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
         '_revision': revision_,
-        'hidden': 'changed secret',
+        'fooh': 'changed secret',
     })
     assert resp.status_code == 200
     data = resp.json()
     assert data['_id'] == id_
     assert data['_type'] == model
     assert data['_revision'] != revision_
-    assert data['hidden'] == 'changed secret'
+    assert data['fooh'] == 'changed secret'
 
 
 @pytest.mark.models(
@@ -155,10 +161,12 @@ def test_subresource_scopes(model, app):
                 'foo': 'foobarbaz',
             }],
             'subobj': {
-                'subprop': 'foobar123',
+                'foo': 'foobar123',
+                'bar': 42,
             },
             'hidden_subobj': {
-                'hidden': 'secret',
+                'fooh': 'secret',
+                'barh': 1337,
             }
         }
     ]})
@@ -176,7 +184,8 @@ def test_subresource_scopes(model, app):
     resp = app.get(f'/{model}/{id_}/subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        'subprop': 'foobar123',
+        'foo': 'foobar123',
+        'bar': 42,
     }
 
     # try to GET subresource without model scope,
@@ -186,7 +195,8 @@ def test_subresource_scopes(model, app):
     resp = app.get(f'/{model}/{id_}/subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        'subprop': 'foobar123',
+        'foo': 'foobar123',
+        'bar': 42,
     }
 
     # try to GET subresource without specific hidden subresource or model scope
@@ -208,7 +218,8 @@ def test_subresource_scopes(model, app):
     resp = app.get(f'/{model}/{id_}/hidden_subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        'hidden': 'secret',
+        'fooh': 'secret',
+        'barh': 1337,
     }
 
 
@@ -228,10 +239,12 @@ def test_get_subresource_file(model, app, tmpdir):
                 'foo': 'foobarbaz',
             }],
             'subobj': {
-                'subprop': 'foobar123',
+                'foo': 'foobar123',
+                'bar': 42,
             },
             'hidden_subobj': {
-                'hidden': 'secret',
+                'fooh': 'secret',
+                'barh': 1337,
             }
         }
     ]})

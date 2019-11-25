@@ -19,13 +19,16 @@ properties:
   subobj:
     type: object
     properties:
-      subprop: {type: string}
+      foo: {type: string}
+      bar: {type: integer}
 
   hidden_subobj:
     type: object
     hidden: true
     properties:
-      hidden: {type: string}
+      fooh: {type: string}
+      barh: {type: integer}
+
 
   pdf:
     type: file
