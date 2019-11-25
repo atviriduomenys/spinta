@@ -62,6 +62,76 @@ def test_get_subresource(model, app):
     'backends/mongo/subitem',
     'backends/postgres/subitem',
 )
+def test_put_subresource(model, app):
+    app.authmodel(model, [
+        'insert', 'getone', 'update', 'subarray_update', 'hidden_subobj_update'
+    ])
+
+    resp = app.post(f'/{model}', json={'_data': [
+        {
+            '_op': 'insert',
+            '_type': model,
+            'scalar': '42',
+            'subarray': [{
+                'foo': 'foobarbaz',
+            }],
+            'subobj': {
+                'subprop': 'foobar123',
+            },
+            'hidden_subobj': {
+                'hidden': 'secret',
+            }
+        }
+    ]})
+
+    assert resp.status_code == 200, resp.json()
+    id_ = resp.json()['_data'][0]['_id']
+    revision_ = resp.json()['_data'][0]['_revision']
+
+    # PUT to non object or file property - should not be possible
+    resp = app.put(f'/{model}/{id_}/subarray', json={
+        '_revision': revision_,
+        'foo': 'array',
+    })
+    assert resp.status_code == 400
+    assert get_error_context(resp.json(), "InvalidValue", ["property", "type"]) == {
+        'property': 'subarray',
+        'type': 'array',
+    }
+
+    resp = app.put(f'/{model}/{id_}/scalar', json={
+        'scalar': '314',
+    })
+    assert resp.status_code == 400
+    assert get_error_context(resp.json(), "InvalidValue", ["property", "type"]) == {
+        'property': 'scalar',
+        'type': 'string',
+    }
+
+    # PUT with object property
+    resp = app.put(f'/{model}/{id_}/subobj', json={
+        '_revision': revision_,
+        'subprop': 'changed',
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['subprop'] == 'changed'
+    assert data['_id'] == id_
+    assert data['_type'] == model
+    assert data['_revision'] != revision_
+    revision_ = data['_revision']
+
+    # Test that revision is required in json data
+    resp = app.put(f'/{model}/{id_}/subobj', json={
+        'subprop': 'changed',
+    })
+    assert resp.status_code == 400
+
+
+@pytest.mark.models(
+    'backends/mongo/subitem',
+    'backends/postgres/subitem',
+)
 def test_subresource_scopes(model, app):
     app.authmodel(model, ['insert'])
 
