@@ -199,23 +199,42 @@ def test_patch_subresource(model, app):
     })
     assert resp.status_code == 200
     data = resp.json()
-    assert data['_id'] == id_
-    assert data['_type'] == model
-    assert data['_revision'] != revision_
-    assert data['foo'] == 'changed'
     revision_ = data['_revision']
+    assert data == {
+        '_id': id_,
+        '_revision': revision_,
+        '_type': model,
+        'foo': 'changed',
+    }
 
+    # PATCH with already existing values
+    resp = app.patch(f'/{model}/{id_}/subobj', json={
+        '_revision': revision_,
+        'foo': 'changed',
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    revision_ = data['_revision']
+    assert data == {
+        '_id': id_,
+        '_revision': revision_,
+        '_type': model,
+    }
+
+    # PATCH with hidden object property
     resp = app.patch(f'/{model}/{id_}/hidden_subobj', json={
         '_revision': revision_,
         'fooh': 'changed secret',
     })
     assert resp.status_code == 200
     data = resp.json()
-    assert data['_id'] == id_
-    assert data['_type'] == model
-    assert data['_revision'] != revision_
-    assert data['fooh'] == 'changed secret'
     revision_ = data['_revision']
+    assert data == {
+        '_id': id_,
+        '_revision': revision_,
+        '_type': model,
+        'fooh': 'changed secret',
+    }
 
     # GET full resource
     resp = app.get(f'/{model}/{id_}')
