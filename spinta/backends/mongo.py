@@ -14,6 +14,7 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.config import RawConfig
 from spinta.renderer import render
 from spinta.types.datatype import Date, DataType, File, Object
+from spinta.utils.nestedstruct import flatten
 from spinta.commands import (
     authorize,
     dump,
@@ -176,6 +177,12 @@ async def update(
         values['_revision'] = data.patch['_revision']
         if '_id' in data.patch:
             values['__id'] = data.patch['_id']
+
+        # in order for mongo to update object without overwriting
+        # the values we do not give - we need to flatten the object values
+        if data.action == Action.PATCH:
+            values = flatten(values)
+
         result = table.update_one(
             {
                 '__id': data.saved['_id'],
