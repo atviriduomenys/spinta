@@ -143,7 +143,7 @@ async def getone(
     filename = data.get('filename')
     if filename is None:
         raise ItemDoesNotExist(prop, id=params.pk)
-    content_type = data.get('content_type')
+    content_type = data['content_type']
     return FileResponse(prop.backend.path / filename, media_type=content_type)
 
 

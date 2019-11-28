@@ -294,12 +294,13 @@ async def getone(
 def getone(
     context: Context,
     prop: Property,
-    dtype: DataType,
+    dtype: (Object, File),
     backend: Mongo,
     *,
     id_: str,
 ):
-    table = backend.db[prop.model.model_type()]
+    type_ = prop.model.model_type()
+    table = backend.db[type_]
     data = table.find_one({'__id': id_}, {
         '__id': 1,
         '_revision': 1,
@@ -310,6 +311,7 @@ def getone(
     result = {
         '_id': data['__id'],
         '_revision': data['_revision'],
+        '_type': type_,
         **(data.get(prop.name) or {}),
     }
     return result

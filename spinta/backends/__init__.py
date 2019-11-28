@@ -90,7 +90,16 @@ def dump(context: Context, backend: Backend, dtype: Object, value: dict, *, sele
             prop.place: set()
             for prop in dtype.properties.values()
         }
+
     result = {}
+
+    if '_id' in value:
+        result['_id'] = value['_id']
+    if '_type' in value:
+        result['_type'] = value['_type']
+    if '_revision' in value:
+        result['_revision'] = value['_revision']
+
     for prop in dtype.properties.values():
         if not prop.name.startswith('_') and (select_ is None or '*' in select_ or prop.place in select_):
             result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name), select=select_)

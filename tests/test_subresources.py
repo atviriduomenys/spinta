@@ -32,6 +32,7 @@ def test_get_subresource(model, app):
 
     assert resp.status_code == 200, resp.json()
     id_ = resp.json()['_data'][0]['_id']
+    revision_ = resp.json()['_data'][0]['_revision']
 
     resp = app.get(f'/{model}/{id_}/subarray')
     assert resp.status_code == 400
@@ -50,6 +51,9 @@ def test_get_subresource(model, app):
     resp = app.get(f'/{model}/{id_}/subobj')
     assert resp.status_code == 200
     assert resp.json() == {
+        '_id': id_,
+        '_type': model,
+        '_revision': revision_,
         'foo': 'foobar123',
         'bar': 42,
     }
@@ -57,6 +61,9 @@ def test_get_subresource(model, app):
     resp = app.get(f'/{model}/{id_}/hidden_subobj')
     assert resp.status_code == 200
     assert resp.json() == {
+        '_id': id_,
+        '_type': model,
+        '_revision': revision_,
         'fooh': 'secret',
         'barh': 1337,
     }
@@ -305,6 +312,7 @@ def test_subresource_scopes(model, app):
     ]})
     assert resp.status_code == 200, resp.json()
     id_ = resp.json()['_data'][0]['_id']
+    revision_ = resp.json()['_data'][0]['_revision']
 
     # try to GET subresource without specific subresource or model scope
     resp = app.get(f'/{model}/{id_}/subobj')
@@ -317,6 +325,9 @@ def test_subresource_scopes(model, app):
     resp = app.get(f'/{model}/{id_}/subobj')
     assert resp.status_code == 200
     assert resp.json() == {
+        '_id': id_,
+        '_type': model,
+        '_revision': revision_,
         'foo': 'foobar123',
         'bar': 42,
     }
@@ -328,6 +339,9 @@ def test_subresource_scopes(model, app):
     resp = app.get(f'/{model}/{id_}/subobj')
     assert resp.status_code == 200
     assert resp.json() == {
+        '_id': id_,
+        '_type': model,
+        '_revision': revision_,
         'foo': 'foobar123',
         'bar': 42,
     }
@@ -351,6 +365,9 @@ def test_subresource_scopes(model, app):
     resp = app.get(f'/{model}/{id_}/hidden_subobj')
     assert resp.status_code == 200
     assert resp.json() == {
+        '_id': id_,
+        '_type': model,
+        '_revision': revision_,
         'fooh': 'secret',
         'barh': 1337,
     }

@@ -596,7 +596,7 @@ async def getone(
 def getone(
     context: Context,
     prop: Property,
-    dtype: DataType,
+    dtype: (Object, File),
     backend: PostgreSQL,
     *,
     id_: str,
@@ -616,6 +616,7 @@ def getone(
     result = {
         '_id': data[table.c._id],
         '_revision': data[table.c._revision],
+        '_type': prop.model.model_type(),
         **(data[table.c[prop.name]] or {}),
     }
     return result
