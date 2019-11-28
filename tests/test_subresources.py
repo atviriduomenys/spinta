@@ -94,26 +94,6 @@ def test_put_subresource(model, app):
     id_ = resp.json()['_data'][0]['_id']
     revision_ = resp.json()['_data'][0]['_revision']
 
-    # PUT to non object or file property - should not be possible
-    resp = app.put(f'/{model}/{id_}/subarray', json={
-        '_revision': revision_,
-        'foo': 'array',
-    })
-    assert resp.status_code == 400
-    assert get_error_context(resp.json(), "InvalidValue", ["property", "type"]) == {
-        'property': 'subarray',
-        'type': 'array',
-    }
-
-    resp = app.put(f'/{model}/{id_}/scalar', json={
-        'scalar': '314',
-    })
-    assert resp.status_code == 400
-    assert get_error_context(resp.json(), "InvalidValue", ["property", "type"]) == {
-        'property': 'scalar',
-        'type': 'string',
-    }
-
     # PUT with object property
     resp = app.put(f'/{model}/{id_}/subobj', json={
         '_revision': revision_,
@@ -156,6 +136,125 @@ def test_put_subresource(model, app):
         'scalar': '42',
         'subarray': [{'foo': 'foobarbaz'}],
         'subobj': {'bar': None, 'foo': 'changed'},
+    }
+
+    # PUT to non object or file property - should not be possible
+    resp = app.put(f'/{model}/{id_}/subarray', json={
+        '_revision': revision_,
+        'foo': 'array',
+    })
+    assert resp.status_code == 400
+    assert get_error_context(resp.json(), "InvalidValue", ["property", "type"]) == {
+        'property': 'subarray',
+        'type': 'array',
+    }
+
+    resp = app.put(f'/{model}/{id_}/scalar', json={
+        'scalar': '314',
+    })
+    assert resp.status_code == 400
+    assert get_error_context(resp.json(), "InvalidValue", ["property", "type"]) == {
+        'property': 'scalar',
+        'type': 'string',
+    }
+
+
+
+@pytest.mark.models(
+    'backends/mongo/subitem',
+    'backends/postgres/subitem',
+)
+def test_patch_subresource(model, app):
+    app.authmodel(model, [
+        'insert', 'getone', 'patch', 'subobj_patch', 'subarray_patch', 'hidden_subobj_patch'
+    ])
+
+    resp = app.post(f'/{model}', json={'_data': [
+        {
+            '_op': 'insert',
+            '_type': model,
+            'scalar': '42',
+            'subarray': [{
+                'foo': 'foobarbaz',
+            }],
+            'subobj': {
+                'foo': 'foobar123',
+                'bar': 42,
+            },
+            'hidden_subobj': {
+                'fooh': 'secret',
+                'barh': 1337,
+            }
+        }
+    ]})
+
+    assert resp.status_code == 200, resp.json()
+    id_ = resp.json()['_data'][0]['_id']
+    revision_ = resp.json()['_data'][0]['_revision']
+
+    # PATCH with object property
+    resp = app.patch(f'/{model}/{id_}/subobj', json={
+        '_revision': revision_,
+        'foo': 'changed',
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['_id'] == id_
+    assert data['_type'] == model
+    assert data['_revision'] != revision_
+    assert data['foo'] == 'changed'
+    revision_ = data['_revision']
+
+    resp = app.patch(f'/{model}/{id_}/hidden_subobj', json={
+        '_revision': revision_,
+        'fooh': 'changed secret',
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['_id'] == id_
+    assert data['_type'] == model
+    assert data['_revision'] != revision_
+    assert data['fooh'] == 'changed secret'
+    revision_ = data['_revision']
+
+    # GET full resource
+    resp = app.get(f'/{model}/{id_}')
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == {
+        '_id': id_,
+        '_type': model,
+        '_revision': revision_,
+        'scalar': '42',
+        'subarray': [{'foo': 'foobarbaz'}],
+        'subobj': {'bar': 42, 'foo': 'changed'},
+    }
+
+    # Test that revision is required in json data
+    resp = app.patch(f'/{model}/{id_}/subobj', json={
+        'foo': 'changed',
+    })
+    assert resp.status_code == 400
+
+    # PATCH to non object or file property - should not be possible
+    resp = app.patch(f'/{model}/{id_}/subarray', json={
+        '_revision': revision_,
+        'foo': 'array',
+    })
+    assert resp.status_code == 400
+    assert get_error_context(resp.json(), "InvalidValue", ["property", "type"]) == {
+        'property': 'subarray',
+        'type': 'array',
+    }
+
+    resp = app.patch(f'/{model}/{id_}/scalar', json={
+        '_revision': revision_,
+        'scalar': '314',
+    })
+    assert resp.status_code == 400
+    assert get_error_context(resp.json(), "InvalidValue", ["property", "type"]) == {
+        'property': 'scalar',
+        'type': 'string',
     }
 
 
