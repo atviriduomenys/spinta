@@ -2,7 +2,7 @@ import pathlib
 
 import pytest
 
-from spinta.testing.utils import get_error_context
+from spinta.testing.utils import get_error_context, get_error_codes
 
 @pytest.mark.models(
     'backends/mongo/subitem',
@@ -107,12 +107,6 @@ def test_put_subresource(model, app):
     assert data['foo'] == 'changed'
     revision_ = data['_revision']
 
-    # Test that revision is required in json data
-    resp = app.put(f'/{model}/{id_}/subobj', json={
-        'foo': 'changed',
-    })
-    assert resp.status_code == 400
-
     resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
         '_revision': revision_,
         'fooh': 'changed secret',
@@ -158,6 +152,12 @@ def test_put_subresource(model, app):
         'type': 'string',
     }
 
+    # Test that revision is required in json data
+    resp = app.put(f'/{model}/{id_}/subobj', json={
+        'foo': 'changed',
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["NoItemRevision"]
 
 
 @pytest.mark.models(
@@ -254,6 +254,7 @@ def test_patch_subresource(model, app):
         'foo': 'changed',
     })
     assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["NoItemRevision"]
 
     # PATCH to non object or file property - should not be possible
     resp = app.patch(f'/{model}/{id_}/subarray', json={
