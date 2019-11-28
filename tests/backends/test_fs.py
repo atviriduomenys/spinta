@@ -119,8 +119,10 @@ def test_add_existing_file(model, app, tmpdir):
     })
     assert resp.status_code == 201, resp.text
     id_ = resp.json()['_id']
+    revision_ = resp.json()['_revision']
 
     resp = app.patch(f'/{model}/{id_}/image:ref', json={
+        '_revision': revision_,
         'content_type': 'image/png',
         'filename': str(image),
     })
