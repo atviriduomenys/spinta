@@ -437,9 +437,18 @@ def _prepare_query_result(
 
     elif action == Action.PATCH:
         result = {}
-        for k, v in value.items():
-            prop = model.properties[k]
-            result[prop.name] = dump(context, backend, prop.dtype, v)
+
+        if property_ and property_.dtype.name == 'object':
+            props = property_.dtype.properties.values()
+            value.update(value.pop(property_.name, {}))
+        else:
+            props = model.properties.values()
+
+        for prop in props:
+            v = value.get(prop.name)
+            if v:
+                result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))
+
         result['_type'] = model.model_type()
         result['_id'] = value.get('_id')
         result['_revision'] = value.get('_revision')
