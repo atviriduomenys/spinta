@@ -1,6 +1,7 @@
 from typing import AsyncIterator, Optional, List
 
 import contextlib
+import copy
 import datetime
 import hashlib
 import itertools
@@ -460,8 +461,19 @@ async def update(
 
         id_ = data.saved['_id']
 
-        # FIXME: Support patching nested properties.
-        values = {k: v for k, v in data.patch.items() if not k.startswith('_')}
+        # Support patching nested properties.
+        #
+        # Create a copy of data.patch and fill it with the data
+        # that we are missing in patch to not override object attributes
+        # missing from data.patch
+        full_patch = copy.deepcopy(data.patch)
+        if data.prop and data.saved and data.action == Action.PATCH:
+            patched_keys = data.patch[data.prop.name].keys()
+            for k, v in data.saved.items():
+                if not k.startswith('_') and k not in patched_keys:
+                    full_patch[data.prop.name][k] = v
+
+        values = {k: v for k, v in full_patch.items() if not k.startswith('_')}
         values['_revision'] = data.patch['_revision']
         if '_id' in data.patch:
             values['_id'] = data.patch['_id']
@@ -472,6 +484,7 @@ async def update(
             where(table.main.c._revision == data.saved['_revision']).
             values(values)
         )
+
         if result.rowcount == 0:
             raise Exception("Update failed, {model} with {id_} not found.")
         elif result.rowcount > 1:
