@@ -58,6 +58,7 @@ def test_app(app):
             ('JSONL', '/:format/jsonl'),
             ('ASCII', '/:format/ascii'),
         ],
+        'limit_enforced': True,
     }
 
 
@@ -87,6 +88,7 @@ def test_directory(app):
             ('JSONL', '/rinkimai/:format/jsonl'),
             ('ASCII', '/rinkimai/:format/ascii'),
         ],
+        'limit_enforced': True,
     }
 
 
@@ -151,6 +153,7 @@ def test_model(model, context, app):
             ('JSONL', f'/{model}/:format/jsonl'),
             ('ASCII', f'/{model}/:format/ascii'),
         ],
+        'limit_enforced': True,
     }
 
 
@@ -205,6 +208,7 @@ def test_model_get(model, app):
             ('JSONL', f'/{model}/%s/:format/jsonl' % row['_id']),
             ('ASCII', f'/{model}/%s/:format/ascii' % row['_id']),
         ],
+        'limit_enforced': False,
     }
 
 
@@ -246,6 +250,7 @@ def test_dataset(app):
             ('JSONL', '/rinkimai/:dataset/json/:resource/data/:format/jsonl'),
             ('ASCII', '/rinkimai/:dataset/json/:resource/data/:format/ascii'),
         ],
+        'limit_enforced': True,
     }
 
 
@@ -328,6 +333,7 @@ def test_nested_dataset(app):
             ('JSONL', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:format/jsonl'),
             ('ASCII', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:format/ascii'),
         ],
+        'limit_enforced': True,
     }
 
 
@@ -371,6 +377,7 @@ def test_dataset_key(app):
             ('_revision', {'color': None, 'link': None, 'value': data['_revision']}),
             ('pavadinimas', {'color': None, 'link': None, 'value': 'Rinkimai 1'}),
         ],
+        'limit_enforced': False,
     }
 
 
@@ -449,6 +456,7 @@ def test_changes_single_object(app, mocker):
             ],
         ],
         'row': [],
+        'limit_enforced': True,
     }
 
 
@@ -521,6 +529,7 @@ def test_changes_object_list(app, mocker):
             ],
         ],
         'row': [],
+        'limit_enforced': True,
     }
 
 

@@ -1,4 +1,4 @@
-from typing import Union, Optional
+from typing import Union, Optional, Iterable
 
 import itertools
 
@@ -28,7 +28,21 @@ async def getall(
     action: Action,
     params: UrlParams,
 ) -> Response:
-    if params.all:
+    if params.all and params.ns:
+        for model in _traverse_ns_models(ns, params.dataset, params.resource, params.origin):
+            commands.authorize(context, action, model)
+        return _get_ns_content(
+            context,
+            request,
+            ns,
+            params,
+            action,
+            recursive=True,
+            dataset_=params.dataset,
+            resource=params.resource,
+            origin=params.origin,
+        )
+    elif params.all:
         for model in _traverse_ns_models(ns, params.dataset, params.resource, params.origin):
             commands.authorize(context, action, model)
         data = getall(
@@ -138,20 +152,16 @@ def _get_ns_content(
     ns: Namespace,
     params: UrlParams,
     action: Action,
+    *,
+    recursive: bool = False,
+    dataset_: Optional[str] = None,
+    resource: Optional[str] = None,
+    origin: Optional[str] = None,
 ) -> Response:
-    data = [
-        {
-            '_type': model.node_type(),
-            '_id': model.model_type(),
-            'name': model.name,
-            'specifier': model.model_specifier(),
-            'title': model.title,
-        }
-        for model in itertools.chain(
-            ns.names.values(),
-            ns.models.values(),
-        )
-    ]
+    if recursive:
+        data = _get_ns_content_data_recursive(ns, dataset_, resource, origin)
+    else:
+        data = _get_ns_content_data(ns, dataset_, resource, origin)
     data = sorted(data, key=lambda x: (x['_type'] != 'ns', x['_id']))
 
     schema = {
@@ -171,6 +181,40 @@ def _get_ns_content(
     load_model_properties(context, model, Property, schema['properties'])
 
     return render(context, request, model, params, data, action=action)
+
+
+def _get_ns_content_data_recursive(
+    ns: Namespace,
+    dataset_: Optional[str] = None,
+    resource: Optional[str] = None,
+    origin: Optional[str] = None,
+) -> Iterable[dict]:
+    yield from _get_ns_content_data(ns, dataset_, resource, origin)
+    for name in ns.names.values():
+        yield from _get_ns_content_data_recursive(name, dataset_, resource, origin)
+        yield from _get_ns_content_data(name, dataset_, resource, origin)
+
+
+def _get_ns_content_data(
+    ns: Namespace,
+    dataset_: Optional[str] = None,
+    resource: Optional[str] = None,
+    origin: Optional[str] = None,
+) -> Iterable[dict]:
+    models = itertools.chain(
+        ns.names.values(),
+        ns.models.values(),
+    )
+
+    for model in models:
+        if _model_matches_params(model, dataset_, resource, origin):
+            yield {
+                '_type': model.node_type(),
+                '_id': model.model_type(),
+                'name': model.name,
+                'specifier': model.model_specifier(),
+                'title': model.title,
+            }
 
 
 @commands.getone.register()

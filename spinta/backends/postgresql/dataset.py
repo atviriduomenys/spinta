@@ -198,8 +198,8 @@ class JoinManager:
     So in foo.bar.baz example, following joins will be produced:
 
         FROM table
-        LEFT OUTER JOIN foo AS foo_1 ON table.data->foo = foo_1.id
-        LEFT OUTER JOIN bar AS bar_1 ON foo_1.data->bar = bar_1.id
+        LEFT OUTER JOIN foo AS foo_1 ON table.data->>foo = foo_1.id
+        LEFT OUTER JOIN bar AS bar_1 ON foo_1.data->>bar = bar_1.id
 
     Basically for every reference a join is created.
 
@@ -228,9 +228,11 @@ class JoinManager:
                 self.aliases[right_ref] = _get_table(self.backend, model).main.alias()
                 left = self.aliases[left_ref]
                 right = self.aliases[right_ref]
-                self.left = self.left.outerjoin(right, left.c.data[ref] == right.c.id)
-        if name == 'id':
+                self.left = self.left.outerjoin(right, left.c.data[ref].astext == right.c.id)
+        if name == '_id':
             return self.aliases[refs].c.id
+        elif name == '_revision':
+            return self.aliases[refs].c.revision
         else:
             return self.aliases[refs].c.data[name]
 
@@ -304,6 +306,7 @@ def getall(
         qry = _getall_order_by(qry, table, jm, sort)
         qry = _getall_offset(qry, offset)
         qry = _getall_limit(qry, limit)
+        qry = qry.select_from(jm.left)
 
         result = connection.execute(qry)
 
@@ -393,7 +396,7 @@ def _getall_order_by(
                 d, key = ('+',) + key
             else:
                 d, key = key
-            if key == 'id':
+            if key == '_id':
                 column = table.c.id
             else:
                 column = jm(key)
