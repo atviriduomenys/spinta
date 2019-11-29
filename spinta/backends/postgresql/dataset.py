@@ -20,7 +20,7 @@ from spinta.backends.postgresql import PostgreSQL
 from spinta.backends.postgresql import utcnow
 from spinta.backends.postgresql import get_table_name
 from spinta.backends.postgresql import get_changes_table
-from spinta.backends.postgresql import MAIN_TABLE, CHANGES_TABLE
+from spinta.backends.postgresql import TableType
 from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     name = model.model_type()
-    table_name = get_table_name(backend, model.manifest.name, name, MAIN_TABLE)
+    table_name = get_table_name(name)
     table = sa.Table(
         table_name, backend.schema,
         sa.Column('id', sa.String(40), primary_key=True),
@@ -43,7 +43,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         sa.Column('updated', sa.DateTime, nullable=True),
         sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
     )
-    changes_table_name = get_table_name(backend, model.manifest.name, name, CHANGES_TABLE)
+    changes_table_name = get_table_name(name, TableType.CHANGELOG)
     changes_table = get_changes_table(backend, changes_table_name, sa.String(40))
     backend.tables[model.manifest.name][name] = ModelTables(main=table,
                                                             changes=changes_table)

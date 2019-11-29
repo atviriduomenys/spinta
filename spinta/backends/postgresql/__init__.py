@@ -2,14 +2,13 @@ from typing import AsyncIterator, Optional, List, Union
 
 import contextlib
 import datetime
+import enum
 import hashlib
 import itertools
-import re
 import typing
 import types
 
 import pytz
-import unidecode
 import sqlalchemy as sa
 import sqlalchemy.exc
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT, UUID
@@ -42,19 +41,18 @@ from spinta.exceptions import (
 # https://github.com/postgres/postgres/blob/master/src/include/pg_config_manual.h
 NAMEDATALEN = 63
 
-
-PG_CLEAN_NAME_RE = re.compile(r'[^a-z0-9]+', re.IGNORECASE)
-
-MAIN_TABLE = 'M'
-LISTS_TABLE = 'L'
-CHANGES_TABLE = 'C'
-CACHE_TABLE = 'T'
-
 UNSUPPORTED_TYPES = [
     'backref',
     'generic',
     'rql',
 ]
+
+
+class TableType(enum.Enum):
+    MAIN = ''
+    LIST = '/:list'
+    CHANGELOG = '/:changelog'
+    CACHE = '/:cache'
 
 
 class PostgreSQL(Backend):
@@ -182,7 +180,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.append(column)
 
     # Create main table.
-    main_table_name = get_table_name(backend, model.manifest.name, model.name, MAIN_TABLE)
+    main_table_name = get_table_name(model.name)
     main_table = sa.Table(
         main_table_name, backend.schema,
         sa.Column('_transaction', sa.Integer, sa.ForeignKey('transaction._id')),
@@ -193,7 +191,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 
     if _has_lists(model):
         # Create table for nested lists.
-        lists_table_name = get_table_name(backend, model.manifest.name, model.name, LISTS_TABLE)
+        lists_table_name = get_table_name(model.name, TableType.LIST)
         lists_table = sa.Table(
             lists_table_name, backend.schema,
             sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
@@ -205,7 +203,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         lists_table = None
 
     # Create changes table.
-    changes_table_name = get_table_name(backend, model.manifest.name, model.name, CHANGES_TABLE)
+    changes_table_name = get_table_name(model.name, TableType.CHANGELOG)
     # XXX: not sure if I should pass main_table.c.id.type.__class__() or a
     #      shorter form.
     changes_table = get_changes_table(backend, changes_table_name, main_table.c._id.type)
@@ -280,8 +278,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
     else:
         column_type = UUID()
     return get_pg_foreign_key(
-        table_name=get_table_name(backend, ref_model.manifest.name,
-                                  ref_model.name),
+        table_name=get_table_name(ref_model.manifest.name),
         model_name=dtype.prop.model.name,
         column_name=dtype.prop.name,
         column_type=column_type,
@@ -974,33 +971,15 @@ def pg_utcnow(element, compiler, **kw):
     return "TIMEZONE('utc', CURRENT_TIMESTAMP)"
 
 
-def get_table_name(backend: PostgreSQL, manifest: str, name: str, table_type=MAIN_TABLE):
-    assert isinstance(table_type, str)
-    assert len(table_type) == 1
-    assert table_type.isupper()
-
-    # Table name construction depends on internal tables, so we must construct
-    # internal table names differently.
-    if manifest == 'internal':
-        if table_type == MAIN_TABLE:
-            return name
-        else:
-            return f'{name}_{table_type}'
-
-    table = backend.tables['internal']['table'].main
-    table_id = backend.get(backend.engine, table.c._id, table.c.name == name, default=None)
-    if table_id is None:
-        result = backend.engine.execute(
-            table.insert(),
-            name=name,
-        )
-        table_id = result.inserted_primary_key[0]
-    name = unidecode.unidecode(name)
-    name = PG_CLEAN_NAME_RE.sub('_', name)
-    name = name.upper()
-    name = name[:NAMEDATALEN - 6]
-    name = name.rstrip('_')
-    return f"{name}_{table_id:04d}{table_type}"
+def get_table_name(name: str, ttype: TableType = TableType.MAIN):
+    name = name + ttype.value
+    if len(name) > NAMEDATALEN:
+        hs = 8
+        h = hashlib.sha1(name.encode()).hexdigest()[:hs]
+        i = int(NAMEDATALEN / 100 * 60)
+        j = NAMEDATALEN - i - hs - 2
+        name = name[:i] + '_' + h + '_' + name[-j:]
+    return name
 
 
 def get_changes_table(backend, table_name, id_type):
