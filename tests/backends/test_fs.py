@@ -56,7 +56,7 @@ def test_crud(model, app):
     assert resp.json() == {
         '_id': id_,
         '_revision': revision,
-        '_type': model,
+        '_type': f'{model}.image',
         'content_type': 'image/png',
         'filename': 'myimg.png',
     }
@@ -80,7 +80,7 @@ def test_crud(model, app):
     assert resp.json() == {
         '_id': id_,
         '_revision': revision,
-        '_type': model,
+        '_type': f'{model}.image',
         'content_type': None,
         'filename': None,
     }
@@ -219,7 +219,7 @@ def test_id_as_filename(model, app, tmpdir):
     assert resp.json() == {
         '_id': id_,
         '_revision': data['_revision'],
-        '_type': model,
+        '_type': f'{model}.image',
         'content_type': 'image/png',
         'filename': id_,
     }

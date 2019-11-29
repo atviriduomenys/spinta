@@ -429,7 +429,7 @@ class Property(Node):
         'enum': {},
         'object': {},
         'items': {},
-        'hidden': {'type': 'boolean', 'inherit': True, 'default': False},
+        'hidden': {'type': 'boolean', 'default': False},
         'model': {'required': True},
         'place': {'required': True},
     }
@@ -448,6 +448,12 @@ class Property(Node):
 
     def __repr__(self):
         return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}, type={self.dtype.name!r})>'
+
+    def model_type(self):
+        return f'{self.model.name}.{self.place}'
+
+    def model_specifier(self):
+        return ''
 
 
 class Command:

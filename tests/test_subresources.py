@@ -52,7 +52,7 @@ def test_get_subresource(model, app):
     assert resp.status_code == 200
     assert resp.json() == {
         '_id': id_,
-        '_type': model,
+        '_type': f'{model}.subobj',
         '_revision': revision_,
         'foo': 'foobar123',
         'bar': 42,
@@ -62,7 +62,7 @@ def test_get_subresource(model, app):
     assert resp.status_code == 200
     assert resp.json() == {
         '_id': id_,
-        '_type': model,
+        '_type': f'{model}.hidden_subobj',
         '_revision': revision_,
         'fooh': 'secret',
         'barh': 1337,
@@ -109,7 +109,7 @@ def test_put_subresource(model, app):
     assert resp.status_code == 200
     data = resp.json()
     assert data['_id'] == id_
-    assert data['_type'] == model
+    assert data['_type'] == f'{model}.subobj'
     assert data['_revision'] != revision_
     assert data['foo'] == 'changed'
     revision_ = data['_revision']
@@ -121,7 +121,7 @@ def test_put_subresource(model, app):
     assert resp.status_code == 200
     data = resp.json()
     assert data['_id'] == id_
-    assert data['_type'] == model
+    assert data['_type'] == f'{model}.hidden_subobj'
     assert data['_revision'] != revision_
     assert data['fooh'] == 'changed secret'
     revision_ = data['_revision']
@@ -210,7 +210,7 @@ def test_patch_subresource(model, app):
     assert data == {
         '_id': id_,
         '_revision': revision_,
-        '_type': model,
+        '_type': f'{model}.subobj',
         'foo': 'changed',
     }
 
@@ -225,7 +225,7 @@ def test_patch_subresource(model, app):
     assert data == {
         '_id': id_,
         '_revision': revision_,
-        '_type': model,
+        '_type': f'{model}.subobj',
     }
 
     # PATCH with hidden object property
@@ -239,7 +239,7 @@ def test_patch_subresource(model, app):
     assert data == {
         '_id': id_,
         '_revision': revision_,
-        '_type': model,
+        '_type': f'{model}.hidden_subobj',
         'fooh': 'changed secret',
     }
 
@@ -326,7 +326,7 @@ def test_subresource_scopes(model, app):
     assert resp.status_code == 200
     assert resp.json() == {
         '_id': id_,
-        '_type': model,
+        '_type': f'{model}.subobj',
         '_revision': revision_,
         'foo': 'foobar123',
         'bar': 42,
@@ -340,7 +340,7 @@ def test_subresource_scopes(model, app):
     assert resp.status_code == 200
     assert resp.json() == {
         '_id': id_,
-        '_type': model,
+        '_type': f'{model}.subobj',
         '_revision': revision_,
         'foo': 'foobar123',
         'bar': 42,
@@ -366,7 +366,7 @@ def test_subresource_scopes(model, app):
     assert resp.status_code == 200
     assert resp.json() == {
         '_id': id_,
-        '_type': model,
+        '_type': f'{model}.hidden_subobj',
         '_revision': revision_,
         'fooh': 'secret',
         'barh': 1337,
@@ -420,7 +420,7 @@ def test_get_subresource_file(model, app, tmpdir):
     resp = app.get(f'/{model}/{id_}/pdf:ref')
     assert resp.status_code == 200
     assert resp.json() == {
-        '_type': model,
+        '_type': f'{model}.pdf',
         '_id': id_,
         '_revision': resp.json()['_revision'],
         'content_type': 'application/pdf',

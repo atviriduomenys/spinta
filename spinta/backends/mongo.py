@@ -17,7 +17,6 @@ from spinta.types.datatype import Date, DataType, File, Object
 from spinta.utils.nestedstruct import flatten
 from spinta.commands import (
     authorize,
-    dump,
     getall,
     getone,
     load,
@@ -286,7 +285,7 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, dtype, backend, id_=params.pk)
-    data = dump(context, backend, prop.dtype, data)
+    data = prepare(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
 
 

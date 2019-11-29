@@ -21,7 +21,7 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.backends import Backend
-from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize, dump
+from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize
 from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem
 from spinta.config import RawConfig
@@ -588,7 +588,7 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, dtype, backend, id_=params.pk)
-    data = dump(context, backend, prop.dtype, data)
+    data = prepare(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
 
 

@@ -1,4 +1,4 @@
-from typing import AsyncIterator
+from typing import AsyncIterator, List
 
 import cgi
 import pathlib
@@ -48,6 +48,35 @@ def prepare(context: Context, dtype: File, backend: Backend, value: Attachment):
     return {
         'filename': value.filename,
         'content_type': value.content_type,
+    }
+
+
+@prepare.register()
+def prepare(
+    context: Context,
+    action: Action,
+    dtype: File,
+    backend: Backend,
+    value: dict,
+    *,
+    select: List[str] = None,
+    property_: Property = None,
+) -> dict:
+    if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
+        if select is not None:
+            raise NotImplementedError
+
+    if action == Action.GETONE:
+        return {
+            **(value or {}),
+            '_type': dtype.prop.model_type(),
+        }
+
+    return {
+        '_type': dtype.prop.model_type(),
+        '_id': value['_id'],
+        '_revision': value['_revision'],
+        **(value.get(dtype.prop.name) or {}),
     }
 
 
