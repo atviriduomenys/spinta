@@ -1,6 +1,7 @@
 from typing import AsyncIterator, Union
 
 import contextlib
+import copy
 import datetime
 import uuid
 import typing
@@ -420,47 +421,48 @@ def _prepare_query_result(
     elif action in (Action.INSERT, Action.UPDATE, Action.UPSERT):
         result = {}
 
+        # make a copy of a value as we may mutate it
+        temp_value = copy.deepcopy(value)
         if property_ and property_.dtype.name == 'object':
             props = property_.dtype.properties.values()
-            value.update(value.pop(property_.name, {}))
+            temp_value.update(temp_value.pop(property_.name, {}))
         else:
             props = model.properties.values()
 
         for prop in props:
             if property_ and property_.dtype.name == 'object':
-                prop_in_property = prop.name in property_.dtype.properties.keys()
-                hide_hidden_prop = prop.hidden and not prop_in_property
+                # if we explicitly request for `property_` which is hidden,
+                # then still return it
+                hide_hidden_prop = False
             else:
                 hide_hidden_prop = prop.hidden
 
-            if (
-                (hide_hidden_prop) or
-                (prop.name.startswith('_') and prop.name not in ('_id', '_revision', '_type'))
-            ):
+            if hide_hidden_prop or prop.name.startswith('_'):
                 continue
-            result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))
+            result[prop.name] = dump(context, backend, prop.dtype, temp_value.get(prop.name))
         result['_type'] = model.model_type()
-        result['_id'] = value.get('_id')
-        result['_revision'] = value.get('_revision')
+        result['_id'] = temp_value.get('_id')
+        result['_revision'] = temp_value.get('_revision')
         return result
 
     elif action == Action.PATCH:
         result = {}
 
+        temp_value = copy.deepcopy(value)
         if property_ and property_.dtype.name == 'object':
             props = property_.dtype.properties.values()
-            value.update(value.pop(property_.name, {}))
+            temp_value.update(temp_value.pop(property_.name, {}))
         else:
             props = model.properties.values()
 
         for prop in props:
-            v = value.get(prop.name)
+            v = temp_value.get(prop.name)
             if v:
-                result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))
+                result[prop.name] = dump(context, backend, prop.dtype, temp_value.get(prop.name))
 
         result['_type'] = model.model_type()
-        result['_id'] = value.get('_id')
-        result['_revision'] = value.get('_revision')
+        result['_id'] = temp_value.get('_id')
+        result['_revision'] = temp_value.get('_revision')
         return result
 
     elif action == Action.DELETE:

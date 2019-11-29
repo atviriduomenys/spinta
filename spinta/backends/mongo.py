@@ -294,7 +294,7 @@ async def getone(
 def getone(
     context: Context,
     prop: Property,
-    dtype: (Object, File),
+    dtype: Object,
     backend: Mongo,
     *,
     id_: str,
@@ -313,6 +313,33 @@ def getone(
         '_revision': data['_revision'],
         '_type': type_,
         **(data.get(prop.name) or {}),
+    }
+    return result
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    dtype: File,
+    backend: Mongo,
+    *,
+    id_: str,
+):
+    type_ = prop.model.model_type()
+    table = backend.db[type_]
+    data = table.find_one({'__id': id_}, {
+        '__id': 1,
+        '_revision': 1,
+        prop.name: 1,
+    })
+    if data is None:
+        raise ItemDoesNotExist(prop, id=id_)
+    result = {
+        '_id': data['__id'],
+        '_revision': data['_revision'],
+        '_type': type_,
+        **(data.get(prop.name) or {'content_type': None, 'filename': None}),
     }
     return result
 

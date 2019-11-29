@@ -75,15 +75,15 @@ def test_crud(model, app):
     assert data['_revision'] != revision
     revision = data['_revision']
 
-    pp('getting ref')
     resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.status_code == 200
     assert resp.json() == {
         '_id': id_,
         '_revision': revision,
         '_type': model,
+        'content_type': None,
+        'filename': None,
     }
-    pp('not getting ref')
 
     resp = app.get(f'/{model}/{id_}/image')
     assert resp.status_code == 404

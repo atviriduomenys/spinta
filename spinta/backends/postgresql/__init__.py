@@ -473,7 +473,7 @@ async def update(
                 if not k.startswith('_') and k not in patched_keys:
                     full_patch[data.prop.name][k] = v
 
-        values = {k: v for k, v in full_patch.items() if not k.startswith('_')}
+        values = {k: v for k, v in full_patch.items()}
         values['_revision'] = data.patch['_revision']
         if '_id' in data.patch:
             values['_id'] = data.patch['_id']
@@ -596,7 +596,7 @@ async def getone(
 def getone(
     context: Context,
     prop: Property,
-    dtype: (Object, File),
+    dtype: Object,
     backend: PostgreSQL,
     *,
     id_: str,
@@ -618,6 +618,37 @@ def getone(
         '_revision': data[table.c._revision],
         '_type': prop.model.model_type(),
         **(data[table.c[prop.name]] or {}),
+    }
+    return result
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    dtype: File,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+):
+    table = backend.tables[prop.manifest.name][prop.model.name].main
+    connection = context.get('transaction').connection
+    selectlist = [
+        table.c._id,
+        table.c._revision,
+        table.c[prop.name],
+    ]
+    try:
+        data = backend.get(connection, selectlist, table.c._id == id_)
+    except NotFoundError:
+        raise ItemDoesNotExist(prop.model, id=id_)
+
+    result = {
+        '_id': data[table.c._id],
+        '_revision': data[table.c._revision],
+        '_type': prop.model.model_type(),
+        **(data[prop.name] if data[prop.name]
+           else {'content_type': None, 'filename': None}),
     }
     return result
 
