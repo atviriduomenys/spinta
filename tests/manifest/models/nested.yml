@@ -2,8 +2,9 @@
 type: model
 name: nested
 title: "Nested structure"
-version: 1
-date: "2019-02-06"
+version:
+  number: 1
+  date: 2019-02-06
 properties:
   _id: {type: pk}
   some:

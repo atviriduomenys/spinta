@@ -2,8 +2,9 @@
 type: model
 name: photo
 endpoint: photos
-version: 1
-date: "2019-05-30"
+version:
+  number: 1
+  date: "2019-05-30"
 properties:
   name:
     type: string
