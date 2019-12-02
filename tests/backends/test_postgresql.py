@@ -1,19 +1,13 @@
-from unittest.mock import MagicMock
-
+from spinta.backends.postgresql import NAMEDATALEN
 from spinta.backends.postgresql import get_table_name
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
 def test_get_table_name():
-    ns = 'default'
-    backend = MagicMock()
-    backend.get.return_value = 42
-
-    assert get_table_name(backend, 'internal', 'org') == 'org'
-    assert get_table_name(backend, ns, 'org') == 'ORG_0042M'
-    assert len(get_table_name(backend, ns, 'a' * 100)) == 63
-    assert get_table_name(backend, ns, 'a' * 100)[-10:] == 'AAAA_0042M'
-    assert get_table_name(backend, ns, 'some_/name/hėrę!') == 'SOME_NAME_HERE_0042M'
+    assert get_table_name('org') == 'org'
+    assert len(get_table_name('a' * 1000)) == NAMEDATALEN
+    assert get_table_name('a' * 1000) == 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_291e9a6c_aaaaaaaaaaaaaaaa'
+    assert get_table_name('some_/name/hėrę!') == 'some_/name/hėrę!'
 
 
 def test_changes(app):
