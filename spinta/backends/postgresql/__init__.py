@@ -278,7 +278,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
     else:
         column_type = UUID()
     return get_pg_foreign_key(
-        table_name=get_table_name(ref_model.manifest.name),
+        table_name=get_table_name(ref_model.name),
         model_name=dtype.prop.model.name,
         column_name=dtype.prop.name,
         column_type=column_type,
