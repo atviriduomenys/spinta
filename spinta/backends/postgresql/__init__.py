@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Optional, List
+from typing import AsyncIterator, Optional, List, Union
 
 import contextlib
 import datetime
@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import JSONB, BIGINT, UUID
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
+from sqlalchemy.sql.type_api import TypeEngine
 from starlette.requests import Request
 
 from spinta import commands
@@ -273,17 +274,32 @@ def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
     # TODO: rename dtype.object to dtype.model
-    ref_model = dtype.prop.model.manifest.objects['model'][dtype.object]
-    table_name = get_table_name(backend, ref_model.manifest.name, ref_model.name)
+    ref_model = commands.get_referenced_model(context, dtype.prop, dtype.object)
     if ref_model.manifest.name == 'internal':
         column_type = sa.Integer()
     else:
         column_type = UUID()
+    return get_pg_foreign_key(
+        table_name=get_table_name(backend, ref_model.manifest.name,
+                                  ref_model.name),
+        model_name=dtype.prop.model.name,
+        column_name=dtype.prop.name,
+        column_type=column_type,
+    )
+
+
+def get_pg_foreign_key(
+    *,
+    table_name: str,
+    model_name: str,
+    column_name: str,
+    column_type: TypeEngine,
+) -> List[Union[sa.Column, sa.Constraint]]:
     return [
-        sa.Column(dtype.prop.name, column_type),
+        sa.Column(column_name, column_type),
         sa.ForeignKeyConstraint(
-            [dtype.prop.name], [f'{table_name}._id'],
-            name=_get_pg_name(f'fk_{dtype.prop.model.name}_{dtype.prop.name}'),
+            [column_name], [f'{table_name}._id'],
+            name=_get_pg_name(f'fk_{model_name}_{column_name}'),
         )
     ]
 
