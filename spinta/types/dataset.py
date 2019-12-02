@@ -27,7 +27,6 @@ class Dataset(Node):
     schema = {
         'version': {
             'type': 'object',
-            'required': True,
             'properties': {
                 'number': {'type': 'integer', 'required': True},
                 'date': {'type': 'date', 'required': True},
