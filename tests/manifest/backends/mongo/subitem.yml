@@ -4,8 +4,9 @@ name: backends/mongo/subitem
 endpoint: backends/mongo/subitems
 backend: mongo
 title: "Subitem"
-version: 1
-date: "2019-11-13"
+version:
+  number: 1
+  date: "2019-11-13"
 properties:
   scalar: {type: string}
 
