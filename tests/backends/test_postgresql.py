@@ -1,19 +1,13 @@
-from unittest.mock import MagicMock
-
+from spinta.backends.postgresql import NAMEDATALEN
 from spinta.backends.postgresql import get_table_name
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
 def test_get_table_name():
-    ns = 'default'
-    backend = MagicMock()
-    backend.get.return_value = 42
-
-    assert get_table_name(backend, 'internal', 'org') == 'org'
-    assert get_table_name(backend, ns, 'org') == 'ORG_0042M'
-    assert len(get_table_name(backend, ns, 'a' * 100)) == 63
-    assert get_table_name(backend, ns, 'a' * 100)[-10:] == 'AAAA_0042M'
-    assert get_table_name(backend, ns, 'some_/name/hėrę!') == 'SOME_NAME_HERE_0042M'
+    assert get_table_name('org') == 'org'
+    assert len(get_table_name('a' * 1000)) == NAMEDATALEN
+    assert get_table_name('a' * 1000) == 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_291e9a6c_aaaaaaaaaaaaaaaa'
+    assert get_table_name('some_/name/hėrę!') == 'some_/name/hėrę!'
 
 
 def test_changes(app):
@@ -22,53 +16,6 @@ def test_changes(app):
     app.put(f'/country/{data["_id"]}', json={'_type': 'country', '_id': data['_id'], 'title': "Lietuva"})
     app.put(f'/country/{data["_id"]}', json={'type': 'country', '_id': data['_id'], 'code': 'lv', 'title': "Latvia"})
     app.get(f'/country/{data["_id"]}/:changes').json() == {}
-
-
-def test_show_with_joins(context, app):
-    app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('continent/:dataset/dependencies/:resource/continents', ['insert'])
-    app.authmodel('country/:dataset/dependencies/:resource/continents', ['insert'])
-    app.authmodel('capital/:dataset/dependencies/:resource/continents', ['insert', 'search'])
-
-    app.post('/', json={
-        '_data': [
-            {
-                '_type': 'continent/:dataset/dependencies/:resource/continents',
-                '_op': 'insert',
-                '_id': '1',
-                'title': 'Europe',
-            },
-            {
-                '_type': 'country/:dataset/dependencies/:resource/continents',
-                '_op': 'insert',
-                '_id': '1',
-                'title': 'Lithuania',
-                'continent': '1',
-            },
-            {
-                '_type': 'capital/:dataset/dependencies/:resource/continents',
-                '_op': 'insert',
-                '_id': '1',
-                'title': 'Vilnius',
-                'country': '1',
-            },
-        ]
-    })
-
-    # XXX: Maybe we should require `search` scope also for linked models? Now,
-    #      we only have access to `continent`, but using foreign keys, we can
-    #      also access country and continent.
-    resp = app.get('/capital/:dataset/dependencies/:resource/continents?select(id,title,country.title,country.continent.title)')
-    assert resp.json() == {
-        '_data': [
-            {
-                'country.continent.title': 'Europe',
-                'country.title': 'Lithuania',
-                'title': 'Vilnius',
-                'id': '1',
-            },
-        ],
-    }
 
 
 def test_delete(context, app):

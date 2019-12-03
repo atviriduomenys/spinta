@@ -22,7 +22,9 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
 
     if request.method == 'GET':
         context.attach('transaction', manifest.backend.transaction)
+
         if params.changes:
+            _enforce_limit(context, params)
             return await commands.changes(context, request, params.model, params.model.backend, action=Action.CHANGES, params=params)
         elif params.pk:
             if params.prop and params.propref:
@@ -41,6 +43,7 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
                 params.count,
             ))
             action = Action.SEARCH if search else Action.GETALL
+            _enforce_limit(context, params)
             return await commands.getall(context, request, params.model, params.model.backend, action=action, params=params)
     else:
         context.attach('transaction', manifest.backend.transaction, write=True)
@@ -51,6 +54,17 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
             return await commands.push(context, request, params.prop, params.prop.backend, action=action, params=params)
         else:
             return await commands.push(context, request, params.model, params.model.backend, action=action, params=params)
+
+
+def _enforce_limit(context: Context, params: UrlParams):
+    config = context.get('config')
+    fmt = config.exporters[params.format]
+    # XXX: I think this is not the best way to enforce limit, maybe simple
+    #      an error should be raised?
+    # XXX: Max resourlt count should be configurable.
+    if not fmt.streamable and (params.limit is None or params.limit > 100):
+        params.limit = 100
+        params.limit_enforced = True
 
 
 def peek_and_stream(stream):

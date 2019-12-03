@@ -94,4 +94,4 @@ def build_url_path(query):
             parts.extend(args)
         else:
             parts.extend([f':{name}'] + args)
-    return '/'.join(parts)
+    return '/'.join(map(str, parts))

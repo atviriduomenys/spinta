@@ -20,7 +20,7 @@ from spinta.backends.postgresql import PostgreSQL
 from spinta.backends.postgresql import utcnow
 from spinta.backends.postgresql import get_table_name
 from spinta.backends.postgresql import get_changes_table
-from spinta.backends.postgresql import MAIN_TABLE, CHANGES_TABLE
+from spinta.backends.postgresql import TableType
 from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     name = model.model_type()
-    table_name = get_table_name(backend, model.manifest.name, name, MAIN_TABLE)
+    table_name = get_table_name(name)
     table = sa.Table(
         table_name, backend.schema,
         sa.Column('id', sa.String(40), primary_key=True),
@@ -43,7 +43,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         sa.Column('updated', sa.DateTime, nullable=True),
         sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
     )
-    changes_table_name = get_table_name(backend, model.manifest.name, name, CHANGES_TABLE)
+    changes_table_name = get_table_name(name, TableType.CHANGELOG)
     changes_table = get_changes_table(backend, changes_table_name, sa.String(40))
     backend.tables[model.manifest.name][name] = ModelTables(main=table,
                                                             changes=changes_table)
@@ -198,8 +198,8 @@ class JoinManager:
     So in foo.bar.baz example, following joins will be produced:
 
         FROM table
-        LEFT OUTER JOIN foo AS foo_1 ON table.data->foo = foo_1.id
-        LEFT OUTER JOIN bar AS bar_1 ON foo_1.data->bar = bar_1.id
+        LEFT OUTER JOIN foo AS foo_1 ON table.data->>foo = foo_1.id
+        LEFT OUTER JOIN bar AS bar_1 ON foo_1.data->>bar = bar_1.id
 
     Basically for every reference a join is created.
 
@@ -228,9 +228,11 @@ class JoinManager:
                 self.aliases[right_ref] = _get_table(self.backend, model).main.alias()
                 left = self.aliases[left_ref]
                 right = self.aliases[right_ref]
-                self.left = self.left.outerjoin(right, left.c.data[ref] == right.c.id)
-        if name == 'id':
+                self.left = self.left.outerjoin(right, left.c.data[ref].astext == right.c.id)
+        if name == '_id':
             return self.aliases[refs].c.id
+        elif name == '_revision':
+            return self.aliases[refs].c.revision
         else:
             return self.aliases[refs].c.data[name]
 
@@ -304,6 +306,7 @@ def getall(
         qry = _getall_order_by(qry, table, jm, sort)
         qry = _getall_offset(qry, offset)
         qry = _getall_limit(qry, limit)
+        qry = qry.select_from(jm.left)
 
         result = connection.execute(qry)
 
@@ -393,7 +396,7 @@ def _getall_order_by(
                 d, key = ('+',) + key
             else:
                 d, key = key
-            if key == 'id':
+            if key == '_id':
                 column = table.c.id
             else:
                 column = jm(key)

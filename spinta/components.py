@@ -522,7 +522,9 @@ class UrlParams:
     # property types, like references.
     propref: bool = False
 
+    # List only models names
     ns: bool = False
+    # Recursively select all models in a givne namespace
     all: bool = False
     dataset: Optional[str] = None
     resource: Optional[str] = None
@@ -531,12 +533,15 @@ class UrlParams:
     changes: bool = False
     changes_offset: Optional[str] = None
 
-    fmt: Optional[str] = None
+    format: Optional[str] = None
+    formatparams: dict
 
     select: Optional[List[str]] = None
     sort: Optional[List[Tuple[str, Node]]] = None
     limit: Optional[str] = None
     offset: Optional[str] = None
+    # Limit can be enforced even it is is not explicitly given in URL.
+    limit_enforced: bool = False
     # XXX: Deprecated, count should be part of `select`.
     count: bool = False
     # In batch requests, return summary of what was done.

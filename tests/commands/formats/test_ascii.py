@@ -105,3 +105,28 @@ async def test_export_multiple_types(context):
         '2    \n'
         '3    '
     )
+
+
+def test_export_ascii_params(app, mocker):
+    app.authmodel('country/:dataset/csv/:resource/countries', ['insert', 'search'])
+    resp = app.post('/country/:dataset/csv/:resource/countries', json={'_data': [
+        {
+            '_op': 'insert',
+            '_type': 'country/:dataset/csv/:resource/countries',
+            'code': 'lt',
+            'title': 'Lithuania',
+        },
+        {
+            '_op': 'insert',
+            '_type': 'country/:dataset/csv/:resource/countries',
+            'code': 'lv',
+            'title': 'Latvia',
+        },
+    ]})
+    assert resp.status_code == 200, resp.json()
+    assert app.get('/country/:dataset/csv/:resource/countries/:format/ascii?select(code,title)&sort(+code)&format(width(50))').text == (
+        'code     title  \n'
+        '================\n'
+        'lt     Lithuania\n'
+        'lv     Latvia   '
+    )

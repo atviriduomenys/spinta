@@ -47,6 +47,8 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
 
 
 def _prepare_urlparams_from_path(params):
+    params.formatparams = {}
+
     for param in params.parsetree:
         name = param['name']
         args = param['args']
@@ -110,7 +112,12 @@ def _prepare_urlparams_from_path(params):
             params.changes = True
             params.changes_offset = args[0] if args else None
         elif name == 'format':
-            params.fmt = args[0]
+            if isinstance(args[0], str):
+                params.format = args[0]
+                args = args[1:]
+            for arg in args:
+                assert len(arg['args']) == 1, arg
+                params.formatparams[arg['name']] = arg['args'][0]
         elif name == 'summary':
             params.summary = True
         elif name == 'fault-tolerant':
@@ -286,10 +293,10 @@ def get_model_from_params(manifest, params: UrlParams):
 def get_response_type(context: Context, request: Request, params: UrlParams = None):
     config = context.get('config')
 
-    if params is not None and params.fmt:
-        if params.fmt not in config.exporters:
-            raise exceptions.UnknownOutputFormat(name=params.fmt)
-        return params.fmt
+    if params is not None and params.format:
+        if params.format not in config.exporters:
+            raise exceptions.UnknownOutputFormat(name=params.format)
+        return params.format
 
     if 'accept' in request.headers and request.headers['accept']:
         formats = {

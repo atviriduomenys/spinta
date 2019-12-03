@@ -18,16 +18,26 @@ object Backend {
 object Node {
     +type: str
     +name: str
+    +title: str
+    +description: str
     +parent: Node
     +backend: Backend
 }
 
-object Type {
-    +type: str
+object DataType {
     +name: str
 }
 
 package types <<Rectangle>> {
+
+    object String
+    object Integer
+    object Number
+    object Boolean
+    object Date
+    object DateTime
+    object File
+    object Image
 
     object Object {
         +properties: Dict[Node.name, Node]
@@ -37,57 +47,187 @@ package types <<Rectangle>> {
         +items: Node
     }
 
+    object Ref {
+        +object: Model
+    }
+
+    object BackRef {
+        +object: Model
+    }
+
 }
 
 package backends <<Rectangle>> {
-    object PostgreSQL
-    object Mongo
-    object FileSystem
+    object PostgreSQL {
+        +dsn: str
+    }
+    object Mongo {
+        +dsn: str
+    }
+    object FileSystem {
+        +path: str
+    }
 }
 
 package nodes <<Rectangle>> {
 
+    object Namespace
+
     package models <<Rectangle>> {
 
         object Model {
+            +extends: Model
+            +version: int
+            +date: date
+            +endpoint: str
+            +sameas: List[str]
+            +unique: List[List[Property.name]]
             +properties: Dict[Property.name, Property]
         }
 
         object Property {
-            +type: Type
+            +dtype: DataType
+            +required: Bool
+            +unique: Bool
+            +const: Any
+            +default: Any
+            +nullable: Bool
+            +sameas: List[str]
+            +enum: List[str]
+            +hidden: Bool
         }
 
     }
 
+    object Owner {
+        +title: str
+        +sector: str
+        +logo: str
+    }
+
     package datasets <<Rectangle>> {
 
+
         object Dataset {
+            +version: int
+            +date: date
+            +source: Source
+            +owner: Owner
+            +website: str
             +resources: Dict[Resource.name, Resource]
         }
 
         object Resource {
+            +source: Source
+            +objects: Dict[Origin.name, dataset.Model]
+        }
+
+        object Origin
+
+        object dataset.Model {
+            +extends: Model
+            +source: Source
+            +endpoint: str
+            +identity: List[dataset.Property.name]
+            +dependencies: Dict[str, dataset.Property.name]
+            +properties: Dict[dataset.Property.name, dataset.Property]
+        }
+
+        object dataset.Property {
+            +dtype: DataType
+            +required: Bool
+            +unique: Bool
+            +const: Any
+            +default: Any
+            +nullable: Bool
+            +sameas: List[str]
+            +enum: List[str]
+            +hidden: Bool
+        }
+
+        object Source
+        
+
+        package sources <<Rectangle>> {
+            object Sql {
+                +schema: str
+            }
+            object Csv {
+                +skip: int
+                +limit: int
+            }
+            object Json
+            object Xml
+            object Xlsx {
+                +skip: int
+                +limit: int
+            }
+            object Html
+        }
+
+    }
+
+    package projects <<Rectangle>> {
+
+        object Impact {
+            +year: int
+            +users: int
+            +revenue: flat
+            +employees: int
+        }
+
+        object Project {
+            +version: int
+            +date: date
+            +owner: Owner
+            +impact: List[Impact]
+            +website: str
+            +dataset: Dataset
+            +resource: Resource
+            +origin: Origin
             +objects: Dict[Model.name, Model]
         }
 
-        object datasets.Model {
-            +properties: Dict[Property.name, Property]
+        object project.Model {
+            +extends: Model
+            +endpoint: str
+            +dataset: Dataset
+            +resource: Resource
+            +origin: Origin
+            +properties: Dict[dataset.Property.name, dataset.Property]
         }
 
-        object datasets.Property {
-            +type: Type
+        object project.Property {
+            +dtype: DataType
+            +required: Bool
+            +unique: Bool
+            +const: Any
+            +default: Any
+            +nullable: Bool
+            +sameas: List[str]
+            +enum: List[str]
+            +hidden: Bool
+            +dataset: Dataset
+            +resource: Resource
+            +origin: Origin
         }
 
     }
 
 }
 
-Type <|-- types
+DataType <|-- types
 Node <|-- nodes
 Backend <|-- backends
 
 Node *-- Node
-Node *-- Object
-Node *-- Array
+Property *-- Array
+Property *-- Object
+
+Model *-- Ref
+Model *-- BackRef
+
+Namespace *-- Model
 
 Store *-- Backend
 Manifest *-- Backend
@@ -95,11 +235,27 @@ Node *-- Backend
 Manifest *-- Node
 Store *-- Manifest
 Model *-- Property
-Property *-- Type
+DataType *-- Property
 
+Owner *-- Dataset
 Dataset *-- Resource
-Resource *-- datasets.Model
-datasets.Model *-- datasets.Property
-datasets.Property *-- Type
+Resource *-- Origin
+Origin *-- dataset.Model
+dataset.Model *-- dataset.Property
+Source *-- dataset.Model
+Source *-- dataset.Property
+
+Owner *-- Project
+Dataset *-- Project
+Impact *-- Project
+Project *-- project.Model
+project.Model *-- project.Property
+
+Model *-- dataset.Model
+Model *-- project.Model
+Property *-- dataset.Property
+Property *-- project.Property
+
+Source <|-- sources
 
 @enduml
