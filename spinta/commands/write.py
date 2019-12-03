@@ -20,7 +20,7 @@ from spinta.utils.aiotools import agroupby
 from spinta.backends import Backend
 from spinta.auth import check_scope
 from spinta.utils.aiotools import aslice, alist
-from spinta.utils.changes import get_patch_changes
+from spinta.utils.changes import get_patch_changes, get_patch_with_defaults
 from spinta.types import dataset
 
 
@@ -454,6 +454,13 @@ async def prepare_patch(
             {k: v for k, v in (data.saved or {}).items() if not k.startswith('_')},
             {k: v for k, v in data.given.items() if not k.startswith('_')},
         )
+
+        # On HTTP PUT on attributes of type object - fill data.patch
+        # with defaults for attributes missing in data.given
+        if data.prop and data.action == Action.UPDATE:
+            all_props = data.prop.dtype.properties
+            data.patch = get_patch_with_defaults(data.patch, all_props)
+
         if '_id' in data.given and (data.saved is None or data.given['_id'] != data.saved['_id']):
             data.patch['_id'] = data.given['_id']
         elif data.action == Action.INSERT:
