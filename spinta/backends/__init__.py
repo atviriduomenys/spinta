@@ -90,9 +90,13 @@ def dump(context: Context, backend: Backend, dtype: Object, value: dict, *, sele
             prop.place: set()
             for prop in dtype.properties.values()
         }
+    props = (
+        prop for prop in dtype.properties.values()
+        if not prop.name.startswith('_')
+    )
     return {
         prop.name: dump(context, backend, prop.dtype, value.get(prop.name), select=select_)
-        for prop in dtype.properties.values()
+        for prop in props
         if select_ is None or '*' in select_ or prop.place in select_
     }
 
@@ -325,11 +329,12 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: object
 def prepare(
     context: Context,
     action: Action,
-    model: Model,
+    model: (Model, dataset.Model),
     backend: Backend,
     value: dict,
     *,
     select: typing.List[str] = None,
+    property_: Property = None,
 ) -> dict:
     return _prepare_query_result(context, action, model, backend, value, select)
 
@@ -338,13 +343,14 @@ def prepare(
 def prepare(
     context: Context,
     action: Action,
-    model: dataset.Model,
+    dtype: DataType,
     backend: Backend,
     value: dict,
     *,
     select: typing.List[str] = None,
+    property_: Property = None,
 ) -> dict:
-    return _prepare_query_result(context, action, model, backend, value, select)
+    return _prepare_query_result(context, action, dtype.prop, backend, value, select)
 
 
 @commands.unload_backend.register()
@@ -367,24 +373,32 @@ def load_operator_value(context: Context, backend: Backend, dtype: DataType, val
 def _prepare_query_result(
     context: Context,
     action: Action,
-    model: Node,
+    node: Union[Model, dataset.Model, Property, dataset.Property],
     backend: Backend,
     value: dict,
     select: typing.List[str],
 ):
     if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
         config = context.get('config')
-        value = {**value, '_type': model.model_type()}
+
+        if isinstance(node, (Model, dataset.Model)):
+            props = ((prop.place, prop) for prop in node.properties.values())
+            flatprops = node.flatprops
+        elif isinstance(node, (Property, dataset.Property)) and isinstance(node.dtype, Object):
+            props = node.dtype.properties.items()
+            flatprops = node.dtype.properties
+        else:
+            raise NotImplementedError(f"Don't know how to prepare {node}.")
 
         if select is not None:
             unknown_properties = set(select) - {
                 name
-                for name, prop in model.flatprops.items()
+                for name, prop in flatprops.items()
                 if not prop.hidden
             } - {'*'}
             if unknown_properties:
                 raise exceptions.MultipleErrors(
-                    exceptions.FieldNotInResource(model, property=prop)
+                    exceptions.FieldNotInResource(node, property=prop)
                     for prop in sorted(unknown_properties)
                 )
 
@@ -396,41 +410,49 @@ def _prepare_query_result(
         elif action in (Action.GETALL, Action.SEARCH) and config.always_show_id:
             select = ['_id']
 
+        value = {
+            **(value or {}),
+            '_type': node.model_type(),
+        }
+        meta = ('_type', '_id', '_revision')
         result = {}
-        for prop in model.properties.values():
-            if prop.hidden or (prop.name.startswith('_') and prop.name not in ('_id', '_revision', '_type')):
+        for name, prop in props:
+            if prop.hidden or (name.startswith('_') and name not in meta):
                 continue
-            if select is None or '*' in select or prop.place in select:
-                result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name), select=select)
+            if select is None or '*' in select or name in select:
+                result[name] = dump(context, backend, prop.dtype, value.get(name), select=select)
 
         return result
 
-    elif action in (Action.INSERT, Action.UPDATE, Action.UPSERT):
-        result = {}
-        for prop in model.properties.values():
-            if prop.hidden:
-                continue
-            result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))
-        result['_type'] = model.model_type()
-        result['_id'] = value.get('_id')
-        result['_revision'] = value.get('_revision')
-        return result
+    elif action in (Action.INSERT, Action.UPSERT, Action.UPDATE, Action.PATCH, Action.DELETE):
+        result = {
+            '_type': node.model_type(),
+            '_id': value['_id'],
+            '_revision': value['_revision'],
+        }
 
-    elif action == Action.PATCH:
-        result = {}
-        for k, v in value.items():
-            prop = model.properties[k]
-            result[prop.name] = dump(context, backend, prop.dtype, v)
-        result['_type'] = model.model_type()
-        result['_id'] = value.get('_id')
-        result['_revision'] = value.get('_revision')
-        return result
+        if isinstance(node, (Model, dataset.Model)):
+            props = node.properties
+        elif isinstance(node, (Property, dataset.Property)) and isinstance(node.dtype, Object):
+            props = node.dtype.properties
+            value = value.get(node.name)
+        else:
+            raise NotImplementedError(f"Don't know how to prepare {node}.")
 
-    elif action == Action.DELETE:
-        result = {}
-        result['_type'] = model.model_type()
-        result['_id'] = value.get('_id')
-        result['_revision'] = value.get('_revision')
+        if action == Action.DELETE:
+            return result
+
+        elif action == Action.PATCH:
+            for k, v in (value or {}).items():
+                prop = props[k]
+                result[prop.name] = dump(context, backend, prop.dtype, v)
+
+        else:
+            for prop in props.values():
+                if prop.hidden or prop.name.startswith('_'):
+                    continue
+                result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))
+
         return result
 
     else:
@@ -487,6 +509,7 @@ def make_json_serializable(dtype: Array, value: list):
 def update(
     context: Context,
     prop: (Property, dataset.Property),
+    dtype: DataType,
     backend: Backend,
     *,
     dstream: AsyncIterator[DataItem],
@@ -504,6 +527,7 @@ def update(
 def patch(
     context: Context,
     prop: (Property, dataset.Property),
+    dtype: DataType,
     backend: Backend,
     *,
     dstream: AsyncIterator[DataItem],
@@ -536,6 +560,7 @@ async def _prepare_property_for_update(
 def delete(
     context: Context,
     prop: (Property, dataset.Property),
+    dtype: DataType,
     backend: Backend,
     *,
     dstream: AsyncIterator[DataItem],

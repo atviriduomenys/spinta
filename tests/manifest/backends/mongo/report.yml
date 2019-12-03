@@ -8,8 +8,6 @@ version:
   number: 1
   date: 2019-04-17
 properties:
-  _id: {type: pk}
-  _revision: {type: string}
   report_type: {type: string}
   status: {type: string}
   valid_from_date: {type: date}

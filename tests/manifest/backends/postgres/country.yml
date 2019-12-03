@@ -6,6 +6,5 @@ version:
   number: 1
   date: 2019-02-06
 properties:
-  _id: {type: pk}
   title: {type: string}
   code: {type: string, unique: true, title: "Two letters country code"}

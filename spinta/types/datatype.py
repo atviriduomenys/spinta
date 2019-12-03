@@ -177,8 +177,16 @@ def load(context: Context, dtype: PrimaryKey, data: dict, manifest: Manifest) ->
 
 @load.register()
 def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
-    dtype.properties = {}
-    for name, params in data.get('properties', {}).items():
+    dtype.properties = {
+        '_op': {'type': 'string'},
+        '_type': {'type': 'string'},
+        '_id': {'type': 'pk', 'unique': True},
+        '_revision': {'type': 'string'},
+        '_transaction': {'type': 'integer'},
+        '_where': {'type': 'rql'},
+        **data.get('properties', {}),
+    }
+    for name, params in dtype.properties.items():
         place = dtype.prop.place + '.' + name
         params = {
             'name': name,

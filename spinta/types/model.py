@@ -1,5 +1,7 @@
 from typing import Dict
 
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
+
 from spinta.auth import check_generated_scopes
 from spinta.commands import load, check, authorize, prepare
 from spinta.components import Context, Manifest, Node, Model, Property, Action
@@ -92,8 +94,18 @@ def authorize(context: Context, action: Action, model: Model):
 
 @authorize.register()
 def authorize(context: Context, action: Action, prop: Property):
+    # if property is hidden - specific scope must be provided
+    # otherwise generic model scope is also enough
     name = prop.model.model_type() + '_' + prop.place
-    check_generated_scopes(context, name, action.value)
+    if prop.hidden:
+        check_generated_scopes(context, name, action.value)
+    else:
+        try:
+            # test for specific property scope
+            check_generated_scopes(context, name, action.value)
+        except InsufficientScopeError:
+            # if specific property scope is not provided - check if generic model scope exists
+            check_generated_scopes(context, prop.model.model_type(), action.value)
 
 
 @commands.get_referenced_model.register()

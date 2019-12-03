@@ -1,4 +1,4 @@
-from typing import AsyncIterator
+from typing import AsyncIterator, List
 
 import cgi
 import pathlib
@@ -51,6 +51,35 @@ def prepare(context: Context, dtype: File, backend: Backend, value: Attachment):
     }
 
 
+@prepare.register()
+def prepare(
+    context: Context,
+    action: Action,
+    dtype: File,
+    backend: Backend,
+    value: dict,
+    *,
+    select: List[str] = None,
+    property_: Property = None,
+) -> dict:
+    if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
+        if select is not None:
+            raise NotImplementedError
+
+    if action == Action.GETONE:
+        return {
+            **(value or {}),
+            '_type': dtype.prop.model_type(),
+        }
+
+    return {
+        '_type': dtype.prop.model_type(),
+        '_id': value['_id'],
+        '_revision': value['_revision'],
+        **(value.get(dtype.prop.name) or {}),
+    }
+
+
 @migrate.register()
 def migrate(context: Context, backend: FileSystem):
     pass
@@ -91,7 +120,7 @@ async def push(
     authorize(context, action, prop)
 
     data = DataItem(prop.model, prop, propref=True, backend=prop.model.backend)
-    data.saved = getone(context, prop, prop.model.backend, id_=params.pk)
+    data.saved = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
     data.given = {
         'content_type': request.headers.get('content-type'),
         'filename': None,
@@ -111,14 +140,14 @@ async def push(
                 f.write(chunk)
         dstream = aiter([data])
         dstream = prepare_patch(context, dstream)
-        dstream = commands.update(context, prop, prop.model.backend, dstream=dstream)
+        dstream = commands.update(context, prop, prop.dtype, prop.model.backend, dstream=dstream)
 
     elif action == Action.DELETE:
         if filepath.exists():
             filepath.unlink()
         dstream = aiter([data])
         dstream = prepare_patch(context, dstream)
-        dstream = commands.delete(context, prop, prop.model.backend, dstream=dstream)
+        dstream = commands.delete(context, prop, prop.dtype, prop.model.backend, dstream=dstream)
 
     else:
         raise Exception(f"Unknown action {action!r}.")
@@ -132,24 +161,43 @@ async def getone(
     context: Context,
     request: Request,
     prop: Property,
+    dtype: File,
     backend: FileSystem,
     *,
     action: str,
     params: UrlParams,
 ):
     authorize(context, action, prop)
-    data = getone(context, prop, prop.model.backend, id_=params.pk)
-    data = data[prop.name]
-    if data is None:
+    data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
+    filename = data.get('filename')
+    if filename is None:
         raise ItemDoesNotExist(prop, id=params.pk)
-    filename = data['filename'] or params.pk
-    return FileResponse(prop.backend.path / filename, media_type=data['content_type'])
+    content_type = data['content_type']
+    return FileResponse(prop.backend.path / filename, media_type=content_type)
 
 
 @getone.register()
 def getone(
     context: Context,
     prop: Property,
+    dtype: DataType,
+    backend: FileSystem,
+    *,
+    id_: str,
+):
+    data = getone(context, prop, prop.model.backend, id_=id_)
+    if data is None:
+        raise ItemDoesNotExist(prop, id=id_)
+    data = data[prop.name]
+    filename = data['filename'] or id_
+    return (prop.backend.path / filename).read_bytes()
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    dtype: File,
     backend: FileSystem,
     *,
     id_: str,

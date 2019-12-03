@@ -13,10 +13,10 @@ from spinta.backends import Backend
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataStream, DataItem
 from spinta.config import RawConfig
 from spinta.renderer import render
-from spinta.types.datatype import Date, DataType
+from spinta.types.datatype import Date, DataType, File, Object
+from spinta.utils.nestedstruct import flatten
 from spinta.commands import (
     authorize,
-    dump,
     getall,
     getone,
     load,
@@ -29,6 +29,7 @@ from spinta.commands import (
 from spinta.exceptions import (
     ItemDoesNotExist,
     UniqueConstraint,
+    UnavailableSubresource,
 )
 from spinta import exceptions
 
@@ -175,6 +176,12 @@ async def update(
         values['_revision'] = data.patch['_revision']
         if '_id' in data.patch:
             values['__id'] = data.patch['_id']
+
+        # in order for mongo to update object without overwriting
+        # the values we do not give - we need to flatten the object values
+        if data.action == Action.PATCH:
+            values = flatten(values)
+
         result = table.update_one(
             {
                 '__id': data.saved['_id'],
@@ -256,14 +263,29 @@ async def getone(
     context: Context,
     request: Request,
     prop: Property,
+    dtype: DataType,
+    backend: Mongo,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    dtype: (Object, File),
     backend: Mongo,
     *,
     action: Action,
     params: UrlParams,
 ):
     authorize(context, action, prop)
-    data = getone(context, prop, backend, id_=params.pk)
-    data = dump(context, backend, prop.dtype, data)
+    data = getone(context, prop, dtype, backend, id_=params.pk)
+    data = prepare(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
 
 
@@ -271,11 +293,13 @@ async def getone(
 def getone(
     context: Context,
     prop: Property,
+    dtype: Object,
     backend: Mongo,
     *,
     id_: str,
 ):
-    table = backend.db[prop.model.model_type()]
+    type_ = prop.model.model_type()
+    table = backend.db[type_]
     data = table.find_one({'__id': id_}, {
         '__id': 1,
         '_revision': 1,
@@ -283,11 +307,40 @@ def getone(
     })
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
-    return {
+    result = {
         '_id': data['__id'],
         '_revision': data['_revision'],
-        prop.name: data.get(prop.name),
+        '_type': type_,
+        **(data.get(prop.name) or {}),
     }
+    return result
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    dtype: File,
+    backend: Mongo,
+    *,
+    id_: str,
+):
+    type_ = prop.model.model_type()
+    table = backend.db[type_]
+    data = table.find_one({'__id': id_}, {
+        '__id': 1,
+        '_revision': 1,
+        prop.name: 1,
+    })
+    if data is None:
+        raise ItemDoesNotExist(prop, id=id_)
+    result = {
+        '_id': data['__id'],
+        '_revision': data['_revision'],
+        '_type': type_,
+        **(data.get(prop.name) or {'content_type': None, 'filename': None}),
+    }
+    return result
 
 
 @getall.register()

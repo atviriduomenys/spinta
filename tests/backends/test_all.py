@@ -197,11 +197,13 @@ def test_delete(model, app, tmpdir):
     ]})
     assert resp.status_code == 200, resp.json()
     ids = [x['_id'] for x in resp.json()['_data']]
+    revisions = [x['_id'] for x in resp.json()['_data']]
 
     pdf = pathlib.Path(tmpdir) / 'report.pdf'
     pdf.write_bytes(b'REPORTDATA')
 
     resp = app.put(f'/{model}/{ids[0]}/pdf:ref', json={
+        '_revision': revisions[0],
         'content_type': 'application/pdf',
         'filename': str(pdf),
     })

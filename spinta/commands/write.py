@@ -84,7 +84,7 @@ async def push_stream(
         dstream = prepare_patch(context, dstream)
         if prop:
             dstream = cmds[action](
-                context, prop, prop.backend, dstream=dstream,
+                context, prop, prop.dtype, prop.backend, dstream=dstream,
                 stop_on_error=stop_on_error,
             )
         else:
@@ -350,6 +350,7 @@ async def read_existing_data(
                 rows = [commands.getone(
                     context,
                     data.prop,
+                    data.prop.dtype,
                     data.backend,
                     id_=data.given['_where']['args'][1],
                 )]
@@ -422,6 +423,9 @@ async def validate_data(
                 if '_revision' in data.given:
                     raise exceptions.ManagedProperty(data.model, property='_revision')
             if data.prop:
+                if data.action in {Action.UPDATE, Action.PATCH}:
+                    if '_revision' not in data.given:
+                        raise exceptions.NoItemRevision()
                 commands.complex_data_check(
                     context,
                     data,
@@ -524,7 +528,10 @@ def _get_simple_response(context: Context, data: DataItem) -> dict:
     elif data.saved:
         resp['_revision'] = data.saved['_revision']
     if data.action and data.model:
-        resp = commands.prepare(context, data.action, data.model, data.model.backend, resp)
+        if data.prop:
+            resp = commands.prepare(context, data.action, data.prop.dtype, data.backend, resp)
+        else:
+            resp = commands.prepare(context, data.action, data.model, data.backend, resp)
     resp = {k: v for k, v in resp.items() if k in ('_id', '_revision', '_type') or not k.startswith('_')}
     if data.error is not None:
         return {

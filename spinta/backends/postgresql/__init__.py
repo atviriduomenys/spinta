@@ -1,6 +1,7 @@
 from typing import AsyncIterator, Optional, List, Union
 
 import contextlib
+import copy
 import datetime
 import enum
 import hashlib
@@ -20,7 +21,7 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.backends import Backend
-from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize, dump
+from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize
 from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem
 from spinta.config import RawConfig
@@ -34,6 +35,7 @@ from spinta.exceptions import (
     NotFoundError,
     ItemDoesNotExist,
     UniqueConstraint,
+    UnavailableSubresource,
 )
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
@@ -472,8 +474,19 @@ async def update(
 
         id_ = data.saved['_id']
 
-        # FIXME: Support patching nested properties.
-        values = {k: v for k, v in data.patch.items() if not k.startswith('_')}
+        # Support patching nested properties.
+        #
+        # Create a copy of data.patch and fill it with the data
+        # that we are missing in patch to not override object attributes
+        # missing from data.patch
+        full_patch = copy.deepcopy(data.patch)
+        if data.prop and data.saved and data.action == Action.PATCH:
+            patched_keys = data.patch[data.prop.name].keys()
+            for k, v in data.saved.items():
+                if not k.startswith('_') and k not in patched_keys:
+                    full_patch[data.prop.name][k] = v
+
+        values = {k: v for k, v in full_patch.items()}
         values['_revision'] = data.patch['_revision']
         if '_id' in data.patch:
             values['_id'] = data.patch['_id']
@@ -484,6 +497,7 @@ async def update(
             where(table.main.c._revision == data.saved['_revision']).
             values(values)
         )
+
         if result.rowcount == 0:
             raise Exception("Update failed, {model} with {id_} not found.")
         elif result.rowcount > 1:
@@ -565,14 +579,29 @@ async def getone(
     context: Context,
     request: Request,
     prop: Property,
+    dtype: DataType,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    dtype: (Object, File),
     backend: PostgreSQL,
     *,
     action: Action,
     params: UrlParams,
 ):
     authorize(context, action, prop)
-    data = getone(context, prop, backend, id_=params.pk)
-    data = dump(context, backend, prop.dtype, data)
+    data = getone(context, prop, dtype, backend, id_=params.pk)
+    data = prepare(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
 
 
@@ -580,6 +609,7 @@ async def getone(
 def getone(
     context: Context,
     prop: Property,
+    dtype: Object,
     backend: PostgreSQL,
     *,
     id_: str,
@@ -592,14 +622,48 @@ def getone(
         table.c[prop.name],
     ]
     try:
-        result = backend.get(connection, selectlist, table.c._id == id_)
+        data = backend.get(connection, selectlist, table.c._id == id_)
     except NotFoundError:
         raise ItemDoesNotExist(prop.model, id=id_)
-    return {
-        '_id': result[table.c._id],
-        '_revision': result[table.c._revision],
-        prop.name: result[table.c[prop.name]],
+
+    result = {
+        '_id': data[table.c._id],
+        '_revision': data[table.c._revision],
+        '_type': prop.model.model_type(),
+        **(data[table.c[prop.name]] or {}),
     }
+    return result
+
+
+@getone.register()
+def getone(
+    context: Context,
+    prop: Property,
+    dtype: File,
+    backend: PostgreSQL,
+    *,
+    id_: str,
+):
+    table = backend.tables[prop.manifest.name][prop.model.name].main
+    connection = context.get('transaction').connection
+    selectlist = [
+        table.c._id,
+        table.c._revision,
+        table.c[prop.name],
+    ]
+    try:
+        data = backend.get(connection, selectlist, table.c._id == id_)
+    except NotFoundError:
+        raise ItemDoesNotExist(prop.model, id=id_)
+
+    result = {
+        '_id': data[table.c._id],
+        '_revision': data[table.c._revision],
+        '_type': prop.model.model_type(),
+        **(data[prop.name] if data[prop.name]
+           else {'content_type': None, 'filename': None}),
+    }
+    return result
 
 
 @getall.register()
