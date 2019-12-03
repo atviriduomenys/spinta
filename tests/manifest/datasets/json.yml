@@ -1,8 +1,9 @@
 ---
 name: json
 type: dataset
-version: 1
-date: "2019-02-22"
+version:
+  number: 1
+  date: 2019-02-22
 resources:
   data:
     type: json

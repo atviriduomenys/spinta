@@ -25,8 +25,13 @@ log = logging.getLogger(__name__)
 
 class Dataset(Node):
     schema = {
-        'version': {'type': 'integer', 'required': True},
-        'date': {'type': 'date', 'required': True},
+        'version': {
+            'type': 'object',
+            'properties': {
+                'number': {'type': 'integer', 'required': True},
+                'date': {'type': 'date', 'required': True},
+            },
+        },
         'owner': {'type': 'string'},
         'stars': {'type': 'integer'},
         'website': {'type': 'url', 'description': "Website of this dataset."},

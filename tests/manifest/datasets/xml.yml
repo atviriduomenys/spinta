@@ -1,8 +1,9 @@
 ---
 name: xml
 type: dataset
-version: 1
-date: "2019-03-07"
+version:
+  number: 1
+  date: 2019-03-07
 resources:
   data:
     type: xml

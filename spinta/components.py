@@ -390,10 +390,15 @@ class Namespace(Node):
 
 class Model(Node):
     schema = {
+        'version': {
+            'type': 'object',
+            'properties': {
+                'number': {'type': 'integer', 'required': True},
+                'date': {'type': 'date', 'required': True},
+            },
+        },
         'unique': {'default': []},
         'extends': {},
-        'version': {},
-        'date': {},
         'link': {},
         'properties': {'default': {}},
         'flatprops': {},

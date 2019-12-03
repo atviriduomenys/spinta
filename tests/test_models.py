@@ -40,8 +40,6 @@ def test_engine_name_overshadow_other(config, tmpdir):
             'datasets/report.yml': {
                 'type': 'dataset',
                 'name': 'report',
-                'version': 1,
-                'date': '',
                 'resources': {
                     'res': {
                         'objects': {

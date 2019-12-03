@@ -4,8 +4,9 @@ name: report
 endpoint: reports
 backend: mongo
 title: "Report"
-version: 1
-date: "2019-04-17"
+version:
+  number: 1
+  date: 2019-04-17
 properties:
   _id: {type: pk}
   revision: {type: string}

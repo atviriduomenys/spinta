@@ -1,8 +1,9 @@
 ---
 name: xlsx
 type: dataset
-version: 1
-date: "2019-02-21"
+version:
+  number: 1
+  date: 2019-02-21
 resources:
 
   data:

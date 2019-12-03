@@ -1,8 +1,9 @@
 ---
 name: generator
 type: dataset
-version: 1
-date: "2019-03-13"
+version:
+  number: 1
+  date: 2019-03-13
 resources:
 
   continents:
