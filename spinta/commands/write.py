@@ -457,7 +457,7 @@ async def prepare_patch(
 
         # On HTTP PUT on attributes of type object - fill data.patch
         # with defaults for attributes missing in data.given
-        if data.prop and data.action == Action.UPDATE:
+        if data.prop and data.prop.dtype.name == 'object' and data.action == Action.UPDATE:
             all_props = data.prop.dtype.properties
             data.patch = get_patch_with_defaults(data.patch, all_props)
 
