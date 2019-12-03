@@ -3,8 +3,9 @@ type: model
 name: backends/postgres/subitem
 endpoint: backends/postgres/subitems
 title: "Subitem"
-version: 1
-date: "2019-11-13"
+version:
+  number: 1
+  date: "2019-11-13"
 properties:
   scalar: {type: string}
 
