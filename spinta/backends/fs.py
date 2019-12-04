@@ -1,4 +1,4 @@
-from typing import AsyncIterator, List
+from typing import AsyncIterator, List, Optional
 
 import cgi
 import pathlib
@@ -17,7 +17,7 @@ from spinta.exceptions import FileNotFound, ItemDoesNotExist
 from spinta.renderer import render
 from spinta.types.datatype import DataType, File
 from spinta.utils.aiotools import aiter
-from spinta.utils.changes import get_patch_changes
+from spinta.utils.schema import NA
 
 
 class FileSystem(Backend):
@@ -234,16 +234,28 @@ def create_changelog_entry(
     return dstream
 
 
-@commands.build_data_patch_for_write.register()  # noqa
-def build_data_patch_for_write(context: Context, model: Model, prop_dtype: File, *, data: DataItem) -> dict:
-    old = {k: v for k, v in (data.saved or {}).items() if not k.startswith('_')}
-    new = {k: v for k, v in data.given.items() if not k.startswith('_')}
-
-    changes = get_patch_changes(old, new)
-    if data.action == Action.UPDATE:
-        # TODO: fix the hardcoded File type metadata
-        all_props = {'content_type': None, 'filename': None}
-        for k, def_val in all_props.items():
-            if not k.startswith('_') and k not in changes.keys():
-                changes[k] = def_val
-    return changes
+@commands.build_data_patch_for_write.register()
+def build_data_patch_for_write(
+    context: Context,
+    dtype: File,
+    *,
+    given: Optional[dict],
+    saved: Optional[dict],
+    fill: bool = False,
+) -> dict:
+    if isinstance(given, dict):
+        if fill:
+            return {
+                'content_type': None,
+                'filename': None,
+                **given,
+            }
+        else:
+            return given.copy()
+    elif given is NA:
+        return NA
+    else:
+        return {
+            'content_type': None,
+            'filename': None,
+        }

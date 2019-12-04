@@ -2,7 +2,17 @@ from typing import Union, List
 
 from spinta import exceptions
 
-na = object()
+
+class NotAvailable:
+
+    def __repr__(self):
+        return "<NA>"
+
+    def __bool__(self):
+        return False
+
+
+NA = NotAvailable()
 
 
 def resolve_schema(obj, Base):
@@ -45,16 +55,16 @@ def load_from_schema(Base: type, obj: object, params: dict, check_unknowns=True)
                 raise exceptions.UnknownParameter(obj, param=name)
             else:
                 continue
-        value = params.get(name, na)
+        value = params.get(name, NA)
         value = _get_value(obj, schema[name], name, value)
         setattr(obj, name, value)
     return obj
 
 
 def _get_value(obj: object, schema: dict, name: str, value: object):
-    if schema.get('required', False) and value is na:
+    if schema.get('required', False) and value is NA:
         raise Exception(f"Missing required param {name!r}.")
-    if value is na:
+    if value is NA:
         value = schema.get('default')
     return value
 

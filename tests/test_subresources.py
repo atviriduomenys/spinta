@@ -4,6 +4,7 @@ import pytest
 
 from spinta.testing.utils import get_error_context, get_error_codes
 
+
 @pytest.mark.models(
     'backends/mongo/subitem',
     'backends/postgres/subitem',
