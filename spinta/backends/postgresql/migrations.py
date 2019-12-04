@@ -1,7 +1,37 @@
+from typing import List
+
+from spinta import commands
+from spinta.backends.postgresql import PostgreSQL
+from spinta.components import Context, Model
+from spinta.migrations import (
+    get_schema_from_changes,
+    get_schema_changes,
+    get_new_schema_version
+)
+
+
 METACOLS = {
     '_id': {'type': 'pk'},
     '_revision': {'type': 'string'},
 }
+
+
+@commands.new_schema_version.register()
+def new_schema_version(
+    context: Context,
+    backend: PostgreSQL,
+    model: Model,
+    *,
+    versions: List[dict],
+):
+    old, new, nextvnum = get_schema_from_changes(versions)
+    changes = get_schema_changes(old, new)
+    if changes:
+        migrate = autogen_migration(old, new),
+        version = get_new_schema_version(old, changes, migrate, nextvnum)
+        return version
+    else:
+        return {}
 
 
 def autogen_migration(old: dict, new: dict) -> dict:

@@ -323,3 +323,8 @@ def create_changelog_entry():
 @command()
 def coerce_source_value():
     """Coerce value received from external data source to python native type."""
+
+
+@command()
+def new_schema_version():
+    """Calculate diff between two nodes."""
