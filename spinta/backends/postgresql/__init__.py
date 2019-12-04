@@ -479,8 +479,10 @@ async def update(
         # Create a copy of data.patch and fill it with the data
         # that we are missing in patch to not override object attributes
         # missing from data.patch
+        #
+        # XXX: create command to create full patch for nested arguments
         full_patch = copy.deepcopy(data.patch)
-        if data.prop and data.saved:
+        if data.prop and data.saved and data.patch[data.prop.name] is not None:
             patched_keys = data.patch[data.prop.name].keys()
             for k, v in data.saved.items():
                 if not k.startswith('_') and k not in patched_keys:
