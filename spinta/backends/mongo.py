@@ -1,3 +1,5 @@
+from typing import List
+
 import contextlib
 import datetime
 import re
@@ -32,6 +34,11 @@ from spinta.exceptions import (
     UnavailableSubresource,
 )
 from spinta import exceptions
+from spinta.migrations import (
+    get_schema_from_changes,
+    get_schema_changes,
+    get_new_schema_version
+)
 
 
 class Mongo(Backend):
@@ -93,6 +100,24 @@ def wait(context: Context, backend: Mongo, config: RawConfig, *, fail: bool = Fa
 def prepare(context: Context, backend: Mongo, manifest: Manifest):
     # Mongo does not need any table or database preparations
     pass
+
+
+@commands.new_schema_version.register()
+def new_schema_version(
+    context: Context,
+    backend: Mongo,
+    model: Model,
+    *,
+    versions: List[dict],
+):
+    old, new, nextval = get_schema_from_changes(versions)
+    changes = get_schema_changes(old, new)
+    if changes:
+        migrate = {}
+        version = get_new_schema_version(old, changes, migrate, nextval)
+        return version
+    else:
+        return {}
 
 
 @migrate.register()

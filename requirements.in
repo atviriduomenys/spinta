@@ -5,6 +5,7 @@ authlib==0.11
 click
 gunicorn
 jinja2
+jsonpatch
 lxml
 msgpack
 multipledispatch
