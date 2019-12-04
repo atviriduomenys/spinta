@@ -480,7 +480,10 @@ async def update(
         # that we are missing in patch to not override object attributes
         # missing from data.patch
         #
-        # XXX: create command to create full patch for nested arguments
+        # TODO: create command to create full patch for nested arguments
+        # TODO: fix a case of when update is called on delete:
+        #       - spinta/backends/__init__.py::delete
+        #       - tests/backends/test_fs.py::test_crud::67
         full_patch = copy.deepcopy(data.patch)
         if data.prop and data.saved and data.patch[data.prop.name] is not None:
             patched_keys = data.patch[data.prop.name].keys()
