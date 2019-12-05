@@ -712,48 +712,118 @@ def getall(
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name]
 
-    joins = []
-
-    # TODO: Select list must be taken from params.select.
-    qry = sa.select([table.main])
-    qry = _getall_query(context, model, backend, table, joins, qry, query)
-    qry = _getall_order_by(model, backend, qry, table, joins, sort)
-    qry = _getall_offset(qry, offset)
-    qry = _getall_limit(qry, limit)
-
-    if joins:
-        join = table.main
-        for alias, cond in joins:
-            join = join.join(alias, cond)
-        qry = qry.select_from(join)
+    qb = QueryBuilder(context, model, backend, table)
+    qry = qb.build(select, sort, offset, limit, query)
 
     for row in connection.execute(qry):
         yield dict(row)
 
 
-def _getall_query(
-    context: Context,
-    model: Model,
-    backend: PostgreSQL,
-    table: ModelTables,
-    joins: List[str],
-    qry: sa.sql.Select,
-    query: Optional[List[dict]],
-) -> sa.sql.Select:
-    where = []
-    for qp in query or []:
-        key = qp['args'][0]
-        # TODO: Fix RQL parser to support `foo.bar=baz` notation.
-        #       https://github.com/pjwerneck/pyrql/pull/2
-        key = '.'.join(key) if isinstance(key, tuple) else key
-        if key not in model.flatprops:
-            raise exceptions.FieldNotInResource(model, property=key)
-        prop = model.flatprops[key]
-        name = qp['name']
-        value = commands.load_search_params(context, prop.dtype, backend, qp)
+class QueryBuilder:
+    compops = (
+        'eq',
+        'ge',
+        'gt',
+        'le',
+        'lt',
+        'ne',
+        'contains',
+        'startswith',
+    )
 
-        if prop.place in backend.props_in_lists:
-            jsonb = table.lists.c.data[prop.place]
+    def __init__(
+        self,
+        context: Context,
+        model: Model,
+        backend: PostgreSQL,
+        table: ModelTables,
+    ):
+        self.context = context
+        self.model = model
+        self.backend = backend
+        self.table = table
+        self.select = []
+        self.where = []
+        self.joins = []
+
+    def build(
+        self,
+        select: typing.List[str] = None,
+        sort: typing.Dict[str, dict] = None,
+        offset: int = None,
+        limit: int = None,
+        query: Optional[List[dict]] = None,
+    ) -> sa.sql.Select:
+        # TODO: Select list must be taken from params.select.
+        qry = sa.select([self.table.main])
+
+        if query:
+            qry = qry.where(self.op_and(*query))
+
+        qry = _getall_order_by(
+            self.model,
+            self.backend,
+            qry,
+            self.table,
+            self.joins,
+            sort,
+        )
+        qry = _getall_offset(qry, offset)
+        qry = _getall_limit(qry, limit)
+
+        if self.joins:
+            join = self.table.main
+            for alias, cond in self.joins:
+                join = join.join(alias, cond)
+            qry = qry.select_from(join)
+
+        return qry
+
+    def resolve(self, args: Optional[List[dict]]) -> None:
+        for arg in (args or []):
+            name = arg['name']
+            opargs = arg.get('args', ())
+            method = getattr(self, f'op_{name}', None)
+            if method is None:
+                raise exceptions.UnknownOperator(self.model, operator=name)
+            if name in self.compops:
+                cond = self.comparison(name, method, *opargs)
+                if cond is not None:
+                    yield cond
+            else:
+                yield method(*opargs)
+
+    def resolve_property(self, key: Union[str, tuple]) -> Property:
+        if isinstance(key, tuple):
+            key = '.'.join(key)
+        if key not in self.model.flatprops:
+            raise exceptions.FieldNotInResource(self.model, property=key)
+        return self.model.flatprops[key]
+
+    def resolve_value(self, op, prop: Property, value: Union[str, dict]) -> object:
+        return commands.load_search_params(self.context, prop.dtype, self.backend, {
+            'name': op,
+            'args': [prop.place, value]
+        })
+
+    def comparison(self, op, method, key, value):
+        prop = self.resolve_property(key)
+        value = self.resolve_value(op, prop, value)
+        field, value, jsonb = self.get_sql_field_and_value(prop, value)
+        cond = method(field, value)
+        if jsonb is not None:
+            join = (
+                sa.select([self.table.lists.c.id, field], distinct=self.table.lists.c.id).
+                where(cond).
+                alias()
+            )
+            self.joins.append((join, self.table.main.c._id == join.c.id))
+        else:
+            return cond
+
+    def get_sql_field_and_value(self, prop: Property, value: object):
+        if prop.place in self.backend.props_in_lists:
+            jsonb = self.table.lists.c.data[prop.place]
             if _is_dtype(prop, String):
                 field = jsonb.astext
             elif _is_dtype(prop, Integer):
@@ -778,84 +848,43 @@ def _getall_query(
                 field = sa.cast(value, JSONB)
         else:
             jsonb = None
-            field = table.main.c[prop.name]
+            field = self.table.main.c[prop.name]
 
         if isinstance(prop.dtype, String):
             field = sa.func.lower(field)
             value = value.lower()
 
-        if name == 'eq':
-            cond = field == value
-        elif name == 'ge':
-            cond = field >= value
-        elif name == 'gt':
-            cond = field > value
-        elif name == 'le':
-            cond = field <= value
-        elif name == 'lt':
-            cond = field < value
-        elif name == 'ne':
-            raise NotImplementedError
+        return field, value, jsonb
 
-            # XXX: this implementation is not finished
-            # problem is with SQLAlchemy query generation
-            key = parent_key_for_item({prop.place: None})
+    def op_and(self, *args: List[dict]):
+        return sa.and_(*self.resolve(args))
 
-            # Problem with not-equal query is that we want to filter out all
-            # resource ids from the lists table, that either do not have
-            # the item we are looking for or have the item, but it's value is
-            # not equal to the value we are searching for.
-            #
-            # select lists with a key for an item we are searching for
-            select_keys = sa.select([table.lists]).where(table.lists.c.key == key)
+    def op_or(self, *args: List[dict]):
+        return sa.or_(*self.resolve(args))
 
-            # select key ids, to be used later (XXX: can id's be reused from query above?)
-            select_key_ids = sa.select([table.lists.c.id]).where(table.lists.c.key == key)
+    def op_eq(self, field, value):
+        return field == value
 
-            # get keys which do not have the item we are searching form
-            select_non_keys = sa.select([table.lists], table.lists.c.id.notin_(select_key_ids))
+    def op_ge(self, field, value):
+        return field >= value
 
-            # make a union to get a table from select_keys and select_non_keys,
-            # to combine results and get a table with resource ids, where
-            # item values are not equal to the value or either search items do
-            # not exist at all
-            temp_table = select_keys.union(select_non_keys).alias('temp_table')
+    def op_gt(self, field, value):
+        return field > value
 
-            field._orig[0].table = temp_table
+    def op_le(self, field, value):
+        return field <= value
 
-            cond = sa.or_(
-                field == None,  # noqa
-                field != value,
-            )
-        elif name == 'contains':
-            cond = field.contains(value)
-        elif name == 'startswith':
-            cond = field.startswith(value)
-        else:
-            raise exceptions.UnknownOperator(prop, operator=name)
+    def op_lt(self, field, value):
+        return field < value
 
-        if jsonb is not None:
-            if name == 'ne':
-                # use temporary table we created for in the `ne` condition
-                join = (
-                    sa.select([temp_table.c.id, field], distinct=temp_table.c.id).
-                    where(cond).
-                    alias()
-                )
-            else:
-                join = (
-                    sa.select([table.lists.c.id, field], distinct=table.lists.c.id).
-                    where(cond).
-                    alias()
-                )
-            joins.append((join, table.main.c._id == join.c.id))
-        else:
-            where.append(cond)
+    def op_ne(self, field, value):
+        raise NotImplementedError
 
-    if where:
-        qry = qry.where(sa.and_(*where))
+    def op_contains(self, field, value):
+        return field.contains(value)
 
-    return qry
+    def op_startswith(self, field, value):
+        return field.startswith(value)
 
 
 def _is_dtype(prop, DataType):
