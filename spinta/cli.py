@@ -340,9 +340,12 @@ def client(ctx):
 
 
 @client.command('add')
+@click.option('--name', '-n', help="client name")
+@click.option('--secret', '-s', help="client secret")
+@click.option('--add-secret', is_flag=True, default=False, help="add client secret in plain text to file")
 @click.option('--path', '-p', type=click.Path(exists=True, file_okay=False, writable=True))
 @click.pass_context
-def client_add(ctx, path):
+def client_add(ctx, name, secret, add_secret, path):
     import ruamel.yaml
     from spinta.utils import passwords
 
@@ -356,20 +359,24 @@ def client_add(ctx, path):
     else:
         path = pathlib.Path(path)
 
-    client_id = str(uuid.uuid4())
+    client_id = name or str(uuid.uuid4())
     client_file = path / f'{client_id}.yml'
 
     if client is None and client_file.exists():
         raise click.Abort(f"{client_file} file already exists.")
 
-    client_secret = passwords.gensecret(32)
+    client_secret = secret or passwords.gensecret(32)
     client_secret_hash = passwords.crypt(client_secret)
 
     data = {
         'client_id': client_id,
+        'client_secret': client_secret,
         'client_secret_hash': client_secret_hash,
         'scopes': [],
     }
+
+    if not add_secret:
+        del data['client_secret']
 
     yaml.dump(data, client_file)
 
