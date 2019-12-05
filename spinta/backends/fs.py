@@ -1,4 +1,4 @@
-from typing import AsyncIterator, List, Optional
+from typing import AsyncIterator, List, Optional, Union
 
 import cgi
 import pathlib
@@ -17,7 +17,7 @@ from spinta.exceptions import FileNotFound, ItemDoesNotExist
 from spinta.renderer import render
 from spinta.types.datatype import DataType, File
 from spinta.utils.aiotools import aiter
-from spinta.utils.schema import NA
+from spinta.utils.schema import NotAvailable, NA
 
 
 class FileSystem(Backend):
@@ -242,20 +242,24 @@ def build_data_patch_for_write(
     given: Optional[dict],
     saved: Optional[dict],
     fill: bool = False,
-) -> dict:
-    if isinstance(given, dict):
-        if fill:
-            return {
-                'content_type': None,
-                'filename': None,
-                **given,
-            }
-        else:
-            return given.copy()
-    elif given is NA:
-        return NA
-    else:
-        return {
-            'content_type': None,
-            'filename': None,
+) -> Union[dict, NotAvailable]:
+    if fill:
+        given = {
+            'content_type': given.get('content_type', None) if given else given,
+            'filename': given.get('filename', None) if given else given,
         }
+    else:
+        given = {
+            'content_type': given.get('content_type', NA) if given else given,
+            'filename': given.get('filename', NA) if given else given,
+        }
+    saved = {
+        'content_type': saved.get('content_type', NA) if saved else saved,
+        'filename': saved.get('filename', NA) if saved else saved,
+    }
+    given = {
+        k: v for k, v in given.items()
+        if v != saved[k]
+    }
+    given = {k: v for k, v in given.items() if v is not NA}
+    return given or NA

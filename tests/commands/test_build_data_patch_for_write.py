@@ -124,6 +124,53 @@ def test_array_fill_saved(context):
     }
 
 
+def test_array(context):
+    model = create_model(context, {
+        'properties': {
+            'list': {
+                'type': 'array',
+                'items': {
+                    'type': 'object',
+                    'properties': {
+                        'foo': {'type': 'string'},
+                        'bar': {'type': 'string'},
+                    },
+                },
+            },
+        },
+    })
+    given = {'list': [{'foo': '42', 'bar': '24'}]}
+    saved = {'list': [{'foo': '42'}]}
+    assert patch(context, model, given=given, saved=saved) == {
+        'list': [
+            {
+                'foo': '42',
+                'bar': '24',
+            },
+        ]
+    }
+
+
+def test_array_fill_saved_all_same(context):
+    model = create_model(context, {
+        'properties': {
+            'list': {
+                'type': 'array',
+                'items': {
+                    'type': 'object',
+                    'properties': {
+                        'foo': {'type': 'string'},
+                        'bar': {'type': 'string'},
+                    },
+                },
+            },
+        },
+    })
+    given = {'list': [{'foo': '42', 'bar': None}]}
+    saved = {'list': [{'foo': '42', 'bar': None}]}
+    assert patch(context, model, given=given, saved=saved, fill=True) == {}
+
+
 def test_object_saved(context):
     model = create_model(context, {
         'properties': {
@@ -164,4 +211,53 @@ def test_object_fill_saved(context):
         'obj': {
             'bar': None,
         }
+    }
+
+
+def test_object_fill_saved_all_same(context):
+    model = create_model(context, {
+        'properties': {
+            'obj': {
+                'type': 'object',
+                'properties': {
+                    'foo': {'type': 'string'},
+                    'bar': {'type': 'string'},
+                },
+            },
+        },
+    })
+    given = {'obj': {'foo': '42', 'bar': None}}
+    saved = {'obj': {'foo': '42', 'bar': None}}
+    assert patch(context, model, given=given, saved=saved, fill=True) == {
+    }
+
+
+def test_file_fill_saved(context):
+    model = create_model(context, {
+        'properties': {
+            'file': {
+                'type': 'file',
+            },
+        },
+    })
+    given = {'file': {'filename': 'test.txt', 'content_type': 'text/plain'}}
+    saved = {'file': {'filename': 'test.txt'}}
+    assert patch(context, model, given=given, saved=saved, fill=True) == {
+        'file': {
+            'content_type': 'text/plain',
+        },
+    }
+
+
+def test_file_fill_saved_all_same(context):
+    model = create_model(context, {
+        'properties': {
+            'file': {
+                'type': 'file',
+            },
+        },
+    })
+    given = {'file': {'filename': 'test.txt', 'content_type': 'text/plain'}}
+    saved = {'file': {'filename': 'test.txt', 'content_type': 'text/plain'}}
+    assert patch(context, model, given=given, saved=saved, fill=True) == {
     }

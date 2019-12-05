@@ -22,7 +22,7 @@ from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist
 from spinta.utils.errors import report_error
 from spinta.utils.streams import splitlines
-from spinta.utils.schema import NA
+from spinta.utils.schema import NotAvailable, NA
 
 
 STREAMING_CONTENT_TYPES = [
@@ -458,6 +458,9 @@ async def prepare_patch(
             fill=data.action == Action.UPDATE,
         )
 
+        if data.patch is NA:
+            data.patch = {}
+
         if '_id' in data.given and (data.saved is None or data.given['_id'] != data.saved['_id']):
             data.patch['_id'] = data.given['_id']
         elif data.action == Action.INSERT:
@@ -513,7 +516,7 @@ def build_data_patch_for_write(
     given: Optional[dict],
     saved: Optional[dict],
     fill: bool = False,
-) -> dict:
+) -> Union[dict, NotAvailable]:
     if fill:
         props = (
             prop
@@ -534,7 +537,7 @@ def build_data_patch_for_write(
         )
         if value is not NA:
             patch[prop.name] = value
-    return patch
+    return patch or NA
 
 
 @commands.build_data_patch_for_write.register()  # noqa
@@ -545,7 +548,7 @@ def build_data_patch_for_write(
     given: Optional[object],
     saved: Optional[object],
     fill: bool = False,
-) -> dict:
+) -> Union[dict, NotAvailable]:
     if given is NA and not fill:
         return NA
     if given is NA:
@@ -553,16 +556,26 @@ def build_data_patch_for_write(
     if given is None:
         # XXX: not sure if arrays can be None?
         return None
-    return [
+    patch = [
         build_data_patch_for_write(
             context,
             dtype.items.dtype,
             given=value,
+            # We can't deterministically compare arrays, so we always overwrite
+            # array content, by pretending, that nothing is saved previously and
+            # we must fill all missing values with defaults.
             saved=NA,
-            fill=fill,
+            fill=True,
         )
         for value in given
     ]
+
+    # Even if we always overwrite arrays, but in the end, we still check if
+    # whole array has changed or not.
+    if saved == patch:
+        return NA
+    else:
+        return patch
 
 
 
@@ -574,7 +587,7 @@ def build_data_patch_for_write(
     given: Optional[object],
     saved: Optional[object],
     fill: bool = False,
-) -> dict:
+) -> Union[dict, NotAvailable]:
     if given is NA:
         if fill:
             given = dtype.prop.default
