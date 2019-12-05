@@ -10,18 +10,19 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from spinta import commands
-from spinta.components import Context, Node, UrlParams, Action, DataItem, Model, Property, DataStream
-from spinta.utils.streams import splitlines
 from spinta import exceptions
-from spinta.utils.errors import report_error
-from spinta.urlparams import get_model_by_name
-from spinta.renderer import render
-from spinta.utils.aiotools import agroupby
-from spinta.backends import Backend
 from spinta.auth import check_scope
+from spinta.backends import Backend
+from spinta.components import Context, Node, UrlParams, Action, DataItem, Model, Property, DataStream
+from spinta.renderer import render
+from spinta.types import dataset
+from spinta.types.datatype import Object
+from spinta.urlparams import get_model_by_name
+from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist
 from spinta.utils.changes import get_patch_changes, get_patch_with_defaults
-from spinta.types import dataset
+from spinta.utils.errors import report_error
+from spinta.utils.streams import splitlines
 
 
 STREAMING_CONTENT_TYPES = [
@@ -449,17 +450,7 @@ async def prepare_patch(
     dstream: AsyncIterator[DataItem],
 ) -> AsyncIterator[DataItem]:
     async for data in dstream:
-        # FIXME: Support patching nested properties.
-        data.patch = get_patch_changes(
-            {k: v for k, v in (data.saved or {}).items() if not k.startswith('_')},
-            {k: v for k, v in data.given.items() if not k.startswith('_')},
-        )
-
-        # On HTTP PUT on attributes of type object - fill data.patch
-        # with defaults for attributes missing in data.given
-        if data.prop and data.prop.dtype.name == 'object' and data.action == Action.UPDATE:
-            all_props = data.prop.dtype.properties
-            data.patch = get_patch_with_defaults(data.patch, all_props)
+        data.patch = build_data_patch_for_write(context, data.model, data.prop.dtype if data.prop else None, data=data)
 
         if '_id' in data.given and (data.saved is None or data.given['_id'] != data.saved['_id']):
             data.patch['_id'] = data.given['_id']
@@ -468,6 +459,30 @@ async def prepare_patch(
         if data.patch:
             data.patch['_revision'] = commands.gen_object_id(context, data.model.backend, data.model)
         yield data
+
+
+@commands.build_data_patch_for_write.register()
+def build_data_patch_for_write(context: Context, model: (Model, dataset.Model), prop: type(None), *, data: DataItem) -> dict:
+    old = {k: v for k, v in (data.saved or {}).items() if not k.startswith('_')}
+    new = {k: v for k, v in data.given.items() if not k.startswith('_')}
+
+    changes = get_patch_changes(old, new)
+    if data.action == Action.UPDATE:
+        all_props = model.properties
+        changes = get_patch_with_defaults(changes, all_props)
+    return changes
+
+
+@commands.build_data_patch_for_write.register()  # noqa
+def build_data_patch_for_write(context: Context, model: Model, prop_dtype: Object, *, data: DataItem) -> dict:
+    old = {k: v for k, v in (data.saved or {}).items() if not k.startswith('_')}
+    new = {k: v for k, v in data.given.items() if not k.startswith('_')}
+
+    changes = get_patch_changes(old, new)
+    if data.action == Action.UPDATE:
+        all_props = prop_dtype.properties
+        changes = get_patch_with_defaults(changes, all_props)
+    return changes
 
 
 async def _summary_response(context: Context, results: AsyncIterator[DataItem]) -> dict:

@@ -328,3 +328,7 @@ def coerce_source_value():
 @command()
 def new_schema_version():
     """Calculate diff between two nodes."""
+
+
+def build_data_patch_for_write():
+    """Builds data patch dict for backend consumption on write."""

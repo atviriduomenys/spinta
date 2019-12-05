@@ -7,16 +7,17 @@ import shutil
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
+from spinta import commands
 from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, push, getone, wipe, wait, authorize, complex_data_check
+from spinta.commands.write import prepare_patch, simple_response
 from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams, DataItem
 from spinta.config import RawConfig
-from spinta.types.datatype import DataType, File
 from spinta.exceptions import FileNotFound, ItemDoesNotExist
-from spinta import commands
 from spinta.renderer import render
-from spinta.commands.write import prepare_patch, simple_response
+from spinta.types.datatype import DataType, File
 from spinta.utils.aiotools import aiter
+from spinta.utils.changes import get_patch_changes
 
 
 class FileSystem(Backend):
@@ -231,3 +232,18 @@ def create_changelog_entry(
     # FileSystem properties don't have change log, change log entry will be
     # created on property model backend.
     return dstream
+
+
+@commands.build_data_patch_for_write.register()  # noqa
+def build_data_patch_for_write(context: Context, model: Model, prop_dtype: File, *, data: DataItem) -> dict:
+    old = {k: v for k, v in (data.saved or {}).items() if not k.startswith('_')}
+    new = {k: v for k, v in data.given.items() if not k.startswith('_')}
+
+    changes = get_patch_changes(old, new)
+    if data.action == Action.UPDATE:
+        # TODO: fix the hardcoded File type metadata
+        all_props = {'content_type': None, 'filename': None}
+        for k, def_val in all_props.items():
+            if not k.startswith('_') and k not in changes.keys():
+                changes[k] = def_val
+    return changes
