@@ -713,10 +713,7 @@ def getall(
     table = backend.tables[model.manifest.name][model.name]
 
     qb = QueryBuilder(context, model, backend, table)
-    qry = qb.build(query)
-    qry = _getall_order_by(model, backend, qry, table, qb.joins, sort)
-    qry = _getall_offset(qry, offset)
-    qry = _getall_limit(qry, limit)
+    qry = qb.build(select, sort, offset, limit, query)
 
     for row in connection.execute(qry):
         yield dict(row)
@@ -749,12 +746,30 @@ class QueryBuilder:
         self.where = []
         self.joins = []
 
-    def build(self, query: Optional[List[dict]]) -> sa.sql.Select:
+    def build(
+        self,
+        select: typing.List[str] = None,
+        sort: typing.Dict[str, dict] = None,
+        offset: int = None,
+        limit: int = None,
+        query: Optional[List[dict]] = None,
+    ) -> sa.sql.Select:
         # TODO: Select list must be taken from params.select.
         qry = sa.select([self.table.main])
 
         if query:
             qry = qry.where(self.op_and(*query))
+
+        qry = _getall_order_by(
+            self.model,
+            self.backend,
+            qry,
+            self.table,
+            self.joins,
+            sort,
+        )
+        qry = _getall_offset(qry, offset)
+        qry = _getall_limit(qry, limit)
 
         if self.joins:
             join = self.table.main
@@ -772,7 +787,9 @@ class QueryBuilder:
             if method is None:
                 raise exceptions.UnknownOperator(self.model, operator=name)
             if name in self.compops:
-                yield self.comparison(name, method, *opargs)
+                cond = self.comparison(name, method, *opargs)
+                if cond is not None:
+                    yield cond
             else:
                 yield method(*opargs)
 
@@ -801,7 +818,8 @@ class QueryBuilder:
                 alias()
             )
             self.joins.append((join, self.table.main.c._id == join.c.id))
-        return cond
+        else:
+            return cond
 
     def get_sql_field_and_value(self, prop: Property, value: object):
         if prop.place in self.backend.props_in_lists:

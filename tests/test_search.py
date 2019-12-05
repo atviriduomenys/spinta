@@ -16,7 +16,7 @@ test_data = [
             'create_date': '2019-03-14',
         }],
         'operating_licenses': [{
-            'license_types': ['valid'],
+            'license_types': ['valid', 'invalid'],
         }],
     },
     {
