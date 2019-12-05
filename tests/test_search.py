@@ -1,4 +1,5 @@
 import pytest
+import requests
 
 from spinta.testing.utils import get_error_codes, get_error_context
 
@@ -587,3 +588,40 @@ def test_search_nested(model, context, app):
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
+
+
+def ids(resources):
+    if isinstance(resources, requests.models.Response):
+        resp = resources
+        assert resp.status_code == 200, resp.json()
+        resources = resp.json()['_data']
+    return [r['_id'] for r in resources]
+
+
+@pytest.mark.models(
+    # TODO: add or support for mongo
+    # 'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_or(model, context, app):
+    r1, r2, r3, = ids(_push_test_data(app, model))
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?or(eq(count,42),eq(status,ok))')
+    assert ids(resp) == [r1, r2]
+
+    resp = app.get(f'/{model}?or(le(count,10),eq(count,13))')
+    assert ids(resp) == [r1, r3]
+
+
+@pytest.mark.skip('recurse operator')
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_recurse(model, context, app):
+    r1, r2, r3, = ids(_push_test_data(app, model))
+
+    app.authmodel(model, ['search'])
+
+    resp = app.get(f'/{model}?eq(,hello)')
+    assert ids(resp) == [r1]
