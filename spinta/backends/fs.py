@@ -1,4 +1,4 @@
-from typing import AsyncIterator, List
+from typing import AsyncIterator, List, Optional, Union
 
 import cgi
 import pathlib
@@ -7,16 +7,17 @@ import shutil
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
+from spinta import commands
 from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, push, getone, wipe, wait, authorize, complex_data_check
+from spinta.commands.write import prepare_patch, simple_response
 from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams, DataItem
 from spinta.config import RawConfig
-from spinta.types.datatype import DataType, File
 from spinta.exceptions import FileNotFound, ItemDoesNotExist
-from spinta import commands
 from spinta.renderer import render
-from spinta.commands.write import prepare_patch, simple_response
+from spinta.types.datatype import DataType, File
 from spinta.utils.aiotools import aiter
+from spinta.utils.schema import NotAvailable, NA
 
 
 class FileSystem(Backend):
@@ -231,3 +232,34 @@ def create_changelog_entry(
     # FileSystem properties don't have change log, change log entry will be
     # created on property model backend.
     return dstream
+
+
+@commands.build_data_patch_for_write.register()
+def build_data_patch_for_write(
+    context: Context,
+    dtype: File,
+    *,
+    given: Optional[dict],
+    saved: Optional[dict],
+    fill: bool = False,
+) -> Union[dict, NotAvailable]:
+    if fill:
+        given = {
+            'content_type': given.get('content_type', None) if given else given,
+            'filename': given.get('filename', None) if given else given,
+        }
+    else:
+        given = {
+            'content_type': given.get('content_type', NA) if given else given,
+            'filename': given.get('filename', NA) if given else given,
+        }
+    saved = {
+        'content_type': saved.get('content_type', NA) if saved else saved,
+        'filename': saved.get('filename', NA) if saved else saved,
+    }
+    given = {
+        k: v for k, v in given.items()
+        if v != saved[k]
+    }
+    given = {k: v for k, v in given.items() if v is not NA}
+    return given or NA

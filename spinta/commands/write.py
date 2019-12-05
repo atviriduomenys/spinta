@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Union
+from typing import AsyncIterator, Union, Optional
 
 import itertools
 import json
@@ -10,18 +10,19 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from spinta import commands
-from spinta.components import Context, Node, UrlParams, Action, DataItem, Model, Property, DataStream
-from spinta.utils.streams import splitlines
 from spinta import exceptions
-from spinta.utils.errors import report_error
-from spinta.urlparams import get_model_by_name
-from spinta.renderer import render
-from spinta.utils.aiotools import agroupby
-from spinta.backends import Backend
 from spinta.auth import check_scope
-from spinta.utils.aiotools import aslice, alist
-from spinta.utils.changes import get_patch_changes
+from spinta.backends import Backend
+from spinta.components import Context, Node, UrlParams, Action, DataItem, Model, Property, DataStream
+from spinta.renderer import render
 from spinta.types import dataset
+from spinta.types.datatype import DataType, Object, Array
+from spinta.urlparams import get_model_by_name
+from spinta.utils.aiotools import agroupby
+from spinta.utils.aiotools import aslice, alist
+from spinta.utils.errors import report_error
+from spinta.utils.streams import splitlines
+from spinta.utils.schema import NotAvailable, NA
 
 
 STREAMING_CONTENT_TYPES = [
@@ -449,11 +450,17 @@ async def prepare_patch(
     dstream: AsyncIterator[DataItem],
 ) -> AsyncIterator[DataItem]:
     async for data in dstream:
-        # FIXME: Support patching nested properties.
-        data.patch = get_patch_changes(
-            {k: v for k, v in (data.saved or {}).items() if not k.startswith('_')},
-            {k: v for k, v in data.given.items() if not k.startswith('_')},
+        data.patch = build_data_patch_for_write(
+            context,
+            data.prop.dtype if data.prop else data.model,
+            given=_strip_metadata(data.given),
+            saved=_strip_metadata(data.saved or {}),
+            fill=data.action == Action.UPDATE,
         )
+
+        if data.patch is NA:
+            data.patch = {}
+
         if '_id' in data.given and (data.saved is None or data.given['_id'] != data.saved['_id']):
             data.patch['_id'] = data.given['_id']
         elif data.action == Action.INSERT:
@@ -461,6 +468,135 @@ async def prepare_patch(
         if data.patch:
             data.patch['_revision'] = commands.gen_object_id(context, data.model.backend, data.model)
         yield data
+
+
+def _strip_metadata(res):
+    return {
+        k: v for k, v in res.items() if not k.startswith('_')
+    }
+
+
+@commands.build_data_patch_for_write.register()
+def build_data_patch_for_write(
+    context: Context,
+    model: (Model, dataset.Model),
+    *,
+    given: dict,
+    saved: dict,
+    fill: bool = False,
+) -> dict:
+    if fill:
+        props = (
+            prop
+            for prop in model.properties.values()
+            if not prop.name.startswith('_')
+        )
+    else:
+        props = (model.properties[k] for k in given)
+
+    patch = {}
+    for prop in props:
+        value = build_data_patch_for_write(
+            context,
+            prop.dtype,
+            given=given.get(prop.name, NA),
+            saved=saved.get(prop.name, NA),
+            fill=fill,
+        )
+        if value is not NA:
+            patch[prop.name] = value
+    return patch
+
+
+@commands.build_data_patch_for_write.register()  # noqa
+def build_data_patch_for_write(
+    context: Context,
+    dtype: Object,
+    *,
+    given: Optional[dict],
+    saved: Optional[dict],
+    fill: bool = False,
+) -> Union[dict, NotAvailable]:
+    if fill:
+        props = (
+            prop
+            for prop in dtype.properties.values()
+            if not prop.name.startswith('_')
+        )
+    else:
+        props = (dtype.properties[k] for k in given)
+
+    patch = {}
+    for prop in props:
+        value = build_data_patch_for_write(
+            context,
+            prop.dtype,
+            given=given.get(prop.name, NA) if given else given,
+            saved=saved.get(prop.name, NA) if saved else saved,
+            fill=fill,
+        )
+        if value is not NA:
+            patch[prop.name] = value
+    return patch or NA
+
+
+@commands.build_data_patch_for_write.register()  # noqa
+def build_data_patch_for_write(
+    context: Context,
+    dtype: Array,
+    *,
+    given: Optional[object],
+    saved: Optional[object],
+    fill: bool = False,
+) -> Union[dict, NotAvailable]:
+    if given is NA and not fill:
+        return NA
+    if given is NA:
+        return saved or []
+    if given is None:
+        # XXX: not sure if arrays can be None?
+        return None
+    patch = [
+        build_data_patch_for_write(
+            context,
+            dtype.items.dtype,
+            given=value,
+            # We can't deterministically compare arrays, so we always overwrite
+            # array content, by pretending, that nothing is saved previously and
+            # we must fill all missing values with defaults.
+            saved=NA,
+            fill=True,
+        )
+        for value in given
+    ]
+
+    # Even if we always overwrite arrays, but in the end, we still check if
+    # whole array has changed or not.
+    if saved == patch:
+        return NA
+    else:
+        return patch
+
+
+
+@commands.build_data_patch_for_write.register()  # noqa
+def build_data_patch_for_write(
+    context: Context,
+    dtype: DataType,
+    *,
+    given: Optional[object],
+    saved: Optional[object],
+    fill: bool = False,
+) -> Union[dict, NotAvailable]:
+    if given is NA:
+        if fill:
+            given = dtype.prop.default
+        else:
+            return NA
+    if given != saved:
+        return given
+    else:
+        return NA
 
 
 async def _summary_response(context: Context, results: AsyncIterator[DataItem]) -> dict:

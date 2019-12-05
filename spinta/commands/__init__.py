@@ -328,3 +328,21 @@ def coerce_source_value():
 @command()
 def new_schema_version():
     """Calculate diff between two nodes."""
+
+
+@command()
+def build_data_patch_for_write():
+    """Builds data patch dict for backend consumption on write.
+
+    Purpose of this command is to generate a patch, by comparing given and saved
+    values. If given and saved values are same, then we exclude this property
+    from patch, because nothing has changed.
+
+    Optionally patch can be filled with default values. That means, if given
+    value does not have all properties defined in schema, then we fill those
+    missing values with defaults and only then proceed with patch generation.
+
+    In the end, this command produces partial patch, with only those values
+    which has been changed.
+
+    """
