@@ -525,9 +525,12 @@ def getall(
         }
         # Optional sort direction: sort(+key) or sort(key)
         sort = ((('+',) + k) if len(k) == 1 else k for k in sort)
-        cursor = cursor.sort([
-            (k, direction[d]) for d, k in sort
-        ])
+        nsort = []
+        for d, k in sort:
+            if k == '_id':
+                k = '__id'
+            nsort.append((k, direction[d]))
+        cursor = cursor.sort(nsort)
 
     for row in cursor:
         row['_id'] = row.pop('__id')

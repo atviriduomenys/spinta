@@ -25,3 +25,7 @@ def test_sort(model, app):
         {'count': 10},
         {'count': 9},
     ]
+
+    resp = app.get(f'/{model}?select(_id),sort(+_id)')
+    ids = [i["_id"] for i in resp.json()['_data']]
+    assert sorted(ids) == ids
