@@ -47,6 +47,7 @@ def test_report(model, app):
             'create_date': '2019-04-20',
         }],
         'operating_licenses': [],
+        'sync': None,
     }
 
 
