@@ -30,6 +30,7 @@ def test_insert_get(model, app):
         'update_time': None,
         'valid_from_date': None,
         'operating_licenses': [],
+        'sync': None,
     }
 
     # Read those objects from database.
@@ -46,6 +47,7 @@ def test_insert_get(model, app):
         'update_time': None,
         'valid_from_date': None,
         'operating_licenses': [],
+        'sync': None,
     }
 
 
@@ -87,6 +89,10 @@ def test_update_get(model, app):
         'update_time': None,
         'valid_from_date': None,
         'operating_licenses': [],
+        'sync': {
+            'sync_revision': {},
+            'sync_resources': [],
+        },
     }
 
     # Read those objects from database.
@@ -103,6 +109,10 @@ def test_update_get(model, app):
         'update_time': None,
         'valid_from_date': None,
         'operating_licenses': [],
+        'sync': {
+            'sync_revision': {},
+            'sync_resources': [],
+        },
     }
 
     # Get all objects from database.
@@ -121,6 +131,10 @@ def test_update_get(model, app):
                 'valid_from_date': None,
                 'count': None,
                 'operating_licenses': [],
+                'sync': {
+                    'sync_revision': {},
+                    'sync_resources': [],
+                },
             },
         ]
     }
