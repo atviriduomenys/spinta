@@ -322,10 +322,12 @@ async def prepare_data(
             continue
         try:
             if data.prop:
+                data.payload = commands.rename_metadata(context, data.payload)
                 data.given = commands.load(context, data.prop.dtype, data.payload)
                 data.given = commands.prepare(context, data.prop, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.prop, data.model.backend)
             else:
+                data.payload = commands.rename_metadata(context, data.payload)
                 data.given = commands.load(context, data.model, data.payload)
                 data.given = commands.prepare(context, data.model, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.model, data.model.backend)

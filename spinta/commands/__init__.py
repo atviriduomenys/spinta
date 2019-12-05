@@ -346,3 +346,11 @@ def build_data_patch_for_write():
     which has been changed.
 
     """
+
+
+@command()
+def rename_metadata():
+    """Renames metadata fields to be compatible with spinta's notation.
+
+    XXX: this is actually a hack and should be refactored into something smarter
+    """

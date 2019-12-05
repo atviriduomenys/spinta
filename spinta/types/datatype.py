@@ -317,3 +317,8 @@ def get_error_context(dtype: DataType, *, prefix='this'):
     context = commands.get_error_context(dtype.prop, prefix=f'{prefix}.prop')
     context['type'] = 'this.name'
     return context
+
+
+@commands.rename_metadata.register()
+def rename_metadata(context: Context, data: dict) -> dict:
+    return data
