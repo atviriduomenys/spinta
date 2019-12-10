@@ -784,31 +784,38 @@ def test_patch_duplicate_id(model, context, app):
     app.authmodel(model, ['insert', 'getone', 'patch'])
     app.authorize(['spinta_set_meta_fields'])
 
+    # create extra report
+    resp = app.post(f'/{model}', json={
+        '_type': 'report',
+        'status': '1',
+    })
+    assert resp.status_code == 201
+
     data = app.post(f'/{model}', json={
         '_type': 'report',
         'status': '1',
     }).json()
     id_ = data['_id']
-
+    new_id = '0007ddec-092b-44b5-9651-76884e6081b4'
     # try to PATCH id with set_meta_fields scope
     # this should be successful because id that we want to setup
     # does not exist in database
     resp = app.patch(f'/{model}/{id_}', json={
-        '_id': '0007ddec-092b-44b5-9651-76884e6081b4',
+        '_id': new_id,
         '_revision': data['_revision'],
     })
     assert resp.status_code == 200
     data = resp.json()
     id_ = data['_id']
-    assert id_ == '0007ddec-092b-44b5-9651-76884e6081b4'
+    assert id_ == new_id
 
     # try to patch report with id of itself
     resp = app.patch(f'/{model}/{id_}', json={
-        '_id': '0007ddec-092b-44b5-9651-76884e6081b4',
+        '_id': new_id,
         '_revision': data['_revision'],
     })
     assert resp.status_code == 200
-    assert resp.json()['_id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
+    assert resp.json()['_id'] == new_id
 
     # try to PATCH id with set_meta_fields scope
     # this should not be successful because id that we want to setup

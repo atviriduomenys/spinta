@@ -358,15 +358,12 @@ def check_unique_constraint(
     table = backend.tables[prop.manifest.name][prop.model.name].main
 
     if data.action in (Action.UPDATE, Action.PATCH):
+        if prop.name == '_id' and value == data.saved['_id']:
+            return
         condition = sa.and_(
             table.c[prop.name] == value,
             table.c._id != data.saved['_id'],
         )
-    # PATCH requests are allowed to send protected fields in requests JSON
-    # PATCH handling will use those fields for validating data, though
-    # won't change them.
-    elif data.action == Action.PATCH and dtype.prop.name in {'_id', '_type', '_revision'}:
-        return
     else:
         condition = table.c[prop.name] == value
     not_found = object()
