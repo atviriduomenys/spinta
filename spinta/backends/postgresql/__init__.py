@@ -364,11 +364,6 @@ def check_unique_constraint(
             table.c[prop.name] == value,
             table.c._id != data.saved['_id'],
         )
-    # PATCH requests are allowed to send protected fields in requests JSON
-    # PATCH handling will use those fields for validating data, though
-    # won't change them.
-    elif data.action == Action.PATCH and dtype.prop.name in {'_id', '_type', '_revision'}:
-        return
     else:
         condition = table.c[prop.name] == value
     not_found = object()

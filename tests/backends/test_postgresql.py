@@ -134,7 +134,6 @@ def test_patch(app):
 
     # patch using same values as already stored in database
     resp = app.patch(f'/org/{id_}', json={
-        '_id': id_,
         '_type': 'org',
         '_revision': revision,
         'title': 'foo org',

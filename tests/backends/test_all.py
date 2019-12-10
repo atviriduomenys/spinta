@@ -356,9 +356,8 @@ def test_patch(model, app, context):
     }
     id_ = data['_id']
 
-    # test that protected fields (_id, _type, _revision) are accepted, but not PATCHED
+    # test that protected fields (_type, _revision) are accepted, but not PATCHED
     resp = app.patch(f'/{model}/{id_}', json={
-        '_id': id_,
         '_type': model,
         '_revision': revision,
         'status': '42',
