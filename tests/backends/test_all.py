@@ -265,6 +265,13 @@ def test_delete(model, app, tmpdir):
     assert ids[0] not in data
     assert ids[1] in data
 
+    # delete report with list value
+    id_ = app.post(f'/{model}', json={
+        'status': '1', 'notes': [{'note': 'NOTE', 'note_type': 'note type'}]
+    }).json()['_id']
+    resp = app.delete(f'/{model}/{id_}')
+    assert resp.status_code == 204
+
 
 @pytest.mark.models(
     'backends/mongo/report',
