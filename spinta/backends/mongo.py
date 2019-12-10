@@ -151,9 +151,12 @@ def check_unique_constraint(
     #        In case of an update, exclude currently saved value from
     #        uniqueness check.
     if data.action in (Action.UPDATE, Action.PATCH):
+        if name == '__id' and value == data.saved['_id']:
+            raise UniqueConstraint(prop, value=value)
+
         result = table.find_one({
-            name: value,
-            '__id': {'$ne': data.saved['_id']},
+            '$and': [{name: value},
+                     {'__id': {'$ne': data.saved['_id']}}],
         })
     else:
         result = table.find_one({name: value})

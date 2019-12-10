@@ -358,6 +358,8 @@ def check_unique_constraint(
     table = backend.tables[prop.manifest.name][prop.model.name].main
 
     if data.action in (Action.UPDATE, Action.PATCH):
+        if prop.name == '_id' and value == data.saved['_id']:
+            raise UniqueConstraint(prop)
         condition = sa.and_(
             table.c[prop.name] == value,
             table.c._id != data.saved['_id'],
