@@ -152,7 +152,7 @@ def check_unique_constraint(
     #        uniqueness check.
     if data.action in (Action.UPDATE, Action.PATCH):
         if name == '__id' and value == data.saved['_id']:
-            raise UniqueConstraint(prop, value=value)
+            return
 
         result = table.find_one({
             '$and': [{name: value},

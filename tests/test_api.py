@@ -814,8 +814,8 @@ def test_patch_duplicate_id(model, context, app):
         '_id': new_id,
         '_revision': data['_revision'],
     })
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ['UniqueConstraint']
+    assert resp.status_code == 200
+    assert resp.json()['_id'] == new_id
 
     # try to PATCH id with set_meta_fields scope
     # this should not be successful because id that we want to setup
