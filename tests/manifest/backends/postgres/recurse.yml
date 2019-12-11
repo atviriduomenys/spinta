@@ -1,0 +1,20 @@
+---
+type: model
+name: backends/postgres/recurse
+version:
+  number: 1
+  date: 2019-02-06
+properties:
+  title:
+    type: string
+  country:
+    type: string
+  govids:
+    type: array
+    items:
+      type: object
+      properties:
+        govid:
+          type: string
+        country:
+          type: string

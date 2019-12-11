@@ -5,7 +5,7 @@ from datetime import date, datetime
 import pyrql
 
 from spinta.commands import load, is_object_id
-from spinta.components import Context, Manifest, Node
+from spinta.components import Context, Manifest, Node, Property
 from spinta.utils.schema import resolve_schema
 from spinta.common import NA
 from spinta import commands
@@ -165,6 +165,7 @@ class RQL(DataType):
 
 @load.register()
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
+    _add_leaf_props(dtype.prop)
     return dtype
 
 
@@ -172,7 +173,14 @@ def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> D
 def load(context: Context, dtype: PrimaryKey, data: dict, manifest: Manifest) -> DataType:
     if dtype.prop.name != '_id':
         raise exceptions.InvalidManagedPropertyName(dtype, name='_id')
+    _add_leaf_props(dtype.prop)
     return dtype
+
+
+def _add_leaf_props(prop: Property) -> None:
+    if prop.name not in prop.model.leafprops:
+        prop.model.leafprops[prop.name] = []
+    prop.model.leafprops[prop.name].append(prop)
 
 
 @load.register()

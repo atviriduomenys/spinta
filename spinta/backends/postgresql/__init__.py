@@ -29,6 +29,7 @@ from spinta.renderer import render
 from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String, Node, Integer
 from spinta import exceptions
 from spinta.utils.nestedstruct import flatten, parent_key_for_item
+from spinta.hacks.recurse import _replace_recurse
 
 from spinta.exceptions import (
     MultipleRowsFound,
@@ -735,7 +736,7 @@ class QueryBuilder:
         self.table = table
         self.select = []
         self.where = []
-        self.joins = []
+        self.joins = table.main
 
     def build(
         self,
@@ -751,7 +752,7 @@ class QueryBuilder:
         if query:
             qry = qry.where(self.op_and(*query))
 
-        qry = _getall_order_by(
+        qry, self.joins = _getall_order_by(
             self.model,
             self.backend,
             qry,
@@ -761,26 +762,19 @@ class QueryBuilder:
         )
         qry = _getall_offset(qry, offset)
         qry = _getall_limit(qry, limit)
-
-        if self.joins:
-            join = self.table.main
-            for alias, cond in self.joins:
-                join = join.join(alias, cond)
-            qry = qry.select_from(join)
-
+        qry = qry.select_from(self.joins)
         return qry
 
     def resolve(self, args: Optional[List[dict]]) -> None:
         for arg in (args or []):
+            arg = _replace_recurse(self.model, arg)
             name = arg['name']
             opargs = arg.get('args', ())
             method = getattr(self, f'op_{name}', None)
             if method is None:
                 raise exceptions.UnknownOperator(self.model, operator=name)
             if name in self.compops:
-                cond = self.comparison(name, method, *opargs)
-                if cond is not None:
-                    yield cond
+                yield self.comparison(name, method, *opargs)
             else:
                 yield method(*opargs)
 
@@ -803,12 +797,22 @@ class QueryBuilder:
         field, value, jsonb = self.get_sql_field_and_value(prop, value)
         cond = method(field, value)
         if jsonb is not None:
-            join = (
-                sa.select([self.table.lists.c.id, field], distinct=self.table.lists.c.id).
+            subqry = (
+                sa.select(
+                    [
+                        self.table.lists.c.id,
+                        field
+                    ],
+                    distinct=self.table.lists.c.id,
+                ).
                 where(cond).
                 alias()
             )
-            self.joins.append((join, self.table.main.c._id == join.c.id))
+            self.joins = self.joins.outerjoin(
+                subqry,
+                self.table.main.c._id == subqry.c.id,
+            )
+            return subqry.c.id.isnot(None)
         else:
             return cond
 
@@ -915,20 +919,23 @@ def _getall_order_by(
             prop = model.flatprops[key]
 
             if prop.place in backend.props_in_lists:
-                field = sa.cast(table.lists.c.data[prop.place], JSONB)
                 subqry = (
-                    sa.select([
-                        table.lists.c.id,
-                        field.label('value'),
-                        sa.func.row_number().over(
-                            partition_by=table.lists.c.id,
-                            order_by=direction[d](field),
-                        ).label('rn'),
-                    ]).alias()
+                    sa.select(
+                        [
+                            table.lists.c.id,
+                            (
+                                sa.cast(table.lists.c.data[prop.place], JSONB).
+                                label('value'),
+                            )
+                        ],
+                        distinct=table.lists.c.id,
+                    ).alias()
                 )
-                alias = sa.select([subqry]).where(subqry.c.rn == 1).alias()
-                joins.append((alias, table.main.c._id == alias.c.id))
-                field = alias.c.value
+                joins = joins.outerjoin(
+                    subqry,
+                    table.main.c._id == subqry.c.id,
+                )
+                field = subqry.c.value
             else:
                 field = table.main.c[prop.name]
 
@@ -936,9 +943,9 @@ def _getall_order_by(
 
             db_sort_keys.append(field)
 
-        return qry.order_by(*db_sort_keys)
+        return qry.order_by(*db_sort_keys), joins
     else:
-        return qry
+        return qry, joins
 
 
 def _getall_offset(qry: sa.sql.Select, offset: Optional[int]) -> sa.sql.Select:
