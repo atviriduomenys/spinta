@@ -402,6 +402,7 @@ class Model(Node):
         'link': {},
         'properties': {'default': {}},
         'flatprops': {},
+        'leafprops': {},
         'endpoint': {},
     }
 
@@ -414,6 +415,8 @@ class Model(Node):
         self.date = None
         self.link = None
         self.properties = {}
+        self.flatprops = {}
+        self.leafprops = {}
 
     def model_type(self):
         return self.name

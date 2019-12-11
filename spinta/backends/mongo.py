@@ -39,6 +39,7 @@ from spinta.migrations import (
     get_schema_changes,
     get_new_schema_version
 )
+from spinta.hacks.recurse import _replace_recurse
 
 
 class Mongo(Backend):
@@ -422,6 +423,8 @@ def getall(
     search_expressions = []
     query = query or []
     for qp in query:
+        qp = _replace_recurse(model, qp)
+
         key = qp['args'][0]
 
         # TODO: Fix RQL parser to support `foo.bar=baz` notation.

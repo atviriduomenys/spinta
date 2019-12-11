@@ -47,15 +47,15 @@ test_data = [
 ]
 
 
-def _push_test_data(app, model):
+def _push_test_data(app, model, data=None):
     app.authmodel(model, ['insert'])
     resp = app.post('/', json={'_data': [
         {
-            **data,
+            **res,
             '_op': 'insert',
             '_type': model,
         }
-        for data in test_data
+        for res in data or test_data
     ]})
     assert resp.status_code == 200, resp.json()
     resp = resp.json()
@@ -166,8 +166,15 @@ def test_search_gt(model, context, app):
     data = resp.json()['_data']
     assert len(data) == 0
 
-    # test `gt` with nested structure and date type
-    resp = app.get(f'/{model}?gt(notes.create_date,2019-04-19)')
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_gt_with_nested_date(model, context, app):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?gt(recurse(create_date),2019-04-19)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -220,8 +227,15 @@ def test_search_gte(model, context, app):
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
-    # test `gte` with nested structure and date type
-    resp = app.get(f'/{model}?ge(notes.create_date,2019-04-20)')
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_ge_with_nested_date(model, context, app):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?ge(recurse(create_date),2019-04-20)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -273,8 +287,15 @@ def test_search_lt(model, context, app):
     data = resp.json()['_data']
     assert len(data) == 0
 
-    # test `lt` with nested structure and date type
-    resp = app.get(f'/{model}?lt(notes.create_date,2019-02-02)')
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_lt_with_nested_date(model, context, app):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?lt(recurse(create_date),2019-02-02)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
@@ -327,8 +348,15 @@ def test_search_lte(model, context, app):
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
 
-    # test `lte` with nested structure and date type
-    resp = app.get(f'/{model}?le(notes.create_date,2019-02-01)')
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_le_with_nested_date(model, context, app):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?le(recurse(create_date),2019-02-01)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
@@ -433,8 +461,15 @@ def test_search_contains(model, context, app, mocker):
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
-    # `contains` type check
-    resp = app.get(f'/{model}?contains(notes.create_date,2019-04-20)')
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_contains_type_check(model, context, app):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?contains(recurse(create_date),2019-04-20)')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
@@ -444,6 +479,15 @@ def test_search_contains(model, context, app, mocker):
         "model": model,
         "property": "notes.create_date",
     }
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_contains_with_select(model, context, app, mocker):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
 
     # `contains` with select
     resp = app.get(f'/{model}?contains(report_type,vm)&select(count)')
@@ -625,3 +669,51 @@ def test_recurse(model, context, app):
 
     resp = app.get(f'/{model}?eq(,hello)')
     assert ids(resp) == [r1]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_nested_recurse(model, context, app):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?eq(recurse(note),foo bar)')
+    data = resp.json()['_data']
+    assert len(data) == 1
+    assert data[0]['_id'] == r3['_id']
+
+
+@pytest.mark.models(
+    # TODO: add OR support for mongo
+    # 'backends/mongo/report',
+    'backends/postgres/recurse',
+)
+def test_search_nested_recurse_multiple_props(model, context, app):
+    r1, r2, = ids(_push_test_data(app, model, [
+        {
+            'title': "Org",
+            'country': 'fi',
+            'govids': [
+                {'govid': '1', 'country': 'fi'},
+                {'govid': '2', 'country': 'se'},
+            ]
+        },
+        {
+            'title': "Org",
+            'country': 'no',
+            'govids': [
+                {'govid': '3', 'country': 'no'},
+            ]
+        },
+    ]))
+    app.authmodel(model, ['search'])
+
+    resp = app.get(f'/{model}?eq(recurse(country),se)')
+    assert ids(resp) == [r1]
+
+    resp = app.get(f'/{model}?eq(recurse(country),fi)')
+    assert ids(resp) == [r1]
+
+    resp = app.get(f'/{model}?eq(recurse(country),no)')
+    assert ids(resp) == [r2]

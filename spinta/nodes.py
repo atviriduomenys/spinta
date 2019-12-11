@@ -81,6 +81,7 @@ def load_model_properties(context: Context, model: Node, Prop: Type[Node], data:
     }
 
     model.flatprops = {}
+    model.leafprops = {}
     model.properties = {}
     for name, params in data.items():
         params = {
