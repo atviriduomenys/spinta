@@ -197,7 +197,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         lists_table = sa.Table(
             lists_table_name, backend.schema,
             sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
-            sa.Column('id', main_table.c._id.type, sa.ForeignKey(f'{main_table_name}._id')),  # reference to main table
+            sa.Column('id', main_table.c._id.type, sa.ForeignKey(f'{main_table_name}._id', ondelete='CASCADE')),  # reference to main table
             sa.Column('key', sa.String),  # parent key of the data inside `data` column
             sa.Column('data', JSONB),
         )
@@ -531,12 +531,6 @@ async def delete(
             table.main.delete().
             where(table.main.c._id == data.saved['_id'])
         )
-
-        # Update lists table
-        _update_lists_table(context, model, table.lists, data.action, {
-            '_id': data.saved['_id'],
-            '_revision': data.saved['_revision'],
-        })
 
         yield data
 

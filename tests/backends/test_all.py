@@ -270,6 +270,25 @@ def test_delete(model, app, tmpdir):
     'backends/mongo/report',
     'backends/postgres/report',
 )
+def test_delete_with_list_value(model, app):
+    app.authmodel(model, [
+        'insert',
+        'delete'
+    ])
+    # delete report with list value
+    id_ = app.post(f'/{model}', json={
+        'status': '1',
+        'notes': [{'note': 'NOTE', 'note_type': 'note type'}]
+    }).json()['_id']
+
+    resp = app.delete(f'/{model}/{id_}')
+    assert resp.status_code == 204
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
 def test_patch(model, app, context):
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel(model, ['insert', 'getone', 'patch'])
