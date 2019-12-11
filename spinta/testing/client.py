@@ -39,7 +39,6 @@ class TestClient(starlette.testclient.TestClient):
             })
             assert resp.status_code == 200, resp.text
             token = resp.json()['access_token']
-
         else:
             # Create access token using private key.
             context = self._spinta_context

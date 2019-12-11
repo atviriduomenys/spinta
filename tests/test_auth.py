@@ -1,13 +1,18 @@
+import datetime
 import json
 import pathlib
 
+import pytest
 import ruamel.yaml
 
 from authlib.jose import jwk
 from authlib.jose import jwt
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
+from spinta import auth
 from spinta.cli import genkeys
 from spinta.cli import client_add
+from spinta.components import Action
 
 
 def test_app(context, app):
@@ -83,3 +88,124 @@ def test_empty_scope(context, app):
     key = jwk.loads(json.loads((config.config_path / 'keys/public.json').read_text()))
     token = jwt.decode(data['access_token'], key)
     assert token['scope'] == ''
+
+
+def args_for_token(context):
+    private_key = auth.load_key(context, 'private.json')
+    client_id = 'baa448a8-205c-4faa-a048-a10e4b32a136'
+    client = auth.query_client(context, client_id)
+    grant_type = 'client_credentials'
+    expires_in = int(datetime.timedelta(days=10).total_seconds())
+    return context, private_key, client, grant_type, expires_in
+
+
+def test_check_generated_scopes_global(context, app):
+    # tests global scope - any scopes action is allowed
+    scopes = ['spinta_getone']
+    token = auth.create_access_token(*args_for_token(context), scopes=scopes)
+    token_instance = auth.Token(token, auth.BearerTokenValidator(context))
+    with context.fork('test_scope') as ctx:
+        ctx.set('auth.token', token_instance)
+        auth.check_generated_scopes(ctx,
+                                    'backends/mongo/subitem',
+                                    Action.GETONE.value)
+
+
+def test_check_generated_scopes_global_wrong_action(context, app):
+    # tests global scope - any scopes action is allowed
+    scopes = ['spinta_getone']
+    token = auth.create_access_token(*args_for_token(context), scopes=scopes)
+    token_instance = auth.Token(token, auth.BearerTokenValidator(context))
+    with context.fork('test_scope') as ctx:
+        ctx.set('auth.token', token_instance)
+        with pytest.raises(InsufficientScopeError):
+            auth.check_generated_scopes(ctx,
+                                        'backends/mongo/subitem',
+                                        Action.INSERT.value)
+
+
+def test_check_generated_scopes_model(context, app):
+    scopes = ['spinta_backends_mongo_subitem_getone']
+    token = auth.create_access_token(*args_for_token(context), scopes=scopes)
+    token_instance = auth.Token(token, auth.BearerTokenValidator(context))
+    with context.fork('test_scope') as ctx:
+        ctx.set('auth.token', token_instance)
+        auth.check_generated_scopes(ctx,
+                                    'backends/mongo/subitem',
+                                    Action.GETONE.value)
+
+
+def test_check_generated_scopes_model_wrong_action(context, app):
+    scopes = ['spinta_backends_mongo_subitem_getone']
+    token = auth.create_access_token(*args_for_token(context), scopes=scopes)
+    token_instance = auth.Token(token, auth.BearerTokenValidator(context))
+    with context.fork('test_scope') as ctx:
+        ctx.set('auth.token', token_instance)
+        with pytest.raises(InsufficientScopeError):
+            auth.check_generated_scopes(ctx,
+                                        'backends/mongo/subitem',
+                                        Action.INSERT.value)
+
+
+def test_check_generated_scopes_prop(context, app):
+    scopes = ['spinta_backends_mongo_subitem_subobj_getone']
+    token = auth.create_access_token(*args_for_token(context), scopes=scopes)
+    token_instance = auth.Token(token, auth.BearerTokenValidator(context))
+    with context.fork('test_scope') as ctx:
+        ctx.set('auth.token', token_instance)
+        auth.check_generated_scopes(ctx,
+                                    'backends/mongo/subitem',
+                                    Action.GETONE.value,
+                                    'backends/mongo/subitem_subobj')
+
+
+def test_check_generated_scopes_prop_wrong_action(context, app):
+    scopes = ['spinta_backends_mongo_subitem_subobj_getone']
+    token = auth.create_access_token(*args_for_token(context), scopes=scopes)
+    token_instance = auth.Token(token, auth.BearerTokenValidator(context))
+    with context.fork('test_scope') as ctx:
+        ctx.set('auth.token', token_instance)
+        with pytest.raises(InsufficientScopeError):
+            auth.check_generated_scopes(ctx,
+                                        'backends/mongo/subitem',
+                                        Action.INSERT.value,
+                                        'backends/mongo/subitem_subobj')
+
+
+def test_check_generated_scopes_prop_w_model_scope(context, app):
+    scopes = ['spinta_backends_mongo_subitem_getone']
+    token = auth.create_access_token(*args_for_token(context), scopes=scopes)
+    token_instance = auth.Token(token, auth.BearerTokenValidator(context))
+    with context.fork('test_scope') as ctx:
+        ctx.set('auth.token', token_instance)
+        auth.check_generated_scopes(ctx,
+                                    'backends/mongo/subitem',
+                                    Action.GETONE.value,
+                                    'backends/mongo/subitem_subobj')
+
+
+def test_check_generated_scopes_prop_hidden(context, app):
+    scopes = ['spinta_backends_mongo_subitem_hidden_subobj_getone']
+    token = auth.create_access_token(*args_for_token(context), scopes=scopes)
+    token_instance = auth.Token(token, auth.BearerTokenValidator(context))
+    with context.fork('test_scope') as ctx:
+        ctx.set('auth.token', token_instance)
+        auth.check_generated_scopes(ctx,
+                                    'backends/mongo/subitem',
+                                    Action.GETONE.value,
+                                    'backends/mongo/subitem_hidden_subobj',
+                                    True)
+
+
+def test_check_generated_scopes_prop_hidden_w_model_scope(context, app):
+    scopes = ['spinta_backends_mongo_subitem_getone']
+    token = auth.create_access_token(*args_for_token(context), scopes=scopes)
+    token_instance = auth.Token(token, auth.BearerTokenValidator(context))
+    with context.fork('test_scope') as ctx:
+        ctx.set('auth.token', token_instance)
+        with pytest.raises(InsufficientScopeError):
+            auth.check_generated_scopes(ctx,
+                                        'backends/mongo/subitem',
+                                        Action.GETONE.value,
+                                        'backends/mongo/subitem_hidden_subobj',
+                                        True)
