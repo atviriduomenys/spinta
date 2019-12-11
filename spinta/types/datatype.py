@@ -4,12 +4,11 @@ from datetime import date, datetime
 
 import pyrql
 
-from spinta.commands import load, is_object_id
-from spinta.components import Context, Manifest, Node, Property
-from spinta.utils.schema import resolve_schema
-from spinta.common import NA
 from spinta import commands
 from spinta import exceptions
+from spinta.commands import load, is_object_id
+from spinta.components import Context, Manifest, Node, Property
+from spinta.utils.schema import NA, resolve_schema
 
 
 class DataType:

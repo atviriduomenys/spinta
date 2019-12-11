@@ -1,7 +1,6 @@
 import pytest
 
 
-@pytest.mark.skip('partial update issue')
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',

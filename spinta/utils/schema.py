@@ -82,3 +82,9 @@ def check_unkown_params(
             exceptions.UnknownParameter(node, param=param)
             for param in sorted(unknown_params)
         )
+
+
+def strip_metadata(res):
+    return {
+        k: v for k, v in res.items() if not k.startswith('_')
+    }

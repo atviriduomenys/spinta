@@ -349,6 +349,16 @@ def build_data_patch_for_write():
 
 
 @command()
+def build_full_data_patch():
+    """Builds full patch from data.patch and data.saved for a specific backend
+
+    This solves a problem that some database backends (e.g. Postgres) do not
+    support partial updates to nested fields, thus "full patch" must be
+    constructed from partial `data.patch` and the `data.saved`.
+    """
+
+
+@command()
 def rename_metadata():
     """Renames metadata fields to be compatible with spinta's notation.
 
