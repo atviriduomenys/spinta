@@ -96,16 +96,9 @@ def authorize(context: Context, action: Action, model: Model):
 def authorize(context: Context, action: Action, prop: Property):
     # if property is hidden - specific scope must be provided
     # otherwise generic model scope is also enough
-    name = prop.model.model_type() + '_' + prop.place
-    if prop.hidden:
-        check_generated_scopes(context, name, action.value)
-    else:
-        try:
-            # test for specific property scope
-            check_generated_scopes(context, name, action.value)
-        except InsufficientScopeError:
-            # if specific property scope is not provided - check if generic model scope exists
-            check_generated_scopes(context, prop.model.model_type(), action.value)
+    name = prop.model.model_type()
+    prop_scope_name = name + '_' + prop.place
+    check_generated_scopes(context, name, action.value, prop_scope_name, prop.hidden)
 
 
 @commands.get_referenced_model.register()
