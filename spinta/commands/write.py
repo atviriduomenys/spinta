@@ -22,7 +22,7 @@ from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist
 from spinta.utils.errors import report_error
 from spinta.utils.streams import splitlines
-from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.schema import NotAvailable, NA, strip_metadata
 
 
 STREAMING_CONTENT_TYPES = [
@@ -455,8 +455,8 @@ async def prepare_patch(
         data.patch = build_data_patch_for_write(
             context,
             data.prop.dtype if data.prop else data.model,
-            given=_strip_metadata(data.given),
-            saved=_strip_metadata(data.saved or {}),
+            given=strip_metadata(data.given),
+            saved=strip_metadata(data.saved or {}),
             fill=data.action == Action.UPDATE,
         )
 
@@ -469,13 +469,8 @@ async def prepare_patch(
             data.patch['_id'] = commands.gen_object_id(context, data.model.backend, data.model)
         if data.patch:
             data.patch['_revision'] = commands.gen_object_id(context, data.model.backend, data.model)
+
         yield data
-
-
-def _strip_metadata(res):
-    return {
-        k: v for k, v in res.items() if not k.startswith('_')
-    }
 
 
 @commands.build_data_patch_for_write.register()

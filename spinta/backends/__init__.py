@@ -8,10 +8,10 @@ import typing
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String
 from spinta.components import Context, Model, Property, Action, Node, DataItem
 from spinta.commands import load_operator_value, prepare, dump, gen_object_id, is_object_id
-from spinta.common import NA
 from spinta.types import dataset
 from spinta.exceptions import ConflictingValue, NoItemRevision
 from spinta.utils.nestedstruct import build_select_tree
+from spinta.utils.schema import NA
 from spinta import commands
 from spinta import exceptions
 
@@ -546,11 +546,27 @@ async def _prepare_property_for_update(
     dstream: AsyncIterator[DataItem],
 ) -> AsyncIterator[DataItem]:
     async for data in dstream:
+        # Wraps prepared data for update with the property as key,
+        # thus the data is correct from the root of the model
         if data.patch:
             data.patch = {
                 **{k: v for k, v in data.patch.items() if k.startswith('_')},
                 prop.name: {
                     k: v for k, v in data.patch.items() if not k.startswith('_')
+                }
+            }
+        if data.saved:
+            data.saved = {
+                **{k: v for k, v in data.saved.items() if k.startswith('_')},
+                prop.name: {
+                    k: v for k, v in data.saved.items() if not k.startswith('_')
+                }
+            }
+        if data.given:
+            data.given = {
+                **{k: v for k, v in data.given.items() if k.startswith('_')},
+                prop.name: {
+                    k: v for k, v in data.given.items() if not k.startswith('_')
                 }
             }
         yield data

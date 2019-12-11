@@ -1,7 +1,6 @@
 from typing import AsyncIterator, Optional, List, Union
 
 import contextlib
-import copy
 import datetime
 import enum
 import hashlib
@@ -20,16 +19,16 @@ from sqlalchemy.sql.type_api import TypeEngine
 from starlette.requests import Request
 
 from spinta import commands
+from spinta import exceptions
 from spinta.backends import Backend
 from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize
-from spinta.common import NA
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem
 from spinta.config import RawConfig
+from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
 from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String, Node, Integer
-from spinta import exceptions
 from spinta.utils.nestedstruct import flatten, parent_key_for_item
-from spinta.hacks.recurse import _replace_recurse
+from spinta.utils.schema import NA, strip_metadata
 
 from spinta.exceptions import (
     MultipleRowsFound,
@@ -473,32 +472,24 @@ async def update(
         id_ = data.saved['_id']
 
         # Support patching nested properties.
-        #
-        # Create a copy of data.patch and fill it with the data
-        # that we are missing in patch to not override object attributes
-        # missing from data.patch
-        #
-        # TODO: create command to create full patch for nested arguments
-        # TODO: fix a case of when update is called on delete:
-        #       - spinta/backends/__init__.py::delete
-        #       - tests/backends/test_fs.py::test_crud::67
-        full_patch = copy.deepcopy(data.patch)
-        if data.prop and data.saved and data.patch[data.prop.name] is not None:
-            patched_keys = data.patch[data.prop.name].keys()
-            for k, v in data.saved.items():
-                if not k.startswith('_') and k not in patched_keys:
-                    full_patch[data.prop.name][k] = v
+        # Build a full_patch dict, where data.patch is merged with data.saved
+        # for nested properties.
+        full_patch = build_full_data_patch(
+            context,
+            model,
+            patch=strip_metadata(data.patch),
+            saved=strip_metadata(data.saved),
+        )
 
-        values = {k: v for k, v in full_patch.items()}
-        values['_revision'] = data.patch['_revision']
+        full_patch['_revision'] = data.patch['_revision']
         if '_id' in data.patch:
-            values['_id'] = data.patch['_id']
+            full_patch['_id'] = data.patch['_id']
 
         result = connection.execute(
             table.main.update().
             where(table.main.c._id == id_).
             where(table.main.c._revision == data.saved['_revision']).
-            values(values)
+            values(full_patch)
         )
 
         if result.rowcount == 0:
@@ -513,6 +504,115 @@ async def update(
         })
 
         yield data
+
+
+@commands.build_full_data_patch.register()
+def build_full_data_patch(
+    context: Context,
+    model: Model,
+    *,
+    patch: dict,
+    saved: dict,
+) -> dict:
+    # Creates full_patch from `data.saved` and `data.patch`
+    #
+    # For PostgreSQL only nested fields need to be converted to full patch,
+    # because PostgreSQL does not support partial updates, thus we need
+    # to fill nested fields with data from `data.saved` if it is missing in
+    # `data.patch`
+    full_patch = {}
+    for name in patch:
+        prop = model.properties[name]
+        value = build_full_data_patch(
+            context,
+            prop.dtype,
+            patch=patch.get(prop.name, NA),
+            saved=saved.get(prop.name, NA),
+        )
+        if value is not NA:
+            full_patch[prop.name] = value
+    return full_patch
+
+
+@commands.build_full_data_patch.register()  # noqa
+def build_full_data_patch(
+    context: Context,
+    dtype: DataType,
+    *,
+    patch: object,
+    saved: object,
+) -> dict:
+    # do not change scalar values if those values are at top level
+    if isinstance(dtype.prop.parent, Model):
+        return patch
+
+    if patch is not NA:
+        return patch
+    elif saved is not NA:
+        return saved
+    else:
+        return dtype.default
+
+
+@commands.build_full_data_patch.register()  # noqa
+def build_full_data_patch(
+    context: Context,
+    dtype: Object,
+    *,
+    patch: dict,
+    saved: dict,
+) -> dict:
+    if patch is NA:
+        return saved
+    else:
+        # We should work with keys which are available to us from
+        # patch and saved data. Do not rely on manifest data for this.
+        prop_keys = set(patch or []) | set(saved or [])
+
+        full_patch = {}
+        for prop_key in prop_keys:
+            # drop metadata columns
+            if prop_key.startswith('_'):
+                continue
+
+            prop = dtype.properties[prop_key]
+            value = build_full_data_patch(
+                context,
+                prop.dtype,
+                patch=patch.get(prop.name, NA) if patch else patch,
+                saved=saved.get(prop.name, NA) if saved else saved,
+            )
+            full_patch[prop.name] = value
+        return full_patch
+
+
+@commands.build_full_data_patch.register()  # noqa
+def build_full_data_patch(
+    context: Context,
+    dtype: File,
+    *,
+    patch: dict,
+    saved: dict,
+) -> dict:
+    # if key for file is not available in patch - return NotAvailable
+    if patch is NA:
+        return saved
+
+    # if key for file is available but value is falsy (None, {}),
+    # then return None for metadata values
+    if not patch:
+        return {
+            'content_type': None,
+            'filename': None,
+        }
+
+    # for any other case - return patch values and if not available
+    # fallback to saved values or None
+    return {
+        'content_type': patch.get('content_type'),
+        'filename': patch.get('filename'),
+    }
+
 
 
 @commands.delete.register()

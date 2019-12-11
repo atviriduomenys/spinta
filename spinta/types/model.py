@@ -7,8 +7,7 @@ from spinta.commands import load, check, authorize, prepare
 from spinta.components import Context, Manifest, Node, Model, Property, Action
 from spinta.nodes import load_node
 from spinta.types.datatype import PrimaryKey, DataType, load_type
-from spinta.utils.schema import resolve_schema, check_unkown_params
-from spinta.common import NA
+from spinta.utils.schema import NA, resolve_schema, check_unkown_params
 from spinta import commands
 from spinta import exceptions
 from spinta.nodes import load_namespace, load_model_properties
