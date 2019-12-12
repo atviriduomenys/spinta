@@ -395,6 +395,14 @@ def _update_lists_table(context: Context, model: Model, table: sa.Table, action:
         ])
 
 
+def _get_list_key(node: Node):
+    if isinstance(node, Model):
+        return None
+    if isinstance(node.dtype, Array):
+        return node.place
+    return _get_list_key(node.parent)
+
+
 def _has_lists(node: Node):
     if isinstance(node, Model):
         for prop in node.properties.values():
@@ -408,7 +416,7 @@ def _has_lists(node: Node):
         return True
 
 
-def _get_lists_only(value):
+def _get_lists_only(value, list_key=None):
     if isinstance(value, dict):
         result = {}
         for k, v in value.items():
@@ -806,6 +814,44 @@ def getall(
     qb = QueryBuilder(context, model, backend, table)
     qry = qb.build(select, sort, offset, limit, query)
 
+    pp(str(qry) % qry.compile().params)
+
+    q = """
+    SELECT
+        "backends/postgres/report".count,
+        anon_1.id AS "exists",
+        anon_2.id AS ne
+
+    FROM "backends/postgres/report" LEFT OUTER JOIN (
+        SELECT DISTINCT ON ("backends/postgres/report/:list".id)
+            "backends/postgres/report/:list".id AS id
+        FROM "backends/postgres/report/:list"
+        WHERE "backends/postgres/report/:list".key = 'operating_licenses.license_types'
+    ) AS anon_1 ON "backends/postgres/report"._id = anon_1.id
+
+    LEFT OUTER JOIN (
+        SELECT DISTINCT ON ("backends/postgres/report/:list".id)
+            "backends/postgres/report/:list".id AS id
+        FROM "backends/postgres/report/:list"
+        WHERE
+            "backends/postgres/report/:list".key = 'operating_licenses.license_types' AND
+            ("backends/postgres/report/:list".data ->> 'operating_licenses.license_types') = 'valid'
+        ) AS anon_2 ON "backends/postgres/report"._id = anon_2.id
+
+    """
+    # WHERE
+    #     anon_1.id IS NOT NULL AND
+    #     anon_2.id IS NULL
+    for row in connection.execute(q):
+        pp(dict(row))
+
+    q = """
+    SELECT *
+    FROM "backends/postgres/report/:list"
+    """
+    for row in connection.execute(q):
+        pp(dict(row))
+
     for row in connection.execute(qry):
         yield dict(row)
 
@@ -899,8 +945,8 @@ class QueryBuilder:
         prop = self.resolve_property(key)
         value = self.resolve_value(op, prop, value)
         field, value, jsonb = self.get_sql_field_and_value(prop, value, lower)
-        cond = method(field, value)
-        if jsonb is not None:
+        cond = method(prop, field, value)
+        if jsonb is not None and op != 'ne':
             subqry = (
                 sa.select(
                     [
@@ -965,28 +1011,66 @@ class QueryBuilder:
     def op_or(self, *args: List[dict]):
         return sa.or_(*self.resolve(args))
 
-    def op_eq(self, field, value):
+    def op_eq(self, prop, field, value):
         return field == value
 
-    def op_ge(self, field, value):
+    def op_ge(self, prop, field, value):
         return field >= value
 
-    def op_gt(self, field, value):
+    def op_gt(self, prop, field, value):
         return field > value
 
-    def op_le(self, field, value):
+    def op_le(self, prop, field, value):
         return field <= value
 
-    def op_lt(self, field, value):
+    def op_lt(self, prop, field, value):
         return field < value
 
-    def op_ne(self, field, value):
-        raise NotImplementedError
+    def op_ne(self, prop, field, value):
+        list_key = _get_lists_only(prop)
+        if table_key is None:
+            return field != value
 
-    def op_contains(self, field, value):
+        # Check if at liest one value for field is defined
+        subqry1 = (
+            sa.select(
+                [self.table.lists.c.id],
+                distinct=self.table.lists.c.id,
+            ).
+            where(self.table.lists.c.key == table_key).
+            alias()
+        )
+        self.joins = self.joins.outerjoin(
+            subqry1,
+            self.table.main.c._id == subqry1.c.id,
+        )
+
+        # Check if given value exists
+        subqry2 = (
+            sa.select(
+                [self.table.lists.c.id],
+                distinct=self.table.lists.c.id,
+            ).
+            where(self.table.lists.c.key == table_key).
+            where(field == value).
+            alias()
+        )
+        self.joins = self.joins.outerjoin(
+            subqry2,
+            self.table.main.c._id == subqry2.c.id,
+        )
+
+        # If field exists and given value does not, then field is not equal to
+        # value.
+        return sa.and_(
+            subqry1.c.id != None,  # noqa
+            subqry2.c.id == None,
+        )
+
+    def op_contains(self, prop, field, value):
         return field.contains(value)
 
-    def op_startswith(self, field, value):
+    def op_startswith(self, prop, field, value):
         return field.startswith(value)
 
 
