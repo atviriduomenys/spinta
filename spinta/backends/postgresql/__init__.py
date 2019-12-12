@@ -614,7 +614,6 @@ def build_full_data_patch(
     }
 
 
-
 @commands.delete.register()
 async def delete(
     context: Context,

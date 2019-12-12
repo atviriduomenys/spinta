@@ -21,7 +21,11 @@ def _replace_recurse(model, arg):
             return arg
         if not isinstance(opargs[0], dict):
             return arg
-        if opargs[0]['name'] == 'lower' and isinstance(opargs[0]['args'][0], dict) and opargs[0]['args'][0]['name'] == 'recurse':
+        if (
+            opargs[0]['name'] == 'lower' and
+            isinstance(opargs[0]['args'][0], dict) and
+            opargs[0]['args'][0]['name'] == 'recurse'
+        ):
             if len(opargs[0]['args'][0]['args']) == 1:
                 rkey = opargs[0]['args'][0]['args'][0]
                 props = model.leafprops.get(rkey, [])
@@ -55,7 +59,7 @@ def _replace_recurse(model, arg):
                     }
                 else:
                     raise exceptions.FieldNotInResource(model, property=rkey)
-        if opargs[0]['name'] == 'recurse':
+        elif opargs[0]['name'] == 'recurse':
             if len(opargs[0]['args']) == 1:
                 rkey = opargs[0]['args'][0]
                 props = model.leafprops.get(rkey, [])
