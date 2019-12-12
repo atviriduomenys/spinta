@@ -7,8 +7,8 @@ from spinta.testing.utils import get_error_codes, get_error_context
 test_data = [
     {
         '_type': 'report',
-        'status': 'ok',
-        'report_type': 'stv',
+        'status': 'OK',
+        'report_type': 'STV',
         'count': 10,
         'notes': [{
             'note': 'hello',
@@ -22,7 +22,7 @@ test_data = [
     {
         '_type': 'report',
         'status': 'invalid',
-        'report_type': 'vmi',
+        'report_type': 'VMI',
         'count': 42,
         'notes': [{
             'note': 'world',
@@ -36,7 +36,7 @@ test_data = [
     {
         '_type': 'report',
         'status': 'invalid',
-        'report_type': 'stv',
+        'report_type': 'STV',
         'count': 13,
         'notes': [{
             'note': 'foo bar',
@@ -74,16 +74,34 @@ def test_search_exact(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}?status=ok')
-    data = resp.json()['_data']
-    assert len(data) == 1
-    assert data[0]['_id'] == r1['_id']
-
-    # single field search, case-insensitive
     resp = app.get(f'/{model}?status=OK')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_exact_lower(model, context, app):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?eq(lower(status),ok)')
+    data = resp.json()['_data']
+    assert len(data) == 1
+    assert data[0]['_id'] == r1['_id']
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+    'backends/postgres/report/:dataset/test'
+)
+def test_search_exact_non_string(model, context, app):
+    r1, r2, r3, = _push_test_data(app, model)
+
+    app.authmodel(model, ['search'])
 
     # single field search, non string type
     resp = app.get(f'/{model}?count=13')
@@ -107,15 +125,28 @@ def test_search_exact(model, context, app):
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["FieldNotInResource"]
 
-    # multple field search
-    resp = app.get(f'/{model}?status=invalid&report_type=stv')
-    data = resp.json()['_data']
 
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_exact_multiple_props(model, context, app):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?eq(lower(status),invalid)&eq(lower(report_type),stv)')
+    data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
-    # same field searched multiple times is joined with AND operation by default
-    resp = app.get(f'/{model}?status=invalid&status=ok')
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_exact_same_prop_multiple_times(model, context, app):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?eq(lower(status),invalid)&eq(lower(status),ok)')
     data = resp.json()['_data']
     assert len(data) == 0
 
@@ -156,7 +187,7 @@ def test_search_gt(model, context, app):
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=gt=40&report_type=vmi')
+    resp = app.get(f'/{model}?count=gt=40&eq(lower(report_type),vmi)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -216,7 +247,7 @@ def test_search_gte(model, context, app):
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=ge=40&report_type=vmi')
+    resp = app.get(f'/{model}?count=ge=40&eq(lower(report_type),vmi)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -277,7 +308,7 @@ def test_search_lt(model, context, app):
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=lt=50&report_type=vmi')
+    resp = app.get(f'/{model}?count=lt=50&eq(lower(report_type),vmi)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -337,7 +368,7 @@ def test_search_lte(model, context, app):
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=le=50&report_type=vmi')
+    resp = app.get(f'/{model}?count=le=50&eq(lower(report_type),vmi)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -422,41 +453,58 @@ def test_search_contains(model, context, app, mocker):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}?contains(report_type,vm)')
+    resp = app.get(f'/{model}?contains(lower(report_type),vm)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_contains_case_insensitive(model, context, app, mocker):
+    r1, r2, r3, = _push_test_data(app, model)
+    app.authmodel(model, ['search'])
     # single field search, case insensitive
-    resp = app.get(f'/{model}?contains(report_type,vM)')
+    resp = app.get(f'/{model}?contains(lower(report_type),vm)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_contains_multi_field(model, context, app, mocker):
+    r1, r2, r3, = _push_test_data(app, model)
+
+    app.authmodel(model, ['search'])
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?contains(status,valid)&contains(report_type,tv)')
+    resp = app.get(f'/{model}?contains(status,valid)&contains(lower(report_type),tv)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
-    # multi field search, case insensitive
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?contains(status,vAlId)&contains(report_type,TV)')
+    resp = app.get(f'/{model}?contains(status,valid)&contains(report_type,TV)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
     # multi field search
     # test if operators are joined with AND logic for same field
-    resp = app.get(f'/{model}?contains(report_type,vm)&contains(report_type,mi)')
+    resp = app.get(f'/{model}?contains(lower(report_type),vm)&contains(lower(report_type),mi)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?contains(status,valid)&report_type=vmi')
+    resp = app.get(f'/{model}?contains(status,valid)&eq(lower(report_type),vmi)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -490,7 +538,7 @@ def test_search_contains_with_select(model, context, app, mocker):
     app.authmodel(model, ['search'])
 
     # `contains` with select
-    resp = app.get(f'/{model}?contains(report_type,vm)&select(count)')
+    resp = app.get(f'/{model}?contains(lower(report_type),vm)&select(count)')
     assert resp.status_code == 200
     data = resp.json()['_data']
     assert len(data) == 1
@@ -500,7 +548,7 @@ def test_search_contains_with_select(model, context, app, mocker):
 
     # `contains` with select and always_show_id
     mocker.patch.object(context.get('config'), 'always_show_id', True)
-    resp = app.get(f'/{model}?contains(report_type,vm)&select(count)')
+    resp = app.get(f'/{model}?contains(lower(report_type),vm)&select(count)')
     assert resp.status_code == 200
     data = resp.json()['_data']
     assert len(data) == 1
@@ -510,7 +558,7 @@ def test_search_contains_with_select(model, context, app, mocker):
     }
 
     # `contains` with always_show_id should return just id
-    resp = app.get(f'/{model}?contains(report_type,vm)')
+    resp = app.get(f'/{model}?contains(lower(report_type),vm)')
     assert resp.status_code == 200
     data = resp.json()['_data']
     assert len(data) == 1
@@ -529,27 +577,27 @@ def test_search_startswith(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}?startswith(report_type,vm)')
+    resp = app.get(f'/{model}?startswith(report_type,VM)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # single field search, case insensitive
-    resp = app.get(f'/{model}?startswith(report_type,Vm)')
+    resp = app.get(f'/{model}?startswith(lower(report_type),vm)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?startswith(status,in)&startswith(report_type,vm)')
+    resp = app.get(f'/{model}?startswith(status,in)&startswith(lower(report_type),vm)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?startswith(report_type,st)&status=ok')
+    resp = app.get(f'/{model}?startswith(lower(report_type),st)&eq(lower(status),ok)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
@@ -581,7 +629,7 @@ def test_search_nested(model, context, app):
     assert data[0]['_id'] == r3['_id']
 
     # nested `exact` search, case insensitive
-    resp = app.get(f'/{model}?(notes,note)=foo BAR')
+    resp = app.get(f'/{model}?eq(lower((notes,note)),foo bar)')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
@@ -650,25 +698,11 @@ def ids(resources):
 def test_or(model, context, app):
     r1, r2, r3, = ids(_push_test_data(app, model))
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?or(eq(count,42),eq(status,ok))')
+    resp = app.get(f'/{model}?or(eq(count,42),eq(lower(status),ok))')
     assert ids(resp) == [r1, r2]
 
     resp = app.get(f'/{model}?or(le(count,10),eq(count,13))')
     assert ids(resp) == [r1, r3]
-
-
-@pytest.mark.skip('recurse operator')
-@pytest.mark.models(
-    'backends/mongo/report',
-    'backends/postgres/report',
-)
-def test_recurse(model, context, app):
-    r1, r2, r3, = ids(_push_test_data(app, model))
-
-    app.authmodel(model, ['search'])
-
-    resp = app.get(f'/{model}?eq(,hello)')
-    assert ids(resp) == [r1]
 
 
 @pytest.mark.models(
@@ -682,6 +716,17 @@ def test_search_nested_recurse(model, context, app):
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_nested_recurse_lower(model, context, app):
+    r1, r2, r3, = ids(_push_test_data(app, model))
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?eq(lower(recurse(report_type)),ok)')
+    assert ids(resp) == [r1]
 
 
 @pytest.mark.models(

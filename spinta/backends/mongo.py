@@ -427,6 +427,11 @@ def getall(
 
         key = qp['args'][0]
 
+        lower = False
+        if isinstance(key, dict) and key['name'] == 'lower':
+            lower = True
+            key = key['args'][0]
+
         # TODO: Fix RQL parser to support `foo.bar=baz` notation.
         key = '.'.join(key) if isinstance(key, tuple) else key
 
@@ -446,7 +451,8 @@ def getall(
         value = load_search_params(context, prop.dtype, backend, qp)
 
         # in case value is not a string - then just search for that value directly
-        if isinstance(value, str):
+        if lower:
+            # TODO: I don't know how to lower case values in mongo.
             re_value = re.compile('^' + value + '$', re.IGNORECASE)
         else:
             re_value = value
