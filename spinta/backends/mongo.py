@@ -461,7 +461,6 @@ class QueryBuilder:
         limit: int = None,
         query: Optional[List[dict]] = None,
     ) -> dict:
-        # pp(query, self.op_and(*(query or [])))
         cursor = self.table.find(self.op_and(*(query or [])))
 
         if limit is not None:

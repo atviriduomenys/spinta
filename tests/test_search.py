@@ -691,8 +691,7 @@ def ids(resources):
 
 
 @pytest.mark.models(
-    # TODO: add or support for mongo
-    # 'backends/mongo/report',
+    'backends/mongo/report',
     'backends/postgres/report',
 )
 def test_or(model, context, app):
@@ -730,8 +729,7 @@ def test_search_nested_recurse_lower(model, context, app):
 
 
 @pytest.mark.models(
-    # TODO: add OR support for mongo
-    # 'backends/mongo/report',
+    'backends/mongo/recurse',
     'backends/postgres/recurse',
 )
 def test_search_nested_recurse_multiple_props(model, context, app):
@@ -765,8 +763,7 @@ def test_search_nested_recurse_multiple_props(model, context, app):
 
 
 @pytest.mark.models(
-    # TODO: add OR support for mongo
-    # 'backends/mongo/report',
+    'backends/mongo/recurse',
     'backends/postgres/recurse',
 )
 def test_search_recurse_multiple_props_lower(model, app):
