@@ -614,7 +614,6 @@ def build_full_data_patch(
     }
 
 
-
 @commands.delete.register()
 async def delete(
     context: Context,
@@ -892,9 +891,14 @@ class QueryBuilder:
         })
 
     def comparison(self, op, method, key, value):
+        lower = False
+        if isinstance(key, dict) and key['name'] == 'lower':
+            lower = True
+            key = key['args'][0]
+
         prop = self.resolve_property(key)
         value = self.resolve_value(op, prop, value)
-        field, value, jsonb = self.get_sql_field_and_value(prop, value)
+        field, value, jsonb = self.get_sql_field_and_value(prop, value, lower)
         cond = method(field, value)
         if jsonb is not None:
             subqry = (
@@ -916,7 +920,12 @@ class QueryBuilder:
         else:
             return cond
 
-    def get_sql_field_and_value(self, prop: Property, value: object):
+    def get_sql_field_and_value(
+        self,
+        prop: Property,
+        value: object,
+        lower: bool = False,
+    ):
         if prop.place in self.backend.props_in_lists:
             jsonb = self.table.lists.c.data[prop.place]
             if _is_dtype(prop, String):
@@ -945,9 +954,8 @@ class QueryBuilder:
             jsonb = None
             field = self.table.main.c[prop.name]
 
-        if isinstance(prop.dtype, String):
+        if lower:
             field = sa.func.lower(field)
-            value = value.lower()
 
         return field, value, jsonb
 
