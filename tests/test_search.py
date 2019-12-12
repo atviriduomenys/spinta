@@ -725,7 +725,7 @@ def test_search_nested_recurse(model, context, app):
 def test_search_nested_recurse_lower(model, context, app):
     r1, r2, r3, = ids(_push_test_data(app, model))
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?eq(lower(recurse(report_type)),ok)')
+    resp = app.get(f'/{model}?eq(lower(recurse(status)),ok)')
     assert ids(resp) == [r1]
 
 
@@ -761,4 +761,39 @@ def test_search_nested_recurse_multiple_props(model, context, app):
     assert ids(resp) == [r1]
 
     resp = app.get(f'/{model}?eq(recurse(country),no)')
+    assert ids(resp) == [r2]
+
+
+@pytest.mark.models(
+    # TODO: add OR support for mongo
+    # 'backends/mongo/report',
+    'backends/postgres/recurse',
+)
+def test_search_recurse_multiple_props_lower(model, app):
+    r1, r2, = ids(_push_test_data(app, model, [
+        {
+            'title': "Org",
+            'country': 'fi',
+            'govids': [
+                {'govid': '1', 'country': 'FI'},
+                {'govid': '2', 'country': 'SE'},
+            ]
+        },
+        {
+            'title': "Org",
+            'country': 'no',
+            'govids': [
+                {'govid': '3', 'country': 'NO'},
+            ]
+        },
+    ]))
+    app.authmodel(model, ['search'])
+
+    resp = app.get(f'/{model}?eq(lower(recurse(country)),se)')
+    assert ids(resp) == [r1]
+
+    resp = app.get(f'/{model}?eq(lower(recurse(country)),fi)')
+    assert ids(resp) == [r1]
+
+    resp = app.get(f'/{model}?eq(lower(recurse(country)),no)')
     assert ids(resp) == [r2]
