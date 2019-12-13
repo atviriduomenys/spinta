@@ -63,6 +63,26 @@ def _push_test_data(app, model, data=None):
     return resp['_data']
 
 
+class RowIds:
+
+    def __init__(self, ids):
+        self.ids = {k: v for v, k in enumerate(self._cast(ids))}
+
+    def __call__(self, ids):
+        return [self.ids.get(i, i) for i in self._cast(ids)]
+
+    def _cast(self, ids):
+        if isinstance(ids, requests.models.Response):
+            resp = ids
+            assert resp.status_code == 200, resp.json()
+            ids = resp.json()
+        if isinstance(ids, dict):
+            ids = ids['_data']
+        if isinstance(ids, list) and len(ids) > 0 and isinstance(ids[0], dict):
+            ids = [r['_id'] for r in ids]
+        return ids
+
+
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',
@@ -393,54 +413,80 @@ def test_search_le_with_nested_date(model, context, app):
     assert data[0]['_id'] == r3['_id']
 
 
-@pytest.mark.skip('NotImplementedError')
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',
 )
 def test_search_ne(model, context, app):
-    r1, r2, r3, = _push_test_data(app, model)
-
     app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
 
     # single field search
     resp = app.get(f'/{model}?status=ne=invalid')
-    data = resp.json()['_data']
-    assert len(data) == 1
-    assert data[0]['_id'] == r1['_id']
+    assert ids(resp) == [0]
 
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_ne_lower(model, context, app):
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
     # single field search, case insensitive
-    resp = app.get(f'/{model}?status=ne=invAlID')
-    data = resp.json()['_data']
-    assert len(data) == 1
-    assert data[0]['_id'] == r1['_id']
+    resp = app.get(f'/{model}?ne(lower(status),ok)')
+    assert ids(resp) == [1, 2]
 
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_ne_multiple_props(model, context, app):
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
     # multi field search
     # test if operators are joined with AND logic
     resp = app.get(f'/{model}?count=ne=10&count=ne=42')
-    data = resp.json()['_data']
-    assert len(data) == 1
-    assert data[0]['_id'] == r3['_id']
+    assert ids(resp) == [2]
 
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_ne_multiple_props_and_logic(model, context, app):
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?status=ne=ok&report_type=vmi')
-    data = resp.json()['_data']
-    assert len(data) == 1
-    assert data[0]['_id'] == r2['_id']
+    resp = app.get(f'/{model}?ne(lower(status),ok)&eq(lower(report_type),stv)')
+    assert ids(resp) == [2]
 
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_ne_nested(model, context, app):
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
     # test `ne` with nested structure
     resp = app.get(f'/{model}?ne(notes.create_date,2019-02-01)&status=ne=invalid')
-    data = resp.json()['_data']
-    assert len(data) == 1
-    assert data[0]['_id'] == r1['_id']
+    assert ids(resp) == [0]
 
+
+@pytest.mark.skip()
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_ne_nested_missing_data(model, context, app):
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
     # test `ne` with nested structures and not full data in all resources
-    resp = app.get(f'/{model}?ne(operating_licenses.license_types,valid)&sort(+count)')
-    data = resp.json()['_data']
-    assert len(data) == 2
-    assert data[0]['_id'] == r3['_id']
-    assert data[1]['_id'] == r2['_id']
+    resp = app.get(f'/{model}?ne(operating_licenses.license_types,valid)')
+    assert ids(resp) == [1]
 
 
 @pytest.mark.models(

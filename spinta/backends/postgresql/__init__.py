@@ -395,6 +395,14 @@ def _update_lists_table(context: Context, model: Model, table: sa.Table, action:
         ])
 
 
+def _get_list_key(node: Node):
+    if isinstance(node, Model):
+        return None
+    if isinstance(node.dtype, Array):
+        return node.place
+    return _get_list_key(node.parent)
+
+
 def _has_lists(node: Node):
     if isinstance(node, Model):
         for prop in node.properties.values():
@@ -408,7 +416,7 @@ def _has_lists(node: Node):
         return True
 
 
-def _get_lists_only(value):
+def _get_lists_only(value, list_key=None):
     if isinstance(value, dict):
         result = {}
         for k, v in value.items():
@@ -534,8 +542,8 @@ def build_full_data_patch(
     return full_patch
 
 
-@commands.build_full_data_patch.register()  # noqa
-def build_full_data_patch(
+@commands.build_full_data_patch.register()
+def build_full_data_patch(  # noqa
     context: Context,
     dtype: DataType,
     *,
@@ -554,8 +562,8 @@ def build_full_data_patch(
         return dtype.default
 
 
-@commands.build_full_data_patch.register()  # noqa
-def build_full_data_patch(
+@commands.build_full_data_patch.register()
+def build_full_data_patch(  # noqa
     context: Context,
     dtype: Object,
     *,
@@ -586,8 +594,8 @@ def build_full_data_patch(
         return full_patch
 
 
-@commands.build_full_data_patch.register()  # noqa
-def build_full_data_patch(
+@commands.build_full_data_patch.register()
+def build_full_data_patch(  # noqa
     context: Context,
     dtype: File,
     *,
@@ -899,8 +907,8 @@ class QueryBuilder:
         prop = self.resolve_property(key)
         value = self.resolve_value(op, prop, value)
         field, value, jsonb = self.get_sql_field_and_value(prop, value, lower)
-        cond = method(field, value)
-        if jsonb is not None:
+        cond = method(prop, field, value)
+        if jsonb is not None and op != 'ne':
             subqry = (
                 sa.select(
                     [
@@ -965,28 +973,66 @@ class QueryBuilder:
     def op_or(self, *args: List[dict]):
         return sa.or_(*self.resolve(args))
 
-    def op_eq(self, field, value):
+    def op_eq(self, prop, field, value):
         return field == value
 
-    def op_ge(self, field, value):
+    def op_ge(self, prop, field, value):
         return field >= value
 
-    def op_gt(self, field, value):
+    def op_gt(self, prop, field, value):
         return field > value
 
-    def op_le(self, field, value):
+    def op_le(self, prop, field, value):
         return field <= value
 
-    def op_lt(self, field, value):
+    def op_lt(self, prop, field, value):
         return field < value
 
-    def op_ne(self, field, value):
-        raise NotImplementedError
+    def op_ne(self, prop, field, value):
+        list_key = _get_list_key(prop)
+        if list_key is None:
+            return field != value
 
-    def op_contains(self, field, value):
+        # Check if at liest one value for field is defined
+        subqry1 = (
+            sa.select(
+                [self.table.lists.c.id],
+                distinct=self.table.lists.c.id,
+            ).
+            where(self.table.lists.c.key == list_key).
+            alias()
+        )
+        self.joins = self.joins.outerjoin(
+            subqry1,
+            self.table.main.c._id == subqry1.c.id,
+        )
+
+        # Check if given value exists
+        subqry2 = (
+            sa.select(
+                [self.table.lists.c.id],
+                distinct=self.table.lists.c.id,
+            ).
+            where(self.table.lists.c.key == list_key).
+            where(field == value).
+            alias()
+        )
+        self.joins = self.joins.outerjoin(
+            subqry2,
+            self.table.main.c._id == subqry2.c.id,
+        )
+
+        # If field exists and given value does not, then field is not equal to
+        # value.
+        return sa.and_(
+            subqry1.c.id != None,  # noqa
+            subqry2.c.id == None,
+        )
+
+    def op_contains(self, prop, field, value):
         return field.contains(value)
 
-    def op_startswith(self, field, value):
+    def op_startswith(self, prop, field, value):
         return field.startswith(value)
 
 
