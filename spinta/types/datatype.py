@@ -211,6 +211,7 @@ def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> Dat
         )
         dtype.prop.model.flatprops[place] = prop
         dtype.properties[name] = prop
+        prop.list = dtype.prop
     return dtype
 
 
@@ -225,7 +226,9 @@ def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> Data
             'model': dtype.prop.model,
             **data['items'],
         }
-        dtype.items = load(context, dtype.prop.__class__(), params, dtype.prop.manifest)
+        prop = load(context, dtype.prop.__class__(), params, dtype.prop.manifest)
+        prop.list = dtype.prop
+        dtype.items = prop
     else:
         dtype.items = None
     return dtype
