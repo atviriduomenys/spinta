@@ -476,6 +476,7 @@ def test_search_ne_nested(model, context, app):
     assert ids(resp) == [0]
 
 
+@pytest.mark.skip()
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',

@@ -542,8 +542,8 @@ def build_full_data_patch(
     return full_patch
 
 
-@commands.build_full_data_patch.register()  # noqa
-def build_full_data_patch(
+@commands.build_full_data_patch.register()
+def build_full_data_patch(  # noqa
     context: Context,
     dtype: DataType,
     *,
@@ -562,8 +562,8 @@ def build_full_data_patch(
         return dtype.default
 
 
-@commands.build_full_data_patch.register()  # noqa
-def build_full_data_patch(
+@commands.build_full_data_patch.register()
+def build_full_data_patch(  # noqa
     context: Context,
     dtype: Object,
     *,
@@ -594,8 +594,8 @@ def build_full_data_patch(
         return full_patch
 
 
-@commands.build_full_data_patch.register()  # noqa
-def build_full_data_patch(
+@commands.build_full_data_patch.register()
+def build_full_data_patch(  # noqa
     context: Context,
     dtype: File,
     *,
@@ -814,44 +814,6 @@ def getall(
     qb = QueryBuilder(context, model, backend, table)
     qry = qb.build(select, sort, offset, limit, query)
 
-    pp(str(qry) % qry.compile().params)
-
-    q = """
-    SELECT
-        "backends/postgres/report".count,
-        anon_1.id AS "exists",
-        anon_2.id AS ne
-
-    FROM "backends/postgres/report" LEFT OUTER JOIN (
-        SELECT DISTINCT ON ("backends/postgres/report/:list".id)
-            "backends/postgres/report/:list".id AS id
-        FROM "backends/postgres/report/:list"
-        WHERE "backends/postgres/report/:list".key = 'operating_licenses.license_types'
-    ) AS anon_1 ON "backends/postgres/report"._id = anon_1.id
-
-    LEFT OUTER JOIN (
-        SELECT DISTINCT ON ("backends/postgres/report/:list".id)
-            "backends/postgres/report/:list".id AS id
-        FROM "backends/postgres/report/:list"
-        WHERE
-            "backends/postgres/report/:list".key = 'operating_licenses.license_types' AND
-            ("backends/postgres/report/:list".data ->> 'operating_licenses.license_types') = 'valid'
-        ) AS anon_2 ON "backends/postgres/report"._id = anon_2.id
-
-    """
-    # WHERE
-    #     anon_1.id IS NOT NULL AND
-    #     anon_2.id IS NULL
-    for row in connection.execute(q):
-        pp(dict(row))
-
-    q = """
-    SELECT *
-    FROM "backends/postgres/report/:list"
-    """
-    for row in connection.execute(q):
-        pp(dict(row))
-
     for row in connection.execute(qry):
         yield dict(row)
 
@@ -1027,8 +989,8 @@ class QueryBuilder:
         return field < value
 
     def op_ne(self, prop, field, value):
-        list_key = _get_lists_only(prop)
-        if table_key is None:
+        list_key = _get_list_key(prop)
+        if list_key is None:
             return field != value
 
         # Check if at liest one value for field is defined
@@ -1037,7 +999,7 @@ class QueryBuilder:
                 [self.table.lists.c.id],
                 distinct=self.table.lists.c.id,
             ).
-            where(self.table.lists.c.key == table_key).
+            where(self.table.lists.c.key == list_key).
             alias()
         )
         self.joins = self.joins.outerjoin(
@@ -1051,7 +1013,7 @@ class QueryBuilder:
                 [self.table.lists.c.id],
                 distinct=self.table.lists.c.id,
             ).
-            where(self.table.lists.c.key == table_key).
+            where(self.table.lists.c.key == list_key).
             where(field == value).
             alias()
         )
