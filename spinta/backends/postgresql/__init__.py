@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Optional, List, Union
+from typing import AsyncIterator, Optional, List, Union, Tuple
 
 import contextlib
 import datetime
@@ -26,8 +26,7 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
-from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String, Node, Integer
-from spinta.utils.nestedstruct import flatten, parent_key_for_item
+from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String, Integer
 from spinta.utils.schema import NA, strip_metadata
 
 from spinta.exceptions import (
@@ -68,9 +67,6 @@ class PostgreSQL(Backend):
     engine = None
     schema = None
     tables = None
-
-    # List of properties who are in lists.
-    props_in_lists: List[str] = None
 
     @contextlib.contextmanager
     def transaction(self, write=False):
@@ -211,24 +207,6 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     changes_table = get_changes_table(backend, changes_table_name, main_table.c._id.type)
 
     backend.tables[model.manifest.name][model.name] = ModelTables(main_table, lists_table, changes_table)
-
-    if backend.props_in_lists is None:
-        backend.props_in_lists = list(_find_props_in_lists(model))
-    else:
-        backend.props_in_lists.extend(list(_find_props_in_lists(model)))
-
-
-def _find_props_in_lists(node: Node, inlist: bool = False):
-    if isinstance(node, Model):
-        for prop in node.properties.values():
-            yield from _find_props_in_lists(prop, inlist)
-    elif isinstance(node.dtype, Object):
-        for prop in node.dtype.properties.values():
-            yield from _find_props_in_lists(prop, inlist)
-    elif isinstance(node.dtype, Array):
-        yield from _find_props_in_lists(node.dtype.items, inlist=True)
-    elif inlist:
-        yield node.place
 
 
 @prepare.register()
@@ -373,60 +351,85 @@ def check_unique_constraint(
         raise UniqueConstraint(prop)
 
 
-def _update_lists_table(context: Context, model: Model, table: sa.Table, action: Action, data: dict) -> None:
+def _update_lists_table(
+    context: Context,
+    model: Model,
+    table: sa.Table,
+    action: Action,
+    pk: str,
+    patch: dict,
+) -> None:
     if table is None:
         return
 
-    pk = data['_id']
     transaction = context.get('transaction')
     connection = transaction.connection
+    rows = list(_get_lists_data(model, patch))
     if action != Action.INSERT:
-        connection.execute(table.delete().where(table.c.id == pk))
-    data = _get_lists_only(data)
-    if data:
+        keys = {prop.place for prop, _ in rows}
+        if keys:
+            connection.execute(
+                table.delete().
+                where(table.c.id == pk).
+                where(table.c.key.in_(keys))
+            )
+    if rows:
         connection.execute(table.insert(), [
             {
                 'transaction': transaction.id,
                 'id': pk,
-                'key': parent_key_for_item(item),
-                'data': item,
+                'key': prop.place,
+                'data': row,
             }
-            for item in flatten([data])
+            for prop, row in rows
         ])
 
 
-def _get_list_key(node: Node):
-    if isinstance(node, Model):
-        return None
-    if isinstance(node.dtype, Array):
-        return node.place
-    return _get_list_key(node.parent)
-
-
-def _has_lists(node: Node):
-    if isinstance(node, Model):
-        for prop in node.properties.values():
-            if _has_lists(prop):
+def _has_lists(dtype: Union[Model, DataType]):
+    if isinstance(dtype, (Model, Object)):
+        for prop in dtype.properties.values():
+            if _has_lists(prop.dtype):
                 return True
-    elif isinstance(node.dtype, Object):
-        for prop in node.dtype.properties.values():
-            if _has_lists(prop):
-                return True
-    elif isinstance(node.dtype, Array):
+    elif isinstance(dtype, Array):
         return True
+    else:
+        return False
 
 
-def _get_lists_only(value, list_key=None):
-    if isinstance(value, dict):
-        result = {}
-        for k, v in value.items():
-            v = _get_lists_only(v)
-            if v is not None:
-                result[k] = v
-        if result:
-            return result
-    elif isinstance(value, list):
-        return value
+def _get_lists_data(
+    dtype: Union[Model, DataType],
+    value: object,
+) -> List[dict]:
+    data, lists = _separate_lists_and_data(dtype, value)
+    if isinstance(dtype, DataType) and data is not NA:
+        yield dtype.prop, data
+    for prop, vals in lists:
+        for v in vals:
+            yield from _get_lists_data(prop.dtype, v)
+
+
+def _separate_lists_and_data(
+    dtype: Union[Model, DataType],
+    value: object,
+) -> Tuple[dict, List[Tuple[Property, list]]]:
+    if isinstance(dtype, (Model, Object)):
+        data = {}
+        lists = []
+        for k, v in (value or {}).items():
+            prop = dtype.properties[k]
+            v, more = _separate_lists_and_data(prop.dtype, v)
+            if v is not NA:
+                data.update(v)
+            if more:
+                lists += more
+        return data or NA, lists
+    elif isinstance(dtype, Array):
+        if value:
+            return NA, [(dtype.items, value)]
+        else:
+            return NA, []
+    else:
+        return {dtype.prop.place: value}, []
 
 
 @commands.insert.register()
@@ -454,7 +457,14 @@ async def insert(
         }])
 
         # Update lists table
-        _update_lists_table(context, model, table.lists, Action.INSERT, data.patch)
+        _update_lists_table(
+            context,
+            model,
+            table.lists,
+            Action.INSERT,
+            data.patch['_id'],
+            data.patch,
+        )
 
         yield data
 
@@ -482,22 +492,22 @@ async def update(
         # Support patching nested properties.
         # Build a full_patch dict, where data.patch is merged with data.saved
         # for nested properties.
-        full_patch = build_full_data_patch(
+        patch = build_full_data_patch(
             context,
             model,
             patch=strip_metadata(data.patch),
             saved=strip_metadata(data.saved),
         )
 
-        full_patch['_revision'] = data.patch['_revision']
+        patch['_revision'] = data.patch['_revision']
         if '_id' in data.patch:
-            full_patch['_id'] = data.patch['_id']
+            patch['_id'] = data.patch['_id']
 
         result = connection.execute(
             table.main.update().
             where(table.main.c._id == id_).
             where(table.main.c._revision == data.saved['_revision']).
-            values(full_patch)
+            values(patch)
         )
 
         if result.rowcount == 0:
@@ -506,10 +516,17 @@ async def update(
             raise Exception("Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
 
         # Update lists table
-        _update_lists_table(context, model, table.lists, data.action, {
-            **data.saved,
-            **data.patch,
-        })
+        patch = {
+            k: v for k, v in patch.items() if not k.startswith('_')
+        }
+        _update_lists_table(
+            context,
+            model,
+            table.lists,
+            data.action,
+            id_,
+            patch,
+        )
 
         yield data
 
@@ -542,7 +559,7 @@ def build_full_data_patch(
     return full_patch
 
 
-@commands.build_full_data_patch.register()
+@commands.build_full_data_patch.register()  # noqa
 def build_full_data_patch(  # noqa
     context: Context,
     dtype: DataType,
@@ -562,7 +579,7 @@ def build_full_data_patch(  # noqa
         return dtype.default
 
 
-@commands.build_full_data_patch.register()
+@commands.build_full_data_patch.register()  # noqa
 def build_full_data_patch(  # noqa
     context: Context,
     dtype: Object,
@@ -594,7 +611,7 @@ def build_full_data_patch(  # noqa
         return full_patch
 
 
-@commands.build_full_data_patch.register()
+@commands.build_full_data_patch.register()  # noqa
 def build_full_data_patch(  # noqa
     context: Context,
     dtype: File,
@@ -890,7 +907,11 @@ class QueryBuilder:
             key = '.'.join(key)
         if key not in self.model.flatprops:
             raise exceptions.FieldNotInResource(self.model, property=key)
-        return self.model.flatprops[key]
+        prop = self.model.flatprops[key]
+        if isinstance(prop.dtype, Array):
+            return prop.dtype.items
+        else:
+            return prop
 
     def resolve_value(self, op, prop: Property, value: Union[str, dict]) -> object:
         return commands.load_search_params(self.context, prop.dtype, self.backend, {
@@ -906,9 +927,9 @@ class QueryBuilder:
 
         prop = self.resolve_property(key)
         value = self.resolve_value(op, prop, value)
-        field, value, jsonb = self.get_sql_field_and_value(prop, value, lower)
+        field, value = self.get_sql_field_and_value(prop, value, lower)
         cond = method(prop, field, value)
-        if jsonb is not None and op != 'ne':
+        if prop.list is not None and op != 'ne':
             subqry = (
                 sa.select(
                     [
@@ -918,6 +939,7 @@ class QueryBuilder:
                     distinct=self.table.lists.c.id,
                 ).
                 where(cond).
+                where(self.table.lists.c.key == prop.list.place).
                 alias()
             )
             self.joins = self.joins.outerjoin(
@@ -934,7 +956,7 @@ class QueryBuilder:
         value: object,
         lower: bool = False,
     ):
-        if prop.place in self.backend.props_in_lists:
+        if prop.list is not None:
             jsonb = self.table.lists.c.data[prop.place]
             if _is_dtype(prop, String):
                 field = jsonb.astext
@@ -965,7 +987,7 @@ class QueryBuilder:
         if lower:
             field = sa.func.lower(field)
 
-        return field, value, jsonb
+        return field, value
 
     def op_and(self, *args: List[dict]):
         return sa.and_(*self.resolve(args))
@@ -989,8 +1011,7 @@ class QueryBuilder:
         return field < value
 
     def op_ne(self, prop, field, value):
-        list_key = _get_list_key(prop)
-        if list_key is None:
+        if prop.list is None:
             return field != value
 
         # Check if at liest one value for field is defined
@@ -999,7 +1020,7 @@ class QueryBuilder:
                 [self.table.lists.c.id],
                 distinct=self.table.lists.c.id,
             ).
-            where(self.table.lists.c.key == list_key).
+            where(self.table.lists.c.key == prop.list.place).
             alias()
         )
         self.joins = self.joins.outerjoin(
@@ -1013,7 +1034,7 @@ class QueryBuilder:
                 [self.table.lists.c.id],
                 distinct=self.table.lists.c.id,
             ).
-            where(self.table.lists.c.key == list_key).
+            where(self.table.lists.c.key == prop.list.place).
             where(field == value).
             alias()
         )
@@ -1072,7 +1093,7 @@ def _getall_order_by(
 
             prop = model.flatprops[key]
 
-            if prop.place in backend.props_in_lists:
+            if prop.list is not None:
                 subqry = (
                     sa.select(
                         [

@@ -218,6 +218,7 @@ def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> Dat
 @load.register()
 def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> DataType:
     if 'items' in data:
+        assert isinstance(data['items'], dict), type(data['items'])
         params = {
             'name': dtype.prop.name,
             'place': dtype.prop.place,

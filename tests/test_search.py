@@ -476,7 +476,6 @@ def test_search_ne_nested(model, context, app):
     assert ids(resp) == [0]
 
 
-@pytest.mark.skip()
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',
@@ -711,10 +710,25 @@ def test_search_nested(model, context, app):
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_nested_contains(model, context, app):
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?contains(operating_licenses.license_types,lid)')
-    data = resp.json()['_data']
-    assert len(data) == 1
-    assert data[0]['_id'] == r1['_id']
+    assert ids(resp) == [0]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_nested_startswith(model, context, app):
+    app.authmodel(model, ['search'])
+    r1, r2, r3, = _push_test_data(app, model)
 
     # nested `startswith` search
     resp = app.get(f'/{model}?startswith(notes.note,fo)')
