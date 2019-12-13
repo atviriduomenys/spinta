@@ -453,6 +453,8 @@ class Property(Node):
         self.link = None
         self.enum = None
         self.hidden = False
+        # If property is in a list, then self.list points to that list property.
+        self.list = None
 
     def __repr__(self):
         return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}, type={self.dtype.name!r})>'
