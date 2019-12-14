@@ -1011,6 +1011,20 @@ class QueryBuilder:
         return field < value
 
     def op_ne(self, prop, field, value):
+        """Not equal operator is quite complicated thing and need explaining.
+
+        If property is not defined within a list, just do `!=` comparison and be
+        done with it.
+
+        If property is in a list:
+
+        - First check if there is at least one list item where field is not None
+          (existance check).
+
+        - Then check if there is no list items where field equals to given
+          value.
+        """
+
         if prop.list is None:
             return field != value
 
@@ -1021,6 +1035,7 @@ class QueryBuilder:
                 distinct=self.table.lists.c.id,
             ).
             where(self.table.lists.c.key == prop.list.place).
+            where(field != None).  # noqa
             alias()
         )
         self.joins = self.joins.outerjoin(
