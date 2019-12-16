@@ -10,7 +10,7 @@ from starlette.responses import FileResponse
 from spinta import commands
 from spinta.backends import Backend
 from spinta.commands import load, prepare, migrate, push, getone, wipe, wait, authorize, complex_data_check
-from spinta.commands.write import prepare_patch, simple_response
+from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams, DataItem
 from spinta.config import RawConfig
 from spinta.exceptions import FileNotFound, ItemDoesNotExist
@@ -115,17 +115,20 @@ async def push(
     prop: Property,
     backend: FileSystem,
     *,
-    action: str,
+    action: Action,
     params: UrlParams,
 ):
     authorize(context, action, prop)
 
-    data = DataItem(prop.model, prop, propref=True, backend=prop.model.backend)
+    data = DataItem(prop.model, prop, propref=True, backend=prop.model.backend, action=action)
     data.saved = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
     data.given = {
         'content_type': request.headers.get('content-type'),
         'filename': None,
     }
+
+    if 'revision' in request.headers:
+        data.given['_revision'] = request.headers.get('revision')
 
     if 'content-disposition' in request.headers:
         data.given['filename'] = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
@@ -140,6 +143,7 @@ async def push(
             async for chunk in request.stream():
                 f.write(chunk)
         dstream = aiter([data])
+        dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
         dstream = commands.update(context, prop, prop.dtype, prop.model.backend, dstream=dstream)
 
@@ -147,6 +151,7 @@ async def push(
         if filepath.exists():
             filepath.unlink()
         dstream = aiter([data])
+        dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
         dstream = commands.delete(context, prop, prop.dtype, prop.model.backend, dstream=dstream)
 

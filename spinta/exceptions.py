@@ -211,7 +211,7 @@ class PropertyNotFound(UserError):
 
 
 class NoItemRevision(UserError):
-    template = "'revision' must be given on rewrite operation."
+    template = "'_revision' must be given on rewrite operation."
 
 
 class JSONError(UserError):
