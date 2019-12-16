@@ -213,7 +213,6 @@ def getone(
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: FileSystem):
-    authorize(context, 'wipe', model)
     for path in backend.path.iterdir():
         if path.is_dir():
             shutil.rmtree(path)

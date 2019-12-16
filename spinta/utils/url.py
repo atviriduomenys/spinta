@@ -37,6 +37,10 @@ RULES = {
     'fault-tolerant': {
         'maxargs': 0,
     },
+    # Wipe all data of a model or all models in a namespace.
+    'wipe': {
+        'maxargs': 0,
+    },
 }
 
 

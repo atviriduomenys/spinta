@@ -122,6 +122,8 @@ def _prepare_urlparams_from_path(params):
             params.summary = True
         elif name == 'fault-tolerant':
             params.fault_tolerant = True
+        elif name == 'wipe':
+            params.wipe = True
         else:
             if params.query is None:
                 params.query = []

@@ -558,6 +558,8 @@ class UrlParams:
     summary: bool = False
     # In batch requests, continue execution even if some actions fail.
     fault_tolerant: bool = False
+    # Wipe all data of a model or all models in a namespace.
+    wipe: bool = False
 
     query: Optional[List[dict]] = None
 
