@@ -11,4 +11,3 @@ responses
 snoop
 sqlalchemy-utils
 sqlparse
-toposort

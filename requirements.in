@@ -21,6 +21,7 @@ setuptools-scm
 sqlalchemy
 starlette
 texttable
+toposort
 tqdm
 ujson
 unidecode
