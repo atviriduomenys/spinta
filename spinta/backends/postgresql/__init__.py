@@ -171,6 +171,8 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     columns = []
     for prop in model.properties.values():
+        if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):
+            continue
         column = prepare(context, backend, prop)
         if isinstance(column, list):
             columns.extend(column)
@@ -819,11 +821,13 @@ def getall(
     model: Model,
     backend: PostgreSQL,
     *,
+    action: Action = Action.GETALL,
     select: typing.List[str] = None,
     sort: typing.Dict[str, dict] = None,
     offset: int = None,
     limit: int = None,
     query: typing.List[typing.Dict[str, str]] = None,
+    count: bool = False,
 ):
     connection = context.get('transaction').connection
     table = backend.tables[model.manifest.name][model.name]
@@ -832,7 +836,10 @@ def getall(
     qry = qb.build(select, sort, offset, limit, query)
 
     for row in connection.execute(qry):
-        yield dict(row)
+        yield {
+            '_type': model.model_type(),
+            **row,
+        }
 
 
 class QueryBuilder:
@@ -1237,8 +1244,6 @@ def _changes_limit(qry, limit):
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: PostgreSQL):
-    authorize(context, Action.WIPE, model)
-
     if (
         model.manifest.name not in backend.tables or
         model.name not in backend.tables[model.manifest.name]

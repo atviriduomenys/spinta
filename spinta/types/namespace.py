@@ -92,11 +92,7 @@ def _query_data(
     **kwargs,
 ):
     for model in traverse_ns_models(ns, dataset_, resource, origin):
-        yield from commands.getall(
-            context, model, model.backend,
-            action=action,
-            **kwargs
-        )
+        yield from commands.getall(context, model, model.backend, **kwargs)
 
 
 def traverse_ns_models(

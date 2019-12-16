@@ -13,7 +13,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.auth import check_scope
 from spinta.backends import Backend
-from spinta.components import Context, Node, UrlParams, Action, DataItem, Model, Property, DataStream
+from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream
 from spinta.renderer import render
 from spinta.types import dataset
 from spinta.types.datatype import DataType, Object, Array
@@ -23,6 +23,7 @@ from spinta.utils.aiotools import aslice, alist
 from spinta.utils.errors import report_error
 from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA, strip_metadata
+from spinta.types.namespace import traverse_ns_models
 
 
 STREAMING_CONTENT_TYPES = [
@@ -77,6 +78,13 @@ async def push_stream(
             async for data in dstream:
                 yield data
             continue
+
+        if action not in cmds:
+            raise exceptions.UnknownAction(
+                prop or model,
+                action=action,
+                supported_actions=sorted(x.value for x in cmds),
+            )
 
         commands.authorize(context, action, prop or model)
         dstream = prepare_data(context, dstream)
@@ -712,3 +720,36 @@ async def patch(
     )
     async for data in dstream:
         yield data
+
+
+@commands.wipe.register()
+async def wipe(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: Backend,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    commands.authorize(context, Action.WIPE, model)
+    commands.wipe(context, model, backend)
+    response = {'wiped': True}
+    return render(context, request, model, params, response, status_code=200)
+
+
+@commands.wipe.register()
+async def wipe(  # noqa
+    context: Context,
+    request: Request,
+    ns: Namespace,
+    backend: type(None),
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    for model in traverse_ns_models(ns):
+        commands.authorize(context, Action.WIPE, model)
+    commands.wipe(context, ns, backend)
+    response = {'wiped': True}
+    return render(context, request, ns, params, response, status_code=200)

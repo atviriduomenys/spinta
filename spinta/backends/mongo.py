@@ -608,7 +608,6 @@ class QueryBuilder:
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: Mongo):
-    authorize(context, Action.WIPE, model)
     table = backend.db[model.model_type()]
     return table.delete_many({})
 

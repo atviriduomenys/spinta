@@ -45,6 +45,9 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
             action = Action.SEARCH if search else Action.GETALL
             _enforce_limit(context, params)
             return await commands.getall(context, request, params.model, params.model.backend, action=action, params=params)
+    elif request.method == 'DELETE' and params.wipe:
+        context.attach('transaction', manifest.backend.transaction, write=True)
+        return await commands.wipe(context, request, params.model, params.model.backend, action=Action.WIPE, params=params)
     else:
         context.attach('transaction', manifest.backend.transaction, write=True)
         action = METHOD_TO_ACTION[request.method]

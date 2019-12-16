@@ -512,8 +512,6 @@ def _changes_limit(qry, limit):
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: PostgreSQL):
-    authorize(context, Action.WIPE, model)
-
     connection = context.get('transaction').connection
     table = _get_table(backend, model)
     connection.execute(table.changes.delete())
