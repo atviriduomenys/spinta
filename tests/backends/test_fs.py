@@ -33,6 +33,7 @@ def test_crud(model, app):
 
     # PUT image to just create photo resource.
     resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+        'revision': revision,
         'content-type': 'image/png',
         # TODO: with content-disposition header it is possible to specify file
         #       name directly, but there should be option, to use model id as a
@@ -65,12 +66,12 @@ def test_crud(model, app):
     assert resp.content == b'BINARYDATA'
 
     resp = app.delete(f'/{model}/{id_}/image')
-    assert resp.status_code == 200, resp.text
+    assert resp.status_code == 204, resp.text
     data = resp.json()
     assert data == {
         '_id': id_,
         '_revision': data['_revision'],
-        'image': None
+        '_type': f'{model}.image',
     }
     assert data['_revision'] != revision
     revision = data['_revision']
@@ -207,8 +208,10 @@ def test_id_as_filename(model, app, tmpdir):
         'name': 'myphoto',
     })
     id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
 
     resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+        'revision': revision,
         'content-type': 'image/png',
     })
     assert resp.status_code == 200, resp.text
@@ -229,3 +232,79 @@ def test_id_as_filename(model, app, tmpdir):
     assert resp.json() == {
         'name': 'myphoto',
     }
+
+
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_check_revision_for_file(model, app):
+    app.authmodel(model, [
+        'insert',
+        'image_update',
+    ])
+
+    # Create a new photo resource.
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+    })
+    assert resp.status_code == 201, resp.text
+    data = resp.json()
+    id_ = data['_id']
+    revision = data['_revision']
+
+    # PUT image without revision
+    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+        'content-type': 'image/png',
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ['NoItemRevision']
+
+    # PUT image with revision
+    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+        'revision': revision,
+        'content-type': 'image/png',
+    })
+    assert resp.status_code == 200, resp.text
+    old_revision = revision
+    revision = resp.json()['_revision']
+    assert old_revision != revision
+
+
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_check_revision_for_file_ref(model, app, tmpdir):
+    app.authmodel(model, ['insert', 'image_patch'])
+
+    image = pathlib.Path(tmpdir) / 'image.png'
+    image.write_bytes(b'IMAGEDATA')
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+    })
+    assert resp.status_code == 201, resp.text
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    # PATCH file without revision
+    resp = app.patch(f'/{model}/{id_}/image:ref', json={
+        'content_type': 'image/png',
+        'filename': str(image),
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ['NoItemRevision']
+
+    # PATCH file with revision
+    resp = app.patch(f'/{model}/{id_}/image:ref', json={
+        '_revision': revision,
+        'content_type': 'image/png',
+        'filename': str(image),
+    })
+    assert resp.status_code == 200
+    old_revision = revision
+    revision = resp.json()['_revision']
+    assert old_revision != revision
