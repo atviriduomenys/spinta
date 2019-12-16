@@ -1239,6 +1239,14 @@ def _changes_limit(qry, limit):
 def wipe(context: Context, model: Model, backend: PostgreSQL):
     authorize(context, Action.WIPE, model)
 
+    if (
+        model.manifest.name not in backend.tables or
+        model.name not in backend.tables[model.manifest.name]
+    ):
+        # Model backend might not be prepared, this is especially true for
+        # tests. So if backend is not yet prepared, just skipt this model.
+        return
+
     table = backend.tables[model.manifest.name][model.name]
     connection = context.get('transaction').connection
 

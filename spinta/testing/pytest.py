@@ -109,7 +109,6 @@ def context(_context, mocker, tmpdir, request):
             # XXX: Maybe instead of deleting everythin, we could rollback
             #      transactions, once this kind of functionality will be
             #      available? This should be more efficient.
-            store = context.get('store')
             context.wipe_all()
 
 

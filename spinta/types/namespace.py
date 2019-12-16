@@ -1,6 +1,9 @@
 from typing import Union, Optional, Iterable
 
+import collections
 import itertools
+
+from toposort import toposort
 
 from starlette.requests import Request
 from starlette.responses import Response
@@ -29,7 +32,7 @@ async def getall(
     params: UrlParams,
 ) -> Response:
     if params.all and params.ns:
-        for model in _traverse_ns_models(ns, params.dataset, params.resource, params.origin):
+        for model in traverse_ns_models(ns, params.dataset, params.resource, params.origin):
             commands.authorize(context, action, model)
         return _get_ns_content(
             context,
@@ -43,7 +46,7 @@ async def getall(
             origin=params.origin,
         )
     elif params.all:
-        for model in _traverse_ns_models(ns, params.dataset, params.resource, params.origin):
+        for model in traverse_ns_models(ns, params.dataset, params.resource, params.origin):
             commands.authorize(context, action, model)
         data = getall(
             context, ns, None,
@@ -88,7 +91,7 @@ def _query_data(
     origin: Optional[str] = None,
     **kwargs,
 ):
-    for model in _traverse_ns_models(ns, dataset_, resource, origin):
+    for model in traverse_ns_models(ns, dataset_, resource, origin):
         yield from commands.getall(
             context, model, model.backend,
             action=action,
@@ -96,7 +99,7 @@ def _query_data(
         )
 
 
-def _traverse_ns_models(
+def traverse_ns_models(
     ns: Namespace,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
@@ -106,7 +109,7 @@ def _traverse_ns_models(
         if _model_matches_params(model, dataset_, resource, origin):
             yield model
     for name in ns.names.values():
-        yield from _traverse_ns_models(name, dataset_, resource, origin)
+        yield from traverse_ns_models(name, dataset_, resource, origin)
 
 
 def _model_matches_params(
@@ -235,9 +238,33 @@ def in_namespace(node: Node, ns: Namespace) -> bool:
 
 
 @commands.in_namespace.register()  # noqa
-def in_namespace(node: Node, parent: Node) -> bool:
+def in_namespace(node: Node, parent: Node) -> bool:  # noqa
     while node:
         if node is parent:
             return True
         node = node.parent
     return False
+
+
+@commands.wipe.register()
+def wipe(context: Context, ns: Namespace, backend: type(None)):
+    models = {
+        model.model_type(): model
+        for model in traverse_ns_models(ns)
+    }
+
+    graph = collections.defaultdict(set)
+    for name, model in models.items():
+        if name not in graph:
+            graph[name] = set()
+        for prop in model.properties.values():
+            if prop.dtype.name == 'ref':
+                ref_model = commands.get_referenced_model(
+                    context, prop, prop.dtype.object
+                )
+                graph[ref_model.model_type()].add(name)
+
+    for names in toposort(graph):
+        for name in names:
+            model = models[name]
+            commands.wipe(context, model, model.backend)

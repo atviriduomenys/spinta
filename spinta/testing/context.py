@@ -1,9 +1,6 @@
 import asyncio
 import contextlib
 import typing
-import collections
-
-from toposort import toposort
 
 from spinta import commands
 from spinta.components import Node
@@ -82,30 +79,8 @@ class ContextForTests:
 
     def wipe_all(self):
         store = self.get('store')
-        with self.transaction() as context:
-            store = context.get('store')
-
-            # Remove all data after each test run.
-            graph = collections.defaultdict(set)
-            for model in store.manifests['default'].objects['model'].values():
-                if model.name not in graph:
-                    graph[model.name] = set()
-                for prop in model.properties.values():
-                    if prop.dtype.name == 'ref':
-                        graph[prop.dtype.object].add(model.name)
-
-            for models in toposort(graph):
-                for name in models:
-                    context.wipe(name)
-
-            # Datasets does not have foreign kei constraints, so there is no need to
-            # topologically sort them. At least for now.
-            for dataset in store.manifests['default'].objects['dataset'].values():
-                for resource in dataset.resources.values():
-                    for model in resource.models():
-                        context.wipe(model)
-
-            context.wipe(store.internal.objects['model']['transaction'])
+        self.wipe(store.manifests['default'].objects['ns'][''])
+        self.wipe(store.internal.objects['ns'][''])
 
     def load(self, overrides=None):
         # We pass context to tests unloaded, by doing this, we give test
