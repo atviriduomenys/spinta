@@ -298,8 +298,13 @@ def load(context: Context, dtype: Object, value: object) -> dict:
     # loads value into native python dict, including all dict's items
     loaded_obj = dtype.load(value)
 
+    non_hidden_keys = []
+    for key, prop in dtype.properties.items():
+        if not prop.hidden:
+            non_hidden_keys.append(key)
+
     # check that given obj does not have more keys, than dtype's schema
-    unknown_props = set(loaded_obj.keys()) - set(dtype.properties.keys())
+    unknown_props = set(loaded_obj.keys()) - set(non_hidden_keys)
     if unknown_props:
         raise exceptions.MultipleErrors(
             exceptions.FieldNotInResource(dtype.prop.model, property=f'{dtype.prop.place}.{prop}')

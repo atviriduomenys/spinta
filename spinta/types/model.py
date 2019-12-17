@@ -1,7 +1,5 @@
 from typing import Dict
 
-from authlib.oauth2.rfc6750.errors import InsufficientScopeError
-
 from spinta.auth import check_generated_scopes
 from spinta.commands import load, check, authorize, prepare
 from spinta.components import Context, Manifest, Node, Model, Property, Action
@@ -39,7 +37,12 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
 @load.register()
 def load(context: Context, model: Model, data: dict) -> dict:
     # check that given data does not have more keys, than model's schema
-    unknown_props = set(data.keys()) - set(model.properties.keys())
+    non_hidden_keys = []
+    for key, prop in model.properties.items():
+        if not prop.hidden:
+            non_hidden_keys.append(key)
+
+    unknown_props = set(data.keys()) - set(non_hidden_keys)
     if unknown_props:
         raise exceptions.MultipleErrors(
             exceptions.FieldNotInResource(model, property=prop)

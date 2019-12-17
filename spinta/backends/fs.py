@@ -8,7 +8,7 @@ from starlette.requests import Request
 from starlette.responses import FileResponse
 
 from spinta import commands
-from spinta.backends import Backend
+from spinta.backends import Backend, simple_data_check
 from spinta.commands import load, prepare, migrate, push, getone, wipe, wait, authorize, complex_data_check
 from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams, DataItem
@@ -121,7 +121,6 @@ async def push(
     authorize(context, action, prop)
 
     data = DataItem(prop.model, prop, propref=True, backend=prop.model.backend, action=action)
-    data.saved = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
     data.given = {
         'content_type': request.headers.get('content-type'),
         'filename': None,
@@ -129,12 +128,14 @@ async def push(
 
     if 'revision' in request.headers:
         data.given['_revision'] = request.headers.get('revision')
-
     if 'content-disposition' in request.headers:
         data.given['filename'] = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
-
     if not data.given['filename']:
         data.given['filename'] = params.pk
+
+    simple_data_check(context, data, data.prop, data.model.backend)
+
+    data.saved = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
 
     filepath = backend.path / data.given['filename']
 
