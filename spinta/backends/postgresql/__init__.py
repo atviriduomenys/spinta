@@ -972,7 +972,7 @@ class QueryBuilder:
             if _is_dtype(prop, (String, DateTime, Date)):
                 field = jsonb.astext
             else:
-                field = sa.cast(field, JSONB)
+                field = sa.cast(jsonb, JSONB)
         else:
             field = self.table.main.c[prop.name]
 
