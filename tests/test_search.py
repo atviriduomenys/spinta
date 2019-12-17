@@ -854,3 +854,40 @@ def test_search_recurse_multiple_props_lower(model, app):
 
     resp = app.get(f'/{model}?eq(lower(recurse(country)),no)')
     assert ids(resp) == [r2]
+
+
+# TODO: add mongo
+def test_search_any(app):
+    model = 'backends/postgres/report'
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?any(eq,count,10,42)')
+    assert ids(resp) == [0, 1]
+
+
+# TODO: add mongo
+def test_search_any_in_list(app):
+    model = 'backends/postgres/report'
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?any(eq,notes.note,hello,world)')
+    assert sorted(ids(resp)) == [0, 1]
+
+
+# TODO: add mongo
+def test_search_any_in_list_of_scalars(app):
+    model = 'backends/postgres/report'
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?any(eq,operating_licenses.license_types,valid,invalid,expired)')
+    assert sorted(ids(resp)) == [0, 1]
+
+
+# TODO: add mongo
+@pytest.mark.skip('TODO')
+def test_search_any_recurse(app):
+    model = 'backends/postgres/report'
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?any(eq,recurse(status),OK,none)')
+    assert ids(resp) == [0]

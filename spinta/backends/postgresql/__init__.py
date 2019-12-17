@@ -26,7 +26,7 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
-from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String, Integer
+from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String
 from spinta.utils.schema import NA, strip_metadata
 
 from spinta.exceptions import (
@@ -835,6 +835,8 @@ def getall(
     qb = QueryBuilder(context, model, backend, table)
     qry = qb.build(select, sort, offset, limit, query)
 
+    print(str(qry.compile()) % qry.compile().params)
+
     for row in connection.execute(qry):
         yield {
             '_type': model.model_type(),
@@ -896,14 +898,18 @@ class QueryBuilder:
         qry = qry.select_from(self.joins)
         return qry
 
+    def _get_method(self, name):
+        method = getattr(self, f'op_{name}', None)
+        if method is None:
+            raise exceptions.UnknownOperator(self.model, operator=name)
+        return method
+
     def resolve(self, args: Optional[List[dict]]) -> None:
         for arg in (args or []):
             arg = _replace_recurse(self.model, arg)
             name = arg['name']
             opargs = arg.get('args', ())
-            method = getattr(self, f'op_{name}', None)
-            if method is None:
-                raise exceptions.UnknownOperator(self.model, operator=name)
+            method = self._get_method(name)
             if name in self.compops:
                 yield self.comparison(name, method, *opargs)
             else:
@@ -920,29 +926,32 @@ class QueryBuilder:
         else:
             return prop
 
-    def resolve_value(self, op, prop: Property, value: Union[str, dict]) -> object:
+    def resolve_value(self, op: str, prop: Property, value: Union[str, dict]) -> object:
         return commands.load_search_params(self.context, prop.dtype, self.backend, {
             'name': op,
             'args': [prop.place, value]
         })
 
-    def comparison(self, op, method, key, value):
-        lower = False
+    def resolve_lower_call(self, key):
         if isinstance(key, dict) and key['name'] == 'lower':
-            lower = True
-            key = key['args'][0]
+            return key['args'][0], True
+        else:
+            return key, False
 
+    def comparison(self, op, method, key, value):
+        key, lower = self.resolve_lower_call(key)
         prop = self.resolve_property(key)
         value = self.resolve_value(op, prop, value)
-        field, value = self.get_sql_field_and_value(prop, value, lower)
+        field = self.get_sql_field(prop, lower)
+        value = self.get_sql_value(prop, value)
         cond = method(prop, field, value)
+        return self.compare(op, prop, cond)
+
+    def compare(self, op, prop, cond):
         if prop.list is not None and op != 'ne':
             subqry = (
                 sa.select(
-                    [
-                        self.table.lists.c.id,
-                        field
-                    ],
+                    [self.table.lists.c.id],
                     distinct=self.table.lists.c.id,
                 ).
                 where(cond).
@@ -957,21 +966,24 @@ class QueryBuilder:
         else:
             return cond
 
-    def get_sql_field_and_value(
-        self,
-        prop: Property,
-        value: object,
-        lower: bool = False,
-    ):
+    def get_sql_field(self, prop: Property, lower: bool = False):
         if prop.list is not None:
             jsonb = self.table.lists.c.data[prop.place]
-            if _is_dtype(prop, String):
+            if _is_dtype(prop, (String, DateTime, Date)):
                 field = jsonb.astext
-            elif _is_dtype(prop, Integer):
-                field = jsonb
-                value = sa.cast(value, JSONB)
-            elif _is_dtype(prop, DateTime):
-                field = jsonb.astext
+            else:
+                field = sa.cast(field, JSONB)
+        else:
+            field = self.table.main.c[prop.name]
+
+        if lower:
+            field = sa.func.lower(field)
+
+        return field
+
+    def get_sql_value(self, prop: Property, value: object):
+        if prop.list is not None:
+            if _is_dtype(prop, DateTime):
                 value = datetime.datetime.fromisoformat(value)
                 if value.tzinfo is not None:
                     # XXX: Think below probably must be hander in a more proper way.
@@ -981,20 +993,11 @@ class QueryBuilder:
                     value = value.astimezone(pytz.utc).replace(tzinfo=None)
                 value = value.isoformat()
             elif _is_dtype(prop, Date):
-                field = jsonb.astext
                 value = datetime.date.fromisoformat(value)
                 value = value.isoformat()
-            else:
+            elif not _is_dtype(prop, String):
                 value = sa.cast(value, JSONB)
-                field = sa.cast(value, JSONB)
-        else:
-            jsonb = None
-            field = self.table.main.c[prop.name]
-
-        if lower:
-            field = sa.func.lower(field)
-
-        return field, value
+        return value
 
     def op_and(self, *args: List[dict]):
         return sa.and_(*self.resolve(args))
@@ -1077,6 +1080,19 @@ class QueryBuilder:
 
     def op_startswith(self, prop, field, value):
         return field.startswith(value)
+
+    def op_any(self, op: str, key: str, *value: Tuple[Union[str, int, float]]):
+        method = self._get_method(op)
+        key, lower = self.resolve_lower_call(key)
+        prop = self.resolve_property(key)
+        field = self.get_sql_field(prop, lower)
+        value = [
+            self.get_sql_value(prop, self.resolve_value(op, prop, v))
+            for v in value
+        ]
+        value = sa.any_(value)
+        cond = method(op, field, value)
+        return self.compare(op, prop, cond)
 
 
 def _is_dtype(prop, DataType):
