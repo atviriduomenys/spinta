@@ -4,8 +4,6 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from spinta.utils.scopes import name_to_scope
-
 yaml = YAML(typ='safe')
 
 
@@ -34,14 +32,3 @@ def get_error_context(response, error_code, ctx_keys: List[str] = None):
                 return {k: v for k, v in err["context"].items() if k in ctx_keys}
     else:
         assert False
-
-
-def get_model_scopes(context, model, actions: List[str]):
-    config = context.get('config')
-    return [
-        name_to_scope('{prefix}{name}_{action}', model, maxlen=config.scope_max_length, params={
-            'prefix': config.scope_prefix,
-            'action': action,
-        })
-        for action in actions
-    ]

@@ -364,3 +364,9 @@ def rename_metadata():
 
     XXX: this is actually a hack and should be refactored into something smarter
     """
+
+
+@command()
+def get_model_scopes():
+    """Returns list of model scopes by given list of actions.
+    """

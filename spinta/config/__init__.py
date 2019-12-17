@@ -22,6 +22,7 @@ CONFIG = {
     'commands': {
         'modules': [
             'spinta.backends',
+            'spinta.commands.auth',
             'spinta.commands.read',
             'spinta.commands.write',
             'spinta.commands.search',
