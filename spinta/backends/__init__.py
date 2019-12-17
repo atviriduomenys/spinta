@@ -173,6 +173,10 @@ def simple_data_check(
 ) -> None:
     check_type_value(dtype, value)
 
+    updating = data.action in (Action.UPDATE, Action.PATCH)
+    if updating and '_revision' not in data.given:
+        raise NoItemRevision(prop)
+
 
 @commands.simple_data_check.register()  # noqa
 def simple_data_check(
@@ -240,6 +244,7 @@ def complex_model_properties_check(
         # XXX: But I think, it should be mandatory.
         if prop.dtype is not None:
             given = data.given.get(name, NA)
+
             if prop.dtype.unique and given is not NA:
                 commands.check_unique_constraint(
                     context,

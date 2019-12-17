@@ -9,6 +9,9 @@ version:
 properties:
   name:
     type: string
+  avatar:
+    type: file
+    backend: fs
   image:
     type: file
     backend: fs

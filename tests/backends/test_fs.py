@@ -48,6 +48,7 @@ def test_crud(model, app):
         '_type': model,
         '_id': id_,
         '_revision': data['_revision'],
+        'avatar': None,
         'name': 'myphoto',
     }
     assert data['_revision'] != revision
@@ -100,6 +101,7 @@ def test_crud(model, app):
         '_type': model,
         '_id': id_,
         '_revision': revision,
+        'avatar': None,
         'name': 'myphoto',
     }
 
@@ -117,13 +119,17 @@ def test_add_existing_file(model, app, tmpdir):
     resp = app.post(f'/{model}', json={
         '_type': model,
         'name': 'myphoto',
-        'image': {
-            'content_type': 'image/png',
-            'filename': str(image),
-        },
     })
     assert resp.status_code == 201, resp.text
     id_ = resp.json()['_id']
+    revision_ = resp.json()['_revision']
+
+    resp = app.patch(f'/{model}/{id_}/image:ref', json={
+        '_revision': revision_,
+        'content_type': 'image/png',
+        'filename': str(image),
+    })
+    assert resp.status_code == 200
     revision_ = resp.json()['_revision']
 
     resp = app.patch(f'/{model}/{id_}/image:ref', json={
@@ -142,9 +148,37 @@ def test_add_existing_file(model, app, tmpdir):
     'backends/postgres/photo',
 )
 def test_add_missing_file(model, app, tmpdir):
-    app.authmodel(model, ['insert', 'getone'])
+    app.authmodel(model, ['insert', 'getone', 'image_patch'])
 
-    image = pathlib.Path(tmpdir) / 'missing.png'
+    avatar = pathlib.Path(tmpdir) / 'missing.png'
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+        'avatar': {
+            'content_type': 'image/png',
+            'filename': str(avatar),
+        },
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ['FileNotFound']
+    assert get_error_context(resp.json(), 'FileNotFound', ['manifest', 'model', 'property', 'file']) == {
+        'manifest': 'default',
+        'model': model,
+        'property': 'avatar',
+        'file': str(avatar),
+    }
+
+
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_create_hidden_image_on_insert(model, app, tmpdir):
+    app.authmodel(model, ['insert', 'image_getone', 'image_patch'])
+
+    image = pathlib.Path(tmpdir) / 'image.png'
+    image.write_bytes(b'IMAGEDATA')
 
     resp = app.post(f'/{model}', json={
         '_type': model,
@@ -154,13 +188,12 @@ def test_add_missing_file(model, app, tmpdir):
             'filename': str(image),
         },
     })
-    assert resp.status_code == 400, resp.text
-    assert get_error_codes(resp.json()) == ['FileNotFound']
-    assert get_error_context(resp.json(), 'FileNotFound', ['manifest', 'model', 'property', 'file']) == {
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ['FieldNotInResource']
+    assert get_error_context(resp.json(), 'FieldNotInResource', ['manifest', 'model', 'property']) == {
         'manifest': 'default',
         'model': model,
         'property': 'image',
-        'file': str(image),
     }
 
 
@@ -215,13 +248,13 @@ def test_id_as_filename(model, app, tmpdir):
         'content-type': 'image/png',
     })
     assert resp.status_code == 200, resp.text
+    revision_ = resp.json()['_revision']
 
     resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.status_code == 200
-    data = resp.json()
     assert resp.json() == {
         '_id': id_,
-        '_revision': data['_revision'],
+        '_revision': revision_,
         '_type': f'{model}.image',
         'content_type': 'image/png',
         'filename': id_,

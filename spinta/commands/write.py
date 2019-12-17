@@ -434,9 +434,6 @@ async def validate_data(
                 if '_revision' in data.given:
                     raise exceptions.ManagedProperty(data.model, property='_revision')
             if data.prop:
-                if data.action in {Action.UPDATE, Action.PATCH}:
-                    if '_revision' not in data.given:
-                        raise exceptions.NoItemRevision()
                 commands.complex_data_check(
                     context,
                     data,

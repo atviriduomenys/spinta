@@ -10,30 +10,32 @@ from spinta.testing.utils import get_error_context, get_error_codes
     'backends/postgres/subitem',
 )
 def test_get_subresource(model, app):
-    app.authmodel(model, ['insert', 'getone', 'hidden_subobj_getone'])
+    app.authmodel(model, ['insert', 'getone',
+                          'hidden_subobj_update', 'hidden_subobj_getone'])
 
-    resp = app.post(f'/{model}', json={'_data': [
-        {
-            '_op': 'insert',
-            '_type': model,
-            'scalar': '42',
-            'subarray': [{
-                'foo': 'foobarbaz',
-            }],
-            'subobj': {
-                'foo': 'foobar123',
-                'bar': 42,
-            },
-            'hidden_subobj': {
-                'fooh': 'secret',
-                'barh': 1337,
-            }
-        }
-    ]})
+    resp = app.post(f'/{model}', json={
+        '_op': 'insert',
+        '_type': model,
+        'scalar': '42',
+        'subarray': [{
+            'foo': 'foobarbaz',
+        }],
+        'subobj': {
+            'foo': 'foobar123',
+            'bar': 42,
+        },
+    })
+    assert resp.status_code == 201, resp.json()
+    id_ = resp.json()['_id']
+    revision_ = resp.json()['_revision']
 
-    assert resp.status_code == 200, resp.json()
-    id_ = resp.json()['_data'][0]['_id']
-    revision_ = resp.json()['_data'][0]['_revision']
+    resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
+        '_revision': revision_,
+        'fooh': 'secret',
+        'barh': 1337,
+    })
+    assert resp.status_code == 200
+    revision_ = resp.json()['_revision']
 
     resp = app.get(f'/{model}/{id_}/subarray')
     assert resp.status_code == 400
@@ -79,28 +81,29 @@ def test_put_subresource(model, app):
         'insert', 'getone', 'update', 'subarray_update', 'hidden_subobj_update'
     ])
 
-    resp = app.post(f'/{model}', json={'_data': [
-        {
-            '_op': 'insert',
-            '_type': model,
-            'scalar': '42',
-            'subarray': [{
-                'foo': 'foobarbaz',
-            }],
-            'subobj': {
-                'foo': 'foobar123',
-                'bar': 42,
-            },
-            'hidden_subobj': {
-                'fooh': 'secret',
-                'barh': 1337,
-            }
-        }
-    ]})
+    resp = app.post(f'/{model}', json={
+        '_op': 'insert',
+        '_type': model,
+        'scalar': '42',
+        'subarray': [{
+            'foo': 'foobarbaz',
+        }],
+        'subobj': {
+            'foo': 'foobar123',
+            'bar': 42,
+        },
+    })
+    assert resp.status_code == 201, resp.json()
+    id_ = resp.json()['_id']
+    revision_ = resp.json()['_revision']
 
-    assert resp.status_code == 200, resp.json()
-    id_ = resp.json()['_data'][0]['_id']
-    revision_ = resp.json()['_data'][0]['_revision']
+    resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
+        '_revision': revision_,
+        'fooh': 'secret',
+        'barh': 1337,
+    })
+    assert resp.status_code == 200
+    revision_ = resp.json()['_revision']
 
     # PUT with object property
     resp = app.put(f'/{model}/{id_}/subobj', json={
@@ -174,31 +177,33 @@ def test_put_subresource(model, app):
 )
 def test_patch_subresource(model, app):
     app.authmodel(model, [
-        'insert', 'getone', 'patch', 'subobj_patch', 'subarray_patch', 'hidden_subobj_patch'
+        'insert', 'getone', 'patch', 'subobj_patch',
+        'subarray_patch', 'hidden_subobj_patch', 'hidden_subobj_update'
     ])
 
-    resp = app.post(f'/{model}', json={'_data': [
-        {
-            '_op': 'insert',
-            '_type': model,
-            'scalar': '42',
-            'subarray': [{
-                'foo': 'foobarbaz',
-            }],
-            'subobj': {
-                'foo': 'foobar123',
-                'bar': 42,
-            },
-            'hidden_subobj': {
-                'fooh': 'secret',
-                'barh': 1337,
-            }
-        }
-    ]})
+    resp = app.post(f'/{model}', json={
+        '_op': 'insert',
+        '_type': model,
+        'scalar': '42',
+        'subarray': [{
+            'foo': 'foobarbaz',
+        }],
+        'subobj': {
+            'foo': 'foobar123',
+            'bar': 42,
+        },
+    })
+    assert resp.status_code == 201, resp.json()
+    id_ = resp.json()['_id']
+    revision_ = resp.json()['_revision']
 
-    assert resp.status_code == 200, resp.json()
-    id_ = resp.json()['_data'][0]['_id']
-    revision_ = resp.json()['_data'][0]['_revision']
+    resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
+        '_revision': revision_,
+        'fooh': 'secret',
+        'barh': 1337,
+    })
+    assert resp.status_code == 200
+    revision_ = resp.json()['_revision']
 
     # PATCH with object property
     resp = app.patch(f'/{model}/{id_}/subobj', json={
@@ -291,29 +296,27 @@ def test_patch_subresource(model, app):
     'backends/postgres/subitem',
 )
 def test_subresource_scopes(model, app):
-    app.authmodel(model, ['insert'])
+    app.authmodel(model, ['insert', 'hidden_subobj_update'])
 
-    resp = app.post(f'/{model}', json={'_data': [
-        {
-            '_op': 'insert',
-            '_type': model,
-            'scalar': '42',
-            'subarray': [{
-                'foo': 'foobarbaz',
-            }],
-            'subobj': {
-                'foo': 'foobar123',
-                'bar': 42,
-            },
-            'hidden_subobj': {
-                'fooh': 'secret',
-                'barh': 1337,
-            }
-        }
-    ]})
-    assert resp.status_code == 200, resp.json()
-    id_ = resp.json()['_data'][0]['_id']
-    revision_ = resp.json()['_data'][0]['_revision']
+    resp = app.post(f'/{model}', json={
+        '_op': 'insert',
+        '_type': model,
+        'subobj': {
+            'foo': 'foobar123',
+            'bar': 42,
+        },
+    })
+    assert resp.status_code == 201, resp.json()
+    id_ = resp.json()['_id']
+    revision_ = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
+        '_revision': revision_,
+        'fooh': 'secret',
+        'barh': 1337,
+    })
+    assert resp.status_code == 200
+    revision_ = resp.json()['_revision']
 
     # try to GET subresource without specific subresource or model scope
     resp = app.get(f'/{model}/{id_}/subobj')
@@ -379,29 +382,24 @@ def test_subresource_scopes(model, app):
     'backends/postgres/subitem',
 )
 def test_get_subresource_file(model, app, tmpdir):
-    app.authmodel(model, ['insert', 'getone', 'pdf_update', 'pdf_getone'])
+    app.authmodel(model, ['insert', 'getone', 'hidden_subobj_update',
+                          'pdf_update', 'pdf_getone'])
 
-    resp = app.post(f'/{model}', json={'_data': [
-        {
-            '_op': 'insert',
-            '_type': model,
-            'scalar': '42',
-            'subarray': [{
-                'foo': 'foobarbaz',
-            }],
-            'subobj': {
-                'foo': 'foobar123',
-                'bar': 42,
-            },
-            'hidden_subobj': {
-                'fooh': 'secret',
-                'barh': 1337,
-            }
-        }
-    ]})
-    assert resp.status_code == 200, resp.json()
-    id_ = resp.json()['_data'][0]['_id']
-    revision_ = resp.json()['_data'][0]['_revision']
+    resp = app.post(f'/{model}', json={
+        '_op': 'insert',
+        '_type': model,
+    })
+    assert resp.status_code == 201, resp.json()
+    id_ = resp.json()['_id']
+    revision_ = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
+        '_revision': revision_,
+        'fooh': 'secret',
+        'barh': 1337,
+    })
+    assert resp.status_code == 200
+    revision_ = resp.json()['_revision']
 
     pdf = pathlib.Path(tmpdir) / 'report.pdf'
     pdf.write_bytes(b'REPORTDATA')
@@ -427,3 +425,69 @@ def test_get_subresource_file(model, app, tmpdir):
         'content_type': 'application/pdf',
         'filename': str(pdf),
     }
+
+
+@pytest.mark.models(
+    'backends/mongo/subitem',
+    'backends/postgres/subitem',
+)
+def test_put_hidden_subresource_on_model(model, app):
+    app.authmodel(model, ['insert', 'getone', 'update', 'hidden_subobj_update'])
+
+    resp = app.post(f'/{model}', json={
+        '_op': 'insert',
+        '_type': model,
+    })
+    assert resp.status_code == 201, resp.json()
+    id_ = resp.json()['_id']
+    revision_ = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
+        '_revision': revision_,
+        'fooh': 'secret',
+        'barh': 1337,
+    })
+    assert resp.status_code == 200
+    revision_ = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}', json={
+        '_revision': revision_,
+        'hidden_subobj': {
+            'fooh': 'change_secret',
+        },
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["FieldNotInResource"]
+
+
+@pytest.mark.models(
+    'backends/mongo/subitem',
+    'backends/postgres/subitem',
+)
+def test_patch_hidden_subresource_on_model(model, app):
+    app.authmodel(model, ['insert', 'getone', 'patch', 'hidden_subobj_update'])
+
+    resp = app.post(f'/{model}', json={
+        '_op': 'insert',
+        '_type': model,
+    })
+    assert resp.status_code == 201, resp.json()
+    id_ = resp.json()['_id']
+    revision_ = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
+        '_revision': revision_,
+        'fooh': 'secret',
+        'barh': 1337,
+    })
+    assert resp.status_code == 200
+    revision_ = resp.json()['_revision']
+
+    resp = app.patch(f'/{model}/{id_}', json={
+        '_revision': revision_,
+        'hidden_subobj': {
+            'fooh': 'change_secret',
+        },
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["FieldNotInResource"]
