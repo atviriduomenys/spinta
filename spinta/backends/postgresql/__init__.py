@@ -988,8 +988,10 @@ class QueryBuilder:
     def get_sql_field(self, prop: Property, lower: bool = False):
         if prop.list is not None:
             jsonb = self.table.lists.c.data[prop.place]
-            if _is_dtype(prop, (Integer, String, DateTime, Date)):
+            if _is_dtype(prop, (String, DateTime, Date)):
                 field = jsonb.astext
+            elif _is_dtype(prop, Integer):
+                field = sa.cast(jsonb, BIGINT)
             else:
                 field = sa.cast(jsonb, JSONB)
         else:
@@ -1014,9 +1016,7 @@ class QueryBuilder:
             elif _is_dtype(prop, Date):
                 value = datetime.date.fromisoformat(value)
                 value = value.isoformat()
-            elif _is_dtype(prop, Integer):
-                value = str(value)
-            elif not _is_dtype(prop, String):
+            elif not _is_dtype(prop, String) and not _is_dtype(prop, Integer):
                 value = sa.cast(value, JSONB)
         return value
 
