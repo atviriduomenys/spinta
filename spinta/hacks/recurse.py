@@ -1,90 +1,79 @@
 from spinta import exceptions
 
 
-COMPOPS = (
-    'eq',
-    'ge',
-    'gt',
-    'le',
-    'lt',
-    'ne',
-    'contains',
-    'startswith',
-)
-
-
-def _replace_recurse(model, arg):
+def _replace_recurse(model, arg, ntharg):
     name = arg['name']
-    opargs = arg.get('args', ())
-    if name in COMPOPS:
-        if len(opargs) != 2:
-            return arg
-        if not isinstance(opargs[0], dict):
-            return arg
-        if (
-            opargs[0]['name'] == 'lower' and
-            isinstance(opargs[0]['args'][0], dict) and
-            opargs[0]['args'][0]['name'] == 'recurse'
-        ):
-            if len(opargs[0]['args'][0]['args']) == 1:
-                rkey = opargs[0]['args'][0]['args'][0]
-                props = model.leafprops.get(rkey, [])
-                if len(props) == 1:
-                    return {
-                        'name': name,
-                        'args': [
-                            {
-                                'name': 'lower',
-                                'args': [props[0].place],
-                            },
-                            opargs[1],
-                        ]
-                    }
-                elif len(props) > 1:
-                    return {
-                        'name': 'or',
-                        'args': [
-                            {
-                                'name': name,
-                                'args': [
-                                    {
-                                        'name': 'lower',
-                                        'args': [prop.place],
-                                    },
-                                    opargs[1],
-                                ]
-                            }
-                            for prop in props
-                        ],
-                    }
-                else:
-                    raise exceptions.FieldNotInResource(model, property=rkey)
-        elif opargs[0]['name'] == 'recurse':
-            if len(opargs[0]['args']) == 1:
-                rkey = opargs[0]['args'][0]
-                props = model.leafprops.get(rkey, [])
-                if len(props) == 1:
-                    return {
-                        'name': name,
-                        'args': [
-                            props[0].place,
-                            opargs[1],
-                        ]
-                    }
-                elif len(props) > 1:
-                    return {
-                        'name': 'or',
-                        'args': [
-                            {
-                                'name': name,
-                                'args': [
-                                    prop.place,
-                                    opargs[1],
-                                ]
-                            }
-                            for prop in props
-                        ],
-                    }
-                else:
-                    raise exceptions.FieldNotInResource(model, property=rkey)
+    args = arg.get('args', [])
+    if len(args) <= ntharg:
+        return arg
+    if not isinstance(args[ntharg], dict):
+        return arg
+    if (
+        args[ntharg]['name'] == 'lower' and
+        isinstance(args[ntharg]['args'][0], dict) and
+        args[ntharg]['args'][0]['name'] == 'recurse'
+    ):
+        if len(args[ntharg]['args'][0]['args']) == 1:
+            rkey = args[ntharg]['args'][0]['args'][0]
+            props = model.leafprops.get(rkey, [])
+            if len(props) == 1:
+                return {
+                    'name': name,
+                    'args': [
+                        {
+                            'name': 'lower',
+                            'args': [props[0].place],
+                        }
+                        if i == ntharg else a
+                        for i, a in enumerate(args)
+                    ]
+                }
+            elif len(props) > 1:
+                return {
+                    'name': 'or',
+                    'args': [
+                        {
+                            'name': name,
+                            'args': [
+                                {
+                                    'name': 'lower',
+                                    'args': [prop.place],
+                                }
+                                if i == ntharg else a
+                                for i, a in enumerate(args)
+                            ]
+                        }
+                        for prop in props
+                    ],
+                }
+            else:
+                raise exceptions.FieldNotInResource(model, property=rkey)
+    elif args[ntharg]['name'] == 'recurse':
+        if len(args[ntharg]['args']) == 1:
+            rkey = args[ntharg]['args'][0]
+            props = model.leafprops.get(rkey, [])
+            if len(props) == 1:
+                return {
+                    'name': name,
+                    'args': [
+                        props[0].place if i == ntharg else a
+                        for i, a in enumerate(args)
+                    ]
+                }
+            elif len(props) > 1:
+                return {
+                    'name': 'or',
+                    'args': [
+                        {
+                            'name': name,
+                            'args': [
+                                prop.place if i == ntharg else a
+                                for i, a in enumerate(args)
+                            ]
+                        }
+                        for prop in props
+                    ],
+                }
+            else:
+                raise exceptions.FieldNotInResource(model, property=rkey)
     return arg

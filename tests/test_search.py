@@ -884,10 +884,18 @@ def test_search_any_in_list_of_scalars(app):
 
 
 # TODO: add mongo
-@pytest.mark.skip('TODO')
 def test_search_any_recurse(app):
     model = 'backends/postgres/report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any(eq,recurse(status),OK,none)')
+    assert ids(resp) == [0]
+
+
+# TODO: add mongo
+def test_search_any_recurse_lower(app):
+    model = 'backends/postgres/report'
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?any(eq,lower(recurse(status)),ok,none)')
     assert ids(resp) == [0]
