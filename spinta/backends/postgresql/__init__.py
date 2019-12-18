@@ -26,8 +26,19 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
-from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String
 from spinta.utils.schema import NA, strip_metadata
+from spinta.types.datatype import (
+    Array,
+    DataType,
+    Date,
+    DateTime,
+    File,
+    Object,
+    PrimaryKey,
+    Ref,
+    String,
+    Integer
+)
 
 from spinta.exceptions import (
     MultipleRowsFound,
@@ -977,7 +988,7 @@ class QueryBuilder:
     def get_sql_field(self, prop: Property, lower: bool = False):
         if prop.list is not None:
             jsonb = self.table.lists.c.data[prop.place]
-            if _is_dtype(prop, (String, DateTime, Date)):
+            if _is_dtype(prop, (Integer, String, DateTime, Date)):
                 field = jsonb.astext
             else:
                 field = sa.cast(jsonb, JSONB)
@@ -1003,6 +1014,8 @@ class QueryBuilder:
             elif _is_dtype(prop, Date):
                 value = datetime.date.fromisoformat(value)
                 value = value.isoformat()
+            elif _is_dtype(prop, Integer):
+                value = str(value)
             elif not _is_dtype(prop, String):
                 value = sa.cast(value, JSONB)
         return value
@@ -1043,7 +1056,7 @@ class QueryBuilder:
           value.
         """
 
-        if prop.list is None:
+        if isinstance(prop, str) or prop.list is None:
             return field != value
 
         # Check if at liest one value for field is defined
