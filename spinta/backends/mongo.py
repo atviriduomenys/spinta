@@ -485,9 +485,17 @@ class QueryBuilder:
 
         return cursor
 
+    def resolve_recurse(self, arg):
+        name = arg['name']
+        if name in self.compops:
+            return _replace_recurse(self.model, arg, 0)
+        if name == 'any':
+            return _replace_recurse(self.model, arg, 1)
+        return arg
+
     def resolve(self, args: Optional[List[dict]]) -> None:
         for arg in (args or []):
-            arg = _replace_recurse(self.model, arg)
+            arg = self.resolve_recurse(arg)
             name = arg['name']
             opargs = arg.get('args', ())
             method = getattr(self, f'op_{name}', None)
