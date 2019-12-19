@@ -85,12 +85,22 @@ def schema_version_new(ctx):
     click.echo("Done.")
 
 
+@main.command(help="Wait while all backends are up.")
+@click.argument('seconds', type=int, required=False)
+@click.pass_context
+def wait(ctx, seconds):
+    context = ctx.obj['context']
+    store = context.get('store')
+    rc = context.get('config.raw')
+    commands.wait(context, store, rc, seconds=seconds)
+    click.echo("All backends ar up.")
+
+
 @main.command()
 @click.pass_context
 def migrate(ctx):
     context = ctx.obj['context']
     store = context.get('store')
-
     commands.prepare(context, store.internal)
     commands.migrate(context, store)
     commands.prepare(context, store)
