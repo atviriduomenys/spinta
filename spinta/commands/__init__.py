@@ -349,12 +349,34 @@ def build_data_patch_for_write():
 
 
 @command()
-def build_full_data_patch():
-    """Builds full patch from data.patch and data.saved for a specific backend
+def build_full_data_patch_for_nested_attrs():
+    """Builds full patch from data.patch and data.saved for nested fields
 
-    This solves a problem that some database backends (e.g. Postgres) do not
-    support partial updates to nested fields, thus "full patch" must be
-    constructed from partial `data.patch` and the `data.saved`.
+    This solves problems when doing updates on nested fields.
+
+    Usual problems:
+    - Some database backends (e.g. Postgres) do not support partial updates
+    to nested fields, thus "full patch" must be constructed for nested fields
+    from partial `data.patch` and the `data.saved`.
+    - On double updates, i.e. when we are updating attribute values, which
+    are already saved in the DB, then `data.patch` will ignore those values,
+    thus on nested fields we may overwrite already existing values, e.g.
+        schema = {'obj': {'foo': string, 'bar': string}};
+        data.saved = {'obj': {'foo': '42', 'bar': 'baz'}};
+        data.given = {'obj': {'foo': '13', 'bar': 'baz'}};
+        data.patch = {'obj': {'foo': '13'}};
+    Thus 'bar' will be overwriten, because patch is missing data.
+    """
+
+
+@command()
+def build_full_response():
+    """Builds full patch from data.patch and data.saved for a response
+
+    This solves an issue, when we data.patch is missing some data from
+    data.given because that data is already in data.saved, thus response
+    instead of having values from data.saved - returns default values
+    (usually `None` or empty strings), which is confusing to the user.
     """
 
 
