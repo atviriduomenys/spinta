@@ -1016,7 +1016,7 @@ class QueryBuilder:
             elif _is_dtype(prop, Date):
                 value = datetime.date.fromisoformat(value)
                 value = value.isoformat()
-            elif not _is_dtype(prop, String) and not _is_dtype(prop, Integer):
+            elif not _is_dtype(prop, (String, Integer)):
                 value = sa.cast(value, JSONB)
         return value
 
@@ -1056,7 +1056,7 @@ class QueryBuilder:
           value.
         """
 
-        if isinstance(prop, str) or prop.list is None:
+        if prop.list is None:
             return field != value
 
         # Check if at liest one value for field is defined
@@ -1112,7 +1112,7 @@ class QueryBuilder:
             for v in value
         ]
         value = sa.any_(value)
-        cond = method(op, field, value)
+        cond = method(prop, field, value)
         return self.compare(op, prop, cond)
 
 
