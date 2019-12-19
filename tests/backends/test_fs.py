@@ -341,3 +341,40 @@ def test_check_revision_for_file_ref(model, app, tmpdir):
     old_revision = revision
     revision = resp.json()['_revision']
     assert old_revision != revision
+
+
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_put_file_multiple_times(model, app):
+    app.authmodel(model, ['insert', 'image_update', 'image_getone'])
+
+    # Create a new report resource.
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+    })
+    assert resp.status_code == 201, resp.text
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    # Upload a PDF file.
+    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+        'revision': revision,
+        'content-type': 'application/pdf',
+        'content-disposition': f'attachment; filename="{id_}.pdf"',
+    })
+    assert resp.status_code == 200, resp.text
+    revision = resp.json()['_revision']
+
+    # Upload a new PDF file second time.
+    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA2', headers={
+        'revision': revision,
+        'content-type': 'application/pdf',
+        'content-disposition': f'attachment; filename="{id_}.pdf"',
+    })
+    assert resp.status_code == 200, resp.text
+
+    resp = app.get(f'/{model}/{id_}/image')
+    assert resp.content == b'BINARYDATA2'

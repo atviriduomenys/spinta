@@ -611,8 +611,8 @@ def prepare_response(
         # whole model property tree.
         if data.prop:
             dtype = data.prop.dtype
-            patch = strip_metadata(data.patch[data.prop.name])
-            saved = strip_metadata(data.saved[data.prop.name])
+            patch = strip_metadata(data.patch.get(data.prop.name, {}))
+            saved = strip_metadata(data.saved.get(data.prop.name, {}))
         else:
             dtype = data.model
             patch = strip_metadata(data.patch)
