@@ -90,7 +90,7 @@ def test_update_get(model, app):
         'valid_from_date': None,
         'operating_licenses': [],
         'sync': {
-            'sync_revision': {},
+            'sync_revision': None,
             'sync_resources': [],
         },
     }
@@ -110,7 +110,7 @@ def test_update_get(model, app):
         'valid_from_date': None,
         'operating_licenses': [],
         'sync': {
-            'sync_revision': {},
+            'sync_revision': None,
             'sync_resources': [],
         },
     }
@@ -132,7 +132,7 @@ def test_update_get(model, app):
                 'count': None,
                 'operating_licenses': [],
                 'sync': {
-                    'sync_revision': {},
+                    'sync_revision': None,
                     'sync_resources': [],
                 },
             },
@@ -368,11 +368,9 @@ def test_patch(model, app, context):
     data = resp.json()
     assert revision != data['_revision']
     revision = data['_revision']
-    assert resp.json() == {
-        '_id': '0007ddec-092b-44b5-9651-76884e6081b4',
-        '_revision': revision,
-        '_type': model,
-    }
+    assert data['_id'] == '0007ddec-092b-44b5-9651-76884e6081b4'
+    assert data['_revision'] == revision
+    assert data['_type'] == model
     id_ = data['_id']
 
     # test that protected fields (_id, _type, _revision) are accepted, but not PATCHED
@@ -383,11 +381,10 @@ def test_patch(model, app, context):
         'status': '42',
     })
     assert resp.status_code == 200
-    assert resp.json() == {
-        '_type': model,
-        '_id': id_,
-        '_revision': revision,
-    }
+    data = resp.json()
+    assert data['_id'] == id_
+    assert data['_revision'] == revision
+    assert data['_type'] == model
 
 
 @pytest.mark.models(
@@ -407,3 +404,160 @@ def test_escaping_chars(model, app):
     resp = app.get(f'/{model}/{data["_id"]}')
     assert resp.status_code == 200
     assert resp.json()['status'] == 'application/json'
+
+
+@pytest.mark.models(
+    'backends/mongo/subitem',
+    'backends/postgres/subitem',
+)
+def test_update_same_scalar(model, app):
+    app.authmodel(model, ['insert', 'getone', 'update'])
+
+    resource_keys = {'_id', '_revision', '_type', 'scalar', 'subarray', 'subobj'}
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'scalar': 'ok',
+    })
+    assert resp.status_code == 201
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}', json={
+        '_revision': revision,
+        'scalar': 'ok',
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert set(data) == resource_keys
+    new_revision = data['_revision']
+    assert data['scalar'] == 'ok'
+    assert data['subarray'] == []
+    assert data['subobj'] == {'bar': None, 'foo': None}
+    assert new_revision != revision
+
+    # sanity check
+    resp = app.get(f'/{model}/{id_}')
+    assert resp.status_code == 200
+    assert resp.json()['scalar'] == 'ok'
+
+
+@pytest.mark.models(
+    'backends/mongo/subitem',
+    'backends/postgres/subitem',
+)
+def test_update_same_obj(model, app):
+    app.authmodel(model, ['insert', 'getone', 'update'])
+
+    resource_keys = {'_id', '_revision', '_type', 'scalar', 'subarray', 'subobj'}
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'subobj': {'foo': 'bar'},
+    })
+    assert resp.status_code == 201
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}', json={
+        '_revision': revision,
+        'subobj': {'foo': 'bar'},
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert set(data) == resource_keys
+    new_revision = data['_revision']
+    assert data['subobj'] == {
+        'foo': 'bar',
+        'bar': None,
+    }
+    assert data['scalar'] is None
+    assert data['subarray'] == []
+    assert new_revision != revision
+
+    # sanity check
+    resp = app.get(f'/{model}/{id_}')
+    assert resp.status_code == 200
+    assert resp.json()['subobj'] == {
+        'foo': 'bar',
+        'bar': None,
+    }
+
+
+@pytest.mark.models(
+    'backends/mongo/subitem',
+    'backends/postgres/subitem',
+)
+def test_update_same_subresource(model, app):
+    app.authmodel(model, ['insert', 'getone', 'update', 'subobj_update', 'subobj_get'])
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'subobj': {'foo': 'bar'},
+    })
+    assert resp.status_code == 201
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}/subobj', json={
+        '_revision': revision,
+        'foo': 'bar',
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    new_revision = data['_revision']
+    assert data == {
+        '_id': id_,
+        '_revision': new_revision,
+        '_type': f'{model}.subobj',
+        'bar': None,
+        'foo': 'bar',
+    }
+    assert new_revision != revision
+
+    # sanity check
+    resp = app.get(f'/{model}/{id_}/subobj')
+    assert resp.status_code == 200
+    assert resp.json() == {
+        '_id': id_,
+        '_revision': new_revision,
+        '_type': f'{model}.subobj',
+        'bar': None,
+        'foo': 'bar',
+    }
+
+
+@pytest.mark.models(
+    'backends/mongo/subitem',
+    'backends/postgres/subitem',
+)
+def test_update_same_array(model, app):
+    app.authmodel(model, ['insert', 'getone', 'update'])
+
+    resource_keys = {'_id', '_revision', '_type', 'scalar', 'subarray', 'subobj'}
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'subarray': [{'foo': 'bar'}],
+    })
+    assert resp.status_code == 201
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}', json={
+        '_revision': revision,
+        'subarray': [{'foo': 'bar'}],
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert set(data) == resource_keys
+    new_revision = data['_revision']
+    assert data['subarray'] == [{'foo': 'bar'}]
+    assert data['subobj'] == {'bar': None, 'foo': None}
+    assert data['scalar'] is None
+    assert new_revision != revision
+
+    # sanity check
+    resp = app.get(f'/{model}/{id_}')
+    assert resp.status_code == 200
+    assert resp.json()['subarray'] == [{'foo': 'bar'}]

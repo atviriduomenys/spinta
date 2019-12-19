@@ -1,7 +1,7 @@
 import pathlib
 
 from spinta.commands import load
-from spinta.commands import build_full_data_patch
+from spinta.commands import build_full_response
 from spinta.components import Model
 
 
@@ -28,7 +28,7 @@ def test_scalar_with_empty_saved(context):
 
     patch = {'scalar': '42'}
     saved = {}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -47,7 +47,7 @@ def test_scalar_overwrite_saved(context):
 
     patch = {'scalar': '42'}
     saved = {'scalar': '13'}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -66,12 +66,12 @@ def test_empty_scalar_with_non_empty_saved(context):
 
     patch = {}
     saved = {'scalar': '42'}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
     )
-    assert full_patch == {}
+    assert full_patch == {'scalar': '42'}
 
 
 def test_obj_empty_patch_and_saved(context):
@@ -89,12 +89,12 @@ def test_obj_empty_patch_and_saved(context):
     # test empty patch and empty saved
     patch = {}
     saved = {}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
     )
-    assert full_patch == {}
+    assert full_patch == {'obj': {'foo': None}}
 
 
 def test_obj_empty_saved_and_empty_obj(context):
@@ -111,13 +111,13 @@ def test_obj_empty_saved_and_empty_obj(context):
 
     patch = {'obj': {}}
     saved = {}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
     )
     assert full_patch == {
-        'obj': {}
+        'obj': {'foo': None}
     }
 
 
@@ -135,13 +135,39 @@ def test_obj_with_default(context):
 
     patch = {'obj': {}}
     saved = {}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
     )
     assert full_patch == {
-        'obj': {}
+        'obj': {'foo': 'def_val'}
+    }
+
+
+def test_obj_with_default_and_non_empty_saved(context):
+    model = create_model(context, {
+        'properties': {
+            'obj': {
+                'type': 'object',
+                'properties': {
+                    'foo': {'type': 'string', 'default': 'def_val'},
+                },
+            },
+        },
+    })
+
+    patch = {'obj': {}}
+    saved = {'obj': {'foo': 'non_default'}}
+    full_patch = build_full_response(
+        context, model,
+        patch=patch,
+        saved=saved
+    )
+
+    # as nothing have changed - return already saved value
+    assert full_patch == {
+        'obj': {'foo': 'non_default'}
     }
 
 
@@ -159,7 +185,7 @@ def test_obj_non_empty_patch(context):
 
     patch = {'obj': {'foo': '42'}}
     saved = {}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -183,7 +209,7 @@ def test_obj_non_empty_patch_and_saved(context):
 
     patch = {'obj': {'foo': '42'}}
     saved = {'obj': {'foo': '13'}}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -207,12 +233,12 @@ def test_obj_empty_patch_and_non_empty_saved(context):
 
     patch = {}
     saved = {'obj': {'foo': '13'}}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
     )
-    assert full_patch == {}
+    assert full_patch == {'obj': {'foo': '13'}}
 
 
 def test_obj_null_patch_and_non_empty_saved(context):
@@ -229,7 +255,7 @@ def test_obj_null_patch_and_non_empty_saved(context):
 
     patch = {'obj': {'foo': None}}
     saved = {'obj': {'foo': '13'}}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -259,7 +285,7 @@ def test_nested_obj(context):
 
     patch = {'obj': {'foo': None, 'sub': {'foos': '420'}}}
     saved = {'obj': {'foo': '13'}}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -297,7 +323,7 @@ def test_complex_obj(context):
         }
     }}
     saved = {}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -305,8 +331,10 @@ def test_complex_obj(context):
     assert full_patch == {
         'obj': {
             'foo': '42',
+            'bar': 'default',
             'sub': {
                 'foos': '420',
+                'bars': None,
             }
         }
     }
@@ -326,7 +354,7 @@ def test_complex_obj(context):
             'bars': 'abc',
         }
     }}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -360,12 +388,12 @@ def test_array_empty_patch_and_saved(context):
 
     patch = {}
     saved = {}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
     )
-    assert full_patch == {}
+    assert full_patch == {'list': None}
 
 
 def test_array_empty_saved(context):
@@ -385,7 +413,7 @@ def test_array_empty_saved(context):
 
     patch = {'list': []}
     saved = {}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -415,7 +443,7 @@ def test_array_non_empty_patch_and_empty_saved(context):
     }]}
     saved = {}
 
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -446,7 +474,7 @@ def test_array_non_empty_patch_and_non_empty_saved(context):
     saved = {'list': [{
         'foo': '42',
     }]}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved
@@ -476,7 +504,7 @@ def test_array_overwrite_saved(context):
     saved = {'list': [{
         'foo': '42',
     }]}
-    full_patch = build_full_data_patch(
+    full_patch = build_full_response(
         context, model,
         patch=patch,
         saved=saved

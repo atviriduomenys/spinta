@@ -16,7 +16,7 @@ from spinta.backends import Backend
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream
 from spinta.renderer import render
 from spinta.types import dataset
-from spinta.types.datatype import DataType, Object, Array
+from spinta.types.datatype import DataType, Object, Array, File
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist
@@ -533,8 +533,8 @@ def build_data_patch_for_write(
         value = build_data_patch_for_write(
             context,
             prop.dtype,
-            given=given.get(prop.name, NA) if given else given,
-            saved=saved.get(prop.name, NA) if saved else saved,
+            given=given.get(prop.name, NA) if given else NA,
+            saved=saved.get(prop.name, NA) if saved else NA,
             fill=fill,
         )
         if value is not NA:
@@ -601,6 +601,190 @@ def build_data_patch_for_write(
         return NA
 
 
+def prepare_response(
+    context: Context,
+    data: DataItem,
+) -> (DataItem, dict):
+    if data.action == Action.UPDATE:
+        # Minor optimisation: if we querying subresource, then build
+        # response only for the subresource tree, do not walk through
+        # whole model property tree.
+        if data.prop:
+            dtype = data.prop.dtype
+            patch = strip_metadata(data.patch[data.prop.name])
+            saved = strip_metadata(data.saved[data.prop.name])
+        else:
+            dtype = data.model
+            patch = strip_metadata(data.patch)
+            saved = strip_metadata(data.saved)
+
+        resp = build_full_response(
+            context,
+            dtype,
+            patch=patch,
+            saved=saved,
+        )
+
+        # When querying subresources, response still must be enclosed with
+        # the subresource key.
+        if data.prop:
+            resp = {
+                data.prop.name: resp,
+            }
+    elif data.patch:
+        resp = data.patch
+    else:
+        resp = {}
+    return resp
+
+
+@commands.build_full_response.register()
+def build_full_response(
+    context: Context,
+    dtype: (Object, Model, dataset.Model),
+    *,
+    patch: Optional[object],
+    saved: Optional[object],
+):
+    full_patch = {}
+    for prop in dtype.properties.values():
+        if prop.name.startswith('_'):
+            continue
+        value = build_full_response(
+            context,
+            prop.dtype,
+            patch=patch.get(prop.name, NA) if patch else NA,
+            saved=saved.get(prop.name, NA) if saved else NA,
+        )
+        if value is not NA:
+            full_patch[prop.name] = value
+    return full_patch
+
+
+@commands.build_full_response.register()  # noqa
+def build_full_response(
+    context: Context,
+    dtype: DataType,
+    *,
+    patch: Optional[object],
+    saved: Optional[object],
+):
+    if patch is not NA:
+        return patch
+    elif saved is not NA:
+        return saved
+    else:
+        return dtype.default
+
+
+@commands.build_full_data_patch_for_nested_attrs.register()
+def build_full_data_patch_for_nested_attrs(
+    context: Context,
+    model: Model,
+    *,
+    patch: dict,
+    saved: dict,
+) -> dict:
+    # Creates full_patch from `data.saved` and `data.patch`
+    #
+    # For PostgreSQL only nested fields need to be converted to full patch,
+    # because PostgreSQL does not support partial updates, thus we need
+    # to fill nested fields with data from `data.saved` if it is missing in
+    # `data.patch`
+    full_patch = {}
+    for name in patch:
+        prop = model.properties[name]
+        value = commands.build_full_data_patch_for_nested_attrs(
+            context,
+            prop.dtype,
+            patch=patch.get(prop.name, NA),
+            saved=saved.get(prop.name, NA),
+        )
+        if value is not NA:
+            full_patch[prop.name] = value
+    return full_patch
+
+
+@commands.build_full_data_patch_for_nested_attrs.register()  # noqa
+def build_full_data_patch_for_nested_attrs(  # noqa
+    context: Context,
+    dtype: DataType,
+    *,
+    patch: object,
+    saved: object,
+) -> dict:
+    # do not change scalar values if those values are at top level
+    if isinstance(dtype.prop.parent, Model):
+        return patch
+
+    if patch is not NA:
+        return patch
+    elif saved is not NA:
+        return saved
+    else:
+        return dtype.default
+
+
+@commands.build_full_data_patch_for_nested_attrs.register()  # noqa
+def build_full_data_patch_for_nested_attrs(  # noqa
+    context: Context,
+    dtype: Object,
+    *,
+    patch: dict,
+    saved: dict,
+) -> dict:
+    if patch is NA:
+        return saved
+    else:
+        # We should work with keys which are available to us from
+        # patch and saved data. Do not rely on manifest data for this.
+        prop_keys = set(patch or []) | set(saved or [])
+
+        full_patch = {}
+        for prop_key in prop_keys:
+            # drop metadata columns
+            if prop_key.startswith('_'):
+                continue
+
+            prop = dtype.properties[prop_key]
+            value = commands.build_full_data_patch_for_nested_attrs(
+                context,
+                prop.dtype,
+                patch=patch.get(prop.name, NA) if patch else patch,
+                saved=saved.get(prop.name, NA) if saved else saved,
+            )
+            full_patch[prop.name] = value
+        return full_patch
+
+
+@commands.build_full_data_patch_for_nested_attrs.register()  # noqa
+def build_full_data_patch_for_nested_attrs(  # noqa
+    context: Context,
+    dtype: File,
+    *,
+    patch: dict,
+    saved: dict,
+) -> dict:
+    # if key for file is not available in patch - return NotAvailable
+    if patch is NA:
+        return saved
+
+    # if key for file is available but value is falsy (None, {}),
+    # then return None for metadata values
+    if not patch:
+        return {
+            'content_type': None,
+            'filename': None,
+        }
+
+    # for any other case - return patch values and if not available
+    # fallback to saved values or None
+    return {
+        'content_type': patch.get('content_type'),
+        'filename': patch.get('filename'),
+    }
+
+
 async def _summary_response(context: Context, results: AsyncIterator[DataItem]) -> dict:
     errors = 0
     async for data in results:
@@ -655,7 +839,7 @@ async def simple_response(context: Context, results: AsyncIterator[DataItem]) ->
 
 
 def _get_simple_response(context: Context, data: DataItem) -> dict:
-    resp = data.patch or {}
+    resp = prepare_response(context, data)
     resp = {k: v for k, v in resp.items() if not k.startswith('_')}
     if data.patch and '_id' in data.patch:
         resp['_id'] = data.patch['_id']
@@ -735,7 +919,7 @@ async def wipe(
     return render(context, request, model, params, response, status_code=200)
 
 
-@commands.wipe.register()
+@commands.wipe.register()  # noqa
 async def wipe(  # noqa
     context: Context,
     request: Request,

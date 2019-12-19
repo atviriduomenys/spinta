@@ -16,7 +16,7 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.config import RawConfig
 from spinta.renderer import render
 from spinta.types.datatype import Date, DataType, File, Object
-from spinta.utils.nestedstruct import flatten
+from spinta.utils.schema import strip_metadata
 from spinta.commands import (
     authorize,
     getall,
@@ -200,15 +200,23 @@ async def update(
             yield data
             continue
 
-        values = {k: v for k, v in data.patch.items() if not k.startswith('_')}
+        # FIXME: this is technically a hack, as it does not employ
+        # mongo's partial update feature, i.e. we patch whole underlining
+        # nested structure if there were changed in the nested structure.
+        # We do this, because partial updates do not work for arrays.
+        # We must implement a function wich does partial updates, for non-array
+        # nested attributes, but if there's an array - then do full patch.
+        patch = commands.build_full_data_patch_for_nested_attrs(
+            context,
+            model,
+            patch=strip_metadata(data.patch),
+            saved=strip_metadata(data.saved),
+        )
+
+        values = {k: v for k, v in patch.items() if not k.startswith('_')}
         values['_revision'] = data.patch['_revision']
         if '_id' in data.patch:
             values['__id'] = data.patch['_id']
-
-        # in order for mongo to update object without overwriting
-        # the values we do not give - we need to flatten the object values
-        if data.action == Action.PATCH:
-            values = flatten(values)
 
         result = table.update_one(
             {

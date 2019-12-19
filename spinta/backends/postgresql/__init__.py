@@ -494,7 +494,7 @@ async def update(
         # Support patching nested properties.
         # Build a full_patch dict, where data.patch is merged with data.saved
         # for nested properties.
-        patch = build_full_data_patch(
+        patch = commands.build_full_data_patch_for_nested_attrs(
             context,
             model,
             patch=strip_metadata(data.patch),
@@ -531,114 +531,6 @@ async def update(
         )
 
         yield data
-
-
-@commands.build_full_data_patch.register()
-def build_full_data_patch(
-    context: Context,
-    model: Model,
-    *,
-    patch: dict,
-    saved: dict,
-) -> dict:
-    # Creates full_patch from `data.saved` and `data.patch`
-    #
-    # For PostgreSQL only nested fields need to be converted to full patch,
-    # because PostgreSQL does not support partial updates, thus we need
-    # to fill nested fields with data from `data.saved` if it is missing in
-    # `data.patch`
-    full_patch = {}
-    for name in patch:
-        prop = model.properties[name]
-        value = build_full_data_patch(
-            context,
-            prop.dtype,
-            patch=patch.get(prop.name, NA),
-            saved=saved.get(prop.name, NA),
-        )
-        if value is not NA:
-            full_patch[prop.name] = value
-    return full_patch
-
-
-@commands.build_full_data_patch.register()  # noqa
-def build_full_data_patch(  # noqa
-    context: Context,
-    dtype: DataType,
-    *,
-    patch: object,
-    saved: object,
-) -> dict:
-    # do not change scalar values if those values are at top level
-    if isinstance(dtype.prop.parent, Model):
-        return patch
-
-    if patch is not NA:
-        return patch
-    elif saved is not NA:
-        return saved
-    else:
-        return dtype.default
-
-
-@commands.build_full_data_patch.register()  # noqa
-def build_full_data_patch(  # noqa
-    context: Context,
-    dtype: Object,
-    *,
-    patch: dict,
-    saved: dict,
-) -> dict:
-    if patch is NA:
-        return saved
-    else:
-        # We should work with keys which are available to us from
-        # patch and saved data. Do not rely on manifest data for this.
-        prop_keys = set(patch or []) | set(saved or [])
-
-        full_patch = {}
-        for prop_key in prop_keys:
-            # drop metadata columns
-            if prop_key.startswith('_'):
-                continue
-
-            prop = dtype.properties[prop_key]
-            value = build_full_data_patch(
-                context,
-                prop.dtype,
-                patch=patch.get(prop.name, NA) if patch else patch,
-                saved=saved.get(prop.name, NA) if saved else saved,
-            )
-            full_patch[prop.name] = value
-        return full_patch
-
-
-@commands.build_full_data_patch.register()  # noqa
-def build_full_data_patch(  # noqa
-    context: Context,
-    dtype: File,
-    *,
-    patch: dict,
-    saved: dict,
-) -> dict:
-    # if key for file is not available in patch - return NotAvailable
-    if patch is NA:
-        return saved
-
-    # if key for file is available but value is falsy (None, {}),
-    # then return None for metadata values
-    if not patch:
-        return {
-            'content_type': None,
-            'filename': None,
-        }
-
-    # for any other case - return patch values and if not available
-    # fallback to saved values or None
-    return {
-        'content_type': patch.get('content_type'),
-        'filename': patch.get('filename'),
-    }
 
 
 @commands.delete.register()
