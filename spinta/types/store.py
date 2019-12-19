@@ -49,9 +49,17 @@ def load(context: Context, store: Store, config: RawConfig) -> Store:
 
 
 @wait.register()
-def wait(context: Context, store: Store, config: RawConfig):
+def wait(
+    context: Context,
+    store: Store,
+    config: RawConfig,
+    *,
+    seconds: int = None,
+):
+    if seconds is None:
+        seconds = config.get('wait', cast=int, required=True)
+
     # Wait while all backends are up.
-    seconds = config.get('wait', cast=int, required=True)
     for backend in store.backends.values():
         for i in range(1, seconds + 1):
             if wait(context, backend, config):
