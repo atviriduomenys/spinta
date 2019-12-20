@@ -13,7 +13,7 @@ from spinta.commands import load, prepare, migrate, push, getone, wipe, wait, au
 from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams, DataItem
 from spinta.config import RawConfig
-from spinta.exceptions import FileNotFound, ItemDoesNotExist
+from spinta.exceptions import ConflictingValue, FileNotFound, ItemDoesNotExist
 from spinta.renderer import render
 from spinta.types.datatype import DataType, File
 from spinta.utils.aiotools import aiter
@@ -268,3 +268,23 @@ def build_data_patch_for_write(
     }
     given = {k: v for k, v in given.items() if v is not NA}
     return given or NA
+
+
+@complex_data_check.register()
+def complex_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: File,
+    prop: Property,
+    backend: Backend,
+    value: object,
+):
+    # TODO: revision check for files
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
+        for k in ('_type', '_revision'):
+            if k in data.given and data.saved[k] != data.given[k]:
+                raise ConflictingValue(
+                    dtype.prop,
+                    given=data.given[k],
+                    expected=data.saved[k],
+                )

@@ -293,3 +293,25 @@ def test_unknown_report_object_property(model, app):
         'property': 'notes.rand_prop',
         'model': model,
     }
+
+
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_wrong_revision_with_subresource(model, app):
+    app.authmodel(model, ['insert', 'update'])
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'status': 'ok',
+    })
+    assert resp.status_code == 201
+    id_ = resp.json()['_id']
+
+    resp = app.put(f'/{model}/{id_}/sync', json={
+        '_revision': 'foo bar',
+        'sync_revision': '5yncr3v1510n',
+    })
+    assert resp.status_code == 409
+    assert get_error_codes(resp.json()) == ['ConflictingValue']
