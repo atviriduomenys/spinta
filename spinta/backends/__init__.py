@@ -273,7 +273,14 @@ def complex_data_check(
     backend: Backend,
     value: object,
 ):
-    pass
+    if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):
+        for k in ('_type', '_revision'):
+            if k in data.given and data.saved[k] != data.given[k]:
+                raise ConflictingValue(
+                    dtype.properties[k],
+                    given=data.given[k],
+                    expected=data.saved[k],
+                )
 
 
 def check_type_value(dtype: DataType, value: object):
