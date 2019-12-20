@@ -864,6 +864,9 @@ def test_search_any(app):
     resp = app.get(f'/{model}?any(eq,count,10,42)')
     assert ids(resp) == [0, 1]
 
+    resp = app.get(f'/{model}?any(ne,count,42)')
+    assert ids(resp) == [0, 2]
+
 
 # TODO: add mongo
 def test_search_any_in_list(app):
@@ -871,6 +874,9 @@ def test_search_any_in_list(app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any(eq,notes.note,hello,world)')
+    assert sorted(ids(resp)) == [0, 1]
+
+    resp = app.get(f'/{model}?any(ne,notes.note,foo bar)')
     assert sorted(ids(resp)) == [0, 1]
 
 
@@ -881,6 +887,9 @@ def test_search_any_in_list_of_scalars(app):
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any(eq,operating_licenses.license_types,valid,invalid,expired)')
     assert sorted(ids(resp)) == [0, 1]
+
+    resp = app.get(f'/{model}?any(ne,operating_licenses.license_types,expired)')
+    assert sorted(ids(resp)) == [0]
 
 
 # TODO: add mongo

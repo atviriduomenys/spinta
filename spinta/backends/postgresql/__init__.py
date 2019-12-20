@@ -26,8 +26,19 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
-from spinta.types.datatype import Array, DataType, Date, DateTime, File, Object, PrimaryKey, Ref, String
 from spinta.utils.schema import NA, strip_metadata
+from spinta.types.datatype import (
+    Array,
+    DataType,
+    Date,
+    DateTime,
+    File,
+    Object,
+    PrimaryKey,
+    Ref,
+    String,
+    Integer
+)
 
 from spinta.exceptions import (
     MultipleRowsFound,
@@ -871,6 +882,8 @@ class QueryBuilder:
             jsonb = self.table.lists.c.data[prop.place]
             if _is_dtype(prop, (String, DateTime, Date)):
                 field = jsonb.astext
+            elif _is_dtype(prop, Integer):
+                field = sa.cast(jsonb, BIGINT)
             else:
                 field = sa.cast(jsonb, JSONB)
         else:
@@ -895,7 +908,7 @@ class QueryBuilder:
             elif _is_dtype(prop, Date):
                 value = datetime.date.fromisoformat(value)
                 value = value.isoformat()
-            elif not _is_dtype(prop, String):
+            elif not _is_dtype(prop, (String, Integer)):
                 value = sa.cast(value, JSONB)
         return value
 
@@ -991,7 +1004,7 @@ class QueryBuilder:
             for v in value
         ]
         value = sa.any_(value)
-        cond = method(op, field, value)
+        cond = method(prop, field, value)
         return self.compare(op, prop, cond)
 
 
