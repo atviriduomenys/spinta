@@ -16,6 +16,7 @@ from authlib.oauth2 import rfc6749
 from authlib.oauth2 import rfc6750
 from authlib.oauth2.rfc6749 import grants
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
+from authlib.oauth2.rfc6749.errors import InvalidClientError
 
 from spinta.components import Context
 from spinta.utils import passwords
@@ -222,7 +223,11 @@ def create_access_token(context, private_key, client, grant_type, expires_in, sc
 def query_client(context: Context, client_id: str):
     config = context.get('config')
     client_file = config.config_path / 'clients' / f'{client_id}.yml'
-    data = yaml.load(client_file)
+    try:
+        data = yaml.load(client_file)
+    except FileNotFoundError:
+        raise (InvalidClientError(description='Invalid client id or secret'))
+
     if not isinstance(data['scopes'], list):
         raise Exception(f'Client {client_file} scopes must be list of scopes.')
     client = Client(

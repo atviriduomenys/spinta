@@ -90,6 +90,22 @@ def test_empty_scope(context, app):
     assert token['scope'] == ''
 
 
+def test_invalid_client(app):
+    client_id = 'invalid_client'
+    client_secret = 'b5DVbOaEY1BGnfbfv82oA0-4XEBgLQuJ'
+
+    resp = app.post('/auth/token', auth=(client_id, client_secret), data={
+        'grant_type': 'client_credentials',
+        'scope': '',
+    })
+    assert resp.status_code == 400, resp.text
+
+    assert resp.json() == {
+        "error": "invalid_client",
+        "error_description": "Invalid client id or secret"
+    }
+
+
 def args_for_token(context):
     private_key = auth.load_key(context, 'private.json')
     client_id = 'baa448a8-205c-4faa-a048-a10e4b32a136'
