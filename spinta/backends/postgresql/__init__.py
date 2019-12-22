@@ -995,6 +995,15 @@ class QueryBuilder:
         return field.startswith(value)
 
     def op_any(self, op: str, key: str, *value: Tuple[Union[str, int, float]]):
+        if op in ('contains', 'startswith'):
+            return self.op_or(*(
+                {
+                    'name': op,
+                    'args': [key, v],
+                }
+                for v in value
+            ))
+
         method = self._get_method(op)
         key, lower = self.resolve_lower_call(key)
         prop = self.resolve_property(key)
