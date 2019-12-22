@@ -908,3 +908,30 @@ def test_search_any_recurse_lower(app):
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any(eq,lower(recurse(status)),ok,none)')
     assert ids(resp) == [0]
+
+
+# TODO: add mongo
+def test_search_any_contains(app):
+    model = 'backends/postgres/report'
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?any(contains,status,inv,val,lid)')
+    assert sorted(ids(resp)) == [1, 2]
+
+
+# TODO: add mongo
+def test_search_any_contains_nested(app):
+    model = 'backends/postgres/report'
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?any(contains,notes.note,hel,wor)')
+    assert sorted(ids(resp)) == [0, 1]
+
+
+# TODO: add mongo
+def test_search_any_contains_recurse_lower(app):
+    model = 'backends/postgres/report'
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?any(contains,lower(recurse(status)),o,k)')
+    assert sorted(ids(resp)) == [0]
