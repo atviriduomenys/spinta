@@ -5,6 +5,7 @@ import logging
 from ruamel.yaml import YAML
 from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scanner import ScannerError
+from ruamel.yaml.error import YAMLError
 
 from spinta.utils.path import is_ignored
 from spinta.commands import load, prepare, check
@@ -39,8 +40,8 @@ def load(context: Context, manifest: Manifest, c: RawConfig):
             continue
 
         try:
-            data = yaml.load(file.read_text())
-        except (ParserError, ScannerError) as e:
+            data = next(yaml.load_all(file.read_text()))
+        except (ParserError, ScannerError, YAMLError) as e:
             raise exceptions.InvalidManifestFile(
                 manifest=name,
                 filename=file,
