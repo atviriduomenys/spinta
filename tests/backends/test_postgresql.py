@@ -1,13 +1,40 @@
+from spinta.components import Model, Property
 from spinta.backends.postgresql import NAMEDATALEN
 from spinta.backends.postgresql import get_table_name
+from spinta.backends.postgresql import TableType
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
+def get_model(name: str):
+    model = Model()
+    model.name = name
+    return model
+
+
+def get_property(model, place):
+    prop = Property()
+    prop.model = get_model(model)
+    prop.place = place
+    return prop
+
+
+def _get_table_name(model, prop=None, ttype=TableType.MAIN):
+    if prop is None:
+        return get_table_name(get_model(model), ttype)
+    else:
+        return get_table_name(get_property(model, prop), ttype)
+
+
 def test_get_table_name():
-    assert get_table_name('org') == 'org'
-    assert len(get_table_name('a' * 1000)) == NAMEDATALEN
-    assert get_table_name('a' * 1000) == 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_291e9a6c_aaaaaaaaaaaaaaaa'
-    assert get_table_name('some_/name/hėrę!') == 'some_/name/hėrę!'
+    assert _get_table_name('org') == 'org'
+    assert len(_get_table_name('a' * 1000)) == NAMEDATALEN
+    assert _get_table_name('a' * 1000) == 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_291e9a6c_aaaaaaaaaaaaaaaa'
+    assert _get_table_name('some_/name/hėrę!') == 'some_/name/hėrę!'
+
+
+def test_get_table_name_lists():
+    assert _get_table_name('org', 'names', TableType.LIST) == 'org/:list/names'
+    assert _get_table_name('org', 'names.note', TableType.LIST) == 'org/:list/names.note'
 
 
 def test_changes(app):

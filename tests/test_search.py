@@ -223,12 +223,10 @@ def test_search_gt(model, context, app):
     'backends/postgres/report',
 )
 def test_search_gt_with_nested_date(model, context, app):
-    r1, r2, r3, = _push_test_data(app, model)
+    ids = RowIds(_push_test_data(app, model))
     app.authmodel(model, ['search'])
     resp = app.get(f'/{model}?gt(recurse(create_date),2019-04-19)')
-    data = resp.json()['_data']
-    assert len(data) == 1
-    assert data[0]['_id'] == r2['_id']
+    assert ids(resp) == [1]
 
 
 @pytest.mark.models(

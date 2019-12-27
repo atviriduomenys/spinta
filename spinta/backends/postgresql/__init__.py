@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Optional, List, Union, Tuple
+from typing import AsyncIterator, Optional, List, Union, Tuple, Dict
 
 import contextlib
 import datetime
@@ -191,7 +191,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.append(column)
 
     # Create main table.
-    main_table_name = get_table_name(model.name)
+    main_table_name = get_table_name(model)
     main_table = sa.Table(
         main_table_name, backend.schema,
         sa.Column('_transaction', sa.Integer, sa.ForeignKey('transaction._id')),
@@ -200,26 +200,26 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         *columns,
     )
 
-    if _has_lists(model):
+    lists_tables = {}
+    for prop in _iter_lists(model):
         # Create table for nested lists.
-        lists_table_name = get_table_name(model.name, TableType.LIST)
+        lists_table_name = get_table_name(prop, TableType.LIST)
         lists_table = sa.Table(
             lists_table_name, backend.schema,
             sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
-            sa.Column('id', main_table.c._id.type, sa.ForeignKey(f'{main_table_name}._id', ondelete='CASCADE')),  # reference to main table
+            sa.Column('_id', main_table.c._id.type, sa.ForeignKey(f'{main_table_name}._id', ondelete='CASCADE')),  # reference to main table
             sa.Column('key', sa.String),  # parent key of the data inside `data` column
             sa.Column('data', JSONB),
         )
-    else:
-        lists_table = None
+        lists_tables[prop.place] = lists_table
 
     # Create changes table.
-    changes_table_name = get_table_name(model.name, TableType.CHANGELOG)
+    changes_table_name = get_table_name(model, TableType.CHANGELOG)
     # XXX: not sure if I should pass main_table.c.id.type.__class__() or a
     #      shorter form.
     changes_table = get_changes_table(backend, changes_table_name, main_table.c._id.type)
 
-    backend.tables[model.manifest.name][model.name] = ModelTables(main_table, lists_table, changes_table)
+    backend.tables[model.manifest.name][model.name] = ModelTables(main_table, lists_tables, changes_table)
 
 
 @prepare.register()
@@ -271,7 +271,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
     else:
         column_type = UUID()
     return get_pg_foreign_key(
-        table_name=get_table_name(ref_model.name),
+        table_name=get_table_name(ref_model),
         model_name=dtype.prop.model.name,
         column_name=dtype.prop.name,
         column_type=column_type,
@@ -367,31 +367,27 @@ def check_unique_constraint(
 def _update_lists_table(
     context: Context,
     model: Model,
-    table: sa.Table,
+    tables: Dict[str, sa.Table],
     action: Action,
     pk: str,
     patch: dict,
 ) -> None:
-    if table is None:
+    if len(tables) == 0:
         return
 
     transaction = context.get('transaction')
     connection = transaction.connection
-    rows = list(_get_lists_data(model, patch))
-    if action != Action.INSERT:
-        keys = {prop.place for prop, _ in rows}
-        if keys:
-            connection.execute(
-                table.delete().
-                where(table.c.id == pk).
-                where(table.c.key.in_(keys))
-            )
-    if rows:
+    rows = _get_lists_data(model, patch)
+    sort_key = lambda x: x[0].place  # noqa
+    rows = sorted(rows, key=sort_key)
+    for place, rows in itertools.groupby(rows, key=sort_key):
+        table = tables[place]
+        if action != Action.INSERT:
+            connection.execute(table.delete().where(table.c._id == pk))
         connection.execute(table.insert(), [
             {
                 'transaction': transaction.id,
-                'id': pk,
-                'key': prop.place,
+                '_id': pk,
                 'data': row,
             }
             for prop, row in rows
@@ -407,6 +403,15 @@ def _has_lists(dtype: Union[Model, DataType]):
         return True
     else:
         return False
+
+
+def _iter_lists(dtype: Union[Model, DataType]):
+    if isinstance(dtype, (Model, Object)):
+        for prop in dtype.properties.values():
+            yield from _iter_lists(prop.dtype)
+    elif isinstance(dtype, Array):
+        yield dtype.prop
+        yield from _iter_lists(dtype.items.dtype)
 
 
 def _get_lists_data(
@@ -860,26 +865,27 @@ class QueryBuilder:
 
     def compare(self, op, prop, cond):
         if prop.list is not None and op != 'ne':
+            list_table = self.table.lists[prop.list.place]
             subqry = (
                 sa.select(
-                    [self.table.lists.c.id],
-                    distinct=self.table.lists.c.id,
+                    [list_table.c._id],
+                    distinct=list_table.c._id,
                 ).
                 where(cond).
-                where(self.table.lists.c.key == prop.list.place).
                 alias()
             )
             self.joins = self.joins.outerjoin(
                 subqry,
-                self.table.main.c._id == subqry.c.id,
+                self.table.main.c._id == subqry.c._id,
             )
-            return subqry.c.id.isnot(None)
+            return subqry.c._id.isnot(None)
         else:
             return cond
 
     def get_sql_field(self, prop: Property, lower: bool = False):
         if prop.list is not None:
-            jsonb = self.table.lists.c.data[prop.place]
+            list_table = self.table.lists[prop.list.place]
+            jsonb = list_table.c.data[prop.place]
             if _is_dtype(prop, (String, DateTime, Date)):
                 field = jsonb.astext
             elif _is_dtype(prop, Integer):
@@ -951,41 +957,41 @@ class QueryBuilder:
         if prop.list is None:
             return field != value
 
+        list_table = self.table.lists[prop.list.place]
+
         # Check if at liest one value for field is defined
         subqry1 = (
             sa.select(
-                [self.table.lists.c.id],
-                distinct=self.table.lists.c.id,
+                [list_table.c._id],
+                distinct=list_table.c._id,
             ).
-            where(self.table.lists.c.key == prop.list.place).
             where(field != None).  # noqa
             alias()
         )
         self.joins = self.joins.outerjoin(
             subqry1,
-            self.table.main.c._id == subqry1.c.id,
+            self.table.main.c._id == subqry1.c._id,
         )
 
         # Check if given value exists
         subqry2 = (
             sa.select(
-                [self.table.lists.c.id],
-                distinct=self.table.lists.c.id,
+                [list_table.c._id],
+                distinct=list_table.c._id,
             ).
-            where(self.table.lists.c.key == prop.list.place).
             where(field == value).
             alias()
         )
         self.joins = self.joins.outerjoin(
             subqry2,
-            self.table.main.c._id == subqry2.c.id,
+            self.table.main.c._id == subqry2.c._id,
         )
 
         # If field exists and given value does not, then field is not equal to
         # value.
         return sa.and_(
-            subqry1.c.id != None,  # noqa
-            subqry2.c.id == None,
+            subqry1.c._id != None,  # noqa
+            subqry2.c._id == None,
         )
 
     def op_contains(self, prop, field, value):
@@ -1054,21 +1060,22 @@ def _getall_order_by(
             prop = model.flatprops[key]
 
             if prop.list is not None:
+                list_table = table.lists[prop.list.place]
                 subqry = (
                     sa.select(
                         [
-                            table.lists.c.id,
+                            list_table.c._id,
                             (
-                                sa.cast(table.lists.c.data[prop.place], JSONB).
+                                sa.cast(list_table.c.data[prop.place], JSONB).
                                 label('value'),
                             )
                         ],
-                        distinct=table.lists.c.id,
+                        distinct=list_table.c._id,
                     ).alias()
                 )
                 joins = joins.outerjoin(
                     subqry,
-                    table.main.c._id == subqry.c.id,
+                    table.main.c._id == subqry.c._id,
                 )
                 field = subqry.c.value
             else:
@@ -1193,8 +1200,8 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
     table = backend.tables[model.manifest.name][model.name]
     connection = context.get('transaction').connection
 
-    if table.lists is not None:
-        connection.execute(table.lists.delete())
+    for prop in _iter_lists(model):
+        connection.execute(table.lists[prop.place].delete())
     connection.execute(table.changes.delete())
     connection.execute(table.main.delete())
 
@@ -1208,8 +1215,14 @@ def pg_utcnow(element, compiler, **kw):
     return "TIMEZONE('utc', CURRENT_TIMESTAMP)"
 
 
-def get_table_name(name: str, ttype: TableType = TableType.MAIN):
-    name = name + ttype.value
+def get_table_name(
+    node: Union[Model, Property],
+    ttype: TableType = TableType.MAIN,
+):
+    if ttype == TableType.LIST:
+        name = node.model.model_type() + ttype.value + '/' + node.place
+    else:
+        name = node.model_type() + ttype.value
     if len(name) > NAMEDATALEN:
         hs = 8
         h = hashlib.sha1(name.encode()).hexdigest()[:hs]

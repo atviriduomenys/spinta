@@ -203,15 +203,16 @@ def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> Dat
             'model': dtype.prop.model,
             **params,
         }
+        prop = dtype.prop.__class__()
+        prop.list = dtype.prop.list
         prop = load(
             context,
-            dtype.prop.__class__(),
+            prop,
             params,
             dtype.prop.manifest,
         )
         dtype.prop.model.flatprops[place] = prop
         dtype.properties[name] = prop
-        prop.list = dtype.prop
     return dtype
 
 
@@ -227,8 +228,9 @@ def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> Data
             'model': dtype.prop.model,
             **data['items'],
         }
-        prop = load(context, dtype.prop.__class__(), params, dtype.prop.manifest)
+        prop = dtype.prop.__class__()
         prop.list = dtype.prop
+        prop = load(context, prop, params, dtype.prop.manifest)
         dtype.items = prop
     else:
         dtype.items = None
@@ -257,7 +259,6 @@ def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
     dtype.type = 'datatype'
     dtype.prop = prop
     dtype.name = data['type']
-
     return load(context, dtype, data, manifest)
 
 
