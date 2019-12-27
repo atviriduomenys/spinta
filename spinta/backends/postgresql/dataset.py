@@ -32,8 +32,7 @@ log = logging.getLogger(__name__)
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, model: Model):
-    name = model.model_type()
-    table_name = get_table_name(name)
+    table_name = get_table_name(model)
     table = sa.Table(
         table_name, backend.schema,
         sa.Column('id', sa.String(40), primary_key=True),
@@ -43,10 +42,9 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         sa.Column('updated', sa.DateTime, nullable=True),
         sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
     )
-    changes_table_name = get_table_name(name, TableType.CHANGELOG)
+    changes_table_name = get_table_name(model, TableType.CHANGELOG)
     changes_table = get_changes_table(backend, changes_table_name, sa.String(40))
-    backend.tables[model.manifest.name][name] = ModelTables(main=table,
-                                                            changes=changes_table)
+    backend.tables[model.manifest.name][model.model_type()] = ModelTables(main=table, changes=changes_table)
 
 
 @commands.insert.register()
