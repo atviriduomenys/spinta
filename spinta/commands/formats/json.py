@@ -1,5 +1,7 @@
 import ujson as json
 
+from typing import Optional
+
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.responses import StreamingResponse
@@ -40,8 +42,18 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
+    headers: Optional[dict] = None,
 ):
-    return _render(context, request, fmt, action, params, data, status_code)
+    return _render(
+        context,
+        request,
+        fmt,
+        action,
+        params,
+        data,
+        status_code,
+        headers,
+    )
 
 
 def _render(
@@ -52,6 +64,7 @@ def _render(
     params: UrlParams,
     data,
     status_code: int,
+    headers: dict,
 ):
     if action in (Action.GETALL, Action.SEARCH, Action.CHANGES):
         # In python dict is also an iterable, but here we want a true iterable,
@@ -61,7 +74,11 @@ def _render(
             aiter(peek_and_stream(fmt(data))),
             status_code=status_code,
             media_type=fmt.content_type,
+            headers=headers,
         )
-
     else:
-        return JSONResponse(fmt.data(data), status_code=status_code)
+        return JSONResponse(
+            fmt.data(data),
+            status_code=status_code,
+            headers=headers
+        )

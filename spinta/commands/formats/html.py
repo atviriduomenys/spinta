@@ -38,8 +38,9 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
+    headers: Optional[dict] = None,
 ):
-    return _render_model(context, request, ns, action, params, data)
+    return _render_model(context, request, ns, action, params, data, headers)
 
 
 @commands.render.register()  # noqa
@@ -53,8 +54,9 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
+    headers: Optional[dict] = None,
 ):
-    return _render_model(context, request, model, action, params, data)
+    return _render_model(context, request, model, action, params, data, headers)
 
 
 @commands.render.register()  # noqa
@@ -68,8 +70,9 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
+    headers: Optional[dict] = None,
 ):
-    return _render_model(context, request, model, action, params, data)
+    return _render_model(context, request, model, action, params, data, headers)
 
 
 def _render_model(
@@ -79,6 +82,7 @@ def _render_model(
     action: Action,
     params: UrlParams,
     data,
+    http_headers,
 ):
     header = []
     row = []
@@ -96,15 +100,19 @@ def _render_model(
         data = list(data)
 
     templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
-    return templates.TemplateResponse('base.html', {
-        **get_template_context(context, model, params),
-        'request': request,
-        'header': header,
-        'data': data,
-        'row': row,
-        'formats': get_output_formats(params),
-        'limit_enforced': params.limit_enforced,
-    })
+    return templates.TemplateResponse(
+        'base.html',
+        {
+            **get_template_context(context, model, params),
+            'request': request,
+            'header': header,
+            'data': data,
+            'row': row,
+            'formats': get_output_formats(params),
+            'limit_enforced': params.limit_enforced,
+        },
+        headers=http_headers
+    )
 
 
 def get_output_formats(params: UrlParams):

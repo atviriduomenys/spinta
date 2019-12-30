@@ -50,13 +50,17 @@ async def push(
             context, request, scope, action, params, stop_on_error,
         )
     dstream = push_stream(context, stream, stop_on_error)
+    batch = False
     if params.summary:
         status_code, response = await _summary_response(context, dstream)
     elif await is_batch(request, scope):
+        batch = True
         status_code, response = await _batch_response(context, dstream)
     else:
         status_code, response = await simple_response(context, dstream)
-    return render(context, request, scope, params, response, status_code=status_code)
+    headers = prepare_headers(context, response, action, is_batch=batch)
+    return render(context, request, scope, params, response,
+                  action=action, status_code=status_code, headers=headers)
 
 
 async def push_stream(
@@ -934,3 +938,16 @@ async def wipe(  # noqa
     commands.wipe(context, ns, backend)
     response = {'wiped': True}
     return render(context, request, ns, params, response, status_code=200)
+
+
+def prepare_headers(
+    context: Context,
+    resp: dict,
+    action: Action,
+    is_batch: Optional[bool] = False
+):
+    headers = {}
+    if action == Action.INSERT and not is_batch:
+        server_url = context.get('config').server_url
+        headers['location'] = f'{server_url}{resp["_type"]}/{resp["_id"]}'
+    return headers

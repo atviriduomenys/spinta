@@ -1036,3 +1036,17 @@ def test_multi_backends(model, app):
     assert resp.json()['_data'] == [{
         'status': '42',
     }]
+
+
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_location_header(model, app, context):
+    app.authmodel(model, ['insert'])
+    resp = app.post(f'/{model}', json={'status': '42'})
+    assert resp.status_code == 201
+    assert 'location' in resp.headers
+    id_ = resp.json()['_id']
+    server_url = context.get('config').server_url
+    assert resp.headers['location'] == f'{server_url}{model}/{id_}'
