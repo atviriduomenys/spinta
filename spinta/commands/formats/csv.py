@@ -1,6 +1,7 @@
 import csv
 import itertools
 
+from typing import Optional
 
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
@@ -62,9 +63,11 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
+    headers: Optional[dict] = None,
 ):
     return StreamingResponse(
         aiter(fmt(data)),
         status_code=status_code,
         media_type=fmt.content_type,
+        headers=headers,
     )

@@ -14,8 +14,16 @@ def render(
     data,
     *,
     action: Optional[Action] = None,
-    status_code: int = 200,
+    status_code: Optional[int] = 200,
+    headers: Optional[dict] = None,
 ):
     config = context.get('config')
     fmt = config.exporters[params.format]
-    return commands.render(context, request, node, fmt, action=action, params=params, data=data, status_code=status_code)
+    return commands.render(
+        context, request, node, fmt,
+        action=action,
+        params=params,
+        data=data,
+        status_code=status_code,
+        headers=headers,
+    )

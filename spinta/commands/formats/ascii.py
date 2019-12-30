@@ -3,6 +3,8 @@ import operator
 import subprocess
 import sys
 
+from typing import Optional
+
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
@@ -81,8 +83,9 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
+    headers: Optional[dict] = None,
 ):
-    return _render(fmt, params, data, status_code)
+    return _render(fmt, params, data, status_code, headers)
 
 
 @commands.render.register()  # noqa
@@ -96,11 +99,12 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
+    headers: dict = None,
 ):
-    return _render(fmt, params, data, status_code)
+    return _render(fmt, params, data, status_code, headers)
 
 
-def _render(fmt: Ascii, params: UrlParams, data, status_code):
+def _render(fmt: Ascii, params: UrlParams, data, status_code, headers):
     # Format params ar given in RQL query `?format(width(1),colwidth(1))`.
     width = params.formatparams.get('width')
     colwidth = params.formatparams.get('colwidth')
@@ -114,6 +118,7 @@ def _render(fmt: Ascii, params: UrlParams, data, status_code):
         aiter(fmt(data, width, colwidth)),
         status_code=status_code,
         media_type=fmt.content_type,
+        headers=headers,
     )
 
 
