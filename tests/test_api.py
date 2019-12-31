@@ -667,6 +667,8 @@ def test_post_id(model, context, app):
     })
     assert resp.status_code == 403
     assert get_error_codes(resp.json()) == ["InsufficientScopeError"]
+    assert 'www-authenticate' in resp.headers
+    assert resp.headers['www-authenticate'] == 'Bearer error="insufficient_scope"'
 
 
 @pytest.mark.models(
@@ -685,6 +687,8 @@ def test_insufficient_scope(model, context, app):
     })
     assert resp.status_code == 403
     assert get_error_codes(resp.json()) == ["InsufficientScopeError"]
+    assert 'www-authenticate' in resp.headers
+    assert resp.headers['www-authenticate'] == 'Bearer error="insufficient_scope"'
 
 
 @pytest.mark.models(
