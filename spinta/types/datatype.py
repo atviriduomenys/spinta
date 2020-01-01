@@ -155,7 +155,10 @@ class Object(DataType):
 
 
 class File(DataType):
-    pass
+    schema = {
+        '_id': {'type': 'string'},
+        '_content_type': {'type': 'string'},
+    }
 
 
 class RQL(DataType):

@@ -406,8 +406,8 @@ def test_get_subresource_file(model, app, tmpdir):
 
     resp = app.put(f'/{model}/{id_}/pdf:ref', json={
         '_revision': revision_,
-        'content_type': 'application/pdf',
-        'filename': str(pdf),
+        '_content_type': 'application/pdf',
+        '_id': str(pdf),
     })
     assert resp.status_code == 200
 
@@ -420,10 +420,9 @@ def test_get_subresource_file(model, app, tmpdir):
     assert resp.status_code == 200
     assert resp.json() == {
         '_type': f'{model}.pdf',
-        '_id': id_,
         '_revision': resp.json()['_revision'],
-        'content_type': 'application/pdf',
-        'filename': str(pdf),
+        '_content_type': 'application/pdf',
+        '_id': str(pdf),
     }
 
 

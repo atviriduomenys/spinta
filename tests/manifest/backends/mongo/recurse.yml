@@ -1,6 +1,7 @@
 ---
 type: model
 name: backends/mongo/recurse
+backend: mongo
 version:
   number: 1
   date: 2019-02-06

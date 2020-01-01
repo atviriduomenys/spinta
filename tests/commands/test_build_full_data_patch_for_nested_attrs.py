@@ -116,9 +116,7 @@ def test_obj_empty_saved_and_empty_obj(context):
         patch=patch,
         saved=saved
     )
-    assert full_patch == {
-        'obj': {}
-    }
+    assert full_patch == {}
 
 
 def test_obj_with_default(context):
@@ -140,9 +138,7 @@ def test_obj_with_default(context):
         patch=patch,
         saved=saved
     )
-    assert full_patch == {
-        'obj': {}
-    }
+    assert full_patch == {}
 
 
 def test_obj_non_empty_patch(context):
@@ -165,7 +161,7 @@ def test_obj_non_empty_patch(context):
         saved=saved
     )
     assert full_patch == {
-        'obj': {'foo': '42'}
+        'obj.foo': '42',
     }
 
 
@@ -189,7 +185,7 @@ def test_obj_non_empty_patch_and_saved(context):
         saved=saved
     )
     assert full_patch == {
-        'obj': {'foo': '42'}
+        'obj.foo': '42',
     }
 
 
@@ -235,7 +231,7 @@ def test_obj_null_patch_and_non_empty_saved(context):
         saved=saved
     )
     assert full_patch == {
-        'obj': {'foo': None}
+        'obj.foo': None,
     }
 
 
@@ -265,7 +261,8 @@ def test_nested_obj(context):
         saved=saved
     )
     assert full_patch == {
-        'obj': {'foo': None, 'sub': {'foos': '420'}}
+        'obj.foo': None,
+        'obj.sub.foos': '420',
     }
 
 
@@ -303,12 +300,8 @@ def test_complex_obj(context):
         saved=saved
     )
     assert full_patch == {
-        'obj': {
-            'foo': '42',
-            'sub': {
-                'foos': '420',
-            }
-        }
+        'obj.foo': '42',
+        'obj.sub.foos': '420',
     }
 
     # test that missing obj values are filled in from saved values
@@ -332,14 +325,8 @@ def test_complex_obj(context):
         saved=saved
     )
     assert full_patch == {
-        'obj': {
-            'foo': '42',
-            'bar': None,
-            'sub': {
-                'foos': '420',
-                'bars': 'abc',
-            }
-        }
+        'obj.foo': '42',
+        'obj.sub.foos': '420',
     }
 
 

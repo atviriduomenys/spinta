@@ -122,7 +122,7 @@ def simple_data_check(
 
 
 @commands.simple_data_check.register()  # noqa
-def simple_data_check(
+def simple_data_check(  # noqa
     context: Context,
     data: DataItem,
     prop: (Property, dataset.Property),
@@ -163,7 +163,7 @@ def simple_model_properties_check(
 
 
 @commands.simple_data_check.register()  # noqa
-def simple_data_check(
+def simple_data_check(  # noqa
     context: Context,
     data: DataItem,
     dtype: DataType,
@@ -179,7 +179,7 @@ def simple_data_check(
 
 
 @commands.simple_data_check.register()  # noqa
-def simple_data_check(
+def simple_data_check(  # noqa
     context: Context,
     data: DataItem,
     dtype: DataType,
@@ -201,7 +201,7 @@ def complex_data_check(
 
 
 @commands.complex_data_check.register()  # noqa
-def complex_data_check(
+def complex_data_check(  # noqa
     context: Context,
     data: DataItem,
     model: dataset.Model,
@@ -477,22 +477,22 @@ def make_json_serializable(model: Model, value: dict) -> dict:
 
 
 @commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: DataType, value: object):
+def make_json_serializable(dtype: DataType, value: object):  # noqa
     return value
 
 
 @commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: DateTime, value: datetime.datetime):
+def make_json_serializable(dtype: DateTime, value: datetime.datetime):  # noqa
     return value.isoformat()
 
 
 @commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: Date, value: datetime.date):
+def make_json_serializable(dtype: Date, value: datetime.date):  # noqa
     return value.isoformat()
 
 
 @commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: Date, value: datetime.datetime):
+def make_json_serializable(dtype: Date, value: datetime.datetime):  # noqa
     return value.date().isoformat()
 
 
@@ -505,7 +505,7 @@ def _get_json_serializable_props(dtype: Object, value: dict):
 
 
 @commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: Object, value: dict):
+def make_json_serializable(dtype: Object, value: dict):  # noqa
     return {
         prop.name: commands.make_json_serializable(prop.dtype, v)
         for prop, v in _get_json_serializable_props(dtype, value)
@@ -513,7 +513,7 @@ def make_json_serializable(dtype: Object, value: dict):
 
 
 @commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: Array, value: list):
+def make_json_serializable(dtype: Array, value: list):  # noqa
     return [make_json_serializable(dtype.items.dtype, v) for v in value]
 
 
