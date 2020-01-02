@@ -4,6 +4,7 @@ import pkg_resources as pres
 import logging
 
 from authlib.common.errors import AuthlibHTTPError
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -119,6 +120,8 @@ async def homepage(request: Request):
 async def http_exception(request, exc):
     log.exception('Error: %s', exc)
 
+    headers = {}
+
     if isinstance(exc, MultipleErrors):
         # TODO: probably there should be a more sophisticated way to get status
         #       code from error list.
@@ -152,6 +155,7 @@ async def http_exception(request, exc):
             else:
                 # if no description, show plain error string
                 message = exc.error
+            headers['www-authenticate'] = f'Bearer error="{exc.error}"'
         else:
             status_code = 500
             message = str(exc)
@@ -167,11 +171,20 @@ async def http_exception(request, exc):
 
     fmt = get_response_type(request.state.context, request)
     if fmt == 'json':
-        return JSONResponse(response, status_code=status_code)
+        return JSONResponse(
+            response,
+            status_code=status_code,
+            headers=headers,
+        )
     else:
         templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
         response = {
             **response,
             'request': request,
         }
-        return templates.TemplateResponse('error.html', response, status_code=status_code)
+        return templates.TemplateResponse(
+            'error.html',
+            response,
+            status_code=status_code,
+            headers=headers,
+        )
