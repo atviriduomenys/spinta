@@ -59,7 +59,7 @@ async def push(
         status_code, response = await _batch_response(context, dstream)
     else:
         status_code, response = await simple_response(context, dstream)
-    headers = prepare_headers(context, response, action, is_batch=batch)
+    headers = prepare_headers(context, scope, response, action, is_batch=batch)
     return render(context, request, scope, params, response,
                   action=action, status_code=status_code, headers=headers)
 
@@ -943,6 +943,7 @@ async def wipe(  # noqa
 
 def prepare_headers(
     context: Context,
+    node: Node,
     resp: dict,
     action: Action,
     is_batch: Optional[bool] = False
@@ -953,5 +954,5 @@ def prepare_headers(
 
     if action == Action.INSERT and not is_batch:
         server_url = context.get('config').server_url
-        headers['location'] = f'{server_url}{resp["_type"]}/{resp["_id"]}'
+        headers['location'] = f'{server_url}{node.endpoint}/{resp["_id"]}'
     return headers
