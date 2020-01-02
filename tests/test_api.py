@@ -1054,7 +1054,7 @@ def test_location_header(model, app, context):
     assert 'location' in resp.headers
     id_ = resp.json()['_id']
     server_url = context.get('config').server_url
-    assert resp.headers['location'] == f'{server_url}{model}/{id_}'
+    assert resp.headers['location'] == f'{server_url}{model}s/{id_}'
 
 
 @pytest.mark.models(
