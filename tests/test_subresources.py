@@ -406,24 +406,23 @@ def test_get_subresource_file(model, app, tmpdir):
 
     resp = app.put(f'/{model}/{id_}/pdf:ref', json={
         '_revision': revision_,
-        'content_type': 'application/pdf',
-        'filename': str(pdf),
+        '_content_type': 'application/pdf',
+        '_id': str(pdf),
     })
     assert resp.status_code == 200
 
     resp = app.get(f'/{model}/{id_}/pdf')
     assert resp.status_code == 200
-    # XXX: is this how file subresource GET should work?
+    assert resp.headers['content-type'] == 'application/pdf'
     assert resp.content == b'REPORTDATA'
 
     resp = app.get(f'/{model}/{id_}/pdf:ref')
     assert resp.status_code == 200
     assert resp.json() == {
         '_type': f'{model}.pdf',
-        '_id': id_,
         '_revision': resp.json()['_revision'],
-        'content_type': 'application/pdf',
-        'filename': str(pdf),
+        '_content_type': 'application/pdf',
+        '_id': str(pdf),
     }
 
 

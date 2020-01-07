@@ -60,7 +60,24 @@ def load(context: Context, model: Model, data: dict) -> dict:
 
 @load.register()
 def load(context: Context, prop: Property, value: object) -> object:
-    return load(context, prop.dtype, value)
+    value = _prepare_prop_data(prop.name, value)
+    value[prop.name] = load(context, prop.dtype, value[prop.name])
+    return value
+
+
+def _prepare_prop_data(name: str, data: dict):
+    return {
+        **{
+            k: v
+            for k, v in data.items()
+            if k.startswith('_') and k not in ('_id', '_content_type')
+        },
+        name: {
+            k: v
+            for k, v in data.items()
+            if not k.startswith('_') or k in ('_id', '_content_type')
+        }
+    }
 
 
 @check.register()
@@ -86,7 +103,8 @@ def prepare(context: Context, model: Model, data: dict, *, action: Action) -> di
 
 @prepare.register()
 def prepare(context: Context, prop: Property, value: object, *, action: Action) -> object:
-    return prepare(context, prop.dtype, prop.backend, value)
+    value[prop.name] = prepare(context, prop.dtype, prop.backend, value[prop.name])
+    return value
 
 
 @authorize.register()

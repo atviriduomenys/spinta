@@ -48,7 +48,10 @@ def test_crud(model, app):
         '_type': model,
         '_id': id_,
         '_revision': data['_revision'],
-        'avatar': None,
+        'avatar': {
+            '_id': None,
+            '_content_type': None,
+        },
         'name': 'myphoto',
     }
     assert data['_revision'] != revision
@@ -56,11 +59,10 @@ def test_crud(model, app):
 
     resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.json() == {
-        '_id': id_,
+        '_id': 'myimg.png',
         '_revision': revision,
         '_type': f'{model}.image',
-        'content_type': 'image/png',
-        'filename': 'myimg.png',
+        '_content_type': 'image/png',
     }
 
     resp = app.get(f'/{model}/{id_}/image')
@@ -80,11 +82,10 @@ def test_crud(model, app):
     resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.status_code == 200
     assert resp.json() == {
-        '_id': id_,
+        '_id': None,
         '_revision': revision,
         '_type': f'{model}.image',
-        'content_type': None,
-        'filename': None,
+        '_content_type': None,
     }
 
     resp = app.get(f'/{model}/{id_}/image')
@@ -101,7 +102,10 @@ def test_crud(model, app):
         '_type': model,
         '_id': id_,
         '_revision': revision,
-        'avatar': None,
+        'avatar': {
+            '_id': None,
+            '_content_type': None,
+        },
         'name': 'myphoto',
     }
 
@@ -126,16 +130,16 @@ def test_add_existing_file(model, app, tmpdir):
 
     resp = app.patch(f'/{model}/{id_}/image:ref', json={
         '_revision': revision_,
-        'content_type': 'image/png',
-        'filename': str(image),
+        '_content_type': 'image/png',
+        '_id': str(image),
     })
     assert resp.status_code == 200
     revision_ = resp.json()['_revision']
 
     resp = app.patch(f'/{model}/{id_}/image:ref', json={
         '_revision': revision_,
-        'content_type': 'image/png',
-        'filename': str(image),
+        '_content_type': 'image/png',
+        '_id': str(image),
     })
     assert resp.status_code == 200
 
@@ -156,8 +160,8 @@ def test_add_missing_file(model, app, tmpdir):
         '_type': model,
         'name': 'myphoto',
         'avatar': {
-            'content_type': 'image/png',
-            'filename': str(avatar),
+            '_content_type': 'image/png',
+            '_id': str(avatar),
         },
     })
     assert resp.status_code == 400
@@ -214,10 +218,8 @@ def test_add_missing_file_as_prop(model, app, tmpdir):
     image = pathlib.Path(tmpdir) / 'missing.png'
     resp = app.put(f'/{model}/{id_}/image:ref', json={
         '_revision': revision_,
-        'image': {
-            'content_type': 'image/png',
-            'filename': str(image),
-        },
+        '_content_type': 'image/png',
+        '_id': str(image),
     })
     assert resp.status_code == 400, resp.text
     assert get_error_codes(resp.json()) == ['FileNotFound']
@@ -256,8 +258,7 @@ def test_id_as_filename(model, app, tmpdir):
         '_id': id_,
         '_revision': revision_,
         '_type': f'{model}.image',
-        'content_type': 'image/png',
-        'filename': id_,
+        '_content_type': 'image/png',
     }
 
     resp = app.get(f'/{model}/{id_}?select(name)')
@@ -334,8 +335,8 @@ def test_check_revision_for_file_ref(model, app, tmpdir):
     # PATCH file with revision
     resp = app.patch(f'/{model}/{id_}/image:ref', json={
         '_revision': revision,
-        'content_type': 'image/png',
-        'filename': str(image),
+        '_content_type': 'image/png',
+        '_id': str(image),
     })
     assert resp.status_code == 200
     old_revision = revision

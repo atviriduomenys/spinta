@@ -236,7 +236,12 @@ def get_row(context: Context, row, model: Node):
         raise HTTPException(status_code=404)
     include = {'_type', '_id', '_revision'}
     for prop in model.properties.values():
-        if prop.name in include or not prop.name.startswith('_'):
+        if (
+            not prop.hidden and
+            # TODO: object and array are not supported yet
+            prop.dtype.name not in ('object', 'array') and
+            (prop.name in include or not prop.name.startswith('_'))
+        ):
             yield prop.name, get_cell(context, prop, row.get(prop.name))
 
 
@@ -305,8 +310,10 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
                 include = {'_id'}
             props = [
                 p for p in model.properties.values() if (
-                    p.name in include or
-                    not p.name.startswith('_')
+                    not p.hidden and
+                    # TODO: object and array are not supported yet
+                    p.dtype.name not in ('object', 'array') and
+                    (p.name in include or not p.name.startswith('_'))
                 )
             ]
             header = [p.name for p in props]

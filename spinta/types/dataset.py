@@ -142,6 +142,7 @@ class Property(Node):
         'hidden': {'type': 'boolean', 'inherit': True, 'default': False},
         'place': {'required': True},
         'flags': {'type': 'array'},
+        'default': {},
     }
 
     def __init__(self):

@@ -19,7 +19,7 @@ def test_schema_loader(model, app):
     org = app.post(f'/{model_org}', json={
         'title': 'My Org',
         'govid': '0042',
-        'country': country['_id'],
+        'country': {'_id': country['_id']},
     }).json()
 
     assert country == {
@@ -33,7 +33,7 @@ def test_schema_loader(model, app):
         '_id': org['_id'],
         '_type': model_org,
         '_revision': org['_revision'],
-        'country': country['_id'],
+        'country': {'_id': country['_id']},
         'govid': '0042',
         'title': 'My Org',
     }
@@ -47,7 +47,7 @@ def test_schema_loader(model, app):
         '_id': org['_id'],
         'govid': '0042',
         'title': 'My Org',
-        'country': country['_id'],
+        'country': {'_id': country['_id']},
         '_type': model_org,
         '_revision': revision,
     }

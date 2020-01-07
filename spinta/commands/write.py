@@ -16,7 +16,7 @@ from spinta.backends import Backend
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream
 from spinta.renderer import render
 from spinta.types import dataset
-from spinta.types.datatype import DataType, Object, Array, File
+from spinta.types.datatype import DataType, Object, Array, File, Ref
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist
@@ -334,13 +334,12 @@ async def prepare_data(
             yield data
             continue
         try:
+            data.payload = commands.rename_metadata(context, data.payload)
             if data.prop:
-                data.payload = commands.rename_metadata(context, data.payload)
-                data.given = commands.load(context, data.prop.dtype, data.payload)
+                data.given = commands.load(context, data.prop, data.payload)
                 data.given = commands.prepare(context, data.prop, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.prop, data.model.backend)
             else:
-                data.payload = commands.rename_metadata(context, data.payload)
                 data.given = commands.load(context, data.model, data.payload)
                 data.given = commands.prepare(context, data.model, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.model, data.model.backend)
@@ -433,7 +432,7 @@ async def validate_data(
 ) -> AsyncIterator[DataItem]:
     async for data in dstream:
         if data.error is None:
-            if '_id' in data.given:
+            if '_id' in data.given and data.prop is None:
                 check_scope(context, 'set_meta_fields')
             if data.action == Action.INSERT:
                 if '_revision' in data.given:
@@ -464,10 +463,10 @@ async def prepare_patch(
     async for data in dstream:
         data.patch = build_data_patch_for_write(
             context,
-            data.prop.dtype if data.prop else data.model,
+            data.prop or data.model,
             given=strip_metadata(data.given),
-            saved=strip_metadata(data.saved or {}),
-            fill=data.action == Action.UPDATE,
+            saved=strip_metadata(data.saved) if data.saved else data.saved,
+            fill=data.action in (Action.INSERT, Action.UPDATE),
         )
 
         if data.patch is NA:
@@ -507,7 +506,7 @@ def build_data_patch_for_write(
             context,
             prop.dtype,
             given=given.get(prop.name, NA),
-            saved=saved.get(prop.name, NA),
+            saved=saved.get(prop.name, NA) if saved else saved,
             fill=fill,
         )
         if value is not NA:
@@ -516,7 +515,29 @@ def build_data_patch_for_write(
 
 
 @commands.build_data_patch_for_write.register()  # noqa
-def build_data_patch_for_write(
+def build_data_patch_for_write(  # noqa
+    context: Context,
+    prop: (Property, dataset.Property),
+    *,
+    given: dict,
+    saved: dict,
+    fill: bool = False,
+) -> dict:
+    value = build_data_patch_for_write(
+        context,
+        prop.dtype,
+        given=given.get(prop.name, NA),
+        saved=saved.get(prop.name, NA) if saved else saved,
+        fill=fill,
+    )
+    if value is not NA:
+        return {prop.name: value}
+    else:
+        return {}
+
+
+@commands.build_data_patch_for_write.register()  # noqa
+def build_data_patch_for_write(  # noqa
     context: Context,
     dtype: Object,
     *,
@@ -548,7 +569,7 @@ def build_data_patch_for_write(
 
 
 @commands.build_data_patch_for_write.register()  # noqa
-def build_data_patch_for_write(
+def build_data_patch_for_write(  # noqa
     context: Context,
     dtype: Array,
     *,
@@ -587,7 +608,7 @@ def build_data_patch_for_write(
 
 
 @commands.build_data_patch_for_write.register()  # noqa
-def build_data_patch_for_write(
+def build_data_patch_for_write(  # noqa
     context: Context,
     dtype: DataType,
     *,
@@ -667,7 +688,7 @@ def build_full_response(
 
 
 @commands.build_full_response.register()  # noqa
-def build_full_response(
+def build_full_response(  # noqa
     context: Context,
     dtype: DataType,
     *,
@@ -703,10 +724,9 @@ def build_full_data_patch_for_nested_attrs(
             context,
             prop.dtype,
             patch=patch.get(prop.name, NA),
-            saved=saved.get(prop.name, NA),
+            saved=saved.get(prop.name, NA) if saved else saved,
         )
-        if value is not NA:
-            full_patch[prop.name] = value
+        full_patch.update(value)
     return full_patch
 
 
@@ -718,16 +738,10 @@ def build_full_data_patch_for_nested_attrs(  # noqa
     patch: object,
     saved: object,
 ) -> dict:
-    # do not change scalar values if those values are at top level
-    if isinstance(dtype.prop.parent, Model):
-        return patch
-
-    if patch is not NA:
-        return patch
-    elif saved is not NA:
-        return saved
+    if patch is NA:
+        return {}
     else:
-        return dtype.default
+        return {dtype.prop.place: patch}
 
 
 @commands.build_full_data_patch_for_nested_attrs.register()  # noqa
@@ -758,8 +772,8 @@ def build_full_data_patch_for_nested_attrs(  # noqa
                 patch=patch.get(prop.name, NA) if patch else patch,
                 saved=saved.get(prop.name, NA) if saved else saved,
             )
-            full_patch[prop.name] = value
-        return full_patch
+            full_patch.update(value)
+        return full_patch or {}
 
 
 @commands.build_full_data_patch_for_nested_attrs.register()  # noqa
@@ -778,15 +792,41 @@ def build_full_data_patch_for_nested_attrs(  # noqa
     # then return None for metadata values
     if not patch:
         return {
-            'content_type': None,
-            'filename': None,
+            f'{dtype.prop.place}._content_type': None,
+            f'{dtype.prop.place}._id': None,
         }
 
     # for any other case - return patch values and if not available
     # fallback to saved values or None
     return {
-        'content_type': patch.get('content_type'),
-        'filename': patch.get('filename'),
+        f'{dtype.prop.place}._content_type': patch.get('_content_type'),
+        f'{dtype.prop.place}._id': patch.get('_id'),
+    }
+
+
+@commands.build_full_data_patch_for_nested_attrs.register()  # noqa
+def build_full_data_patch_for_nested_attrs(  # noqa
+    context: Context,
+    dtype: Ref,
+    *,
+    patch: dict,
+    saved: dict,
+) -> dict:
+    # if key for file is not available in patch - return NotAvailable
+    if patch is NA:
+        return saved
+
+    # if key for file is available but value is falsy (None, {}),
+    # then return None for metadata values
+    if not patch:
+        return {
+            f'{dtype.prop.place}._id': None,
+        }
+
+    # for any other case - return patch values and if not available
+    # fallback to saved values or None
+    return {
+        f'{dtype.prop.place}._id': patch.get('_id'),
     }
 
 

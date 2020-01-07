@@ -102,7 +102,9 @@ def test_patch(app):
         '_type': 'org',
         'title': 'My Org',
         'govid': '0042',
-        'country': country_data['_id'],
+        'country': {
+            '_id': country_data['_id'],
+        },
     }).json()
     id_ = org_data['_id']
 

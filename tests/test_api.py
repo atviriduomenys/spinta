@@ -130,10 +130,6 @@ def test_model(model, context, app):
             'valid_from_date',
             'update_time',
             'count',
-            'notes',
-            'operating_licenses',
-            'pdf',
-            'sync',
         ],
         'data': [
             [
@@ -143,10 +139,6 @@ def test_model(model, context, app):
                 {'color': '#C1C1C1', 'link': None, 'value': ''},
                 {'color': '#C1C1C1', 'link': None, 'value': ''},
                 {'color': None, 'link': None, 'value': 42},
-                {'color': None, 'link': None, 'value': []},
-                {'color': None, 'link': None, 'value': []},
-                {'color': '#C1C1C1', 'link': None, 'value': ''},  # XXX: this is pdf value which should be hidden?
-                {'color': '#C1C1C1', 'link': None, 'value': ''},  # sync value
             ],
         ],
         'row': [],
@@ -201,10 +193,6 @@ def test_model_get(model, app):
             ('valid_from_date', {'color': '#C1C1C1', 'link': None, 'value': ''}),
             ('update_time', {'color': '#C1C1C1', 'link': None, 'value': ''}),
             ('count', {'color': None, 'link': None, 'value': 42}),
-            ('notes', {'color': None, 'link': None, 'value': []}),
-            ('operating_licenses', {'color': None, 'link': None, 'value': []}),
-            ('pdf', {'color': '#C1C1C1', 'link': None, 'value': ''}),  # XXX: this is pdf value which should be hidden?
-            ('sync', {'color': '#C1C1C1', 'link': None, 'value': ''}),
         ],
         'formats': [
             ('CSV', f'/{model}/%s/:format/csv' % row['_id']),
@@ -598,7 +586,10 @@ def test_post(model, context, app):
         'count': 42,
         'notes': [],
         'operating_licenses': [],
-        'sync': None,
+        'sync': {
+            'sync_revision': None,
+            'sync_resources': [],
+        },
     }
 
     resp = app.get(f'/{model}/{id_}')
@@ -614,7 +605,10 @@ def test_post(model, context, app):
         'count': 42,
         'notes': [],
         'operating_licenses': [],
-        'sync': None,
+        'sync': {
+            'sync_revision': None,
+            'sync_resources': [],
+        },
     }
 
 

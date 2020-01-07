@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Optional, List, Union, Tuple, Dict
+from typing import AsyncIterator, Optional, List, Union, Tuple, Dict, Iterator
 
 import contextlib
 import datetime
@@ -8,7 +8,6 @@ import itertools
 import typing
 import types
 
-import pytz
 import sqlalchemy as sa
 import sqlalchemy.exc
 from sqlalchemy.dialects.postgresql import JSONB, BIGINT, UUID
@@ -17,6 +16,7 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.sql.type_api import TypeEngine
 from starlette.requests import Request
+from multipledispatch import dispatch
 
 from spinta import commands
 from spinta import exceptions
@@ -36,8 +36,6 @@ from spinta.types.datatype import (
     Object,
     PrimaryKey,
     Ref,
-    String,
-    Integer
 )
 
 from spinta.exceptions import (
@@ -200,16 +198,21 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         *columns,
     )
 
+    # Create tables for nested lists, these tables are used for searches.
     lists_tables = {}
     for prop in _iter_lists(model):
-        # Create table for nested lists.
+        columns = prepare(context, backend, prop.dtype.items)
+        assert columns is not None
+        if not isinstance(columns, list):
+            columns = [columns]
         lists_table_name = get_table_name(prop, TableType.LIST)
         lists_table = sa.Table(
             lists_table_name, backend.schema,
-            sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
-            sa.Column('_id', main_table.c._id.type, sa.ForeignKey(f'{main_table_name}._id', ondelete='CASCADE')),  # reference to main table
-            sa.Column('key', sa.String),  # parent key of the data inside `data` column
-            sa.Column('data', JSONB),
+            sa.Column('_txn', sa.Integer, sa.ForeignKey('transaction._id')),
+            sa.Column('_id', main_table.c._id.type, sa.ForeignKey(
+                f'{main_table_name}._id', ondelete='CASCADE',
+            )),
+            *columns,
         )
         lists_tables[prop.place] = lists_table
 
@@ -231,27 +234,40 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         # implement prepare command and do custom logic there.
         return
 
-    if dtype.name == 'type':
-        return
-    elif dtype.name == 'string':
-        return sa.Column(dtype.prop.name, sa.Text)
+    prop = dtype.prop
+    name = _get_column_name(prop)
+
+    if dtype.name == 'string':
+        return sa.Column(name, sa.Text)
     elif dtype.name == 'date':
-        return sa.Column(dtype.prop.name, sa.Date)
+        return sa.Column(name, sa.Date)
     elif dtype.name == 'datetime':
-        return sa.Column(dtype.prop.name, sa.DateTime)
+        return sa.Column(name, sa.DateTime)
     elif dtype.name == 'integer':
-        return sa.Column(dtype.prop.name, sa.Integer)
+        return sa.Column(name, sa.Integer)
     elif dtype.name == 'number':
-        return sa.Column(dtype.prop.name, sa.Float)
+        return sa.Column(name, sa.Float)
     elif dtype.name == 'boolean':
-        return sa.Column(dtype.prop.name, sa.Boolean)
+        return sa.Column(name, sa.Boolean)
     elif dtype.name in ('spatial', 'image'):
         # TODO: these property types currently are not implemented
-        return sa.Column(dtype.prop.name, sa.Text)
+        return sa.Column(name, sa.Text)
     elif dtype.name in UNSUPPORTED_TYPES:
         return
     else:
-        raise Exception(f"Unknown property type {dtype.name!r}.")
+        raise Exception(
+            f"Unknown property type {dtype.name!r} of {prop.place}."
+        )
+
+
+def _get_column_name(prop: Property):
+    if prop.list:
+        if prop.place == prop.list.place:
+            return prop.list.name
+        else:
+            return prop.place[len(prop.list.place) + 1:]
+    else:
+        return prop.place
 
 
 @prepare.register()
@@ -271,20 +287,21 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
     else:
         column_type = UUID()
     return get_pg_foreign_key(
+        dtype.prop,
         table_name=get_table_name(ref_model),
         model_name=dtype.prop.model.name,
-        column_name=dtype.prop.name,
         column_type=column_type,
     )
 
 
 def get_pg_foreign_key(
+    prop: Property,
     *,
     table_name: str,
     model_name: str,
-    column_name: str,
     column_type: TypeEngine,
 ) -> List[Union[sa.Column, sa.Constraint]]:
+    column_name = _get_column_name(prop) + '._id'
     return [
         sa.Column(column_name, column_type),
         sa.ForeignKeyConstraint(
@@ -296,22 +313,38 @@ def get_pg_foreign_key(
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, dtype: File):
+    name = _get_column_name(dtype.prop)
     if dtype.prop.backend.name == backend.name:
-        return sa.Column(dtype.prop.name, sa.LargeBinary)
+        return [
+            sa.Column(f'{name}._content_type', sa.String),
+            sa.Column(name, sa.LargeBinary),
+        ]
     else:
-        # If file property has a different backend, then here we just need to
-        # save file name of file stored externally.
-        return sa.Column(dtype.prop.name, JSONB)
+        return [
+            sa.Column(f'{name}._id', sa.String),
+            sa.Column(f'{name}._content_type', sa.String),
+        ]
 
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, dtype: Array):
-    return sa.Column(dtype.prop.name, JSONB)
+    prop = dtype.prop
+    if prop.list is None:
+        return sa.Column(prop.place, JSONB)
 
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, dtype: Object):
-    return sa.Column(dtype.prop.name, JSONB)
+    columns = []
+    for prop in dtype.properties.values():
+        if prop.name.startswith('_') and prop.name not in ('_revision',):
+            continue
+        column = prepare(context, backend, prop)
+        if isinstance(column, list):
+            columns.extend(column)
+        elif column is not None:
+            columns.append(column)
+    return columns
 
 
 def _get_pg_name(name):
@@ -384,14 +417,25 @@ def _update_lists_table(
         table = tables[place]
         if action != Action.INSERT:
             connection.execute(table.delete().where(table.c._id == pk))
-        connection.execute(table.insert(), [
+        rows = [
             {
                 'transaction': transaction.id,
                 '_id': pk,
-                'data': row,
+                **{
+                    _get_list_column_name(place, k): v
+                    for k, v in row.items()
+                }
             }
             for prop, row in rows
-        ])
+        ]
+        connection.execute(table.insert(), rows)
+
+
+def _get_list_column_name(place, name):
+    if place == name:
+        return place.split('.')[-1]
+    else:
+        return name[len(place) + 1:]
 
 
 def _has_lists(dtype: Union[Model, DataType]):
@@ -465,14 +509,20 @@ async def insert(
     async for data in dstream:
         # TODO: Refactor this to insert batches with single query.
         qry = table.main.insert().values(
+            _id=data.patch['_id'],
+            _revision=data.patch['_revision'],
             _transaction=transaction.id,
             _created=utcnow(),
         )
-        connection.execute(qry, [{
-            '_id': data.patch['_id'],
-            '_revision': data.patch['_revision'],
-            **{k: v for k, v in data.patch.items() if not k.startswith('_')},
-        }])
+
+        patch = commands.build_full_data_patch_for_nested_attrs(
+            context,
+            model,
+            patch=strip_metadata(data.patch),
+            saved=None,
+        )
+
+        connection.execute(qry, patch)
 
         # Update lists table
         _update_lists_table(
@@ -529,13 +579,13 @@ async def update(
         )
 
         if result.rowcount == 0:
-            raise Exception("Update failed, {model} with {id_} not found.")
+            raise Exception(f"Update failed, {model} with {id_} not found.")
         elif result.rowcount > 1:
-            raise Exception("Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
+            raise Exception(f"Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
 
         # Update lists table
         patch = {
-            k: v for k, v in patch.items() if not k.startswith('_')
+            k: v for k, v in data.patch.items() if not k.startswith('_')
         }
         _update_lists_table(
             context,
@@ -602,7 +652,42 @@ def getone(
         result = backend.get(connection, table, table.c._id == id_)
     except NotFoundError:
         raise ItemDoesNotExist(model, id=id_)
-    return dict(result)
+    return _flat_dicts_to_nested(dict(result))
+
+
+def _flat_dicts_to_nested(value):
+    res = {}
+    for k, v in dict(value).items():
+        names = k.split('.')
+        vref = res
+        for name in names[:-1]:
+            if name not in vref:
+                vref[name] = {}
+            vref = vref[name]
+        vref[names[-1]] = v
+    return res
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    dtype: (Object, File),
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    authorize(context, action, prop)
+    data = getone(context, prop, dtype, backend, id_=params.pk)
+    pdata = data.pop(prop.name)
+    data = {
+        **data,
+        **pdata,
+    }
+    data = prepare(context, Action.GETONE, prop.dtype, backend, data)
+    return render(context, request, prop, params, data, action=action)
 
 
 @getone.register()
@@ -620,23 +705,6 @@ async def getone(
 
 
 @getone.register()
-async def getone(
-    context: Context,
-    request: Request,
-    prop: Property,
-    dtype: (Object, File),
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-):
-    authorize(context, action, prop)
-    data = getone(context, prop, dtype, backend, id_=params.pk)
-    data = prepare(context, Action.GETONE, prop.dtype, backend, data)
-    return render(context, request, prop, params, data, action=action)
-
-
-@getone.register()
 def getone(
     context: Context,
     prop: Property,
@@ -650,7 +718,9 @@ def getone(
     selectlist = [
         table.c._id,
         table.c._revision,
-        table.c[prop.name],
+    ] + [
+        table.c[name]
+        for name in _iter_prop_names(prop.dtype)
     ]
     try:
         data = backend.get(connection, selectlist, table.c._id == id_)
@@ -661,9 +731,29 @@ def getone(
         '_id': data[table.c._id],
         '_revision': data[table.c._revision],
         '_type': prop.model.model_type(),
-        **(data[table.c[prop.name]] or {}),
     }
+
+    data = _flat_dicts_to_nested(data)
+    result[prop.name] = data[prop.name]
     return result
+
+
+@dispatch((Model, Object))
+def _iter_prop_names(dtype) -> Iterator[Property]:
+    for prop in dtype.properties.values():
+        yield from _iter_prop_names(prop.dtype)
+
+
+@dispatch(DataType)
+def _iter_prop_names(dtype) -> Iterator[Property]:  # noqa
+    if not dtype.prop.name.startswith('_'):
+        yield _get_column_name(dtype.prop)
+
+
+@dispatch(File)
+def _iter_prop_names(dtype) -> Iterator[Property]:  # noqa
+    yield dtype.prop.place + '._id'
+    yield dtype.prop.place + '._content_type'
 
 
 @getone.register()
@@ -680,7 +770,9 @@ def getone(
     selectlist = [
         table.c._id,
         table.c._revision,
-        table.c[prop.name],
+    ] + [
+        table.c[name]
+        for name in _iter_prop_names(prop.dtype)
     ]
     try:
         data = backend.get(connection, selectlist, table.c._id == id_)
@@ -690,10 +782,11 @@ def getone(
     result = {
         '_id': data[table.c._id],
         '_revision': data[table.c._revision],
-        '_type': prop.model.model_type(),
-        **(data[prop.name] if data[prop.name]
-           else {'content_type': None, 'filename': None}),
+        '_type': prop.model_type(),
     }
+
+    data = _flat_dicts_to_nested(data)
+    result[prop.name] = data[prop.name]
     return result
 
 
@@ -743,9 +836,8 @@ def getall(
     qb = QueryBuilder(context, model, backend, table)
     qry = qb.build(select, sort, offset, limit, query)
 
-    print(str(qry.compile()) % qry.compile().params)
-
     for row in connection.execute(qry):
+        row = _flat_dicts_to_nested(dict(row))
         yield {
             '_type': model.model_type(),
             **row,
@@ -885,37 +977,14 @@ class QueryBuilder:
     def get_sql_field(self, prop: Property, lower: bool = False):
         if prop.list is not None:
             list_table = self.table.lists[prop.list.place]
-            jsonb = list_table.c.data[prop.place]
-            if _is_dtype(prop, (String, DateTime, Date)):
-                field = jsonb.astext
-            elif _is_dtype(prop, Integer):
-                field = sa.cast(jsonb, BIGINT)
-            else:
-                field = sa.cast(jsonb, JSONB)
+            field = list_table.c[_get_column_name(prop)]
         else:
             field = self.table.main.c[prop.name]
-
         if lower:
             field = sa.func.lower(field)
-
         return field
 
     def get_sql_value(self, prop: Property, value: object):
-        if prop.list is not None:
-            if _is_dtype(prop, DateTime):
-                value = datetime.datetime.fromisoformat(value)
-                if value.tzinfo is not None:
-                    # XXX: Think below probably must be hander in a more proper way.
-                    # FIXME: Same conversion must be done when storing data.
-                    # Convert dates to utc and drop timezone information, we can't
-                    # compare dates in JSONB.
-                    value = value.astimezone(pytz.utc).replace(tzinfo=None)
-                value = value.isoformat()
-            elif _is_dtype(prop, Date):
-                value = datetime.date.fromisoformat(value)
-                value = value.isoformat()
-            elif not _is_dtype(prop, (String, Integer)):
-                value = sa.cast(value, JSONB)
         return value
 
     def op_and(self, *args: List[dict]):
@@ -1021,15 +1090,6 @@ class QueryBuilder:
         value = sa.any_(value)
         cond = method(prop, field, value)
         return self.compare(op, prop, cond)
-
-
-def _is_dtype(prop, DataType):
-    return (
-        isinstance(prop.dtype, DataType) or (
-            isinstance(prop.dtype, Array) and
-            isinstance(prop.dtype.items.dtype, DataType)
-        )
-    )
 
 
 def _getall_order_by(
@@ -1255,12 +1315,25 @@ def get_changes_table(backend, table_name, id_type):
 
 
 @prepare.register()
-def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, select: typing.List[str] = None) -> dict:
+def prepare(
+    context: Context,
+    action: Action,
+    model: Model,
+    backend: PostgreSQL,
+    value: RowProxy,
+    *,
+    select: typing.List[str] = None,
+) -> dict:
     return prepare(context, action, model, backend, dict(value), select=select)
 
 
 @prepare.register()
-def prepare(context: Context, dtype: DateTime, backend: PostgreSQL, value: datetime.datetime) -> object:
+def prepare(
+    context: Context,
+    dtype: DateTime,
+    backend: PostgreSQL,
+    value: datetime.datetime,
+) -> object:
     # convert datetime object to isoformat string if it belongs
     # to a nested property
     if dtype.prop.parent is dtype.prop.model:
