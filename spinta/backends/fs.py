@@ -47,8 +47,8 @@ def prepare(context: Context, backend: FileSystem, dtype: File):
 @prepare.register()
 def prepare(context: Context, dtype: File, backend: Backend, value: Attachment):
     return {
-        'filename': value.filename,
-        'content_type': value.content_type,
+        '_id': value.filename,
+        '_content_type': value.content_type,
     }
 
 
@@ -103,9 +103,9 @@ def complex_data_check(
         Backend,
         dict,
     ](context, data, dtype, prop, backend, given)
-    path = prop.backend.path / given['filename']
+    path = prop.backend.path / given['_id']
     if not path.exists():
-        raise FileNotFound(prop, file=given['filename'])
+        raise FileNotFound(prop, file=given['_id'])
 
 
 @push.register()
@@ -120,24 +120,33 @@ async def push(
 ):
     authorize(context, action, prop)
 
-    data = DataItem(prop.model, prop, propref=True, backend=prop.model.backend, action=action)
+    data = DataItem(
+        prop.model,
+        prop,
+        propref=False,
+        backend=backend,
+        action=action
+    )
     data.given = {
-        'content_type': request.headers.get('content-type'),
-        'filename': None,
+        prop.name: {
+            '_content_type': request.headers.get('content-type'),
+            '_id': None,
+        }
     }
 
     if 'revision' in request.headers:
         data.given['_revision'] = request.headers.get('revision')
     if 'content-disposition' in request.headers:
-        data.given['filename'] = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
-    if not data.given['filename']:
-        data.given['filename'] = params.pk
+        data.given[prop.name]['_id'] = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
+    if not data.given[prop.name]['_id']:
+        # XXX: Probably here should be a new UUID.
+        data.given[prop.name]['_id'] = params.pk
 
     simple_data_check(context, data, data.prop, data.model.backend)
 
     data.saved = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
 
-    filepath = backend.path / data.given['filename']
+    filepath = backend.path / data.given[prop.name]['_id']
 
     if action in (Action.UPDATE, Action.PATCH):
         with open(filepath, 'wb') as f:
@@ -176,10 +185,10 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
-    filename = data.get('filename')
+    filename = data[prop.name]['_id']
     if filename is None:
         raise ItemDoesNotExist(prop, id=params.pk)
-    content_type = data['content_type']
+    content_type = data[prop.name]['_content_type']
     return FileResponse(prop.backend.path / filename, media_type=content_type)
 
 
@@ -192,12 +201,7 @@ def getone(
     *,
     id_: str,
 ):
-    data = getone(context, prop, prop.model.backend, id_=id_)
-    if data is None:
-        raise ItemDoesNotExist(prop, id=id_)
-    data = data[prop.name]
-    filename = data['filename'] or id_
-    return (prop.backend.path / filename).read_bytes()
+    raise NotImplementedError
 
 
 @getone.register()
@@ -212,9 +216,7 @@ def getone(
     data = getone(context, prop, prop.model.backend, id_=id_)
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
-    data = data[prop.name]
-    filename = data['filename'] or id_
-    return (prop.backend.path / filename).read_bytes()
+    return (prop.backend.path / data[prop.name]['_id']).read_bytes()
 
 
 @wipe.register()
@@ -250,17 +252,17 @@ def build_data_patch_for_write(
 ) -> Union[dict, NotAvailable]:
     if fill:
         given = {
-            'content_type': given.get('content_type', None) if given else given,
-            'filename': given.get('filename', None) if given else given,
+            '_content_type': given.get('_content_type', None) if given else given,
+            '_id': given.get('_id', None) if given else given,
         }
     else:
         given = {
-            'content_type': given.get('content_type', NA) if given else given,
-            'filename': given.get('filename', NA) if given else given,
+            '_content_type': given.get('_content_type', NA) if given else given,
+            '_id': given.get('_id', NA) if given else given,
         }
     saved = {
-        'content_type': saved.get('content_type', NA) if saved else saved,
-        'filename': saved.get('filename', NA) if saved else saved,
+        '_content_type': saved.get('_content_type', NA) if saved else saved,
+        '_id': saved.get('_id', NA) if saved else saved,
     }
     given = {
         k: v for k, v in given.items()
@@ -276,8 +278,8 @@ def complex_data_check(
     data: DataItem,
     dtype: File,
     prop: Property,
-    backend: Backend,
-    value: object,
+    backend: FileSystem,
+    value: dict,
 ):
     # TODO: revision check for files
     if data.action in (Action.UPDATE, Action.PATCH, Action.DELETE):

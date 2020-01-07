@@ -579,9 +579,9 @@ async def update(
         )
 
         if result.rowcount == 0:
-            raise Exception("Update failed, {model} with {id_} not found.")
+            raise Exception(f"Update failed, {model} with {id_} not found.")
         elif result.rowcount > 1:
-            raise Exception("Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
+            raise Exception(f"Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
 
         # Update lists table
         patch = {
@@ -673,20 +673,6 @@ async def getone(
     context: Context,
     request: Request,
     prop: Property,
-    dtype: DataType,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-):
-    raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
-
-
-@getone.register()
-async def getone(
-    context: Context,
-    request: Request,
-    prop: Property,
     dtype: (Object, File),
     backend: PostgreSQL,
     *,
@@ -695,8 +681,27 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, dtype, backend, id_=params.pk)
+    pdata = data.pop(prop.name)
+    data = {
+        **data,
+        **pdata,
+    }
     data = prepare(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    dtype: DataType,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
 
 
 @getone.register()
@@ -729,7 +734,7 @@ def getone(
     }
 
     data = _flat_dicts_to_nested(data)
-    result.update(data[prop.name])
+    result[prop.name] = data[prop.name]
     return result
 
 
@@ -777,11 +782,11 @@ def getone(
     result = {
         '_id': data[table.c._id],
         '_revision': data[table.c._revision],
-        '_type': prop.model.model_type(),
+        '_type': prop.model_type(),
     }
 
     data = _flat_dicts_to_nested(data)
-    result.update(data[prop.name])
+    result[prop.name] = data[prop.name]
     return result
 
 

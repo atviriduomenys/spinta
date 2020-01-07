@@ -329,19 +329,17 @@ async def prepare_data(
             yield data
             continue
         try:
+            data.payload = commands.rename_metadata(context, data.payload)
             if data.prop:
-                data.payload = commands.rename_metadata(context, data.payload)
-                data.given = commands.load(context, data.prop.dtype, data.payload)
+                data.given = commands.load(context, data.prop, data.payload)
                 data.given = commands.prepare(context, data.prop, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.prop, data.model.backend)
             else:
-                data.payload = commands.rename_metadata(context, data.payload)
                 data.given = commands.load(context, data.model, data.payload)
                 data.given = commands.prepare(context, data.model, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.model, data.model.backend)
         except (exceptions.UserError, InsufficientScopeError) as error:
             report_error(error, stop_on_error)
-        pp(data.payload, data.given)
         yield data
 
 
@@ -460,7 +458,7 @@ async def prepare_patch(
     async for data in dstream:
         data.patch = build_data_patch_for_write(
             context,
-            data.prop.dtype if data.prop else data.model,
+            data.prop or data.model,
             given=strip_metadata(data.given),
             saved=strip_metadata(data.saved) if data.saved else data.saved,
             fill=data.action in (Action.INSERT, Action.UPDATE),
@@ -509,6 +507,28 @@ def build_data_patch_for_write(
         if value is not NA:
             patch[prop.name] = value
     return patch
+
+
+@commands.build_data_patch_for_write.register()  # noqa
+def build_data_patch_for_write(  # noqa
+    context: Context,
+    prop: (Property, dataset.Property),
+    *,
+    given: dict,
+    saved: dict,
+    fill: bool = False,
+) -> dict:
+    value = build_data_patch_for_write(
+        context,
+        prop.dtype,
+        given=given.get(prop.name, NA),
+        saved=saved.get(prop.name, NA) if saved else saved,
+        fill=fill,
+    )
+    if value is not NA:
+        return {prop.name: value}
+    else:
+        return {}
 
 
 @commands.build_data_patch_for_write.register()  # noqa

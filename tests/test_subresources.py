@@ -413,7 +413,7 @@ def test_get_subresource_file(model, app, tmpdir):
 
     resp = app.get(f'/{model}/{id_}/pdf')
     assert resp.status_code == 200
-    # XXX: is this how file subresource GET should work?
+    assert resp.headers['content-type'] == 'application/pdf'
     assert resp.content == b'REPORTDATA'
 
     resp = app.get(f'/{model}/{id_}/pdf:ref')

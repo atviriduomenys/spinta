@@ -30,7 +30,10 @@ def test_insert_get(model, app):
         'update_time': None,
         'valid_from_date': None,
         'operating_licenses': [],
-        'sync': None,
+        'sync': {
+            'sync_resources': [],
+            'sync_revision': None,
+        },
     }
 
     # Read those objects from database.
@@ -47,7 +50,10 @@ def test_insert_get(model, app):
         'update_time': None,
         'valid_from_date': None,
         'operating_licenses': [],
-        'sync': None,
+        'sync': {
+            'sync_resources': [],
+            'sync_revision': None,
+        },
     }
 
 
@@ -218,8 +224,8 @@ def test_delete(model, app, tmpdir):
 
     resp = app.put(f'/{model}/{ids[0]}/pdf:ref', json={
         '_revision': revisions[0],
-        'content_type': 'application/pdf',
-        'filename': str(pdf),
+        '_content_type': 'application/pdf',
+        '_id': str(pdf),
     })
     assert resp.status_code == 200
 
@@ -501,7 +507,7 @@ def test_update_same_subresource(model, app):
 
     resp = app.put(f'/{model}/{id_}/subobj', json={
         '_revision': revision,
-        'foo': 'bar',
+        'foo': 'baz',
     })
     assert resp.status_code == 200
     data = resp.json()
@@ -511,7 +517,7 @@ def test_update_same_subresource(model, app):
         '_revision': new_revision,
         '_type': f'{model}.subobj',
         'bar': None,
-        'foo': 'bar',
+        'foo': 'baz',
     }
     assert new_revision != revision
 
@@ -523,7 +529,7 @@ def test_update_same_subresource(model, app):
         '_revision': new_revision,
         '_type': f'{model}.subobj',
         'bar': None,
-        'foo': 'bar',
+        'foo': 'baz',
     }
 
 
@@ -538,7 +544,7 @@ def test_update_same_array(model, app):
 
     resp = app.post(f'/{model}', json={
         '_type': model,
-        'subarray': [{'foo': 'bar'}],
+        'subarray': [{'foo': 'baz'}],
     })
     assert resp.status_code == 201
     id_ = resp.json()['_id']

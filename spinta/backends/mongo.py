@@ -176,10 +176,13 @@ async def insert(
     table = backend.db[model.model_type()]
     async for data in dstream:
         # TODO: Insert batches in a single query, using `insert_many`.
+        patch = {
+            k: v for k, v in data.patch.items() if not k.startswith('_')
+        }
         table.insert_one({
             '__id': data.patch['_id'],
             '_revision': data.patch['_revision'],
-            **{k: v for k, v in data.patch.items() if not k.startswith('_')},
+            **patch,
         })
         data.saved = data.patch.copy()
         yield data
@@ -321,6 +324,11 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, dtype, backend, id_=params.pk)
+    pdata = data.pop(prop.name)
+    data = {
+        **data,
+        **pdata,
+    }
     data = prepare(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
 
@@ -347,7 +355,7 @@ def getone(
         '_id': data['__id'],
         '_revision': data['_revision'],
         '_type': type_,
-        **(data.get(prop.name) or {}),
+        prop.name: (data.get(prop.name) or {}),
     }
     return result
 
@@ -374,7 +382,10 @@ def getone(
         '_id': data['__id'],
         '_revision': data['_revision'],
         '_type': type_,
-        **(data.get(prop.name) or {'content_type': None, 'filename': None}),
+        prop.name: data.get(prop.name, {
+            '_content_type': None,
+            '_id': None
+        }),
     }
     return result
 

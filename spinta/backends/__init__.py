@@ -5,13 +5,13 @@ import datetime
 import uuid
 import typing
 
-from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String
+from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File
 from spinta.components import Context, Model, Property, Action, Node, DataItem
 from spinta.commands import load_operator_value, prepare, dump, gen_object_id, is_object_id
 from spinta.types import dataset
 from spinta.exceptions import ConflictingValue, NoItemRevision
 from spinta.utils.nestedstruct import build_select_tree
-from spinta.utils.schema import NA
+from spinta.utils.schema import NotAvailable, NA
 from spinta import commands
 from spinta import exceptions
 
@@ -69,6 +69,19 @@ def dump(context: Context, backend: Backend, dtype: DataType, value: object, *, 
 
 
 @dump.register()
+def dump(context: Context, backend: Backend, dtype: DataType, value: NotAvailable, *, select: dict = None):
+    return dtype.prop.default
+
+
+@dump.register()
+def dump(context: Context, backend: Backend, dtype: File, value: NotAvailable, *, select: dict = None):
+    return {
+        '_id': None,
+        '_content_type': None,
+    }
+
+
+@dump.register()
 def dump(context: Context, backend: Backend, dtype: DateTime, value: datetime.datetime, *, select: dict = None):
     return value.isoformat()
 
@@ -95,7 +108,7 @@ def dump(context: Context, backend: Backend, dtype: Object, value: dict, *, sele
         if not prop.name.startswith('_')
     )
     return {
-        prop.name: dump(context, backend, prop.dtype, value.get(prop.name), select=select_)
+        prop.name: dump(context, backend, prop.dtype, value.get(prop.name, NA), select=select_)
         for prop in props
         if select_ is None or '*' in select_ or prop.place in select_
     }
@@ -134,7 +147,7 @@ def simple_data_check(  # noqa
         prop.dtype,
         prop,
         backend,
-        data.given,
+        data.given[prop.name],
     )
 
 
@@ -432,7 +445,7 @@ def _prepare_query_result(
             if prop.hidden or (name.startswith('_') and name not in meta):
                 continue
             if select is None or '*' in select or name in select:
-                result[name] = dump(context, backend, prop.dtype, value.get(name), select=select)
+                result[name] = dump(context, backend, prop.dtype, value.get(name, NA), select=select)
 
         return result
 
@@ -527,7 +540,6 @@ def update(
     dstream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
 ):
-    dstream = _prepare_property_for_update(prop, dstream)
     return commands.update(
         context, prop.model, prop.model.backend,
         dstream=dstream,
@@ -545,43 +557,11 @@ def patch(
     dstream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
 ):
-    dstream = _prepare_property_for_update(prop, dstream)
     return commands.update(
         context, prop.model, prop.model.backend,
         dstream=dstream,
         stop_on_error=stop_on_error,
     )
-
-
-async def _prepare_property_for_update(
-    prop: Union[Property, dataset.Property],
-    dstream: AsyncIterator[DataItem],
-) -> AsyncIterator[DataItem]:
-    async for data in dstream:
-        # Wraps prepared data for update with the property as key,
-        # thus the data is correct from the root of the model
-        if data.patch:
-            data.patch = {
-                **{k: v for k, v in data.patch.items() if k.startswith('_')},
-                prop.name: {
-                    k: v for k, v in data.patch.items() if not k.startswith('_')
-                }
-            }
-        if data.saved:
-            data.saved = {
-                **{k: v for k, v in data.saved.items() if k.startswith('_')},
-                prop.name: {
-                    k: v for k, v in data.saved.items() if not k.startswith('_')
-                }
-            }
-        if data.given:
-            data.given = {
-                **{k: v for k, v in data.given.items() if k.startswith('_')},
-                prop.name: {
-                    k: v for k, v in data.given.items() if not k.startswith('_')
-                }
-            }
-        yield data
 
 
 @commands.delete.register()

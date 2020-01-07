@@ -240,11 +240,11 @@ def test_file_fill_saved(context):
             },
         },
     })
-    given = {'file': {'filename': 'test.txt', 'content_type': 'text/plain'}}
-    saved = {'file': {'filename': 'test.txt'}}
+    given = {'file': {'_id': 'test.txt', '_content_type': 'text/plain'}}
+    saved = {'file': {'_id': 'test.txt'}}
     assert patch(context, model, given=given, saved=saved, fill=True) == {
         'file': {
-            'content_type': 'text/plain',
+            '_content_type': 'text/plain',
         },
     }
 
@@ -257,7 +257,7 @@ def test_file_fill_saved_all_same(context):
             },
         },
     })
-    given = {'file': {'filename': 'test.txt', 'content_type': 'text/plain'}}
-    saved = {'file': {'filename': 'test.txt', 'content_type': 'text/plain'}}
+    given = {'file': {'_id': 'test.txt', '_content_type': 'text/plain'}}
+    saved = {'file': {'_id': 'test.txt', '_content_type': 'text/plain'}}
     assert patch(context, model, given=given, saved=saved, fill=True) == {
     }
