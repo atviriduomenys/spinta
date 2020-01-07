@@ -885,14 +885,9 @@ class QueryBuilder:
         if query:
             qry = qry.where(self.op_and(*query))
 
-        qry, self.joins = _getall_order_by(
-            self.model,
-            self.backend,
-            qry,
-            self.table,
-            self.joins,
-            sort,
-        )
+        if sort:
+            qry = self.sort(qry, sort)
+
         qry = _getall_offset(qry, offset)
         qry = _getall_limit(qry, limit)
         qry = qry.select_from(self.joins)
@@ -979,7 +974,7 @@ class QueryBuilder:
             list_table = self.table.lists[prop.list.place]
             field = list_table.c[_get_column_name(prop)]
         else:
-            field = self.table.main.c[prop.name]
+            field = self.table.main.c[prop.place]
         if lower:
             field = sa.func.lower(field)
         return field
@@ -1091,21 +1086,16 @@ class QueryBuilder:
         cond = method(prop, field, value)
         return self.compare(op, prop, cond)
 
-
-def _getall_order_by(
-    model: Model,
-    backend: PostgreSQL,
-    qry: sa.sql.Select,
-    table: ModelTables,
-    joins: List[str],
-    sort: typing.List[typing.Tuple[str, str]],
-) -> sa.sql.Select:
-    if sort:
+    def sort(
+        self,
+        qry: sa.sql.Select,
+        sort: typing.List[typing.Tuple[str, str]],
+    ) -> sa.sql.Select:
         direction = {
             '+': lambda c: c.asc(),
             '-': lambda c: c.desc(),
         }
-        db_sort_keys = []
+        fields = []
         for key in sort:
             # Optional sort direction: sort(+key) or sort(key)
             # XXX: Probably move this to spinta/urlparams.py.
@@ -1114,40 +1104,33 @@ def _getall_order_by(
             else:
                 d, key = key
 
-            if key not in model.flatprops:
-                raise exceptions.FieldNotInResource(model, property=key)
-
-            prop = model.flatprops[key]
+            key, lower = self.resolve_lower_call(key)
+            prop = self.resolve_property(key)
+            field = self.get_sql_field(prop, lower)
 
             if prop.list is not None:
-                list_table = table.lists[prop.list.place]
+                list_table = self.table.lists[prop.list.place]
                 subqry = (
                     sa.select(
-                        [
-                            list_table.c._id,
-                            (
-                                sa.cast(list_table.c.data[prop.place], JSONB).
-                                label('value'),
-                            )
-                        ],
+                        [list_table.c._id, field.label('value')],
                         distinct=list_table.c._id,
                     ).alias()
                 )
-                joins = joins.outerjoin(
+                self.joins = self.joins.outerjoin(
                     subqry,
-                    table.main.c._id == subqry.c._id,
+                    self.table.main.c._id == subqry.c._id,
                 )
                 field = subqry.c.value
             else:
-                field = table.main.c[prop.name]
+                field = self.table.main.c[prop.place]
+
+            if lower:
+                field = sa.func.lower(field)
 
             field = direction[d](field)
+            fields.append(field)
 
-            db_sort_keys.append(field)
-
-        return qry.order_by(*db_sort_keys), joins
-    else:
-        return qry, joins
+        return qry.order_by(*fields)
 
 
 def _getall_offset(qry: sa.sql.Select, offset: Optional[int]) -> sa.sql.Select:
