@@ -5,10 +5,13 @@
 #    pip-compile --no-index --output-file=requirements-dev.txt requirements-dev.in requirements.in
 #
 aiofiles==0.4.0
+alabaster==0.7.12         # via sphinx
+argh==0.26.2              # via sphinx-autobuild, watchdog
 asttokens==2.0.2          # via snoop
 asyncpg==0.20.0
 attrs==19.3.0             # via pytest
 authlib==0.11
+babel==2.8.0              # via sphinx
 backcall==0.1.0           # via ipython
 certifi==2019.11.28       # via requests
 cffi==1.13.2              # via cryptography
@@ -19,11 +22,13 @@ codecov==2.0.15
 coverage==4.5.4           # via codecov, pytest-cov
 cryptography==2.8         # via authlib
 decorator==4.4.1          # via ipython, traitlets
+docutils==0.15.2          # via sphinx
 executing==0.3.3          # via snoop
 gunicorn==20.0.4
 h11==0.8.1                # via uvicorn
 httptools==0.0.13         # via uvicorn
 idna==2.8                 # via requests
+imagesize==1.2.0          # via sphinx
 ipdb==0.12.3
 ipython-genutils==0.2.0   # via traitlets
 ipython==7.10.1
@@ -31,16 +36,19 @@ jedi==0.15.1              # via ipython
 jinja2==2.10.3
 jsonpatch==1.24
 jsonpointer==2.0          # via jsonpatch
+livereload==2.6.1         # via sphinx-autobuild
 lxml==4.4.2
 markupsafe==1.1.1         # via jinja2
 more-itertools==8.0.2     # via pytest
 msgpack==0.6.2
 multipledispatch==0.6.0
-packaging==19.2           # via pytest
+packaging==19.2           # via pytest, sphinx
 parso==0.5.1              # via jedi
+pathtools==0.1.2          # via sphinx-autobuild, watchdog
 pexpect==4.7.0            # via ipython
 pickleshare==0.7.5        # via ipython
 pluggy==0.13.1            # via pytest
+port_for==0.3.1           # via sphinx-autobuild
 pp-ez==0.2.0
 pprintpp==0.4.0
 prompt-toolkit==3.0.2     # via ipython
@@ -48,7 +56,7 @@ psycopg2-binary==2.8.4
 ptyprocess==0.6.0         # via pexpect
 py==1.8.0                 # via pytest
 pycparser==2.19           # via cffi
-pygments==2.5.2           # via ipython, snoop
+pygments==2.5.2           # via ipython, snoop, sphinx
 pymongo==3.10.0
 pyparsing==2.4.5          # via packaging, pyrql
 pyrql==0.5.1
@@ -59,18 +67,30 @@ pytest==5.3.1
 python-dateutil==2.8.1    # via pyrql
 python-multipart==0.0.5
 pytz==2019.3
+pyyaml==5.3               # via sphinx-autobuild, watchdog
 requests==2.22.0
 responses==0.10.8
 ruamel.yaml==0.16.5
 setuptools-scm==3.3.3
-six==1.13.0               # via asttokens, cryptography, multipledispatch, packaging, python-dateutil, python-multipart, responses, snoop, sqlalchemy-utils, traitlets
+six==1.13.0               # via asttokens, cryptography, livereload, multipledispatch, packaging, python-dateutil, python-multipart, responses, snoop, sphinxcontrib.httpdomain, sqlalchemy-utils, traitlets
 snoop==0.2.2
+snowballstemmer==2.0.0    # via sphinx
+sphinx-autobuild==0.7.1
+sphinx==2.3.1
+sphinxcontrib-applehelp==1.0.1  # via sphinx
+sphinxcontrib-devhelp==1.0.1  # via sphinx
+sphinxcontrib-htmlhelp==1.0.2  # via sphinx
+sphinxcontrib-jsmath==1.0.1  # via sphinx
+sphinxcontrib-qthelp==1.0.2  # via sphinx
+sphinxcontrib-serializinghtml==1.1.3  # via sphinx
+sphinxcontrib.httpdomain==1.7.0
 sqlalchemy-utils==0.36.0
 sqlalchemy==1.3.11
 sqlparse==0.3.0
 starlette==0.13.0
 texttable==1.6.2
 toposort==1.5
+tornado==6.0.3            # via livereload, sphinx-autobuild
 tqdm==4.40.2
 traitlets==4.3.3          # via ipython
 ujson==1.35
@@ -78,6 +98,7 @@ unidecode==1.1.1
 urllib3==1.25.7           # via requests
 uvicorn==0.10.8
 uvloop==0.14.0            # via uvicorn
+watchdog==0.9.0           # via sphinx-autobuild
 wcwidth==0.1.7            # via prompt-toolkit, pytest
 websockets==8.1           # via uvicorn
 xlrd==1.2.0

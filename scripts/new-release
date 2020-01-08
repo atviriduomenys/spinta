@@ -46,6 +46,8 @@ def main():
     distfiles = [str(f) for f in dist.glob(f'spinta-{args.version}*')]
     run(['twine', 'upload'] + distfiles)
 
+    run(['git', 'push', '--tags'])
+
 
 if __name__ == "__main__":
     sys.exit(main() or 0)

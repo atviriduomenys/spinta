@@ -9,5 +9,8 @@ pytest-cov
 pytest-mock
 responses
 snoop
+sphinx
+sphinx-autobuild
+sphinxcontrib.httpdomain
 sqlalchemy-utils
 sqlparse
