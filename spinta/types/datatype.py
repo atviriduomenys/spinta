@@ -187,15 +187,7 @@ def _add_leaf_props(prop: Property) -> None:
 
 @load.register()
 def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
-    dtype.properties = {
-        '_op': {'type': 'string'},
-        '_type': {'type': 'string'},
-        '_id': {'type': 'pk', 'unique': True},
-        '_revision': {'type': 'string'},
-        '_transaction': {'type': 'integer'},
-        '_where': {'type': 'rql'},
-        **data.get('properties', {}),
-    }
+    dtype.properties = data.get('properties', {})
     for name, params in dtype.properties.items():
         place = dtype.prop.place + '.' + name
         params = {

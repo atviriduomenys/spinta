@@ -525,7 +525,6 @@ def test_update_same_subresource(model, app):
     resp = app.get(f'/{model}/{id_}/subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        '_id': id_,
         '_revision': new_revision,
         '_type': f'{model}.subobj',
         'bar': None,
