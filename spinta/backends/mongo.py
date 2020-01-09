@@ -16,7 +16,7 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.config import RawConfig
 from spinta.renderer import render
 from spinta.types.datatype import Date, DataType, File, Object
-from spinta.utils.schema import strip_metadata
+from spinta.utils.schema import strip_metadata, is_valid_sort_key
 from spinta.commands import (
     authorize,
     getall,
@@ -497,6 +497,8 @@ class QueryBuilder:
             sort = ((('+',) + k) if len(k) == 1 else k for k in sort)
             nsort = []
             for d, k in sort:
+                if not is_valid_sort_key(k, self.model):
+                    raise exceptions.FieldNotInResource(self.model, property=k)
                 if k == '_id':
                     k = '__id'
                 nsort.append((k, direction[d]))
