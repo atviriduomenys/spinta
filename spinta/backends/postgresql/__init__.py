@@ -26,7 +26,7 @@ from spinta.components import Context, Manifest, Model, Property, Action, UrlPar
 from spinta.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
-from spinta.utils.schema import NA, strip_metadata
+from spinta.utils.schema import NA, strip_metadata, is_valid_sort_key
 from spinta.types.datatype import (
     Array,
     DataType,
@@ -918,11 +918,16 @@ class QueryBuilder:
             else:
                 yield method(*opargs)
 
-    def resolve_property(self, key: Union[str, tuple]) -> Property:
+    def resolve_property(self, key: Union[str, tuple], sort: bool = False) -> Property:
         if isinstance(key, tuple):
             key = '.'.join(key)
-        if key not in self.model.flatprops:
+
+        if sort:
+            if not is_valid_sort_key(key, self.model):
+                raise exceptions.FieldNotInResource(self.model, property=key)
+        elif key not in self.model.flatprops:
             raise exceptions.FieldNotInResource(self.model, property=key)
+
         prop = self.model.flatprops[key]
         if isinstance(prop.dtype, Array):
             return prop.dtype.items
@@ -1105,7 +1110,7 @@ class QueryBuilder:
                 d, key = key
 
             key, lower = self.resolve_lower_call(key)
-            prop = self.resolve_property(key)
+            prop = self.resolve_property(key, sort=True)
             field = self.get_sql_field(prop, lower)
 
             if prop.list is not None:
