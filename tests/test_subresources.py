@@ -54,7 +54,6 @@ def test_get_subresource(model, app):
     resp = app.get(f'/{model}/{id_}/subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        '_id': id_,
         '_type': f'{model}.subobj',
         '_revision': revision_,
         'foo': 'foobar123',
@@ -64,7 +63,6 @@ def test_get_subresource(model, app):
     resp = app.get(f'/{model}/{id_}/hidden_subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        '_id': id_,
         '_type': f'{model}.hidden_subobj',
         '_revision': revision_,
         'fooh': 'secret',
@@ -329,7 +327,6 @@ def test_subresource_scopes(model, app):
     resp = app.get(f'/{model}/{id_}/subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        '_id': id_,
         '_type': f'{model}.subobj',
         '_revision': revision_,
         'foo': 'foobar123',
@@ -343,7 +340,6 @@ def test_subresource_scopes(model, app):
     resp = app.get(f'/{model}/{id_}/subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        '_id': id_,
         '_type': f'{model}.subobj',
         '_revision': revision_,
         'foo': 'foobar123',
@@ -369,7 +365,6 @@ def test_subresource_scopes(model, app):
     resp = app.get(f'/{model}/{id_}/hidden_subobj')
     assert resp.status_code == 200
     assert resp.json() == {
-        '_id': id_,
         '_type': f'{model}.hidden_subobj',
         '_revision': revision_,
         'fooh': 'secret',

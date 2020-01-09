@@ -632,8 +632,6 @@ async def getone(
 ):
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.pk)
-    # TODO: All meta properties eventually should have `_` prefix.
-    data['id'] = data['_id']
     data = prepare(context, Action.GETONE, model, backend, data, select=params.select)
     return render(context, request, model, params, data, action=action)
 
@@ -652,7 +650,9 @@ def getone(
         result = backend.get(connection, table, table.c._id == id_)
     except NotFoundError:
         raise ItemDoesNotExist(model, id=id_)
-    return _flat_dicts_to_nested(dict(result))
+    data = _flat_dicts_to_nested(dict(result))
+    data['_type'] = model.model_type()
+    return data
 
 
 def _flat_dicts_to_nested(value):
@@ -682,10 +682,18 @@ async def getone(
     authorize(context, action, prop)
     data = getone(context, prop, dtype, backend, id_=params.pk)
     pdata = data.pop(prop.name)
+
+    # Subresources might have their own _id, for example file an ref and list
+    # item properties have their own _id. Because of that, _id on subresource is
+    # always resource own _id.
+    del data['_id']
+
+    # Move subresource properties to the top level.
     data = {
         **data,
         **pdata,
     }
+
     data = prepare(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
 
@@ -730,7 +738,7 @@ def getone(
     result = {
         '_id': data[table.c._id],
         '_revision': data[table.c._revision],
-        '_type': prop.model.model_type(),
+        '_type': prop.model_type(),
     }
 
     data = _flat_dicts_to_nested(data)

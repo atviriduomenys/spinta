@@ -290,7 +290,7 @@ def complex_data_check(
         for k in ('_type', '_revision'):
             if k in data.given and data.saved[k] != data.given[k]:
                 raise ConflictingValue(
-                    dtype.properties[k],
+                    dtype,
                     given=data.given[k],
                     expected=data.saved[k],
                 )
@@ -416,6 +416,8 @@ def _prepare_query_result(
             raise NotImplementedError(f"Don't know how to prepare {node}.")
 
         if select is not None:
+            # FIXME: We should check select list at the very beginning of
+            #        request, not when returning results.
             unknown_properties = set(select) - {
                 name
                 for name, prop in flatprops.items()
@@ -435,12 +437,19 @@ def _prepare_query_result(
         elif action in (Action.GETALL, Action.SEARCH) and config.always_show_id:
             select = ['_id']
 
-        value = {
-            **(value or {}),
-            '_type': node.model_type(),
-        }
-        meta = ('_type', '_id', '_revision')
         result = {}
+
+        meta = ('_type', '_id', '_revision')
+        for name in meta:
+            if (
+                name in value and (
+                    select is None or
+                    '*' in select or
+                    name in select
+                )
+            ):
+                result[name] = value[name]
+
         for name, prop in props:
             if prop.hidden or (name.startswith('_') and name not in meta):
                 continue

@@ -182,6 +182,7 @@ def getone(
     return {
         '_id': row[table.main.c.id],
         '_revision': row[table.main.c.revision],
+        '_type': model.model_type(),
         **row[table.main.c.data],
     }
 
@@ -324,6 +325,7 @@ def getall(
                     context, action, model, backend, {
                         '_id': row[table.c.id],
                         '_revision': row[table.c.revision],
+                        '_type': model.model_type(),
                         **row[table.c.data],
                     },
                     select=select,
