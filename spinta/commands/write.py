@@ -23,7 +23,6 @@ from spinta.utils.aiotools import aslice, alist
 from spinta.utils.errors import report_error
 from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA, strip_metadata
-from spinta.utils.time import rfc822_now
 from spinta.types.namespace import traverse_ns_models
 
 
@@ -989,9 +988,6 @@ def prepare_headers(
     is_batch: Optional[bool] = False
 ):
     headers = {}
-
-    headers['date'] = rfc822_now()
-
     if action == Action.INSERT and not is_batch:
         server_url = context.get('config').server_url
         headers['location'] = f'{server_url}{node.endpoint}/{resp["_id"]}'
