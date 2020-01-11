@@ -47,8 +47,14 @@ class Parse:
         if isinstance(node, ast.Expression):
             return self.parse(node.body)
 
-        if isinstance(node, (ast.Constant, ast.Str, ast.Num)):
+        if isinstance(node, ast.Constant):
             return node.value
+
+        if isinstance(node, ast.Str):
+            return node.s
+
+        if isinstance(node, ast.Num):
+            return node.n
 
         if isinstance(node, (ast.Name, ast.Attribute)):
             return self.parse_bind(node)
