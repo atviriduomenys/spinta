@@ -47,7 +47,7 @@ class Parse:
         if isinstance(node, ast.Expression):
             return self.parse(node.body)
 
-        if isinstance(node, ast.Constant):
+        if isinstance(node, (ast.Constant, ast.Str, ast.Num)):
             return node.value
 
         if isinstance(node, (ast.Name, ast.Attribute)):
@@ -314,7 +314,6 @@ def test_and():
         ],
         'kwargs': {},
     }
-
 
 
 """
