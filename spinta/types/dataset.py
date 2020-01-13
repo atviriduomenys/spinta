@@ -143,6 +143,7 @@ class Property(Node):
         'place': {'required': True},
         'flags': {'type': 'array'},
         'default': {},
+        'prepare': {},
     }
 
     def __init__(self):

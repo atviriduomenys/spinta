@@ -392,3 +392,27 @@ def rename_metadata():
 def get_model_scopes():
     """Returns list of model scopes by given list of actions.
     """
+
+
+@command()
+def prepare_given_ufunc():
+    """Prepare given user data using ufuncs defined in manifest YAML files.
+
+    This data prepareation happens afeter initial data loading and type
+    validation.
+
+    Example manifest YAML file:
+
+    type: model
+    name: country
+    properties:
+      code:
+        type: string
+        prepare: >-
+          check(
+            this, len(this) = 2,
+            Country code must be 2 letters long, given: {given}.,
+            given: len(this)
+          )
+
+    """

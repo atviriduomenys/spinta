@@ -343,6 +343,7 @@ async def prepare_data(
                 data.given = commands.load(context, data.model, data.payload)
                 data.given = commands.prepare(context, data.model, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.model, data.model.backend)
+                data.given = commands.prepare_given_ufunc(context, data.model, data.given, action=data.action)
         except (exceptions.UserError, InsufficientScopeError) as error:
             report_error(error, stop_on_error)
         yield data

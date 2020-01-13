@@ -602,3 +602,8 @@ async def _prepare_property_for_delete(
                 prop.name: None,
             }
         yield data
+
+
+@commands.prepare_given_ufunc.register()
+def prepare_given_ufunc(context: Context, model: Model, givena: dict, *, action: Action):
+    pass
