@@ -885,8 +885,22 @@ async def simple_response(context: Context, results: AsyncIterator[DataItem]) ->
 def _get_simple_response(context: Context, data: DataItem) -> dict:
     resp = prepare_response(context, data)
     resp = {k: v for k, v in resp.items() if not k.startswith('_')}
-    if data.patch and '_id' in data.patch:
+    if data.patch and '_id' in data.patch and data.prop is None:
         resp['_id'] = data.patch['_id']
+    elif (
+        data.patch and
+        data.prop and
+        data.patch[data.prop.name] and
+        '_id' in data.patch[data.prop.name]
+    ):
+        resp['_id'] = data.patch[data.prop.name]['_id']
+    elif (
+        data.saved and
+        data.prop and
+        data.saved[data.prop.name] and
+        '_id' in data.saved[data.prop.name]
+    ):
+        resp['_id'] = data.saved[data.prop.name]['_id']
     elif data.saved:
         resp['_id'] = data.saved['_id']
     if data.patch and '_revision' in data.patch:

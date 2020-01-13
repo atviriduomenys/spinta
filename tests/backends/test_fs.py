@@ -72,7 +72,7 @@ def test_crud(model, app):
     assert resp.status_code == 204, resp.text
     data = resp.json()
     assert data == {
-        '_id': id_,
+        '_id': 'myimg.png',
         '_revision': data['_revision'],
         '_type': f'{model}.image',
     }
