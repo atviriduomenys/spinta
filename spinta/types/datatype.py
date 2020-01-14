@@ -264,6 +264,23 @@ def load(context: Context, dtype: DataType, value: object) -> object:
 
 
 @load.register()
+def load(context: Context, dtype: File, value: object) -> object:
+    # loads value into native python dict, including all dict's items
+    loaded_obj = dtype.load(value)
+    if value is NA:
+        return value
+    # check that given obj does not have more keys, than dtype's schema
+    unknown_props = set(loaded_obj.keys()) - set(dtype.schema.keys())
+    if unknown_props:
+        raise exceptions.MultipleErrors(
+            exceptions.FieldNotInResource(dtype.prop.model,
+                                          property=f'{dtype.prop.place}.{prop}')
+            for prop in sorted(unknown_props)
+        )
+    return loaded_obj
+
+
+@load.register()
 def load(context: Context, dtype: PrimaryKey, value: object) -> list:
     if value is NA:
         return value
