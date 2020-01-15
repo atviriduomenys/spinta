@@ -272,11 +272,7 @@ def load(context: Context, dtype: File, value: object) -> object:
     # check that given obj does not have more keys, than dtype's schema
     unknown_props = set(loaded_obj.keys()) - set(dtype.schema.keys())
     if unknown_props:
-        raise exceptions.MultipleErrors(
-            exceptions.FieldNotInResource(dtype.prop.model,
-                                          property=f'{dtype.prop.place}.{prop}')
-            for prop in sorted(unknown_props)
-        )
+        check_no_extra_keys(dtype, unknown_props)
     return loaded_obj
 
 
@@ -319,10 +315,7 @@ def load(context: Context, dtype: Object, value: object) -> dict:
     # check that given obj does not have more keys, than dtype's schema
     unknown_props = set(loaded_obj.keys()) - set(non_hidden_keys)
     if unknown_props:
-        raise exceptions.MultipleErrors(
-            exceptions.FieldNotInResource(dtype.prop.model, property=f'{dtype.prop.place}.{prop}')
-            for prop in sorted(unknown_props)
-        )
+        check_no_extra_keys(dtype, unknown_props)
 
     new_loaded_obj = {}
     for k, v in dtype.properties.items():
@@ -330,6 +323,14 @@ def load(context: Context, dtype: Object, value: object) -> dict:
         if k in loaded_obj:
             new_loaded_obj[k] = load(context, v.dtype, loaded_obj[k])
     return new_loaded_obj
+
+
+def check_no_extra_keys(dtype: (Object, File), keys: set):
+    raise exceptions.MultipleErrors(
+        exceptions.FieldNotInResource(dtype.prop.model,
+                                      property=f'{dtype.prop.place}.{prop}')
+        for prop in sorted(keys)
+    )
 
 
 @load.register()
