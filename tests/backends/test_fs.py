@@ -326,8 +326,7 @@ def test_check_revision_for_file_ref(model, app, tmpdir):
 
     # PATCH file without revision
     resp = app.patch(f'/{model}/{id_}/image:ref', json={
-        'content_type': 'image/png',
-        'filename': str(image),
+        '_content_type': 'image/png',
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ['NoItemRevision']
@@ -342,6 +341,34 @@ def test_check_revision_for_file_ref(model, app, tmpdir):
     old_revision = revision
     revision = resp.json()['_revision']
     assert old_revision != revision
+
+
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_check_extra_field(model, app, tmpdir):
+    app.authmodel(model, ['insert', 'image_patch'])
+
+    image = pathlib.Path(tmpdir) / 'image.png'
+    image.write_bytes(b'IMAGEDATA')
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+    })
+    assert resp.status_code == 201, resp.text
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    # PATCH file without revision
+    resp = app.patch(f'/{model}/{id_}/image:ref', json={
+        '_content_type': 'image/png',
+        '_revision': revision,
+        'asd': 'qwerty'
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ['FieldNotInResource']
 
 
 @pytest.mark.models(
