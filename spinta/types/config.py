@@ -41,6 +41,12 @@ def load(context: Context, config: components.Config, raw: RawConfig) -> compone
         exporter = raw.get('exporters', name, cast=importstr)
         config.exporters[name] = exporter()
 
+    # Load ufuncs
+    config.ufuncs = init_ufuncs({
+        name: raw.get('ufuncs', name)
+        for name in raw.keys('ufuncs')
+    })
+
     # Load everything else.
     config.debug = raw.get('debug', default=False)
     config.config_path = raw.get('config_path', cast=pathlib.Path, exists=True)

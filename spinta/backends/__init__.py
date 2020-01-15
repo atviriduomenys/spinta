@@ -14,6 +14,7 @@ from spinta.utils.nestedstruct import build_select_tree
 from spinta.utils.schema import NotAvailable, NA
 from spinta import commands
 from spinta import exceptions
+from spinta.ufuncs import execute
 
 
 class Backend:
@@ -604,6 +605,75 @@ async def _prepare_property_for_delete(
         yield data
 
 
-@commands.prepare_given_ufunc.register()
-def prepare_given_ufunc(context: Context, model: Model, givena: dict, *, action: Action):
-    pass
+@commands.ufunc_prepare_given.register()
+def ufunc_prepare_given(
+    context: Context,
+    model: (Model, dataset.Model),
+    given: dict,
+):
+    prepared = {}
+    for name, prop in model.properties.items():
+        prepared[name] = commands.ufunc_prepare_given(
+            context,
+            prop.dtype,
+            given.get(name, NA),
+            this=(prepared,),
+        )
+    for ufunc in (model.prepare or []):
+        prepared = execute(ufunc, context, model, (prepared,))
+    return prepared
+
+
+@commands.ufunc_prepare_given.register()
+def ufunc_prepare_given(  # noqa
+    context: Context,
+    dtype: Object,
+    given: dict,
+    *,
+    this: tuple = (),
+):
+    prepared = {}
+    for name, prop in dtype.properties.items():
+        prepared[name] = commands.ufunc_prepare_given(
+            context,
+            prop.dtype,
+            given.get(name, NA),
+            this=this + (given,),
+        )
+    for ufunc in (dtype.prop.prepare or []):
+        prepared = execute(ufunc, context, dtype, this + (prepared,))
+    return prepared
+
+
+@commands.ufunc_prepare_given.register()
+def ufunc_prepare_given(  # noqa
+    context: Context,
+    dtype: Array,
+    given: list,
+    *,
+    this: tuple,
+):
+    prepared = []
+    for value in given:
+        prepared.append(commands.ufunc_prepare_given(
+            context,
+            dtype.items.dtype,
+            value,
+            this=this + (given,),
+        ))
+    for ufunc in (dtype.prop.prepare or []):
+        prepared = execute(ufunc, context, dtype, this + (prepared,))
+    return prepared
+
+
+@commands.ufunc_prepare_given.register()
+def ufunc_prepare_given(  # noqa
+    context: Context,
+    dtype: DataType,
+    given: object,
+    *,
+    this: tuple,
+):
+    for ufunc in (dtype.prop.prepare or []):
+        given = execute(ufunc, context, dtype, this + (given,))
+    return given

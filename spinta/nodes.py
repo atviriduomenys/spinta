@@ -1,13 +1,14 @@
-from typing import Optional, Type
+from typing import Optional, Type, Union
+
+import pyrql
 
 from spinta.components import Context, Manifest, Node, Namespace
-from spinta.utils.schema import resolve_schema
+from spinta.utils.schema import resolve_schema, NA
 from spinta import exceptions
 from spinta import commands
 
 
 def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, check_unknowns=True) -> Node:
-    na = object()
     store = context.get('store')
     node.manifest = manifest
     node.type = data['type']
@@ -23,17 +24,20 @@ def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, c
             else:
                 continue
         schema = node_schema[name]
-        value = data.get(name, na)
-        if schema.get('inherit', False) and value is na:
+        value = data.get(name, NA)
+        type_ = schema.get('type')
+        if schema.get('inherit', False) and value is NA:
             if node.parent and hasattr(node.parent, name):
                 value = getattr(node.parent, name)
             else:
                 value = None
-        if schema.get('required', False) and (value is na or value is None):
+        if schema.get('required', False) and (value is NA or value is None):
             raise exceptions.MissingRequiredProperty(node, prop=name)
-        if schema.get('type') == 'backend' and isinstance(value, str):
+        if type_ == 'backend' and isinstance(value, str):
             value = store.backends[value]
-        if value is na:
+        elif type_ == 'ufunc' and value:
+            value = load_ufunc(value)
+        if value is NA:
             value = schema.get('default')
         setattr(node, name, value)
     return node
@@ -95,3 +99,9 @@ def load_model_properties(context: Context, model: Node, Prop: Type[Node], data:
         prop = commands.load(context, Prop(), params, model.manifest)
         model.properties[name] = prop
         model.flatprops[name] = prop
+
+
+def load_ufunc(value: Union[str, list]):
+    if not isinstance(value, list):
+        value = [value]
+    return [pyrql.parse(v) for v in value]

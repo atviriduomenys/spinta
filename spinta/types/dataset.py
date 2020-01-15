@@ -89,6 +89,7 @@ class Model(Node):
         'canonical': {'type': 'boolean', 'default': False},
         'endpoint': {},
         'flags': {'type': 'array'},
+        'prepare': {'type': 'ufunc'},
     }
 
     property_type = 'dataset.property'
@@ -143,7 +144,7 @@ class Property(Node):
         'place': {'required': True},
         'flags': {'type': 'array'},
         'default': {},
-        'prepare': {},
+        'prepare': {'type': 'ufunc'},
     }
 
     def __init__(self):

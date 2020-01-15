@@ -404,6 +404,7 @@ class Model(Node):
         'flatprops': {},
         'leafprops': {},
         'endpoint': {},
+        'prepare': {'type': 'ufunc'},
     }
 
     def __init__(self):
@@ -440,6 +441,7 @@ class Property(Node):
         'hidden': {'type': 'boolean', 'default': False},
         'model': {'required': True},
         'place': {'required': True},
+        'prepare': {'type': 'ufunc'},
     }
 
     def __init__(self):

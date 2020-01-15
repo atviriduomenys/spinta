@@ -395,7 +395,7 @@ def get_model_scopes():
 
 
 @command()
-def prepare_given_ufunc():
+def ufunc_prepare_given():
     """Prepare given user data using ufuncs defined in manifest YAML files.
 
     This data prepareation happens afeter initial data loading and type
@@ -410,9 +410,9 @@ def prepare_given_ufunc():
         type: string
         prepare: >-
           check(
-            this, len(this) = 2,
-            Country code must be 2 letters long, given: {given}.,
-            given: len(this)
+            len(this) = 2,
+            "Country code must be 2 letters long, given: {given}.",
+            given: len(this),
           )
 
     """

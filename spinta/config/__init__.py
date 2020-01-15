@@ -34,6 +34,11 @@ CONFIG = {
             'range': 'spinta.commands.helpers:range_',
         },
     },
+    'ufuncs': {
+        'default': [
+            'spinta.commands.ufuncs',
+        ],
+    },
     'components': {
         'core': {
             'context': 'spinta.components:Context',

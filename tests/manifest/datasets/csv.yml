@@ -18,7 +18,7 @@ resources:
               source: kodas
             code:
               type: string
-              prepare: check(this, eq(len(this), 2))
+              prepare: check(eq(len(this), 2))
               source: kodas
             title:
               type: string
