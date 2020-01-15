@@ -1,4 +1,4 @@
-import typing
+from typing import Any, Iterable
 
 from datetime import date, datetime
 
@@ -23,7 +23,7 @@ class DataType:
         'link': {'type': 'string'},
     }
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         return value
 
 
@@ -33,7 +33,7 @@ class PrimaryKey(DataType):
 
 class Date(DataType):
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return value
 
@@ -45,7 +45,7 @@ class Date(DataType):
 
 class DateTime(DataType):
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return value
 
@@ -60,7 +60,7 @@ class String(DataType):
         'enum': {'type': 'array'},
     }
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return value
 
@@ -72,7 +72,7 @@ class String(DataType):
 
 class Integer(DataType):
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return value
 
@@ -129,7 +129,7 @@ class Array(DataType):
         'items': {},
     }
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return value
 
@@ -144,7 +144,7 @@ class Object(DataType):
         'properties': {'type': 'object'},
     }
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return {}
 
@@ -270,9 +270,7 @@ def load(context: Context, dtype: File, value: object) -> object:
     if value is NA:
         return value
     # check that given obj does not have more keys, than dtype's schema
-    unknown_props = set(loaded_obj.keys()) - set(dtype.schema.keys())
-    if unknown_props:
-        check_no_extra_keys(dtype, unknown_props)
+    _check_no_extra_keys(dtype, dtype.schema, loaded_obj)
     return loaded_obj
 
 
@@ -313,9 +311,7 @@ def load(context: Context, dtype: Object, value: object) -> dict:
             non_hidden_keys.append(key)
 
     # check that given obj does not have more keys, than dtype's schema
-    unknown_props = set(loaded_obj.keys()) - set(non_hidden_keys)
-    if unknown_props:
-        check_no_extra_keys(dtype, unknown_props)
+    _check_no_extra_keys(dtype, non_hidden_keys, loaded_obj)
 
     new_loaded_obj = {}
     for k, v in dtype.properties.items():
@@ -325,12 +321,16 @@ def load(context: Context, dtype: Object, value: object) -> dict:
     return new_loaded_obj
 
 
-def check_no_extra_keys(dtype: (Object, File), keys: set):
-    raise exceptions.MultipleErrors(
-        exceptions.FieldNotInResource(dtype.prop.model,
-                                      property=f'{dtype.prop.place}.{prop}')
-        for prop in sorted(keys)
-    )
+def _check_no_extra_keys(dtype: DataType, schema: Iterable, data: Iterable):
+    unknown = set(data) - set(schema)
+    if unknown:
+        raise exceptions.MultipleErrors(
+            exceptions.FieldNotInResource(
+                dtype.prop,
+                property=f'{dtype.prop.place}.{prop}',
+            )
+            for prop in sorted(unknown)
+        )
 
 
 @load.register()
