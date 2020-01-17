@@ -7,6 +7,7 @@ from spinta.commands import load, check
 from spinta.components import Context
 from spinta.config import RawConfig
 from spinta import components
+from spinta.ufuncs import init_ufuncs
 
 yaml = YAML(typ='safe')
 

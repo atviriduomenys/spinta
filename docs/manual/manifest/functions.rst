@@ -14,3 +14,13 @@ Using functions in Manifest
 ===========================
 
 
+.. code-block:: yaml
+
+    type: model
+      properties:
+        gov_org_id:
+          type: string
+          description: Government issues organization identifier
+          prepare:
+            - .check(.len() == 9, "Invalid company registration number.")
+            - .check(.re("\d+"))

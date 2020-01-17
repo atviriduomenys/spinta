@@ -25,6 +25,7 @@ resources:
               source: kodas
         country:
           source: orgs.csv
+          prepare: check(eq(bind(code),2))
           properties:
             _id:
               type: pk

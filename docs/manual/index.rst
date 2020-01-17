@@ -7,3 +7,4 @@ Manual
 
    manifest/index
    functions
+   rql
