@@ -613,12 +613,14 @@ def ufunc_prepare_given(
 ):
     prepared = {}
     for name, prop in model.properties.items():
-        prepared[name] = commands.ufunc_prepare_given(
+        value = commands.ufunc_prepare_given(
             context,
             prop.dtype,
             given.get(name, NA),
             this=(prepared,),
         )
+        if value is not NA:
+            prepared[name] = value
     for ufunc in (model.prepare or []):
         prepared = execute(ufunc, context, model, (prepared,))
     return prepared
@@ -634,12 +636,14 @@ def ufunc_prepare_given(  # noqa
 ):
     prepared = {}
     for name, prop in dtype.properties.items():
-        prepared[name] = commands.ufunc_prepare_given(
+        value = commands.ufunc_prepare_given(
             context,
             prop.dtype,
             given.get(name, NA),
             this=this + (given,),
         )
+        if value is not NA:
+            prepared[name] = value
     for ufunc in (dtype.prop.prepare or []):
         prepared = execute(ufunc, context, dtype, this + (prepared,))
     return prepared

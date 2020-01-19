@@ -165,6 +165,8 @@ def get_auth_token(context: Context) -> Token:
         request.headers = request.headers.mutablecopy()
         request.headers['authorization'] = f'Bearer {token}'
 
+    print('----')
+    context.dump()
     resource_protector = context.get('auth.resource_protector')
     try:
         token = resource_protector.validate_request(scope, request)

@@ -48,7 +48,7 @@ class Context:
         while parent is not None:
             name.append(f'{parent._name}:{len(parent._context) - 1}')
             parent = parent._parent
-        name = ' < '.join(reversed(name))
+        name = '/'.join(reversed(name))
         return f'<{self.__class__.__module__}.{self.__class__.__name__}({name}) at 0x{id(self):02x}>'
 
     def __enter__(self):
@@ -199,16 +199,16 @@ class Context:
                     if name not in self._context[state]:
                         # Get value and set it on a previous state. This way, if
                         # we exit from current state, value stays in previous
-                        # state an can be reused by others state between
+                        # state and can be reused by others states between
                         # previous and current state.
                         self._context[state][name] = value_getter(state, name)
                     if len(self._context) - 1 > state:
-                        # If value was found not in current state, then update
+                        # If value was not found in current state, then update
                         # current state with value from previous state.
                         self._context[-1][name] = self._context[state][name]
                     return self._context[-1][name]
 
-        raise Exception(f"Unknown context variable {name!r}.")
+        raise Exception(f"Unknown {self._name!r} context variable {name!r}.")
 
     def _get_factory_value(self, state, name):
         factory, args, kwargs = self._factory[state][name]
@@ -242,6 +242,27 @@ class Context:
             raise Exception(f"Context variable {name!r} has been already set.")
         self._local_names[-1].add(name)
         self._names[-1].add(name)
+
+    def dump(self):
+        contexts = [self]
+        while contexts[-1]._parent:
+            contexts.append(contexts[-1]._parent)
+        depth = 0
+        stypes = {
+            '@': set(),  # attach
+            '*': set(),  # bind
+            '-': set(),  # set
+        }
+        for fork in reversed(contexts):
+            print('  ' * depth, fork._name, sep='')
+            for i, states in enumerate(zip(fork._cmgrs, fork._factory, fork._context)):
+                depth += 1
+                print('  ' * depth, i, sep='')
+                for stype, state in zip(stypes, states):
+                    for k, v in state.items():
+                        if k not in stypes[stype]:
+                            print('  ' * depth, ' ', stype, ' ', k, ': ', repr(v), sep='')
+                            stypes[stype].add(k)
 
 
 class _CommandsConfig:
