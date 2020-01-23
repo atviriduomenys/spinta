@@ -943,7 +943,7 @@ def test_search_id_contains(model, app):
     app.authmodel(model, ['search', 'getall'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?contains(_id,-)')
-    assert ids(resp) == [0, 1, 2]
+    assert sorted(ids(resp)) == [0, 1, 2]
 
     subid = list(ids.ids.keys())[0][5:10]
     resp = app.get(f'/{model}?contains(_id,{subid})')
@@ -980,5 +980,6 @@ def test_search_id_startswith(model, app):
 def test_search_id_not_startswith(model, app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?startswith(_id,AAAA)')
+    subid = list(ids.ids.keys())[0][5:10]
+    resp = app.get(f'/{model}?startswith(_id,{subid})')
     assert ids(resp) == []
