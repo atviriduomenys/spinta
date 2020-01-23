@@ -296,13 +296,12 @@ def load(context: Context, dtype: PrimaryKey, value: object, query_params: dict)
     model = dtype.prop.model
     backend = model.backend
     operator = query_params['name']
-    operator_name = query_params.get('origin', operator)
     if (
-        operator_name not in ('startswith', 'contains') and
+        operator not in ('startswith', 'contains') and
         not is_object_id(context, backend, model, value)
     ):
         raise exceptions.InvalidValue(dtype)
-    return f'{value}'
+    return str(value)
 
 
 @load.register()
