@@ -302,7 +302,7 @@ def load(context: Context, dtype: PrimaryKey, value: object, query_params: dict)
         not is_object_id(context, backend, model, value)
     ):
         raise exceptions.InvalidValue(dtype)
-    return value
+    return f'{value}'
 
 
 @load.register()
