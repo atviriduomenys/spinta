@@ -1,5 +1,6 @@
 from typing import Optional, List
 
+import base64
 import datetime
 import logging
 import string
@@ -541,6 +542,10 @@ def _fix_data_for_json(data):
     for k, v in data.items():
         if isinstance(v, (datetime.datetime, datetime.date)):
             v = v.isoformat()
+        elif isinstance(v, bytes):
+            v = base64.b64encode(v).decode('ascii')
+        elif not isinstance(v, (int, float, str, type(None))):
+            raise TypeError(f"{type(v)} probably won't serialize to JSON.")
         _data[k] = v
     return _data
 

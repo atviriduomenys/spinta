@@ -1,4 +1,6 @@
-import typing
+from typing import Union, Any
+
+import base64
 
 from datetime import date, datetime
 
@@ -8,7 +10,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.commands import load, is_object_id
 from spinta.components import Context, Manifest, Node, Property
-from spinta.utils.schema import NA, resolve_schema
+from spinta.utils.schema import NA, NotAvailable, resolve_schema
 
 
 class DataType:
@@ -23,7 +25,7 @@ class DataType:
         'link': {'type': 'string'},
     }
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         return value
 
 
@@ -33,7 +35,7 @@ class PrimaryKey(DataType):
 
 class Date(DataType):
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return value
 
@@ -45,7 +47,7 @@ class Date(DataType):
 
 class DateTime(DataType):
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return value
 
@@ -60,7 +62,7 @@ class String(DataType):
         'enum': {'type': 'array'},
     }
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return value
 
@@ -70,9 +72,26 @@ class String(DataType):
             raise exceptions.InvalidValue(self)
 
 
+class Binary(DataType):
+    schema = {}
+
+    def load(
+        self,
+        value: Union[bytes, str, NotAvailable, None],
+    ) -> Union[bytes, NotAvailable, None]:
+        if value is None or value is NA:
+            return value
+        if isinstance(value, str):
+            return base64.b64decode(value)
+        elif isinstance(value, bytes):
+            return value
+        else:
+            raise exceptions.InvalidValue(self)
+
+
 class Integer(DataType):
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return value
 
@@ -129,7 +148,7 @@ class Array(DataType):
         'items': {},
     }
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return value
 
@@ -144,7 +163,7 @@ class Object(DataType):
         'properties': {'type': 'object'},
     }
 
-    def load(self, value: typing.Any):
+    def load(self, value: Any):
         if value is None or value is NA:
             return {}
 

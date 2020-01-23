@@ -55,6 +55,7 @@ CONFIG = {
             'date': 'spinta.types.datatype:Date',
             'datetime': 'spinta.types.datatype:DateTime',
             'string': 'spinta.types.datatype:String',
+            'binary': 'spinta.types.datatype:Binary',
             'integer': 'spinta.types.datatype:Integer',
             'number': 'spinta.types.datatype:Number',
             'boolean': 'spinta.types.datatype:Boolean',

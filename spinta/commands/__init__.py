@@ -157,6 +157,14 @@ def prepare():
 
 
 @command()
+def prepare_data_for_response():
+    """Prepare Python-native data types for response.
+
+    Prepared data must be json-serializable.
+    """
+
+
+@command()
 def migrate():
     """Migrate database schema changes."""
 

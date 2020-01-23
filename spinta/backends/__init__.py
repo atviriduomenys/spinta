@@ -6,7 +6,7 @@ import uuid
 import typing
 
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File
-from spinta.components import Context, Model, Property, Action, Node, DataItem
+from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
 from spinta.commands import load_operator_value, prepare, dump, gen_object_id, is_object_id
 from spinta.types import dataset
 from spinta.exceptions import ConflictingValue, NoItemRevision
@@ -350,8 +350,14 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: object
     return False
 
 
-@prepare.register()
-def prepare(
+@is_object_id.register()
+def is_object_id(context: Context, backend: type(None), model: Namespace, value: object):
+    # Namespaces do not have object id.
+    return False
+
+
+@commands.prepare_data_for_response.register()
+def prepare_data_for_response(  # noqa
     context: Context,
     action: Action,
     model: (Model, dataset.Model),
@@ -359,13 +365,25 @@ def prepare(
     value: dict,
     *,
     select: typing.List[str] = None,
-    property_: Property = None,
 ) -> dict:
     return _prepare_query_result(context, action, model, backend, value, select)
 
 
-@prepare.register()
-def prepare(
+@commands.prepare_data_for_response.register()
+def prepare_data_for_response(  # noqa
+    context: Context,
+    action: Action,
+    model: (Property, dataset.Property),
+    backend: Backend,
+    value: dict,
+    *,
+    select: typing.List[str] = None,
+) -> dict:
+    return _prepare_query_result(context, action, model, backend, value, select)
+
+
+@commands.prepare_data_for_response.register()
+def prepare_data_for_response(  # noqa
     context: Context,
     action: Action,
     dtype: DataType,
@@ -373,7 +391,6 @@ def prepare(
     value: dict,
     *,
     select: typing.List[str] = None,
-    property_: Property = None,
 ) -> dict:
     return _prepare_query_result(context, action, dtype.prop, backend, value, select)
 

@@ -343,6 +343,7 @@ async def prepare_data(
                 data.given = commands.load(context, data.model, data.payload)
                 data.given = commands.prepare(context, data.model, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.model, data.model.backend)
+            pp(data.given, data.model.properties['blob'], data.model.properties['blob'].dtype)
         except (exceptions.UserError, InsufficientScopeError) as error:
             report_error(error, stop_on_error)
         yield data
@@ -895,10 +896,13 @@ def _get_simple_response(context: Context, data: DataItem) -> dict:
     elif data.saved:
         resp['_revision'] = data.saved['_revision']
     if data.action and data.model:
-        if data.prop:
-            resp = commands.prepare(context, data.action, data.prop.dtype, data.backend, resp)
-        else:
-            resp = commands.prepare(context, data.action, data.model, data.backend, resp)
+        resp = commands.prepare_data_for_response(
+            context,
+            data.action,
+            data.prop or data.model,
+            data.backend,
+            resp,
+        )
     resp = {k: v for k, v in resp.items() if k in ('_id', '_revision', '_type') or not k.startswith('_')}
     if data.error is not None:
         return {

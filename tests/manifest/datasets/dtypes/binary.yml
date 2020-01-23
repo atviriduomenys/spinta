@@ -1,0 +1,15 @@
+---
+type: dataset
+name: dtypes/binary
+version:
+  number: 1
+  date: 2020-01-23
+resources:
+  resource:
+    type: csv
+    objects:
+      origin:
+        dtypes/binary:
+          properties:
+            blob:
+              type: binary

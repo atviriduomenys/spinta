@@ -260,7 +260,7 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest):
 
 @load.register()
 def load(context: Context, model: Model, data: dict) -> dict:
-    return data
+    return load[type(context), components.Model, dict](context, model, data)
 
 
 @prepare.register()
