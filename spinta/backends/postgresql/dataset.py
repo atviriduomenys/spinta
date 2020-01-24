@@ -27,6 +27,8 @@ from spinta.renderer import render
 from spinta import commands
 from spinta import exceptions
 from spinta.types.datatype import DataType, String, Binary
+from spinta import components
+from spinta.utils.refs import get_ref_id
 
 log = logging.getLogger(__name__)
 
@@ -659,3 +661,11 @@ def check_unique_constraint(
     result = backend.get(connection, table.c.data[prop.name], condition, default=not_found)
     if result is not not_found:
         raise exceptions.UniqueConstraint(prop)
+
+
+@commands.gen_object_id.register()
+def gen_object_id(context: Context, backend: Backend, model: Model):
+    pk = commands.gen_object_id[type(context), Backend, components.Model](
+        context, backend, model,
+    )
+    return get_ref_id(str(pk))
