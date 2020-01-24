@@ -1,3 +1,5 @@
+import base64
+
 import pytest
 
 
@@ -5,10 +7,10 @@ import pytest
     'dtypes/binary/:dataset/dtypes/binary/:resource/resource/:origin/origin',
 )
 def test_binary(model, app):
+    data = base64.b64encode(b'data').decode('ascii')
     app.authmodel(model, ['insert'])
     resp = app.post(f'/{model}', json={
-        'blob': 'test',
+        'blob': data,
     })
     assert resp.status_code == 201, resp.json()
-    assert resp.json()['blob'] == 'test'
-    assert False
+    assert resp.json()['blob'] == data

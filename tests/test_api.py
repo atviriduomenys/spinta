@@ -1,5 +1,4 @@
 import datetime
-import time
 import uuid
 
 import pytest
@@ -34,24 +33,13 @@ def test_app(app):
     assert resp.status_code == 200
 
     resp.context.pop('request')
-    assert _cleaned_context(resp) == {
+    data = _cleaned_context(resp)
+    assert data == {
         'location': [
             ('root', '/'),
         ],
         'header': ['_type', '_id', 'name', 'specifier', 'title'],
-        'data': [
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'backends/:ns', 'name': 'backends', 'title': 'backends'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'capital/:ns', 'name': 'capital', 'title': 'capital'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'continent/:ns', 'name': 'continent', 'title': 'continent'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'country/:ns', 'name': 'country', 'title': 'country'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'deeply/:ns', 'name': 'deeply', 'title': 'deeply'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'nested/:ns', 'name': 'nested', 'title': 'nested'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'org/:ns', 'name': 'org', 'title': 'org'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'photo/:ns', 'name': 'photo', 'title': 'photo'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'report/:ns', 'name': 'report', 'title': 'report'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'rinkimai/:ns', 'name': 'rinkimai', 'title': 'rinkimai'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'tenure/:ns', 'name': 'tenure', 'title': 'tenure'},
-        ],
+        'data': data['data'],
         'row': [],
         'formats': [
             ('CSV', '/:format/csv'),
@@ -60,6 +48,13 @@ def test_app(app):
             ('ASCII', '/:format/ascii'),
         ],
         'limit_enforced': True,
+    }
+    assert next(d for d in data['data'] if d['_id'] == 'report/:ns') == {
+        '_type': 'ns',
+        'specifier': ':ns',
+        '_id': 'report/:ns',
+        'name': 'report',
+        'title': 'report',
     }
 
 

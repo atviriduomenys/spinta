@@ -277,7 +277,14 @@ async def getone(
 ):
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.pk)
-    data = prepare(context, action, model, backend, data, select=params.select)
+    data = commands.prepare_data_for_response(
+        context,
+        action,
+        model,
+        backend,
+        data,
+        select=params.select,
+    )
     return render(context, request, model, params, data, action=action)
 
 
@@ -338,7 +345,7 @@ async def getone(
         **pdata,
     }
 
-    data = prepare(context, Action.GETONE, prop.dtype, backend, data)
+    data = commands.prepare_data_for_response(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
 
 
@@ -444,7 +451,14 @@ def getall(
     for row in cursor:
         row['_id'] = row.pop('__id')
         row['_type'] = model.model_type()
-        yield prepare(context, action, model, backend, row, select=select)
+        yield commands.prepare_data_for_response(
+            context,
+            action,
+            model,
+            backend,
+            row,
+            select=select,
+        )
 
 
 class QueryBuilder:

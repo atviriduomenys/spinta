@@ -632,7 +632,14 @@ async def getone(
 ):
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.pk)
-    data = prepare(context, Action.GETONE, model, backend, data, select=params.select)
+    data = commands.prepare_data_for_response(
+        context,
+        Action.GETONE,
+        model,
+        backend,
+        data,
+        select=params.select,
+    )
     return render(context, request, model, params, data, action=action)
 
 
@@ -694,7 +701,7 @@ async def getone(
         **pdata,
     }
 
-    data = prepare(context, Action.GETONE, prop.dtype, backend, data)
+    data = commands.prepare_data_for_response(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
 
 
@@ -810,7 +817,14 @@ async def getall(
 ):
     authorize(context, action, model)
     result = (
-        prepare(context, action, model, backend, row, select=params.select)
+        commands.prepare_data_for_response(
+            context,
+            action,
+            model,
+            backend,
+            row,
+            select=params.select,
+        )
         for row in getall(
             context, model, backend,
             select=params.select,
@@ -1310,8 +1324,8 @@ def get_changes_table(backend, table_name, id_type):
     return table
 
 
-@prepare.register()
-def prepare(
+@commands.prepare_data_for_response.register()
+def prepare_data_for_response(
     context: Context,
     action: Action,
     model: Model,
@@ -1320,7 +1334,14 @@ def prepare(
     *,
     select: typing.List[str] = None,
 ) -> dict:
-    return prepare(context, action, model, backend, dict(value), select=select)
+    return commands.prepare_data_for_response(
+        context,
+        action,
+        model,
+        backend,
+        dict(value),
+        select=select,
+    )
 
 
 @prepare.register()

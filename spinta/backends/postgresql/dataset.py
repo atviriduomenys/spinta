@@ -26,7 +26,7 @@ from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
 from spinta import exceptions
-from spinta.types.datatype import DataType, String
+from spinta.types.datatype import DataType, String, Binary
 
 log = logging.getLogger(__name__)
 
@@ -163,7 +163,14 @@ async def getone(
 ):
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.pk)
-    data = prepare(context, Action.GETONE, model, backend, data, select=params.select)
+    data = commands.prepare_data_for_response(
+        context,
+        Action.GETONE,
+        model,
+        backend,
+        data,
+        select=params.select,
+    )
     return render(context, request, model, params, data, action=action)
 
 
@@ -317,13 +324,24 @@ def getall(
 
         if select:
             return (
-                prepare(context, action, model, backend, dict(row), select=select)
+                commands.prepare_data_for_response(
+                    context,
+                    action,
+                    model,
+                    backend,
+                    dict(row),
+                    select=select,
+                )
                 for row in result
             )
         else:
             return (
-                prepare(
-                    context, action, model, backend, {
+                commands.prepare_data_for_response(
+                    context,
+                    action,
+                    model,
+                    backend,
+                    {
                         '_id': row[table.c.id],
                         '_revision': row[table.c.revision],
                         '_type': model.model_type(),
@@ -528,9 +546,37 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: str):
     return len(value) == 40 and not set(value) - set(string.hexdigits)
 
 
-@prepare.register()
-def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, select: typing.List[str] = None) -> dict:
-    return prepare(context, action, model, backend, dict(value), select=select)
+@commands.prepare_data_for_response.register()
+def prepare_data_for_response(
+    context: Context,
+    action: Action,
+    model: Model,
+    backend: PostgreSQL,
+    value: RowProxy,
+    *,
+    select: typing.List[str] = None,
+) -> dict:
+    return commands.prepare_data_for_response(
+        context,
+        action,
+        model,
+        backend,
+        dict(value),
+        select=select,
+    )
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: PostgreSQL,
+    model: Model,
+    dtype: Binary,
+    value: str,
+    *,
+    select: dict = None,
+):
+    return value
 
 
 def _fix_data_for_json(data):
@@ -538,16 +584,17 @@ def _fix_data_for_json(data):
     #
     #      Dataset data is stored in a JSONB column and has to be converted
     #      into JSON friendly types.
-    _data = {}
-    for k, v in data.items():
-        if isinstance(v, (datetime.datetime, datetime.date)):
-            v = v.isoformat()
-        elif isinstance(v, bytes):
-            v = base64.b64encode(v).decode('ascii')
-        elif not isinstance(v, (int, float, str, type(None))):
-            raise TypeError(f"{type(v)} probably won't serialize to JSON.")
-        _data[k] = v
-    return _data
+    if isinstance(data, dict):
+        return {k: _fix_data_for_json(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [_fix_data_for_json(v) for v in data]
+    if isinstance(data, (datetime.datetime, datetime.date)):
+        return data.isoformat()
+    if isinstance(data, bytes):
+        return base64.b64encode(data).decode('ascii')
+    if isinstance(data, (int, float, str, type(None))):
+        return data
+    raise TypeError(f"{type(data)} probably won't serialize to JSON.")
 
 
 @commands.create_changelog_entry.register()

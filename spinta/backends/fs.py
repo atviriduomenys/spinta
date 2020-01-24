@@ -52,7 +52,7 @@ def prepare(context: Context, dtype: File, backend: Backend, value: Attachment):
     }
 
 
-@prepare.register()
+@commands.prepare_data_for_response.register()
 def prepare_data_for_response(
     context: Context,
     action: Action,

@@ -36,8 +36,11 @@ class PrimaryKey(DataType):
 class Date(DataType):
 
     def load(self, value: Any):
-        if value is None or value is NA:
+        if value is None or value is NA or isinstance(value, (date, datetime)):
             return value
+
+        if value == '':
+            return None
 
         try:
             return date.fromisoformat(value)

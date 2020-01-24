@@ -1,13 +1,14 @@
 from typing import AsyncIterator, Union
 
+import base64
 import contextlib
 import datetime
 import uuid
 import typing
 
-from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File
+from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, Binary, Ref
 from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
-from spinta.commands import load_operator_value, prepare, dump, gen_object_id, is_object_id
+from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
 from spinta.types import dataset
 from spinta.exceptions import ConflictingValue, NoItemRevision
 from spinta.utils.nestedstruct import build_select_tree
@@ -61,67 +62,6 @@ def prepare(context: Context, dtype: Object, backend: Backend, value: dict) -> d
 @prepare.register()
 def prepare(context: Context, backend: Backend, prop: Property):
     return prepare(context, backend, prop.dtype)
-
-
-@dump.register()
-def dump(context: Context, backend: Backend, dtype: DataType, value: object, *, select: dict = None):
-    return value
-
-
-@dump.register()
-def dump(context: Context, backend: Backend, dtype: DataType, value: NotAvailable, *, select: dict = None):
-    return dtype.prop.default
-
-
-@dump.register()
-def dump(context: Context, backend: Backend, dtype: File, value: NotAvailable, *, select: dict = None):
-    return {
-        '_id': None,
-        '_content_type': None,
-    }
-
-
-@dump.register()
-def dump(context: Context, backend: Backend, dtype: DateTime, value: datetime.datetime, *, select: dict = None):
-    return value.isoformat()
-
-
-@dump.register()
-def dump(context: Context, backend: Backend, dtype: Date, value: datetime.date, *, select: dict = None):
-    if isinstance(value, datetime.datetime):
-        return value.date().isoformat()
-    else:
-        return value.isoformat()
-
-
-@dump.register()
-def dump(context: Context, backend: Backend, dtype: Object, value: dict, *, select: dict = None):
-    if select is None or '*' in select or select[dtype.prop.place]:
-        select_ = select
-    else:
-        select_ = {
-            prop.place: set()
-            for prop in dtype.properties.values()
-        }
-    props = (
-        prop for prop in dtype.properties.values()
-        if not prop.name.startswith('_')
-    )
-    return {
-        prop.name: dump(context, backend, prop.dtype, value.get(prop.name, NA), select=select_)
-        for prop in props
-        if select_ is None or '*' in select_ or prop.place in select_
-    }
-
-
-@dump.register()
-def dump(context: Context, backend: Backend, dtype: Array, value: list, *, select: dict = None):
-    return [dump(context, backend, dtype.items.dtype, v, select=select) for v in value]
-
-
-@dump.register()
-def dump(context: Context, backend: Backend, dtype: Array, value: type(None), *, select: dict = None):
-    return []
 
 
 @commands.simple_data_check.register()
@@ -373,19 +313,6 @@ def prepare_data_for_response(  # noqa
 def prepare_data_for_response(  # noqa
     context: Context,
     action: Action,
-    model: (Property, dataset.Property),
-    backend: Backend,
-    value: dict,
-    *,
-    select: typing.List[str] = None,
-) -> dict:
-    return _prepare_query_result(context, action, model, backend, value, select)
-
-
-@commands.prepare_data_for_response.register()
-def prepare_data_for_response(  # noqa
-    context: Context,
-    action: Action,
     dtype: DataType,
     backend: Backend,
     value: dict,
@@ -393,6 +320,195 @@ def prepare_data_for_response(  # noqa
     select: typing.List[str] = None,
 ) -> dict:
     return _prepare_query_result(context, action, dtype.prop, backend, value, select)
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: DataType,
+    value: object,
+    *,
+    select: dict = None,
+):
+    assert isinstance(value, (str, int, float, bool, type(None))), (
+        f"prepare_dtype_for_response must return only primitive, json "
+        f"serializable types, {type(value)} is not a primitive data type, "
+        f"model={model!r}, dtype={dtype!r}"
+    )
+    return value
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: DataType,
+    value: NotAvailable,
+    *,
+    select: dict = None,
+):
+    return dtype.prop.default
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: File,
+    value: NotAvailable,
+    *,
+    select: dict = None,
+):
+    return {
+        '_id': None,
+        '_content_type': None,
+    }
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: File,
+    value: dict,
+    *,
+    select: dict = None,
+):
+    return {
+        '_id': value.get('_id'),
+        '_content_type': value.get('_content_type'),
+    }
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: DateTime,
+    value: datetime.datetime,
+    *,
+    select: dict = None,
+):
+    return value.isoformat()
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: Date,
+    value: datetime.date,
+    *,
+    select: dict = None,
+):
+    if isinstance(value, datetime.datetime):
+        return value.date().isoformat()
+    else:
+        return value.isoformat()
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: Binary,
+    value: bytes,
+    *,
+    select: dict = None,
+):
+    return base64.b64encode(value).decode('ascii')
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: Ref,
+    value: dict,
+    *,
+    select: dict = None,
+):
+    return value
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: Object,
+    value: dict,
+    *,
+    select: dict = None,
+):
+    if select is None or '*' in select or select[dtype.prop.place]:
+        select_ = select
+    else:
+        select_ = {
+            prop.place: set()
+            for prop in dtype.properties.values()
+        }
+    props = (
+        prop for prop in dtype.properties.values()
+        if not prop.name.startswith('_')
+    )
+    return {
+        prop.name: commands.prepare_dtype_for_response(
+            context,
+            backend,
+            model,
+            prop.dtype,
+            value.get(prop.name, NA),
+            select=select_,
+        )
+        for prop in props
+        if select_ is None or '*' in select_ or prop.place in select_
+    }
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: Array,
+    value: list,
+    *,
+    select: dict = None,
+):
+    return [
+        commands.prepare_dtype_for_response(
+            context,
+            backend,
+            model,
+            dtype.items.dtype,
+            v,
+            select=select,
+        )
+        for v in value
+    ]
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: Array,
+    value: type(None),
+    *,
+    select: dict = None,
+):
+    return []
 
 
 @commands.unload_backend.register()
@@ -471,7 +587,14 @@ def _prepare_query_result(
             if prop.hidden or (name.startswith('_') and name not in meta):
                 continue
             if select is None or '*' in select or name in select:
-                result[name] = dump(context, backend, prop.dtype, value.get(name, NA), select=select)
+                result[name] = commands.prepare_dtype_for_response(
+                    context,
+                    backend,
+                    prop.model,
+                    prop.dtype,
+                    value.get(name, NA),
+                    select=select,
+                )
 
         return result
 
@@ -496,13 +619,25 @@ def _prepare_query_result(
         elif action == Action.PATCH:
             for k, v in (value or {}).items():
                 prop = props[k]
-                result[prop.name] = dump(context, backend, prop.dtype, v)
+                result[prop.name] = commands.prepare_dtype_for_response(
+                    context,
+                    backend,
+                    prop.model,
+                    prop.dtype,
+                    v,
+                )
 
         else:
             for prop in props.values():
                 if prop.hidden or prop.name.startswith('_'):
                     continue
-                result[prop.name] = dump(context, backend, prop.dtype, value.get(prop.name))
+                result[prop.name] = commands.prepare_dtype_for_response(
+                    context,
+                    backend,
+                    prop.model,
+                    prop.dtype,
+                    value.get(prop.name),
+                )
 
         return result
 
