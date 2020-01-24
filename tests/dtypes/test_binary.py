@@ -4,6 +4,7 @@ import pytest
 
 
 @pytest.mark.models(
+    'backends/postgres/dtypes/binary',
     'dtypes/binary/:dataset/dtypes/binary/:resource/resource/:origin/origin',
 )
 def test_insert(model, app):
@@ -15,13 +16,17 @@ def test_insert(model, app):
 
 
 @pytest.mark.models(
+    'backends/postgres/dtypes/binary',
     'dtypes/binary/:dataset/dtypes/binary/:resource/resource/:origin/origin',
 )
 def test_upsert(model, app):
     data = base64.b64encode(b'data').decode('ascii')
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel(model, ['upsert'])
-    pk = '844b08602aeffbf0d12dbfd5f2e861c7501ed2cb'
+    if ':dataset/' in model:
+        pk = '844b08602aeffbf0d12dbfd5f2e861c7501ed2cb'
+    else:
+        pk = '9ea9cf88-68f6-4753-b9e6-ce3d40ba1861'
     resp = app.post(f'/{model}', json={
         '_op': 'upsert',
         '_where': f'_id={pk}',
@@ -40,7 +45,7 @@ def test_upsert(model, app):
     })
     assert resp.status_code == 200, resp.json()
     assert resp.json()['_id'] == pk
-    assert resp.json()['blob'] == data
+    assert 'blob' not in resp.json()
 
 
 @pytest.mark.models(

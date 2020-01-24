@@ -27,6 +27,7 @@ from spinta.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
 from spinta.utils.schema import NA, strip_metadata, is_valid_sort_key
+from spinta.utils.json import fix_data_for_json
 from spinta.types.datatype import (
     Array,
     DataType,
@@ -249,6 +250,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         return sa.Column(name, sa.Float)
     elif dtype.name == 'boolean':
         return sa.Column(name, sa.Boolean)
+    elif dtype.name == 'binary':
+        return sa.Column(name, sa.LargeBinary)
     elif dtype.name in ('spatial', 'image'):
         # TODO: these property types currently are not implemented
         return sa.Column(name, sa.Text)
@@ -381,7 +384,10 @@ def check_unique_constraint(
 ):
     table = backend.tables[prop.manifest.name][prop.model.name].main
 
-    if data.action in (Action.UPDATE, Action.PATCH):
+    if (
+        data.action in (Action.UPDATE, Action.PATCH) or
+        data.action == Action.UPSERT and data.saved is not None
+    ):
         if prop.name == '_id' and value == data.saved['_id']:
             return
         condition = sa.and_(
@@ -1378,20 +1384,6 @@ def unload_backend(context: Context, backend: PostgreSQL):
     backend.engine.dispose()
 
 
-def _fix_data_for_json(data):
-    # XXX: a temporary workaround
-    #
-    #      Changelog data are stored as JSON and data must be JSON serializable.
-    #      Probably there should be a command, that would make data JSON
-    #      serializable.
-    _data = {}
-    for k, v in data.items():
-        if isinstance(v, (datetime.datetime, datetime.date)):
-            v = v.isoformat()
-        _data[k] = v
-    return _data
-
-
 @commands.create_changelog_entry.register()
 async def create_changelog_entry(
     context: Context,
@@ -1418,7 +1410,7 @@ async def create_changelog_entry(
             'transaction': transaction.id,
             'datetime': utcnow(),
             'action': data.action.value,
-            'data': _fix_data_for_json({
+            'data': fix_data_for_json({
                 k: v for k, v in data.patch.items() if not k.startswith('_')
             }),
         }])

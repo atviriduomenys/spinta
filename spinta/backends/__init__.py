@@ -616,7 +616,7 @@ def _prepare_query_result(
         if action == Action.DELETE:
             return result
 
-        elif action == Action.PATCH:
+        elif action in (Action.PATCH, Action.UPSERT):
             for k, v in (value or {}).items():
                 prop = props[k]
                 result[prop.name] = commands.prepare_dtype_for_response(

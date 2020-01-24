@@ -1,7 +1,5 @@
 from typing import Optional, List
 
-import base64
-import datetime
 import logging
 import string
 import typing
@@ -29,6 +27,7 @@ from spinta import exceptions
 from spinta.types.datatype import DataType, String, Binary
 from spinta import components
 from spinta.utils.refs import get_ref_id
+from spinta.utils.json import fix_data_for_json
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +89,7 @@ async def insert(
         connection.execute(qry, [{
             'id': data.patch['_id'],
             'revision': data.patch['_revision'],
-            'data': _fix_data_for_json(
+            'data': fix_data_for_json(
                 {k: v for k, v in data.patch.items() if not k.startswith('_')},
             )
         }])
@@ -118,7 +117,7 @@ async def update(
             'revision': data.patch['_revision'],
             'transaction': transaction.id,
             'updated': utcnow(),
-            'data': _fix_data_for_json({
+            'data': fix_data_for_json({
                 # FIXME: Support patching nested properties.
                 **{k: v for k, v in data.saved.items() if not k.startswith('_')},
                 **{k: v for k, v in data.patch.items() if not k.startswith('_')},
@@ -581,24 +580,6 @@ def prepare_dtype_for_response(  # noqa
     return value
 
 
-def _fix_data_for_json(data):
-    # XXX: a temporary workaround
-    #
-    #      Dataset data is stored in a JSONB column and has to be converted
-    #      into JSON friendly types.
-    if isinstance(data, dict):
-        return {k: _fix_data_for_json(v) for k, v in data.items()}
-    if isinstance(data, list):
-        return [_fix_data_for_json(v) for v in data]
-    if isinstance(data, (datetime.datetime, datetime.date)):
-        return data.isoformat()
-    if isinstance(data, bytes):
-        return base64.b64encode(data).decode('ascii')
-    if isinstance(data, (int, float, str, type(None))):
-        return data
-    raise TypeError(f"{type(data)} probably won't serialize to JSON.")
-
-
 @commands.create_changelog_entry.register()
 async def create_changelog_entry(
     context: Context,
@@ -626,7 +607,7 @@ async def create_changelog_entry(
             'transaction': transaction.id,
             'datetime': utcnow(),
             'action': data.action.value,
-            'data': _fix_data_for_json(
+            'data': fix_data_for_json(
                 {k: v for k, v in data.patch.items() if not k.startswith('_')},
             ),
         }])
