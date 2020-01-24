@@ -288,6 +288,23 @@ def load(context: Context, dtype: PrimaryKey, value: object) -> list:
 
 
 @load.register()
+def load(context: Context, dtype: PrimaryKey, value: object, query_params: dict) -> list:
+    if value is NA:
+        return value
+    if value is None:
+        raise exceptions.InvalidValue(dtype)
+    model = dtype.prop.model
+    backend = model.backend
+    operator = query_params['name']
+    if (
+        operator not in ('startswith', 'contains') and
+        not is_object_id(context, backend, model, value)
+    ):
+        raise exceptions.InvalidValue(dtype)
+    return str(value)
+
+
+@load.register()
 def load(context: Context, dtype: Array, value: object) -> list:
     # loads value into native python list, including all list items
     array_item_type = dtype.items.dtype

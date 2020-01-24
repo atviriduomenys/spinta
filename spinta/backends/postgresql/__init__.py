@@ -1072,9 +1072,13 @@ class QueryBuilder:
         )
 
     def op_contains(self, prop, field, value):
+        if isinstance(field.type, UUID):
+            return field.cast(sa.String).contains(value)
         return field.contains(value)
 
     def op_startswith(self, prop, field, value):
+        if isinstance(field.type, UUID):
+            return field.cast(sa.String).startswith(value)
         return field.startswith(value)
 
     def op_any(self, op: str, key: str, *value: Tuple[Union[str, int, float]]):

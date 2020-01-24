@@ -933,3 +933,53 @@ def test_search_any_contains_recurse_lower(app):
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?any(contains,lower(recurse(status)),o,k)')
     assert sorted(ids(resp)) == [0]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_id_contains(model, app):
+    app.authmodel(model, ['search', 'getall'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?contains(_id,-)')
+    assert sorted(ids(resp)) == [0, 1, 2]
+
+    subid = list(ids.ids.keys())[0][5:10]
+    resp = app.get(f'/{model}?contains(_id,{subid})')
+    assert ids(resp) == [0]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_id_not_contains(model, app):
+    app.authmodel(model, ['search', 'getall'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?contains(_id,AAAAA)')
+    assert ids(resp) == []
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_id_startswith(model, app):
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    subid = list(ids.ids.keys())[0][:5]
+    resp = app.get(f'/{model}?startswith(_id,{subid})')
+    assert ids(resp) == [0]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_id_not_startswith(model, app):
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    subid = list(ids.ids.keys())[0][5:10]
+    resp = app.get(f'/{model}?startswith(_id,{subid})')
+    assert ids(resp) == []

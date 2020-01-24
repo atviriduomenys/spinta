@@ -5,7 +5,7 @@ import datetime
 import uuid
 import typing
 
-from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File
+from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey
 from spinta.components import Context, Model, Property, Action, Node, DataItem
 from spinta.commands import load_operator_value, prepare, dump, gen_object_id, is_object_id
 from spinta.types import dataset
@@ -389,7 +389,7 @@ def load_operator_value(context: Context, backend: Backend, dtype: DataType, val
     # XXX: That is probably not a very reliable way of getting original operator
     #      name. Maybe at least this should be documented some how.
     operator_name = query_params.get('origin', operator)
-    if operator in ('startswith', 'contains') and not isinstance(dtype, String):
+    if operator in ('startswith', 'contains') and not isinstance(dtype, (String, PrimaryKey)):
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
     if operator in ('gt', 'ge', 'lt', 'le') and isinstance(dtype, String):
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
