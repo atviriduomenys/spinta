@@ -20,7 +20,7 @@ def _cleaned_context(resp):
 def test_version(app):
     resp = app.get('/version')
     assert resp.status_code == 200
-    assert sorted(flatten(resp.json())) == [
+    assert sorted(next(flatten(resp.json())).keys()) == [
         'api.version',
         'build',
         'implementation.name',
@@ -571,8 +571,8 @@ def test_post(model, context, app):
     revision = data['_revision']
     assert uuid.UUID(id_).version == 4
     assert data == {
-        '_id': id_,
         '_type': model,
+        '_id': id_,
         '_revision': revision,
         'report_type': None,
         'status': 'ok',
@@ -590,8 +590,8 @@ def test_post(model, context, app):
     resp = app.get(f'/{model}/{id_}')
     assert resp.status_code == 200
     assert resp.json() == {
-        '_id': id_,
         '_type': model,
+        '_id': id_,
         '_revision': revision,
         'report_type': None,
         'status': 'ok',

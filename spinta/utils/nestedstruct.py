@@ -1,52 +1,49 @@
 from typing import List
 
+import types
+import itertools
 
-def flatten(data, sep='.'):
-    if isinstance(data, dict):
-        return _flatten_dict(data, sep)
+
+def flatten(value, sep='.'):
+    value, lists = _flatten(value, sep)
+
+    if value is None:
+        for k, vals in lists:
+            for v in vals:
+                yield from flatten(v, sep)
+
+    elif lists:
+        keys, lists = zip(*lists)
+        for vals in itertools.product(*lists):
+            val = {
+                sep.join(k): v
+                for k, v in zip(keys, vals)
+            }
+            val.update(value)
+            yield from flatten(val, sep)
+
     else:
-        return _flatten_list(data, sep)
+        yield value
 
 
-def _flatten_dict(data, sep='.'):
-    for item in flatten_nested_lists(data):
-        return {sep.join(k): v for k, v in item}
+def _flatten(value, sep, key=()):
+    if isinstance(value, dict):
+        data = {}
+        lists = []
+        for k, v in value.items():
+            v, more = _flatten(v, sep, key + (k,))
+            data.update(v or {})
+            lists += more
+        return data, lists
 
-
-def _flatten_list(data, sep='.'):
-    for row in data:
-        for item in flatten_nested_lists(row):
-            yield {sep.join(k): v for k, v in item}
-
-
-def flatten_nested_lists(nested, field=(), context=None):
-    data, lists = separate_dicts_from_lists(nested, field)
-    data += (context or [])
-    if lists:
-        for key, values in lists:
-            for value in values:
-                yield from flatten_nested_lists(value, key, data)
-    else:
-        yield data
-
-
-def separate_dicts_from_lists(nested, field=()):
-    data = []
-    lists = []
-    for key, value in flatten_nested_dicts(nested, field):
-        if isinstance(value, (tuple, list)):
-            lists.append((key, value))
+    elif isinstance(value, (list, types.GeneratorType)):
+        if value:
+            return None, [(key, value)]
         else:
-            data.append((key, value))
-    return data, lists
+            return None, []
 
-
-def flatten_nested_dicts(nested, field=()):
-    if isinstance(nested, dict):
-        for k, v in nested.items():
-            yield from flatten_nested_dicts(v, field + (k,))
     else:
-        yield (field, nested)
+        return {sep.join(key): value}, []
 
 
 def build_select_tree(select: List[str]):

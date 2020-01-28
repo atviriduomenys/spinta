@@ -302,7 +302,7 @@ def getone(
         raise ItemDoesNotExist(model, id=id_)
     data['_id'] = data['__id']
     data['_type'] = model.model_type()
-    return data
+    return commands.cast_backend_to_python(context, model, backend, data)
 
 
 @getone.register()
@@ -332,18 +332,6 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, dtype, backend, id_=params.pk)
-    pdata = data.pop(prop.name)
-
-    # Subresources might have their own _id, for example file an ref and list
-    # item properties have their own _id. Because of that, _id on subresource is
-    # always resource own _id.
-    del data['_id']
-
-    # Move subresource properties to the top level.
-    data = {
-        **data,
-        **pdata,
-    }
 
     data = commands.prepare_data_for_response(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
@@ -372,7 +360,7 @@ def getone(
         '_type': prop.model_type(),
         prop.name: (data.get(prop.name) or {}),
     }
-    return result
+    return commands.cast_backend_to_python(context, prop, backend, result)
 
 
 @getone.register()
@@ -401,7 +389,7 @@ def getone(
             '_id': None
         }),
     }
-    return result
+    return commands.cast_backend_to_python(context, prop, backend, result)
 
 
 @getall.register()
@@ -424,6 +412,17 @@ async def getall(
         limit=params.limit,
         count=params.count,
         query=params.query,
+    )
+    data = (
+        commands.prepare_data_for_response(
+            context,
+            action,
+            model,
+            backend,
+            row,
+            select=params.select,
+        )
+        for row in data
     )
     return render(context, request, model, params, data, action=action)
 
@@ -451,14 +450,7 @@ def getall(
     for row in cursor:
         row['_id'] = row.pop('__id')
         row['_type'] = model.model_type()
-        yield commands.prepare_data_for_response(
-            context,
-            action,
-            model,
-            backend,
-            row,
-            select=select,
-        )
+        yield commands.cast_backend_to_python(context, model, backend, row)
 
 
 class QueryBuilder:

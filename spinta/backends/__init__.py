@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Union
+from typing import AsyncIterator, Union, List, Dict, Optional
 
 import base64
 import contextlib
@@ -11,10 +11,11 @@ from spinta.components import Context, Namespace, Model, Property, Action, Node,
 from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
 from spinta.types import dataset
 from spinta.exceptions import ConflictingValue, NoItemRevision
-from spinta.utils.nestedstruct import build_select_tree
 from spinta.utils.schema import NotAvailable, NA
 from spinta import commands
 from spinta import exceptions
+
+SelectTree = Optional[Dict[str, dict]]
 
 
 class Backend:
@@ -306,20 +307,170 @@ def prepare_data_for_response(  # noqa
     *,
     select: typing.List[str] = None,
 ) -> dict:
-    return _prepare_query_result(context, action, model, backend, value, select)
+    select = _apply_always_show_id(context, action, select)
+    select = _flat_select_to_nested(context, select)
+    return {
+        prop.name: commands.prepare_dtype_for_response(
+            context,
+            backend,
+            model,
+            prop.dtype,
+            val,
+            select=sel,
+        )
+        for prop, val, sel in _select_model_props(
+            model,
+            value,
+            select,
+            ['_type', '_id', '_revision'],
+        )
+    }
 
 
 @commands.prepare_data_for_response.register()
 def prepare_data_for_response(  # noqa
     context: Context,
     action: Action,
-    dtype: DataType,
+    dtype: Object,
     backend: Backend,
     value: dict,
     *,
     select: typing.List[str] = None,
 ) -> dict:
-    return _prepare_query_result(context, action, dtype.prop, backend, value, select)
+    select = _flat_select_to_nested(context, select)
+    return {
+        prop.name: commands.prepare_dtype_for_response(
+            context,
+            backend,
+            prop.model,
+            prop.dtype,
+            value,
+            select=select,
+        )
+        for prop, value, select in _select_prop_props(
+            dtype.prop,
+            value,
+            select,
+            ['_type', '_revision'],
+        )
+    }
+
+
+def _apply_always_show_id(
+    context: Context,
+    action: Action,
+    select: Optional[List[str]],
+) -> Optional[List[str]]:
+    if action in (Action.GETALL, Action.SEARCH):
+        config = context.get('config')
+        if config.always_show_id:
+            if select is None:
+                return ['_id']
+            elif '_id' not in select:
+                return ['_id'] + select
+    return select
+
+
+def _select_model_props(
+    model: Union[Model, dataset.Model],
+    value: dict,
+    select: SelectTree,
+    reserved: List[str],
+):
+    yield from _select_props(
+        reserved,
+        model.properties,
+        value,
+        select,
+    )
+    yield from _select_props(
+        value.keys(),
+        model.properties,
+        value,
+        select,
+        reserved=False,
+    )
+
+
+def _select_prop_props(
+    prop: Union[Property, dataset.Property],
+    value: dict,
+    select: SelectTree,
+    reserved: List[str],
+):
+    yield from _select_props(
+        reserved,
+        prop.model.properties,
+        value,
+        select,
+    )
+    if prop.name in value:
+        yield from _select_props(
+            value[prop.name].keys(),
+            prop.dtype.properties,
+            value[prop.name],
+            select,
+        )
+
+
+def _select_props(
+    keys: List[str],
+    props: Dict[str, Union[Property, dataset.Property]],
+    value: dict,
+    select: SelectTree,
+    *,
+    reserved: bool = True,
+):
+    for k in keys:
+        if reserved is False and k.startswith('_'):
+            continue
+
+        if k not in value:
+            continue
+
+        if select is None:
+            sel = None
+        elif '*' in select:
+            sel = select['*']
+        elif k in select:
+            sel = select[k]
+        else:
+            continue
+
+        sel = sel or {'*': {}}
+
+        prop = props[k]
+        if prop.hidden:
+            continue
+
+        yield prop, value[k], sel
+
+
+def _flat_select_to_nested(
+    context: Context,
+    select: Optional[List[str]],
+) -> SelectTree:
+    """
+    >>> _flat_select_to_nested(None)
+    {'None': {}}
+
+    >>> _flat_select_to_nested(['foo.bar'])
+    {'foo': {'bar': {}}}
+
+    """
+    if select is None:
+        return None
+
+    res = {}
+    for v in select:
+        names = v.split('.')
+        vref = res
+        for name in names:
+            if name not in vref:
+                vref[name] = {}
+            vref = vref[name]
+
+    return res
 
 
 @commands.prepare_dtype_for_response.register()
@@ -445,33 +596,41 @@ def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
     model: (Model, dataset.Model),
+    dtype: Ref,
+    value: str,
+    *,
+    select: dict = None,
+):
+    # FIXME: Backend should never return references as strings! References
+    #        should always be dicts.
+    return {'_id': value}
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
     dtype: Object,
     value: dict,
     *,
     select: dict = None,
 ):
-    if select is None or '*' in select or select[dtype.prop.place]:
-        select_ = select
-    else:
-        select_ = {
-            prop.place: set()
-            for prop in dtype.properties.values()
-        }
-    props = (
-        prop for prop in dtype.properties.values()
-        if not prop.name.startswith('_')
-    )
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
             backend,
             model,
             prop.dtype,
-            value.get(prop.name, NA),
-            select=select_,
+            val,
+            select=sel,
         )
-        for prop in props
-        if select_ is None or '*' in select_ or prop.place in select_
+        for prop, val, sel in _select_props(
+            value.keys(),
+            dtype.properties,
+            value,
+            select,
+        )
     }
 
 
@@ -526,123 +685,6 @@ def load_operator_value(context: Context, backend: Backend, dtype: DataType, val
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
     if operator in ('gt', 'ge', 'lt', 'le') and isinstance(dtype, String):
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
-
-
-def _prepare_query_result(
-    context: Context,
-    action: Action,
-    node: Union[Model, dataset.Model, Property, dataset.Property],
-    backend: Backend,
-    value: dict,
-    select: typing.List[str],
-):
-    if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
-        config = context.get('config')
-
-        if isinstance(node, (Model, dataset.Model)):
-            props = ((prop.place, prop) for prop in node.properties.values())
-            flatprops = node.flatprops
-        elif isinstance(node, (Property, dataset.Property)) and isinstance(node.dtype, Object):
-            props = node.dtype.properties.items()
-            flatprops = node.dtype.properties
-        else:
-            raise NotImplementedError(f"Don't know how to prepare {node}.")
-
-        if select is not None:
-            # FIXME: We should check select list at the very beginning of
-            #        request, not when returning results.
-            unknown_properties = set(select) - {
-                name
-                for name, prop in flatprops.items()
-                if not prop.hidden
-            } - {'*'}
-            if unknown_properties:
-                raise exceptions.MultipleErrors(
-                    exceptions.FieldNotInResource(node, property=prop)
-                    for prop in sorted(unknown_properties)
-                )
-
-            if config.always_show_id and '_id' not in select:
-                select = ['_id'] + select
-
-            select = build_select_tree(select)
-
-        elif action in (Action.GETALL, Action.SEARCH) and config.always_show_id:
-            select = ['_id']
-
-        result = {}
-
-        meta = ('_type', '_id', '_revision')
-        for name in meta:
-            if (
-                name in value and (
-                    select is None or
-                    '*' in select or
-                    name in select
-                )
-            ):
-                result[name] = value[name]
-
-        for name, prop in props:
-            if prop.hidden or (name.startswith('_') and name not in meta):
-                continue
-            if select is None or '*' in select or name in select:
-                result[name] = commands.prepare_dtype_for_response(
-                    context,
-                    backend,
-                    prop.model,
-                    prop.dtype,
-                    value.get(name, NA),
-                    select=select,
-                )
-
-        return result
-
-    elif action in (Action.INSERT, Action.UPSERT, Action.UPDATE, Action.PATCH, Action.DELETE):
-        result = {
-            '_type': node.model_type(),
-            '_id': value['_id'],
-            '_revision': value['_revision'],
-        }
-
-        if isinstance(node, (Model, dataset.Model)):
-            props = node.properties
-        elif isinstance(node, (Property, dataset.Property)) and isinstance(node.dtype, Object):
-            props = node.dtype.properties
-            value = value.get(node.name)
-        else:
-            raise NotImplementedError(f"Don't know how to prepare {node}.")
-
-        if action == Action.DELETE:
-            return result
-
-        elif action in (Action.PATCH, Action.UPSERT):
-            for k, v in (value or {}).items():
-                prop = props[k]
-                result[prop.name] = commands.prepare_dtype_for_response(
-                    context,
-                    backend,
-                    prop.model,
-                    prop.dtype,
-                    v,
-                )
-
-        else:
-            for prop in props.values():
-                if prop.hidden or prop.name.startswith('_'):
-                    continue
-                result[prop.name] = commands.prepare_dtype_for_response(
-                    context,
-                    backend,
-                    prop.model,
-                    prop.dtype,
-                    value.get(prop.name),
-                )
-
-        return result
-
-    else:
-        raise Exception(f"Unknown action {action}.")
 
 
 @commands.make_json_serializable.register()
@@ -754,3 +796,87 @@ async def _prepare_property_for_delete(
                 prop.name: None,
             }
         yield data
+
+
+@commands.cast_backend_to_python.register()
+def cast_backend_to_python(  # noqa
+    context: Context,
+    model: (Model, dataset.Model),
+    backend: Backend,
+    data: dict,
+) -> dict:
+    return {
+        k: commands.cast_backend_to_python(
+            context,
+            model.properties[k].dtype,
+            backend,
+            v,
+        ) if k in model.properties else v
+        for k, v in data.items()
+    }
+
+
+@commands.cast_backend_to_python.register()
+def cast_backend_to_python(  # noqa
+    context: Context,
+    prop: (Property, dataset.Property),
+    backend: Backend,
+    data: object,
+) -> dict:
+    return commands.cast_backend_to_python(context, prop.dtype, backend, data)
+
+
+@commands.cast_backend_to_python.register()
+def cast_backend_to_python(  # noqa
+    context: Context,
+    dtype: DataType,
+    backend: Backend,
+    data: object,
+) -> dict:
+    return data
+
+
+@commands.cast_backend_to_python.register()
+def cast_backend_to_python(  # noqa
+    context: Context,
+    dtype: Object,
+    backend: Backend,
+    data: dict,
+) -> dict:
+    return {
+        k: commands.cast_backend_to_python(
+            context,
+            dtype.properties[k].dtype,
+            backend,
+            v,
+        ) if k in dtype.properties else v
+        for k, v in data.items()
+    }
+
+
+@commands.cast_backend_to_python.register()
+def cast_backend_to_python(  # noqa
+    context: Context,
+    dtype: Array,
+    backend: Backend,
+    data: list,
+) -> dict:
+    return [
+        commands.cast_backend_to_python(
+            context,
+            dtype.items.dtype,
+            backend,
+            v,
+        )
+        for v in data
+    ]
+
+
+@commands.cast_backend_to_python.register()
+def cast_backend_to_python(  # noqa
+    context: Context,
+    dtype: Binary,
+    backend: Backend,
+    data: str,
+) -> dict:
+    return base64.b64decode(data)

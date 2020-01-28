@@ -513,9 +513,8 @@ def test_update_same_subresource(model, app):
     data = resp.json()
     new_revision = data['_revision']
     assert data == {
-        '_id': id_,
-        '_revision': new_revision,
         '_type': f'{model}.subobj',
+        '_revision': new_revision,
         'bar': None,
         'foo': 'baz',
     }

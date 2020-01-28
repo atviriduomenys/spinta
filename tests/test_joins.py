@@ -58,19 +58,31 @@ def test_select_with_joins(app):
         {
             '_id': '1b6453892473a467d07372d45eb05abc2031647a',
             'title': 'Kaunas',
-            'country.title': 'Lithuania',
-            'country.continent.title': 'Europe',
+            'country': {
+                'title': 'Lithuania',
+                'continent': {
+                    'title': 'Europe',
+                }
+            },
         },
         {
             '_id': '77de68daecd823babbb58edb1c8e14d7106e83bb',
             'title': 'Vilnius',
-            'country.title': 'Lithuania',
-            'country.continent.title': 'Europe',
+            'country': {
+                'title': 'Lithuania',
+                'continent': {
+                    'title': 'Europe',
+                },
+            }
         },
         {
             '_id': 'ac3478d69a3c81fa62e60f5c3696165a4e5e6ac4',
             'title': 'Ryga',
-            'country.title': 'Latvia',
-            'country.continent.title': 'Europe',
+            'country': {
+                'title': 'Latvia',
+                'continent': {
+                    'title': 'Europe',
+                },
+            },
         },
     ]

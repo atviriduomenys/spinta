@@ -16,6 +16,7 @@ from spinta.utils.url import build_url_path
 from spinta import commands
 from spinta.components import Namespace, Model
 from spinta.types import dataset
+from spinta.utils.nestedstruct import flatten
 
 
 class Html(Format):
@@ -320,7 +321,7 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
 
     yield header
 
-    for data in rows:
+    for data in flatten(rows):
         row = []
         for name, prop in zip(header, props):
             row.append(get_cell(context, prop, data.get(name), shorten=True))

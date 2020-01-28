@@ -188,12 +188,12 @@ def getone(
     row = backend.get(connection, table.main, table.main.c.id == id_, default=None)
     if row is None:
         raise exceptions.ItemDoesNotExist(model, id=id_)
-    return {
+    return commands.cast_backend_to_python(context, model, backend, {
         '_id': row[table.main.c.id],
         '_revision': row[table.main.c.revision],
         '_type': model.model_type(),
         **row[table.main.c.data],
-    }
+    })
 
 
 class JoinManager:
@@ -281,6 +281,18 @@ async def getall(
         count=params.count,
         query=params.query,
     )
+    if not params.count:
+        data = (
+            commands.prepare_data_for_response(
+                context,
+                action,
+                model,
+                backend,
+                row,
+                select=params.select,
+            )
+            for row in data
+        )
     return render(context, request, model, params, data, action=action)
 
 
@@ -318,40 +330,37 @@ def getall(
 
         result = connection.execute(qry)
 
-        if len(jm.aliases) > 1:
-            # FIXME: currently `prepare` does not support joins, but that should
-            #        be fixed, so for now skipping `prepare`.
-            return (dict(row) for row in result)
-
         if select:
             return (
-                commands.prepare_data_for_response(
-                    context,
-                    action,
-                    model,
-                    backend,
-                    dict(row),
-                    select=select,
+                commands.cast_backend_to_python(
+                    context, model, backend,
+                    _flat_dicts_to_nested(row),
                 )
                 for row in result
             )
         else:
             return (
-                commands.prepare_data_for_response(
-                    context,
-                    action,
-                    model,
-                    backend,
-                    {
-                        '_id': row[table.c.id],
-                        '_revision': row[table.c.revision],
-                        '_type': model.model_type(),
-                        **row[table.c.data],
-                    },
-                    select=select,
-                )
+                commands.cast_backend_to_python(context, model, backend, {
+                    '_id': row[table.c.id],
+                    '_revision': row[table.c.revision],
+                    '_type': model.model_type(),
+                    **row[table.c.data],
+                })
                 for row in result
             )
+
+
+def _flat_dicts_to_nested(value):
+    res = {}
+    for k, v in dict(value).items():
+        names = k.split('.')
+        vref = res
+        for name in names[:-1]:
+            if name not in vref:
+                vref[name] = {}
+            vref = vref[name]
+        vref[names[-1]] = v
+    return res
 
 
 def _getall_select(

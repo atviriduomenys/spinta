@@ -180,6 +180,9 @@ class File(DataType):
     schema = {
         '_id': {'type': 'string'},
         '_content_type': {'type': 'string'},
+        # TODO: add file hash, maybe 'sha1sum'
+        # TODO: Maybe add all properties in schema as File.properties and maybe
+        #       File should extend Object?
     }
 
 
