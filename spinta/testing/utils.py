@@ -2,6 +2,8 @@ from typing import List
 
 from pathlib import Path
 
+import requests
+
 from ruamel.yaml import YAML
 
 yaml = YAML(typ='safe')
@@ -32,3 +34,23 @@ def get_error_context(response, error_code, ctx_keys: List[str] = None):
                 return {k: v for k, v in err["context"].items() if k in ctx_keys}
     else:
         assert False
+
+
+class RowIds:
+
+    def __init__(self, ids):
+        self.ids = {k: v for v, k in enumerate(self._cast(ids))}
+
+    def __call__(self, ids):
+        return [self.ids.get(i, i) for i in self._cast(ids)]
+
+    def _cast(self, ids):
+        if isinstance(ids, requests.models.Response):
+            resp = ids
+            assert resp.status_code == 200, resp.json()
+            ids = resp.json()
+        if isinstance(ids, dict):
+            ids = ids['resources']
+        if isinstance(ids, list) and len(ids) > 0 and isinstance(ids[0], dict):
+            ids = [r['id'] for r in ids]
+        return ids
