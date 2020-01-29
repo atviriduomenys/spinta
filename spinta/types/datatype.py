@@ -1,4 +1,6 @@
-from typing import Any, Iterable
+from typing import Any, Iterable, Union
+
+import base64
 
 from datetime import date, datetime
 
@@ -8,7 +10,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.commands import load, is_object_id
 from spinta.components import Context, Manifest, Node, Property
-from spinta.utils.schema import NA, resolve_schema
+from spinta.utils.schema import NA, NotAvailable, resolve_schema
 
 
 class DataType:
@@ -34,8 +36,11 @@ class PrimaryKey(DataType):
 class Date(DataType):
 
     def load(self, value: Any):
-        if value is None or value is NA:
+        if value is None or value is NA or isinstance(value, (date, datetime)):
             return value
+
+        if value == '':
+            return None
 
         try:
             return date.fromisoformat(value)
@@ -65,6 +70,23 @@ class String(DataType):
             return value
 
         if isinstance(value, str):
+            return value
+        else:
+            raise exceptions.InvalidValue(self)
+
+
+class Binary(DataType):
+    schema = {}
+
+    def load(
+        self,
+        value: Union[bytes, str, NotAvailable, None],
+    ) -> Union[bytes, NotAvailable, None]:
+        if value is None or value is NA:
+            return value
+        if isinstance(value, str):
+            return base64.b64decode(value)
+        elif isinstance(value, bytes):
             return value
         else:
             raise exceptions.InvalidValue(self)
@@ -158,6 +180,9 @@ class File(DataType):
     schema = {
         '_id': {'type': 'string'},
         '_content_type': {'type': 'string'},
+        # TODO: add file hash, maybe 'sha1sum'
+        # TODO: Maybe add all properties in schema as File.properties and maybe
+        #       File should extend Object?
     }
 
 

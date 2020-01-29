@@ -39,7 +39,7 @@ resources:
               type: pk
               source: ['Rinkimai', 'Turas']
             turas:
-              type: string
+              type: integer
               source: 'Turas'
             rinkimai:
               type: ref
@@ -55,7 +55,7 @@ resources:
               type: pk
               source: ['Apygardos Nr.']
             numeris:
-              type: string
+              type: integer
               source: 'Apygardos Nr.'
             pavadinimas:
               type: string
@@ -78,7 +78,7 @@ resources:
               type: pk
               source: ['Apygardos Nr.', 'Apylinkės Nr.']
             numeris:
-              type: string
+              type: integer
               source: 'Apylinkės Nr.'
             pavadinimas:
               type: string

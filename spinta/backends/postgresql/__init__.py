@@ -27,6 +27,7 @@ from spinta.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
 from spinta.utils.schema import NA, strip_metadata, is_valid_sort_key
+from spinta.utils.json import fix_data_for_json
 from spinta.types.datatype import (
     Array,
     DataType,
@@ -249,6 +250,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         return sa.Column(name, sa.Float)
     elif dtype.name == 'boolean':
         return sa.Column(name, sa.Boolean)
+    elif dtype.name == 'binary':
+        return sa.Column(name, sa.LargeBinary)
     elif dtype.name in ('spatial', 'image'):
         # TODO: these property types currently are not implemented
         return sa.Column(name, sa.Text)
@@ -381,7 +384,10 @@ def check_unique_constraint(
 ):
     table = backend.tables[prop.manifest.name][prop.model.name].main
 
-    if data.action in (Action.UPDATE, Action.PATCH):
+    if (
+        data.action in (Action.UPDATE, Action.PATCH) or
+        data.action == Action.UPSERT and data.saved is not None
+    ):
         if prop.name == '_id' and value == data.saved['_id']:
             return
         condition = sa.and_(
@@ -632,7 +638,14 @@ async def getone(
 ):
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.pk)
-    data = prepare(context, Action.GETONE, model, backend, data, select=params.select)
+    data = commands.prepare_data_for_response(
+        context,
+        Action.GETONE,
+        model,
+        backend,
+        data,
+        select=params.select,
+    )
     return render(context, request, model, params, data, action=action)
 
 
@@ -652,7 +665,7 @@ def getone(
         raise ItemDoesNotExist(model, id=id_)
     data = _flat_dicts_to_nested(dict(result))
     data['_type'] = model.model_type()
-    return data
+    return commands.cast_backend_to_python(context, model, backend, data)
 
 
 def _flat_dicts_to_nested(value):
@@ -681,20 +694,8 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, dtype, backend, id_=params.pk)
-    pdata = data.pop(prop.name)
 
-    # Subresources might have their own _id, for example file an ref and list
-    # item properties have their own _id. Because of that, _id on subresource is
-    # always resource own _id.
-    del data['_id']
-
-    # Move subresource properties to the top level.
-    data = {
-        **data,
-        **pdata,
-    }
-
-    data = prepare(context, Action.GETONE, prop.dtype, backend, data)
+    data = commands.prepare_data_for_response(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
 
 
@@ -743,7 +744,7 @@ def getone(
 
     data = _flat_dicts_to_nested(data)
     result[prop.name] = data[prop.name]
-    return result
+    return commands.cast_backend_to_python(context, prop, backend, result)
 
 
 @dispatch((Model, Object))
@@ -795,7 +796,7 @@ def getone(
 
     data = _flat_dicts_to_nested(data)
     result[prop.name] = data[prop.name]
-    return result
+    return commands.cast_backend_to_python(context, prop, backend, result)
 
 
 @getall.register()
@@ -810,7 +811,14 @@ async def getall(
 ):
     authorize(context, action, model)
     result = (
-        prepare(context, action, model, backend, row, select=params.select)
+        commands.prepare_data_for_response(
+            context,
+            action,
+            model,
+            backend,
+            row,
+            select=params.select,
+        )
         for row in getall(
             context, model, backend,
             select=params.select,
@@ -846,10 +854,11 @@ def getall(
 
     for row in connection.execute(qry):
         row = _flat_dicts_to_nested(dict(row))
-        yield {
+        row = {
             '_type': model.model_type(),
             **row,
         }
+        yield commands.cast_backend_to_python(context, model, backend, row)
 
 
 class QueryBuilder:
@@ -1314,8 +1323,8 @@ def get_changes_table(backend, table_name, id_type):
     return table
 
 
-@prepare.register()
-def prepare(
+@commands.prepare_data_for_response.register()
+def prepare_data_for_response(
     context: Context,
     action: Action,
     model: Model,
@@ -1324,7 +1333,14 @@ def prepare(
     *,
     select: typing.List[str] = None,
 ) -> dict:
-    return prepare(context, action, model, backend, dict(value), select=select)
+    return commands.prepare_data_for_response(
+        context,
+        action,
+        model,
+        backend,
+        dict(value),
+        select=select,
+    )
 
 
 @prepare.register()
@@ -1361,20 +1377,6 @@ def unload_backend(context: Context, backend: PostgreSQL):
     backend.engine.dispose()
 
 
-def _fix_data_for_json(data):
-    # XXX: a temporary workaround
-    #
-    #      Changelog data are stored as JSON and data must be JSON serializable.
-    #      Probably there should be a command, that would make data JSON
-    #      serializable.
-    _data = {}
-    for k, v in data.items():
-        if isinstance(v, (datetime.datetime, datetime.date)):
-            v = v.isoformat()
-        _data[k] = v
-    return _data
-
-
 @commands.create_changelog_entry.register()
 async def create_changelog_entry(
     context: Context,
@@ -1401,7 +1403,7 @@ async def create_changelog_entry(
             'transaction': transaction.id,
             'datetime': utcnow(),
             'action': data.action.value,
-            'data': _fix_data_for_json({
+            'data': fix_data_for_json({
                 k: v for k, v in data.patch.items() if not k.startswith('_')
             }),
         }])

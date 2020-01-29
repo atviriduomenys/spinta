@@ -72,9 +72,8 @@ def test_crud(model, app):
     assert resp.status_code == 204, resp.text
     data = resp.json()
     assert data == {
-        '_id': 'myimg.png',
-        '_revision': data['_revision'],
         '_type': f'{model}.image',
+        '_revision': data['_revision'],
     }
     assert data['_revision'] != revision
     revision = data['_revision']
@@ -82,9 +81,9 @@ def test_crud(model, app):
     resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.status_code == 200
     assert resp.json() == {
-        '_id': None,
-        '_revision': revision,
         '_type': f'{model}.image',
+        '_revision': revision,
+        '_id': None,
         '_content_type': None,
     }
 

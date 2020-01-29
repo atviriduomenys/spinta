@@ -56,18 +56,6 @@ def wait():
 
 
 @command()
-def dump():
-    """Dump python-native objects to primitive data structures.
-
-
-    - Dump backend-native values to primitive data structures.
-
-        dump(Context, Backend, Type, object)
-
-    """
-
-
-@command()
 def check():
     """Check if input value is correct.
 
@@ -144,15 +132,33 @@ def prepare():
         prepare(Context, Property, Backend, object) -> object
         prepare(Context, Type, Backend, object) -> object
 
-    - Convert backend-native values to Python-native values:
-
-        # FIXME: probably this should be replaced with `dump`.
-        prepare(Context, Action, Model, Backend, object) -> dict
-
     - Prepare external dataset for data import:
 
         prepare(Context, Source, Node)
 
+    """
+
+
+@command()
+def prepare_data_for_response():
+    """Prepare Python-native data types for response.
+
+    Prepared data must be json-serializable.
+
+    This command is responsible for preparing model or property data at the top
+    level of data structure. While prepare_dtype_for_response is responsible for
+    preparing individual properties.
+    """
+
+
+@command()
+def prepare_dtype_for_response():
+    """Prepare Python-native data types for response.
+
+    Prepared data must be json-serializable.
+
+    This command is responsible for preparing individual properties for
+    response. For the top level data preparation see prepare_data_for_response.
     """
 
 
@@ -392,3 +398,8 @@ def rename_metadata():
 def get_model_scopes():
     """Returns list of model scopes by given list of actions.
     """
+
+
+@command()
+def cast_backend_to_python():
+    """Convert backend native types to python native types."""

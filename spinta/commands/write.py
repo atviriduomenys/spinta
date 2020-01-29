@@ -464,7 +464,7 @@ async def prepare_patch(
             context,
             data.prop or data.model,
             given=strip_metadata(data.given),
-            saved=strip_metadata(data.saved) if data.saved else data.saved,
+            saved=strip_metadata(data.saved) if data.saved else NA,
             fill=data.action in (Action.INSERT, Action.UPDATE),
         )
 
@@ -885,6 +885,7 @@ async def simple_response(context: Context, results: AsyncIterator[DataItem]) ->
 def _get_simple_response(context: Context, data: DataItem) -> dict:
     resp = prepare_response(context, data)
     resp = {k: v for k, v in resp.items() if not k.startswith('_')}
+    resp['_type'] = (data.prop or data.model).model_type()
     if data.patch and '_id' in data.patch and data.prop is None:
         resp['_id'] = data.patch['_id']
     elif (
@@ -907,11 +908,14 @@ def _get_simple_response(context: Context, data: DataItem) -> dict:
         resp['_revision'] = data.patch['_revision']
     elif data.saved:
         resp['_revision'] = data.saved['_revision']
-    if data.action and data.model:
-        if data.prop:
-            resp = commands.prepare(context, data.action, data.prop.dtype, data.backend, resp)
-        else:
-            resp = commands.prepare(context, data.action, data.model, data.backend, resp)
+    if data.action and (data.model or data.prop):
+        resp = commands.prepare_data_for_response(
+            context,
+            data.action,
+            data.prop.dtype if data.prop else data.model,
+            data.backend,
+            resp,
+        )
     resp = {k: v for k, v in resp.items() if k in ('_id', '_revision', '_type') or not k.startswith('_')}
     if data.error is not None:
         return {

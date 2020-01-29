@@ -32,6 +32,6 @@ def test_xml(app, context, responses):
             '_revision': data['1cc7ac9d26603972f6c471a284ff37b9868854d9']['_revision'],
             'title': '2016–2020 metų kadencija',
             'since': '2016-11-14',
-            'until': '',
+            'until': None,
         },
     ]

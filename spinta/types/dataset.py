@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Any, Iterable, Tuple
 
 import logging
 import itertools
@@ -260,7 +260,7 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest):
 
 @load.register()
 def load(context: Context, model: Model, data: dict) -> dict:
-    return data
+    return load[type(context), components.Model, dict](context, model, data)
 
 
 @prepare.register()
@@ -392,10 +392,18 @@ def _dependencies(context: Context, model, deps):
             for row in getall(context, depmodel, depmodel.backend, select=prop_names):
                 yield {
                     prop_name_mapping[k]: v
-                    for k, v in row.items()
+                    for k, v in _flatten(row)
                 }
     else:
         yield {}
+
+
+def _flatten(value: dict, keys=()) -> Iterable[Tuple[str, Any]]:
+    if isinstance(value, dict):
+        for k, v in value.items():
+            yield from _flatten(v, keys + (k,))
+    else:
+        yield '.'.join(keys), value
 
 
 def _check_key(key):
@@ -513,7 +521,7 @@ def get_error_context(model: Model, *, prefix='this') -> Dict[str, str]:
 
 
 @commands.get_error_context.register()  # noqa
-def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
+def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:  # noqa
     context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
     context['property'] = f'{prefix}.place'
     context['backend'] = f'{prefix}.backend.name'
