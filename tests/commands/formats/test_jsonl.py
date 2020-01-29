@@ -1,6 +1,11 @@
 import datetime
 import json
 import operator
+import hashlib
+
+
+def sha1(s):
+    return hashlib.sha1(s.encode()).hexdigest()
 
 
 def test_export_json(app, mocker):
@@ -13,24 +18,24 @@ def test_export_json(app, mocker):
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '1',
-            '_where': '_id=string:1',
+            '_id': sha1('1'),
+            '_where': '_id=string:' + sha1('1'),
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '2',
-            '_where': '_id=string:2',
+            '_id': sha1('2'),
+            '_where': '_id=string:' + sha1('2'),
             'code': 'lv',
             'title': 'LATVIA',
         },
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '2',
-            '_where': '_id=string:2',
+            '_id': sha1('2'),
+            '_where': '_id=string:' + sha1('2'),
             'code': 'lv',
             'title': 'Latvia',
         },
@@ -44,14 +49,14 @@ def test_export_json(app, mocker):
     assert data == [
         {
             'code': 'lt',
-            '_id': '1',
+            '_id': sha1('1'),
             '_revision': revs[0],
             'title': 'Lithuania',
             '_type': 'country/:dataset/csv/:resource/countries'
         },
         {
             'code': 'lv',
-            '_id': '2',
+            '_id': sha1('2'),
             '_revision': revs[2],
             'title': 'Latvia',
             '_type': 'country/:dataset/csv/:resource/countries',
@@ -69,22 +74,22 @@ def test_export_jsonl_with_all(app):
         {
             '_type': 'continent/:dataset/dependencies/:resource/continents',
             '_op': 'insert',
-            '_id': '1',
+            '_id': sha1('1'),
             'title': 'Europe',
         },
         {
             '_type': 'country/:dataset/dependencies/:resource/continents',
             '_op': 'insert',
-            '_id': '2',
+            '_id': sha1('2'),
             'title': 'Lithuania',
-            'continent': '1',
+            'continent': sha1('1'),
         },
         {
             '_type': 'capital/:dataset/dependencies/:resource/continents',
             '_op': 'insert',
-            '_id': '3',
+            '_id': sha1('3'),
             'title': 'Vilnius',
-            'country': '2',
+            'country': sha1('2'),
         },
     ]})
     assert resp.status_code == 200, resp.json()
@@ -92,8 +97,8 @@ def test_export_jsonl_with_all(app):
     resp = app.get('/:all/:dataset/dependencies/:resource/continents?format(jsonl)')
     assert resp.status_code == 200, resp.json()
     data = [json.loads(d) for d in resp.text.splitlines()]
-    assert sorted((d['_id'], d['title']) for d in data) == [
-        ('1', 'Europe'),
-        ('2', 'Lithuania'),
-        ('3', 'Vilnius')
+    assert sorted(((d['_id'], d['title']) for d in data), key=lambda x: x[1]) == [
+        (sha1('1'), 'Europe'),
+        (sha1('2'), 'Lithuania'),
+        (sha1('3'), 'Vilnius')
     ]

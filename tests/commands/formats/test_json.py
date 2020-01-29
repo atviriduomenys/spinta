@@ -1,4 +1,9 @@
 import datetime
+import hashlib
+
+
+def sha1(s):
+    return hashlib.sha1(s.encode()).hexdigest()
 
 
 def test_export_json(app, mocker):
@@ -19,16 +24,16 @@ def test_export_json(app, mocker):
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '2',
-            '_where': '_id=string:2',
+            '_id': sha1('2'),
+            '_where': '_id=string:' + sha1('2'),
             'code': 'lv',
             'title': 'LATVIA',
         },
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '2',
-            '_where': '_id=string:2',
+            '_id': sha1('2'),
+            '_where': '_id=string:' + sha1('2'),
             'code': 'lv',
             'title': 'Latvia',
         },
@@ -48,7 +53,7 @@ def test_export_json(app, mocker):
             },
             {
                 '_type': 'country/:dataset/csv/:resource/countries',
-                '_id': '2',
+                '_id': sha1('2'),
                 '_revision': revs[2],
                 'code': 'lv',
                 'title': 'Latvia',
@@ -82,7 +87,7 @@ def test_export_json(app, mocker):
             '_transaction': changes[1]['_transaction'],
             '_created': '2019-03-06T16:15:00.816308',
             '_op': 'upsert',
-            '_id': '2',
+            '_id': sha1('2'),
             'code': 'lv',
             'title': 'LATVIA',
         },
@@ -92,7 +97,7 @@ def test_export_json(app, mocker):
             '_transaction': changes[2]['_transaction'],
             '_created': '2019-03-06T16:15:00.816308',
             '_op': 'upsert',
-            '_id': '2',
+            '_id': sha1('2'),
             'title': 'Latvia',
         },
     ]

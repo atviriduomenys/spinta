@@ -1,7 +1,11 @@
-import re
 import datetime
+import hashlib
 
 import pytest
+
+
+def sha1(s):
+    return hashlib.sha1(s.encode()).hexdigest()
 
 
 def test_export_ascii(app, mocker):
@@ -14,56 +18,45 @@ def test_export_ascii(app, mocker):
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '1',
-            '_where': '_id=string:1',
+            '_id': sha1('1'),
+            '_where': '_id=string:' + sha1('1'),
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '2',
-            '_where': '_id=string:2',
+            '_id': sha1('2'),
+            '_where': '_id=string:' + sha1('2'),
             'code': 'lv',
             'title': 'LATVIA',
         },
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '2',
-            '_where': '_id=string:2',
+            '_id': sha1('2'),
+            '_where': '_id=string:' + sha1('2'),
             'code': 'lv',
             'title': 'Latvia',
         },
     ]})
     assert resp.status_code == 200, resp.json()
-    data = resp.json()
-    rev1 = data['_data'][0]['_revision']
-    rev2 = data['_data'][2]['_revision']
-
-    assert app.get('/country/:dataset/csv/:resource/countries/:format/ascii?sort(+code)').text == (
-        '\n\n'
-        'Table: country/:dataset/csv/:resource/countries\n'
-        '_id                _revision                 code     title  \n'
-        '=============================================================\n'
-        f'1     {rev1}   lt     Lithuania\n'
-        f'2     {rev2}   lv     Latvia   '
+    assert app.get('/country/:dataset/csv/:resource/countries/:format/ascii?select(code,title)&sort(+code)').text == (
+        'code     title  \n'
+        '================\n'
+        'lt     Lithuania\n'
+        'lv     Latvia   '
     )
 
     resp = app.get('/country/:dataset/csv/:resource/countries/:changes')
     changes = resp.json()['_data']
-    ids = [c['_change'] for c in changes]
-    txn = [c['_transaction'] for c in changes]
-    rev = [c['_revision'] for c in changes]
+    changes = [{k: str(v) for k, v in row.items()} for row in changes]
     res = app.get('country/:dataset/csv/:resource/countries/:changes/:format/ascii').text
-    res = re.sub(f' +', '    ', res)
-    assert res == (
-        '_id    _change    _revision    _transaction    _created    _op    code    title    \n'
-        '============================================================================================================================\n'
-        f'1    {ids[0]}    {rev[0]}    {txn[0]}    2019-03-06T16:15:00.816308    upsert    lt    Lithuania\n'
-        f'2    {ids[1]}    {rev[1]}    {txn[1]}    2019-03-06T16:15:00.816308    upsert    lv    LATVIA    \n'
-        f'2    {ids[2]}    {rev[2]}    {txn[2]}    2019-03-06T16:15:00.816308    upsert    None    Latvia    '
-    )
+    lines = res.splitlines()
+    cols = lines[0].split()
+    data = [dict(zip(cols, [v.strip() for v in row.split()])) for row in lines[2:]]
+    data = [{k: v for k, v in row.items() if v != 'None'} for row in data]
+    assert data == changes
 
 
 @pytest.mark.asyncio

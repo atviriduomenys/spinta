@@ -1,8 +1,15 @@
+import hashlib
+
+
 def _get_data_table(context: dict):
     return [tuple(context['header'])] + [
         tuple(cell['value'] for cell in row)
         for row in context['data']
     ]
+
+
+def sha1(s):
+    return hashlib.sha1(s.encode()).hexdigest()
 
 
 def test_select_with_joins(app):
@@ -16,22 +23,22 @@ def test_select_with_joins(app):
             {
                 '_type': 'continent/:dataset/dependencies/:resource/continents',
                 '_op': 'insert',
-                '_id': '1',
+                '_id': sha1('1'),
                 'title': 'Europe',
             },
             {
                 '_type': 'country/:dataset/dependencies/:resource/continents',
                 '_op': 'insert',
-                '_id': '2',
+                '_id': sha1('2'),
                 'title': 'Lithuania',
-                'continent': '1',
+                'continent': sha1('1'),
             },
             {
                 '_type': 'capital/:dataset/dependencies/:resource/continents',
                 '_op': 'insert',
-                '_id': '3',
+                '_id': sha1('3'),
                 'title': 'Vilnius',
-                'country': '2',
+                'country': sha1('2'),
             },
         ]
     })
@@ -44,5 +51,5 @@ def test_select_with_joins(app):
     )
     assert _get_data_table(resp.context) == [
         ('_id', 'title', 'country.title', 'country.continent.title'),
-        ('3', 'Vilnius', 'Lithuania', 'Europe'),
+        (sha1('3')[:8], 'Vilnius', 'Lithuania', 'Europe'),
     ]

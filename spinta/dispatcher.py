@@ -49,6 +49,7 @@ class Command(Dispatcher):
 
         base = pathlib.Path().resolve()
         argnames = _extend_duplicate_names(self.ordering)
+        print('---')
         for args in self.ordering:
             func_ = self.funcs[args]
             mark = func_ is func
