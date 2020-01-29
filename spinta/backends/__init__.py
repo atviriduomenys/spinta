@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Union, List, Dict, Optional
+from typing import AsyncIterator, Union, List, Dict, Optional, Iterable
 
 import base64
 import contextlib
@@ -377,6 +377,7 @@ def _select_model_props(
     select: SelectTree,
     reserved: List[str],
 ):
+    _check_unknown_props(model, select, set(reserved) | set(value))
     yield from _select_props(
         reserved,
         model.properties,
@@ -398,6 +399,10 @@ def _select_prop_props(
     select: SelectTree,
     reserved: List[str],
 ):
+    if prop.name in value:
+        _check_unknown_props(prop, select, set(reserved) | set(value[prop.name]))
+    else:
+        _check_unknown_props(prop, select, set(reserved))
     yield from _select_props(
         reserved,
         prop.model.properties,
@@ -425,9 +430,6 @@ def _select_props(
         if reserved is False and k.startswith('_'):
             continue
 
-        if k not in value:
-            continue
-
         if select is None:
             sel = None
         elif '*' in select:
@@ -444,6 +446,21 @@ def _select_props(
             continue
 
         yield prop, value[k], sel
+
+
+# FIXME: We should check select list at the very beginning of
+#        request, not when returning results.
+def _check_unknown_props(
+    node: Union[Model, dataset.Model, Property, dataset.Property, DataType],
+    select: Optional[Iterable[str]],
+    known: Iterable[str],
+):
+    unknown_properties = set(select or []) - set(known) - {'*'}
+    if unknown_properties:
+        raise exceptions.MultipleErrors(
+            exceptions.FieldNotInResource(node, property=prop)
+            for prop in sorted(unknown_properties)
+        )
 
 
 def _flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
@@ -612,6 +629,7 @@ def prepare_dtype_for_response(  # noqa
     *,
     select: dict = None,
 ):
+    _check_unknown_props(dtype, select, set(value)),
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,

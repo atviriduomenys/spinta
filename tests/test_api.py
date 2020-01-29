@@ -255,7 +255,9 @@ def test_dataset_with_show(context, app):
     ]})
     assert resp.status_code == 200, resp.json()
 
-    resp = app.get('/rinkimai/:dataset/json?select(pavadinimas)', headers={'accept': 'text/html'})
+    resp = app.get('/rinkimai/:dataset/json?select(pavadinimas)', headers={
+        'accept': 'text/html',
+    })
     assert resp.status_code == 200
 
     resp.context.pop('request')
