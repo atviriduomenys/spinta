@@ -36,7 +36,14 @@ def _flatten(value, sep, key=()):
             lists += more
         return data, lists
 
-    elif isinstance(value, (list, types.GeneratorType)):
+    elif isinstance(value, (
+        list,
+        types.GeneratorType,
+        itertools.groupby,
+        # _grouper is type of `g` in `k, g = next(itertools.groupby([1, 1]))`
+        itertools._grouper,
+        itertools.chain,
+    )):
         if value:
             return None, [(key, value)]
         else:

@@ -41,7 +41,7 @@ def test_xlsx(app, context, responses, mocker):
             '_id': turas,
             '_revision': data[turas]['_revision'],
             'turas': 1,
-            'rinkimai': rinkimai,
+            'rinkimai': {'_id': rinkimai},
         },
     ]
     assert app.getdata('/rinkimai/apygarda/:dataset/xlsx/:resource/data') == [
@@ -51,8 +51,8 @@ def test_xlsx(app, context, responses, mocker):
             '_revision': data[apygarda]['_revision'],
             'numeris': 2,
             'pavadinimas': 'Senamiesčio',
-            'rinkimai': rinkimai,
-            'turas': turas,
+            'rinkimai': {'_id': rinkimai},
+            'turas': {'_id': turas},
         },
     ]
     assert app.getdata('/rinkimai/apylinke/:dataset/xlsx/:resource/data') == [
@@ -62,9 +62,9 @@ def test_xlsx(app, context, responses, mocker):
             '_revision': data[apylinke]['_revision'],
             'numeris': 0,
             'pavadinimas': 'Balsai, suskaičiuoti apygardos rinkimų komisijoje',
-            'rinkimai': rinkimai,
-            'turas': turas,
-            'apygarda': apygarda,
+            'rinkimai': {'_id': rinkimai},
+            'turas': {'_id': turas},
+            'apygarda': {'_id': apygarda},
         },
     ]
     assert app.getdata('/rinkimai/kandidatas/:dataset/xlsx/:resource/data') == [
@@ -81,9 +81,9 @@ def test_xlsx(app, context, responses, mocker):
             'gauti_balsai_is_viso': 243,
             'gauti_balsai_rinkimu_diena': 0,
             'gimimo_data': '1954-03-31T00:00:00',
-            'rinkimai': rinkimai,
-            'turas': turas,
-            'apygarda': apygarda,
-            'apylinke': apylinke,
+            'rinkimai': {'_id': rinkimai},
+            'turas': {'_id': turas},
+            'apygarda': {'_id': apygarda},
+            'apylinke': {'_id': apylinke},
         },
     ]
