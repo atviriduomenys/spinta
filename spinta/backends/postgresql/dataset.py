@@ -1,6 +1,5 @@
 from typing import Optional, List
 
-import datetime
 import logging
 import string
 import typing
@@ -25,7 +24,10 @@ from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
 from spinta import exceptions
-from spinta.types.datatype import DataType, String
+from spinta.types.datatype import DataType, String, Binary
+from spinta import components
+from spinta.utils.refs import get_ref_id
+from spinta.utils.json import fix_data_for_json
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +89,7 @@ async def insert(
         connection.execute(qry, [{
             'id': data.patch['_id'],
             'revision': data.patch['_revision'],
-            'data': _fix_data_for_json(
+            'data': fix_data_for_json(
                 {k: v for k, v in data.patch.items() if not k.startswith('_')},
             )
         }])
@@ -115,7 +117,7 @@ async def update(
             'revision': data.patch['_revision'],
             'transaction': transaction.id,
             'updated': utcnow(),
-            'data': _fix_data_for_json({
+            'data': fix_data_for_json({
                 # FIXME: Support patching nested properties.
                 **{k: v for k, v in data.saved.items() if not k.startswith('_')},
                 **{k: v for k, v in data.patch.items() if not k.startswith('_')},
@@ -162,7 +164,14 @@ async def getone(
 ):
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.pk)
-    data = prepare(context, Action.GETONE, model, backend, data, select=params.select)
+    data = commands.prepare_data_for_response(
+        context,
+        Action.GETONE,
+        model,
+        backend,
+        data,
+        select=params.select,
+    )
     return render(context, request, model, params, data, action=action)
 
 
@@ -179,12 +188,12 @@ def getone(
     row = backend.get(connection, table.main, table.main.c.id == id_, default=None)
     if row is None:
         raise exceptions.ItemDoesNotExist(model, id=id_)
-    return {
+    return commands.cast_backend_to_python(context, model, backend, {
         '_id': row[table.main.c.id],
         '_revision': row[table.main.c.revision],
         '_type': model.model_type(),
         **row[table.main.c.data],
-    }
+    })
 
 
 class JoinManager:
@@ -272,6 +281,18 @@ async def getall(
         count=params.count,
         query=params.query,
     )
+    if not params.count:
+        data = (
+            commands.prepare_data_for_response(
+                context,
+                action,
+                model,
+                backend,
+                row,
+                select=params.select,
+            )
+            for row in data
+        )
     return render(context, request, model, params, data, action=action)
 
 
@@ -309,29 +330,37 @@ def getall(
 
         result = connection.execute(qry)
 
-        if len(jm.aliases) > 1:
-            # FIXME: currently `prepare` does not support joins, but that should
-            #        be fixed, so for now skipping `prepare`.
-            return (dict(row) for row in result)
-
         if select:
             return (
-                prepare(context, action, model, backend, dict(row), select=select)
+                commands.cast_backend_to_python(
+                    context, model, backend,
+                    _flat_dicts_to_nested(row),
+                )
                 for row in result
             )
         else:
             return (
-                prepare(
-                    context, action, model, backend, {
-                        '_id': row[table.c.id],
-                        '_revision': row[table.c.revision],
-                        '_type': model.model_type(),
-                        **row[table.c.data],
-                    },
-                    select=select,
-                )
+                commands.cast_backend_to_python(context, model, backend, {
+                    '_id': row[table.c.id],
+                    '_revision': row[table.c.revision],
+                    '_type': model.model_type(),
+                    **row[table.c.data],
+                })
                 for row in result
             )
+
+
+def _flat_dicts_to_nested(value):
+    res = {}
+    for k, v in dict(value).items():
+        names = k.split('.')
+        vref = res
+        for name in names[:-1]:
+            if name not in vref:
+                vref[name] = {}
+            vref = vref[name]
+        vref[names[-1]] = v
+    return res
 
 
 def _getall_select(
@@ -527,22 +556,37 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: str):
     return len(value) == 40 and not set(value) - set(string.hexdigits)
 
 
-@prepare.register()
-def prepare(context: Context, action: Action, model: Model, backend: PostgreSQL, value: RowProxy, *, select: typing.List[str] = None) -> dict:
-    return prepare(context, action, model, backend, dict(value), select=select)
+@commands.prepare_data_for_response.register()
+def prepare_data_for_response(
+    context: Context,
+    action: Action,
+    model: Model,
+    backend: PostgreSQL,
+    value: RowProxy,
+    *,
+    select: typing.List[str] = None,
+) -> dict:
+    return commands.prepare_data_for_response(
+        context,
+        action,
+        model,
+        backend,
+        dict(value),
+        select=select,
+    )
 
 
-def _fix_data_for_json(data):
-    # XXX: a temporary workaround
-    #
-    #      Dataset data is stored in a JSONB column and has to be converted
-    #      into JSON friendly types.
-    _data = {}
-    for k, v in data.items():
-        if isinstance(v, (datetime.datetime, datetime.date)):
-            v = v.isoformat()
-        _data[k] = v
-    return _data
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: PostgreSQL,
+    model: Model,
+    dtype: Binary,
+    value: str,
+    *,
+    select: dict = None,
+):
+    return value
 
 
 @commands.create_changelog_entry.register()
@@ -572,7 +616,7 @@ async def create_changelog_entry(
             'transaction': transaction.id,
             'datetime': utcnow(),
             'action': data.action.value,
-            'data': _fix_data_for_json(
+            'data': fix_data_for_json(
                 {k: v for k, v in data.patch.items() if not k.startswith('_')},
             ),
         }])
@@ -607,3 +651,11 @@ def check_unique_constraint(
     result = backend.get(connection, table.c.data[prop.name], condition, default=not_found)
     if result is not not_found:
         raise exceptions.UniqueConstraint(prop)
+
+
+@commands.gen_object_id.register()
+def gen_object_id(context: Context, backend: Backend, model: Model):
+    pk = commands.gen_object_id[type(context), Backend, components.Model](
+        context, backend, model,
+    )
+    return get_ref_id(str(pk))

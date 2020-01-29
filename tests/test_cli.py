@@ -75,13 +75,13 @@ def test_push(app, cli, responses, tmpdir):
         {
             '_op': 'insert',
             '_type': continent,
-            '_id': 'a697ab05-3184-40a7-a7ba-e1da614ace5e',
+            '_id': 'e6a2ca1e2b50f1a6cd5203f3153162357add5614',
             'title': 'Europe',
         },
         {
             '_op': 'insert',
             '_type': continent,
-            '_id': 'e51aa67b-2297-4fe3-b54f-0d9240de5886',
+            '_id': '64f17dc0c56b943ed2835cb35705463c86b39c3d',
             'title': 'Africa',
         },
     ]
@@ -114,6 +114,6 @@ def test_push(app, cli, responses, tmpdir):
     )
     result = cli.invoke(main, ['push', target, '-r', str(credsfile), '-c', 'client', '-d', 'test'], catch_exceptions=False)
     assert sorted(result.output.splitlines()) == [
-        'backends/postgres/continent/:dataset/test   a697ab05-3184-40a7-a7ba-e1da614ace5e',
-        'backends/postgres/continent/:dataset/test   e51aa67b-2297-4fe3-b54f-0d9240de5886',
+        'backends/postgres/continent/:dataset/test   64f17dc0c56b943ed2835cb35705463c86b39c3d',
+        'backends/postgres/continent/:dataset/test   e6a2ca1e2b50f1a6cd5203f3153162357add5614',
     ]

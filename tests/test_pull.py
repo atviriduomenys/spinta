@@ -50,7 +50,7 @@ def test_csv(app, context, responses):
             '_id': '23fcdb953846e7c709d2967fb549de67d975c010',
             '_revision': data['_data'][0]['_revision'],
             'title': 'Lithuania',
-            'continent': '23fcdb953846e7c709d2967fb549de67d975c010',
+            'continent': {'_id': '23fcdb953846e7c709d2967fb549de67d975c010'},
             'country_id': '1',
         },
     ]}
@@ -63,7 +63,7 @@ def test_csv(app, context, responses):
             '_id': '23fcdb953846e7c709d2967fb549de67d975c010',
             '_revision': data['_data'][0]['_revision'],
             'title': 'Vilnius',
-            'country': '23fcdb953846e7c709d2967fb549de67d975c010',
+            'country': {'_id': '23fcdb953846e7c709d2967fb549de67d975c010'},
         },
     ]}
 

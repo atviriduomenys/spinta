@@ -61,7 +61,7 @@ def test_denorm(app, context, responses):
     ]
 
     assert app.get('/org').json()['_data'] == []
-    assert sorted([(x['_id'], x['title'], x['country']) for x in app.get('/org/:dataset/denorm/:resource/orgs').json()['_data']], key=itemgetter(1)) == [
+    assert sorted([(x['_id'], x['title'], x['country']['_id']) for x in app.get('/org/:dataset/denorm/:resource/orgs').json()['_data']], key=itemgetter(1)) == [
         ('23fcdb953846e7c709d2967fb549de67d975c010', 'Org1', lt),
         ('6f9f652eb6dae29e4406f1737dd6043af6142090', 'Org2', lt),
         ('11a0764da48b674ce0c09982e7c43002b510d5b5', 'Org3', lv),

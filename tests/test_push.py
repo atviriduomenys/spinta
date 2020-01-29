@@ -1,4 +1,5 @@
 import json
+import hashlib
 
 import pytest
 
@@ -39,11 +40,16 @@ def test_push_same_model(model, app):
     }
 
 
+def sha1(s):
+    return hashlib.sha1(s.encode()).hexdigest()
+
+
 def test_push_different_models(app):
+    app.authorize(['spinta_set_meta_fields'])
     app.authmodel('country/:dataset/csv/:resource/countries', ['insert'])
     app.authmodel('backends/postgres/report/:dataset/test', ['insert'])
     data = [
-        {'_op': 'insert', '_type': 'country/:dataset/csv', 'id': 'lt', 'code': 'lt'},
+        {'_op': 'insert', '_type': 'country/:dataset/csv', '_id': sha1('lt'), 'code': 'lt'},
         {'_op': 'insert', '_type': 'backends/postgres/report/:dataset/test', 'status': 'ok'},
     ]
     headers = {'content-type': 'application/x-ndjson'}

@@ -52,8 +52,8 @@ def prepare(context: Context, dtype: File, backend: Backend, value: Attachment):
     }
 
 
-@prepare.register()
-def prepare(
+@commands.prepare_data_for_response.register()
+def prepare_data_for_response(
     context: Context,
     action: Action,
     dtype: File,
@@ -65,19 +65,13 @@ def prepare(
 ) -> dict:
     if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
         if select is not None:
+            # TODO: add possibility to select from file metadata
             raise NotImplementedError
 
-    if action == Action.GETONE:
-        return {
-            **(value or {}),
-            '_type': dtype.prop.model_type(),
-        }
-
     return {
-        '_type': dtype.prop.model_type(),
-        '_id': value['_id'],
-        '_revision': value['_revision'],
         **(value.get(dtype.prop.name) or {}),
+        '_type': value['_type'],
+        '_revision': value['_revision'],
     }
 
 
@@ -219,7 +213,8 @@ def getone(
     data = getone(context, prop, prop.model.backend, id_=id_)
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
-    return (prop.backend.path / data[prop.name]['_id']).read_bytes()
+    data = (prop.backend.path / data[prop.name]['_id']).read_bytes()
+    return commands.cast_backend_to_python(context, prop, backend, data)
 
 
 @wipe.register()
@@ -255,8 +250,8 @@ def build_data_patch_for_write(
 ) -> Union[dict, NotAvailable]:
     if fill:
         given = {
-            '_content_type': given.get('_content_type', None) if given else given,
-            '_id': given.get('_id', None) if given else given,
+            '_content_type': given.get('_content_type', None) if given else None,
+            '_id': given.get('_id', None) if given else None,
         }
     else:
         given = {

@@ -1,4 +1,9 @@
 import datetime
+import hashlib
+
+
+def sha1(s):
+    return hashlib.sha1(s.encode()).hexdigest()
 
 
 def test_export_csv(context, app, mocker):
@@ -11,24 +16,24 @@ def test_export_csv(context, app, mocker):
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '1',
-            '_where': '_id=string:1',
+            '_id': sha1('1'),
+            '_where': '_id=string:' + sha1('1'),
             'code': 'lt',
             'title': 'Lithuania',
         },
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '2',
-            '_where': '_id=string:2',
+            '_id': sha1('2'),
+            '_where': '_id=string:' + sha1('2'),
             'code': 'lv',
             'title': 'LATVIA',
         },
         {
             '_op': 'upsert',
             '_type': 'country/:dataset/csv/:resource/countries',
-            '_id': '2',
-            '_where': '_id=string:2',
+            '_id': sha1('2'),
+            '_where': '_id=string:' + sha1('2'),
             'code': 'lv',
             'title': 'Latvia',
         },

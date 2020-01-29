@@ -11,6 +11,45 @@ def test_flatten():
     ]
 
 
+def test_flatten_empty_lists():
+    lst = [
+        {'a': 1, 'b': [], 'c': []}
+    ]
+    assert list(flatten(lst)) == [{'a': 1}]
+
+
+def test_flatten_dict():
+    assert list(flatten({'a': 1})) == [{'a': 1}]
+
+
+def test_flatten_nested_dict():
+    assert list(flatten({'a': {'b': {'c': 1}}})) == [{'a.b.c': 1}]
+
+
+def test_flatten_list_in_list():
+    assert list(flatten({'a': [[1], [2, [3, [4]]]]})) == [
+        {'a': 1},
+        {'a': 2},
+        {'a': 3},
+        {'a': 4},
+    ]
+
+
+def test_flatten_two_lists():
+    lst = [
+        {'a': 1, 'b': [2, 3], 'c': [4, 5]},
+        {'a': 6, 'b': [7], 'c': [8, 9]},
+    ]
+    assert list(flatten(lst)) == [
+        {'a': 1, 'b': 2, 'c': 4},
+        {'a': 1, 'b': 2, 'c': 5},
+        {'a': 1, 'b': 3, 'c': 4},
+        {'a': 1, 'b': 3, 'c': 5},
+        {'a': 6, 'b': 7, 'c': 8},
+        {'a': 6, 'b': 7, 'c': 9},
+    ]
+
+
 def test_build_select_tree():
     assert build_select_tree(['a']) == {
         'a': set(),
