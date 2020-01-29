@@ -308,7 +308,7 @@ def prepare_data_for_response(  # noqa
     select: typing.List[str] = None,
 ) -> dict:
     select = _apply_always_show_id(context, action, select)
-    select = _flat_select_to_nested(context, select)
+    select = _flat_select_to_nested(select)
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
@@ -337,7 +337,7 @@ def prepare_data_for_response(  # noqa
     *,
     select: typing.List[str] = None,
 ) -> dict:
-    select = _flat_select_to_nested(context, select)
+    select = _flat_select_to_nested(select)
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
@@ -446,13 +446,9 @@ def _select_props(
         yield prop, value[k], sel
 
 
-def _flat_select_to_nested(
-    context: Context,
-    select: Optional[List[str]],
-) -> SelectTree:
+def _flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
     """
     >>> _flat_select_to_nested(None)
-    {'None': {}}
 
     >>> _flat_select_to_nested(['foo.bar'])
     {'foo': {'bar': {}}}
