@@ -336,10 +336,16 @@ async def prepare_data(
             data.payload = commands.rename_metadata(context, data.payload)
             if data.prop:
                 data.given = commands.load(context, data.prop, data.payload)
+                # XXX: I think prepare call must go just before saving data to
+                #      database, Purpose of this command is to convert
+                #      Python-native types to backend-native types.
                 data.given = commands.prepare(context, data.prop, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.prop, data.model.backend)
             else:
                 data.given = commands.load(context, data.model, data.payload)
+                # XXX: I think prepare call must go just before saving data to
+                #      database, Purpose of this command is to convert
+                #      Python-native types to backend-native types.
                 data.given = commands.prepare(context, data.model, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.model, data.model.backend)
         except (exceptions.UserError, InsufficientScopeError) as error:
