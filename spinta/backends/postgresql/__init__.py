@@ -7,6 +7,7 @@ import hashlib
 import itertools
 import typing
 import types
+import cgi
 
 import sqlalchemy as sa
 import sqlalchemy.exc
@@ -16,6 +17,7 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.sql.type_api import TypeEngine
 from starlette.requests import Request
+from starlette.responses import Response
 from multipledispatch import dispatch
 
 from spinta import commands
@@ -28,6 +30,8 @@ from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
 from spinta.utils.schema import NA, strip_metadata, is_valid_sort_key
 from spinta.utils.json import fix_data_for_json
+from spinta.utils.aiotools import aiter
+from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.types.datatype import (
     Array,
     DataType,
@@ -38,7 +42,6 @@ from spinta.types.datatype import (
     PrimaryKey,
     Ref,
 )
-
 from spinta.exceptions import (
     MultipleRowsFound,
     NotFoundError,
@@ -319,8 +322,9 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File):
     name = _get_column_name(dtype.prop)
     if dtype.prop.backend.name == backend.name:
         return [
+            sa.Column(f'{name}._id', sa.String),
             sa.Column(f'{name}._content_type', sa.String),
-            sa.Column(name, sa.LargeBinary),
+            sa.Column(f'{name}._content', sa.LargeBinary),
         ]
     else:
         return [
@@ -500,6 +504,83 @@ def _separate_lists_and_data(
         return {dtype.prop.place: value}, []
 
 
+@commands.push.register()
+async def push(
+    context: Context,
+    request: Request,
+    dtype: File,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    if params.propref:
+        return await push[type(context), Request, DataType, type(backend)](
+            context, request, dtype, backend,
+            action=action,
+            params=params,
+        )
+
+    prop = dtype.prop
+
+    # XXX: This command should just prepare AsyncIterator[DataItem] and call
+    #      push_stream or something like that. Now I think this command does
+    #      too much work.
+
+    authorize(context, action, prop)
+
+    data = DataItem(
+        prop.model,
+        prop,
+        propref=False,
+        backend=backend,
+        action=action
+    )
+
+    if action == Action.DELETE:
+        data.given = {
+            prop.name: {
+                '_id': None,
+                '_content_type': None,
+                '_content': None,
+            }
+        }
+    else:
+        data.given = {
+            prop.name: {
+                '_content_type': request.headers.get('content-type'),
+                '_content': await request.body(),
+            }
+        }
+        if 'Content-Disposition' in request.headers:
+            _, cdisp = cgi.parse_header(request.headers['Content-Disposition'])
+            if 'filename' in cdisp:
+                data.given[prop.name]['_id'] = cdisp['filename']
+
+    if 'Revision' in request.headers:
+        data.given['_revision'] = request.headers['Revision']
+
+    commands.simple_data_check(context, data, data.prop, data.model.backend)
+
+    data.saved = getone(context, prop, dtype, prop.model.backend, id_=params.pk)
+
+    dstream = aiter([data])
+    dstream = validate_data(context, dstream)
+    dstream = prepare_patch(context, dstream)
+
+    if action in (Action.UPDATE, Action.PATCH, Action.DELETE):
+        dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
+
+    elif action == Action.DELETE:
+        dstream = commands.delete(context, prop, dtype, prop.model.backend, dstream=dstream)
+
+    else:
+        raise Exception(f"Unknown action {action!r}.")
+
+    status_code, response = await simple_response(context, dstream)
+    return render(context, request, prop, params, response, status_code=status_code)
+
+
 @commands.insert.register()
 async def insert(
     context: Context,
@@ -530,7 +611,7 @@ async def insert(
 
         connection.execute(qry, patch)
 
-        # Update lists table
+        # Update lists tables
         _update_lists_table(
             context,
             model,
@@ -686,7 +767,7 @@ async def getone(
     context: Context,
     request: Request,
     prop: Property,
-    dtype: (Object, File),
+    dtype: Object,
     backend: PostgreSQL,
     *,
     action: Action,
@@ -694,8 +775,13 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, dtype, backend, id_=params.pk)
-
-    data = commands.prepare_data_for_response(context, Action.GETONE, prop.dtype, backend, data)
+    data = commands.prepare_data_for_response(
+        context,
+        Action.GETONE,
+        prop.dtype,
+        backend,
+        data,
+    )
     return render(context, request, prop, params, data, action=action)
 
 
@@ -737,9 +823,9 @@ def getone(
         raise ItemDoesNotExist(prop.model, id=id_)
 
     result = {
+        '_type': prop.model_type(),
         '_id': data[table.c._id],
         '_revision': data[table.c._revision],
-        '_type': prop.model_type(),
     }
 
     data = _flat_dicts_to_nested(data)
@@ -765,6 +851,61 @@ def _iter_prop_names(dtype) -> Iterator[Property]:  # noqa
     yield dtype.prop.place + '._content_type'
 
 
+def _get_prop_value(prop, data):
+    value = data
+    for k in prop.place.split('.'):
+        value = value[k]
+    return value
+
+
+@getone.register()
+async def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    dtype: File,
+    backend: PostgreSQL,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    authorize(context, action, prop)
+    data = getone(context, prop, dtype, backend, id_=params.pk)
+
+    # Return file metadata
+    if params.propref:
+        data = commands.prepare_data_for_response(
+            context,
+            Action.GETONE,
+            prop.dtype,
+            backend,
+            data,
+        )
+        return render(context, request, prop, params, data, action=action)
+
+    # Return file content
+    else:
+        value = _get_prop_value(prop, data)
+
+        if value is None or value['_content'] is None:
+            raise ItemDoesNotExist(dtype, id=params.pk)
+
+        filename = value['_id']
+
+        return Response(
+            value['_content'],
+            media_type=value['_content_type'],
+            headers={
+                'Revision': data['_revision'],
+                'Content-Disposition': (
+                    f'attachment; filename="{filename}"'
+                    if filename else
+                    'attachment'
+                )
+            },
+        )
+
+
 @getone.register()
 def getone(
     context: Context,
@@ -779,19 +920,24 @@ def getone(
     selectlist = [
         table.c._id,
         table.c._revision,
-    ] + [
-        table.c[name]
-        for name in _iter_prop_names(prop.dtype)
+        table.c[dtype.prop.place + '._id'],
+        table.c[dtype.prop.place + '._content_type'],
     ]
+
+    if isinstance(dtype.prop.backend, PostgreSQL):
+        selectlist += [
+            table.c[dtype.prop.place + '._content'],
+        ]
+
     try:
         data = backend.get(connection, selectlist, table.c._id == id_)
     except NotFoundError:
-        raise ItemDoesNotExist(prop.model, id=id_)
+        raise ItemDoesNotExist(dtype, id=id_)
 
     result = {
+        '_type': prop.model_type(),
         '_id': data[table.c._id],
         '_revision': data[table.c._revision],
-        '_type': prop.model_type(),
     }
 
     data = _flat_dicts_to_nested(data)

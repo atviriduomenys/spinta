@@ -5,6 +5,7 @@ import contextlib
 import datetime
 import uuid
 import typing
+import itertools
 
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref
 from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
@@ -356,6 +357,43 @@ def prepare_data_for_response(  # noqa
     }
 
 
+@commands.prepare_data_for_response.register()
+def prepare_data_for_response(  # noqa
+    context: Context,
+    action: Action,
+    dtype: File,
+    backend: Backend,
+    value: dict,
+    *,
+    select: List[str] = None,
+    property_: Property = None,
+) -> dict:
+    prop = dtype.prop
+    reserved = ['_type', '_revision']
+
+    if prop.name in value and value[prop.name]:
+        _check_unknown_props(prop, select, set(reserved) | set(value[prop.name]))
+    else:
+        _check_unknown_props(prop, select, set(reserved))
+
+    if prop.name in value and value[prop.name]:
+        data = commands.prepare_dtype_for_response(
+            context,
+            backend,
+            prop.model,
+            prop.dtype,
+            value[prop.name],
+            select=select,
+        )
+    else:
+        data = {}
+
+    for key, val, sel in _select_props(reserved, None, value, select):
+        data[key] = val
+
+    return data
+
+
 def _apply_always_show_id(
     context: Context,
     action: Action,
@@ -420,13 +458,19 @@ def _select_prop_props(
 
 def _select_props(
     keys: List[str],
-    props: Dict[str, Union[Property, dataset.Property]],
+    props: Optional[Dict[str, Union[Property, dataset.Property]]],
     value: dict,
     select: SelectTree,
     *,
     reserved: bool = True,
 ):
     for k in keys:
+
+        if k not in value:
+            # Omit all keys if they are not present in value, this is a common
+            # case in PATCH requests.
+            continue
+
         if reserved is False and k.startswith('_'):
             continue
 
@@ -441,9 +485,12 @@ def _select_props(
 
         sel = sel or {'*': {}}
 
-        prop = props[k]
-        if prop.hidden:
-            continue
+        if props is None:
+            prop = k
+        else:
+            prop = props[k]
+            if prop.hidden:
+                continue
 
         yield prop, value[k], sel
 
@@ -543,10 +590,24 @@ def prepare_dtype_for_response(  # noqa
     *,
     select: dict = None,
 ):
-    return {
-        '_id': value.get('_id'),
-        '_content_type': value.get('_content_type'),
+    data = {
+        key: val
+        for key, val, sel in _select_props(
+            ['_id', '_content_type'],
+            None,
+            value,
+            select,
+        )
     }
+
+    # File content is returned only if explicitly requested.
+    if select and '_content' in select:
+        if value['_content'] is not None:
+            data['_content'] = base64.b64encode(value['_content']).decode()
+        else:
+            data['_content'] = value['_content']
+
+    return data
 
 
 @commands.prepare_dtype_for_response.register()

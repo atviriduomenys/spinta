@@ -36,12 +36,22 @@ STREAMING_CONTENT_TYPES = [
 async def push(
     context: Context,
     request: Request,
-    scope: Node,
+    scope: (Namespace, Model, dataset.Model, DataType),
     backend: (type(None), Backend),
     *,
     action: Action,
     params: UrlParams,
 ) -> Response:
+
+    # A hotfix after changes push signature from push(Context, Request,
+    # Property, ...) to push(Context, Request, DataType, ...). This change was
+    # needed to enable request handling per property datatype. Particularly File
+    # data type must be handled differently and this change now allows to define
+    # push just for File properties.
+    # XXX: Probably scope should be refactored to DataType too.
+    if isinstance(scope, DataType):
+        scope = scope.prop
+
     stop_on_error = not params.fault_tolerant
     if is_streaming_request(request):
         stream = _read_request_stream(context, request, scope, stop_on_error)
@@ -61,6 +71,26 @@ async def push(
     headers = prepare_headers(context, scope, response, action, is_batch=batch)
     return render(context, request, scope, params, response,
                   action=action, status_code=status_code, headers=headers)
+
+
+@commands.push.register()
+async def push(  # noqa
+    context: Context,
+    request: Request,
+    scope: File,
+    backend: (type(None), Backend),
+    *,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    if params.propref:
+        return await push[type(context), Request, DataType, type(backend)](
+            context, request, scope, backend,
+            action=action,
+            params=params,
+        )
+    else:
+        raise NotImplementedError
 
 
 async def push_stream(
@@ -642,8 +672,8 @@ def prepare_response(
         # whole model property tree.
         if data.prop:
             dtype = data.prop.dtype
-            patch = strip_metadata(data.patch.get(data.prop.name, {}))
-            saved = strip_metadata(data.saved.get(data.prop.name, {}))
+            patch = data.patch.get(data.prop.name, {})
+            saved = data.saved.get(data.prop.name, {})
         else:
             dtype = data.model
             patch = strip_metadata(data.patch)
@@ -706,6 +736,34 @@ def build_full_response(  # noqa
         return saved
     else:
         return dtype.default
+
+
+@commands.build_full_response.register()  # noqa
+def build_full_response(  # noqa
+    context: Context,
+    dtype: File,
+    *,
+    patch: Optional[dict],
+    saved: Optional[dict],
+):
+    if patch is not NA:
+        return {
+            '_id': patch.get(
+                '_id',
+                saved.get('_id') if saved else None,
+            ),
+            '_content_type': patch.get(
+                '_content_type',
+                saved.get('_content_type') if saved else None,
+            ),
+        }
+    elif saved is not NA:
+        return saved
+    else:
+        return {
+            '_id': None,
+            '_content_type': None,
+        }
 
 
 @commands.build_full_data_patch_for_nested_attrs.register()
@@ -797,16 +855,25 @@ def build_full_data_patch_for_nested_attrs(  # noqa
     # then return None for metadata values
     if not patch:
         return {
-            f'{dtype.prop.place}._content_type': None,
             f'{dtype.prop.place}._id': None,
+            f'{dtype.prop.place}._content_type': None,
         }
 
     # for any other case - return patch values and if not available
     # fallback to saved values or None
-    return {
-        f'{dtype.prop.place}._content_type': patch.get('_content_type'),
-        f'{dtype.prop.place}._id': patch.get('_id'),
+    res = {
+        f'{dtype.prop.place}._id': patch.get(
+            '_id',
+            saved.get('_id') if saved else None,
+        ),
+        f'{dtype.prop.place}._content_type': patch.get(
+            '_content_type',
+            saved.get('_content_type') if saved else None,
+        ),
     }
+    if '_content' in patch:
+        res[f'{dtype.prop.place}._content'] = patch['_content']
+    return res
 
 
 @commands.build_full_data_patch_for_nested_attrs.register()  # noqa
@@ -922,7 +989,6 @@ def _get_simple_response(context: Context, data: DataItem) -> dict:
             data.backend,
             resp,
         )
-    resp = {k: v for k, v in resp.items() if k in ('_id', '_revision', '_type') or not k.startswith('_')}
     if data.error is not None:
         return {
             **resp,

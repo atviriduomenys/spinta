@@ -1,0 +1,11 @@
+---
+type: model
+name: backends/mongo/dtypes/postgres/file
+backend: mongo
+version:
+  number: 1
+  date: 2020-01-31
+properties:
+  file:
+    type: file
+    backend: default
