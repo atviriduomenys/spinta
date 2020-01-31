@@ -22,6 +22,7 @@ def _create_file(
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_insert(model, app):
@@ -33,7 +34,7 @@ def test_insert(model, app):
     pk = data['_id']
     rev = data['_revision']
     assert data == {
-        '_type': 'backends/postgres/dtypes/file',
+        '_type': model,
         '_id': pk,
         '_revision': rev,
         'file': {
@@ -51,6 +52,7 @@ def test_insert(model, app):
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_update(model, app, tmpdir):
@@ -89,6 +91,7 @@ def test_update(model, app, tmpdir):
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_patch(model, app, tmpdir):
@@ -125,6 +128,7 @@ def test_patch(model, app, tmpdir):
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_subresource_update(model, app, tmpdir):
@@ -157,6 +161,7 @@ def test_subresource_update(model, app, tmpdir):
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_subresource_update_ref(model, app, tmpdir):
@@ -190,6 +195,7 @@ def test_subresource_update_ref(model, app, tmpdir):
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_subresource_patch_ref(model, app, tmpdir):
@@ -221,6 +227,7 @@ def test_subresource_patch_ref(model, app, tmpdir):
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_subresource_get_ref(model, app, tmpdir):
@@ -242,6 +249,7 @@ def test_subresource_get_ref(model, app, tmpdir):
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_subresource_delete(model, app, tmpdir):
@@ -278,6 +286,7 @@ def test_subresource_delete(model, app, tmpdir):
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_select(model, app, tmpdir):
@@ -297,6 +306,7 @@ def test_select(model, app, tmpdir):
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_select_content(model, app, tmpdir):
@@ -317,6 +327,7 @@ def test_select_content(model, app, tmpdir):
 
 
 @pytest.mark.models(
+    # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
 def test_select_all(model, app, tmpdir):
