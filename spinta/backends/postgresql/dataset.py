@@ -17,10 +17,9 @@ from spinta.types.dataset import Model, Property
 from spinta.backends import Backend
 from spinta.backends.postgresql import PostgreSQL
 from spinta.backends.postgresql import utcnow
-from spinta.backends.postgresql import get_table_name
+from spinta.backends.postgresql import get_table_name, get_pg_table_name
 from spinta.backends.postgresql import get_changes_table
 from spinta.backends.postgresql import TableType
-from spinta.backends.postgresql import ModelTables
 from spinta.renderer import render
 from spinta import commands
 from spinta import exceptions
@@ -34,7 +33,8 @@ log = logging.getLogger(__name__)
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, model: Model):
-    table_name = get_table_name(model)
+    pkey_type = commands.get_primary_key_type(context, backend)
+    table_name = get_pg_table_name(get_table_name(model))
     table = sa.Table(
         table_name, backend.schema,
         sa.Column('id', sa.String(40), primary_key=True),
@@ -42,11 +42,14 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         sa.Column('data', JSONB),
         sa.Column('created', sa.DateTime),
         sa.Column('updated', sa.DateTime, nullable=True),
-        sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
+        sa.Column('transaction', pkey_type, sa.ForeignKey('transaction._id')),
     )
-    changes_table_name = get_table_name(model, TableType.CHANGELOG)
-    changes_table = get_changes_table(backend, changes_table_name, sa.String(40))
-    backend.tables[model.manifest.name][model.model_type()] = ModelTables(main=table, changes=changes_table)
+    backend.add_table(table, model)
+    backend.add_table(
+        get_changes_table(context, backend, model),
+        model,
+        TableType.CHANGELOG,
+    )
 
 
 @commands.insert.register()
@@ -82,7 +85,7 @@ async def insert(
         #
         # TODO: Detect when duplicate constraint happens, and then report error
         #       without interrupting transaction if stop_on_error is False.
-        qry = table.main.insert().values(
+        qry = table.insert().values(
             transaction=transaction.id,
             created=utcnow(),
         )
@@ -126,9 +129,9 @@ async def update(
         if '_id' in data.patch:
             values['id'] = data.patch['_id']
         result = connection.execute(
-            table.main.update().
-            where(table.main.c.id == data.saved['_id']).
-            where(table.main.c.revision == data.saved['_revision']).
+            table.update().
+            where(table.c.id == data.saved['_id']).
+            where(table.c.revision == data.saved['_revision']).
             values(values)
         )
 
@@ -185,14 +188,14 @@ def getone(
 ):
     connection = context.get('transaction').connection
     table = _get_table(backend, model)
-    row = backend.get(connection, table.main, table.main.c.id == id_, default=None)
+    row = backend.get(connection, table, table.c.id == id_, default=None)
     if row is None:
         raise exceptions.ItemDoesNotExist(model, id=id_)
     return commands.cast_backend_to_python(context, model, backend, {
-        '_id': row[table.main.c.id],
-        '_revision': row[table.main.c.revision],
+        '_id': row[table.c.id],
+        '_revision': row[table.c.revision],
         '_type': model.model_type(),
-        **row[table.main.c.data],
+        **row[table.c.data],
     })
 
 
@@ -233,7 +236,7 @@ class JoinManager:
             prop = model.properties[ref]
             model = commands.get_referenced_model(self.context, prop, prop.dtype.object)
             if right_ref not in self.aliases:
-                self.aliases[right_ref] = _get_table(self.backend, model).main.alias()
+                self.aliases[right_ref] = _get_table(self.backend, model).alias()
                 left = self.aliases[left_ref]
                 right = self.aliases[right_ref]
                 self.left = self.left.outerjoin(right, left.c.data[ref].astext == right.c.id)
@@ -312,7 +315,7 @@ def getall(
     query: Optional[List[dict]] = None,
 ):
     connection = context.get('transaction').connection
-    table = _get_table(backend, model).main
+    table = _get_table(backend, model)
     jm = JoinManager(context, backend, model, table)
 
     if count:
@@ -485,24 +488,24 @@ def changes(
     start: Optional[str] = None,
 ):
     connection = context.get('transaction').connection
-    table = _get_table(backend, model).changes
+    table = backend.get_table(model, TableType.CHANGELOG)
 
-    qry = sa.select([table]).order_by(table.c.change)
+    qry = sa.select([table]).order_by(table.c._id)
     qry = _changes_id(table, qry, id_)
     qry = _changes_offset(table, qry, offset)
     qry = _changes_limit(qry, limit)
 
     if start:
-        qry = qry.where(table.c.change > start)
+        qry = qry.where(table.c._id > start)
 
     result = connection.execute(qry)
 
     for row in result:
         yield {
-            '_id': row[table.c.id],
-            '_change': row[table.c.change],
-            '_revision': row[table.c.revision],
-            '_transaction': row[table.c.transaction],
+            '_id': row[table.c._id],
+            '_rid': row[table.c._rid],
+            '_revision': row[table.c._revision],
+            '_txn': row[table.c._txn],
             '_created': row[table.c.datetime].isoformat(),
             '_op': row[table.c.action],
             **dict(row[table.c.data]),
@@ -511,7 +514,7 @@ def changes(
 
 def _changes_id(table, qry, id_):
     if id_:
-        return qry.where(table.c.id == id_)
+        return qry.where(table.c._rid == id_)
     else:
         return qry
 
@@ -542,13 +545,16 @@ def _changes_limit(qry, limit):
 @wipe.register()
 def wipe(context: Context, model: Model, backend: PostgreSQL):
     connection = context.get('transaction').connection
-    table = _get_table(backend, model)
-    connection.execute(table.changes.delete())
-    connection.execute(table.main.delete())
+
+    table = backend.get_table(model, TableType.CHANGELOG)
+    connection.execute(table.delete())
+
+    table = backend.get_table(model)
+    connection.execute(table.delete())
 
 
 def _get_table(backend, model):
-    return backend.tables[model.manifest.name][model.model_type()]
+    return backend.get_table(model)
 
 
 @is_object_id.register()
@@ -592,28 +598,24 @@ def prepare_dtype_for_response(  # noqa
 @commands.create_changelog_entry.register()
 async def create_changelog_entry(
     context: Context,
-    model: (Model, Property),
+    node: (Model, Property),
     backend: PostgreSQL,
     *,
     dstream: types.AsyncGeneratorType,
 ) -> None:
     transaction = context.get('transaction')
     connection = transaction.connection
-    if isinstance(model, Model):
-        table = _get_table(backend, model)
-    else:
-        table = _get_table(backend, model.model)
-
+    table = backend.get_table(node, TableType.CHANGELOG)
     async for data in dstream:
-        qry = table.changes.insert().values(
-            transaction=transaction.id,
+        qry = table.insert().values(
+            _txn=transaction.id,
             datetime=utcnow(),
-            action=Action.INSERT.value,
+            action=data.action.value,
         )
         connection.execute(qry, [{
-            'id': data.saved['_id'] if data.saved else data.patch['_id'],
-            'revision': data.patch['_revision'] if data.patch else data.saved['_revision'],
-            'transaction': transaction.id,
+            '_rid': data.saved['_id'] if data.saved else data.patch['_id'],
+            '_revision': data.patch['_revision'] if data.patch else data.saved['_revision'],
+            '_txn': transaction.id,
             'datetime': utcnow(),
             'action': data.action.value,
             'data': fix_data_for_json(
@@ -632,7 +634,7 @@ def check_unique_constraint(
     backend: PostgreSQL,
     value: object,
 ):
-    table = _get_table(backend, prop.model).main
+    table = _get_table(backend, prop.model)
 
     if data.action in (Action.UPDATE, Action.PATCH):
         condition = sa.and_(

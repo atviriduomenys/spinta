@@ -50,13 +50,13 @@ def test_export_csv(context, app, mocker):
     )
 
     changes = app.get('/country/:dataset/csv/:resource/countries/:changes').json()['_data']
-    ids = [c['_id'] for c in changes]
-    cxn = [c['_change'] for c in changes]
-    txn = [c['_transaction'] for c in changes]
+    ids = [c['_rid'] for c in changes]
+    cxn = [c['_id'] for c in changes]
+    txn = [c['_txn'] for c in changes]
     rev = [c['_revision'] for c in changes]
     assert app.get('/country/:dataset/csv/:resource/countries/:changes/:format/csv').text == (
-        '_id,_change,_revision,_transaction,_created,_op,code,title\r\n'
-        f'{ids[0]},{cxn[0]},{rev[0]},{txn[0]},2019-03-06T16:15:00.816308,upsert,lt,Lithuania\r\n'
-        f'{ids[1]},{cxn[1]},{rev[1]},{txn[1]},2019-03-06T16:15:00.816308,upsert,lv,LATVIA\r\n'
-        f'{ids[2]},{cxn[2]},{rev[2]},{txn[2]},2019-03-06T16:15:00.816308,upsert,,Latvia\r\n'
+        '_id,_rid,_revision,_txn,_created,_op,code,title\r\n'
+        f'{cxn[0]},{ids[0]},{rev[0]},{txn[0]},2019-03-06T16:15:00.816308,upsert,lt,Lithuania\r\n'
+        f'{cxn[1]},{ids[1]},{rev[1]},{txn[1]},2019-03-06T16:15:00.816308,upsert,lv,LATVIA\r\n'
+        f'{cxn[2]},{ids[2]},{rev[2]},{txn[2]},2019-03-06T16:15:00.816308,upsert,,Latvia\r\n'
     )

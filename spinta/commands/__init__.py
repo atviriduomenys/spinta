@@ -263,6 +263,17 @@ def wipe():
 
 
 @command()
+def get_primary_key_type():
+    """Return primary key column type.
+
+    This applyies to some backends, for example PostgreSQL, but is not used by
+    other backends, like Mongo.
+
+    PostgreSQL returns sqlalchemy.dialects.postgresql.UUID.
+    """
+
+
+@command()
 def gen_object_id():
     """Genearet unique id.
 
