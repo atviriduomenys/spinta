@@ -13,6 +13,7 @@ from spinta import auth
 from spinta.cli import genkeys
 from spinta.cli import client_add
 from spinta.components import Action
+from spinta.testing.utils import get_error_codes
 
 
 def test_app(context, app):
@@ -225,3 +226,12 @@ def test_check_generated_scopes_prop_hidden_w_model_scope(context, app):
                                         Action.GETONE.value,
                                         'backends/mongo/subitem_hidden_subobj',
                                         True)
+
+
+def test_invalid_access_token(app):
+    app.headers.update({"Authorization": "Bearer FAKE_TOKEN"})
+    resp = app.get('/reports')
+    assert resp.status_code == 401
+    assert 'WWW-Authenticate' in resp.headers
+    assert resp.headers['WWW-Authenticate'] == 'Bearer error="invalid_token"'
+    assert get_error_codes(resp.json()) == ["InvalidToken"]

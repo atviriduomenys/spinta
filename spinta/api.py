@@ -4,7 +4,6 @@ import pkg_resources as pres
 import logging
 
 from authlib.common.errors import AuthlibHTTPError
-from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -139,7 +138,7 @@ async def http_exception(request, exc):
     elif isinstance(exc, BaseError):
         status_code = exc.status_code
         errors = [error_response(exc)]
-
+        headers = exc.headers
     else:
         if isinstance(exc, HTTPException):
             status_code = exc.status_code

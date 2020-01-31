@@ -19,6 +19,7 @@ from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 
 from spinta.components import Context
+from spinta.exceptions import InvalidToken
 from spinta.utils import passwords
 from spinta.utils.scopes import name_to_scope
 
@@ -118,7 +119,11 @@ class Client(rfc6749.ClientMixin):
 class Token(rfc6749.TokenMixin):
 
     def __init__(self, token_string, validator: BearerTokenValidator):
-        self._token = jwt.decode(token_string, validator._public_key)
+        try:
+            self._token = jwt.decode(token_string, validator._public_key)
+        except JoseError:
+            raise InvalidToken()
+
         self._validator = validator
 
     def valid_scope(self, scope, *, operator='AND'):
