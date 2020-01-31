@@ -122,6 +122,7 @@ class BaseError(Exception):
     type = None
     status_code = 500
     template = None
+    headers = {}
     context = {}
 
     def __init__(self, *args, **kwargs):
@@ -220,6 +221,12 @@ class JSONError(UserError):
 
 class InvalidValue(UserError):
     template = "Invalid value."
+
+
+class InvalidToken(UserError):
+    status_code = 401
+    template = "Invalid token"
+    headers = {'WWW-Authenticate': 'Bearer error="invalid_token"'}
 
 
 class MultipleRowsFound(BaseError):
