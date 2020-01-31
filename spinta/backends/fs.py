@@ -52,29 +52,6 @@ def prepare(context: Context, dtype: File, backend: Backend, value: Attachment):
     }
 
 
-@commands.prepare_data_for_response.register()
-def prepare_data_for_response(
-    context: Context,
-    action: Action,
-    dtype: File,
-    backend: Backend,
-    value: dict,
-    *,
-    select: List[str] = None,
-    property_: Property = None,
-) -> dict:
-    if action in (Action.GETALL, Action.SEARCH, Action.GETONE):
-        if select is not None:
-            # TODO: add possibility to select from file metadata
-            raise NotImplementedError
-
-    return {
-        **(value.get(dtype.prop.name) or {}),
-        '_type': value['_type'],
-        '_revision': value['_revision'],
-    }
-
-
 @migrate.register()
 def migrate(context: Context, backend: FileSystem):
     pass
@@ -90,28 +67,31 @@ def complex_data_check(
     given: dict,
 ):
     complex_data_check[
-        context.__class__,
+        type(context),
         DataItem,
         DataType,
         Property,
         Backend,
         dict,
     ](context, data, dtype, prop, backend, given)
-    path = prop.backend.path / given['_id']
-    if not path.exists():
-        raise FileNotFound(prop, file=given['_id'])
+    if isinstance(dtype.prop.backend, FileSystem):
+        path = prop.backend.path / given['_id']
+        if not path.exists():
+            raise FileNotFound(prop, file=given['_id'])
 
 
 @push.register()
 async def push(
     context: Context,
     request: Request,
-    prop: Property,
+    dtype: File,
     backend: FileSystem,
     *,
     action: Action,
     params: UrlParams,
 ):
+    prop = dtype.prop
+
     authorize(context, action, prop)
 
     data = DataItem(
@@ -138,7 +118,7 @@ async def push(
 
     simple_data_check(context, data, data.prop, data.model.backend)
 
-    data.saved = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
+    data.saved = getone(context, prop, dtype, prop.model.backend, id_=params.pk)
 
     filepath = backend.path / data.given[prop.name]['_id']
 
@@ -149,7 +129,7 @@ async def push(
         dstream = aiter([data])
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
-        dstream = commands.update(context, prop, prop.dtype, prop.model.backend, dstream=dstream)
+        dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
 
     elif action == Action.DELETE:
         if filepath.exists():
@@ -157,7 +137,7 @@ async def push(
         dstream = aiter([data])
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
-        dstream = commands.delete(context, prop, prop.dtype, prop.model.backend, dstream=dstream)
+        dstream = commands.delete(context, prop, dtype, prop.model.backend, dstream=dstream)
 
     else:
         raise Exception(f"Unknown action {action!r}.")
@@ -179,14 +159,22 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
-    filename = data[prop.name]['_id']
+    value = data[prop.name]
+    filename = value['_id']
     if filename is None:
         raise ItemDoesNotExist(prop, id=params.pk)
-    content_type = data[prop.name]['_content_type']
-    headers = {'revision': data['_revision']}
-    return FileResponse(prop.backend.path / filename,
-                        media_type=content_type,
-                        headers=headers)
+    return FileResponse(
+        prop.backend.path / filename,
+        media_type=value['_content_type'],
+        headers={
+            'Revision': data['_revision'],
+            'Content-Disposition': (
+                f'attachment; filename="{filename}"'
+                if filename else
+                'attachment'
+            )
+        },
+    )
 
 
 @getone.register()
@@ -250,17 +238,20 @@ def build_data_patch_for_write(
 ) -> Union[dict, NotAvailable]:
     if fill:
         given = {
-            '_content_type': given.get('_content_type', None) if given else None,
             '_id': given.get('_id', None) if given else None,
+            '_content_type': given.get('_content_type', None) if given else None,
+            '_content': given.get('_content', NA) if given else NA,
         }
     else:
         given = {
-            '_content_type': given.get('_content_type', NA) if given else given,
-            '_id': given.get('_id', NA) if given else given,
+            '_id': given.get('_id', NA) if given else NA,
+            '_content_type': given.get('_content_type', NA) if given else NA,
+            '_content': given.get('_content', NA) if given else NA,
         }
     saved = {
-        '_content_type': saved.get('_content_type', NA) if saved else saved,
-        '_id': saved.get('_id', NA) if saved else saved,
+        '_id': saved.get('_id', NA) if saved else NA,
+        '_content_type': saved.get('_content_type', NA) if saved else NA,
+        '_content': saved.get('_content', NA) if saved else NA,
     }
     given = {
         k: v for k, v in given.items()

@@ -159,8 +159,8 @@ def test_add_missing_file(model, app, tmpdir):
         '_type': model,
         'name': 'myphoto',
         'avatar': {
-            '_content_type': 'image/png',
             '_id': str(avatar),
+            '_content_type': 'image/png',
         },
     })
     assert resp.status_code == 400

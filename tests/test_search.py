@@ -67,9 +67,13 @@ class RowIds:
 
     def __init__(self, ids):
         self.ids = {k: v for v, k in enumerate(self._cast(ids))}
+        self.idsr = {k: v for v, k in self.ids.items()}
 
     def __call__(self, ids):
         return [self.ids.get(i, i) for i in self._cast(ids)]
+
+    def __getitem__(self, i):
+        return self.idsr[i]
 
     def _cast(self, ids):
         if isinstance(ids, requests.models.Response):
@@ -945,8 +949,8 @@ def test_search_id_contains(model, app):
     resp = app.get(f'/{model}?contains(_id,-)')
     assert sorted(ids(resp)) == [0, 1, 2]
 
-    subid = list(ids.ids.keys())[0][5:10]
-    resp = app.get(f'/{model}?contains(_id,{subid})')
+    subid = ids[0][5:10]
+    resp = app.get(f'/{model}?contains(_id,string:{subid})')
     assert ids(resp) == [0]
 
 
@@ -968,8 +972,8 @@ def test_search_id_not_contains(model, app):
 def test_search_id_startswith(model, app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    subid = list(ids.ids.keys())[0][:5]
-    resp = app.get(f'/{model}?startswith(_id,{subid})')
+    subid = ids[0][:5]
+    resp = app.get(f'/{model}?startswith(_id,string:{subid})')
     assert ids(resp) == [0]
 
 
@@ -980,6 +984,6 @@ def test_search_id_startswith(model, app):
 def test_search_id_not_startswith(model, app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    subid = list(ids.ids.keys())[0][5:10]
-    resp = app.get(f'/{model}?startswith(_id,{subid})')
+    subid = ids[0][5:10]
+    resp = app.get(f'/{model}?startswith(_id,string:{subid})')
     assert ids(resp) == []

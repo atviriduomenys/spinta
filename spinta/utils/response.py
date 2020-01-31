@@ -52,9 +52,9 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
         context.attach('transaction', manifest.backend.transaction, write=True)
         action = METHOD_TO_ACTION[request.method]
         if params.prop and params.propref:
-            return await commands.push(context, request, params.prop, params.model.backend, action=action, params=params)
+            return await commands.push(context, request, params.prop.dtype, params.model.backend, action=action, params=params)
         elif params.prop:
-            return await commands.push(context, request, params.prop, params.prop.backend, action=action, params=params)
+            return await commands.push(context, request, params.prop.dtype, params.prop.backend, action=action, params=params)
         else:
             return await commands.push(context, request, params.model, params.model.backend, action=action, params=params)
 

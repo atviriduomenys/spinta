@@ -180,6 +180,7 @@ class File(DataType):
     schema = {
         '_id': {'type': 'string'},
         '_content_type': {'type': 'string'},
+        '_content': {'type': 'binary'},
         # TODO: add file hash, maybe 'sha1sum'
         # TODO: Maybe add all properties in schema as File.properties and maybe
         #       File should extend Object?
@@ -296,6 +297,10 @@ def load(context: Context, dtype: File, value: object) -> object:
         return value
     # check that given obj does not have more keys, than dtype's schema
     _check_no_extra_keys(dtype, dtype.schema, loaded_obj)
+
+    if '_content' in value and isinstance(value['_content'], str):
+        value['_content'] = base64.b64decode(value['_content'])
+
     return loaded_obj
 
 
