@@ -1,6 +1,6 @@
 from spinta.components import Model, Property
 from spinta.backends.postgresql import NAMEDATALEN
-from spinta.backends.postgresql import get_table_name
+from spinta.backends.postgresql import get_table_name, get_pg_table_name
 from spinta.backends.postgresql import TableType
 from spinta.testing.utils import get_error_codes, get_error_context
 
@@ -20,9 +20,10 @@ def get_property(model, place):
 
 def _get_table_name(model, prop=None, ttype=TableType.MAIN):
     if prop is None:
-        return get_table_name(get_model(model), ttype)
+        name = get_table_name(get_model(model), ttype)
     else:
-        return get_table_name(get_property(model, prop), ttype)
+        name = get_table_name(get_property(model, prop), ttype)
+    return get_pg_table_name(name)
 
 
 def test_get_table_name():

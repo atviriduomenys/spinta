@@ -416,12 +416,12 @@ def test_changes_single_object(app, mocker):
             ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/ascii'),
         ],
         'header': [
-            '_change',
+            '_id',
             '_revision',
-            '_transaction',
+            '_txn',
             '_created',
             '_op',
-            '_id',
+            '_rid',
             'pavadinimas',
         ],
         'data': [
@@ -489,12 +489,12 @@ def test_changes_object_list(app, mocker):
             ('ASCII', '/rinkimai/:dataset/json/:resource/data/:changes/:format/ascii'),
         ],
         'header': [
-            '_change',
+            '_id',
             '_revision',
-            '_transaction',
+            '_txn',
             '_created',
             '_op',
-            '_id',
+            '_rid',
             'pavadinimas',
         ],
         'data': [

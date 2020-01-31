@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Optional, List, Union, Tuple, Dict, Iterator
+from typing import AsyncIterator, Optional, List, Union, Tuple, Iterator
 
 import contextlib
 import datetime
@@ -8,10 +8,11 @@ import itertools
 import typing
 import types
 import cgi
+import uuid
 
 import sqlalchemy as sa
 import sqlalchemy.exc
-from sqlalchemy.dialects.postgresql import JSONB, BIGINT, UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID, BIGINT
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
@@ -67,6 +68,7 @@ class TableType(enum.Enum):
     LIST = '/:list'
     CHANGELOG = '/:changelog'
     CACHE = '/:cache'
+    FILE = '/:file'
 
 
 class PostgreSQL(Backend):
@@ -87,7 +89,9 @@ class PostgreSQL(Backend):
             if write:
                 table = self.tables['internal']['transaction']
                 result = connection.execute(
-                    table.main.insert().values(
+                    table.insert().values(
+                        # FIXME: commands.gen_object_id should be used here
+                        _id=str(uuid.uuid4()),
                         datetime=utcnow(),
                         client_type='',
                         client_id='',
@@ -121,6 +125,32 @@ class PostgreSQL(Backend):
                 return default
         else:
             raise MultipleRowsFound()
+
+    def add_table(
+        self,
+        table: sa.Table,
+        node: Union[Model, Property],
+        ttype: TableType = TableType.MAIN,
+    ):
+        if node.manifest.name not in self.tables:
+            self.tables[node.manifest.name] = {}
+        tables = self.tables[node.manifest.name]
+        name = get_table_name(node, ttype)
+        assert name not in tables, name
+        tables[name] = table
+
+    def get_table(
+        self,
+        node: Union[Model, Property],
+        ttype: TableType = TableType.MAIN,
+        *,
+        fail: bool = True,
+    ):
+        name = get_table_name(node, ttype)
+        if fail:
+            return self.tables[node.manifest.name][name]
+        else:
+            return self.tables.get(node.manifest.name, {}).get(name)
 
 
 class ReadTransaction:
@@ -164,9 +194,6 @@ def load(context: Context, backend: PostgreSQL, config: RawConfig):
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
-    if manifest.name not in backend.tables:
-        backend.tables[manifest.name] = {}
-
     # Prepare backend for models.
     for model in manifest.objects['model'].values():
         if model.backend.name == backend.name:
@@ -184,6 +211,8 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     columns = []
     for prop in model.properties.values():
+        # FIXME: _revision should has its own type and on database column type
+        #        should bet received from get_primary_key_type() command.
         if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):
             continue
         column = prepare(context, backend, prop)
@@ -193,40 +222,20 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.append(column)
 
     # Create main table.
-    main_table_name = get_table_name(model)
+    main_table_name = get_pg_table_name(get_table_name(model))
+    pkey_type = commands.get_primary_key_type(context, backend)
     main_table = sa.Table(
         main_table_name, backend.schema,
-        sa.Column('_transaction', sa.Integer, sa.ForeignKey('transaction._id')),
+        sa.Column('_txn', pkey_type, sa.ForeignKey('transaction._id')),
         sa.Column('_created', sa.DateTime),
         sa.Column('_updated', sa.DateTime),
         *columns,
     )
-
-    # Create tables for nested lists, these tables are used for searches.
-    lists_tables = {}
-    for prop in _iter_lists(model):
-        columns = prepare(context, backend, prop.dtype.items)
-        assert columns is not None
-        if not isinstance(columns, list):
-            columns = [columns]
-        lists_table_name = get_table_name(prop, TableType.LIST)
-        lists_table = sa.Table(
-            lists_table_name, backend.schema,
-            sa.Column('_txn', sa.Integer, sa.ForeignKey('transaction._id')),
-            sa.Column('_id', main_table.c._id.type, sa.ForeignKey(
-                f'{main_table_name}._id', ondelete='CASCADE',
-            )),
-            *columns,
-        )
-        lists_tables[prop.place] = lists_table
+    backend.add_table(main_table, model)
 
     # Create changes table.
-    changes_table_name = get_table_name(model, TableType.CHANGELOG)
-    # XXX: not sure if I should pass main_table.c.id.type.__class__() or a
-    #      shorter form.
-    changes_table = get_changes_table(backend, changes_table_name, main_table.c._id.type)
-
-    backend.tables[model.manifest.name][model.name] = ModelTables(main_table, lists_tables, changes_table)
+    changelog_table = get_changes_table(context, backend, model)
+    backend.add_table(changelog_table, model, TableType.CHANGELOG)
 
 
 @prepare.register()
@@ -276,27 +285,27 @@ def _get_column_name(prop: Property):
         return prop.place
 
 
+@commands.get_primary_key_type.register()
+def get_primary_key_type(context: Context, backend: PostgreSQL):
+    return UUID()
+
+
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
-    if dtype.prop.manifest.name == 'internal':
-        return sa.Column('_id', BIGINT, primary_key=True)
-    else:
-        return sa.Column('_id', UUID(), primary_key=True)
+    pkey_type = commands.get_primary_key_type(context, backend)
+    return sa.Column('_id', pkey_type, primary_key=True)
 
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
     # TODO: rename dtype.object to dtype.model
     ref_model = commands.get_referenced_model(context, dtype.prop, dtype.object)
-    if ref_model.manifest.name == 'internal':
-        column_type = sa.Integer()
-    else:
-        column_type = UUID()
+    pkey_type = commands.get_primary_key_type(context, backend)
     return get_pg_foreign_key(
         dtype.prop,
-        table_name=get_table_name(ref_model),
+        table_name=get_pg_table_name(get_table_name(ref_model)),
         model_name=dtype.prop.model.name,
-        column_type=column_type,
+        column_type=pkey_type,
     )
 
 
@@ -336,7 +345,45 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File):
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, dtype: Array):
     prop = dtype.prop
+
+    columns = prepare(context, backend, dtype.items)
+    assert columns is not None
+    if not isinstance(columns, list):
+        columns = [columns]
+
+    pkey_type = commands.get_primary_key_type(context, backend)
+
+    # TODO: When all list items will have unique id, also add reference to
+    #       parent list id.
+    # if prop.list:
+    #     parent_list_table_name = get_pg_table_name(
+    #         get_table_name(prop.list, TableType.LIST)
+    #     )
+    #     columns += [
+    #         # Parent list table id.
+    #         sa.Column('_lid', pkey_type, sa.ForeignKey(
+    #             f'{parent_list_table_name}._id', ondelete='CASCADE',
+    #         )),
+    #     ]
+
+    name = get_pg_table_name(get_table_name(prop, TableType.LIST))
+    main_table_name = get_pg_table_name(get_table_name(prop.model))
+    table = sa.Table(
+        name, backend.schema,
+        # TODO: List tables eventually will have _id in order to uniquelly
+        #       identify list item.
+        # sa.Column('_id', pkey_type, primary_key=True),
+        sa.Column('_txn', pkey_type, sa.ForeignKey('transaction._id')),
+        # Main table id (resource id).
+        sa.Column('_rid', pkey_type, sa.ForeignKey(
+            f'{main_table_name}._id', ondelete='CASCADE',
+        )),
+        *columns,
+    )
+    backend.add_table(table, prop, TableType.LIST)
+
     if prop.list is None:
+        # For fast whole resource access we also store whole list in a JSONB.
         return sa.Column(prop.place, JSONB)
 
 
@@ -352,14 +399,6 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Object):
         elif column is not None:
             columns.append(column)
     return columns
-
-
-def _get_pg_name(name):
-    if len(name) > NAMEDATALEN:
-        name_hash = hashlib.sha256(name.encode()).hexdigest()
-        return name[:NAMEDATALEN - 7] + '_' + name_hash[-6:]
-    else:
-        return name
 
 
 class ModelTables(typing.NamedTuple):
@@ -386,7 +425,7 @@ def check_unique_constraint(
     backend: PostgreSQL,
     value: object,
 ):
-    table = backend.tables[prop.manifest.name][prop.model.name].main
+    table = backend.get_table(prop)
 
     if (
         data.action in (Action.UPDATE, Action.PATCH) or
@@ -410,27 +449,25 @@ def check_unique_constraint(
 def _update_lists_table(
     context: Context,
     model: Model,
-    tables: Dict[str, sa.Table],
+    backend: PostgreSQL,
     action: Action,
     pk: str,
     patch: dict,
 ) -> None:
-    if len(tables) == 0:
-        return
-
     transaction = context.get('transaction')
     connection = transaction.connection
     rows = _get_lists_data(model, patch)
     sort_key = lambda x: x[0].place  # noqa
     rows = sorted(rows, key=sort_key)
     for place, rows in itertools.groupby(rows, key=sort_key):
-        table = tables[place]
+        prop = model.flatprops[place]
+        table = backend.get_table(prop, TableType.LIST)
         if action != Action.INSERT:
-            connection.execute(table.delete().where(table.c._id == pk))
+            connection.execute(table.delete().where(table.c._rid == pk))
         rows = [
             {
-                'transaction': transaction.id,
-                '_id': pk,
+                '_txn': transaction.id,
+                '_rid': pk,
                 **{
                     _get_list_column_name(place, k): v
                     for k, v in row.items()
@@ -592,13 +629,13 @@ async def insert(
 ):
     transaction = context.get('transaction')
     connection = transaction.connection
-    table = backend.tables[model.manifest.name][model.name]
+    table = backend.get_table(model)
     async for data in dstream:
         # TODO: Refactor this to insert batches with single query.
-        qry = table.main.insert().values(
+        qry = table.insert().values(
             _id=data.patch['_id'],
             _revision=data.patch['_revision'],
-            _transaction=transaction.id,
+            _txn=transaction.id,
             _created=utcnow(),
         )
 
@@ -615,7 +652,7 @@ async def insert(
         _update_lists_table(
             context,
             model,
-            table.lists,
+            backend,
             Action.INSERT,
             data.patch['_id'],
             data.patch,
@@ -635,7 +672,7 @@ async def update(
 ):
     transaction = context.get('transaction')
     connection = transaction.connection
-    table = backend.tables[model.manifest.name][model.name]
+    table = backend.get_table(model)
 
     async for data in dstream:
         if not data.patch:
@@ -659,9 +696,9 @@ async def update(
             patch['_id'] = data.patch['_id']
 
         result = connection.execute(
-            table.main.update().
-            where(table.main.c._id == id_).
-            where(table.main.c._revision == data.saved['_revision']).
+            table.update().
+            where(table.c._id == id_).
+            where(table.c._revision == data.saved['_revision']).
             values(patch)
         )
 
@@ -677,7 +714,7 @@ async def update(
         _update_lists_table(
             context,
             model,
-            table.lists,
+            backend,
             data.action,
             id_,
             patch,
@@ -697,11 +734,11 @@ async def delete(
 ):
     transaction = context.get('transaction')
     connection = transaction.connection
-    table = backend.tables[model.manifest.name][model.name]
+    table = backend.get_table(model)
     async for data in dstream:
         connection.execute(
-            table.main.delete().
-            where(table.main.c._id == data.saved['_id'])
+            table.delete().
+            where(table.c._id == data.saved['_id'])
         )
 
         yield data
@@ -739,7 +776,7 @@ def getone(
     id_: str,
 ):
     connection = context.get('transaction').connection
-    table = backend.tables[model.manifest.name][model.name].main
+    table = backend.get_table(model)
     try:
         result = backend.get(connection, table, table.c._id == id_)
     except NotFoundError:
@@ -808,7 +845,7 @@ def getone(
     *,
     id_: str,
 ):
-    table = backend.tables[prop.manifest.name][prop.model.name].main
+    table = backend.get_table(prop.model)
     connection = context.get('transaction').connection
     selectlist = [
         table.c._id,
@@ -915,7 +952,7 @@ def getone(
     *,
     id_: str,
 ):
-    table = backend.tables[prop.manifest.name][prop.model.name].main
+    table = backend.get_table(prop.model)
     connection = context.get('transaction').connection
     selectlist = [
         table.c._id,
@@ -993,9 +1030,8 @@ def getall(
     count: bool = False,
 ):
     connection = context.get('transaction').connection
-    table = backend.tables[model.manifest.name][model.name]
 
-    qb = QueryBuilder(context, model, backend, table)
+    qb = QueryBuilder(context, model, backend)
     qry = qb.build(select, sort, offset, limit, query)
 
     for row in connection.execute(qry):
@@ -1024,15 +1060,13 @@ class QueryBuilder:
         context: Context,
         model: Model,
         backend: PostgreSQL,
-        table: ModelTables,
     ):
         self.context = context
         self.model = model
         self.backend = backend
-        self.table = table
         self.select = []
         self.where = []
-        self.joins = table.main
+        self.joins = backend.get_table(model)
 
     def build(
         self,
@@ -1043,7 +1077,7 @@ class QueryBuilder:
         query: Optional[List[dict]] = None,
     ) -> sa.sql.Select:
         # TODO: Select list must be taken from params.select.
-        qry = sa.select([self.table.main])
+        qry = sa.select([self.backend.get_table(self.model)])
 
         if query:
             qry = qry.where(self.op_and(*query))
@@ -1120,29 +1154,31 @@ class QueryBuilder:
 
     def compare(self, op, prop, cond):
         if prop.list is not None and op != 'ne':
-            list_table = self.table.lists[prop.list.place]
+            main_table = self.backend.get_table(self.model)
+            list_table = self.backend.get_table(prop.list, TableType.LIST)
             subqry = (
                 sa.select(
-                    [list_table.c._id],
-                    distinct=list_table.c._id,
+                    [list_table.c._rid],
+                    distinct=list_table.c._rid,
                 ).
                 where(cond).
                 alias()
             )
             self.joins = self.joins.outerjoin(
                 subqry,
-                self.table.main.c._id == subqry.c._id,
+                main_table.c._id == subqry.c._rid,
             )
-            return subqry.c._id.isnot(None)
+            return subqry.c._rid.isnot(None)
         else:
             return cond
 
     def get_sql_field(self, prop: Property, lower: bool = False):
         if prop.list is not None:
-            list_table = self.table.lists[prop.list.place]
+            list_table = self.backend.get_table(prop.list, TableType.LIST)
             field = list_table.c[_get_column_name(prop)]
         else:
-            field = self.table.main.c[prop.place]
+            main_table = self.backend.get_table(self.model)
+            field = main_table.c[prop.place]
         if lower:
             field = sa.func.lower(field)
         return field
@@ -1189,41 +1225,42 @@ class QueryBuilder:
         if prop.list is None:
             return field != value
 
-        list_table = self.table.lists[prop.list.place]
+        main_table = self.backend.get_table(self.model)
+        list_table = self.backend.get_table(prop.list, TableType.LIST)
 
         # Check if at liest one value for field is defined
         subqry1 = (
             sa.select(
-                [list_table.c._id],
-                distinct=list_table.c._id,
+                [list_table.c._rid],
+                distinct=list_table.c._rid,
             ).
             where(field != None).  # noqa
             alias()
         )
         self.joins = self.joins.outerjoin(
             subqry1,
-            self.table.main.c._id == subqry1.c._id,
+            main_table.c._id == subqry1.c._rid,
         )
 
         # Check if given value exists
         subqry2 = (
             sa.select(
-                [list_table.c._id],
-                distinct=list_table.c._id,
+                [list_table.c._rid],
+                distinct=list_table.c._rid,
             ).
             where(field == value).
             alias()
         )
         self.joins = self.joins.outerjoin(
             subqry2,
-            self.table.main.c._id == subqry2.c._id,
+            main_table.c._id == subqry2.c._rid,
         )
 
         # If field exists and given value does not, then field is not equal to
         # value.
         return sa.and_(
-            subqry1.c._id != None,  # noqa
-            subqry2.c._id == None,
+            subqry1.c._rid != None,  # noqa
+            subqry2.c._rid == None,
         )
 
     def op_contains(self, prop, field, value):
@@ -1280,21 +1317,22 @@ class QueryBuilder:
             prop = self.resolve_property(key, sort=True)
             field = self.get_sql_field(prop, lower)
 
+            main_table = self.backend.get_table(self.model)
             if prop.list is not None:
-                list_table = self.table.lists[prop.list.place]
+                list_table = self.backend.get_table(prop.list, TableType.LIST)
                 subqry = (
                     sa.select(
-                        [list_table.c._id, field.label('value')],
-                        distinct=list_table.c._id,
+                        [list_table.c._rid, field.label('value')],
+                        distinct=list_table.c._rid,
                     ).alias()
                 )
                 self.joins = self.joins.outerjoin(
                     subqry,
-                    self.table.main.c._id == subqry.c._id,
+                    main_table.c._id == subqry.c._rid,
                 )
                 field = subqry.c.value
             else:
-                field = self.table.main.c[prop.place]
+                field = main_table.c[prop.place]
 
             if lower:
                 field = sa.func.lower(field)
@@ -1352,9 +1390,9 @@ def changes(
     offset: int = -10,
 ):
     connection = context.get('transaction').connection
-    table = backend.tables[model.manifest.name][model.name].changes
+    table = backend.get_table(model, TableType.CHANGELOG)
 
-    qry = sa.select([table]).order_by(table.c.change)
+    qry = sa.select([table]).order_by(table.c._id)
     qry = _changes_id(table, qry, id_)
     qry = _changes_offset(table, qry, offset)
     qry = _changes_limit(qry, limit)
@@ -1362,10 +1400,10 @@ def changes(
     result = connection.execute(qry)
     for row in result:
         yield {
-            '_change': row[table.c.change],
-            '_revision': row[table.c.revision],
-            '_transaction': row[table.c.transaction],
-            '_id': row[table.c.id],
+            '_id': row[table.c._id],
+            '_revision': row[table.c._revision],
+            '_txn': row[table.c._txn],
+            '_rid': row[table.c._rid],
             '_created': row[table.c.datetime],
             '_op': row[table.c.action],
             **dict(row[table.c.data]),
@@ -1374,7 +1412,7 @@ def changes(
 
 def _changes_id(table, qry, id_):
     if id_:
-        return qry.where(table.c.id == id_)
+        return qry.where(table.c._rid == id_)
     else:
         return qry
 
@@ -1404,21 +1442,41 @@ def _changes_limit(qry, limit):
 
 @wipe.register()
 def wipe(context: Context, model: Model, backend: PostgreSQL):
-    if (
-        model.manifest.name not in backend.tables or
-        model.name not in backend.tables[model.manifest.name]
-    ):
+    table = backend.get_table(model, fail=False)
+    if table is None:
         # Model backend might not be prepared, this is especially true for
         # tests. So if backend is not yet prepared, just skipt this model.
         return
 
-    table = backend.tables[model.manifest.name][model.name]
+    for prop in model.properties.values():
+        wipe(context, prop.dtype, backend)
+
     connection = context.get('transaction').connection
 
-    for prop in _iter_lists(model):
-        connection.execute(table.lists[prop.place].delete())
-    connection.execute(table.changes.delete())
-    connection.execute(table.main.delete())
+    table = backend.get_table(model, TableType.CHANGELOG)
+    connection.execute(table.delete())
+
+    table = backend.get_table(model)
+    connection.execute(table.delete())
+
+
+@wipe.register()
+def wipe(context: Context, dtype: DataType, backend: PostgreSQL):
+    pass
+
+
+@wipe.register()
+def wipe(context: Context, dtype: Object, backend: PostgreSQL):
+    for prop in dtype.properties.values():
+        wipe(context, prop.dtype, backend)
+
+
+@wipe.register()
+def wipe(context: Context, dtype: Array, backend: PostgreSQL):
+    wipe(context, dtype.items.dtype, backend)
+    table = backend.get_table(dtype.prop, TableType.LIST)
+    connection = context.get('transaction').connection
+    connection.execute(table.delete())
 
 
 class utcnow(FunctionElement):
@@ -1433,11 +1491,30 @@ def pg_utcnow(element, compiler, **kw):
 def get_table_name(
     node: Union[Model, Property],
     ttype: TableType = TableType.MAIN,
-):
-    if ttype == TableType.LIST:
-        name = node.model.model_type() + ttype.value + '/' + node.place
+) -> str:
+    # XXX: Dataset models is going to be deleted soon (time of this comment:
+    #      2020-01-31)
+    from spinta.types import dataset
+    if isinstance(node, (Model, dataset.Model)):
+        model = node
     else:
-        name = node.model_type() + ttype.value
+        model = node.model
+    if ttype in (TableType.LIST, TableType.FILE):
+        name = model.model_type() + ttype.value + '/' + node.place
+    else:
+        name = model.model_type() + ttype.value
+    return name
+
+
+def _get_pg_name(name: str) -> str:
+    if len(name) > NAMEDATALEN:
+        name_hash = hashlib.sha256(name.encode()).hexdigest()
+        return name[:NAMEDATALEN - 7] + '_' + name_hash[-6:]
+    else:
+        return name
+
+
+def get_pg_table_name(name: str) -> str:
     if len(name) > NAMEDATALEN:
         hs = 8
         h = hashlib.sha1(name.encode()).hexdigest()[:hs]
@@ -1447,7 +1524,9 @@ def get_table_name(
     return name
 
 
-def get_changes_table(backend, table_name, id_type):
+def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
+    table_name = get_pg_table_name(get_table_name(model, TableType.CHANGELOG))
+    pkey_type = commands.get_primary_key_type(context, backend)
     table = sa.Table(
         table_name, backend.schema,
         # XXX: This will not work with multi master setup. Consider changing it
@@ -1458,11 +1537,16 @@ def get_changes_table(backend, table_name, id_type):
         #      previous `change_id` and increment it by one. This will create
         #      duplicates, but we simply know, that these changes happened at at
         #      the same time. So that's probably OK.
-        sa.Column('change', BIGINT, primary_key=True),
-        sa.Column('revision', sa.String(40)),
-        sa.Column('transaction', sa.Integer, sa.ForeignKey('transaction._id')),
-        sa.Column('id', id_type),  # reference to main table
+        sa.Column('_id', BIGINT, primary_key=True),
+        # FIXME: Should be pkey_type, but String is used, because dataset models
+        #        use sha1 for resource ids.
+        sa.Column('_revision', sa.String),
+        sa.Column('_txn', pkey_type, sa.ForeignKey('transaction._id')),
+        # FIXME: Should be pkey_type, but String is used, because dataset models
+        #        use sha1 for resource ids.
+        sa.Column('_rid', sa.String),  # reference to main table
         sa.Column('datetime', sa.DateTime),
+        # FIXME: Change `action` to `_op` for consistency.
         sa.Column('action', sa.String(8)),  # insert, update, delete
         sa.Column('data', JSONB),
     )
@@ -1526,27 +1610,24 @@ def unload_backend(context: Context, backend: PostgreSQL):
 @commands.create_changelog_entry.register()
 async def create_changelog_entry(
     context: Context,
-    model: (Model, Property),
+    node: (Model, Property),
     backend: PostgreSQL,
     *,
     dstream: types.AsyncGeneratorType,
 ) -> None:
     transaction = context.get('transaction')
     connection = transaction.connection
-    if isinstance(model, Model):
-        table = backend.tables[model.manifest.name][model.name]
-    else:
-        table = backend.tables[model.model.manifest.name][model.model.name]
+    table = backend.get_table(node, TableType.CHANGELOG)
     async for data in dstream:
-        qry = table.changes.insert().values(
-            transaction=transaction.id,
+        qry = table.insert().values(
+            _txn=transaction.id,
             datetime=utcnow(),
             action=Action.INSERT.value,
         )
         connection.execute(qry, [{
-            'id': data.saved['_id'] if data.saved else data.patch['_id'],
+            '_rid': data.saved['_id'] if data.saved else data.patch['_id'],
             '_revision': data.patch['_revision'] if data.patch else data.saved['_revision'],
-            'transaction': transaction.id,
+            '_txn': transaction.id,
             'datetime': utcnow(),
             'action': data.action.value,
             'data': fix_data_for_json({

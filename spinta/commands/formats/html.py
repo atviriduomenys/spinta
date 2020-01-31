@@ -198,23 +198,23 @@ def get_changes(context: Context, rows, model, params: UrlParams):
     ]
 
     yield (
-        ['_change', '_revision', '_transaction', '_created', '_op', '_id'] +
+        ['_id', '_revision', '_txn', '_created', '_op', '_rid'] +
         [prop.name for prop in props if prop.name != 'revision']
     )
 
     # XXX: With large changes sets this will consume a lot of memmory.
     current = {}
     for data in rows:
-        id_ = data['_id']
+        id_ = data['_rid']
         if id_ not in current:
             current[id_] = {}
         current[id_].update({
             k: v for k, v in data.items() if not k.startswith('_')
         })
         row = [
-            {'color': None, 'value': data['_change'], 'link': None},
+            {'color': None, 'value': data['_id'], 'link': None},
             {'color': None, 'value': data['_revision'], 'link': None},
-            {'color': None, 'value': data['_transaction'], 'link': None},
+            {'color': None, 'value': data['_txn'], 'link': None},
             {'color': None, 'value': data['_created'], 'link': None},
             {'color': None, 'value': data['_op'], 'link': None},
             get_cell(context, model.properties['_id'], id_, shorten=True),
