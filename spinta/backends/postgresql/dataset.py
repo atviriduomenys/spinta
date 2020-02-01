@@ -17,7 +17,7 @@ from spinta.types.dataset import Model, Property
 from spinta.backends import Backend
 from spinta.backends.postgresql import PostgreSQL
 from spinta.backends.postgresql import utcnow
-from spinta.backends.postgresql import get_table_name, get_pg_table_name
+from spinta.backends.postgresql import get_table_name, get_pg_name
 from spinta.backends.postgresql import get_changes_table
 from spinta.backends.postgresql import TableType
 from spinta.renderer import render
@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     pkey_type = commands.get_primary_key_type(context, backend)
-    table_name = get_pg_table_name(get_table_name(model))
+    table_name = get_pg_name(get_table_name(model))
     table = sa.Table(
         table_name, backend.schema,
         sa.Column('id', sa.String(40), primary_key=True),
