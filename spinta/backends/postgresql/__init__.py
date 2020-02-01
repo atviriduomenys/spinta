@@ -222,7 +222,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.append(column)
 
     # Create main table.
-    main_table_name = get_pg_table_name(get_table_name(model))
+    main_table_name = get_pg_name(get_table_name(model))
     pkey_type = commands.get_primary_key_type(context, backend)
     main_table = sa.Table(
         main_table_name, backend.schema,
@@ -303,7 +303,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
     pkey_type = commands.get_primary_key_type(context, backend)
     return get_pg_foreign_key(
         dtype.prop,
-        table_name=get_pg_table_name(get_table_name(ref_model)),
+        table_name=get_pg_name(get_table_name(ref_model)),
         model_name=dtype.prop.model.name,
         column_type=pkey_type,
     )
@@ -321,7 +321,7 @@ def get_pg_foreign_key(
         sa.Column(column_name, column_type),
         sa.ForeignKeyConstraint(
             [column_name], [f'{table_name}._id'],
-            name=_get_pg_name(f'fk_{model_name}_{column_name}'),
+            name=get_pg_name(f'fk_{model_name}_{column_name}'),
         )
     ]
 
@@ -356,7 +356,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array):
     # TODO: When all list items will have unique id, also add reference to
     #       parent list id.
     # if prop.list:
-    #     parent_list_table_name = get_pg_table_name(
+    #     parent_list_table_name = get_pg_name(
     #         get_table_name(prop.list, TableType.LIST)
     #     )
     #     columns += [
@@ -366,8 +366,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array):
     #         )),
     #     ]
 
-    name = get_pg_table_name(get_table_name(prop, TableType.LIST))
-    main_table_name = get_pg_table_name(get_table_name(prop.model))
+    name = get_pg_name(get_table_name(prop, TableType.LIST))
+    main_table_name = get_pg_name(get_table_name(prop.model))
     table = sa.Table(
         name, backend.schema,
         # TODO: List tables eventually will have _id in order to uniquelly
@@ -399,13 +399,6 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Object):
         elif column is not None:
             columns.append(column)
     return columns
-
-
-class ModelTables(typing.NamedTuple):
-    main: sa.Table = None
-    lists: sa.Table = None
-    changes: sa.Table = None
-    cache: sa.Table = None
 
 
 @migrate.register()
@@ -483,26 +476,6 @@ def _get_list_column_name(place, name):
         return place.split('.')[-1]
     else:
         return name[len(place) + 1:]
-
-
-def _has_lists(dtype: Union[Model, DataType]):
-    if isinstance(dtype, (Model, Object)):
-        for prop in dtype.properties.values():
-            if _has_lists(prop.dtype):
-                return True
-    elif isinstance(dtype, Array):
-        return True
-    else:
-        return False
-
-
-def _iter_lists(dtype: Union[Model, DataType]):
-    if isinstance(dtype, (Model, Object)):
-        for prop in dtype.properties.values():
-            yield from _iter_lists(prop.dtype)
-    elif isinstance(dtype, Array):
-        yield dtype.prop
-        yield from _iter_lists(dtype.items.dtype)
 
 
 def _get_lists_data(
@@ -1506,15 +1479,7 @@ def get_table_name(
     return name
 
 
-def _get_pg_name(name: str) -> str:
-    if len(name) > NAMEDATALEN:
-        name_hash = hashlib.sha256(name.encode()).hexdigest()
-        return name[:NAMEDATALEN - 7] + '_' + name_hash[-6:]
-    else:
-        return name
-
-
-def get_pg_table_name(name: str) -> str:
+def get_pg_name(name: str) -> str:
     if len(name) > NAMEDATALEN:
         hs = 8
         h = hashlib.sha1(name.encode()).hexdigest()[:hs]
@@ -1525,7 +1490,7 @@ def get_pg_table_name(name: str) -> str:
 
 
 def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
-    table_name = get_pg_table_name(get_table_name(model, TableType.CHANGELOG))
+    table_name = get_pg_name(get_table_name(model, TableType.CHANGELOG))
     pkey_type = commands.get_primary_key_type(context, backend)
     table = sa.Table(
         table_name, backend.schema,
