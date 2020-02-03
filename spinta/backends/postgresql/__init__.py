@@ -12,7 +12,7 @@ import uuid
 
 import sqlalchemy as sa
 import sqlalchemy.exc
-from sqlalchemy.dialects.postgresql import JSONB, UUID, BIGINT
+from sqlalchemy.dialects.postgresql import JSONB, UUID, BIGINT, ARRAY
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import FunctionElement
@@ -23,16 +23,18 @@ from multipledispatch import dispatch
 
 from spinta import commands
 from spinta import exceptions
-from spinta.backends import Backend
+from spinta.backends import Backend, BackendFeatures
 from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize
-from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem, DataSubItem
 from spinta.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
-from spinta.utils.schema import NA, strip_metadata, is_valid_sort_key
+from spinta.utils.schema import NA, is_valid_sort_key
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.aiotools import aiter
+from spinta.utils.data import take
 from spinta.commands.write import prepare_patch, simple_response, validate_data
+from spinta.backends.postgresql.files import DatabaseFile
 from spinta.types.datatype import (
     Array,
     DataType,
@@ -77,6 +79,10 @@ class PostgreSQL(Backend):
         'properties': {
             'dsn': {'type': 'string', 'required': True},
         },
+    }
+
+    features = {
+        BackendFeatures.FILE_BLOCKS,
     }
 
     engine = None
@@ -328,18 +334,43 @@ def get_pg_foreign_key(
 
 @prepare.register()
 def prepare(context: Context, backend: PostgreSQL, dtype: File):
-    name = _get_column_name(dtype.prop)
-    if dtype.prop.backend.name == backend.name:
-        return [
-            sa.Column(f'{name}._id', sa.String),
-            sa.Column(f'{name}._content_type', sa.String),
-            sa.Column(f'{name}._content', sa.LargeBinary),
+    prop = dtype.prop
+    model = prop.model
+
+    # All properties receive model backend even if properties own backend
+    # differs. Its properties responsibility to deal with foreign backends.
+    assert model.backend.name == backend.name
+
+    if prop.backend.name == backend.name:
+        # If property is on the same backend currently being prepared, then
+        # create table for storing file blocks and also add file metadata
+        # columns.
+        table_name = get_pg_name(get_table_name(prop, TableType.FILE))
+        pkey_type = commands.get_primary_key_type(context, backend)
+        table = sa.Table(
+            table_name, backend.schema,
+            sa.Column('_id', pkey_type, primary_key=True),
+            sa.Column('_block', sa.LargeBinary),
+        )
+        backend.add_table(table, prop, TableType.LIST)
+
+    name = _get_column_name(prop)
+
+    # Required file metadata on any backend.
+    columns = [
+        sa.Column(f'{name}._id', sa.String),
+        sa.Column(f'{name}._content_type', sa.String),
+        sa.Column(f'{name}._size', BIGINT),
+    ]
+
+    # Optional file metadata, depending on backend supported features.
+    if BackendFeatures.FILE_BLOCKS in prop.backend.features:
+        columns += [
+            sa.Column(f'{name}._bsize', sa.Integer),
+            sa.Column(f'{name}._blocks', ARRAY(BIGINT)),
         ]
-    else:
-        return [
-            sa.Column(f'{name}._id', sa.String),
-            sa.Column(f'{name}._content_type', sa.String),
-        ]
+
+    return columns
 
 
 @prepare.register()
@@ -422,7 +453,7 @@ def check_unique_constraint(
 
     if (
         data.action in (Action.UPDATE, Action.PATCH) or
-        data.action == Action.UPSERT and data.saved is not None
+        data.action == Action.UPSERT and data.saved is not NA
     ):
         if prop.name == '_id' and value == data.saved['_id']:
             return
@@ -604,32 +635,18 @@ async def insert(
     connection = transaction.connection
     table = backend.get_table(model)
     async for data in dstream:
+        patch = commands.before_write(context, model, backend, data=data)
+
         # TODO: Refactor this to insert batches with single query.
         qry = table.insert().values(
-            _id=data.patch['_id'],
-            _revision=data.patch['_revision'],
+            _id=patch['_id'],
+            _revision=patch['_revision'],
             _txn=transaction.id,
             _created=utcnow(),
         )
-
-        patch = commands.build_full_data_patch_for_nested_attrs(
-            context,
-            model,
-            patch=strip_metadata(data.patch),
-            saved=None,
-        )
-
         connection.execute(qry, patch)
 
-        # Update lists tables
-        _update_lists_table(
-            context,
-            model,
-            backend,
-            Action.INSERT,
-            data.patch['_id'],
-            data.patch,
-        )
+        commands.after_write(context, model, backend, data=data)
 
         yield data
 
@@ -652,46 +669,24 @@ async def update(
             yield data
             continue
 
-        id_ = data.saved['_id']
-
-        # Support patching nested properties.
-        # Build a full_patch dict, where data.patch is merged with data.saved
-        # for nested properties.
-        patch = commands.build_full_data_patch_for_nested_attrs(
-            context,
-            model,
-            patch=strip_metadata(data.patch),
-            saved=strip_metadata(data.saved),
-        )
-
-        patch['_revision'] = data.patch['_revision']
-        if '_id' in data.patch:
-            patch['_id'] = data.patch['_id']
-
+        pk = data.saved['_id']
+        patch = commands.before_write(context, model, backend, data=data)
         result = connection.execute(
             table.update().
-            where(table.c._id == id_).
+            where(table.c._id == pk).
             where(table.c._revision == data.saved['_revision']).
             values(patch)
         )
 
         if result.rowcount == 0:
-            raise Exception(f"Update failed, {model} with {id_} not found.")
+            raise Exception(f"Update failed, {model} with {pk} not found.")
         elif result.rowcount > 1:
-            raise Exception(f"Update failed, {model} with {id_} has found and update {result.rowcount} rows.")
+            raise Exception(
+                f"Update failed, {model} with {pk} has found and update "
+                f"{result.rowcount} rows."
+            )
 
-        # Update lists table
-        patch = {
-            k: v for k, v in data.patch.items() if not k.startswith('_')
-        }
-        _update_lists_table(
-            context,
-            model,
-            backend,
-            data.action,
-            id_,
-            patch,
-        )
+        commands.after_write(context, model, backend, data=data)
 
         yield data
 
@@ -709,12 +704,137 @@ async def delete(
     connection = transaction.connection
     table = backend.get_table(model)
     async for data in dstream:
+        commands.before_write(context, model, backend, data=data)
         connection.execute(
             table.delete().
             where(table.c._id == data.saved['_id'])
         )
-
+        commands.after_write(context, model, backend, data=data)
         yield data
+
+
+@commands.before_write.register()
+def before_write(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    data: DataSubItem,
+) -> dict:
+    patch = take(['_id'], data.patch)
+    patch['_revision'] = take('_revision', data.patch, data.saved)
+    patch['_txn'] = context.get('transaction').id
+    patch['_created'] = utcnow()
+    for prop in take(model.properties).values():
+        value = commands.before_write(
+            context,
+            prop.dtype,
+            backend,
+            data=data[prop.name],
+        )
+        patch.update(value)
+    return patch
+
+
+@commands.after_write.register()
+def after_write(
+    context: Context,
+    model: Model,
+    backend: PostgreSQL,
+    *,
+    data: DataSubItem,
+) -> dict:
+    for key in take(data.patch or {}):
+        prop = model.properties[key]
+        commands.after_write(context, prop.dtype, backend, data=data[key])
+
+
+@commands.before_write.register()
+def before_write(  # noqa
+    context: Context,
+    dtype: Array,
+    backend: PostgreSQL,
+    *,
+    data: DataSubItem,
+):
+    if data.saved:
+        prop = dtype.prop
+        table = backend.get_table(prop, TableType.LIST)
+        transaction = context.get('transaction')
+        connection = transaction.connection
+        connection.execute(
+            table.delete().
+            where(table.c._rid == data.root.saved['_id'])
+        )
+
+    if dtype.prop.list:
+        return {}
+    else:
+        return take({dtype.prop.place: data.patch})
+
+
+@commands.after_write.register()
+def after_write(  # noqa
+    context: Context,
+    dtype: Array,
+    backend: PostgreSQL,
+    *,
+    data: DataSubItem,
+):
+    if data.patch:
+        prop = dtype.prop
+        table = backend.get_table(prop, TableType.LIST)
+        transaction = context.get('transaction')
+        connection = transaction.connection
+        rid = take('_id', data.root.patch, data.root.saved)
+        rows = [
+            {
+                _get_list_column_name(prop.place, k): v
+                for k, v in commands.before_write(
+                    context,
+                    dtype.items.dtype,
+                    backend,
+                    data=d,
+                ).items()
+            }
+            for d in data.iter(patch=True)
+        ]
+        qry = table.insert().values({
+            '_txn': transaction.id,
+            '_rid': rid,
+        })
+        connection.execute(qry, rows)
+
+        for d in data.iter(patch=True):
+            commands.after_write(context, dtype.items.dtype, backend, data=d)
+
+
+@commands.before_write.register()
+def before_write(  # noqa
+    context: Context,
+    dtype: File,
+    backend: PostgreSQL,
+    *,
+    data: DataSubItem,
+):
+    content = take('_content', data.patch)
+    if isinstance(content, bytes):
+        transaction = context.get('transaction')
+        connection = transaction.connection
+        prop = dtype.prop
+        table = backend.get_table(prop, TableType.FILE)
+        with DatabaseFile(connection, table, mode='r') as f:
+            f.write(data.patch['_content'])
+            data.patch['_size'] = f.size
+            data.patch['_blocks'] = f.blocks
+            data.patch['_bsize'] = f.bsize
+
+    return commands.before_write[type(context), File, Backend](
+        context,
+        dtype,
+        backend,
+        data=data,
+    )
 
 
 @getone.register()
@@ -897,13 +1017,25 @@ async def getone(
     else:
         value = _get_prop_value(prop, data)
 
-        if value is None or value['_content'] is None:
+        if value is None or value['_blocks'] is None:
             raise ItemDoesNotExist(dtype, id=params.pk)
 
         filename = value['_id']
 
+        connection = context.get('transaction').connection
+        table = backend.get_table(prop, TableType.FILE)
+        with DatabaseFile(
+            connection,
+            table,
+            value['_size'],
+            value['_blocks'],
+            value['_bsize'],
+            mode='r',
+        ) as f:
+            content = f.read()
+
         return Response(
-            value['_content'],
+            content,
             media_type=value['_content_type'],
             headers={
                 'Revision': data['_revision'],
@@ -930,13 +1062,15 @@ def getone(
     selectlist = [
         table.c._id,
         table.c._revision,
-        table.c[dtype.prop.place + '._id'],
-        table.c[dtype.prop.place + '._content_type'],
+        table.c[prop.place + '._id'],
+        table.c[prop.place + '._content_type'],
+        table.c[prop.place + '._size'],
     ]
 
-    if isinstance(dtype.prop.backend, PostgreSQL):
+    if BackendFeatures.FILE_BLOCKS in prop.backend.features:
         selectlist += [
-            table.c[dtype.prop.place + '._content'],
+            table.c[prop.place + '._bsize'],
+            table.c[prop.place + '._blocks'],
         ]
 
     try:

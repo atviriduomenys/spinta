@@ -13,7 +13,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.auth import check_scope
 from spinta.backends import Backend
-from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream
+from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
 from spinta.types import dataset
 from spinta.types.datatype import DataType, Object, Array, File, Ref
@@ -23,6 +23,7 @@ from spinta.utils.aiotools import aslice, alist
 from spinta.utils.errors import report_error
 from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA, strip_metadata
+from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
 
 
@@ -397,6 +398,8 @@ async def read_existing_data(
 
         try:
             if data.prop:
+                # FIXME: Below is a temporary hack, because subresources does
+                #        not support getall searches.
                 rows = [commands.getone(
                     context,
                     data.prop,
@@ -405,22 +408,17 @@ async def read_existing_data(
                     id_=data.given['_where']['args'][1],
                 )]
             else:
-                rows = [commands.getone(
+                query = data.given['_where']
+                query = query if isinstance(query, list) else [query]
+                rows = commands.getall(
                     context,
                     data.model,
                     data.model.backend,
-                    id_=data.given['_where']['args'][1],
-                )]
+                    action=Action.SEARCH,
+                    query=query,
+                )
         except exceptions.ItemDoesNotExist:
             rows = []
-        # FIXME: Above is a temporary hack, because PostgreSQL backend's getall
-        #        does not support filtering.
-        # rows = commands.getall(
-        #     context,
-        #     data.model,
-        #     data.model.backend,
-        #     query=[data.given['_where']],
-        # )
 
         # When updating by id only, there must be exactly one existing record.
         if data.action == Action.UPSERT or _has_id_in_where(data.given):
@@ -507,12 +505,22 @@ async def prepare_patch(
         if data.patch is NA:
             data.patch = {}
 
-        if '_id' in data.given and (data.saved is None or data.given['_id'] != data.saved['_id']):
-            data.patch['_id'] = data.given['_id']
-        elif data.action == Action.INSERT:
-            data.patch['_id'] = commands.gen_object_id(context, data.model.backend, data.model)
-        if data.patch:
-            data.patch['_revision'] = commands.gen_object_id(context, data.model.backend, data.model)
+        if '_id' in data.given:
+            if take('_id', data.saved) != data.given['_id']:
+                data.patch['_id'] = data.given['_id']
+        elif (
+            data.action == Action.INSERT or
+            data.action == Action.UPSERT and
+            take('_id', data.given, data.saved) is NA
+        ):
+            data.patch['_id'] = commands.gen_object_id(
+                context, data.model.backend, data.model
+            )
+
+        if data.action == Action.DELETE or data.patch:
+            data.patch['_revision'] = commands.gen_object_id(
+                context, data.model.backend, data.model
+            )
 
         yield data
 
@@ -766,139 +774,93 @@ def build_full_response(  # noqa
         }
 
 
-@commands.build_full_data_patch_for_nested_attrs.register()
-def build_full_data_patch_for_nested_attrs(
-    context: Context,
-    model: Model,
-    *,
-    patch: dict,
-    saved: dict,
-) -> dict:
-    # Creates full_patch from `data.saved` and `data.patch`
-    #
-    # For PostgreSQL only nested fields need to be converted to full patch,
-    # because PostgreSQL does not support partial updates, thus we need
-    # to fill nested fields with data from `data.saved` if it is missing in
-    # `data.patch`
-    full_patch = {}
-    for name in patch:
-        prop = model.properties[name]
-        value = commands.build_full_data_patch_for_nested_attrs(
-            context,
-            prop.dtype,
-            patch=patch.get(prop.name, NA),
-            saved=saved.get(prop.name, NA) if saved else saved,
-        )
-        full_patch.update(value)
-    return full_patch
-
-
-@commands.build_full_data_patch_for_nested_attrs.register()  # noqa
-def build_full_data_patch_for_nested_attrs(  # noqa
+@commands.before_write.register()  # noqa
+def before_write(  # noqa
     context: Context,
     dtype: DataType,
+    backend: Backend,
     *,
-    patch: object,
-    saved: object,
+    data: DataSubItem,
 ) -> dict:
-    if patch is NA:
-        return {}
-    else:
-        return {dtype.prop.place: patch}
+    return take({dtype.prop.place: data.patch})
 
 
-@commands.build_full_data_patch_for_nested_attrs.register()  # noqa
-def build_full_data_patch_for_nested_attrs(  # noqa
+@commands.after_write.register()  # noqa
+def after_write(  # noqa
+    context: Context,
+    dtype: DataType,
+    backend: Backend,
+    *,
+    data: DataSubItem,
+) -> dict:
+    pass
+
+
+@commands.before_write.register()  # noqa
+def before_write(  # noqa
     context: Context,
     dtype: Object,
+    backend: Backend,
     *,
-    patch: dict,
-    saved: dict,
+    data: DataSubItem,
 ) -> dict:
-    if patch is NA:
-        return saved
-    else:
-        # We should work with keys which are available to us from
-        # patch and saved data. Do not rely on manifest data for this.
-        prop_keys = set(patch or []) | set(saved or [])
-
-        full_patch = {}
-        for prop_key in prop_keys:
-            # drop metadata columns
-            if prop_key.startswith('_'):
-                continue
-
-            prop = dtype.properties[prop_key]
-            value = commands.build_full_data_patch_for_nested_attrs(
-                context,
-                prop.dtype,
-                patch=patch.get(prop.name, NA) if patch else patch,
-                saved=saved.get(prop.name, NA) if saved else saved,
-            )
-            full_patch.update(value)
-        return full_patch or {}
+    patch = {}
+    for prop in dtype.properties.values():
+        value = commands.before_write(
+            context,
+            prop.dtype,
+            backend,
+            data=data[prop.name],
+        )
+        patch.update(value)
+    return patch
 
 
-@commands.build_full_data_patch_for_nested_attrs.register()  # noqa
-def build_full_data_patch_for_nested_attrs(  # noqa
+@commands.after_write.register()  # noqa
+def after_write(  # noqa
+    context: Context,
+    dtype: Object,
+    backend: Backend,
+    *,
+    data: DataSubItem,
+) -> dict:
+    for key in (data.patch or ()):
+        prop = dtype.properties[key]
+        commands.after_write(context, prop.dtype, backend, data=data[key])
+
+
+@commands.before_write.register()  # noqa
+def before_write(  # noqa
     context: Context,
     dtype: File,
+    backend: Backend,
     *,
-    patch: dict,
-    saved: dict,
+    data: DataSubItem,
 ) -> dict:
-    # if key for file is not available in patch - return NotAvailable
-    if patch is NA:
-        return saved
-
-    # if key for file is available but value is falsy (None, {}),
-    # then return None for metadata values
-    if not patch:
-        return {
-            f'{dtype.prop.place}._id': None,
-            f'{dtype.prop.place}._content_type': None,
+    if data.root.action == Action.DELETE:
+        patch = {
+            '_id': None,
+            '_content_type': None,
+            '_size': None,
         }
-
-    # for any other case - return patch values and if not available
-    # fallback to saved values or None
-    res = {
-        f'{dtype.prop.place}._id': patch.get(
-            '_id',
-            saved.get('_id') if saved else None,
-        ),
-        f'{dtype.prop.place}._content_type': patch.get(
-            '_content_type',
-            saved.get('_content_type') if saved else None,
-        ),
+    else:
+        patch = take(['_id', '_content_type', '_size'], data.patch)
+    return {
+        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
     }
-    if '_content' in patch:
-        res[f'{dtype.prop.place}._content'] = patch['_content']
-    return res
 
 
-@commands.build_full_data_patch_for_nested_attrs.register()  # noqa
-def build_full_data_patch_for_nested_attrs(  # noqa
+@commands.before_write.register()  # noqa
+def before_write(  # noqa
     context: Context,
     dtype: Ref,
+    backend: Backend,
     *,
-    patch: dict,
-    saved: dict,
+    data: DataSubItem,
 ) -> dict:
-    # if key for file is not available in patch - return NotAvailable
-    if patch is NA:
-        return saved
-
-    # if key for file is available but value is falsy (None, {}),
-    # then return None for metadata values
-    if not patch:
-        return {
-            f'{dtype.prop.place}._id': None,
-        }
-
-    # for any other case - return patch values and if not available
-    # fallback to saved values or None
+    patch = take(['_id'], data.patch)
     return {
-        f'{dtype.prop.place}._id': patch.get('_id'),
+        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
     }
 
 
@@ -946,7 +908,7 @@ async def simple_response(context: Context, results: AsyncIterator[DataItem]) ->
     data = results[0]
     if data.error is not None:
         status_code = data.error.status_code
-    elif data.action == Action.INSERT or (data.action == Action.UPSERT and data.saved is None):
+    elif data.action == Action.INSERT or (data.action == Action.UPSERT and data.saved is NA):
         status_code = 201
     elif data.action == Action.DELETE:
         status_code = 204
@@ -1007,7 +969,7 @@ async def upsert(
     dstream: DataStream,
     stop_on_error: bool = True,
 ):
-    async for saved, dstream in agroupby(dstream, key=lambda d: d.saved is not None):
+    async for saved, dstream in agroupby(dstream, key=lambda d: d.saved is not NA):
         if saved:
             cmd = commands.update
         else:

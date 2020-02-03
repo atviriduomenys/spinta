@@ -5,7 +5,7 @@ import contextlib
 import datetime
 import uuid
 import typing
-import itertools
+import enum
 
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref
 from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
@@ -19,10 +19,18 @@ from spinta import exceptions
 SelectTree = Optional[Dict[str, dict]]
 
 
+class BackendFeatures(enum.Enum):
+    # Files are stored in blocks and file metadata must include _bsize and
+    # _blocks properties.
+    FILE_BLOCKS = 'FILE_BLOCKS'
+
+
 class Backend:
     metadata = {
         'name': 'backend',
     }
+
+    features = set()
 
     def __repr__(self):
         return (

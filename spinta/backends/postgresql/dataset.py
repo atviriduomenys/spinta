@@ -397,7 +397,9 @@ def _getall_query(
         value = commands.load_search_params(context, prop.dtype, backend, qp)
         if name == 'eq':
             field = jm(prop.place)
-            if isinstance(prop.dtype, String):
+            if key == '_id':
+                pass
+            elif isinstance(prop.dtype, String):
                 field = sa.func.lower(field.astext)
                 value = value.lower()
             else:

@@ -6,6 +6,7 @@ import dataclasses
 import pathlib
 
 from spinta import exceptions
+from spinta.utils.schema import NA
 
 
 class Context:
@@ -604,6 +605,15 @@ class DataItem:
         self.action = action
         self.payload = payload
         self.error = error
+        self.given = NA
+        self.saved = NA
+        self.patch = NA
+
+    def __getitem__(self, key):
+        return DataSubItem(self, *(
+            d.get(key, NA) if d else NA
+            for d in (self.given, self.saved, self.patch)
+        ))
 
     def copy(self, **kwargs) -> 'DataItem':
         data = DataItem()
@@ -630,6 +640,45 @@ class DataItem:
                 else:
                     setattr(data, name, value)
         return data
+
+
+class DataSubItem:
+
+    def __init__(self, parent, given, saved, patch):
+        if isinstance(parent, DataSubItem):
+            self.root = parent.root
+        else:
+            self.root = parent
+        self.given = given
+        self.saved = saved
+        self.patch = patch
+
+    def __getitem__(self, key):
+        return DataSubItem(self, *(
+            d.get(key, NA) if d else NA
+            for d in (self.given, self.saved, self.patch)
+        ))
+
+    def __iter__(self):
+        yield from self.iter(given=True, saved=True, patch=True)
+
+    def iter(self, given=False, saved=False, patch=False):
+        if saved and self.saved:
+            given_ = NA
+            patch_ = NA
+            for saved_ in self.saved:
+                yield DataSubItem(self, given_, saved_, patch_)
+
+        if (patch or given) and self.patch:
+            saved_ = NA
+            for given_, patch_ in zip(self.given, self.patch):
+                yield DataSubItem(self, given_, saved_, patch_)
+
+        elif given and self.given:
+            saved_ = NA
+            patch_ = NA
+            for given_ in self.given:
+                yield DataSubItem(self, given_, saved_, patch_)
 
 
 DataStream = AsyncIterator[DataItem]
