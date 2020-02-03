@@ -12,11 +12,12 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.backends import Backend
-from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataStream, DataItem
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataStream, DataItem, DataSubItem
 from spinta.config import RawConfig
 from spinta.renderer import render
 from spinta.types.datatype import Date, DataType, File, Object
-from spinta.utils.schema import strip_metadata, is_valid_sort_key
+from spinta.utils.schema import is_valid_sort_key
+from spinta.utils.data import take
 from spinta.commands import (
     authorize,
     getall,
@@ -175,16 +176,10 @@ async def insert(
 ):
     table = backend.db[model.model_type()]
     async for data in dstream:
+        patch = commands.before_write(context, model, backend, data=data)
         # TODO: Insert batches in a single query, using `insert_many`.
-        patch = {
-            k: v for k, v in data.patch.items() if not k.startswith('_')
-        }
-        table.insert_one({
-            '__id': data.patch['_id'],
-            '_revision': data.patch['_revision'],
-            **patch,
-        })
-        data.saved = data.patch.copy()
+        table.insert_one(patch)
+        commands.after_write(context, model, backend, data=data)
         yield data
 
 
@@ -199,34 +194,13 @@ async def update(
 ):
     table = backend.db[model.model_type()]
     async for data in dstream:
-        if not data.patch:
-            yield data
-            continue
-
-        # FIXME: this is technically a hack, as it does not employ
-        # mongo's partial update feature, i.e. we patch whole underlining
-        # nested structure if there were changed in the nested structure.
-        # We do this, because partial updates do not work for arrays.
-        # We must implement a function wich does partial updates, for non-array
-        # nested attributes, but if there's an array - then do full patch.
-        patch = commands.build_full_data_patch_for_nested_attrs(
-            context,
-            model,
-            patch=strip_metadata(data.patch),
-            saved=strip_metadata(data.saved),
-        )
-
-        values = {k: v for k, v in patch.items() if not k.startswith('_')}
-        values['_revision'] = data.patch['_revision']
-        if '_id' in data.patch:
-            values['__id'] = data.patch['_id']
-
+        patch = commands.before_write(context, model, backend, data=data)
         result = table.update_one(
             {
                 '__id': data.saved['_id'],
                 '_revision': data.saved['_revision'],
             },
-            {'$set': values}
+            {'$set': patch},
         )
         if result.matched_count == 0:
             raise ItemDoesNotExist(
@@ -237,6 +211,7 @@ async def update(
         assert result.matched_count == 1 and result.modified_count == 1, (
             f"matched: {result.matched_count}, modified: {result.modified_count}"
         )
+        commands.after_write(context, model, backend, data=data)
         yield data
 
 
@@ -251,6 +226,7 @@ async def delete(
 ):
     table = backend.db[model.model_type()]
     async for data in dstream:
+        commands.before_write(context, model, backend, data=data)
         result = table.delete_one({
             '__id': data.saved['_id'],
             '_revision': data.saved['_revision'],
@@ -262,7 +238,47 @@ async def delete(
                 id=data.saved['_id'],
                 revision=data.saved['_revision'],
             )
+        commands.after_write(context, model, backend, data=data)
         yield data
+
+
+@commands.before_write.register()
+def before_write(
+    context: Context,
+    model: Model,
+    backend: Mongo,
+    *,
+    data: DataItem,
+) -> dict:
+    patch = {}
+    patch['__id'] = take('_id', data.patch)
+    patch['_revision'] = take('_revision', data.patch, data.saved)
+    patch['_txn'] = context.get('transaction').id
+    patch['_created'] = datetime.datetime.now()
+    if data.action == Action.INSERT:
+        for k, v in take(data.patch).items():
+            patch[k] = v
+    else:
+        for prop in take(model.properties).values():
+            value = commands.before_write(
+                context,
+                prop.dtype,
+                backend,
+                data=data[prop.name],
+            )
+            patch.update(value)
+    return take(patch, reserved=True)
+
+
+@commands.after_write.register()
+def after_write(
+    context: Context,
+    model: Model,
+    backend: Mongo,
+    *,
+    data: DataItem,
+) -> dict:
+    pass
 
 
 @getone.register()

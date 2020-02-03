@@ -233,6 +233,18 @@ def getone():
 
 
 @command()
+def getfile():
+    """Get full file content
+
+    This can raise error if file is to large to read into memeory.
+
+    This command is used for file property, to read while file content into
+    `_content` property if explicitly requested. For small files this is OK, but
+    for larger files direct file access via subresource API should be used.
+    """
+
+
+@command()
 def getall():
     """Find multiple records in the databse."""
 
@@ -366,23 +378,28 @@ def build_data_patch_for_write():
 
 
 @command()
-def build_full_data_patch_for_nested_attrs():
-    """Builds full patch from data.patch and data.saved for nested fields
+def before_write():
+    """Prepare patch for backend before writing
 
-    This solves problems when doing updates on nested fields.
+    This command converts Python-native data types to backend-native data types
+    and prepares patch that is ready for writing to database tables.
 
-    Usual problems:
-    - Some database backends (e.g. Postgres) do not support partial updates
-    to nested fields, thus "full patch" must be constructed for nested fields
-    from partial `data.patch` and the `data.saved`.
-    - On double updates, i.e. when we are updating attribute values, which
-    are already saved in the DB, then `data.patch` will ignore those values,
-    thus on nested fields we may overwrite already existing values, e.g.
-        schema = {'obj': {'foo': string, 'bar': string}};
-        data.saved = {'obj': {'foo': '42', 'bar': 'baz'}};
-        data.given = {'obj': {'foo': '13', 'bar': 'baz'}};
-        data.patch = {'obj': {'foo': '13'}};
-    Thus 'bar' will be overwriten, because patch is missing data.
+    Preparation also might involve cleaning stale data on other tables, for
+    example list data are written to separate tables used for searches, file
+    properties writes file blockes to a separate tables and updates patch with
+    block data.
+    """
+
+
+@command()
+def after_write():
+    """Run additional actions after writing to backend
+
+    This can invorvle writing data to other tables, for examples list can save
+    list items, files can save file blocks, etc.
+
+    At this point, main resource data are saved and all referential checks will
+    pass.
     """
 
 

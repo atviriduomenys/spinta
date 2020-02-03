@@ -1,0 +1,12 @@
+---
+type: model
+name: backends/mongo/dtypes/object/string
+version:
+  number: 1
+  date: 2020-02-02
+properties:
+  object:
+    type: object
+    properties:
+      string:
+        type: string

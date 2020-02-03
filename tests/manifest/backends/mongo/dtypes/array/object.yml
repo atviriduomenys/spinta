@@ -1,0 +1,14 @@
+---
+type: model
+name: backends/mongo/dtypes/array/object
+version:
+  number: 1
+  date: 2020-02-03
+properties:
+  array:
+    type: array
+    items:
+      type: object
+      properties:
+        string:
+          type: string

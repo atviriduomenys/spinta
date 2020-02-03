@@ -5,7 +5,7 @@ import contextlib
 import datetime
 import uuid
 import typing
-import itertools
+import enum
 
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref
 from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
@@ -19,10 +19,18 @@ from spinta import exceptions
 SelectTree = Optional[Dict[str, dict]]
 
 
+class BackendFeatures(enum.Enum):
+    # Files are stored in blocks and file metadata must include _bsize and
+    # _blocks properties.
+    FILE_BLOCKS = 'FILE_BLOCKS'
+
+
 class Backend:
     metadata = {
         'name': 'backend',
     }
+
+    features = set()
 
     def __repr__(self):
         return (
@@ -602,10 +610,16 @@ def prepare_dtype_for_response(  # noqa
 
     # File content is returned only if explicitly requested.
     if select and '_content' in select:
-        if value['_content'] is not None:
-            data['_content'] = base64.b64encode(value['_content']).decode()
+        if '_content' in value:
+            content = value['_content']
         else:
-            data['_content'] = value['_content']
+            prop = dtype.prop
+            content = commands.getfile(context, prop, dtype, prop.backend, data=value)
+
+        if content is None:
+            data['_content'] = None
+        else:
+            data['_content'] = base64.b64encode(content).decode()
 
     return data
 
