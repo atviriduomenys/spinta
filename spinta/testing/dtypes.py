@@ -108,10 +108,10 @@ def upsert(app, model: str, where: str, value: str, *, status: int):
 
 def put(app, model: str, pk: str, rev: str, value: str = NA):
     name = model.split('/')[-1]
-    data = nest(model, take({
+    data = nest(model, take(all, {
         '_revision': rev,
         name: value,
-    }, reserved=True))
+    }))
     resp = app.put(f'/{model}/{pk}', json=data)
     data = resp.json()
     assert resp.status_code == 200, data
@@ -119,21 +119,21 @@ def put(app, model: str, pk: str, rev: str, value: str = NA):
     pk = data['_id']
     rev = data['_revision']
     val = take(name, data)
-    assert data == take({
+    assert data == take(all, {
         '_type': model,
         '_id': pk,
         '_revision': rev,
         name: val,
-    }, reserved=True)
+    })
     return rev, val
 
 
 def patch(app, model: str, pk: str, rev: str, value: str = NA):
     name = model.split('/')[-1]
-    data = nest(model, take({
+    data = nest(model, take(all, {
         '_revision': rev,
         name: value,
-    }, reserved=True))
+    }))
     resp = app.patch(f'/{model}/{pk}', json=data)
     data = resp.json()
     assert resp.status_code == 200, data
@@ -141,19 +141,19 @@ def patch(app, model: str, pk: str, rev: str, value: str = NA):
     pk = data['_id']
     rev = data['_revision']
     val = take(name, data)
-    assert data == take({
+    assert data == take(all, {
         '_type': model,
         '_id': pk,
         '_revision': rev,
         name: val,
-    }, reserved=True)
+    })
     return rev, val
 
 
 def delete(app, model: str, pk: str, rev: str):
-    data = nest(model, take({
+    data = nest(model, take(all, {
         '_revision': rev,
-    }, reserved=True))
+    }))
     resp = app.delete(f'/{model}/{pk}', json=data)
     data = resp.json()
     assert resp.status_code == 204, data
@@ -175,12 +175,12 @@ def get(app, model, pk, rev, status=200):
     if status == 200:
         data = flat(model, data)
         val = take(name, data)
-        assert data == take({
+        assert data == take(all, {
             '_type': model,
             '_id': pk,
             '_revision': rev,
             name: val,
-        }, reserved=True)
+        })
         return val
     else:
         return get_error_codes(data)
@@ -205,11 +205,11 @@ def search(app, model, pk, rev, val=NA, by=None):
     for d in data['_data']:
         d = flat(model, d)
         v = take(name, d)
-        assert d == take({
+        assert d == take(all, {
             '_type': model,
             '_id': pk,
             '_revision': rev,
             name: v,
-        }, reserved=True)
+        })
         val.append(v)
     return val

@@ -22,7 +22,7 @@ from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist
 from spinta.utils.errors import report_error
 from spinta.utils.streams import splitlines
-from spinta.utils.schema import NotAvailable, NA, strip_metadata
+from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
 
@@ -497,8 +497,8 @@ async def prepare_patch(
         data.patch = build_data_patch_for_write(
             context,
             data.prop or data.model,
-            given=strip_metadata(data.given),
-            saved=strip_metadata(data.saved) if data.saved else NA,
+            given=take(data.given),
+            saved=take(data.saved),
             fill=data.action in (Action.INSERT, Action.UPDATE),
         )
 
@@ -684,8 +684,8 @@ def prepare_response(
             saved = data.saved.get(data.prop.name, {})
         else:
             dtype = data.model
-            patch = strip_metadata(data.patch)
-            saved = strip_metadata(data.saved)
+            patch = take(data.patch)
+            saved = take(data.saved)
 
         resp = build_full_response(
             context,
@@ -782,7 +782,7 @@ def before_write(  # noqa
     *,
     data: DataSubItem,
 ) -> dict:
-    return take({dtype.prop.place: data.patch})
+    return take(all, {dtype.prop.place: data.patch})
 
 
 @commands.after_write.register()  # noqa

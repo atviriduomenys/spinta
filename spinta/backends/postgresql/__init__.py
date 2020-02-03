@@ -982,13 +982,6 @@ def _iter_prop_names(dtype) -> Iterator[Property]:  # noqa
     yield dtype.prop.place + '._content_type'
 
 
-def _get_prop_value(prop, data):
-    value = data
-    for k in prop.place.split('.'):
-        value = value[k]
-    return value
-
-
 @getone.register()
 async def getone(
     context: Context,
@@ -1016,7 +1009,7 @@ async def getone(
 
     # Return file content
     else:
-        value = _get_prop_value(prop, data)
+        value = take(prop.place, data)
 
         if not take('_blocks', value):
             raise ItemDoesNotExist(dtype, id=params.pk)
