@@ -13,10 +13,7 @@ def load_search_params(
     query_params: dict,
 ) -> object:
     value = query_params['args'][1]
-    if isinstance(dtype, PrimaryKey):
-        value = load(context, dtype, value, query_params)
-    else:
-        value = load(context, dtype, value)
+    value = load(context, dtype, value, query_params)
     load_operator_value(context, backend, dtype, value, query_params=query_params)
     return prepare(context, dtype, backend, value)
 

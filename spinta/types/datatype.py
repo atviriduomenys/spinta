@@ -284,6 +284,14 @@ def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
 
 
 @load.register()
+def load(context: Context, dtype: DataType, value: object, query_params: dict) -> object:
+    if query_params['name'] in ('startswith', 'contains') and value == '':
+        raise exceptions.InvalidValue(dtype)
+    # loads value to python native value according to given type
+    return dtype.load(value)
+
+
+@load.register()
 def load(context: Context, dtype: DataType, value: object) -> object:
     # loads value to python native value according to given type
     return dtype.load(value)
@@ -305,7 +313,7 @@ def load(context: Context, dtype: File, value: object) -> object:
 
 
 @load.register()
-def load(context: Context, dtype: PrimaryKey, value: object) -> list:
+def load(context: Context, dtype: PrimaryKey, value: object) -> object:
     if value is NA:
         return value
     if value is None:
@@ -318,17 +326,17 @@ def load(context: Context, dtype: PrimaryKey, value: object) -> list:
 
 
 @load.register()
-def load(context: Context, dtype: PrimaryKey, value: object, query_params: dict) -> list:
+def load(context: Context, dtype: PrimaryKey, value: object, query_params: dict) -> object:
     if value is NA:
         return value
-    if value is None:
-        raise exceptions.InvalidValue(dtype)
+    operator = query_params['name']
     model = dtype.prop.model
     backend = model.backend
-    operator = query_params['name']
     if (
+        value is None or
+        operator in ('startswith', 'contains') and value == '' or
         operator not in ('startswith', 'contains') and
-        not is_object_id(context, backend, model, value)
+            not is_object_id(context, backend, model, value)
     ):
         raise exceptions.InvalidValue(dtype)
     return str(value)
