@@ -12,11 +12,11 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.backends import Backend
-from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataStream, DataItem, DataSubItem
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataStream, DataItem
 from spinta.config import RawConfig
 from spinta.renderer import render
 from spinta.types.datatype import Date, DataType, File, Object
-from spinta.utils.schema import is_valid_sort_key
+from spinta.utils.schema import NA, is_valid_sort_key
 from spinta.utils.data import take
 from spinta.commands import (
     authorize,
@@ -255,7 +255,7 @@ def before_write(
     patch['_revision'] = take('_revision', data.patch, data.saved)
     patch['_txn'] = context.get('transaction').id
     patch['_created'] = datetime.datetime.now()
-    if data.action == Action.INSERT:
+    if data.action == Action.INSERT or (data.action == Action.UPSERT and data.saved is NA):
         for k, v in take(data.patch).items():
             patch[k] = v
     else:
