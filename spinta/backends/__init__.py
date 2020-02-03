@@ -610,10 +610,16 @@ def prepare_dtype_for_response(  # noqa
 
     # File content is returned only if explicitly requested.
     if select and '_content' in select:
-        if value['_content'] is not None:
-            data['_content'] = base64.b64encode(value['_content']).decode()
+        if '_content' in value:
+            content = value['_content']
         else:
-            data['_content'] = value['_content']
+            prop = dtype.prop
+            content = commands.getfile(context, prop, dtype, prop.backend, data=value)
+
+        if content is None:
+            data['_content'] = None
+        else:
+            data['_content'] = base64.b64encode(content).decode()
 
     return data
 

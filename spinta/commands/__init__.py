@@ -233,6 +233,18 @@ def getone():
 
 
 @command()
+def getfile():
+    """Get full file content
+
+    This can raise error if file is to large to read into memeory.
+
+    This command is used for file property, to read while file content into
+    `_content` property if explicitly requested. For small files this is OK, but
+    for larger files direct file access via subresource API should be used.
+    """
+
+
+@command()
 def getall():
     """Find multiple records in the databse."""
 

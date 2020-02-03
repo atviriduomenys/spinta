@@ -12,7 +12,7 @@ from starlette.responses import Response
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import check_scope
-from spinta.backends import Backend
+from spinta.backends import Backend, BackendFeatures
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
 from spinta.types import dataset
@@ -845,6 +845,16 @@ def before_write(  # noqa
         }
     else:
         patch = take(['_id', '_content_type', '_size'], data.patch)
+
+    if BackendFeatures.FILE_BLOCKS in dtype.prop.backend.features:
+        if data.root.action == Action.DELETE:
+            patch.update({
+                '_blocks': [],
+                '_bsize': None,
+            })
+        else:
+            patch.update(take(['_blocks', '_bsize'], data.patch))
+
     return {
         f'{dtype.prop.place}.{k}': v for k, v in patch.items()
     }

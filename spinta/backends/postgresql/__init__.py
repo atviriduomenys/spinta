@@ -341,18 +341,19 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File):
     # differs. Its properties responsibility to deal with foreign backends.
     assert model.backend.name == backend.name
 
+    pkey_type = commands.get_primary_key_type(context, backend)
+
     if prop.backend.name == backend.name:
         # If property is on the same backend currently being prepared, then
         # create table for storing file blocks and also add file metadata
         # columns.
         table_name = get_pg_name(get_table_name(prop, TableType.FILE))
-        pkey_type = commands.get_primary_key_type(context, backend)
         table = sa.Table(
             table_name, backend.schema,
             sa.Column('_id', pkey_type, primary_key=True),
             sa.Column('_block', sa.LargeBinary),
         )
-        backend.add_table(table, prop, TableType.LIST)
+        backend.add_table(table, prop, TableType.FILE)
 
     name = _get_column_name(prop)
 
@@ -367,7 +368,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File):
     if BackendFeatures.FILE_BLOCKS in prop.backend.features:
         columns += [
             sa.Column(f'{name}._bsize', sa.Integer),
-            sa.Column(f'{name}._blocks', ARRAY(BIGINT)),
+            sa.Column(f'{name}._blocks', ARRAY(pkey_type)),
         ]
 
     return columns
@@ -823,7 +824,7 @@ def before_write(  # noqa
         connection = transaction.connection
         prop = dtype.prop
         table = backend.get_table(prop, TableType.FILE)
-        with DatabaseFile(connection, table, mode='r') as f:
+        with DatabaseFile(connection, table, mode='w') as f:
             f.write(data.patch['_content'])
             data.patch['_size'] = f.size
             data.patch['_blocks'] = f.blocks
@@ -1017,7 +1018,7 @@ async def getone(
     else:
         value = _get_prop_value(prop, data)
 
-        if value is None or value['_blocks'] is None:
+        if not take('_blocks', value):
             raise ItemDoesNotExist(dtype, id=params.pk)
 
         filename = value['_id']
@@ -1087,6 +1088,38 @@ def getone(
     data = _flat_dicts_to_nested(data)
     result[prop.name] = data[prop.name]
     return commands.cast_backend_to_python(context, prop, backend, result)
+
+
+@commands.getfile.register()
+def getfile(
+    context: Context,
+    prop: Property,
+    dtype: File,
+    backend: PostgreSQL,
+    *,
+    data: dict,
+):
+    if not data['_blocks']:
+        return None
+
+    if len(data['_blocks']) > 1:
+        # TODO: Use propper UserError exception.
+        raise Exception(
+            "File content is to large to retrun it inline. Try accessing "
+            "this file directly using subresources API."
+        )
+
+    connection = context.get('transaction').connection
+    table = backend.get_table(prop, TableType.FILE)
+    with DatabaseFile(
+        connection,
+        table,
+        data['_size'],
+        data['_blocks'],
+        data['_bsize'],
+        mode='r',
+    ) as f:
+        return f.read()
 
 
 @getall.register()
