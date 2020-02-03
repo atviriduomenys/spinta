@@ -1,9 +1,10 @@
-from typing import AsyncIterator, List, Optional, Union
+from typing import AsyncIterator, Optional, Union
 
 import cgi
 import pathlib
 import shutil
 
+from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
@@ -112,6 +113,8 @@ async def push(
         data.given['_revision'] = request.headers.get('revision')
     if 'content-disposition' in request.headers:
         data.given[prop.name]['_id'] = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
+    if 'content-length' not in request.headers:
+        raise HTTPException(status_code=411)
     if not data.given[prop.name]['_id']:
         # XXX: Probably here should be a new UUID.
         data.given[prop.name]['_id'] = params.pk
