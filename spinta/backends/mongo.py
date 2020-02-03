@@ -267,7 +267,7 @@ def before_write(
                 data=data[prop.name],
             )
             patch.update(value)
-    return take(patch, reserved=True)
+    return take(all, patch)
 
 
 @commands.after_write.register()

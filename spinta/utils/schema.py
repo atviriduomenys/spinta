@@ -84,12 +84,6 @@ def check_unkown_params(
         )
 
 
-def strip_metadata(res):
-    return {
-        k: v for k, v in res.items() if not k.startswith('_')
-    }
-
-
 def is_valid_sort_key(key, model):
     # sort key must be a leaf node in the model schema.
     # we cannot sort using intermediate node, because it's type would
