@@ -607,6 +607,7 @@ class QueryBuilder:
         # not - use $ne
         if lower:
             # TODO: I don't know how to lower case values in mongo.
+            value = re.escape(value)
             value = re.compile('^' + value + '$', re.IGNORECASE)
             return {
                 '$and': [
@@ -624,6 +625,7 @@ class QueryBuilder:
 
     def op_contains(self, key, value, lower=False):
         try:
+            value = re.escape(value)
             value = re.compile(value, re.IGNORECASE)
         except TypeError:
             # in case value is not a string - then just search for that value directly
@@ -634,6 +636,7 @@ class QueryBuilder:
     def op_startswith(self, key, value, lower=False):
         # https://stackoverflow.com/a/3483399
         try:
+            value = re.escape(value)
             value = re.compile('^' + value + '.*', re.IGNORECASE)
         except TypeError:
             # in case value is not a string - then just search for that value directly
