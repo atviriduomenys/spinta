@@ -1,6 +1,7 @@
 import pathlib
 
 import pytest
+import requests
 
 from spinta.testing.utils import get_error_codes, get_error_context
 
@@ -436,3 +437,39 @@ def test_file_get_headers(model, app):
     assert resp.content == b'BINARYDATA'
     assert 'revision' in resp.headers
     assert resp.headers['revision'] == revision
+
+
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_put_file_no_content(context, model, app):
+    app.authmodel(model, ['insert', 'image_update', 'image_getone'])
+
+    # Create a new report resource.
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+    })
+    assert resp.status_code == 201, resp.text
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    # Prepare request without any file
+    req = requests.Request(
+        'PUT',
+        f'{app.base_url}/{model}/{id_}/image',
+        headers={
+            'revision': revision,
+            'content-type': 'image/png',
+        }
+    )
+    prep_req = req.prepare()
+    # Make sure content-length does not exist
+    del prep_req.headers['content-length']
+    # Use authorization headers from before
+    prep_req.headers['authorization'] = app.headers['authorization']
+
+    # Upload an image, but add no file.
+    resp = app.send(prep_req)
+    assert resp.status_code == 411
