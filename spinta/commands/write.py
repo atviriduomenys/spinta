@@ -538,7 +538,7 @@ def build_data_patch_for_write(
         props = (
             prop
             for prop in model.properties.values()
-            if not prop.name.startswith('_')
+            if not (prop.name.startswith('_') or prop.hidden)
         )
     else:
         props = (model.properties[k] for k in given)
@@ -592,7 +592,7 @@ def build_data_patch_for_write(  # noqa
         props = (
             prop
             for prop in dtype.properties.values()
-            if not prop.name.startswith('_')
+            if not (prop.name.startswith('_') or prop.hidden)
         )
     else:
         props = (dtype.properties[k] for k in given)
