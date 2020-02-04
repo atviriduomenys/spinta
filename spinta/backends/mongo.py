@@ -575,7 +575,7 @@ class QueryBuilder:
 
         if key == '_id':
             key = '__id'
-        elif key != 'revision' and key.startswith('_'):
+        elif key != '_revision' and key.startswith('_'):
             raise exceptions.FieldNotInResource(self.model, property=key)
 
         return method(key, value, lower)
