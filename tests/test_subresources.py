@@ -480,3 +480,52 @@ def test_patch_hidden_subresource_on_model(model, app):
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["FieldNotInResource"]
+
+
+@pytest.mark.models(
+    'backends/mongo/subitem',
+    'backends/postgres/subitem',
+)
+def test_hidden_subresource_after_put(model, app):
+    # tests that hidden subresource is not changed when
+    # main resource is updated with PUT
+
+    app.authmodel(model, [
+        'insert', 'update', 'hidden_subobj_getone', 'hidden_subobj_update'
+    ])
+
+    resp = app.post(f'/{model}', json={
+        '_op': 'insert',
+        '_type': model,
+        'scalar': '42',
+    })
+    assert resp.status_code == 201, resp.json()
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}/hidden_subobj', json={
+        '_revision': revision,
+        'fooh': 'secret',
+        'barh': 1337,
+    })
+    assert resp.status_code == 200
+    revision = resp.json()['_revision']
+
+    # PUT with object property
+    resp = app.put(f'/{model}/{id_}', json={
+        '_revision': revision,
+        'scalar': '13',
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['_revision'] != revision
+    assert data['scalar'] == '13'
+    revision = data['_revision']
+
+    resp = app.get(f'/{model}/{id_}/hidden_subobj')
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data['_type'] == f'{model}.hidden_subobj'
+    assert data['_revision'] == revision
+    assert data['fooh'] == 'secret'
+    assert data['barh'] == 1337
