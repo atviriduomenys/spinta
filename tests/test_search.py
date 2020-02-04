@@ -987,3 +987,28 @@ def test_search_id_not_startswith(model, app):
     subid = ids[0][5:10]
     resp = app.get(f'/{model}?startswith(_id,string:{subid})')
     assert ids(resp) == []
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_revision_contains(model, app):
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?contains(_revision,string:-)')
+    assert sorted(ids(resp)) == [0, 1, 2]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_revision_startswith(model, app):
+    app.authmodel(model, ['search', 'getone'])
+    ids = RowIds(_push_test_data(app, model))
+    id0 = ids[0]
+    resp = app.get(f'/{model}/{id0}')
+    revision = resp.json()['_revision'][:5]
+    resp = app.get(f'/{model}?contains(_revision,string:{revision})')
+    assert ids(resp) == [0]
