@@ -286,7 +286,7 @@ def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
 @load.register()
 def load(context: Context, dtype: DataType, value: object, query_params: dict) -> object:
     if query_params['name'] in ('startswith', 'contains') and value == '':
-        raise exceptions.InvalidValue(dtype)
+        raise exceptions.EmptyStringSearch(dtype)
     # loads value to python native value according to given type
     return dtype.load(value)
 
@@ -334,11 +334,12 @@ def load(context: Context, dtype: PrimaryKey, value: object, query_params: dict)
     backend = model.backend
     if (
         value is None or
-        operator in ('startswith', 'contains') and value == '' or
         operator not in ('startswith', 'contains') and
             not is_object_id(context, backend, model, value)
     ):
         raise exceptions.InvalidValue(dtype)
+    elif operator in ('startswith', 'contains') and value == '':
+        raise exceptions.EmptyStringSearch(dtype)
     return str(value)
 
 

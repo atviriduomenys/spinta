@@ -223,6 +223,12 @@ class InvalidValue(UserError):
     template = "Invalid value."
 
 
+class EmptyStringSearch(UserError):
+    template = \
+        "Empty string is not supported for `contains` and `startswith`. " \
+        "Use `exact` parameter."
+
+
 class InvalidToken(UserError):
     status_code = 401
     template = "Invalid token"
