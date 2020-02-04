@@ -290,12 +290,6 @@ def load(context: Context, dtype: DataType, value: object) -> object:
 
 
 @load.register()
-def load(context: Context, dtype: DataType, value: object) -> object:
-    # loads value to python native value according to given type
-    return dtype.load(value)
-
-
-@load.register()
 def load(context: Context, dtype: File, value: object) -> object:
     # loads value into native python dict, including all dict's items
     loaded_obj = dtype.load(value)
