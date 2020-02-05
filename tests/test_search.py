@@ -1010,5 +1010,5 @@ def test_search_revision_startswith(model, app):
     id0 = ids[0]
     resp = app.get(f'/{model}/{id0}')
     revision = resp.json()['_revision'][:5]
-    resp = app.get(f'/{model}?contains(_revision,string:{revision})')
+    resp = app.get(f'/{model}?startswith(_revision,string:{revision})')
     assert ids(resp) == [0]

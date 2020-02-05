@@ -2,7 +2,7 @@ from spinta.backends import Backend
 from spinta.commands import is_object_id, load, load_search_params, load_operator_value, prepare
 from spinta.components import Context
 from spinta.exceptions import InvalidValue, EmptyStringSearch
-from spinta.types.datatype import Array, Integer, DataType, PrimaryKey
+from spinta.types.datatype import Array, Integer, DataType, PrimaryKey, String
 
 
 @load_search_params.register()
@@ -13,11 +13,23 @@ def load_search_params(
     query_params: dict,
 ) -> object:
     value = query_params['args'][1]
+    value = load(context, dtype, value)
+    load_operator_value(context, backend, dtype, value, query_params=query_params)
+    return prepare(context, dtype, backend, value)
+
+
+@load_search_params.register()
+def load_search_params(
+    context: Context,
+    dtype: String,
+    backend: Backend,
+    query_params: dict,
+) -> object:
+    value = query_params['args'][1]
+    value = load(context, dtype, value)
     operator = query_params['name']
     if operator in ('startswith', 'contains') and value == '':
         raise EmptyStringSearch(dtype)
-
-    value = load(context, dtype, value)
     load_operator_value(context, backend, dtype, value, query_params=query_params)
     return prepare(context, dtype, backend, value)
 
