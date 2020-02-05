@@ -225,7 +225,7 @@ class InvalidValue(UserError):
 
 class EmptyStringSearch(UserError):
     template = \
-        "Empty string is not supported for `contains` and `startswith`. " \
+        "Empty string can't be used with `{op}`. " \
         "Use `exact` parameter."
 
 

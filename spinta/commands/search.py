@@ -29,7 +29,7 @@ def load_search_params(
     value = load(context, dtype, value)
     operator = query_params['name']
     if operator in ('startswith', 'contains') and value == '':
-        raise EmptyStringSearch(dtype)
+        raise EmptyStringSearch(dtype, op=operator)
     load_operator_value(context, backend, dtype, value, query_params=query_params)
     return prepare(context, dtype, backend, value)
 
@@ -44,7 +44,7 @@ def load_search_params(
     value = query_params['args'][1]
     operator = query_params['name']
     if operator in ('startswith', 'contains') and value == '':
-        raise EmptyStringSearch(dtype)
+        raise EmptyStringSearch(dtype, op=operator)
 
     if (
         operator not in ('startswith', 'contains') and
