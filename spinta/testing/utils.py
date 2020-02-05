@@ -40,9 +40,13 @@ class RowIds:
 
     def __init__(self, ids):
         self.ids = {k: v for v, k in enumerate(self._cast(ids))}
+        self.idsr = {k: v for v, k in self.ids.items()}
 
     def __call__(self, ids):
         return [self.ids.get(i, i) for i in self._cast(ids)]
+
+    def __getitem__(self, i):
+        return self.idsr[i]
 
     def _cast(self, ids):
         if isinstance(ids, requests.models.Response):
@@ -50,7 +54,7 @@ class RowIds:
             assert resp.status_code == 200, resp.json()
             ids = resp.json()
         if isinstance(ids, dict):
-            ids = ids['resources']
+            ids = ids['_data']
         if isinstance(ids, list) and len(ids) > 0 and isinstance(ids[0], dict):
-            ids = [r['id'] for r in ids]
+            ids = [r['_id'] for r in ids]
         return ids
