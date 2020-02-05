@@ -38,9 +38,11 @@ def get_error_context(response, error_code, ctx_keys: List[str] = None):
 
 class RowIds:
 
-    def __init__(self, ids):
+    def __init__(self, ids, id_key='_id', search_resp_key='_data'):
         self.ids = {k: v for v, k in enumerate(self._cast(ids))}
         self.idsr = {k: v for v, k in self.ids.items()}
+        self.id_key = id_key
+        self.search_resp_key = search_resp_key
 
     def __call__(self, ids):
         return [self.ids.get(i, i) for i in self._cast(ids)]
@@ -54,7 +56,7 @@ class RowIds:
             assert resp.status_code == 200, resp.json()
             ids = resp.json()
         if isinstance(ids, dict):
-            ids = ids['_data']
+            ids = ids[self.search_resp_key]
         if isinstance(ids, list) and len(ids) > 0 and isinstance(ids[0], dict):
-            ids = [r['_id'] for r in ids]
+            ids = [r[self.id_key] for r in ids]
         return ids
