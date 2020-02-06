@@ -56,7 +56,7 @@ def test_build_data_patch_for_write(context):
             'foo': '42',
         },
     }
-    assert patch(context, model, given=given, saved=saved, fill=True) == {
+    assert patch(context, model, given=given, saved=saved, update_action=True) == {
         'scalar': None,
         'list': [],
         'obj': {
@@ -87,7 +87,7 @@ def test_array_fill(context):
     })
     given = {'list': [{'foo': '42'}]}
     saved = {}
-    assert patch(context, model, given=given, saved=saved, fill=True) == {
+    assert patch(context, model, given=given, saved=saved, update_action=True) == {
         'list': [
             {
                 'bar': None,
@@ -114,7 +114,7 @@ def test_array_fill_saved(context):
     })
     given = {'list': [{'foo': '42'}]}
     saved = {'list': [{'foo': '42'}]}
-    assert patch(context, model, given=given, saved=saved, fill=True) == {
+    assert patch(context, model, given=given, saved=saved, update_action=True) == {
         'list': [
             {
                 'bar': None,
@@ -168,7 +168,7 @@ def test_array_fill_saved_all_same(context):
     })
     given = {'list': [{'foo': '42', 'bar': None}]}
     saved = {'list': [{'foo': '42', 'bar': None}]}
-    assert patch(context, model, given=given, saved=saved, fill=True) == {}
+    assert patch(context, model, given=given, saved=saved, update_action=True) == {}
 
 
 def test_object_saved(context):
@@ -186,7 +186,7 @@ def test_object_saved(context):
     })
     given = {'obj': {'foo': '42', 'bar': '24'}}
     saved = {'obj': {'foo': '42', 'bar': None, 'baz': None}}
-    assert patch(context, model, given=given, saved=saved, fill=False) == {
+    assert patch(context, model, given=given, saved=saved) == {
         'obj': {
             'bar': '24',
         }
@@ -207,7 +207,7 @@ def test_object_fill_saved(context):
     })
     given = {'obj': {'foo': '42'}}
     saved = {'obj': {'foo': '42'}}
-    assert patch(context, model, given=given, saved=saved, fill=True) == {
+    assert patch(context, model, given=given, saved=saved, update_action=True) == {
         'obj': {
             'bar': None,
         }
@@ -228,7 +228,7 @@ def test_object_fill_saved_all_same(context):
     })
     given = {'obj': {'foo': '42', 'bar': None}}
     saved = {'obj': {'foo': '42', 'bar': None}}
-    assert patch(context, model, given=given, saved=saved, fill=True) == {
+    assert patch(context, model, given=given, saved=saved, update_action=True) == {
     }
 
 
@@ -242,7 +242,7 @@ def test_file_fill_saved(context):
     })
     given = {'file': {'_id': 'test.txt', '_content_type': 'text/plain'}}
     saved = {'file': {'_id': 'test.txt'}}
-    assert patch(context, model, given=given, saved=saved, fill=True) == {
+    assert patch(context, model, given=given, saved=saved, update_action=True) == {
         'file': {
             '_content_type': 'text/plain',
         },
@@ -259,5 +259,4 @@ def test_file_fill_saved_all_same(context):
     })
     given = {'file': {'_id': 'test.txt', '_content_type': 'text/plain'}}
     saved = {'file': {'_id': 'test.txt', '_content_type': 'text/plain'}}
-    assert patch(context, model, given=given, saved=saved, fill=True) == {
-    }
+    assert patch(context, model, given=given, saved=saved, update_action=True) == {}

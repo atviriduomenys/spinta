@@ -74,8 +74,8 @@ async def push(
                   action=action, status_code=status_code, headers=headers)
 
 
-@commands.push.register()
-async def push(  # noqa
+@commands.push.register()  # noqa
+async def push(
     context: Context,
     request: Request,
     scope: File,
@@ -499,7 +499,8 @@ async def prepare_patch(
             data.prop or data.model,
             given=take(data.given),
             saved=take(data.saved),
-            fill=data.action in (Action.INSERT, Action.UPDATE),
+            insert_action=data.action == Action.INSERT,
+            update_action=data.action == Action.UPDATE,
         )
 
         if data.patch is NA:
@@ -532,9 +533,16 @@ def build_data_patch_for_write(
     *,
     given: dict,
     saved: dict,
-    fill: bool = False,
+    insert_action: bool = False,
+    update_action: bool = False,
 ) -> dict:
-    if fill:
+    if insert_action:
+        props = (
+            prop
+            for prop in model.properties.values()
+            if not prop.name.startswith('_')
+        )
+    elif update_action:
         props = (
             prop
             for prop in model.properties.values()
@@ -550,7 +558,8 @@ def build_data_patch_for_write(
             prop.dtype,
             given=given.get(prop.name, NA),
             saved=saved.get(prop.name, NA) if saved else saved,
-            fill=fill,
+            insert_action=insert_action,
+            update_action=update_action,
         )
         if value is not NA:
             patch[prop.name] = value
@@ -564,14 +573,16 @@ def build_data_patch_for_write(  # noqa
     *,
     given: dict,
     saved: dict,
-    fill: bool = False,
+    insert_action: bool = False,
+    update_action: bool = False,
 ) -> dict:
     value = build_data_patch_for_write(
         context,
         prop.dtype,
         given=given.get(prop.name, NA),
         saved=saved.get(prop.name, NA) if saved else saved,
-        fill=fill,
+        insert_action=insert_action,
+        update_action=update_action,
     )
     if value is not NA:
         return {prop.name: value}
@@ -586,9 +597,16 @@ def build_data_patch_for_write(  # noqa
     *,
     given: Optional[dict],
     saved: Optional[dict],
-    fill: bool = False,
+    insert_action: bool = False,
+    update_action: bool = False,
 ) -> Union[dict, NotAvailable]:
-    if fill:
+    if insert_action:
+        props = (
+            prop
+            for prop in dtype.properties.values()
+            if not prop.name.startswith('_')
+        )
+    elif update_action:
         props = (
             prop
             for prop in dtype.properties.values()
@@ -604,7 +622,8 @@ def build_data_patch_for_write(  # noqa
             prop.dtype,
             given=given.get(prop.name, NA) if given else NA,
             saved=saved.get(prop.name, NA) if saved else NA,
-            fill=fill,
+            insert_action=insert_action,
+            update_action=update_action,
         )
         if value is not NA:
             patch[prop.name] = value
@@ -618,9 +637,10 @@ def build_data_patch_for_write(  # noqa
     *,
     given: Optional[object],
     saved: Optional[object],
-    fill: bool = False,
+    insert_action: bool = False,
+    update_action: bool = False,
 ) -> Union[dict, NotAvailable]:
-    if given is NA and not fill:
+    if given is NA and not (insert_action or update_action):
         return NA
     if given is NA:
         return saved or []
@@ -636,7 +656,7 @@ def build_data_patch_for_write(  # noqa
             # array content, by pretending, that nothing is saved previously and
             # we must fill all missing values with defaults.
             saved=NA,
-            fill=True,
+            insert_action=True,
         )
         for value in given
     ]
@@ -657,10 +677,11 @@ def build_data_patch_for_write(  # noqa
     *,
     given: Optional[object],
     saved: Optional[object],
-    fill: bool = False,
+    insert_action: bool = False,
+    update_action: bool = False,
 ) -> Union[dict, NotAvailable]:
     if given is NA:
-        if fill:
+        if insert_action or update_action:
             given = dtype.prop.default
         else:
             return NA
