@@ -37,10 +37,10 @@ def get_error_context(response, error_code, ctx_keys: List[str] = None):
 
 
 class RowIds:
-    id_key = '_id'
-    search_resp_key = '_data'
 
-    def __init__(self, ids):
+    def __init__(self, ids, id_key='_id', search_resp_key='_data'):
+        self.id_key = id_key
+        self.search_resp_key = search_resp_key
         self.ids = {k: v for v, k in enumerate(self._cast(ids))}
         self.idsr = {k: v for v, k in self.ids.items()}
 
