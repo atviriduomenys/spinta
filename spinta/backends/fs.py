@@ -237,9 +237,10 @@ def build_data_patch_for_write(
     *,
     given: Optional[dict],
     saved: Optional[dict],
-    fill: bool = False,
+    insert_action: bool = False,
+    update_action: bool = False,
 ) -> Union[dict, NotAvailable]:
-    if fill:
+    if (insert_action or update_action):
         given = {
             '_id': given.get('_id', None) if given else None,
             '_content_type': given.get('_content_type', None) if given else None,
