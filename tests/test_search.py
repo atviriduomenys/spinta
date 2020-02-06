@@ -1,7 +1,7 @@
 import pytest
 import requests
 
-from spinta.testing.utils import get_error_codes, get_error_context
+from spinta.testing.utils import get_error_codes, get_error_context, RowIds
 
 
 test_data = [
@@ -61,30 +61,6 @@ def _push_test_data(app, model, data=None):
     resp = resp.json()
     assert '_data' in resp, resp
     return resp['_data']
-
-
-class RowIds:
-
-    def __init__(self, ids):
-        self.ids = {k: v for v, k in enumerate(self._cast(ids))}
-        self.idsr = {k: v for v, k in self.ids.items()}
-
-    def __call__(self, ids):
-        return [self.ids.get(i, i) for i in self._cast(ids)]
-
-    def __getitem__(self, i):
-        return self.idsr[i]
-
-    def _cast(self, ids):
-        if isinstance(ids, requests.models.Response):
-            resp = ids
-            assert resp.status_code == 200, resp.json()
-            ids = resp.json()
-        if isinstance(ids, dict):
-            ids = ids['_data']
-        if isinstance(ids, list) and len(ids) > 0 and isinstance(ids[0], dict):
-            ids = [r['_id'] for r in ids]
-        return ids
 
 
 @pytest.mark.models(
@@ -987,3 +963,28 @@ def test_search_id_not_startswith(model, app):
     subid = ids[0][5:10]
     resp = app.get(f'/{model}?startswith(_id,string:{subid})')
     assert ids(resp) == []
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_revision_contains(model, app):
+    app.authmodel(model, ['search'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?contains(_revision,string:-)')
+    assert sorted(ids(resp)) == [0, 1, 2]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_revision_startswith(model, app):
+    app.authmodel(model, ['search', 'getone'])
+    ids = RowIds(_push_test_data(app, model))
+    id0 = ids[0]
+    resp = app.get(f'/{model}/{id0}')
+    revision = resp.json()['_revision'][:5]
+    resp = app.get(f'/{model}?startswith(_revision,string:{revision})')
+    assert ids(resp) == [0]

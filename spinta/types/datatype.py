@@ -305,7 +305,7 @@ def load(context: Context, dtype: File, value: object) -> object:
 
 
 @load.register()
-def load(context: Context, dtype: PrimaryKey, value: object) -> list:
+def load(context: Context, dtype: PrimaryKey, value: object) -> object:
     if value is NA:
         return value
     if value is None:
@@ -315,23 +315,6 @@ def load(context: Context, dtype: PrimaryKey, value: object) -> list:
     if not is_object_id(context, backend, model, value):
         raise exceptions.InvalidValue(dtype)
     return value
-
-
-@load.register()
-def load(context: Context, dtype: PrimaryKey, value: object, query_params: dict) -> list:
-    if value is NA:
-        return value
-    if value is None:
-        raise exceptions.InvalidValue(dtype)
-    model = dtype.prop.model
-    backend = model.backend
-    operator = query_params['name']
-    if (
-        operator not in ('startswith', 'contains') and
-        not is_object_id(context, backend, model, value)
-    ):
-        raise exceptions.InvalidValue(dtype)
-    return str(value)
 
 
 @load.register()

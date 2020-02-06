@@ -223,6 +223,12 @@ class InvalidValue(UserError):
     template = "Invalid value."
 
 
+class EmptyStringSearch(UserError):
+    template = \
+        "Empty string can't be used with `{op}`. " \
+        "Use `exact` parameter."
+
+
 class InvalidToken(UserError):
     status_code = 401
     template = "Invalid token"
