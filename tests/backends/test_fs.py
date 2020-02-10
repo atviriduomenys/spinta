@@ -443,6 +443,52 @@ def test_file_get_headers(model, app):
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
+def test_rename_non_existing_file(model, app):
+    app.authmodel(model, ['insert', 'image_update', 'image_patch', 'image_delete'])
+
+    # Create a new report resource.
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+    })
+    assert resp.status_code == 201, resp.text
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    # Upload a PDF file.
+    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+        'revision': revision,
+        'content-type': 'application/pdf',
+        'content-disposition': f'attachment; filename="{id_}.pdf"',
+    })
+    assert resp.status_code == 200, resp.text
+    revision = resp.json()['_revision']
+
+    # DELETE the file
+    resp = app.delete(f'/{model}/{id_}/image')
+    assert resp.status_code == 204, resp.text
+    revision = resp.json()['_revision']
+
+    # Try to change reference file name, when file does not exist
+    resp = app.patch(f'/{model}/{id_}/image:ref', json={
+        '_revision': revision,
+        '_content_type': 'application/pdf',
+        '_id': 'file_does_not_exist.pdf',
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ['FileNotFound']
+    assert get_error_context(resp.json(), 'FileNotFound', ['manifest', 'model', 'property', 'file']) == {
+        'manifest': 'default',
+        'model': model,
+        'property': 'image',
+        'file': 'file_does_not_exist.pdf',
+    }
+
+
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
 def test_put_file_no_content(context, model, app):
     app.authmodel(model, ['insert', 'image_update', 'image_getone'])
 
