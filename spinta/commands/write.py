@@ -537,11 +537,7 @@ def build_data_patch_for_write(
     update_action: bool = False,
 ) -> dict:
     if insert_action:
-        props = (
-            prop
-            for prop in model.properties.values()
-            if not prop.name.startswith('_')
-        )
+        props = take(model.properties).values()
     elif update_action:
         props = (
             prop
@@ -601,11 +597,7 @@ def build_data_patch_for_write(  # noqa
     update_action: bool = False,
 ) -> Union[dict, NotAvailable]:
     if insert_action:
-        props = (
-            prop
-            for prop in dtype.properties.values()
-            if not prop.name.startswith('_')
-        )
+        props = take(dtype.properties).values()
     elif update_action:
         props = (
             prop
