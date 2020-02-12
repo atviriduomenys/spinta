@@ -612,9 +612,15 @@ async def push(
 
     if action in (Action.UPDATE, Action.PATCH, Action.DELETE):
         dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
+        dstream = commands.create_changelog_entry(
+            context, prop.model, prop.model.backend, dstream=dstream,
+        )
 
     elif action == Action.DELETE:
         dstream = commands.delete(context, prop, dtype, prop.model.backend, dstream=dstream)
+        dstream = commands.create_changelog_entry(
+            context, prop.model, prop.model.backend, dstream=dstream,
+        )
 
     else:
         raise Exception(f"Unknown action {action!r}.")
