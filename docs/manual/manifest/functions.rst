@@ -5,7 +5,7 @@ Functions
 
 Functions in manifest are used for:
 
-- Transforming and validating data using `apply` parameter.
+- Transforming and validating data using `prepare` parameter.
 
 - Describing database migration steps.
 
