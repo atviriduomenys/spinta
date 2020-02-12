@@ -2,6 +2,7 @@ import pathlib
 
 import pytest
 import requests
+import sqlalchemy as sa
 
 from spinta.testing.utils import get_error_codes, get_error_context
 
@@ -519,3 +520,66 @@ def test_put_file_no_content(context, model, app):
     # Upload an image, but add no file.
     resp = app.send(prep_req)
     assert resp.status_code == 411
+
+
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_changelog(context, model, app):
+    if model == 'backends/mongo/photo':
+        table_name = f'{model}__changelog'
+        backend = 'mongo'
+    else:
+        table_name = f'{model}/:changelog'
+        backend = 'default'
+    app.authmodel(model, ['insert', 'image_update', 'image_delete'])
+
+    # Create a new photo resource.
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+    })
+    assert resp.status_code == 201, resp.text
+    data = resp.json()
+    id_ = data['_id']
+    revision = data['_revision']
+
+    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+        'revision': revision,
+        'content-type': 'image/png',
+        'content-disposition': 'attachment; filename="myimg.png"',
+    })
+    assert resp.status_code == 200, resp.text
+
+    resp = app.delete(f'/{model}/{id_}/image')
+    assert resp.status_code == 204, resp.text
+
+    # check changelog
+    with context.transaction() as ctx:
+        connection = ctx.get('transaction').connection
+        store = context.get('store')
+        if backend == 'mongo':
+            table = store.backends[backend].db[table_name]
+            q = table.find({"__id": id_, "$or": [{"action": "delete"},
+                                                 {"action": "update"}]})
+        else:
+            table = store.backends[backend].tables['default'][table_name]
+            qry = sa.select([table]). \
+                where(sa.and_(sa.Column('_rid') == id_,
+                              sa.or_(
+                                  sa.Column('action') == 'delete',
+                                  sa.Column('action') == 'update'))
+                      )
+            q = connection.execute(qry)
+
+    for row in q:
+        r = dict(row)
+        action = r['action']
+        if action == 'delete':
+            assert r['data'] == {'image': None}
+        elif action == 'update':
+            assert r['data'] == {'image': {'_id': 'myimg.png',
+                                           '_content_type': 'image/png'}}
+        else:
+            raise AssertionError(f'Unknown action: {action}')
