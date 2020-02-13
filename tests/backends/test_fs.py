@@ -531,9 +531,9 @@ def test_changelog(context, model, app):
         table_name = f'{model}__changelog'
         backend = 'mongo'
     else:
-        table_name = f'{model}/:changelog'
-        backend = 'default'
-    app.authmodel(model, ['insert', 'image_update', 'image_delete'])
+        backend = 'postgres'
+    app.authmodel(model, ['insert', 'image_update', 'image_delete',
+                          'changes'])
 
     # Create a new photo resource.
     resp = app.post(f'/{model}', json={
@@ -556,30 +556,42 @@ def test_changelog(context, model, app):
     assert resp.status_code == 204, resp.text
 
     # check changelog
-    with context.transaction() as ctx:
-        connection = ctx.get('transaction').connection
+    count = 0
+    if backend == 'mongo':
         store = context.get('store')
-        if backend == 'mongo':
-            table = store.backends[backend].db[table_name]
-            q = table.find({"__id": id_, "$or": [{"action": "delete"},
-                                                 {"action": "update"}]})
-        else:
-            table = store.backends[backend].tables['default'][table_name]
-            qry = sa.select([table]). \
-                where(sa.and_(sa.Column('_rid') == id_,
-                              sa.or_(
-                                  sa.Column('action') == 'delete',
-                                  sa.Column('action') == 'update'))
-                      )
-            q = connection.execute(qry)
-
-    for row in q:
-        r = dict(row)
-        action = r['action']
-        if action == 'delete':
-            assert r['data'] == {'image': None}
-        elif action == 'update':
-            assert r['data'] == {'image': {'_id': 'myimg.png',
-                                           '_content_type': 'image/png'}}
-        else:
-            raise AssertionError(f'Unknown action: {action}')
+        table = store.backends[backend].db[table_name]
+        q = table.find({"$and": [{"__id": id_},
+                                 {"$or": [{"_op": "delete"},
+                                          {"_op": "update"}]}]})
+        for row in q:
+            r = dict(row)
+            action = r['_op']
+            if action == 'delete':
+                assert r['image'] is None
+                count += 1
+            elif action == 'update':
+                assert r['image'] == {'_id': 'myimg.png',
+                                      '_content_type': 'image/png'}
+                count += 1
+            else:
+                raise AssertionError(f'Unknown action: {action}')
+        assert count == 2
+    else:
+        resp = app.get(f'/{model}/{id_}/:changes')
+        assert resp.status_code == 200, resp.json()
+        q = resp.json()['_data']
+        for row in q:
+            r = dict(row)
+            action = r['_op']
+            if action == 'delete':
+                count += 1
+                assert r['image'] is None
+            elif action == 'update':
+                assert r['image'] == {'_id': 'myimg.png',
+                                      '_content_type': 'image/png'}
+                count += 1
+            elif action == 'insert':
+                count += 1
+            else:
+                raise AssertionError(f'Unknown action: {action}')
+        assert count == 3
