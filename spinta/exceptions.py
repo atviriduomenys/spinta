@@ -392,3 +392,7 @@ class ModelSourceNotFound(UserError):
 
 class UnavailableSubresource(UserError):
     template = "Subresources only of type Object and File are accessible"
+
+
+class InvalidPostUrl(UserError):
+    template = "Invalid URL for POST request"
