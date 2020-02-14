@@ -2,6 +2,7 @@ import pathlib
 
 import pytest
 import requests
+import sqlalchemy as sa
 
 from spinta.testing.utils import get_error_codes, get_error_context
 
@@ -519,3 +520,57 @@ def test_put_file_no_content(context, model, app):
     # Upload an image, but add no file.
     resp = app.send(prep_req)
     assert resp.status_code == 411
+
+
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_changelog(context, model, app):
+    app.authmodel(model, ['insert', 'image_update', 'image_delete',
+                          'changes'])
+
+    # Create a new photo resource.
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+    })
+    assert resp.status_code == 201, resp.text
+    data = resp.json()
+    id_ = data['_id']
+    revision = data['_revision']
+
+    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+        'revision': revision,
+        'content-type': 'image/png',
+        'content-disposition': 'attachment; filename="myimg.png"',
+    })
+    assert resp.status_code == 200, resp.text
+
+    resp = app.delete(f'/{model}/{id_}/image')
+    assert resp.status_code == 204, resp.text
+
+    # check changelog
+    if model == 'backends/mongo/photo':
+        table_name = f'{model}__changelog'
+        store = context.get('store')
+        table = store.backends['mongo'].db[table_name]
+        q = table.find({"$and": [{"__id": id_},
+                                 {"$or": [{"_op": "delete"},
+                                          {"_op": "update"}]}]})
+    else:
+        resp = app.get(f'/{model}/{id_}/:changes')
+        assert resp.status_code == 200, resp.json()
+        q = resp.json()['_data']
+
+    rows = []
+    for row in q:
+        r = dict(row)
+        if r['_op'] in ('update', 'delete'):
+            rows.append({'_op': r['_op'], 'image': r['image']})
+
+    assert sorted(rows, key=lambda r: r['_op']) == [
+        {'_op': 'delete', 'image': None},
+        {'_op': 'update', 'image': {'_id': 'myimg.png',
+                                    '_content_type': 'image/png'}}
+    ]

@@ -133,6 +133,9 @@ async def push(
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
         dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
+        dstream = commands.create_changelog_entry(
+            context, prop.model, prop.model.backend, dstream=dstream,
+        )
 
     elif action == Action.DELETE:
         if filepath.exists():
@@ -141,6 +144,9 @@ async def push(
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
         dstream = commands.delete(context, prop, dtype, prop.model.backend, dstream=dstream)
+        dstream = commands.create_changelog_entry(
+            context, prop.model, prop.model.backend, dstream=dstream,
+        )
 
     else:
         raise Exception(f"Unknown action {action!r}.")
