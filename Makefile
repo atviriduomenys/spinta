@@ -1,5 +1,5 @@
 .PHONY: env
-env: .env env/.done var/.done requirements.txt
+env: .env env/.done var/.done requirements.txt docs/requirements.txt
 
 env/bin/pip:
 	python3.7 -m venv env
@@ -21,6 +21,9 @@ requirements-dev.txt: env/bin/pip-compile requirements.in requirements-dev.in
 
 requirements.txt: env/bin/pip-compile requirements.in
 	env/bin/pip-compile --no-index requirements.in -o requirements.txt
+
+docs/requirements.txt: env/bin/pip-compile docs/requirements.in
+	env/bin/pip-compile --no-index docs/requirements.in -o docs/requirements.txt
 
 .env: .env.example
 	cp -n .env.example .env | true
