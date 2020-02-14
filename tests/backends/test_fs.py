@@ -527,11 +527,6 @@ def test_put_file_no_content(context, model, app):
     'backends/postgres/photo',
 )
 def test_changelog(context, model, app):
-    if model == 'backends/mongo/photo':
-        table_name = f'{model}__changelog'
-        backend = 'mongo'
-    else:
-        backend = 'postgres'
     app.authmodel(model, ['insert', 'image_update', 'image_delete',
                           'changes'])
 
@@ -556,42 +551,26 @@ def test_changelog(context, model, app):
     assert resp.status_code == 204, resp.text
 
     # check changelog
-    count = 0
-    if backend == 'mongo':
+    if model == 'backends/mongo/photo':
+        table_name = f'{model}__changelog'
         store = context.get('store')
-        table = store.backends[backend].db[table_name]
+        table = store.backends['mongo'].db[table_name]
         q = table.find({"$and": [{"__id": id_},
                                  {"$or": [{"_op": "delete"},
                                           {"_op": "update"}]}]})
-        for row in q:
-            r = dict(row)
-            action = r['_op']
-            if action == 'delete':
-                assert r['image'] is None
-                count += 1
-            elif action == 'update':
-                assert r['image'] == {'_id': 'myimg.png',
-                                      '_content_type': 'image/png'}
-                count += 1
-            else:
-                raise AssertionError(f'Unknown action: {action}')
-        assert count == 2
     else:
         resp = app.get(f'/{model}/{id_}/:changes')
         assert resp.status_code == 200, resp.json()
         q = resp.json()['_data']
-        for row in q:
-            r = dict(row)
-            action = r['_op']
-            if action == 'delete':
-                count += 1
-                assert r['image'] is None
-            elif action == 'update':
-                assert r['image'] == {'_id': 'myimg.png',
-                                      '_content_type': 'image/png'}
-                count += 1
-            elif action == 'insert':
-                count += 1
-            else:
-                raise AssertionError(f'Unknown action: {action}')
-        assert count == 3
+
+    rows = []
+    for row in q:
+        r = dict(row)
+        if r['_op'] in ('update', 'delete'):
+            rows.append({'_op': r['_op'], 'image': r['image']})
+
+    assert sorted(rows, key=lambda r: r['_op']) == [
+        {'_op': 'delete', 'image': None},
+        {'_op': 'update', 'image': {'_id': 'myimg.png',
+                                    '_content_type': 'image/png'}}
+    ]
