@@ -1,8 +1,8 @@
 image: python:3.7
 
 services:
-  - postgres:latest
-  - mongo:latest
+  - postgres:11.2-alpine
+  - mongo:4.0.9-xenial
 
 variables:
   POSTGRES_DB: spinta
