@@ -173,8 +173,8 @@ async def getone(
     if filename is None:
         raise ItemDoesNotExist(prop, id=params.pk)
     return FileResponse(
-        prop.backend.path / filename,
-        media_type=value['_content_type'],
+        str(prop.backend.path / filename),
+        media_type=value.get('_content_type'),
         headers={
             'Revision': data['_revision'],
             'Content-Disposition': (
