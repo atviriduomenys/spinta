@@ -135,7 +135,7 @@ def test_new_schema_version():
     assert version == {
         'version': {
             'date': version['version']['date'],
-            'number': 1,
+            'id': version['version']['id'],
         },
         'changes': version['changes'],
         'migrate': {
@@ -215,7 +215,7 @@ def test_new_second_schema_version():
             ],
             'version': {
                 'date': None,
-                'number': 1,
+                'id': '67ce825c-2780-4b75-aa87-189d5c37ef6b',
             },
         }
     ]
@@ -226,7 +226,7 @@ def test_new_second_schema_version():
     assert version == {
         'version': {
             'date': version['version']['date'],
-            'number': 2,
+            'id': version['version']['id'],
         },
         'changes': [
             {'op': 'add', 'path': '/properties/code', 'value': {'type': 'string'}},

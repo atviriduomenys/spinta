@@ -64,7 +64,7 @@ def freeze(ctx):
             context, model.backend, model, versions=versions,
         )
         if version:
-            vnum = version['version']['number']
+            vnum = version['version']['id']
             click.echo(f"Updating to version {vnum}: {model.path}")
             versions[0]['version'] = version['version']
             versions.append(version)
