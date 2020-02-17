@@ -529,3 +529,35 @@ def test_hidden_subresource_after_put(model, app):
     assert data['_revision'] == revision
     assert data['fooh'] == 'secret'
     assert data['barh'] == 1337
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_file_without_content_type(model, app):
+    app.authmodel(model, ['insert', 'pdf_update', 'pdf_getone'])
+
+    # Create a new report resource.
+    resp = app.post(f'/{model}s', json={
+        '_type': model,
+        'report_type': 'pdf',
+    })
+    assert resp.status_code == 201, resp.text
+    id_ = resp.json()['_id']
+    revision = resp.json()['_revision']
+
+    # Upload a PDF file without setting content_type
+    resp = app.put(f'/{model}/{id_}/pdf', data=b'BINARYDATA', headers={
+        'revision': revision,
+        'content-disposition': f'attachment; filename="{id_}.pdf"',
+    })
+    assert resp.status_code == 200, resp.text
+    revision = resp.json()['_revision']
+
+    resp = app.get(f'/{model}/{id_}/pdf')
+    assert resp.content == b'BINARYDATA'
+    assert 'revision' in resp.headers
+    assert resp.headers['revision'] == revision
+    # make sure content_type is still returned with auto detection
+    assert resp.headers['content-type'] == 'application/pdf'
