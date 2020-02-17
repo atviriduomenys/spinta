@@ -1,6 +1,7 @@
 from typing import Iterable, List
 
 import datetime
+import uuid
 
 import jsonpatch
 
@@ -17,7 +18,7 @@ def get_schema_from_changes(versions: Iterable[dict]) -> dict:
         if patch:
             patch = jsonpatch.JsonPatch(patch)
             old = patch.apply(old)
-    nextvnum = version.get('version', {}).get('number', 0) + 1
+    nextvnum = str(uuid.uuid4())
     return old, new, nextvnum
 
 
@@ -33,11 +34,11 @@ def get_new_schema_version(
     old: dict,
     changes: List[dict],
     migrate: dict,
-    nexvnum: int,
+    nexvnum: uuid.UUID,
 ) -> dict:
     return {
         'version': {
-            'number': nexvnum,
+            'id': nexvnum,
             'date': datetime.datetime.now(datetime.timezone.utc).astimezone(),
         },
         'changes': changes,
