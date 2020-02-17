@@ -46,21 +46,9 @@ def check(ctx):
     click.echo("OK")
 
 
-@main.group()
+@main.command()
 @click.pass_context
-def schema(ctx):
-    pass
-
-
-@schema.group()
-@click.pass_context
-def version(ctx):
-    pass
-
-
-@version.command('new')
-@click.pass_context
-def schema_version_new(ctx):
+def freeze(ctx):
     yaml = YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
     yaml.width = 80
