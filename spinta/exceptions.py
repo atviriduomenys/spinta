@@ -396,3 +396,7 @@ class UnavailableSubresource(UserError):
 
 class InvalidPostUrl(UserError):
     template = "Invalid URL for POST request"
+
+
+class MultipleParentsError(Exception):
+    pass

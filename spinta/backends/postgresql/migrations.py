@@ -24,11 +24,11 @@ def new_schema_version(
     *,
     versions: List[dict],
 ):
-    old, new, nextvnum = get_schema_from_changes(versions)
+    old, new, parents = get_schema_from_changes(versions)
     changes = get_schema_changes(old, new)
     if changes:
         migrate = autogen_migration(old, new),
-        version = get_new_schema_version(old, changes, migrate, nextvnum)
+        version = get_new_schema_version(old, changes, migrate, parents)
         return version
     else:
         return {}
