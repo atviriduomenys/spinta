@@ -19,6 +19,7 @@ idna==2.8                 # via requests
 jinja2==2.10.3
 jsonpatch==1.24
 jsonpointer==2.0          # via jsonpatch
+lark-parser==0.8.1
 lxml==4.4.2
 markupsafe==1.1.1         # via jinja2
 msgpack==0.6.2

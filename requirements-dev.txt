@@ -36,6 +36,7 @@ jedi==0.15.1              # via ipython
 jinja2==2.10.3
 jsonpatch==1.24
 jsonpointer==2.0          # via jsonpatch
+lark-parser==0.8.1
 livereload==2.6.1         # via sphinx-autobuild
 lxml==4.4.2
 markupsafe==1.1.1         # via jinja2
