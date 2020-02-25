@@ -97,34 +97,27 @@ class Visitor:
             'args': self._args(left, right),
         }
 
-    def unary(self, node, sign, name):
-        return {
-            'name': 'name',
-            'args': self._name(name),
-            'sign': sign.value,
-        }
-
     def name(self, node, name):
         return {
-            'name': 'name',
+            'name': 'bind',
             'args': [name.value],
         }
 
     def attr(self, node, name):
         return {
-            'name': 'name',
+            'name': 'bind',
             'args': [name.value],
         }
 
     def NAME(self, token):
         return {
-            'name': 'name',
+            'name': 'bind',
             'args': [token.value],
         }
 
     def kwarg(self, node, name, value):
         return {
-            'name': 'name',
+            'name': 'bind',
             'args': [name.value, self(value)],
         }
 
@@ -230,40 +223,41 @@ def unparse(rql):
     }
 
     typ = rql.get('type')
+    name = rql['name']
 
     if typ == 'expression':
-        op = ops[rql['name']]
+        op = ops[name]
         args = (unparse(arg) for arg in rql['args'])
         return op.join(args)
 
-    if rql['name'] == 'name':
+    if name == 'bind':
         if len(rql['args']) == 2:
-            name, value = rql['args']
-            return name + ': ' + unparse(value)
+            bind, value = rql['args']
+            return bind + ': ' + unparse(value)
         else:
-            name, = rql['args']
-            return name
+            bind, = rql['args']
+            return bind
 
-    if rql['name'] == 'getattr':
+    if name == 'getattr':
         obj, key = rql['args']
         return unparse(obj) + '.' + unparse(key)
 
-    if rql['name'] == 'filter':
+    if name == 'filter':
         obj, filter_ = rql['args']
         return unparse(obj) + '[' + unparse(filter_) + ']'
 
-    if rql['name'] == 'positive':
+    if name == 'positive':
         arg, = rql['args']
         return '+' + unparse(arg)
 
-    if rql['name'] == 'negative':
+    if name == 'negative':
         arg, = rql['args']
         return '-' + unparse(arg)
 
-    if rql['name'] == 'group':
+    if name == 'group':
         return '(' + ', '.join(unparse(arg) for arg in rql['args']) + ')'
 
-    if rql['name'] in ('add', 'sub', 'mul', 'div', 'mod'):
+    if name in ('add', 'sub', 'mul', 'div', 'mod'):
         symbols = {
             'add': '+',
             'sub': '-',
@@ -271,11 +265,10 @@ def unparse(rql):
             'div': '/',
             'mod': '%',
         }
-        symbol = symbols[rql['name']]
+        symbol = symbols[name]
         left, right = rql['args']
         return unparse(left) + f' {symbol} ' + unparse(right)
 
-    name = rql['name']
     args = [unparse(arg) for arg in rql['args']]
     if typ == 'method':
         attr, args = args[0], args[1:]
