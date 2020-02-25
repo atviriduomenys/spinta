@@ -6,6 +6,7 @@ click
 gunicorn
 jinja2
 jsonpatch
+lark-parser
 lxml
 msgpack
 multipledispatch
