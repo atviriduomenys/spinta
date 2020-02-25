@@ -27,15 +27,12 @@ multipledispatch==0.6.0
 psycopg2-binary==2.8.4
 pycparser==2.19           # via cffi
 pymongo==3.10.0
-pyparsing==2.4.5          # via pyrql
-pyrql==0.5.1
-python-dateutil==2.8.1    # via pyrql
 python-multipart==0.0.5
 pytz==2019.3
 requests==2.22.0
 ruamel.yaml==0.16.5
 setuptools-scm==3.3.3
-six==1.13.0               # via cryptography, multipledispatch, python-dateutil, python-multipart
+six==1.13.0               # via cryptography, multipledispatch, python-multipart
 sqlalchemy==1.3.11
 starlette==0.13.0
 texttable==1.6.2

@@ -2,13 +2,13 @@ from typing import AsyncIterator, Union, Optional
 
 import itertools
 import json
-import pyrql
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
 from starlette.requests import Request
 from starlette.responses import Response
 
+from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import check_scope
@@ -25,6 +25,7 @@ from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
+from spinta.hacks.spyna import binds_to_strs
 
 
 STREAMING_CONTENT_TYPES = [
@@ -230,7 +231,7 @@ def _add_where(params: UrlParams, payload: dict):
     if '_where' in payload:
         return {
             **payload,
-            '_where': pyrql.parse(payload['_where']),
+            '_where': binds_to_strs(spyna.parse(payload['_where'])),
         }
     elif params.pk:
         return {
@@ -332,7 +333,7 @@ def dataitem_from_payload(
         return DataItem(model, prop, propref, backend, payload=payload, error=action)
 
     if '_where' in payload:
-        payload['_where'] = pyrql.parse(payload['_where'])
+        payload['_where'] = binds_to_strs(spyna.parse(payload['_where']))
 
     return DataItem(model, prop, propref, backend, action, payload)
 

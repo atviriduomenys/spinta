@@ -120,3 +120,7 @@ def test_filter_condition():
 
 def test_attr_filter():
     check("foo.bar.baz[a=2]")
+
+
+def test_null():
+    check("null")

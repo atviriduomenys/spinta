@@ -378,14 +378,14 @@ def test_changes_single_object(app, mocker):
     resp = app.post('/rinkimai/:dataset/json/:resource/data', json={
         '_op': 'upsert',
         '_id': id_,
-        '_where': f'_id={id_}',
+        '_where': f'_id="{id_}"',
         'pavadinimas': 'Rinkimai 1',
     })
     assert resp.status_code == 201, resp.json()
     resp = app.post('/rinkimai/:dataset/json/:resource/data', json={
         '_op': 'upsert',
         '_id': id_,
-        '_where': f'_id={id_}',
+        '_where': f'_id="{id_}"',
         'pavadinimas': 'Rinkimai 2',
     })
     assert resp.status_code == 200, resp.json()
@@ -533,14 +533,14 @@ def test_count(app):
             '_op': 'upsert',
             '_type': 'rinkimai/:dataset/json/:resource/data',
             '_id': id1,
-            '_where': f'_id={id1}',
+            '_where': f'_id="{id1}"',
             'pavadinimas': 'Rinkimai 1',
         },
         {
             '_op': 'upsert',
             '_type': 'rinkimai/:dataset/json/:resource/data',
             '_id': id2,
-            '_where': f'_id={id2}',
+            '_where': f'_id="{id2}"',
             'pavadinimas': 'Rinkimai 2',
         },
     ]})

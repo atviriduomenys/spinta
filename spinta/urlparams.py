@@ -2,8 +2,7 @@ from typing import Optional, List, Dict, Iterator, Union
 
 import cgi
 import itertools
-
-import pyrql
+import urllib.parse
 
 from starlette.requests import Request
 
@@ -13,6 +12,8 @@ from spinta.utils import url as urlutil
 from spinta.components import UrlParams, Version
 from spinta.commands import is_object_id
 from spinta import exceptions
+from spinta import spyna
+from spinta.hacks.spyna import binds_to_strs
 from spinta.exceptions import (
     NodeNotFound,
     ModelNotFound,
@@ -24,7 +25,7 @@ from spinta.exceptions import (
 def prepare(context: Context, params: UrlParams, version: Version, request: Request) -> UrlParams:
     params.parsetree = (
         urlutil.parse_url_path(request.path_params['path'].strip('/')) +
-        parse_url_query(request.url.query)
+        parse_url_query(urllib.parse.unquote(request.url.query))
     )
     prepare_urlparams(context, params, request)
     return params
@@ -33,7 +34,8 @@ def prepare(context: Context, params: UrlParams, version: Version, request: Requ
 def parse_url_query(query):
     if not query:
         return []
-    rql = pyrql.parse(query)
+    rql = spyna.parse(query)
+    rql = binds_to_strs(rql)
     if rql['name'] == 'and':
         return rql['args']
     else:

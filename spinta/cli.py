@@ -263,7 +263,7 @@ def _read_data(
             '_op': 'upsert',
             '_type': type_,
             '_id': id_,
-            '_where': f'_id={id_}',
+            '_where': f'_id="{id_}"',
             **{k: v for k, v in data.items() if not k.startswith('_')}
         }
         yield json.dumps(payload).encode('utf-8') + b'\n'
