@@ -87,7 +87,7 @@ def test_search_exact(model, context, app):
 def test_search_exact_lower(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?eq(lower(status),ok)')
+    resp = app.get(f'/{model}?status.lower()="ok"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
@@ -111,17 +111,17 @@ def test_search_exact_non_string(model, context, app):
     assert data[0]['_id'] == r3['_id']
 
     # single field fsearch, non string type
-    resp = app.get(f'/{model}?count=abc')
+    resp = app.get(f'/{model}?count="abc"')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # single non-existing field value search
-    resp = app.get(f'/{model}?status=o')
+    resp = app.get(f'/{model}?status="o"')
     data = resp.json()['_data']
     assert len(data) == 0
 
     # single non-existing field search
-    resp = app.get(f'/{model}?state=o')
+    resp = app.get(f'/{model}?state="o"')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["FieldNotInResource"]
 
@@ -133,7 +133,7 @@ def test_search_exact_non_string(model, context, app):
 def test_search_exact_multiple_props(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?eq(lower(status),invalid)&eq(lower(report_type),stv)')
+    resp = app.get(f'/{model}?status.lower()="invalid"&report_type.lower()="stv"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
@@ -146,7 +146,7 @@ def test_search_exact_multiple_props(model, context, app):
 def test_search_exact_same_prop_multiple_times(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?eq(lower(status),invalid)&eq(lower(status),ok)')
+    resp = app.get(f'/{model}?status.lower()="invalid"&status.lower()="ok"')
     data = resp.json()['_data']
     assert len(data) == 0
 
@@ -161,13 +161,13 @@ def test_search_gt(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}?count=gt=40')
+    resp = app.get(f'/{model}?count>40')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # search for string value
-    resp = app.get(f'/{model}?status=gt=ok')
+    resp = app.get(f'/{model}?status>"ok"')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
@@ -180,20 +180,20 @@ def test_search_gt(model, context, app):
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=gt=40&count=gt=10')
+    resp = app.get(f'/{model}?count>40&count>10')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=gt=40&eq(lower(report_type),vmi)')
+    resp = app.get(f'/{model}?count>40&report_type.lower()="vmi"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # test `greater_than` works as expected
-    resp = app.get(f'/{model}?count=gt=42')
+    resp = app.get(f'/{model}?count>42')
     data = resp.json()['_data']
     assert len(data) == 0
 
@@ -205,7 +205,7 @@ def test_search_gt(model, context, app):
 def test_search_gt_with_nested_date(model, context, app):
     ids = RowIds(_push_test_data(app, model))
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?gt(recurse(create_date),2019-04-19)')
+    resp = app.get(f'/{model}?recurse(create_date)>"2019-04-19"')
     assert ids(resp) == [1]
 
 
@@ -219,13 +219,13 @@ def test_search_gte(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}?count=ge=40')
+    resp = app.get(f'/{model}?count>=40')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # search for string value
-    resp = app.get(f'/{model}?status=ge=ok')
+    resp = app.get(f'/{model}?status>="ok"')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
@@ -238,20 +238,20 @@ def test_search_gte(model, context, app):
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=ge=40&count=gt=10')
+    resp = app.get(f'/{model}?count>=40&count>10')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=ge=40&eq(lower(report_type),vmi)')
+    resp = app.get(f'/{model}?count>=40&report_type.lower()="vmi"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # test `greater_than` works as expected
-    resp = app.get(f'/{model}?count=ge=42')
+    resp = app.get(f'/{model}?count>=42')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -264,7 +264,7 @@ def test_search_gte(model, context, app):
 def test_search_ge_with_nested_date(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?ge(recurse(create_date),2019-04-20)')
+    resp = app.get(f'/{model}?recurse(create_date)>="2019-04-20"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -280,13 +280,13 @@ def test_search_lt(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}?count=lt=12')
+    resp = app.get(f'/{model}?count<12')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
 
     # search for string value
-    resp = app.get(f'/{model}?status=lt=ok')
+    resp = app.get(f'/{model}?status<"ok"')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
@@ -299,20 +299,20 @@ def test_search_lt(model, context, app):
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=lt=20&count=gt=10')
+    resp = app.get(f'/{model}?count<20&count>10')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=lt=50&eq(lower(report_type),vmi)')
+    resp = app.get(f'/{model}?count<50&report_type.lower()="vmi"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # test `lower_than` works as expected
-    resp = app.get(f'/{model}?count=lt=10')
+    resp = app.get(f'/{model}?count<10')
     data = resp.json()['_data']
     assert len(data) == 0
 
@@ -324,7 +324,7 @@ def test_search_lt(model, context, app):
 def test_search_lt_with_nested_date(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?lt(recurse(create_date),2019-02-02)')
+    resp = app.get(f'/{model}?recurse(create_date)<"2019-02-02"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
@@ -340,13 +340,13 @@ def test_search_lte(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}?count=le=12')
+    resp = app.get(f'/{model}?count<=12')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
 
     # search for string value
-    resp = app.get(f'/{model}?status=le=ok')
+    resp = app.get(f'/{model}?status<="ok"')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
@@ -359,20 +359,20 @@ def test_search_lte(model, context, app):
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=le=20&count=gt=10')
+    resp = app.get(f'/{model}?count<=20&count>10')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=le=50&eq(lower(report_type),vmi)')
+    resp = app.get(f'/{model}?count<=50&report_type.lower()="vmi"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # test `lower_than` works as expected
-    resp = app.get(f'/{model}?count=le=10')
+    resp = app.get(f'/{model}?count<=10')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
@@ -385,7 +385,7 @@ def test_search_lte(model, context, app):
 def test_search_le_with_nested_date(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?le(recurse(create_date),2019-02-01)')
+    resp = app.get(f'/{model}?recurse(create_date)<="2019-02-01"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
@@ -400,7 +400,7 @@ def test_search_ne(model, context, app):
     ids = RowIds(_push_test_data(app, model))
 
     # single field search
-    resp = app.get(f'/{model}?status=ne=invalid')
+    resp = app.get(f'/{model}?status!="invalid"')
     assert ids(resp) == [0]
 
 
@@ -412,7 +412,7 @@ def test_search_ne_lower(model, context, app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     # single field search, case insensitive
-    resp = app.get(f'/{model}?ne(lower(status),ok)')
+    resp = app.get(f'/{model}?status.lower()!="ok"')
     assert ids(resp) == [1, 2]
 
 
@@ -425,7 +425,7 @@ def test_search_ne_multiple_props(model, context, app):
     ids = RowIds(_push_test_data(app, model))
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?count=ne=10&count=ne=42')
+    resp = app.get(f'/{model}?count!=10&count!=42')
     assert ids(resp) == [2]
 
 
@@ -438,7 +438,7 @@ def test_search_ne_multiple_props_and_logic(model, context, app):
     ids = RowIds(_push_test_data(app, model))
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?ne(lower(status),ok)&eq(lower(report_type),stv)')
+    resp = app.get(f'/{model}?status.lower()!="ok"&report_type.lower()="stv"')
     assert ids(resp) == [2]
 
 
@@ -450,7 +450,7 @@ def test_search_ne_nested(model, context, app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     # test `ne` with nested structure
-    resp = app.get(f'/{model}?ne(notes.create_date,2019-02-01)&status=ne=invalid')
+    resp = app.get(f'/{model}?notes.create_date!="2019-02-01"&status!="invalid"')
     assert ids(resp) == [0]
 
 
@@ -462,7 +462,7 @@ def test_search_ne_nested_missing_data(model, context, app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     # test `ne` with nested structures and not full data in all resources
-    resp = app.get(f'/{model}?ne(operating_licenses.license_types,valid)')
+    resp = app.get(f'/{model}?operating_licenses.license_types!="valid"')
     assert ids(resp) == [1]
 
 
@@ -476,7 +476,7 @@ def test_search_contains(model, context, app, mocker):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}?contains(lower(report_type),vm)')
+    resp = app.get(f'/{model}?report_type.lower().contains("vm")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -490,7 +490,7 @@ def test_search_contains_case_insensitive(model, context, app, mocker):
     r1, r2, r3, = _push_test_data(app, model)
     app.authmodel(model, ['search'])
     # single field search, case insensitive
-    resp = app.get(f'/{model}?contains(lower(report_type),vm)')
+    resp = app.get(f'/{model}?report_type.lower().contains("vm")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -507,27 +507,27 @@ def test_search_contains_multi_field(model, context, app, mocker):
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?contains(status,valid)&contains(lower(report_type),tv)')
+    resp = app.get(f'/{model}?status.contains("valid")&report_type.lower().contains("tv")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?contains(status,valid)&contains(report_type,TV)')
+    resp = app.get(f'/{model}?status.contains("valid")&report_type.contains("TV")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
     # multi field search
     # test if operators are joined with AND logic for same field
-    resp = app.get(f'/{model}?contains(lower(report_type),vm)&contains(lower(report_type),mi)')
+    resp = app.get(f'/{model}?report_type.lower().contains("vm")&report_type.lower().contains("mi")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?contains(status,valid)&eq(lower(report_type),vmi)')
+    resp = app.get(f'/{model}?status.contains("valid")&report_type.lower()="vmi"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -540,7 +540,7 @@ def test_search_contains_multi_field(model, context, app, mocker):
 def test_search_contains_type_check(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?contains(recurse(create_date),2019-04-20)')
+    resp = app.get(f'/{model}?recurse(create_date).contains("2019-04-20")')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
     assert get_error_context(
@@ -561,7 +561,7 @@ def test_search_contains_with_select(model, context, app, mocker):
     app.authmodel(model, ['search'])
 
     # `contains` with select
-    resp = app.get(f'/{model}?contains(lower(report_type),vm)&select(count)')
+    resp = app.get(f'/{model}?report_type.lower().contains("vm")&select(count)')
     assert resp.status_code == 200
     data = resp.json()['_data']
     assert len(data) == 1
@@ -571,7 +571,7 @@ def test_search_contains_with_select(model, context, app, mocker):
 
     # `contains` with select and always_show_id
     mocker.patch.object(context.get('config'), 'always_show_id', True)
-    resp = app.get(f'/{model}?contains(lower(report_type),vm)&select(count)')
+    resp = app.get(f'/{model}?report_type.lower().contains("vm")&select(count)')
     assert resp.status_code == 200
     data = resp.json()['_data']
     assert len(data) == 1
@@ -581,7 +581,7 @@ def test_search_contains_with_select(model, context, app, mocker):
     }
 
     # `contains` with always_show_id should return just id
-    resp = app.get(f'/{model}?contains(lower(report_type),vm)')
+    resp = app.get(f'/{model}?report_type.lower().contains("vm")')
     assert resp.status_code == 200
     data = resp.json()['_data']
     assert len(data) == 1
@@ -600,38 +600,38 @@ def test_search_startswith(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}?startswith(report_type,VM)')
+    resp = app.get(f'/{model}?report_type.startswith("VM")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # single field search, case insensitive
-    resp = app.get(f'/{model}?startswith(lower(report_type),vm)')
+    resp = app.get(f'/{model}?report_type.lower().startswith("vm")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # multi field search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?startswith(status,in)&startswith(lower(report_type),vm)')
+    resp = app.get(f'/{model}?status.startswith("in")&report_type.lower().startswith("vm")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # multi field and multi operator search
     # test if operators are joined with AND logic
-    resp = app.get(f'/{model}?startswith(lower(report_type),st)&eq(lower(status),ok)')
+    resp = app.get(f'/{model}?report_type.lower().startswith("st")&status.lower()="ok"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
 
     # sanity check that `startswith` searches from the start
-    resp = app.get(f'/{model}?startswith(status,valid)')
+    resp = app.get(f'/{model}?status.startswith("valid")')
     data = resp.json()['_data']
     assert len(data) == 0
 
     # `startswith` type check
-    resp = app.get(f'/{model}?startswith(notes.create_date,2019-04-20)')
+    resp = app.get(f'/{model}?notes.create_date.startswith("2019-04-20")')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
 
@@ -646,31 +646,31 @@ def test_search_nested(model, context, app):
     app.authmodel(model, ['search'])
 
     # nested `exact` search
-    resp = app.get(f'/{model}?(notes,note)=foo bar')
+    resp = app.get(f'/{model}?notes.note="foo bar"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
     # nested `exact` search, case insensitive
-    resp = app.get(f'/{model}?eq(lower((notes,note)),foo bar)')
+    resp = app.get(f'/{model}?notes.note.lower()="foo bar"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
     # nested `exact` search with dates
-    resp = app.get(f'/{model}?(notes,create_date)=2019-03-14')
+    resp = app.get(f'/{model}?notes.create_date="2019-03-14"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
 
     # nested `gt` search
-    resp = app.get(f'/{model}?(notes,create_date)=gt=2019-04-01')
+    resp = app.get(f'/{model}?notes.create_date>"2019-04-01"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
     # nested non existant field
-    resp = app.get(f'/{model}?(notes,foo,bar)=baz')
+    resp = app.get(f'/{model}?notes.foo.bar="baz"')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["FieldNotInResource"]
     assert get_error_context(
@@ -683,7 +683,7 @@ def test_search_nested(model, context, app):
     }
 
     # nested `contains` search
-    resp = app.get(f'/{model}?contains(notes.note,bar)')
+    resp = app.get(f'/{model}?notes.note.contains("bar")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
@@ -696,7 +696,7 @@ def test_search_nested(model, context, app):
 def test_search_nested_contains(model, context, app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?contains(operating_licenses.license_types,lid)')
+    resp = app.get(f'/{model}?operating_licenses.license_types.contains("lid")')
     assert ids(resp) == [0]
 
 
@@ -709,12 +709,12 @@ def test_search_nested_startswith(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
 
     # nested `startswith` search
-    resp = app.get(f'/{model}?startswith(notes.note,fo)')
+    resp = app.get(f'/{model}?notes.note.startswith("fo")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
 
-    resp = app.get(f'/{model}?startswith(operating_licenses.license_types,exp)')
+    resp = app.get(f'/{model}?operating_licenses.license_types.startswith("exp")')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
@@ -735,10 +735,10 @@ def ids(resources):
 def test_or(model, context, app):
     r1, r2, r3, = ids(_push_test_data(app, model))
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?or(eq(count,42),eq(lower(status),ok))')
+    resp = app.get(f'/{model}?count=42|status.lower()="ok"')
     assert ids(resp) == [r1, r2]
 
-    resp = app.get(f'/{model}?or(le(count,10),eq(count,13))')
+    resp = app.get(f'/{model}?count<=10|count=13')
     assert ids(resp) == [r1, r3]
 
 
@@ -749,7 +749,7 @@ def test_or(model, context, app):
 def test_search_nested_recurse(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?eq(recurse(note),foo bar)')
+    resp = app.get(f'/{model}?recurse(note)="foo bar"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r3['_id']
@@ -762,7 +762,7 @@ def test_search_nested_recurse(model, context, app):
 def test_search_nested_recurse_lower(model, context, app):
     r1, r2, r3, = ids(_push_test_data(app, model))
     app.authmodel(model, ['search'])
-    resp = app.get(f'/{model}?eq(lower(recurse(status)),ok)')
+    resp = app.get(f'/{model}?recurse(status).lower()="ok"')
     assert ids(resp) == [r1]
 
 
@@ -790,13 +790,13 @@ def test_search_nested_recurse_multiple_props(model, context, app):
     ]))
     app.authmodel(model, ['search'])
 
-    resp = app.get(f'/{model}?eq(recurse(country),se)')
+    resp = app.get(f'/{model}?recurse(country)="se"')
     assert ids(resp) == [r1]
 
-    resp = app.get(f'/{model}?eq(recurse(country),fi)')
+    resp = app.get(f'/{model}?recurse(country)="fi"')
     assert ids(resp) == [r1]
 
-    resp = app.get(f'/{model}?eq(recurse(country),no)')
+    resp = app.get(f'/{model}?recurse(country)="no"')
     assert ids(resp) == [r2]
 
 
@@ -824,13 +824,13 @@ def test_search_recurse_multiple_props_lower(model, app):
     ]))
     app.authmodel(model, ['search'])
 
-    resp = app.get(f'/{model}?eq(lower(recurse(country)),se)')
+    resp = app.get(f'/{model}?recurse(country).lower()="se"')
     assert ids(resp) == [r1]
 
-    resp = app.get(f'/{model}?eq(lower(recurse(country)),fi)')
+    resp = app.get(f'/{model}?recurse(country).lower()="fi"')
     assert ids(resp) == [r1]
 
-    resp = app.get(f'/{model}?eq(lower(recurse(country)),no)')
+    resp = app.get(f'/{model}?recurse(country).lower()="no"')
     assert ids(resp) == [r2]
 
 
@@ -839,10 +839,10 @@ def test_search_any(app):
     model = 'backends/postgres/report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?any(eq,count,10,42)')
+    resp = app.get(f'/{model}?any("eq",count,10,42)')
     assert ids(resp) == [0, 1]
 
-    resp = app.get(f'/{model}?any(ne,count,42)')
+    resp = app.get(f'/{model}?any("ne",count,42)')
     assert ids(resp) == [0, 2]
 
 
@@ -851,10 +851,10 @@ def test_search_any_in_list(app):
     model = 'backends/postgres/report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?any(eq,notes.note,hello,world)')
+    resp = app.get(f'/{model}?any("eq",notes.note,"hello","world")')
     assert sorted(ids(resp)) == [0, 1]
 
-    resp = app.get(f'/{model}?any(ne,notes.note,foo bar)')
+    resp = app.get(f'/{model}?any("ne",notes.note,"foo bar")')
     assert sorted(ids(resp)) == [0, 1]
 
 
@@ -863,10 +863,10 @@ def test_search_any_in_list_of_scalars(app):
     model = 'backends/postgres/report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?any(eq,operating_licenses.license_types,valid,invalid,expired)')
+    resp = app.get(f'/{model}?any("eq",operating_licenses.license_types,"valid","invalid","expired")')
     assert sorted(ids(resp)) == [0, 1]
 
-    resp = app.get(f'/{model}?any(ne,operating_licenses.license_types,expired)')
+    resp = app.get(f'/{model}?any("ne",operating_licenses.license_types,"expired")')
     assert sorted(ids(resp)) == [0]
 
 
@@ -875,7 +875,7 @@ def test_search_any_recurse(app):
     model = 'backends/postgres/report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?any(eq,recurse(status),OK,none)')
+    resp = app.get(f'/{model}?any("eq",recurse(status),"OK","none")')
     assert ids(resp) == [0]
 
 
@@ -884,7 +884,7 @@ def test_search_any_recurse_lower(app):
     model = 'backends/postgres/report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?any(eq,lower(recurse(status)),ok,none)')
+    resp = app.get(f'/{model}?any("eq",recurse(status).lower(),"ok","none")')
     assert ids(resp) == [0]
 
 
@@ -893,7 +893,7 @@ def test_search_any_contains(app):
     model = 'backends/postgres/report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?any(contains,status,inv,val,lid)')
+    resp = app.get(f'/{model}?any("contains",status,"inv","val","lid")')
     assert sorted(ids(resp)) == [1, 2]
 
 
@@ -902,7 +902,7 @@ def test_search_any_contains_nested(app):
     model = 'backends/postgres/report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?any(contains,notes.note,hel,wor)')
+    resp = app.get(f'/{model}?any("contains",notes.note,"hel","wor")')
     assert sorted(ids(resp)) == [0, 1]
 
 
@@ -911,7 +911,7 @@ def test_search_any_contains_recurse_lower(app):
     model = 'backends/postgres/report'
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?any(contains,lower(recurse(status)),o,k)')
+    resp = app.get(f'/{model}?any("contains",recurse(status).lower(),"o","k")')
     assert sorted(ids(resp)) == [0]
 
 
@@ -922,11 +922,11 @@ def test_search_any_contains_recurse_lower(app):
 def test_search_id_contains(model, app):
     app.authmodel(model, ['search', 'getall'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?contains(_id,-)')
+    resp = app.get(f'/{model}?_id.contains("-")')
     assert sorted(ids(resp)) == [0, 1, 2]
 
     subid = ids[0][5:10]
-    resp = app.get(f'/{model}?contains(_id,string:{subid})')
+    resp = app.get(f'/{model}?_id.contains("{subid}")')
     assert ids(resp) == [0]
 
 
@@ -937,7 +937,7 @@ def test_search_id_contains(model, app):
 def test_search_id_not_contains(model, app):
     app.authmodel(model, ['search', 'getall'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?contains(_id,AAAAA)')
+    resp = app.get(f'/{model}?_id.contains("AAAAA")')
     assert ids(resp) == []
 
 
@@ -949,7 +949,7 @@ def test_search_id_startswith(model, app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     subid = ids[0][:5]
-    resp = app.get(f'/{model}?startswith(_id,string:{subid})')
+    resp = app.get(f'/{model}?_id.startswith("{subid}")')
     assert ids(resp) == [0]
 
 
@@ -961,7 +961,7 @@ def test_search_id_not_startswith(model, app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
     subid = ids[0][5:10]
-    resp = app.get(f'/{model}?startswith(_id,string:{subid})')
+    resp = app.get(f'/{model}?_id.startswith("{subid}")')
     assert ids(resp) == []
 
 
@@ -972,7 +972,7 @@ def test_search_id_not_startswith(model, app):
 def test_search_revision_contains(model, app):
     app.authmodel(model, ['search'])
     ids = RowIds(_push_test_data(app, model))
-    resp = app.get(f'/{model}?contains(_revision,string:-)')
+    resp = app.get(f'/{model}?_revision.contains("-")')
     assert sorted(ids(resp)) == [0, 1, 2]
 
 
@@ -986,5 +986,5 @@ def test_search_revision_startswith(model, app):
     id0 = ids[0]
     resp = app.get(f'/{model}/{id0}')
     revision = resp.json()['_revision'][:5]
-    resp = app.get(f'/{model}?startswith(_revision,string:{revision})')
+    resp = app.get(f'/{model}?_revision.startswith("{revision}")')
     assert ids(resp) == [0]

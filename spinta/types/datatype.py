@@ -4,13 +4,13 @@ import base64
 
 from datetime import date, datetime
 
-import pyrql
-
+from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.commands import load, is_object_id
 from spinta.components import Context, Manifest, Node, Property
 from spinta.utils.schema import NA, NotAvailable, resolve_schema
+from spinta.hacks.spyna import binds_to_strs
 
 
 class DataType:
@@ -365,7 +365,8 @@ def _check_no_extra_keys(dtype: DataType, schema: Iterable, data: Iterable):
 
 @load.register()
 def load(context: Context, dtype: RQL, value: str) -> dict:
-    rql = pyrql.parse(value)
+    rql = spyna.parse(value)
+    rql = binds_to_strs(rql)
     if rql['name'] == 'and':
         return rql['args']
     else:

@@ -420,21 +420,22 @@ def _getall_order_by(
 ) -> sa.sql.Select:
     if sort:
         direction = {
-            '+': lambda c: c.asc(),
-            '-': lambda c: c.desc(),
+            'positive': lambda c: c.asc(),
+            'negative': lambda c: c.desc(),
         }
         db_sort_keys = []
         for key in sort:
             # Optional sort direction: sort(+key) or sort(key)
-            if len(key) == 1:
-                d, key = ('+',) + key
+            if isinstance(key, dict) and key['name'] in direction:
+                d = direction[key['name']]
+                key = key['args'][0]
             else:
-                d, key = key
+                d = direction['positive']
             if key == '_id':
                 column = table.c.id
             else:
                 column = jm(key)
-            column = direction[d](column)
+            column = d(column)
             db_sort_keys.append(column)
         return qry.order_by(*db_sort_keys)
     else:

@@ -191,10 +191,12 @@ def search(app, model, pk, rev, val=NA, by=None):
     place = path(model)
     if val is None:
         val = 'null'
+    elif isinstance(val, str):
+        val = f'"{val}"'
     if by is None:
         by = f'{place}={val}'
     elif by == '_id':
-        by = f'_id={pk}'
+        by = f'_id="{pk}"'
     else:
         by = f'{by}={val}'
     resp = app.get(f'{model}?select(_type,_id,_revision,{place})&{by}')

@@ -29,7 +29,7 @@ def test_upsert(model, app):
         pk = '9ea9cf88-68f6-4753-b9e6-ce3d40ba1861'
     resp = app.post(f'/{model}', json={
         '_op': 'upsert',
-        '_where': f'_id={pk}',
+        '_where': f'_id="{pk}"',
         '_id': pk,
         'blob': data,
     })
@@ -39,7 +39,7 @@ def test_upsert(model, app):
 
     resp = app.post(f'/{model}', json={
         '_op': 'upsert',
-        '_where': f'_id={pk}',
+        '_where': f'_id="{pk}"',
         '_id': pk,
         'blob': data,
     })

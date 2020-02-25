@@ -333,7 +333,7 @@ def test_select_content(model, app, tmpdir):
 def test_select_all(model, app, tmpdir):
     app.authmodel(model, ['insert', 'search'])
     _create_file(app, model)
-    resp = app.get(f'/{model}?select(file.*)')
+    resp = app.get(f'/{model}?select(file)')
     assert resp.status_code == 200, resp.json()
     assert resp.json() == {
         '_data': [

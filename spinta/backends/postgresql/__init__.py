@@ -1440,17 +1440,18 @@ class QueryBuilder:
         sort: typing.List[typing.Tuple[str, str]],
     ) -> sa.sql.Select:
         direction = {
-            '+': lambda c: c.asc(),
-            '-': lambda c: c.desc(),
+            'positive': lambda c: c.asc(),
+            'negative': lambda c: c.desc(),
         }
         fields = []
         for key in sort:
             # Optional sort direction: sort(+key) or sort(key)
             # XXX: Probably move this to spinta/urlparams.py.
-            if len(key) == 1:
-                d, key = ('+',) + key
+            if isinstance(key, dict) and key['name'] in direction:
+                d = direction[key['name']]
+                key = key['args'][0]
             else:
-                d, key = key
+                d = direction['positive']
 
             key, lower = self.resolve_lower_call(key)
             prop = self.resolve_property(key, sort=True)
@@ -1476,7 +1477,7 @@ class QueryBuilder:
             if lower:
                 field = sa.func.lower(field)
 
-            field = direction[d](field)
+            field = d(field)
             fields.append(field)
 
         return qry.order_by(*fields)

@@ -513,18 +513,25 @@ class QueryBuilder:
 
         if sort:
             direction = {
-                '+': pymongo.ASCENDING,
-                '-': pymongo.DESCENDING,
+                'positive': pymongo.ASCENDING,
+                'negative': pymongo.DESCENDING,
             }
-            # Optional sort direction: sort(+key) or sort(key)
-            sort = ((('+',) + k) if len(k) == 1 else k for k in sort)
             nsort = []
-            for d, k in sort:
+            for k in sort:
+                # Optional sort direction: sort(+key) or sort(key)
+                if isinstance(k, dict) and k['name'] in direction:
+                    d = direction[k['name']]
+                    k = k['args'][0]
+                else:
+                    d = direction['positive']
+
                 if not is_valid_sort_key(k, self.model):
                     raise exceptions.FieldNotInResource(self.model, property=k)
+
                 if k == '_id':
                     k = '__id'
-                nsort.append((k, direction[d]))
+
+                nsort.append((k, d))
             cursor = cursor.sort(nsort)
 
         return cursor

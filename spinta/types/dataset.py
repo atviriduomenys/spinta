@@ -350,7 +350,7 @@ def _pull(context: Context, model: Model, source, dependency):
         if _check_key(data.get('_id')):
             data['_id'] = get_ref_id(data['_id'])
             data['_op'] = 'upsert'
-            data['_where'] = '_id=' + data['_id']
+            data['_where'] = '_id="' + data['_id'] + '"'
             yield data
 
 

@@ -25,11 +25,11 @@ def test_pull(responses, cli, app, mocker, event_loop):
         '\n'
         '\n'
         'Table: country/:dataset/csv/:resource/countries\n'
-        '                  _id                      code    title     _op                        _where                   \n'
-        '=================================================================================================================\n'
-        '552c4c243ec8c98c313255ea9bf16ee286591f8c   lt     Lietuva   upsert   _id=552c4c243ec8c98c313255ea9bf16ee286591f8c\n'
-        'b5dcb86880816fb966cdfbbacd1f3406739464f4   lv     Latvija   upsert   _id=b5dcb86880816fb966cdfbbacd1f3406739464f4\n'
-        '68de1c04d49aeefabb7081a5baf81c055f235be3   ee     Estija    upsert   _id=68de1c04d49aeefabb7081a5baf81c055f235be3'
+        '                  _id                      code    title     _op                         _where                    \n'
+        '===================================================================================================================\n'
+        '552c4c243ec8c98c313255ea9bf16ee286591f8c   lt     Lietuva   upsert   _id="552c4c243ec8c98c313255ea9bf16ee286591f8c"\n'
+        'b5dcb86880816fb966cdfbbacd1f3406739464f4   lv     Latvija   upsert   _id="b5dcb86880816fb966cdfbbacd1f3406739464f4"\n'
+        '68de1c04d49aeefabb7081a5baf81c055f235be3   ee     Estija    upsert   _id="68de1c04d49aeefabb7081a5baf81c055f235be3"'
     )
 
     app.authmodel('country/:dataset/csv/:resource/countries', ['getall'])
