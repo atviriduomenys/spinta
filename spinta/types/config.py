@@ -7,6 +7,7 @@ from spinta.commands import load, check
 from spinta.components import Context
 from spinta.config import RawConfig
 from spinta import components
+from spinta.core.ufuncs import ufunc
 
 yaml = YAML(typ='safe')
 
@@ -26,6 +27,11 @@ def load(context: Context, config: components.Config, raw: RawConfig) -> compone
         for name in raw.keys('commands', scope):
             command = raw.get('commands', scope, name, cast=importstr)
             config.commands[scope][name] = command
+
+    # Load ufuncs.
+    ufunc.resolver.collect(raw.get('ufuncs'))
+    config.resolvers = ufunc.resolver.ufuncs()
+    config.executors = ufunc.executor.ufuncs()
 
     # Load components.
     config.components = {}
