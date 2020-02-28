@@ -999,3 +999,25 @@ def test_search_group(model, app):
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?(report_type="STV"&status="OK")')
     assert ids(resp) == [0]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_select_in_or(model, app):
+    app.authmodel(model, ['search', 'getone'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?(report_type="STV"|status="OK")&select(_id)')
+    assert ids(resp) == [0, 2]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_lower_contains(model, app):
+    app.authmodel(model, ['search', 'getone'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?report_type.lower().contains("st")')
+    assert ids(resp) == [0, 2]
