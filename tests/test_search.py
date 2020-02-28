@@ -988,3 +988,14 @@ def test_search_revision_startswith(model, app):
     revision = resp.json()['_revision'][:5]
     resp = app.get(f'/{model}?_revision.startswith("{revision}")')
     assert ids(resp) == [0]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_search_group(model, app):
+    app.authmodel(model, ['search', 'getone'])
+    ids = RowIds(_push_test_data(app, model))
+    resp = app.get(f'/{model}?(report_type="STV"&status="OK")')
+    assert ids(resp) == [0]
