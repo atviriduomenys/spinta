@@ -126,11 +126,16 @@ class Visitor:
         if token.type == 'STRING':
             return token.value[1:-1]
         if token.type == 'INT':
-            return int(token)
+            return int(token.value)
         if token.type == 'FLOAT':
-            return float(token)
+            return float(token.value)
         if token.type == 'NULL':
             return None
+        if token.type == 'BOOL':
+            return {
+                'false': False,
+                'true': True,
+            }[token.value]
         raise Exception(f"Unknown token type: {token.type}")
 
     def func(self, node, name, args):

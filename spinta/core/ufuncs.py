@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Union
+from typing import Any, Optional, List
 
 import importlib
 
@@ -15,6 +15,17 @@ class Expr:
 
     def __call__(self, *args, **kwargs):
         return Expr(self.name, *args, **kwargs)
+
+    def resolve(self, env):
+        args = []
+        kwargs = {}
+        for arg in self.args:
+            arg = env.resolve(arg)
+            if isinstance(arg, Pair):
+                kwargs[arg.name] = arg.value
+            else:
+                args.append(arg)
+        return args, kwargs
 
 
 class Ufunc(Command):
@@ -75,19 +86,6 @@ class ufunc:
     executor = UFuncRegistry()
 
 
-class DefaultResolver:
-
-    def __init__(self):
-        self.autoargs = False
-
-    def __call__(self, env, expr):
-        args = [env.resolve(v) for v in expr.args]
-        return expr(*args)
-
-
-default_resolver = DefaultResolver()
-
-
 class Env:
 
     def __init__(
@@ -96,13 +94,11 @@ class Env:
         resolvers,
         executors,
         scope=None,
-        default_resolver=default_resolver,
     ):
         self.context = context
         self._resolvers = resolvers
         self._executors = executors
         self._scope = scope or {}
-        self._default_resolver = default_resolver
 
     def __call__(self, **scope):
         return Env(
@@ -110,7 +106,6 @@ class Env:
             self._resolvers,
             self._executors,
             {**self._scope, **scope},
-            self._default_resolver,
         )
 
     def __getattr__(self, name):
@@ -119,50 +114,46 @@ class Env:
     def update(self, **scope):
         self._scope.update(scope)
 
-    def resolve(
-        self,
-        expr: Any,
-        args: Optional[Union[tuple, list]] = None,
-        kwargs: Optional[Union[tuple, list, dict]] = None,
-    ):
+    def default_resolver(self, expr, *args, **kwargs):
+        return expr(*args, **kwargs)
+
+    def resolve(self, expr: Any):
         if not isinstance(expr, Expr):
-            # expr is either resolved or a literal value, no need to resolve.
+            # Expression is already resolved, return resolved value.
             return expr
 
         if expr.name in self._resolvers:
             ufunc = self._resolvers[expr.name]
-        else:
-            ufunc = self._default_resolver
 
-        if not ufunc.autoargs and args is None and kwargs is None:
+        else:
+            args, kwargs = expr.resolve(self)
+            return self.default_resolver(expr, *args, **kwargs)
+
+        if ufunc.autoargs:
+            # Resolve arguments automatically.
+            args, kwargs = expr.resolve(self)
+            try:
+                return ufunc(self, *args, **kwargs)
+            except NotImplementedError:
+                return self.default_resolver(expr, *args, **kwargs)
+
+        else:
             # Resolve arguments manually.
             return ufunc(self, expr)
 
-        # Automatically resolve args
-        if args is None:
-            args = expr.args
-        args = [self.resolve(v) for v in args]
-
-        # Automatically resolve kwargs
-        if kwargs is None:
-            kwargs = expr.kwargs
-        if isinstance(kwargs, dict):
-            kwargs = {k: self.resolve(v) for k, v in kwargs.items()}
-        else:
-            pairs = (self.resolve(arg) for arg in kwargs)
-            kwargs = {pair.name: pair.value for pair in pairs}
-
-        # Call ufunc
-        return ufunc(self, *args, **kwargs)
-
     def execute(self, expr: Any):
-        if isinstance(expr, Expr):
-            ufunc = self._executors[expr.name]
+        if not isinstance(expr, Expr):
+            return expr
+
+        ufunc = self._executors[expr.name]
+
+        if ufunc.autoargs:
             args = [self.execute(v) for v in expr.args]
             kwargs = {k: self.execute(v) for k, v in expr.kwargs.items()}
             return ufunc(self, *args, **kwargs)
+
         else:
-            return expr
+            return ufunc(self, expr)
 
 
 def asttoexpr(ast):

@@ -45,6 +45,9 @@ CONFIG = {
             'postgresql': 'spinta.backends.postgresql:PostgreSQL',
             'mongo': 'spinta.backends.mongo:Mongo',
         },
+        'migrations_schema': {
+            'alembic': 'spinta.migrations.schema.alembic:Alembic',
+        },
         'nodes': {
             'model': 'spinta.components:Model',
             'project': 'spinta.types.project:Project',
@@ -101,6 +104,9 @@ CONFIG = {
         'default': {
             'backend': 'spinta.backends.postgresql:PostgreSQL',
             'dsn': 'postgresql://admin:admin123@localhost:54321/spinta',
+            'migrations': {
+                'schema': 'alembic',
+            }
         },
     },
     'manifests': {
