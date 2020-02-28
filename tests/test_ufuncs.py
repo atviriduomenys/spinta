@@ -1,12 +1,15 @@
 import pytest
 
-from spinta.core.ufuncs import Env, Expr, Bind, Pair
+from spinta.core.ufuncs import Env, Expr, Bind, Pair, UFuncRegistry
 from spinta.testing.ufuncs import UFuncTester
 
 
 @pytest.fixture()
 def ufunc():
-    return UFuncTester()
+    return UFuncTester(
+        resolver=UFuncRegistry(),
+        executor=UFuncRegistry(),
+    )
 
 
 def test_resolve_value(ufunc):
@@ -35,17 +38,13 @@ def test_resolve_args(ufunc):
 
     @ufunc.resolver(Env, Expr)
     def add(env, expr):
-        args = [env.resolve(x) for x in expr.args]
+        args, kwargs = expr.resolve(env)
         return sum(args)
 
     assert ufunc('add(2, 2, 2, 2)') == 8
 
 
 def test_resolve_kwargs(ufunc):
-
-    @ufunc.resolver(Env, Expr)
-    def kwargs(env, expr):
-        return env.resolve(expr, args=(), kwargs=expr.args)
 
     @ufunc.resolver(Env)
     def kwargs(env, **kwargs):  # noqa
