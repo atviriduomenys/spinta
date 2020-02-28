@@ -587,6 +587,11 @@ class QueryBuilder:
 
         return method(key, value, lower)
 
+    def op_group(self, *args: List[dict]):
+        args = list(self.resolve(args))
+        assert len(args) == 1, "Group with multiple args are not supported here."
+        return args[0]
+
     def op_and(self, *args: List[dict]):
         args = list(self.resolve(args))
         if len(args) > 1:
