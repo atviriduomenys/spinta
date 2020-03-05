@@ -5,13 +5,16 @@ import datetime
 import enum
 import hashlib
 import itertools
+import logging
 import typing
 import types
 import cgi
 import uuid
 
+import jsonpatch
 import sqlalchemy as sa
 import sqlalchemy.exc
+from ruamel.yaml import YAML
 from sqlalchemy.dialects.postgresql import JSONB, UUID, BIGINT, ARRAY
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
@@ -25,7 +28,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.backends import Backend, BackendFeatures
 from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize
-from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem, DataSubItem
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem, DataSubItem, Store
 from spinta.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
@@ -52,6 +55,10 @@ from spinta.exceptions import (
     UniqueConstraint,
     UnavailableSubresource,
 )
+
+
+log = logging.getLogger(__name__)
+
 
 # Maximum length for PostgreSQL identifiers (e.g. table names, column names,
 # function names).
@@ -438,7 +445,77 @@ def migrate(context: Context, backend: PostgreSQL):
     # XXX: I found, that this some times leaks connection, you can check that by
     #      comparing `backend.engine.pool.checkedin()` before and after this
     #      line.
+    # TODO: update appropriate rows in _schema and save `applied` date
+    #       of schema migration
     backend.schema.create_all(checkfirst=True)
+
+
+@migrate.register()
+def migrate(context: Context, backend: PostgreSQL, store: Store):
+    schema_table = sa.Table(
+        '_schema', sa.MetaData(backend.engine),
+        sa.Column('id', sa.Text, primary_key=True),  # migration version uuid
+        sa.Column('created', sa.DateTime),
+        sa.Column('updated', sa.DateTime),
+        sa.Column('synced_time', sa.DateTime),
+        sa.Column('applied', sa.DateTime),
+        sa.Column('model', sa.Text),
+        sa.Column('parents', sa.ARRAY(sa.Text)),
+        sa.Column('changes', JSONB),
+        sa.Column('actions', JSONB),
+        sa.Column('schema', JSONB),
+    )
+    schema_table.create(checkfirst=True)
+
+    conn = backend.engine.connect()
+
+    # select all ids from migration table
+    select_migration_ids = sa.sql.select([schema_table.c.id])
+    result = conn.execute(select_migration_ids)
+    ids = list(map(lambda x: x[0], result))
+
+    yaml = YAML(typ="safe")
+    dt_now = datetime.datetime.now(datetime.timezone.utc).astimezone()
+
+    all_manifests = [store.internal, *store.manifests.values()]
+    for manifest in all_manifests:
+        for model in manifest.objects['model'].values():
+            data = list(yaml.load_all(model.path))
+            if len(data) == 1:
+                log.warning(
+                    f"Model '{model.name}' does not have migrations. "
+                    f"Create migrations with `spinta freeze` first. "
+                    f"YAML is not synced to DB."
+                )
+            version_schema = {}
+            for migration in data[1:]:
+                # make yaml migration data compatible with SQL
+                migration = fix_data_for_json(migration)
+
+                # build schema for current migration, so we will not need
+                # to do this while querying _schema table
+                changes = migration['changes']
+                patch = jsonpatch.JsonPatch(changes)
+                version_schema = patch.apply(version_schema)
+
+                # if version is not in migrations table - save it
+                version = migration['version']['id']
+                if version not in ids:
+                    # add version to migrations table
+                    conn.execute(
+                        schema_table.insert(),
+                        id=version,
+                        created=migration['version']['date'],
+                        synced_time=dt_now.isoformat(),
+                        model=model.name,
+                        parents=migration['version'].get('parents', []),
+                        changes=migration['changes'],
+                        actions=migration['migrate']['schema'],
+                        schema=version_schema,
+                    )
+                    log.info(
+                        f"Synced migration '{version}' for model: '{model.name}"
+                    )
 
 
 @commands.check_unique_constraint.register()

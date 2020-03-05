@@ -68,9 +68,12 @@ def wait(ctx, seconds):
 def migrate(ctx):
     context = ctx.obj['context']
     store = context.get('store')
+
+    # Prepare internal and other manifests
     commands.prepare(context, store.internal)
-    commands.migrate(context, store)
     commands.prepare(context, store)
+
+    # Run the migration
     commands.migrate(context, store)
 
 
