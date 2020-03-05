@@ -1,0 +1,17 @@
+type: model
+name: _schema
+version:
+  id: e9111015-4ab2-45db-ae29-f41fcbbb64b6
+  date: 2020-03-05 16:29:27.649354+02:00
+  parents: []
+properties:
+  version: {type: string, unique: true}
+  created: {type: datetime}
+  updated: {type: datetime}
+  synced: {type: datetime}
+  applied: {type: datetime}
+  model: {type: string}
+  parents: {type: jsonb}
+  changes: {type: jsonb}
+  actions: {type: jsonb}
+  schema: {type: jsonb}
