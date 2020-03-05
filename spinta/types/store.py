@@ -6,12 +6,12 @@ import types
 
 import pkg_resources as pres
 
+from spinta import commands
 from spinta.commands import load, wait, prepare, migrate, check, push
 from spinta.components import Context, Store, Manifest
-from spinta.utils.imports import importstr
 from spinta.config import RawConfig
-from spinta import commands
 from spinta.urlparams import get_model_by_name
+from spinta.utils.imports import importstr
 
 
 @load.register()
@@ -26,7 +26,7 @@ def load(context: Context, store: Store, config: RawConfig) -> Store:
         backend.name = name
         load(context, backend, config)
 
-    # Load intrnal manifest.
+    # Load internal manifest.
     internal = store.internal = Manifest()
     internal.name = 'internal'
     internal.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
@@ -85,6 +85,11 @@ def prepare(context: Context, store: Store):
 
 @migrate.register()
 def migrate(context: Context, store: Store):
+    # sync yaml migrations to database
+    # XXX: make new command sync_migrations?
+    commands.migrate(context, store.backends['default'], store)
+
+    # after yaml files are synced to database now we can alter resource tables
     for backend in store.backends.values():
         migrate(context, backend)
 

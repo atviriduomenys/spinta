@@ -113,7 +113,6 @@ class ContextForTests:
         commands.check(self, store)
 
         commands.prepare(self, store.internal)
-        commands.migrate(self, store)
         commands.prepare(self, store)
         commands.migrate(self, store)
 
