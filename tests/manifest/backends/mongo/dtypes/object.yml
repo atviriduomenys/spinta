@@ -3,7 +3,7 @@ type: model
 name: backends/mongo/dtypes/object
 backend: mongo
 version:
-  number: 1
+  id: 1
   date: 2020-02-03
 properties:
   object:

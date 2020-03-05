@@ -4,7 +4,7 @@ name: backends/postgres/subitem
 endpoint: backends/postgres/subitems
 title: "Subitem"
 version:
-  number: 1
+  id: 1
   date: "2019-11-13"
 properties:
   scalar: {type: string}

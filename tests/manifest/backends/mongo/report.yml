@@ -5,7 +5,7 @@ endpoint: backends/mongo/reports
 backend: mongo
 title: "Report"
 version:
-  number: 1
+  id: 1
   date: 2019-04-17
 properties:
   report_type: {type: string}

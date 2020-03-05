@@ -4,7 +4,7 @@ name: backends/mongo/country
 backend: mongo
 title: "Country"
 version:
-  number: 1
+  id: 1
   date: 2019-02-06
 properties:
   title: {type: string}

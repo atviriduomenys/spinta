@@ -2,7 +2,7 @@
 name: xlsx
 type: dataset
 version:
-  number: 1
+  id: 1
   date: 2019-02-21
 resources:
 

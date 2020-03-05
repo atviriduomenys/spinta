@@ -7,9 +7,12 @@ from spinta.backends.postgresql.migrations import (
 )
 from spinta.exceptions import MultipleParentsError
 from spinta.migrations import (
-    get_schema_from_changes,
+    build_schema_relation_graph,
+    get_new_schema_version,
+    get_parents,
+    get_ref_model_names,
     get_schema_changes,
-    get_new_schema_version
+    get_schema_from_changes,
 )
 
 
@@ -122,7 +125,7 @@ def test_alter_column():
     }
 
 
-def test_new_schema_version():
+def test_new_schema_version(context):
     versions = [
         {
             'type': 'model',
@@ -133,9 +136,10 @@ def test_new_schema_version():
             }
         }
     ]
-    old, new, parents = get_schema_from_changes(versions)
+    old, new = get_schema_from_changes(versions)
     changes = get_schema_changes(old, new)
     migrate = autogen_migration(old, new)
+    parents = get_parents(versions, new, context)
     version = get_new_schema_version(old, changes, migrate, parents)
     uuid_str = version['version']['id']
     assert uuid_str == str(uuid.UUID(uuid_str))
@@ -176,12 +180,12 @@ def test_new_schema_version():
         {'op': 'add', 'path': '/type', 'value': 'model'},
     ]
 
-    old, new, parents = get_schema_from_changes(versions + [version])
+    old, new = get_schema_from_changes(versions + [version])
     changes = get_schema_changes(old, new)
     assert changes == []
 
 
-def test_new_second_schema_version():
+def test_new_second_schema_version(context):
     versions = [
         {
             'type': 'model',
@@ -228,9 +232,10 @@ def test_new_second_schema_version():
             },
         }
     ]
-    old, new, parents = get_schema_from_changes(versions)
+    old, new = get_schema_from_changes(versions)
     changes = get_schema_changes(old, new)
     migrate = autogen_migration(old, new)
+    parents = get_parents(versions, new, context)
     version = get_new_schema_version(old, changes, migrate, parents)
     assert version == {
         'version': {
@@ -274,12 +279,12 @@ def test_new_second_schema_version():
         },
     }
 
-    old, new, parents = get_schema_from_changes(versions + [version])
+    old, new = get_schema_from_changes(versions + [version])
     changes = get_schema_changes(old, new)
     assert changes == []
 
 
-def test_schema_with_multiple_head_nodes():
+def test_schema_with_multiple_head_nodes(context):
     # test schema creator when resource has a diverging scheme version history
     # i.e. 1st (root) schema migration has 2 diverging branches
     #
@@ -392,5 +397,110 @@ def test_schema_with_multiple_head_nodes():
         },
     ]
 
+    old, new = get_schema_from_changes(versions)
     with pytest.raises(MultipleParentsError):
-        get_schema_from_changes(versions)
+        get_parents(versions, new, context)
+
+
+def test_build_schema_relation_graph(config, tmpdir):
+    # test new schema version, when multiple models have no foreign keys
+    org_model = {
+        'type': 'model',
+        'name': 'org',
+        'version': {
+            'id': '365b3209-c00f-4357-9749-5f680d337834',
+            'date': '2020-03-14 15:26:53'
+        },
+        'properties': {
+            'title': {'type': 'string'},
+            'country': {'type': 'ref', 'object': 'country'},
+        }
+    }
+    country_model = {
+        'type': 'model',
+        'name': 'country',
+        'version': {
+            'id': '0cffc369-308a-4093-8a08-92dbddb64a56',
+            'date': '2020-03-14 15:26:53'
+        },
+        'properties': {
+            'title': {'type': 'string'},
+        },
+    }
+    report_model = {
+        'type': 'model',
+        'name': 'report',
+        'version': {
+            'id': 'a8ecf2ce-bfb7-49cd-b453-27898f8e03a2',
+            'date': '2020-03-14 15:26:53'
+        },
+        'properties': {
+            'title': {'type': 'string'},
+        },
+    }
+
+    model_yaml_data = {
+        'org': [org_model],
+        'country': [country_model],
+        'report': [report_model]
+    }
+    model_graph = build_schema_relation_graph(model_yaml_data)
+    assert model_graph == {'org': {'country'}, 'country': set(), 'report': set()}
+
+
+def test_get_ref_model_names_prop():
+    # tests that all ref model names are found from first level properties
+    props = {
+        'scalar': {'type': 'string'},
+        'ref_a': {'type': 'ref', 'object': 'model_a'},
+        'ref_b': {'type': 'ref', 'object': 'model_b'},
+    }
+    assert get_ref_model_names(props) == ['model_a', 'model_b']
+
+
+def test_get_ref_model_names_array():
+    # tests that all ref model names are found from arrays
+    props = {
+        'scalar': {'type': 'string'},
+        'obj': {
+            'type': 'object',
+            'properties': {
+                'ref_a': {'type': 'ref', 'object': 'model_a'},
+                'foo': {'type': 'integer'},
+            }
+        },
+    }
+    assert get_ref_model_names(props) == ['model_a']
+
+
+def test_get_ref_model_names_obj():
+    # tests that all ref model names are found from objects
+    props = {
+        'scalar': {'type': 'string'},
+        'arr': {
+            'type': 'array',
+            'items': {'type': 'ref', 'object': 'model_a'},
+        },
+    }
+    assert get_ref_model_names(props) == ['model_a']
+
+
+def test_get_ref_model_names_complex():
+    # tests that all ref model names are found from from complex property dict
+    props = {
+        'scalar': {'type': 'string'},
+        'ref_a': {'type': 'ref', 'object': 'model_a'},
+        'ref_b': {'type': 'ref', 'object': 'model_b'},
+        'arr': {
+            'type': 'array',
+            'items': {'type': 'ref', 'object': 'model_arr'},
+        },
+        'obj': {
+            'type': 'object',
+            'properties': {
+                'ref_a': {'type': 'ref', 'object': 'model_obj'},
+                'foo': {'type': 'integer'},
+            }
+        }
+    }
+    assert get_ref_model_names(props) == ['model_a', 'model_b', 'model_arr', 'model_obj']

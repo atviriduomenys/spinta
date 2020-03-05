@@ -2,7 +2,7 @@
 name: xml
 type: dataset
 version:
-  number: 1
+  id: 1
   date: 2019-03-07
 resources:
   data:

@@ -13,7 +13,22 @@ def create_manifest_files(tmpdir, manifest):
     for file, data in manifest.items():
         path = Path(tmpdir) / file
         path.parent.mkdir(parents=True, exist_ok=True)
-        yaml.dump(data, path)
+        if isinstance(data, dict):
+            yaml.dump(data, path)
+        elif isinstance(data, list):
+            yaml.dump_all(data, path)
+
+
+def read_manifest_files(tmpdir):
+    path = Path(tmpdir)
+    yaml = YAML(typ='safe')
+    manifests = {}
+    for fp in path.glob('**/*.yml'):
+        data = list(yaml.load_all(fp.read_text()))
+        manifest_file = str(fp)[len(str(tmpdir)) + 1:]
+        manifests[manifest_file] = data
+    return manifests
+
 
 
 def get_error_codes(response):

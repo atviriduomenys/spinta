@@ -4,9 +4,10 @@ from spinta import commands
 from spinta.backends.postgresql import PostgreSQL
 from spinta.components import Context, Model
 from spinta.migrations import (
-    get_schema_from_changes,
+    get_new_schema_version,
+    get_parents,
     get_schema_changes,
-    get_new_schema_version
+    get_schema_from_changes,
 )
 
 
@@ -24,10 +25,11 @@ def new_schema_version(
     *,
     versions: List[dict],
 ):
-    old, new, parents = get_schema_from_changes(versions)
+    old, new = get_schema_from_changes(versions)
     changes = get_schema_changes(old, new)
     if changes:
-        migrate = autogen_migration(old, new),
+        migrate = autogen_migration(old, new)
+        parents = get_parents(versions, new, context)
         version = get_new_schema_version(old, changes, migrate, parents)
         return version
     else:
