@@ -2,7 +2,7 @@
 type: dataset
 name: test
 version:
-  number: 1
+  id: 1
   date: 2019-10-23
 resources:
   '':

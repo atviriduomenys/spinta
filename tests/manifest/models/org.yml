@@ -3,7 +3,7 @@ type: model
 name: org
 title: "Organization"
 version:
-  number: 1
+  id: 1
   date: 2019-02-06
 unique:
   - [country, govid]

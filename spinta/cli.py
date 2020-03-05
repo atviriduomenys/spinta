@@ -13,18 +13,17 @@ import click
 import tqdm
 import requests
 
-from ruamel.yaml import YAML
-
-from spinta.components import Store, DataStream
 from spinta import commands
 from spinta import components
-from spinta.auth import AdminToken
-from spinta.config import create_context
 from spinta import exceptions
-from spinta.commands.write import push_stream, dataitem_from_payload
-from spinta.commands.formats import Format
-from spinta.utils.aiotools import alist, aiter
+from spinta.auth import AdminToken
 from spinta.auth import ResourceProtector, BearerTokenValidator
+from spinta.commands.formats import Format
+from spinta.commands.write import push_stream, dataitem_from_payload
+from spinta.components import Store, DataStream
+from spinta.config import create_context
+from spinta.migrations import make_migrations
+from spinta.utils.aiotools import alist, aiter
 
 log = logging.getLogger(__name__)
 
@@ -49,27 +48,7 @@ def check(ctx):
 @main.command()
 @click.pass_context
 def freeze(ctx):
-    yaml = YAML()
-    yaml.indent(mapping=2, sequence=4, offset=2)
-    yaml.width = 80
-    yaml.explicit_start = False
-
-    context = ctx.obj['context']
-    store = context.get('store')
-    manifest = store.manifests['default']
-    for model in manifest.objects['model'].values():
-        versions = yaml.load_all(model.path.read_text())
-        versions = list(versions)
-        version = commands.new_schema_version(
-            context, model.backend, model, versions=versions,
-        )
-        if version:
-            vnum = version['version']['id']
-            click.echo(f"Updating to version {vnum}: {model.path}")
-            versions[0]['version'] = version['version']
-            versions.append(version)
-            with model.path.open('w') as f:
-                yaml.dump_all(versions, f)
+    make_migrations(ctx.obj['context'])
     click.echo("Done.")
 
 

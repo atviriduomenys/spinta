@@ -4,7 +4,7 @@ name: backends/postgres/report
 endpoint: backends/postgres/reports
 title: "Report"
 version:
-  number: 1
+  id: 1
   date: 2019-04-17
 properties:
   report_type: {type: string}

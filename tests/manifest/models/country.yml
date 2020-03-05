@@ -3,7 +3,7 @@ type: model
 name: country
 title: "Country"
 version:
-  number: 1
+  id: 1
   date: 2019-02-06
 properties:
   _id: {type: pk}

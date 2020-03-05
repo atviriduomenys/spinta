@@ -2,7 +2,7 @@
 type: model
 name: backends/postgres/dtypes/file
 version:
-  number: 1
+  id: 1
   date: 2020-01-30
 properties:
   file:
