@@ -84,14 +84,23 @@ def prepare(context: Context, store: Store):
 
 
 @migrate.register()
-def migrate(context: Context, store: Store):
-    # sync yaml migrations to database
-    # XXX: make new command sync_migrations?
-    commands.migrate(context, store.backends['default'], store)
+def migrate(context: Context, store: Store, *, initial: bool = False):
+    if initial:
+        for backend in store.backends.values():
+            migrate(context, backend, store.internal)
+        # sync yaml migrations to database
+        # this is done after internal migrations are completed, because
+        # _schema table must be migrated/created first, before
+        # inserting data into it
+        commands.migrate(context, store.backends['default'], store)
+    else:
+        # sync yaml migrations to database
+        # XXX: make new command sync_migrations?
+        commands.migrate(context, store.backends['default'], store)
 
-    # after yaml files are synced to database now we can alter resource tables
-    for backend in store.backends.values():
-        migrate(context, backend)
+        # after yaml files are synced to database now we can alter resource tables
+        for backend in store.backends.values():
+            migrate(context, backend)
 
 
 @push.register()

@@ -1,19 +1,18 @@
 from typing import AsyncIterator, Optional, List, Union, Tuple, Iterator
 
+import asyncio
+import cgi
 import contextlib
 import datetime
 import enum
 import hashlib
 import itertools
 import logging
-import typing
 import types
-import cgi
+import typing
 import uuid
 
-import jsonpatch
-import sqlalchemy as sa
-import sqlalchemy.exc
+from multipledispatch import dispatch
 from ruamel.yaml import YAML
 from sqlalchemy.dialects.postgresql import JSONB, UUID, BIGINT, ARRAY
 from sqlalchemy.engine.result import RowProxy
@@ -22,7 +21,10 @@ from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.sql.type_api import TypeEngine
 from starlette.requests import Request
 from starlette.responses import Response
-from multipledispatch import dispatch
+
+import jsonpatch
+import sqlalchemy as sa
+import sqlalchemy.exc
 
 from spinta import commands
 from spinta import exceptions
@@ -259,32 +261,30 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         # even for a property with different backend, then this type must
         # implement prepare command and do custom logic there.
         return
+    elif dtype.name in UNSUPPORTED_TYPES:
+        return
 
     prop = dtype.prop
     name = _get_column_name(prop)
 
-    if dtype.name == 'string':
-        return sa.Column(name, sa.Text)
-    elif dtype.name == 'date':
-        return sa.Column(name, sa.Date)
-    elif dtype.name == 'datetime':
-        return sa.Column(name, sa.DateTime)
-    elif dtype.name == 'integer':
-        return sa.Column(name, sa.Integer)
-    elif dtype.name == 'number':
-        return sa.Column(name, sa.Float)
-    elif dtype.name == 'boolean':
-        return sa.Column(name, sa.Boolean)
-    elif dtype.name == 'binary':
-        return sa.Column(name, sa.LargeBinary)
-    elif dtype.name in ('spatial', 'image'):
-        # TODO: these property types currently are not implemented
-        return sa.Column(name, sa.Text)
-    elif dtype.name in UNSUPPORTED_TYPES:
-        return
-    else:
+    type_map = {
+        'string': sa.Text,
+        'date': sa.Date,
+        'datetime': sa.DateTime,
+        'integer': sa.Integer,
+        'number': sa.Float,
+        'boolean': sa.Boolean,
+        'binary': sa.LargeBinary,
+        'jsonb': JSONB,
+        'spatial': sa.Text,  # unsupported
+        'image': sa.Text,  # unsupported
+    }
+
+    try:
+        return sa.Column(name, type_map[dtype.name], unique=dtype.unique)
+    except KeyError:
         raise Exception(
-            f"Unknown property type {dtype.name!r} of {prop.place}."
+            f"Unknown type {dtype.name!r} for property {prop.place!r}."
         )
 
 
@@ -448,6 +448,85 @@ def migrate(context: Context, backend: PostgreSQL):
     # TODO: update appropriate rows in _schema and save `applied` date
     #       of schema migration
     backend.schema.create_all(checkfirst=True)
+
+
+@migrate.register()
+def migrate(context: Context, backend: PostgreSQL, manifest: Manifest):
+    backend.schema.create_all(checkfirst=True)
+
+
+@migrate.register()
+def migrate(context: Context, backend: PostgreSQL, store: Store):
+    schema_model = store.internal.objects['model']['_schema']
+    # select all versions from migration table
+    versions = list(getall(context, schema_model, backend, select=['version']))
+    versions = list(map(lambda x: x['version'], versions))
+
+    yaml = YAML(typ="safe")
+    dt_now = datetime.datetime.now(datetime.timezone.utc).astimezone()
+
+    all_manifests = [store.internal, *store.manifests.values()]
+    for manifest in all_manifests:
+        for model in manifest.objects['model'].values():
+            data = list(yaml.load_all(model.path))
+            if len(data) == 1:
+                log.warning(
+                    f"Model '{model.name}' does not have migrations. "
+                    f"Create migrations with `spinta freeze` first. "
+                    f"YAML is not synced to DB."
+                )
+            version_schema = {}
+            for migration in data[1:]:
+                # make yaml migration data compatible with SQL
+                migration = fix_data_for_json(migration)
+
+                # build schema for current migration, so we will not need
+                # to do this while querying _schema table
+                changes = migration['changes']
+                patch = jsonpatch.JsonPatch(changes)
+                version_schema = patch.apply(version_schema)
+
+                # if version is not in migrations table - save it
+                version = migration['version']['id']
+                print(version, model.name)
+                if version not in versions:
+                    # add version to migrations table
+                    payload = dict(
+                        version=version,
+                        created=migration['version']['date'],
+                        synced=dt_now.isoformat(),
+                        model=model.name,
+                        parents=migration['version'].get('parents', []),
+                        changes=migration['changes'],
+                        actions=migration['migrate']['schema'],
+                        schema=version_schema,
+                    )
+                    transaction = context.get('transaction')
+                    connection = transaction.connection
+                    schema_table = backend.get_table(schema_model)
+                    qry = schema_table.insert().values(
+                        _id=commands.gen_object_id(context, backend, schema_model),
+                        _revision=commands.gen_object_id(context, backend, schema_model),
+                        _txn=transaction.id,
+                        _created=utcnow(),
+                        **payload,
+                    )
+                    print(connection.in_transaction())
+                    connection.execute(qry)
+                    # conn.execute(
+                    #     schema_table.insert(),
+                    #     id=version,
+                    #     created=migration['version']['date'],
+                    #     synced_time=dt_now.isoformat(),
+                    #     model=model.name,
+                    #     parents=migration['version'].get('parents', []),
+                    #     changes=migration['changes'],
+                    #     actions=migration['migrate']['schema'],
+                    #     schema=version_schema,
+                    # )
+                    log.info(
+                        f"Synced migration '{version}' for model: '{model.name}"
+                    )
 
 
 @commands.check_unique_constraint.register()

@@ -58,6 +58,11 @@ def migrate(context: Context, backend: FileSystem):
     pass
 
 
+@migrate.register()
+def migrate(context: Context, backend: FileSystem, manifest: Manifest):
+    pass
+
+
 @complex_data_check.register()
 def complex_data_check(
     context: Context,

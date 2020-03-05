@@ -69,10 +69,19 @@ def migrate(ctx):
     context = ctx.obj['context']
     store = context.get('store')
 
-    commands.sync(context)
+    with context:
+        context.attach('transaction', store.backends['default'].transaction, write=True)
 
-    # Run the migration
-    commands.migrate(context, store)
+        # Prepare internal manifests and migrate
+        commands.prepare(context, store.internal)
+        commands.migrate(context, store, initial=True)
+
+    with context:
+        context.attach('transaction', store.backends['default'].transaction, write=True)
+
+        # Prepare other manifests and migrate
+        commands.prepare(context, store)
+        commands.migrate(context, store)
 
 
 @main.command(help='Pull data from an external dataset.')

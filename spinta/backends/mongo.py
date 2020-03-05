@@ -129,6 +129,12 @@ def migrate(context: Context, backend: Mongo):
     pass
 
 
+@migrate.register()
+def migrate(context: Context, backend: Mongo, manifest: Manifest):
+    # Migrate schema changes.
+    pass
+
+
 @commands.check_unique_constraint.register()
 def check_unique_constraint(
     context: Context,
