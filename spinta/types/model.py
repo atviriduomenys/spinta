@@ -29,7 +29,7 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
         [resolve_schema(prop, Node), resolve_schema(prop.dtype, DataType)],
         data, prop,
     )
-    if isinstance(prop.dtype, PrimaryKey):
+    if isinstance(prop.dtype, PrimaryKey) or data.get('unique', False):
         prop.dtype.unique = True
     return prop
 
