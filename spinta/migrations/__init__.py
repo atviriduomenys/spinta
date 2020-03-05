@@ -163,18 +163,19 @@ def freeze(context):
     yaml.explicit_start = False
 
     store = context.get('store')
-    manifest = store.manifests['default']
+    all_manifests = [store.internal, *store.manifests.values()]
 
-    # load all model yamls into memory as cache to avoid multiple file reads
-    models = manifest.objects['model'].values()
     model_yaml_data = {}
     model_name_to_instance = {}
-    for model in models:
-        versions = list(yaml.load_all(model.path.read_text()))
-        model_yaml_data[model.name] = versions
-        # in model properties, ref type has a name of reference model later
-        # we'll need to map back the name of the model to the model instance
-        model_name_to_instance[model.name] = model
+    # load all model yamls into memory as cache to avoid multiple file reads
+    for manifest in all_manifests:
+        models = manifest.objects['model'].values()
+        for model in models:
+            versions = list(yaml.load_all(model.path.read_text()))
+            model_yaml_data[model.name] = versions
+            # in model properties, ref type has a name of reference model later
+            # we'll need to map back the name of the model to the model instance
+            model_name_to_instance[model.name] = model
 
     sorted_model_names = toposort_models(model_yaml_data)
 
