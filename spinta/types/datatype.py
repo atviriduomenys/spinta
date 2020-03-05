@@ -191,6 +191,10 @@ class RQL(DataType):
     pass
 
 
+class JSONB(DataType):
+    pass
+
+
 @load.register()
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
     _add_leaf_props(dtype.prop)

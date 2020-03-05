@@ -75,6 +75,7 @@ CONFIG = {
             'object': 'spinta.types.datatype:Object',
             'file': 'spinta.types.datatype:File',
             'rql': 'spinta.types.datatype:RQL',
+            'jsonb': 'spinta.types.datatype:JSONB',
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
