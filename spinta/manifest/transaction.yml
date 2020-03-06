@@ -1,11 +1,44 @@
----
 type: model
 name: transaction
 version:
-  id: 1
-  date: 2019-02-12
+  id: 49da8fcc-d724-43c4-b35f-e71f9c87b1b5
+  date: 2020-03-06 15:02:17.513335+02:00
+  parents: []
 properties:
   datetime: {type: datetime}
   client_type: {type: string, enum: [dataset, project, system]}
   client_id: {type: string}
   errors: {type: integer}
+---
+version:
+  id: 49da8fcc-d724-43c4-b35f-e71f9c87b1b5
+  date: 2020-03-06 15:02:17.513335+02:00
+  parents: []
+changes:
+  - op: add
+    path: /properties
+    value:
+      datetime: {type: datetime}
+      client_type: {type: string, enum: [dataset, project, system]}
+      client_id: {type: string}
+      errors: {type: integer}
+  - op: add
+    path: /version
+    value:
+      id: 1
+      date: 2019-02-12
+  - op: add
+    path: /type
+    value: model
+  - op: add
+    path: /name
+    value: transaction
+migrate:
+  schema:
+    upgrade:
+      - "create_table(\n    'transaction',\n    column('_id', pk()),\n    column('_revision',\
+        \ string()),\n    column('datetime', datetime()),\n    column('client_type',\
+        \ string()),\n    column('client_id', string()),\n    column('errors', integer())\n\
+        )"
+    downgrade:
+      - drop_table('transaction')

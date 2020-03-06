@@ -11,6 +11,7 @@ import jsonpatch
 
 from spinta.components import Context
 from spinta.exceptions import MultipleParentsError
+from spinta.nodes import load_manifest
 from spinta import commands
 
 
@@ -157,13 +158,17 @@ def toposort_models(model_yaml_data: Iterable[dict]) -> dict:
 
 
 def freeze(context):
+    store = context.get('store')
+
+    for name in rc.keys('manifests'):
+        load_manifest()
+
     yaml = YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
     yaml.width = 80
     yaml.explicit_start = False
 
-    store = context.get('store')
-    all_manifests = [store.internal, *store.manifests.values()]
+    all_manifests = store.manifests.values()
 
     model_yaml_data = {}
     model_name_to_instance = {}

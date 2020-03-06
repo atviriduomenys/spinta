@@ -163,6 +163,15 @@ def prepare_dtype_for_response():
 
 
 @command()
+def bootstrap():
+    """Bootstrap all components.
+
+    Currently if database is empty instead of running all migrations, it creates
+    all the tables and constrains directly.
+    """
+
+
+@command()
 def sync():
     """Sync manifest YAML files to database."""
 

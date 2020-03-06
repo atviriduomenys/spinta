@@ -1,5 +1,6 @@
 from spinta.testing.utils import create_manifest_files, read_manifest_files
 from spinta.testing.context import create_test_context
+from spinta.components import Config, Store
 from spinta.migrations import freeze
 from spinta import commands
 
@@ -32,7 +33,6 @@ def test_create_model(postgresql, config, tmpdir):
     freeze(context)
 
     manifest = read_manifest_files(tmpdir)
-    print(manifest['country.yml'][1]['migrate']['schema']['upgrade'])
     assert manifest == {
         'country.yml': [
             {
@@ -73,6 +73,17 @@ def test_create_model(postgresql, config, tmpdir):
         ],
     }
 
-    store = context.get('store')
-    commands.sync(context)
+    rc = config
+    context = create_test_context(rc)
+
+    config = context.set('config', Config())
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
+    store = context.set('store', Store())
+    commands.load(context, store, config)
+    commands.check(context, store)
+
+    commands.bootstrap(context, store)
+    commands.sync(context. store)
     commands.migrate(context, store)

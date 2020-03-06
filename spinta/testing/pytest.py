@@ -17,16 +17,16 @@ def spinta_test_config():
     return {
         'backends': {
             'default': {
-                'backend': 'spinta.backends.postgresql:PostgreSQL',
+                'type': 'postgresql',
                 'dsn': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
             },
             'mongo': {
-                'backend': 'spinta.backends.mongo:Mongo',
+                'type': 'mongo',
                 'dsn': 'mongodb://admin:admin123@localhost:27017/',
                 'db': 'spinta_tests',
             },
             'fs': {
-                'backend': 'spinta.backends.fs:FileSystem',
+                'type': 'fs',
                 'path': pathlib.Path() / 'var/files',
             },
         },

@@ -191,7 +191,7 @@ class RQL(DataType):
     pass
 
 
-class JSONB(DataType):
+class JSON(DataType):
     pass
 
 
@@ -268,7 +268,7 @@ def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
 
     dtype = data.get('type')
     if dtype not in config.components['types']:
-        raise Exception(f"Unknown property type {dtype!r}.")
+        raise exceptions.UnknownPropertyType(prop, type=dtype)
 
     dtype = config.components['types'][dtype]()
     type_schema = resolve_schema(dtype, DataType)
@@ -276,7 +276,7 @@ def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
         schema = type_schema[name]
         value = data.get(name, na)
         if schema.get('required', False) and value is na:
-            raise Exception(f"Missing requied option {name!r}.")
+            raise exceptions.MissingRequiredProperty(prop)
         if value is na:
             value = schema.get('default')
         setattr(dtype, name, value)

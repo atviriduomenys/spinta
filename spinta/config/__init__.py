@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import collections
 import copy
@@ -7,6 +7,8 @@ import logging
 import operator
 import os
 import pathlib
+
+import pkg_resources as pres
 
 from ruamel.yaml import YAML
 
@@ -41,14 +43,20 @@ CONFIG = {
         'core': {
             'context': 'spinta.components:Context',
         },
+        'manifests': {
+            'spinta': 'spinta.manifests.spinta:SpintaManifest',
+            'yaml': 'spinta.manifests.yaml:YamlManifest',
+        },
         'backends': {
             'postgresql': 'spinta.backends.postgresql:PostgreSQL',
             'mongo': 'spinta.backends.mongo:Mongo',
+            'fs': 'spinta.backends.fs:FileSystem',
         },
-        'migrations_schema': {
+        'migrations': {
             'alembic': 'spinta.migrations.schema.alembic:Alembic',
         },
         'nodes': {
+            'ns': 'spinta.components:Namespace',
             'model': 'spinta.components:Model',
             'project': 'spinta.types.project:Project',
             'dataset': 'spinta.types.dataset:Dataset',
@@ -75,14 +83,10 @@ CONFIG = {
             'object': 'spinta.types.datatype:Object',
             'file': 'spinta.types.datatype:File',
             'rql': 'spinta.types.datatype:RQL',
-            'jsonb': 'spinta.types.datatype:JSONB',
+            'json': 'spinta.types.datatype:JSON',
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
-            # do not bother with versions for this time
-            # 'versions': {
-            #     '1': 'spinta.urlparams:Version',
-            # },
         },
         'sources': {
             'csv': 'spinta.commands.sources.csv:Csv',
@@ -103,19 +107,25 @@ CONFIG = {
     },
     'backends': {
         'default': {
-            'backend': 'spinta.backends.postgresql:PostgreSQL',
+            'type': 'postgresql',
             'dsn': 'postgresql://admin:admin123@localhost:54321/spinta',
-            'migrations': {
-                'schema': 'alembic',
-            }
+            'migrate': 'alembic',
         },
     },
     'manifests': {
         'default': {
+            'type': 'spinta',
+            'backend': 'default',
+            'sync': 'yaml',
+        },
+        'yaml': {
+            'type': 'yaml',
             'backend': 'default',
             'path': pathlib.Path(),
         },
     },
+
+    'manifest': 'default',
 
     # Parameters for datasets, for example credentials. Example:
     #
@@ -163,18 +173,17 @@ CONFIG = {
         'dev': {
             'backends': {
                 'mongo': {
-                    'backend': 'spinta.backends.mongo:Mongo',
+                    'type': 'mongo',
                     'dsn': 'mongodb://admin:admin123@localhost:27017/',
                     'db': 'splat',
                 },
                 'fs': {
-                    'backend': 'spinta.backends.fs:FileSystem',
+                    'type': 'fs',
                     'path': pathlib.Path() / 'var/files',
                 },
             },
             'manifests': {
-                'default': {
-                    'backend': 'default',
+                'yaml': {
                     'path': pathlib.Path() / 'tests/manifest',
                 },
             },
@@ -182,8 +191,7 @@ CONFIG = {
         },
         'test': {
             'manifests': {
-                'default': {
-                    'backend': 'default',
+                'yaml': {
                     'path': pathlib.Path() / 'tests/manifest',
                 },
             },
@@ -301,9 +309,9 @@ class RawConfig:
             else:
                 yield key, self.get(*key, cast=type(value), origin=origin)
 
-    def dump(self, names=None):
-        print('{:<10} {:<20} {}'.format('Origin', 'Name', 'Value'))
-        print('{:-<10} {:-<20} {:-<40}'.format('', '', ''))
+    def dump(self, names: List[str] = None):
+        table = [('Origin', 'Name', 'Value')]
+        sizes = [len(x) for x in table[0]]
         for key, value, origin in sorted(self.getall(origin=True), key=operator.itemgetter(0)):
             if names:
                 for name in names:
@@ -315,7 +323,18 @@ class RawConfig:
             key = len(pkey) * '  ' + key
             if isinstance(value, list):
                 value = ' | '.join(value)
-            print(f'{origin:<10} {key:<20} {value}')
+
+            row = (origin, key, value)
+            table.append(row)
+            sizes = [max(x) for x in zip(sizes, map(len, map(str, row)))]
+
+        table = (
+            table[:1] +
+            [['-' * s for s in sizes]] +
+            table[1:]
+        )
+        for row in table:
+            print('  '.join([str(x).ljust(s) for x, s in zip(row, sizes)]))
 
     def hardset(self, config, dirty=True):
         if dirty and not self._dirty:

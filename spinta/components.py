@@ -269,7 +269,7 @@ class Store:
     def __init__(self):
         self.config = None
         self.backends = {}
-        self.manifests = {}
+        self.manifest = None
 
 
 class Manifest:

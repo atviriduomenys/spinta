@@ -1,17 +1,81 @@
 type: model
 name: _schema
 version:
-  id: e9111015-4ab2-45db-ae29-f41fcbbb64b6
-  date: 2020-03-05 16:29:27.649354+02:00
+  id: a27cb0ea-e4cf-42be-b8e9-087f618b6e30
+  date: 2020-03-06 15:02:17.501654+02:00
   parents: []
 properties:
-  version: {type: string, unique: true}
-  created: {type: datetime}
-  updated: {type: datetime}
-  synced: {type: datetime}
-  applied: {type: datetime}
-  model: {type: string}
-  parents: {type: jsonb}
-  changes: {type: jsonb}
-  actions: {type: jsonb}
-  schema: {type: jsonb}
+  version:
+    type: string
+    unique: true
+  created:
+    type: datetime
+  updated:
+    type: datetime
+  synced:
+    type: datetime
+  applied:
+    type: datetime
+  model:
+    type: string
+  parents:
+    type: json
+  changes:
+    type: json
+  actions:
+    type: json
+  schema:
+    type: json
+---
+version:
+  id: a27cb0ea-e4cf-42be-b8e9-087f618b6e30
+  date: 2020-03-06 15:02:17.501654+02:00
+  parents: []
+changes:
+  - op: add
+    path: /properties
+    value:
+      version:
+        type: string
+        unique: true
+      created:
+        type: datetime
+      updated:
+        type: datetime
+      synced:
+        type: datetime
+      applied:
+        type: datetime
+      model:
+        type: string
+      parents:
+        type: json
+      changes:
+        type: json
+      actions:
+        type: json
+      schema:
+        type: json
+  - op: add
+    path: /version
+    value:
+      id: e9111015-4ab2-45db-ae29-f41fcbbb64b6
+      date: 2020-03-05 16:29:27.649354+02:00
+      parents: []
+  - op: add
+    path: /type
+    value: model
+  - op: add
+    path: /name
+    value: _schema
+migrate:
+  schema:
+    upgrade:
+      - "create_table(\n    '_schema',\n    column('_id', pk()),\n    column('_revision',\
+        \ string()),\n    column('version', string()),\n    column('created', datetime()),\n\
+        \    column('updated', datetime()),\n    column('synced', datetime()),\n \
+        \   column('applied', datetime()),\n    column('model', string()),\n    column('parents',\
+        \ json()),\n    column('changes', json()),\n    column('actions', json()),\n\
+        \    column('schema', json())\n)"
+    downgrade:
+      - drop_table('_schema')

@@ -18,9 +18,7 @@ def create_test_context(config, *, name='pytest'):
     Context = type('ContextForTests', (ContextForTests, Context), {})
     context = Context(name)
     context.set('config.raw', config)
-
     load_commands(config.get('commands', 'modules', cast=list))
-
     return context
 
 
@@ -95,24 +93,24 @@ class ContextForTests:
         if self.loaded:
             raise Exception("test context is already loaded")
 
-        config = self.get('config.raw')
+        rc = self.get('config.raw')
 
         if overrides:
-            config.hardset({
+            rc.hardset({
                 'environments': {
                     'test': overrides,
                 }
             })
 
-        self.set('config', components.Config())
+        config = self.set('config', components.Config())
         store = self.set('store', components.Store())
 
-        commands.load(self, self.get('config'), config)
-        commands.check(self, self.get('config'))
+        commands.load(self, config, rc)
+        commands.check(self, config)
+
         commands.load(self, store, config)
         commands.check(self, store)
 
-        commands.prepare(self, store.internal)
         commands.prepare(self, store)
         commands.migrate(self, store)
 

@@ -1,6 +1,5 @@
 from typing import AsyncIterator, Optional, List, Union, Tuple, Iterator
 
-import asyncio
 import cgi
 import contextlib
 import datetime
@@ -167,6 +166,9 @@ class PostgreSQL(Backend):
         else:
             return self.tables.get(node.manifest.name, {}).get(name)
 
+    def query_nodes(self):
+        return []
+
 
 class ReadTransaction:
 
@@ -241,7 +243,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     pkey_type = commands.get_primary_key_type(context, backend)
     main_table = sa.Table(
         main_table_name, backend.schema,
-        sa.Column('_txn', pkey_type, sa.ForeignKey('transaction._id')),
+        sa.Column('_txn', pkey_type, index=True),
         sa.Column('_created', sa.DateTime),
         sa.Column('_updated', sa.DateTime),
         *columns,
@@ -266,8 +268,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
 
     prop = dtype.prop
     name = _get_column_name(prop)
-
-    type_map = {
+    types = {
         'string': sa.Text,
         'date': sa.Date,
         'datetime': sa.DateTime,
@@ -275,13 +276,13 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         'number': sa.Float,
         'boolean': sa.Boolean,
         'binary': sa.LargeBinary,
-        'jsonb': JSONB,
+        'json': JSONB,
         'spatial': sa.Text,  # unsupported
         'image': sa.Text,  # unsupported
     }
 
     try:
-        return sa.Column(name, type_map[dtype.name], unique=dtype.unique)
+        return sa.Column(name, types[dtype.name], unique=dtype.unique)
     except KeyError:
         raise Exception(
             f"Unknown type {dtype.name!r} for property {prop.place!r}."
@@ -412,7 +413,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array):
         # TODO: List tables eventually will have _id in order to uniquelly
         #       identify list item.
         # sa.Column('_id', pkey_type, primary_key=True),
-        sa.Column('_txn', pkey_type, sa.ForeignKey('transaction._id')),
+        sa.Column('_txn', pkey_type, index=True),
         # Main table id (resource id).
         sa.Column('_rid', pkey_type, sa.ForeignKey(
             f'{main_table_name}._id', ondelete='CASCADE',
@@ -455,8 +456,8 @@ def migrate(context: Context, backend: PostgreSQL, manifest: Manifest):
     backend.schema.create_all(checkfirst=True)
 
 
-@migrate.register()
-def migrate(context: Context, backend: PostgreSQL, store: Store):
+@commands.sync.register()
+def sync(context: Context, backend: PostgreSQL, store: Store):
     schema_model = store.internal.objects['model']['_schema']
     # select all versions from migration table
     versions = list(getall(context, schema_model, backend, select=['version']))
@@ -1766,7 +1767,7 @@ def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
         # FIXME: Should be pkey_type, but String is used, because dataset models
         #        use sha1 for resource ids.
         sa.Column('_revision', sa.String),
-        sa.Column('_txn', pkey_type, sa.ForeignKey('transaction._id')),
+        sa.Column('_txn', pkey_type, index=True),
         # FIXME: Should be pkey_type, but String is used, because dataset models
         #        use sha1 for resource ids.
         sa.Column('_rid', sa.String),  # reference to main table

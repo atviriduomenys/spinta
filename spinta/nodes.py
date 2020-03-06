@@ -1,9 +1,24 @@
 from typing import Optional, Type
 
-from spinta.components import Context, Manifest, Node, Namespace
+from spinta.components import Context, Config, Store, Manifest, Node, Namespace
 from spinta.utils.schema import resolve_schema
 from spinta import exceptions
 from spinta import commands
+
+
+def get_manifest(config: Config, name: str):
+    type_ = config.raw.get('manifests', name, 'type', required=True)
+    Manifest = config.components['manifests'][type_]
+    manifest = Manifest()
+    manifest.name = name
+    return manifest
+
+
+def load_manifest(context: Context, store: Store, config: Config, name: str):
+    manifest = get_manifest(config, name)
+    backend = config.raw.get('manifests', name, 'backend', required=True)
+    manifest.backend = store.backends[backend]
+    return commands.load(context, manifest, config.raw)
 
 
 def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, check_unknowns=True) -> Node:

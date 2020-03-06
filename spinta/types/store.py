@@ -4,46 +4,38 @@ import pathlib
 import time
 import types
 
-import pkg_resources as pres
-
 from spinta import commands
 from spinta.commands import load, wait, prepare, migrate, check, push
-from spinta.components import Context, Store, Manifest
-from spinta.config import RawConfig
+from spinta.components import Context, Store, Config
 from spinta.urlparams import get_model_by_name
-from spinta.utils.imports import importstr
+from spinta.nodes import load_manifest
+from spinta.config import RawConfig
 
 
 @load.register()
-def load(context: Context, store: Store, config: RawConfig) -> Store:
+def load(context: Context, store: Store, config: Config) -> Store:
     """Load backends and manifests from configuration."""
 
-    # Load backends.
+    rc = config.raw
+
+    # Load backends
     store.backends = {}
-    for name in config.keys('backends'):
-        Backend = config.get('backends', name, 'backend', cast=importstr)
+    for name in rc.keys('backends'):
+        type_ = rc.get('backends', name, 'type', required=True)
+        Backend = config.components['backends'][type_]
         backend = store.backends[name] = Backend()
         backend.name = name
-        load(context, backend, config)
-
-    # Load internal manifest.
-    internal = store.internal = Manifest()
-    internal.name = 'internal'
-    internal.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
-    internal.backend = store.backends['default']
-    load(context, internal, config)
+        load(context, backend, rc)
 
     # Load manifests
-    store.manifests = {}
-    for name in config.keys('manifests'):
-        manifest = store.manifests[name] = Manifest()
-        manifest.name = name
-        manifest.path = config.get('manifests', name, 'path', cast=pathlib.Path, required=True)
-        manifest.backend = store.backends[config.get('manifests', name, 'backend', required=True)]
-        load(context, manifest, config)
+    manifest = rc.get('manifest', required=True)
+    store.manifest = load_manifest(context, store, config, manifest)
 
-    if 'default' not in store.manifests:
-        raise Exception("'default' manifest must be set in the configuration.")
+    # '_internal': {
+    #     'type': 'yaml',
+    #     'path': pathlib.Path(pres.resource_filename('spinta', 'manifest')),
+    #     'backend': 'default',
+    # },
 
     return store
 
@@ -72,7 +64,6 @@ def wait(
 
 @check.register()
 def check(context: Context, store: Store):
-    check(context, store.internal)
     for manifest in store.manifests.values():
         check(context, manifest)
 
@@ -83,24 +74,16 @@ def prepare(context: Context, store: Store):
         prepare(context, manifest)
 
 
-@migrate.register()
-def migrate(context: Context, store: Store, *, initial: bool = False):
-    if initial:
-        for backend in store.backends.values():
-            migrate(context, backend, store.internal)
-        # sync yaml migrations to database
-        # this is done after internal migrations are completed, because
-        # _schema table must be migrated/created first, before
-        # inserting data into it
-        commands.migrate(context, store.backends['default'], store)
-    else:
-        # sync yaml migrations to database
-        # XXX: make new command sync_migrations?
-        commands.migrate(context, store.backends['default'], store)
+@commands.bootstrap.register()
+def bootstrap(context: Context, store: Store) -> bool:
+    assert False
+    return True
 
-        # after yaml files are synced to database now we can alter resource tables
-        for backend in store.backends.values():
-            migrate(context, backend)
+
+@migrate.register()
+def migrate(context: Context, store: Store):
+    for backend in store.backends.values():
+        migrate(context, backend)
 
 
 @push.register()
