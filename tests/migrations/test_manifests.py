@@ -1,7 +1,7 @@
 import pytest
 
 from spinta.exceptions import MultipleParentsError
-from spinta.migrations import make_migrations
+from spinta.migrations import freeze
 from spinta.testing.utils import create_manifest_files, read_manifest_files
 from spinta.testing.context import create_test_context
 
@@ -33,7 +33,7 @@ def test_new_version_new_manifest(context, config, tmpdir):
         }
     })
 
-    make_migrations(context)
+    freeze(context)
 
     manifests = read_manifest_files(tmpdir)
 
@@ -110,7 +110,7 @@ def test_new_version_no_changes(context, config, tmpdir):
         }
     })
 
-    make_migrations(context)
+    freeze(context)
 
     manifests = read_manifest_files(tmpdir)
 
@@ -186,7 +186,7 @@ def test_new_version_with_changes(context, config, tmpdir):
         }
     })
 
-    make_migrations(context)
+    freeze(context)
 
     manifests = read_manifest_files(tmpdir)
 
@@ -327,7 +327,7 @@ def test_new_version_branching_versions(context, config, tmpdir):
     })
 
     with pytest.raises(MultipleParentsError):
-        make_migrations(context)
+        freeze(context)
 
 
 def test_new_version_w_foreign_key(context, config, tmpdir):
@@ -370,7 +370,7 @@ def test_new_version_w_foreign_key(context, config, tmpdir):
         }
     })
 
-    make_migrations(context)
+    freeze(context)
 
     manifests = read_manifest_files(tmpdir)
 

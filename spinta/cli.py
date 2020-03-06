@@ -22,7 +22,7 @@ from spinta.commands.formats import Format
 from spinta.commands.write import push_stream, dataitem_from_payload
 from spinta.components import Store, DataStream
 from spinta.config import create_context
-from spinta.migrations import make_migrations
+from spinta import migrations
 from spinta.utils.aiotools import alist, aiter
 
 log = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ def check(ctx):
 @main.command()
 @click.pass_context
 def freeze(ctx):
-    make_migrations(ctx.obj['context'])
+    migrations.feeze(ctx.obj['context'])
     click.echo("Done.")
 
 
@@ -69,9 +69,7 @@ def migrate(ctx):
     context = ctx.obj['context']
     store = context.get('store')
 
-    # Prepare internal and other manifests
-    commands.prepare(context, store.internal)
-    commands.prepare(context, store)
+    commands.sync(context)
 
     # Run the migration
     commands.migrate(context, store)

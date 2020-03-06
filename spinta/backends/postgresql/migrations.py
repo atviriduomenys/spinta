@@ -3,6 +3,7 @@ from typing import List
 from spinta import commands
 from spinta.backends.postgresql import PostgreSQL
 from spinta.components import Context, Model
+from spinta import spyna
 from spinta.migrations import (
     get_new_schema_version,
     get_parents,
@@ -70,26 +71,29 @@ def _gen_create_table(new: dict) -> dict:
     # create table
     return {
         'upgrade': [
-            {
-                'create_table': {
-                    'name': new['name'],
-                    'columns': [
-                        {
-                            'name': name,
-                            'type': prop['type'],
-                        }
-                        for name, prop in columns.items()
-                    ]
-                }
-            }
+            spyna.unparse({
+                'name': 'create_table',
+                'args': [new['name']] + [
+                    {
+                        'name': 'column',
+                        'args': [
+                            name,
+                            {
+                                'name': prop['type'],
+                                'args': [],
+                            },
+                        ]
+                    }
+                    for name, prop in columns.items()
+                ]
+            }, pretty=True),
         ],
         'downgrade': [
-            {
-                'drop_table': {
-                    'name': new['name'],
-                }
-            }
-        ]
+            spyna.unparse({
+                'name': 'drop_table',
+                'args': [new['name']],
+            }, pretty=True),
+        ],
     }
 
 

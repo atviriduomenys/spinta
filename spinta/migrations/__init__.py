@@ -156,7 +156,7 @@ def toposort_models(model_yaml_data: Iterable[dict]) -> dict:
     return toposort_flatten(model_graph, sort=True)
 
 
-def make_migrations(context):
+def freeze(context):
     yaml = YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
     yaml.width = 80

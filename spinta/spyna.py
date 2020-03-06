@@ -215,7 +215,7 @@ class Visitor:
         return left
 
 
-def unparse(rql):
+def unparse(rql, pretty=False):
     if rql is None:
         return 'null'
     if rql is True:
@@ -288,4 +288,6 @@ def unparse(rql):
         attr, args = args[0], args[1:]
         name = f'{attr}.{name}'
     sig = ', '.join(args)
+    if pretty and len(sig) > 42 and len(args) > 1:
+        sig = '\n    ' + ',\n    '.join(args) + '\n'
     return f'{name}({sig})'

@@ -163,6 +163,11 @@ def prepare_dtype_for_response():
 
 
 @command()
+def sync():
+    """Sync manifest YAML files to database."""
+
+
+@command()
 def migrate():
     """Migrate database schema changes."""
 
