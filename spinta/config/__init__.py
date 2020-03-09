@@ -8,8 +8,6 @@ import operator
 import os
 import pathlib
 
-import pkg_resources as pres
-
 from ruamel.yaml import YAML
 
 from spinta.utils.imports import importstr

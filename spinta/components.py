@@ -283,7 +283,7 @@ class Manifest:
     def __init__(self):
         self.name = None
         self.parent = None
-        self.objects = {}
+        self.objects = None
         self.path = None
 
         # {<endpoint>: <model.name>} mapping. There can be multiple model types, but

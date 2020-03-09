@@ -163,6 +163,11 @@ def prepare_dtype_for_response():
 
 
 @command()
+def freeze():
+    """Create new schema version."""
+
+
+@command()
 def bootstrap():
     """Bootstrap all components.
 

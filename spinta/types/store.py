@@ -29,7 +29,8 @@ def load(context: Context, store: Store, config: Config) -> Store:
 
     # Load manifests
     manifest = rc.get('manifest', required=True)
-    store.manifest = load_manifest(context, store, config, manifest)
+    manifest = load_manifest(context, store, config, manifest)
+    store.manifest = commands.load(context, manifest, config.raw)
 
     # '_internal': {
     #     'type': 'yaml',
@@ -64,14 +65,17 @@ def wait(
 
 @check.register()
 def check(context: Context, store: Store):
-    for manifest in store.manifests.values():
-        check(context, manifest)
+    check(context, store.manifest)
 
 
 @prepare.register()
 def prepare(context: Context, store: Store):
-    for manifest in store.manifests.values():
-        prepare(context, manifest)
+    prepare(context, store.manifest)
+
+
+@commands.freeze.register()
+def freeze(context: Context, store: Store) -> bool:
+    commands.freeze(context, store.manifest)
 
 
 @commands.bootstrap.register()

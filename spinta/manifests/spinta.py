@@ -16,6 +16,7 @@ def load(context: Context, manifest: SpintaManifest, rc: RawConfig):
     config = context.get('config')
 
     # Add all supported node types.
+    manifest.objects = {}
     for name in config.components['nodes'].keys():
         manifest.objects[name] = {}
 
@@ -37,3 +38,15 @@ def load(context: Context, manifest: SpintaManifest, rc: RawConfig):
         }
         load(context, node, data, manifest)
         manifest.objects[node.type][node.name] = node
+
+    return manifest
+
+
+@commands.freeze.register()
+def freeze(context: Context, manifest: SpintaManifest):
+    # You can't freeze Spinta manifest directly, because Spinta manifest schema
+    # can only be updated after migrations are applied.
+
+    # But other manifests from which this manifests is synced, can be updated.
+    for manifest_ in manifest.sync:
+        commands.freeze(context, manifest_)

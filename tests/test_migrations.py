@@ -1,7 +1,6 @@
 from spinta.testing.utils import create_manifest_files, read_manifest_files
 from spinta.testing.context import create_test_context
 from spinta.components import Config, Store
-from spinta.migrations import freeze
 from spinta import commands
 
 
@@ -30,7 +29,8 @@ def test_create_model(postgresql, config, tmpdir):
         },
     })
 
-    freeze(context)
+    store = context.get('store')
+    commands.freeze(context, store)
 
     manifest = read_manifest_files(tmpdir)
     assert manifest == {

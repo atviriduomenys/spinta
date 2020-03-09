@@ -34,12 +34,6 @@ from spinta.exceptions import (
     UnavailableSubresource,
 )
 from spinta import exceptions
-from spinta.migrations import (
-    get_new_schema_version,
-    get_parents,
-    get_schema_changes,
-    get_schema_from_changes,
-)
 from spinta.hacks.recurse import _replace_recurse
 
 
@@ -104,23 +98,15 @@ def prepare(context: Context, backend: Mongo, manifest: Manifest):
     pass
 
 
-@commands.new_schema_version.register()
-def new_schema_version(
+@commands.freeze.register()
+def freeze(
     context: Context,
     backend: Mongo,
     model: Model,
     *,
-    versions: List[dict],
+    prev: Model,
 ):
-    old, new = get_schema_from_changes(versions)
-    changes = get_schema_changes(old, new)
-    if changes:
-        migrate = {}
-        parents = get_parents(versions, new, context)
-        version = get_new_schema_version(old, changes, migrate, parents)
-        return version
-    else:
-        return {}
+    return {}
 
 
 @migrate.register()
