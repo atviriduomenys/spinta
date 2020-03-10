@@ -6,9 +6,7 @@ from spinta.components import Context, Model
 from spinta import spyna
 from spinta.migrations import (
     get_new_schema_version,
-    get_parents,
     get_schema_changes,
-    get_schema_from_changes,
 )
 
 
@@ -18,8 +16,8 @@ METACOLS = {
 }
 
 
-@commands.new_schema_version.register()
-def new_schema_version(
+@commands.freeze.register()
+def freeze(
     context: Context,
     backend: PostgreSQL,
     model: Model,

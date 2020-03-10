@@ -2,6 +2,7 @@ from typing import Iterable
 
 import logging
 import pathlib
+import uuid
 
 import jsonpatch
 
@@ -17,7 +18,6 @@ from spinta import exceptions
 from spinta import commands
 from spinta.migrations import (
     get_new_schema_version,
-    get_parents,
     get_schema_changes,
 )
 
@@ -79,29 +79,30 @@ def freeze(context: Context, manifest: YamlManifest):
 
     # Freeze changes.
     for node_type, nodes in manifest.objects.items():
+        if node_type == 'ns':
+            # Names spaces currently can't be freezed.
+            continue
         for node in nodes.values():
             prev = manifest.freezed[node_type][node.name]
             changes = get_schema_changes(prev, node)
             if changes:
-                version = get_new_schema_version(changes, actions, parents)
-                freeze(context, node.backend, node, prev=prev)
+                version = get_new_schema_version(changes)
+                freeze(context, version, node.backend, node, prev=prev)
 
-                version = {
+                print(f"Updating to version {version.id}: {node.path}")
+                versions[0]['version']['id'] = version.id
+                versions[0]['version']['date'] = version.date
+                versions.append({
                     'version': {
                         'id': version.id,
                         'date': version.date,
                         'parents': version.parents,
                     },
-                    'changes': changes,
+                    'changes': version.changes,
                     'migrate': {
-                        'schema': actions,
+                        'schema': version.actions,
                     },
-                }
-
-                vnum = version['version']['id']
-                print(f"Updating to version {vnum}: {node.path}")
-                versions[0]['version'] = version['version']
-                versions.append(version)
+                })
                 with node.path.open('w') as f:
                     yaml.dump_all(versions, f)
 
@@ -131,7 +132,7 @@ def iter_nodes(context: Context, manifest: Manifest):
             **data,
         }
         node = init_node(config, manifest, data)
-        return node, data, versions
+        yield node, data, versions
 
 
 def init_node(config: Config, manifest: Manifest, data: dict):
