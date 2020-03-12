@@ -1,14 +1,43 @@
----
-type: model
 name: org
-title: "Organization"
-version:
-  id: 1
-  date: 2019-02-06
-unique:
-  - [country, govid]
 properties:
   _id: {type: pk}
+  country: {object: country, type: ref}
+  govid: {description: Identification number assigned by government., title: Identification
+      number, type: string}
   title: {type: string}
-  govid: {type: string, title: "Identification number", description: "Identification number assigned by government."}
-  country: {type: ref, object: country}
+title: Organization
+type: model
+unique:
+- [country, govid]
+version: {date: ! '2020-03-12 16:30:35.118407+02:00', id: <function uuid4 at 0x7f8a9a8e2d30>}
+---
+changes:
+- {op: add, path: /type, value: model}
+- op: add
+  path: /version
+  value: {date: ! '2020-03-12 14:22:55.349809', id: <function uuid4 at 0x7f0157411d30>}
+- op: add
+  path: /unique
+  value:
+  - [country, govid]
+- {op: add, path: /name, value: org}
+- {op: add, path: /title, value: Organization}
+- op: add
+  path: /properties
+  value:
+    _id: {type: pk}
+    country: {object: country, type: ref}
+    govid: {description: Identification number assigned by government., title: Identification
+        number, type: string}
+    title: {type: string}
+migrate:
+- {downgrade: drop_table('org'), type: schema, upgrade: "create_table(\n    'org',\n
+    \   column('_id', pk()),\n    column('_revision', string()),\n    column('_op',
+    string()),\n    column('_type', string()),\n    column('_id', pk()),\n    column('_revision',
+    string()),\n    column('_transaction', integer()),\n    column('_where', rql()),\n
+    \   column('country', ref()),\n    column('govid', string()),\n    column('title',
+    string())\n)"}
+version:
+  date: 2020-03-12 16:30:35.118407+02:00
+  id: <function uuid4 at 0x7f8a9a8e2d30>
+  parents: []

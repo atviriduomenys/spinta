@@ -2,7 +2,6 @@ from typing import Iterable
 
 import logging
 import pathlib
-import uuid
 
 import jsonpatch
 
@@ -16,9 +15,10 @@ from spinta.utils.path import is_ignored
 from spinta.config import RawConfig
 from spinta import exceptions
 from spinta import commands
+from spinta import spyna
 from spinta.migrations import (
+    SchemaVersion,
     get_new_schema_version,
-    get_schema_changes,
 )
 
 log = logging.getLogger(__name__)
@@ -45,7 +45,14 @@ def load(context: Context, manifest: YamlManifest, rc: RawConfig):
     manifest.path = rc.get('manifests', manifest.name, 'path', cast=pathlib.Path, required=True)
     log.info('Loading manifest %r from %s.', manifest.name, manifest.path.resolve())
 
-    for node, data, versions in iter_nodes(context, manifest):
+    for file, data, versions in iter_yaml_files(context, manifest):
+        data = {
+            'path': file,
+            'parent': manifest,
+            'backend': manifest.backend,
+            **data,
+        }
+        node = init_node(config, manifest, data)
         load(context, node, data, manifest)
         manifest.objects[node.type][node.name] = node
 
@@ -69,45 +76,42 @@ def freeze(context: Context, manifest: YamlManifest):
         manifest.objects[name] = {}
         manifest.freezed[name] = {}
 
-    # Load all models and previous version of each model.
-    for node, data, versions in iter_nodes(context, manifest):
-        load(context, node, data, manifest)
-        manifest.objects[node.type][node.name] = node
-        manifest.freezed[node.type][node.name] = load_freezed_model(
-            context, config, manifest, versions,
-        )
+    # Load all models, previous version and changes between current and previous
+    # version.
+    changes = []
+    for file, new_data, versions in iter_yaml_files(context, manifest):
+        new_data_ = {
+            'path': file,
+            'parent': manifest,
+            'backend': manifest.backend,
+            **new_data,
+        }
+        new = init_node(config, manifest, new_data_)
+        load(context, new, new_data_, manifest)
+        manifest.objects[new.type][new.name] = new
+
+        old = None
+        old_data = load_freezed_model_data(context, config, manifest, versions)
+        patch = list(jsonpatch.make_patch(old_data, new_data))
+        if patch:
+            changes.append((new, patch))
+            if old_data:
+                old = init_node(config, manifest, old_data)
+                old = commands.load(context, old, old_data, manifest)
+
+        manifest.freezed[new.type][new.name] = old
 
     # Freeze changes.
-    for node_type, nodes in manifest.objects.items():
-        if node_type == 'ns':
-            # Names spaces currently can't be freezed.
-            continue
-        for node in nodes.values():
-            prev = manifest.freezed[node_type][node.name]
-            changes = get_schema_changes(prev, node)
-            if changes:
-                version = get_new_schema_version(changes)
-                freeze(context, version, node.backend, node, prev=prev)
+    for new, patch in changes:
+        old = manifest.freezed[new.type][new.name]
+        version = get_new_schema_version(patch)
+        freeze(context, version, new.backend, old, new)
 
-                print(f"Updating to version {version.id}: {node.path}")
-                versions[0]['version']['id'] = version.id
-                versions[0]['version']['date'] = version.date
-                versions.append({
-                    'version': {
-                        'id': version.id,
-                        'date': version.date,
-                        'parents': version.parents,
-                    },
-                    'changes': version.changes,
-                    'migrate': {
-                        'schema': version.actions,
-                    },
-                })
-                with node.path.open('w') as f:
-                    yaml.dump_all(versions, f)
+        print(f"Updating to version {version.id}: {new.path}")
+        update_yaml_file(new.path, version)
 
 
-def iter_nodes(context: Context, manifest: Manifest):
+def iter_yaml_files(context: Context, manifest: Manifest):
     config = context.get('config')
     ignore = config.raw.get('ignore', default=[], cast=list)
 
@@ -125,14 +129,7 @@ def iter_nodes(context: Context, manifest: Manifest):
                 filename=file,
                 error=str(e),
             )
-        data = {
-            'path': file,
-            'parent': manifest,
-            'backend': manifest.backend,
-            **data,
-        }
-        node = init_node(config, manifest, data)
-        yield node, data, versions
+        yield file, data, versions
 
 
 def init_node(config: Config, manifest: Manifest, data: dict):
@@ -171,7 +168,7 @@ def init_node(config: Config, manifest: Manifest, data: dict):
     return Node()
 
 
-def load_freezed_model(
+def load_freezed_model_data(
     context: Context,
     config: Config,
     manifest: Manifest,
@@ -183,6 +180,29 @@ def load_freezed_model(
         if patch:
             patch = jsonpatch.JsonPatch(patch)
             data = patch.apply(data)
-    if data:
-        node = init_node(config, manifest, data)
-        return commands.load(context, node, data, manifest)
+    return data
+
+
+def update_yaml_file(file: pathlib.Path, version: SchemaVersion):
+    versions = yaml.load_all(file.read_text())
+    versions = list(versions)
+    versions[0]['version']['id'] = version.id
+    versions[0]['version']['date'] = version.date
+    versions.append({
+        'version': {
+            'id': version.id,
+            'date': version.date,
+            'parents': version.parents,
+        },
+        'changes': version.changes,
+        'migrate': [
+            {
+                'type': 'schema',
+                'upgrade': spyna.unparse(action['upgrade'], pretty=True),
+                'downgrade': spyna.unparse(action['downgrade'], pretty=True),
+            }
+            for action in version.actions
+        ],
+    })
+    with file.open('w') as f:
+        yaml.dump_all(versions, f)

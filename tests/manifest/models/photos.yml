@@ -1,14 +1,30 @@
----
-type: model
-name: photo
 endpoint: photos
-version:
-  id: 1
-  date: "2019-05-30"
+name: photo
 properties:
-  name:
-    type: string
-  image:
-    type: file
-    backend: fs
-    hidden: true
+  image: {backend: fs, hidden: true, type: file}
+  name: {type: string}
+type: model
+version: {date: ! '2020-03-12 16:30:35.120272+02:00', id: <function uuid4 at 0x7f8a9a8e2d30>}
+---
+changes:
+- {op: add, path: /type, value: model}
+- {op: add, path: /endpoint, value: photos}
+- op: add
+  path: /version
+  value: {date: '2019-05-30', id: 1}
+- {op: add, path: /name, value: photo}
+- op: add
+  path: /properties
+  value:
+    image: {backend: fs, hidden: true, type: file}
+    name: {type: string}
+migrate:
+- {downgrade: drop_table('photo'), type: schema, upgrade: "create_table(\n    'photo',\n
+    \   column('_id', pk()),\n    column('_revision', string()),\n    column('_op',
+    string()),\n    column('_type', string()),\n    column('_id', pk()),\n    column('_revision',
+    string()),\n    column('_transaction', integer()),\n    column('_where', rql()),\n
+    \   column('name', string()),\n    column('image', file())\n)"}
+version:
+  date: 2020-03-12 16:30:35.120272+02:00
+  id: <function uuid4 at 0x7f8a9a8e2d30>
+  parents: []
