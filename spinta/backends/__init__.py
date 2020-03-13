@@ -223,7 +223,7 @@ def complex_model_properties_check(
                 prop.dtype,
                 prop,
                 data.backend,
-                data.given.get(name, NA),
+                given,
             )
 
 

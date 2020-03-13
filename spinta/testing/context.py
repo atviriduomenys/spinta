@@ -111,11 +111,11 @@ class ContextForTests:
         commands.load(self, store, config)
         commands.check(self, store)
 
-        commands.prepare(self, store)
-        commands.migrate(self, store)
+        # commands.prepare(self, store)
+        # commands.bootstrap(self, store)
 
-        self.bind('auth.server', AuthorizationServer, self)
-        self.bind('auth.resource_protector', ResourceProtector, self, BearerTokenValidator)
+        # self.bind('auth.server', AuthorizationServer, self)
+        # self.bind('auth.resource_protector', ResourceProtector, self, BearerTokenValidator)
 
         self.loaded = True
 

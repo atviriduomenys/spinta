@@ -18,6 +18,7 @@ from spinta.renderer import render
 from spinta.types.datatype import Date, DataType, File, Object
 from spinta.utils.schema import NA, is_valid_sort_key
 from spinta.utils.data import take
+from spinta.migrations import SchemaVersion
 from spinta.commands import (
     authorize,
     getall,
@@ -101,23 +102,21 @@ def prepare(context: Context, backend: Mongo, manifest: Manifest):
 @commands.freeze.register()
 def freeze(
     context: Context,
+    version: SchemaVersion,
     backend: Mongo,
-    model: Model,
-    *,
-    prev: Model,
+    old: object,
+    new: object,
 ):
-    return {}
+    pass
 
 
-@migrate.register()
-def migrate(context: Context, backend: Mongo):
-    # Migrate schema changes.
+@commands.bootstrap.register()
+def bootstrap(context: Context, backend: Mongo):
     pass
 
 
 @migrate.register()
-def migrate(context: Context, backend: Mongo, manifest: Manifest):
-    # Migrate schema changes.
+def migrate(context: Context, backend: Mongo):
     pass
 
 

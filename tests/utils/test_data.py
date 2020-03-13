@@ -188,3 +188,17 @@ def test_no_keys():
 def test_no_keys_dotted():
     data = {'a.b': '3'}
     assert take(data) == data
+
+
+def test_all_in_keys():
+    data = {
+        '_a': 1,
+        '_b': 2,
+        'c_': 3,
+        'd_': 4,
+    }
+    assert take(['_a', all], data) == {
+        '_a': 1,
+        'c_': 3,
+        'd_': 4,
+    }

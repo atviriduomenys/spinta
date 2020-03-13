@@ -1,7 +1,5 @@
 from typing import Dict
 
-import logging
-
 from ruamel.yaml import YAML
 
 from spinta.commands import prepare, check
@@ -9,7 +7,6 @@ from spinta.components import Context, Manifest, Node
 from spinta import commands
 
 yaml = YAML(typ='safe')
-
 
 
 @prepare.register()

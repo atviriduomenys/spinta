@@ -1,5 +1,5 @@
 type: model
-name: transaction
+name: _txn
 version:
   id: 49da8fcc-d724-43c4-b35f-e71f9c87b1b5
   date: 2020-03-06 15:02:17.513335+02:00
@@ -32,13 +32,17 @@ changes:
     value: model
   - op: add
     path: /name
-    value: transaction
+    value: _txn
 migrate:
-  schema:
-    upgrade:
-      - "create_table(\n    'transaction',\n    column('_id', pk()),\n    column('_revision',\
-        \ string()),\n    column('datetime', datetime()),\n    column('client_type',\
-        \ string()),\n    column('client_id', string()),\n    column('errors', integer())\n\
-        )"
-    downgrade:
-      - drop_table('transaction')
+  - type: schema
+    upgrade: >-
+      create_table('_txn',
+        column('_id', pk()),
+        column('_revision', string()),
+        column('datetime', datetime()),
+        column('client_type', string()),
+        column('client_id', string()),
+        column('errors', integer()),
+      )
+    downgrade: >-
+      drop_table('_txn')

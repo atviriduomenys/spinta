@@ -54,6 +54,9 @@ class DateTime(DataType):
         if value is None or value is NA:
             return value
 
+        if isinstance(value, datetime):
+            return value
+
         try:
             return datetime.fromisoformat(value)
         except (ValueError, TypeError):
@@ -217,8 +220,8 @@ def _add_leaf_props(prop: Property) -> None:
 
 @load.register()
 def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
-    dtype.properties = data.get('properties', {})
-    for name, params in dtype.properties.items():
+    dtype.properties = {}
+    for name, params in data.get('properties', {}).items():
         place = dtype.prop.place + '.' + name
         params = {
             'name': name,

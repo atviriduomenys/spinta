@@ -10,12 +10,13 @@ from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scanner import ScannerError
 from ruamel.yaml.error import YAMLError
 
-from spinta.components import Context, Config, Manifest
+from spinta.components import Context, Config, Manifest, Model
 from spinta.utils.path import is_ignored
 from spinta.config import RawConfig
 from spinta import exceptions
 from spinta import commands
 from spinta import spyna
+from spinta.nodes import get_node
 from spinta.migrations import (
     SchemaVersion,
     get_new_schema_version,
@@ -27,35 +28,28 @@ yaml = YAML(typ='safe')
 
 
 class YamlManifest(Manifest):
-    pass
+
+    def load(self, config):
+        self.path = config.raw.get(
+            'manifests', self.name, 'path',
+            cast=pathlib.Path,
+            required=True,
+        )
+
+    def read(self, context: Context):
+        for file, data, versions in iter_yaml_files(context, self):
+            data['path'] = file
+            yield data, versions
 
 
 @commands.load.register()
 def load(context: Context, manifest: YamlManifest, rc: RawConfig):
     config = context.get('config')
-
-    # Add all supported node types.
-    manifest.objects = {}
-    for name in config.components['nodes'].keys():
-        manifest.objects[name] = {}
-
-    manifest.parent = None
-    manifest.endpoints = {}
-
-    manifest.path = rc.get('manifests', manifest.name, 'path', cast=pathlib.Path, required=True)
+    manifest.load(config)
     log.info('Loading manifest %r from %s.', manifest.name, manifest.path.resolve())
-
-    for file, data, versions in iter_yaml_files(context, manifest):
-        data = {
-            'path': file,
-            'parent': manifest,
-            'backend': manifest.backend,
-            **data,
-        }
-        node = init_node(config, manifest, data)
-        load(context, node, data, manifest)
+    for data, versions in manifest.read(context):
+        node = _load(context, config, manifest, data)
         manifest.objects[node.type][node.name] = node
-
     return manifest
 
 
@@ -76,39 +70,64 @@ def freeze(context: Context, manifest: YamlManifest):
         manifest.objects[name] = {}
         manifest.freezed[name] = {}
 
-    # Load all models, previous version and changes between current and previous
-    # version.
     changes = []
-    for file, new_data, versions in iter_yaml_files(context, manifest):
-        new_data_ = {
-            'path': file,
-            'parent': manifest,
-            'backend': manifest.backend,
-            **new_data,
-        }
-        new = init_node(config, manifest, new_data_)
-        load(context, new, new_data_, manifest)
-        manifest.objects[new.type][new.name] = new
+    for data, versions in manifest.read(context):
+        # Load current model version
+        current = _load(context, config, manifest, data)
+        manifest.objects[current.type][current.name] = current
 
-        old = None
-        old_data = load_freezed_model_data(context, config, manifest, versions)
-        patch = list(jsonpatch.make_patch(old_data, new_data))
+        # Load freezed model version
+        patch, freezed = _load_freezed(context, config, manifest, data, versions)
         if patch:
-            changes.append((new, patch))
-            if old_data:
-                old = init_node(config, manifest, old_data)
-                old = commands.load(context, old, old_data, manifest)
-
-        manifest.freezed[new.type][new.name] = old
+            changes.append((current, patch))
+        manifest.freezed[current.type][current.name] = freezed
 
     # Freeze changes.
-    for new, patch in changes:
-        old = manifest.freezed[new.type][new.name]
+    for current, patch in changes:
+        freezed = manifest.freezed[current.type][current.name]
         version = get_new_schema_version(patch)
-        freeze(context, version, new.backend, old, new)
 
-        print(f"Updating to version {version.id}: {new.path}")
-        update_yaml_file(new.path, version)
+        if isinstance(current, Model):
+            freeze(context, version, current.backend, freezed, current)
+
+        print(f"Add new version {version.id} to {current.path}")
+        update_yaml_file(current.path, version)
+
+
+def _load_freezed(
+    context: Context,
+    config: Config,
+    manifest: Manifest,
+    data: dict,
+    versions: Iterable[dict],
+):
+    freezed_data = _get_freezed_schema(versions)
+    data = data.copy()
+    del data['path']
+    patch = list(jsonpatch.make_patch(freezed_data, data))
+    if patch and freezed_data:
+        freezed = _load(context, config, manifest, freezed_data)
+        return patch, freezed
+    return patch, None
+
+
+def _get_freezed_schema(versions: Iterable[dict]):
+    data = {}
+    for version in versions:
+        patch = version.get('changes')
+        patch = jsonpatch.JsonPatch(patch)
+        data = patch.apply(data)
+    return data
+
+
+def _load(
+    context: Context,
+    config: Config,
+    manifest: Manifest,
+    data: dict,
+):
+    node = get_node(config, manifest, data)
+    return load(context, node, data, manifest)
 
 
 def iter_yaml_files(context: Context, manifest: Manifest):
@@ -132,62 +151,19 @@ def iter_yaml_files(context: Context, manifest: Manifest):
         yield file, data, versions
 
 
-def init_node(config: Config, manifest: Manifest, data: dict):
-    if not isinstance(data, dict):
-        raise exceptions.InvalidManifestFile(
-            manifest=manifest.name,
-            filename=data['path'],
-            error=f"Expected dict got {data.__class__.__name__}.",
-        )
-
-    if 'type' not in data:
-        raise exceptions.InvalidManifestFile(
-            manifest=manifest.name,
-            filename=data['path'],
-            error=f"Required parameter 'type' is not defined.",
-        )
-
-    if data['type'] not in manifest.objects:
-        raise exceptions.InvalidManifestFile(
-            manifest=manifest.name,
-            filename=data['path'],
-            error=f"Unknown type {data['type']!r}.",
-        )
-
-    if data['name'] in manifest.objects[data['type']]:
-        raise exceptions.InvalidManifestFile(
-            manifest=manifest.name,
-            filename=data['path'],
-            error=(
-                f"Node {data['type']} with name {data['name']} already "
-                f"defined in {manifest.objects[data['type']].path}."
-            ),
-        )
-
-    Node = config.components['nodes'][data['type']]
-    return Node()
-
-
-def load_freezed_model_data(
-    context: Context,
-    config: Config,
-    manifest: Manifest,
-    versions: Iterable[dict],
-):
-    data = {}
-    for version in versions:
-        patch = version.get('changes')
-        if patch:
-            patch = jsonpatch.JsonPatch(patch)
-            data = patch.apply(data)
-    return data
-
-
 def update_yaml_file(file: pathlib.Path, version: SchemaVersion):
+    # Read YAML file
     versions = yaml.load_all(file.read_text())
     versions = list(versions)
-    versions[0]['version']['id'] = version.id
-    versions[0]['version']['date'] = version.date
+
+    # Update current version
+    current = versions[0]
+    if 'version' not in current:
+        current['version'] = {}
+    current['version']['id'] = version.id
+    current['version']['date'] = version.date
+
+    # Add new version
     versions.append({
         'version': {
             'id': version.id,
@@ -204,5 +180,7 @@ def update_yaml_file(file: pathlib.Path, version: SchemaVersion):
             for action in version.actions
         ],
     })
+
+    # Write updates back to YAML file
     with file.open('w') as f:
         yaml.dump_all(versions, f)

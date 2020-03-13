@@ -8,7 +8,7 @@ from spinta import commands
 from spinta.commands import load, wait, prepare, migrate, check, push
 from spinta.components import Context, Store, Config
 from spinta.urlparams import get_model_by_name
-from spinta.nodes import load_manifest
+from spinta.nodes import load_manifest, get_internal_manifest, get_node
 from spinta.config import RawConfig
 
 
@@ -27,16 +27,17 @@ def load(context: Context, store: Store, config: Config) -> Store:
         backend.name = name
         load(context, backend, rc)
 
-    # Load manifests
+    # Load default manifest
     manifest = rc.get('manifest', required=True)
-    manifest = load_manifest(context, store, config, manifest)
-    store.manifest = commands.load(context, manifest, config.raw)
+    manifest = store.manifest = load_manifest(context, store, config, manifest)
+    commands.load(context, manifest, config.raw)
 
-    # '_internal': {
-    #     'type': 'yaml',
-    #     'path': pathlib.Path(pres.resource_filename('spinta', 'manifest')),
-    #     'backend': 'default',
-    # },
+    # Load internal manifest into default manifest
+    internal = get_internal_manifest(context)
+    for data, versions in internal.read(context):
+        node = get_node(config, manifest, data)
+        node = load(context, node, data, manifest)
+        manifest.objects[node.type][node.name] = node
 
     return store
 
@@ -80,8 +81,15 @@ def freeze(context: Context, store: Store) -> bool:
 
 @commands.bootstrap.register()
 def bootstrap(context: Context, store: Store) -> bool:
-    assert False
-    return True
+    backend = store.manifest.backend
+    if not backend.bootstrapped(store.manifest):
+        for backend in store.backends.values():
+            commands.bootstrap(context, backend)
+
+
+@commands.sync.register()
+def sync(context: Context, store: Store):
+    commands.sync(context, store.manifest)
 
 
 @migrate.register()

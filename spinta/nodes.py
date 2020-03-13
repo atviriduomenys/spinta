@@ -1,5 +1,9 @@
 from typing import Optional, Type, List
 
+import pathlib
+
+import pkg_resources as pres
+
 from spinta.components import Context, Config, Store, Manifest, Node, Namespace
 from spinta.utils.schema import resolve_schema
 from spinta import exceptions
@@ -11,6 +15,7 @@ def get_manifest(config: Config, name: str):
     Manifest = config.components['manifests'][type_]
     manifest = Manifest()
     manifest.name = name
+    manifest.load(config)
     return manifest
 
 
@@ -37,7 +42,61 @@ def load_manifest(context: Context, store: Store, config: Config, name: str, syn
     # load empty manifest class.
     manifest.sync = [load_manifest(config, store, config, x, synced) for x in sync]
 
+    # Add all supported node types.
+    manifest.objects = {}
+    for name in config.components['nodes'].keys():
+        manifest.objects[name] = {}
+
+    # Set some defaults.
+    manifest.parent = None
+    manifest.endpoints = {}
+
     return manifest
+
+
+def get_internal_manifest(context: Context):
+    config = context.get('config')
+    Manifest = config.components['manifests']['yaml']
+    internal = Manifest()
+    internal.name = 'internal'
+    internal.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
+    return internal
+
+
+def get_node(config: Config, manifest: Manifest, data: dict):
+    if not isinstance(data, dict):
+        raise exceptions.InvalidManifestFile(
+            manifest=manifest.name,
+            filename=data['path'],
+            error=f"Expected dict got {data.__class__.__name__}.",
+        )
+
+    if 'type' not in data:
+        raise exceptions.InvalidManifestFile(
+            manifest=manifest.name,
+            filename=data['path'],
+            error=f"Required parameter 'type' is not defined.",
+        )
+
+    if data['type'] not in manifest.objects:
+        raise exceptions.InvalidManifestFile(
+            manifest=manifest.name,
+            filename=data['path'],
+            error=f"Unknown type {data['type']!r}.",
+        )
+
+    if data['name'] in manifest.objects[data['type']]:
+        raise exceptions.InvalidManifestFile(
+            manifest=manifest.name,
+            filename=data['path'],
+            error=(
+                f"Node {data['type']} with name {data['name']} already defined "
+                f"in {manifest.objects[data['type']][data['name']].path}."
+            ),
+        )
+
+    Node = config.components['nodes'][data['type']]
+    return Node()
 
 
 def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, check_unknowns=True) -> Node:

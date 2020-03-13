@@ -5,6 +5,7 @@ from spinta.backends.postgresql import PostgreSQL
 from spinta.components import Context, Model
 from spinta.types.datatype import DataType
 from spinta.migrations import SchemaVersion
+from spinta.utils.data import take
 
 
 @commands.freeze.register()
@@ -12,37 +13,27 @@ def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
-    old: type(None),
-    new: Model,
+    freezed: type(None),
+    current: Model,
 ):
-    props = [
-        {
-            'name': 'column',
-            'args': ['_id', {'name': 'pk', 'args': []}]
-        },
-        {
-            'name': 'column',
-            'args': ['_revision', {'name': 'string', 'args': []}]
-        },
-    ]
-    props += itertools.chain(*[
+    props = list(itertools.chain(*[
         freeze(context, version, backend, None, prop.dtype)
-        for prop in new.properties.values()
-    ])
+        for prop in take(['_id', '_revision', all], current.properties).values()
+    ]))
     version.actions.append({
         'type': 'schema',
         'upgrade': {
             'name': 'create_table',
-            'args': [new.name] + props,
+            'args': [current.name] + props,
         },
         'downgrade': {
             'name': 'drop_table',
-            'args': [new.name],
+            'args': [current.name],
         },
     })
 
 
-def merge(*data):
+def dzip(*data):
     keys = set()
     for d in data:
         keys.update(d)
@@ -55,16 +46,16 @@ def freeze(  # noqa
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
-    old: Model,
-    new: Model,
+    freezed: Model,
+    current: Model,
 ):
-    for old_prop, new_prop in merge(old.properties, new.properties):
+    for freezed_prop, current_prop in dzip(freezed.properties, current.properties):
         freeze(
             context,
             version,
             backend,
-            old_prop.dtype if old_prop else old,
-            new_prop.dtype if new_prop else new,
+            freezed_prop.dtype if freezed_prop else freezed,
+            current_prop.dtype if current_prop else current,
         )
 
 
@@ -73,16 +64,16 @@ def freeze(  # noqa
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
-    old: type(None),
-    new: DataType,
+    freezed: type(None),
+    current: DataType,
 ):
     return [
         {
             'name': 'column',
             'args': [
-                new.prop.name,
+                current.prop.name,
                 {
-                    'name': new.name,
+                    'name': current.name,
                     'args': [],
                 },
             ]
@@ -95,24 +86,24 @@ def freeze(  # noqa
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
-    old: Model,
-    new: DataType,
+    freezed: Model,
+    current: DataType,
 ):
     version.actions.append({
         'type': 'schema',
         'upgrade': {
             'name': 'add_column',
             'args': [
-                new.model.name,
-                new.prop.name,
-                {'name': new.name, 'args': []},
+                current.model.name,
+                current.prop.name,
+                {'name': current.name, 'args': []},
             ]
         },
         'downgrade': {
             'name': 'drop_column',
             'args': [
-                new.model.name,
-                new.prop.name,
+                current.model.name,
+                current.prop.name,
             ]
         }
     })
@@ -123,26 +114,26 @@ def freeze(  # noqa
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
-    old: DataType,
-    new: DataType,
+    freezed: DataType,
+    current: DataType,
 ):
-    if old.name != new.name:
+    if freezed.name != current.name:
         version.actions.append({
             'type': 'schema',
             'upgrade': {
                 'name': 'alter_column',
                 'args': [
-                    new.model.name,
-                    new.prop.name,
-                    {'name': new.name, 'args': []},
+                    current.model.name,
+                    current.prop.name,
+                    {'name': current.name, 'args': []},
                 ]
             },
             'downgrade': {
                 'name': 'alter_column',
                 'args': [
-                    new.model.name,
-                    new.prop.name,
-                    {'name': old.name, 'args': []},
+                    current.model.name,
+                    current.prop.name,
+                    {'name': freezed.name, 'args': []},
                 ]
             }
         })

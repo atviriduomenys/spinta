@@ -2,6 +2,7 @@ from spinta.testing.utils import create_manifest_files, read_manifest_files
 from spinta.testing.context import create_test_context
 from spinta.components import Config, Store
 from spinta import commands
+from spinta.auth import AdminToken
 
 
 def create(config, path, files):
@@ -10,7 +11,7 @@ def create(config, path, files):
     context = create_test_context(config)
     context.load({
         'manifests': {
-            'default': {
+            'yaml': {
                 'path': str(path),
             }
         }
@@ -39,9 +40,8 @@ def test_create_model(postgresql, config, tmpdir):
                 'type': 'model',
                 'name': 'country',
                 'version': {
-                    'date': manifest['country.yml'][1]['version']['date'],
                     'id': manifest['country.yml'][1]['version']['id'],
-                    'parents': [],
+                    'date': manifest['country.yml'][1]['version']['date'],
                 },
                 'properties': {
                     'name': {'type': 'string'},
@@ -49,32 +49,32 @@ def test_create_model(postgresql, config, tmpdir):
             },
             {
                 'version': {
-                    'date': manifest['country.yml'][1]['version']['date'],
                     'id': manifest['country.yml'][1]['version']['id'],
+                    'date': manifest['country.yml'][1]['version']['date'],
                     'parents': [],
                 },
                 'changes': manifest['country.yml'][1]['changes'],
-                'migrate': {
-                    'schema': {
-                        'upgrade': [
+                'migrate': [
+                    {
+                        'type': 'schema',
+                        'upgrade': (
                             "create_table(\n"
                             "    'country',\n"
                             "    column('_id', pk()),\n"
                             "    column('_revision', string()),\n"
                             "    column('name', string())\n"
-                            ")",
-                        ],
-                        'downgrade': [
-                            "drop_table('country')",
-                        ],
+                            ")"
+                        ),
+                        'downgrade': "drop_table('country')",
                     },
-                },
+                ],
             },
         ],
     }
 
     rc = config
     context = create_test_context(rc)
+    context.set('auth.token', AdminToken())
 
     config = context.set('config', Config())
     commands.load(context, config, rc)
@@ -84,6 +84,8 @@ def test_create_model(postgresql, config, tmpdir):
     commands.load(context, store, config)
     commands.check(context, store)
 
+    commands.prepare(context, store)
+
     commands.bootstrap(context, store)
-    commands.sync(context. store)
+    commands.sync(context, store)
     commands.migrate(context, store)

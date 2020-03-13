@@ -76,7 +76,7 @@ async def push(
 
 
 @commands.push.register()  # noqa
-async def push(
+async def push(  # noqa
     context: Context,
     request: Request,
     scope: File,
@@ -142,6 +142,14 @@ async def push_stream(
         )
         async for data in dstream:
             yield data
+
+
+async def write(context: Context, scope: Node, payload):
+    stream = [
+        dataitem_from_payload(context, scope, x)
+        for x in payload
+    ]
+    return [d async for d in push_stream(context, alist(stream))]
 
 
 def _stream_group_key(data: DataItem):

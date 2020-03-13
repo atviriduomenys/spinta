@@ -8,8 +8,8 @@ import jsonpatch
 
 class SchemaVersion:
 
-    def __init__(self, id, date, changes):
-        self.id = str(uuid.uuid4)
+    def __init__(self, id_, date, changes):
+        self.id = id_
         self.date = date
         self.changes = changes
         self.parents = []

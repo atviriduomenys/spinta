@@ -12,7 +12,8 @@ import typing
 import uuid
 
 from multipledispatch import dispatch
-from ruamel.yaml import YAML
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from sqlalchemy.dialects.postgresql import JSONB, UUID, BIGINT, ARRAY
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
@@ -21,14 +22,14 @@ from sqlalchemy.sql.type_api import TypeEngine
 from starlette.requests import Request
 from starlette.responses import Response
 
-import jsonpatch
 import sqlalchemy as sa
 import sqlalchemy.exc
 
+from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.backends import Backend, BackendFeatures
-from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize
+from spinta.commands import wait, load, prepare, getone, getall, wipe, authorize
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem, DataSubItem, Store
 from spinta.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
@@ -37,8 +38,9 @@ from spinta.utils.schema import NA, is_valid_sort_key
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.aiotools import aiter
 from spinta.utils.data import take
-from spinta.commands.write import prepare_patch, simple_response, validate_data
+from spinta.commands.write import prepare_patch, simple_response, validate_data, write
 from spinta.backends.postgresql.files import DatabaseFile
+from spinta.core.ufuncs import asttoexpr, ufunc
 from spinta.types.datatype import (
     Array,
     DataType,
@@ -101,7 +103,7 @@ class PostgreSQL(Backend):
     def transaction(self, write=False):
         with self.engine.begin() as connection:
             if write:
-                table = self.tables['internal']['transaction']
+                table = self.tables['_txn']
                 result = connection.execute(
                     table.insert().values(
                         # FIXME: commands.gen_object_id should be used here
@@ -146,12 +148,9 @@ class PostgreSQL(Backend):
         node: Union[Model, Property],
         ttype: TableType = TableType.MAIN,
     ):
-        if node.manifest.name not in self.tables:
-            self.tables[node.manifest.name] = {}
-        tables = self.tables[node.manifest.name]
         name = get_table_name(node, ttype)
-        assert name not in tables, name
-        tables[name] = table
+        assert name not in self.tables, name
+        self.tables[name] = table
 
     def get_table(
         self,
@@ -162,12 +161,16 @@ class PostgreSQL(Backend):
     ):
         name = get_table_name(node, ttype)
         if fail:
-            return self.tables[node.manifest.name][name]
+            return self.tables[name]
         else:
-            return self.tables.get(node.manifest.name, {}).get(name)
+            return self.tables.get(name)
 
     def query_nodes(self):
         return []
+
+    def bootstrapped(self, manifest):
+        schema = manifest.objects['model']['_schema']
+        return self.get_table(schema).exists()
 
 
 class ReadTransaction:
@@ -441,8 +444,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Object):
     return columns
 
 
-@migrate.register()
-def migrate(context: Context, backend: PostgreSQL):
+@commands.bootstrap.register()
+def bootstrap(context: Context, backend: PostgreSQL):
     # XXX: I found, that this some times leaks connection, you can check that by
     #      comparing `backend.engine.pool.checkedin()` before and after this
     #      line.
@@ -451,83 +454,52 @@ def migrate(context: Context, backend: PostgreSQL):
     backend.schema.create_all(checkfirst=True)
 
 
-@migrate.register()
-def migrate(context: Context, backend: PostgreSQL, manifest: Manifest):
-    backend.schema.create_all(checkfirst=True)
+@commands.migrate.register()
+def migrate(context: Context, backend: PostgreSQL):
+    pass
 
 
-@commands.sync.register()
-def sync(context: Context, backend: PostgreSQL, store: Store):
-    schema_model = store.internal.objects['model']['_schema']
-    # select all versions from migration table
-    versions = list(getall(context, schema_model, backend, select=['version']))
-    versions = list(map(lambda x: x['version'], versions))
+async def _migrate(context: Context, manifest: Manifest, backend: PostgreSQL):
+    config = context.get('config')
+    resolvers = ufunc.resolver.ufuncs()
+    executors = ufunc.executor.ufuncs()
 
-    yaml = YAML(typ="safe")
-    dt_now = datetime.datetime.now(datetime.timezone.utc).astimezone()
+    Env = config.components['migrations']
+    conn = backend.engine.connect()
+    ctx = MigrationContext.configure(conn)
+    op = Operations(ctx)
+    scope = {
+        'op': op,
+    }
 
-    all_manifests = [store.internal, *store.manifests.values()]
-    for manifest in all_manifests:
-        for model in manifest.objects['model'].values():
-            data = list(yaml.load_all(model.path))
-            if len(data) == 1:
-                log.warning(
-                    f"Model '{model.name}' does not have migrations. "
-                    f"Create migrations with `spinta freeze` first. "
-                    f"YAML is not synced to DB."
-                )
-            version_schema = {}
-            for migration in data[1:]:
-                # make yaml migration data compatible with SQL
-                migration = fix_data_for_json(migration)
+    model = manifest.objects['model']['_version']
+    versions = getall(
+        context, model, backend,
+        action=Action.SEARCH,
+        select=['parents', 'actions', 'schema'],
+        query=spyna.parse('applied = null')
+    )
 
-                # build schema for current migration, so we will not need
-                # to do this while querying _schema table
-                changes = migration['changes']
-                patch = jsonpatch.JsonPatch(changes)
-                version_schema = patch.apply(version_schema)
+    for version in versions:
+        for action in version['actions']:
+            ast = action['upgrade']
+            env = Env(context, resolvers, executors, scope)
+            expr = asttoexpr(ast)
+            expr = env.resolve(expr)
+            env.execute(expr)
 
-                # if version is not in migrations table - save it
-                version = migration['version']['id']
-                print(version, model.name)
-                if version not in versions:
-                    # add version to migrations table
-                    payload = dict(
-                        version=version,
-                        created=migration['version']['date'],
-                        synced=dt_now.isoformat(),
-                        model=model.name,
-                        parents=migration['version'].get('parents', []),
-                        changes=migration['changes'],
-                        actions=migration['migrate']['schema'],
-                        schema=version_schema,
-                    )
-                    transaction = context.get('transaction')
-                    connection = transaction.connection
-                    schema_table = backend.get_table(schema_model)
-                    qry = schema_table.insert().values(
-                        _id=commands.gen_object_id(context, backend, schema_model),
-                        _revision=commands.gen_object_id(context, backend, schema_model),
-                        _txn=transaction.id,
-                        _created=utcnow(),
-                        **payload,
-                    )
-                    print(connection.in_transaction())
-                    connection.execute(qry)
-                    # conn.execute(
-                    #     schema_table.insert(),
-                    #     id=version,
-                    #     created=migration['version']['date'],
-                    #     synced_time=dt_now.isoformat(),
-                    #     model=model.name,
-                    #     parents=migration['version'].get('parents', []),
-                    #     changes=migration['changes'],
-                    #     actions=migration['migrate']['schema'],
-                    #     schema=version_schema,
-                    # )
-                    log.info(
-                        f"Synced migration '{version}' for model: '{model.name}"
-                    )
+            await write(context, model, [
+                {
+                    '_op': 'patch',
+                    '_type': '_version',
+                    'applied': datetime.datetime.now(datetime.timezone.utc),
+                },
+                {
+                    '_op': 'upsert',
+                    '_type': '_version',
+                    'schema': version['schema'],
+                },
+            ])
 
 
 @commands.check_unique_constraint.register()

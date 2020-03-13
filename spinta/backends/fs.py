@@ -53,13 +53,13 @@ def prepare(context: Context, dtype: File, backend: Backend, value: Attachment):
     }
 
 
-@migrate.register()
-def migrate(context: Context, backend: FileSystem):
+@commands.bootstrap.register()
+def bootstrap(context: Context, backend: FileSystem):
     pass
 
 
 @migrate.register()
-def migrate(context: Context, backend: FileSystem, manifest: Manifest):
+def migrate(context: Context, backend: FileSystem):
     pass
 
 
