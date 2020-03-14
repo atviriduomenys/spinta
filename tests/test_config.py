@@ -30,30 +30,36 @@ def test_hardset():
 def test_update_config_from_cli():
     rc = RawConfig()
     rc.read([
-        Path('defaults', 'spinta.config:CONFIG'),
+        PyDict('defaults', {
+            'backends': {
+                'default': {
+                    'backend': 'mongo',
+                }
+            }
+        }),
         CliArgs('cliargs', [
-            'backends.default.backend=psycopg2',
-            'backends.new.backend=psycopg2',
+            'backends=default,new',
+            'backends.default.backend=postgresql',
+            'backends.new.backend=postgresql',
         ]),
     ])
-    assert rc.get('backends', 'default', 'backend') == 'psycopg2'
-    assert rc.get('backends', 'new', 'backend') == 'psycopg2'
     assert rc.keys('backends') == ['default', 'new']
+    assert rc.get('backends', 'default', 'backend') == 'postgresql'
+    assert rc.get('backends', 'new', 'backend') == 'postgresql'
 
 
 def test_update_config_from_env():
     rc = RawConfig()
     rc.read([
-        Path('defaults', 'spinta.config:CONFIG'),
         EnvVars('envvars', {
             'SPINTA_BACKENDS': 'default,new',
             'SPINTA_BACKENDS_DEFAULT_BACKEND': 'psycopg2',
             'SPINTA_BACKENDS_NEW_BACKEND': 'psycopg2',
         }),
     ])
+    assert rc.keys('backends') == ['default', 'new']
     assert rc.get('backends', 'default', 'backend') == 'psycopg2'
     assert rc.get('backends', 'new', 'backend') == 'psycopg2'
-    assert rc.keys('backends') == ['default', 'new']
 
 
 def test_update_config_from_env_file(tmpdir):
@@ -212,28 +218,32 @@ _TEST_CONFIG = {
 def test_custom_config():
     rc = RawConfig()
     rc.read([
-        Path('defaults', 'spinta.config:CONFIG'),
-        PyDict('test', {
+        PyDict('app', {
             'config': [f'{__name__}:_TEST_CONFIG'],
-        })
+        }),
     ])
+    configs = rc.get('config', cast=list, default=[])
+    rc.read([Path('defaults', c) for c in configs])
     assert rc.get('backends', 'custom', 'dsn') == 'config'
-    assert rc.keys('backends') == ['default', 'custom', 'mongo', 'fs']
 
 
 def test_yaml_config(tmpdir):
     tmpdir.join('a.yml').write('wait: 1\nbackends: {default: {dsn: test}}')
-    tmpdir.join('b.yml').write('wait: 2\n')
+    tmpdir.join('b.yml').write('wait: 2\ndebug: true')
     rc = RawConfig()
     rc.read([
         Path('defaults', 'spinta.config:CONFIG'),
         EnvVars('envvars', {
-            'SPINTA_CONFIG': f'{tmpdir}/a.yml,{tmpdir}/b.yml'
+            'SPINTA_CONFIG': f'{tmpdir}/a.yml,{tmpdir}/b.yml',
+            'SPINTA_DEBUG': False,
         })
     ])
+    configs = rc.get('config', cast=list, default=[])
+    sources = [Path('defaults', c) for c in configs]
+    rc.read(sources, after='defaults')
     assert rc.get('wait', cast=int) == 2
     assert rc.get('backends', 'default', 'dsn') == 'test'
-    assert rc.get('manifests', 'default', 'backend') == 'default'
+    assert rc.get('debug') is False
 
 
 def test_custom_config_fron_environ():
@@ -244,8 +254,10 @@ def test_custom_config_fron_environ():
             'SPINTA_CONFIG': f'{__name__}:_TEST_CONFIG',
         })
     ])
+    configs = rc.get('config', cast=list, default=[])
+    rc = RawConfig()
+    rc.read([Path('defaults', c) for c in configs])
     assert rc.get('backends', 'custom', 'dsn') == 'config'
-    assert rc.keys('backends') == ['default', 'custom', 'mongo', 'fs']
 
 
 def test_datasets_params():
@@ -263,9 +275,6 @@ def test_remove_keys():
     rc = RawConfig()
     rc.read([
         Path('defaults', 'spinta.config:CONFIG'),
-        EnvVars('envvars', {
-            'SPINTA_BACKENDS': 'one,two',
-        }),
         PyDict('test', {
             'backends': {
                 'one': {'dsn': '1'},
@@ -273,6 +282,27 @@ def test_remove_keys():
                 'six': {'dsn': '6'},
                 'ten': {'dsn': '0'},
             }
-        })
+        }),
+        EnvVars('envvars', {
+            'SPINTA_BACKENDS': 'one,two',
+        }),
     ])
     assert rc.keys('backends') == ['one', 'two']
+
+
+def test_after():
+    rc = RawConfig()
+    rc.read([
+        PyDict('C1', {'a': 1}),
+        PyDict('C2', {'a': 2}),
+    ])
+    rc.read([PyDict('C3', {'a': 3})], after='C1')
+    assert rc.get('a', origin=True) == (2, 'C2')
+
+
+def test_fork():
+    rc1 = RawConfig()
+    rc1.read([PyDict('C1', {'a': 1})])
+    rc2 = rc1.fork([PyDict('C2', {'a': 2})])
+    assert rc1.get('a') == 1
+    assert rc2.get('a') == 2

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Optional
 
 import collections
 import logging
@@ -36,9 +36,13 @@ class PyDict(ConfigSource):
         config = {}
         for k, v in self.config.items():
             k = tuple(k.split('.'))
-            config.update(_traverse(v, k))
-            config.update(_get_inner_keys(v, k))
+            v = dict(_traverse(v, k))
+            v.update(_get_inner_keys(v, depth=len(k)))
+            config.update(v)
         self.config = config
+
+    def keys(self):
+        yield from self.config.keys()
 
     def get(self, key: tuple):
         return self.config.get(key, NA)
@@ -59,24 +63,37 @@ class CliArgs(PyDict):
     name = 'cli'
 
     def read(self):
-        self.config = dict(arg.split('=', 1) for arg in self.config)
+        config = {}
+        for arg in self.config:
+            key, val = arg.split('=', 1)
+            if ',' in val:
+                val = [v.strip() for v in val.split(',')]
+            config[key] = val
+        self.config = config
+        super().read()
 
 
 class EnvVars(ConfigSource):
     name = 'env'
 
+    def keys(self):
+        return []
+
     def get(self, key: Union[tuple, str]):
-        key = 'SPINTA_' + key
-        return self.config.get(key, NA)
+        if len(key) > 1 and key[0] == 'environments':
+            key = key[1:]
+        key = 'SPINTA_' + '_'.join(key).upper()
+        val = self.config.get(key, NA)
+        if isinstance(val, str) and ',' in val:
+            return [v.strip() for v in val.split(',')]
+        return val
 
 
 class EnvFile(EnvVars):
 
     def read(self):
         config = {}
-
         path = pathlib.Path(self.config)
-
         if path.exists():
             with path.open() as f:
                 for line in f:
@@ -89,22 +106,37 @@ class EnvFile(EnvVars):
                         continue
                     name, value = line.split('=', 1)
                     config[name] = value
-
         self.config = config
 
 
 class RawConfig:
 
-    def __init__(self):
-        self._dirty = False
-        self._backup = None
-        self._sources = []
+    def __init__(self, sources=None):
+        self._sources = sources or []
 
-    def read(self, sources: List[ConfigSource]):
+    def read(
+        self,
+        sources: List[ConfigSource],
+        after: Optional[int] = None,
+    ):
         for config in sources:
             log.info(f"Reading config from {config.name}.")
             config.read()
-            self._sources.append(config)
+
+        if after is not None:
+            pos = (i for i, s in enumerate(self._sources) if s.name == after)
+            pos = next(pos, None)
+            if pos is None:
+                raise Exception(f"Given after value {after!r} does not exist.")
+            pos += 1
+            self._sources[pos:pos] = sources
+        else:
+            self._sources.extend(sources)
+
+    def fork(self, sources, after=None):
+        rc = RawConfig(list(self._sources))
+        rc.read(sources, after)
+        return rc
 
     def get(self, *key, default=None, cast=None, env=True, required=False, exists=False, origin=False):
         envname, _ = self._get_config_value(('env',), None, True)
@@ -129,17 +161,14 @@ class RawConfig:
         else:
             return value
 
-    def keys(self, *key, **kwargs):
-        kwargs.setdefault('default', [])
-        return self.get(*key, cast=list, **kwargs)
+    def keys(self, *key):
+        if key == ():
+            return [key[0] for key in self._all_keys() if len(key) == 1]
+        else:
+            return self.get(*key, cast=list, default=[])
 
     def getall(self, origin=False):
-        keys = []
-        for config in self.sources:
-            for key in config.keys():
-                if key not in keys:
-                    keys.append()
-        for key in sorted(keys):
+        for key in sorted(self._all_keys()):
             if origin:
                 value, origin = self.get(*key, origin=True)
                 yield key, value, origin
@@ -173,10 +202,18 @@ class RawConfig:
         for row in table:
             print('  '.join([str(x).ljust(s) for x, s in zip(row, sizes)]))
 
+    def _all_keys(self):
+        seen = set()
+        for config in self._sources:
+            for key in config.keys():
+                if key not in seen:
+                    seen.add(key)
+                    yield key
+
     def _get_config_value(self, key: tuple, default, envvar, env=None):
         assert isinstance(key, tuple)
 
-        for config in reversed(self.sources):
+        for config in reversed(self._sources):
             if env:
                 value = config.get(('environments', env) + key)
                 if value is not NA:
@@ -196,7 +233,7 @@ def _traverse(value, path=()):
         yield path, value
 
 
-def _get_inner_keys(config: Dict[tuple, Any], path=()):
+def _get_inner_keys(config: Dict[tuple, Any], depth=1):
     """Get inner keys for config.
 
     `config` is flattened dict, that looks like this:
@@ -256,8 +293,8 @@ def _get_inner_keys(config: Dict[tuple, Any], path=()):
     """
     inner = collections.defaultdict(list)
     for key in config.keys():
-        for i in range(1, len(key)):
-            k = path + tuple(key[:i])
+        for i in range(depth, len(key)):
+            k = tuple(key[:i])
             if key[i] not in inner[k]:
                 inner[k].append(key[i])
     return inner
