@@ -8,7 +8,7 @@ from spinta.auth import AdminToken
 from spinta import components
 from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
 from spinta.utils.imports import importstr
-from spinta.config import load_commands
+from spinta.core.context import load_commands
 from spinta.utils.aiotools import alist, aiter
 from spinta.commands.write import push_stream, dataitem_from_payload
 

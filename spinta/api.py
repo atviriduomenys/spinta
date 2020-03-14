@@ -11,6 +11,8 @@ from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
 from starlette.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
+from starlette.routing import Route, Mount
+from starlette.middleware import Middleware
 
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
@@ -19,10 +21,10 @@ from spinta.exceptions import BaseError, MultipleErrors, error_response
 from spinta.urlparams import Version
 from spinta.utils.response import create_http_response
 from spinta.urlparams import get_response_type
-from spinta import commands, components
-from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
-from spinta.config import create_context
+from spinta import components
 from spinta.middlewares import ContextMiddleware
+from spinta.components import Context
+from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
 
 log = logging.getLogger(__name__)
 
@@ -30,58 +32,16 @@ templates = Jinja2Templates(
     directory=pres.resource_filename('spinta', 'templates'),
 )
 
-app = Starlette()
-app.add_middleware(ContextMiddleware)
 
-
-def _load_context(context: components.Context):
-    rc = context.get('config.raw')
-
-    config = context.set('config', components.Config())
-    store = context.set('store', components.Store())
-
-    commands.load(context, config, rc)
-    commands.check(context, config)
-    commands.load(context, store, rc)
-    commands.check(context, store)
-
-    commands.wait(context, store, rc)
-
-    prepare(context, store.internal)
-    prepare(context, store)
-
-    context.set('auth.server', AuthorizationServer(context))
-    context.set('auth.resource_protector', ResourceProtector(context, BearerTokenValidator))
-
-
-@app.on_event('startup')
-async def create_app_context():
-    context = create_context()
-    _load_context(context)
-
-    config = context.get('config')
-    app.debug = config.debug
-    app.state.context = context
-
-    if config.docs_path:
-        app.mount('/docs', StaticFiles(directory=config.docs_path, html=True))
-
-    # This reoute matches everything, so it must be added last.
-    app.add_route('/{path:path}', homepage, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
-
-
-@app.route('/favicon.ico', methods=['GET'])
 async def favicon(request: Request):
     return Response('', media_type='text/plain', status_code=404)
 
 
-@app.route('/version', methods=['GET'])
 async def version(request: Request):
     version = get_version(request.state.context)
     return JSONResponse(version)
 
 
-@app.route('/auth/token', methods=['POST'])
 async def auth_token(request: Request):
     auth = request.state.context.get('auth.server')
     return auth.create_token_response({
@@ -111,12 +71,7 @@ async def homepage(request: Request):
     return await create_http_response(context, params, request)
 
 
-@app.exception_handler(Exception)
-@app.exception_handler(BaseError)
-@app.exception_handler(MultipleErrors)
-@app.exception_handler(AuthlibHTTPError)
-@app.exception_handler(HTTPException)
-async def http_exception(request, exc):
+async def error(request, exc):
     log.exception('Error: %s', exc)
 
     headers = {}
@@ -176,7 +131,6 @@ async def http_exception(request, exc):
             headers=headers,
         )
     else:
-        templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
         response = {
             **response,
             'request': request,
@@ -187,3 +141,50 @@ async def http_exception(request, exc):
             status_code=status_code,
             headers=headers,
         )
+
+
+def init(context: Context):
+    config = context.get('config')
+
+    routes = [
+        Route('/favicon.ico', favicon, methods=['GET']),
+        Route('/version', version, methods=['GET']),
+        Route('/auth/token', auth_token, methods=['POST'])
+    ]
+
+    if config.docs_path:
+        routes += [
+            Mount('/docs', StaticFiles(directory=config.docs_path, html=True)),
+        ]
+
+    # This reoute matches everything, so it must be added last.
+    routes += [
+        Route('/{path:path}', homepage, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
+    ]
+
+    middleware = [
+        Middleware(ContextMiddleware)
+    ]
+
+    exception_handlers = {
+        Exception: error,
+        BaseError: error,
+        MultipleErrors: error,
+        AuthlibHTTPError: error,
+        HTTPException: error,
+    }
+
+    app = Starlette(
+        debug=config.debug,
+        routes=routes,
+        middleware=middleware,
+        exception_handlers=exception_handlers,
+    )
+
+    # Add context to state in order to pass it to request handlers
+    app.state.context = context
+
+    context.set('auth.server', AuthorizationServer(context))
+    context.set('auth.resource_protector', ResourceProtector(context, BearerTokenValidator))
+
+    return app

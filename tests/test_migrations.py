@@ -1,4 +1,4 @@
-from spinta.testing.utils import create_manifest_files, read_manifest_files
+from spinta.testing.utils import create_manifest_files, read_manifest_files, read
 from spinta.testing.context import create_test_context
 from spinta.components import Config, Store
 from spinta import commands
@@ -89,3 +89,5 @@ def test_create_model(postgresql, config, tmpdir):
     commands.bootstrap(context, store)
     commands.sync(context, store)
     commands.migrate(context, store)
+
+    assert read('/_version') == []

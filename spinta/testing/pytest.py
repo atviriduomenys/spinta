@@ -9,7 +9,7 @@ from click.testing import CliRunner
 from spinta import api
 from spinta.testing.context import create_test_context
 from spinta.testing.client import TestClient
-from spinta.config import RawConfig
+from spinta.core.config import RawConfig
 
 
 @pytest.fixture(scope='session')
