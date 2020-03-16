@@ -24,6 +24,8 @@ CONFIG = {
     'components': {
         'core': {
             'context': 'spinta.components:Context',
+            'config': 'spinta.components:Config',
+            'store': 'spinta.components:Store',
         },
         'manifests': {
             'spinta': 'spinta.manifests.spinta:SpintaManifest',
@@ -172,9 +174,26 @@ CONFIG = {
             'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
         },
         'test': {
+            'backends': {
+                'default': {
+                    'type': 'postgresql',
+                    'dsn': 'postgresql://admin:admin123@localhost:54321/spinta_tests',
+                },
+                'mongo': {
+                    'type': 'mongo',
+                    'dsn': 'mongodb://admin:admin123@localhost:27017/',
+                    'db': 'spinta_tests',
+                },
+                'fs': {
+                    'type': 'fs',
+                    'path': pathlib.Path() / 'var/files',
+                },
+            },
             'manifests': {
-                'yaml': {
+                'default': {
+                    'type': 'yaml',
                     'path': pathlib.Path() / 'tests/manifest',
+                    'sync': None,
                 },
             },
             'config_path': pathlib.Path('tests/config'),

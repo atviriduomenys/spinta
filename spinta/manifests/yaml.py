@@ -12,7 +12,7 @@ from ruamel.yaml.error import YAMLError
 
 from spinta.components import Context, Config, Manifest, Model
 from spinta.utils.path import is_ignored
-from spinta.config import RawConfig
+from spinta.core.config import RawConfig
 from spinta import exceptions
 from spinta import commands
 from spinta import spyna
@@ -30,7 +30,7 @@ yaml = YAML(typ='safe')
 class YamlManifest(Manifest):
 
     def load(self, config):
-        self.path = config.raw.get(
+        self.path = config.rc.get(
             'manifests', self.name, 'path',
             cast=pathlib.Path,
             required=True,
@@ -39,6 +39,9 @@ class YamlManifest(Manifest):
     def read(self, context: Context):
         for file, data, versions in iter_yaml_files(context, self):
             data['path'] = file
+            versions = list(versions)
+            for v in versions:
+                assert 'function' not in v['version']['id'], file
             yield data, versions
 
 
@@ -60,12 +63,9 @@ def freeze(context: Context, manifest: YamlManifest):
     yaml.width = 80
     yaml.explicit_start = False
 
-    # load all model yamls into memory as cache to avoid multiple file reads
-    config = context.get('config')
-    commands.load(context, manifest, config.raw)
-
     manifest.objects = {}
     manifest.freezed = {}  # Already freezed nodes.
+    config = context.get('config')
     for name in config.components['nodes'].keys():
         manifest.objects[name] = {}
         manifest.freezed[name] = {}
@@ -103,10 +103,13 @@ def _load_freezed(
 ):
     freezed_data = _get_freezed_schema(versions)
     data = data.copy()
-    del data['path']
+    path = data.pop('path')
     patch = list(jsonpatch.make_patch(freezed_data, data))
     if patch and freezed_data:
-        freezed = _load(context, config, manifest, freezed_data)
+        freezed = _load(context, config, manifest, {
+            **freezed_data,
+            'path': path,
+        }, check=False)
         return patch, freezed
     return patch, None
 
@@ -125,14 +128,23 @@ def _load(
     config: Config,
     manifest: Manifest,
     data: dict,
+    *,
+    # XXX: This is a temporary workaround and should be removed.
+    #      `check is used to not check if node is already defined, we disable
+    #      this check for freezed nodes.
+    check=True,
 ):
-    node = get_node(config, manifest, data)
+    data = {
+        **data,
+        'parent': manifest,
+    }
+    node = get_node(config, manifest, data, check)
     return load(context, node, data, manifest)
 
 
 def iter_yaml_files(context: Context, manifest: Manifest):
     config = context.get('config')
-    ignore = config.raw.get('ignore', default=[], cast=list)
+    ignore = config.rc.get('ignore', default=[], cast=list)
 
     for file in manifest.path.glob('**/*.yml'):
         if is_ignored(ignore, manifest.path, file):
@@ -184,3 +196,9 @@ def update_yaml_file(file: pathlib.Path, version: SchemaVersion):
     # Write updates back to YAML file
     with file.open('w') as f:
         yaml.dump_all(versions, f)
+
+
+@commands.sync.register()
+def sync(context: Context, manifest: YamlManifest):
+    # TODO: sync YAML files from other manifests
+    pass

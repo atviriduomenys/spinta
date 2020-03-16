@@ -47,8 +47,8 @@ def test_app(context, app):
     }
 
 
-def test_genkeys(cli, tmpdir):
-    result = cli.invoke(genkeys, ['-p', str(tmpdir)], catch_exceptions=False)
+def test_genkeys(rc, cli, tmpdir):
+    result = cli.invoke(rc, genkeys, ['-p', str(tmpdir)])
     assert result.output == (
         f'Private key saved to {tmpdir}/private.json.\n'
         f'Public key saved to {tmpdir}/public.json.\n'
@@ -57,8 +57,8 @@ def test_genkeys(cli, tmpdir):
     jwk.loads(json.loads(tmpdir.join('public.json').read()))
 
 
-def test_client_add(cli, tmpdir):
-    result = cli.invoke(client_add, ['-p', str(tmpdir)], catch_exceptions=False)
+def test_client_add(rc, cli, tmpdir):
+    result = cli.invoke(rc, client_add, ['-p', str(tmpdir)])
 
     client_file = pathlib.Path(str(tmpdir.listdir()[0]))
     assert f'client created and saved to:\n\n    {client_file}' in result.output

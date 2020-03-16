@@ -19,8 +19,9 @@ def test_wipe_everything(app):
     assert resp.status_code == 200, resp.json()
 
     # Check what data we got
-    data = sorted([(r['_type'], r['status']) for r in resp.json()['_data']])
+    data = sorted([(r['_type'], r.get('status')) for r in resp.json()['_data']])
     assert data == [
+        ('_txn', None),
         ('backends/mongo/report', 'ok'),
         ('backends/postgres/report', 'ok'),
         ('report', 'ok'),
@@ -56,8 +57,9 @@ def test_wipe_single_model(model, app):
     assert resp.status_code == 200, resp.json()
 
     # Check what data we got
-    data = sorted([(r['_type'], r['status']) for r in resp.json()['_data']])
+    data = sorted([(r['_type'], r.get('status')) for r in resp.json()['_data']])
     assert data == [
+        ('_txn', None),
         ('backends/mongo/report', 'ok'),
         ('backends/postgres/report', 'ok'),
         ('report', 'ok'),
@@ -65,12 +67,13 @@ def test_wipe_single_model(model, app):
 
     # Wipe all data
     resp = app.delete(f'/{model}/:wipe')
+    resp = app.delete(f'/_txn/:wipe')
     assert resp.status_code == 200, resp.json()
 
     # Check what data again
     resp = app.get('/:all')
     assert resp.status_code == 200, resp.json()
-    data = sorted([(r['_type'], r['status']) for r in resp.json()['_data']])
+    data = sorted([(r['_type'], r.get('status')) for r in resp.json()['_data']])
     expected = [
         ('backends/mongo/report', 'ok'),
         ('backends/postgres/report', 'ok'),

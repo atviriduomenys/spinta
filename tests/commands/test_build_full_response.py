@@ -6,7 +6,7 @@ from spinta.components import Model
 
 
 def create_model(context, schema):
-    manifest = context.get('store').manifests['default']
+    manifest = context.get('store').manifest
     backend = context.get('store').backends['default']
     model = {
         'type': 'model',

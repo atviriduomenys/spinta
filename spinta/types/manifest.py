@@ -25,7 +25,7 @@ def check(context: Context, manifest: Manifest):
     # Check dataset names in config.
     config = context.get('config')
     known_datasets = set(manifest.objects.get('dataset', {}).keys())
-    datasets_in_config = set(config.raw.keys('datasets', manifest.name))
+    datasets_in_config = set(config.rc.keys('datasets', manifest.name))
     unknown_datasets = datasets_in_config - known_datasets
     if unknown_datasets:
         raise Exception("Unknown datasets in configuration parameter 'datasets': %s." % (

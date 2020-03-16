@@ -4,14 +4,18 @@ properties:
   image: {backend: fs, hidden: true, type: file}
   name: {type: string}
 type: model
-version: {date: ! '2020-03-12 16:30:35.120272+02:00', id: <function uuid4 at 0x7f8a9a8e2d30>}
+version:
+  date: 2020-03-12 16:30:35.120272+02:00
+  id: f1ee78b5-0a1d-4dcf-851b-e2fbaf666ba4
 ---
 changes:
 - {op: add, path: /type, value: model}
 - {op: add, path: /endpoint, value: photos}
 - op: add
   path: /version
-  value: {date: '2019-05-30', id: 1}
+  value:
+    date: 2020-03-12 16:30:35.120272+02:00
+    id: f1ee78b5-0a1d-4dcf-851b-e2fbaf666ba4
 - {op: add, path: /name, value: photo}
 - op: add
   path: /properties
@@ -26,5 +30,5 @@ migrate:
     \   column('name', string()),\n    column('image', file())\n)"}
 version:
   date: 2020-03-12 16:30:35.120272+02:00
-  id: <function uuid4 at 0x7f8a9a8e2d30>
+  id: f1ee78b5-0a1d-4dcf-851b-e2fbaf666ba4
   parents: []

@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Union, Optional
 
 import collections
 import logging
+import os
 import pathlib
 
 from ruamel.yaml import YAML
@@ -12,6 +13,23 @@ from spinta.utils.schema import NA
 yaml = YAML(typ='safe')
 
 log = logging.getLogger(__name__)
+
+
+def read_config(args=None):
+    rc = RawConfig()
+    rc.read([
+        Path('spinta', 'spinta.config:CONFIG'),
+        EnvFile('envfile', '.env'),
+        EnvVars('envvars', os.environ),
+        CliArgs('cliargs', args or []),
+    ])
+
+    # Inject extenstion provided defaults
+    configs = rc.get('config', cast=list, default=[])
+    if configs:
+        rc.read([Path(c, c) for c in configs], after='spinta')
+
+    return rc
 
 
 class ConfigSource:
@@ -112,6 +130,7 @@ class EnvFile(EnvVars):
 class RawConfig:
 
     def __init__(self, sources=None):
+        self._locked = False
         self._sources = sources or []
 
     def read(
@@ -119,6 +138,12 @@ class RawConfig:
         sources: List[ConfigSource],
         after: Optional[int] = None,
     ):
+        if self._locked:
+            raise Exception(
+                "Configuration is locked, use `rc.fork()` if you need to "
+                "change configuration."
+            )
+
         for config in sources:
             log.info(f"Reading config from {config.name}.")
             config.read()
@@ -133,10 +158,18 @@ class RawConfig:
         else:
             self._sources.extend(sources)
 
-    def fork(self, sources, after=None):
+    def add(self, name, params):
+        self.read([PyDict(name, params)])
+        return self
+
+    def fork(self, sources=None, after=None):
         rc = RawConfig(list(self._sources))
-        rc.read(sources, after)
+        if sources:
+            rc.read(sources, after)
         return rc
+
+    def lock(self):
+        self._locked = True
 
     def get(self, *key, default=None, cast=None, env=True, required=False, exists=False, origin=False):
         envname, _ = self._get_config_value(('env',), None, True)

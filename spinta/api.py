@@ -184,7 +184,7 @@ def init(context: Context):
     # Add context to state in order to pass it to request handlers
     app.state.context = context
 
-    context.set('auth.server', AuthorizationServer(context))
-    context.set('auth.resource_protector', ResourceProtector(context, BearerTokenValidator))
+    context.bind('auth.server', AuthorizationServer, context)
+    context.bind('auth.resource_protector', ResourceProtector, context, BearerTokenValidator)
 
     return app

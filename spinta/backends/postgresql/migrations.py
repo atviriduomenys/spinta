@@ -94,7 +94,7 @@ def freeze(  # noqa
         'upgrade': {
             'name': 'add_column',
             'args': [
-                current.model.name,
+                current.prop.model.name,
                 current.prop.name,
                 {'name': current.name, 'args': []},
             ]
@@ -102,7 +102,7 @@ def freeze(  # noqa
         'downgrade': {
             'name': 'drop_column',
             'args': [
-                current.model.name,
+                current.prop.model.name,
                 current.prop.name,
             ]
         }
@@ -123,7 +123,7 @@ def freeze(  # noqa
             'upgrade': {
                 'name': 'alter_column',
                 'args': [
-                    current.model.name,
+                    current.prop.model.name,
                     current.prop.name,
                     {'name': current.name, 'args': []},
                 ]
@@ -131,7 +131,7 @@ def freeze(  # noqa
             'downgrade': {
                 'name': 'alter_column',
                 'args': [
-                    current.model.name,
+                    current.prop.model.name,
                     current.prop.name,
                     {'name': freezed.name, 'args': []},
                 ]

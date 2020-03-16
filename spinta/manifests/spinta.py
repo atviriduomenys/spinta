@@ -4,10 +4,12 @@ import logging
 import jsonpatch
 
 from spinta.components import Context, Manifest, Action, DataItem
-from spinta.config import RawConfig
+from spinta.core.config import RawConfig
 from spinta import commands
 from spinta.commands.write import push_stream
 from spinta import spyna
+from spinta.utils.json import fix_data_for_json
+from spinta.utils.data import take
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +63,9 @@ def freeze(context: Context, manifest: SpintaManifest):
 def sync(context: Context, manifest: SpintaManifest):
     with context:
         context.attach('transaction', manifest.backend.transaction, write=True)
-        asyncio.run(_sync_versions(context, manifest))
+        asyncio.get_event_loop().run_until_complete(
+            _sync_versions(context, manifest)
+        )
 
 
 async def _sync_versions(context: Context, manifest: SpintaManifest):
@@ -77,9 +81,11 @@ async def _read_versions(context: Context, manifest: SpintaManifest):
         for _, versions in source.read(context):
             schema = {}
             for version in versions:
+                assert 'function' not in version['version']['id'], version['version']
                 patch = version['changes']
                 patch = jsonpatch.JsonPatch(patch)
                 schema = patch.apply(schema)
+                schema['version'] = take(['id', 'date'], version['version'])
                 yield DataItem(model, action=Action.UPSERT, payload={
                     '_op': 'upsert',
                     '_where': 'version="%s"' % version['version']['id'],
@@ -87,8 +93,8 @@ async def _read_versions(context: Context, manifest: SpintaManifest):
                     'created': version['version']['date'],
                     'parents': version['version']['parents'],
                     'model': schema['name'],
-                    'schema': schema,
-                    'changes': version['changes'],
+                    'schema': fix_data_for_json(schema),
+                    'changes': fix_data_for_json(version['changes']),
                     'actions': [
                         {
                             **action,

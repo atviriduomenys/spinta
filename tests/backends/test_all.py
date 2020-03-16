@@ -175,7 +175,7 @@ def test_get_non_existant_subresource(model, context, app):
     assert resp.status_code == 201
     id_ = resp.json()['_id']
 
-    manifest = context.get('store').manifests['default']
+    manifest = context.get('store').manifest
     resp = app.get(f'/{model}/{id_}/foo')
     assert resp.status_code == 404
     # FIXME: Fix error message, here model and resource is found, but model

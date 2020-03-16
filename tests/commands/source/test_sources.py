@@ -3,9 +3,9 @@ import pytest
 from spinta.testing.context import create_test_context
 
 
-def test_unknown_dataset_in_config(config):
+def test_unknown_dataset_in_config(rc):
     with pytest.raises(Exception) as e:
-        create_test_context(config).load({
+        create_test_context(rc).load({
             'datasets': {
                 'default': {
                     'unknown': 'value',

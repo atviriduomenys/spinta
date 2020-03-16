@@ -13,7 +13,7 @@ from spinta.backends import Backend, simple_data_check
 from spinta.commands import load, prepare, migrate, push, getone, wipe, wait, authorize, complex_data_check
 from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.components import Context, Manifest, Model, Property, Attachment, Action, UrlParams, DataItem
-from spinta.config import RawConfig
+from spinta.core.config import RawConfig
 from spinta.exceptions import ConflictingValue, FileNotFound, ItemDoesNotExist
 from spinta.renderer import render
 from spinta.types.datatype import DataType, File

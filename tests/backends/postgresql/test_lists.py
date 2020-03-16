@@ -6,7 +6,7 @@ from spinta.backends.postgresql import _get_lists_data
 
 
 def create_model(context, schema):
-    manifest = context.get('store').manifests['default']
+    manifest = context.get('store').manifest
     backend = context.get('store').backends['default']
     model = {
         'type': 'model',

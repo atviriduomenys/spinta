@@ -5,7 +5,7 @@ from ruamel.yaml import YAML
 from spinta.utils.imports import importstr
 from spinta.commands import load, check
 from spinta.components import Context
-from spinta.config import RawConfig
+from spinta.core.config import RawConfig
 from spinta import components
 from spinta.core.ufuncs import ufunc
 
@@ -13,51 +13,51 @@ yaml = YAML(typ='safe')
 
 
 @load.register()
-def load(context: Context, config: components.Config, raw: RawConfig) -> components.Config:
+def load(context: Context, config: components.Config, rc: RawConfig) -> components.Config:
     # Save reference to raw config and give chance for other components to read
     # directly from raw config.
-    config.raw = raw
+    config.rc = rc
 
     # Load commands.
     config.commands = {}
-    for scope in raw.keys('commands'):
+    for scope in rc.keys('commands'):
         if scope == 'modules':
             continue
         config.commands[scope] = {}
-        for name in raw.keys('commands', scope):
-            command = raw.get('commands', scope, name, cast=importstr)
+        for name in rc.keys('commands', scope):
+            command = rc.get('commands', scope, name, cast=importstr)
             config.commands[scope][name] = command
 
     # Load ufuncs.
-    ufunc.resolver.collect(raw.get('ufuncs'))
+    ufunc.resolver.collect(rc.get('ufuncs'))
     config.resolvers = ufunc.resolver.ufuncs()
     config.executors = ufunc.executor.ufuncs()
 
     # Load components.
     config.components = {}
-    for group in raw.keys('components'):
+    for group in rc.keys('components'):
         config.components[group] = {}
-        for name in raw.keys('components', group):
-            component = raw.get('components', group, name, cast=importstr)
+        for name in rc.keys('components', group):
+            component = rc.get('components', group, name, cast=importstr)
             config.components[group][name] = component
 
     # Load exporters.
     config.exporters = {}
-    for name in raw.keys('exporters'):
-        exporter = raw.get('exporters', name, cast=importstr)
+    for name in rc.keys('exporters'):
+        exporter = rc.get('exporters', name, cast=importstr)
         config.exporters[name] = exporter()
 
     # Load everything else.
-    config.debug = raw.get('debug', default=False)
-    config.config_path = raw.get('config_path', cast=pathlib.Path, exists=True)
-    config.server_url = raw.get('server_url')
-    config.scope_prefix = raw.get('scope_prefix')
-    config.scope_max_length = raw.get('scope_max_length', cast=int)
-    config.default_auth_client = raw.get('default_auth_client')
-    config.datasets = raw.get('datasets', default={})
-    config.env = raw.get('env')
-    config.docs_path = raw.get('docs_path', default=None)
-    config.always_show_id = raw.get('always_show_id', default=False)
+    config.debug = rc.get('debug', default=False)
+    config.config_path = rc.get('config_path', cast=pathlib.Path, exists=True)
+    config.server_url = rc.get('server_url')
+    config.scope_prefix = rc.get('scope_prefix')
+    config.scope_max_length = rc.get('scope_max_length', cast=int)
+    config.default_auth_client = rc.get('default_auth_client')
+    config.datasets = rc.get('datasets', default={})
+    config.env = rc.get('env')
+    config.docs_path = rc.get('docs_path', default=None)
+    config.always_show_id = rc.get('always_show_id', default=False)
 
     return config
 

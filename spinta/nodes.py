@@ -11,7 +11,7 @@ from spinta import commands
 
 
 def get_manifest(config: Config, name: str):
-    type_ = config.raw.get('manifests', name, 'type', required=True)
+    type_ = config.rc.get('manifests', name, 'type', required=True)
     Manifest = config.components['manifests'][type_]
     manifest = Manifest()
     manifest.name = name
@@ -31,10 +31,10 @@ def load_manifest(context: Context, store: Store, config: Config, name: str, syn
         synced += [name]
 
     manifest = get_manifest(config, name)
-    backend = config.raw.get('manifests', name, 'backend', required=True)
+    backend = config.rc.get('manifests', name, 'backend', required=True)
     manifest.backend = store.backends[backend]
 
-    sync = config.raw.get('manifests', name, 'sync')
+    sync = config.rc.get('manifests', name, 'sync')
     if not isinstance(sync, list):
         sync = [sync] if sync else []
     # Do not fully load manifest, because loading whole manifest might be
@@ -63,7 +63,7 @@ def get_internal_manifest(context: Context):
     return internal
 
 
-def get_node(config: Config, manifest: Manifest, data: dict):
+def get_node(config: Config, manifest: Manifest, data: dict, check=True):
     if not isinstance(data, dict):
         raise exceptions.InvalidManifestFile(
             manifest=manifest.name,
@@ -85,7 +85,7 @@ def get_node(config: Config, manifest: Manifest, data: dict):
             error=f"Unknown type {data['type']!r}.",
         )
 
-    if data['name'] in manifest.objects[data['type']]:
+    if check and data['name'] in manifest.objects[data['type']]:
         raise exceptions.InvalidManifestFile(
             manifest=manifest.name,
             filename=data['path'],

@@ -9,14 +9,14 @@ from spinta.commands import load, wait, prepare, migrate, check, push
 from spinta.components import Context, Store, Config
 from spinta.urlparams import get_model_by_name
 from spinta.nodes import load_manifest, get_internal_manifest, get_node
-from spinta.config import RawConfig
+from spinta.core.config import RawConfig
 
 
 @load.register()
 def load(context: Context, store: Store, config: Config) -> Store:
     """Load backends and manifests from configuration."""
 
-    rc = config.raw
+    rc = config.rc
 
     # Load backends
     store.backends = {}
@@ -30,7 +30,7 @@ def load(context: Context, store: Store, config: Config) -> Store:
     # Load default manifest
     manifest = rc.get('manifest', required=True)
     manifest = store.manifest = load_manifest(context, store, config, manifest)
-    commands.load(context, manifest, config.raw)
+    commands.load(context, manifest, rc)
 
     # Load internal manifest into default manifest
     internal = get_internal_manifest(context)
@@ -100,7 +100,7 @@ def migrate(context: Context, store: Store):
 
 @push.register()
 def push(context: Context, store: Store, stream: types.GeneratorType):
-    manifest = store.manifests['default']
+    manifest = store.manifest
     for data in stream:
         data = dict(data)
         model_name = data.pop('type', None)

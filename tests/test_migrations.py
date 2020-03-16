@@ -1,26 +1,41 @@
-from spinta.testing.utils import create_manifest_files, read_manifest_files, read
+from spinta.testing.utils import create_manifest_files, read_manifest_files
+from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
-from spinta.components import Config, Store
-from spinta import commands
-from spinta.auth import AdminToken
+from spinta.utils.json import fix_data_for_json
+from spinta.cli import freeze, migrate
 
 
-def create(config, path, files):
-    context = create_manifest_files(path, files)
+def _summarize_ast(ast):
+    return (ast['name'],) + tuple(
+        arg for arg in ast['args']
+        if not isinstance(arg, dict)
+    )
 
-    context = create_test_context(config)
-    context.load({
-        'manifests': {
-            'yaml': {
-                'path': str(path),
-            }
+
+def _summarize_actions(actions):
+    return [
+        {
+            **action,
+            'upgrade': _summarize_ast(action['upgrade']),
+            'downgrade': _summarize_ast(action['downgrade']),
         }
+        for action in actions
+    ]
+
+
+def configure(rc, path):
+    return rc.fork().add('test', {
+        'manifests.default': {
+            'type': 'spinta',
+            'backend': 'default',
+            'sync': 'yaml',
+        },
+        'manifests.yaml.path': str(path),
     })
-    return context
 
 
-def test_create_model(postgresql, config, tmpdir):
-    context = create(config, tmpdir, {
+def test_create_model(postgresql, rc, cli, tmpdir, request):
+    create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
             'name': 'country',
@@ -30,8 +45,16 @@ def test_create_model(postgresql, config, tmpdir):
         },
     })
 
-    store = context.get('store')
-    commands.freeze(context, store)
+    rc = rc.fork().add('test', {
+        'manifests.default': {
+            'type': 'spinta',
+            'backend': 'default',
+            'sync': 'yaml',
+        },
+        'manifests.yaml.path': str(tmpdir),
+    })
+
+    cli.invoke(rc, freeze)
 
     manifest = read_manifest_files(tmpdir)
     assert manifest == {
@@ -72,22 +95,26 @@ def test_create_model(postgresql, config, tmpdir):
         ],
     }
 
-    rc = config
-    context = create_test_context(rc)
-    context.set('auth.token', AdminToken())
+    cli.invoke(rc, migrate)
 
-    config = context.set('config', Config())
-    commands.load(context, config, rc)
-    commands.check(context, config)
+    context = create_test_context(rc, name='pytest/client')
+    request.addfinalizer(context.wipe_all)
 
-    store = context.set('store', Store())
-    commands.load(context, store, config)
-    commands.check(context, store)
+    client = create_test_client(context)
+    client.authmodel('_version', ['getall', 'search'])
 
-    commands.prepare(context, store)
+    data = client.get('/_version').json()['_data']
 
-    commands.bootstrap(context, store)
-    commands.sync(context, store)
-    commands.migrate(context, store)
-
-    assert read('/_version') == []
+    assert len(data) == 1
+    data = data[0]
+    data['actions'] = _summarize_actions(data['actions'])
+    assert data['actions'] == [
+        {
+            'type': 'schema',
+            'upgrade': ('create_table', 'country'),
+            'downgrade': ('drop_table', 'country'),
+        },
+    ]
+    assert data['applied'] is None
+    assert data['version'] == manifest['country.yml'][1]['version']['id']
+    assert data['schema'] == fix_data_for_json(manifest['country.yml'][0])

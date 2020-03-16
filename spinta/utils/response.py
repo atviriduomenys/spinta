@@ -18,7 +18,7 @@ METHOD_TO_ACTION = {
 
 async def create_http_response(context: Context, params: UrlParams, request: Request):
     store = context.get('store')
-    manifest = store.manifests['default']
+    manifest = store.manifest
 
     if request.method == 'GET':
         context.attach('transaction', manifest.backend.transaction)

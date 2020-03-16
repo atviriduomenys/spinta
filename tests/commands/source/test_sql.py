@@ -9,21 +9,21 @@ SQL = collections.namedtuple('SQL', ('engine', 'schema'))
 
 
 @pytest.fixture
-def sql(config):
-    dsn = config.get('backends', 'default', 'dsn', required=True)
+def sql(rc):
+    dsn = rc.get('backends', 'default', 'dsn', required=True)
     engine = sa.create_engine(dsn)
     schema = sa.MetaData(engine)
     yield SQL(engine, schema)
     schema.drop_all()
 
 
-def test_sql(config, sql, app):
-    context = create_test_context(config)
+def test_sql(rc, sql, app):
+    context = create_test_context(rc)
     context.load({
         'datasets': {
             'default': {
                 'sql': {
-                    'db': config.get('backends', 'default', 'dsn'),
+                    'db': rc.get('backends', 'default', 'dsn'),
                 },
             }
         },

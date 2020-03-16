@@ -31,7 +31,7 @@ from spinta import exceptions
 from spinta.backends import Backend, BackendFeatures
 from spinta.commands import wait, load, prepare, getone, getall, wipe, authorize
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem, DataSubItem, Store
-from spinta.config import RawConfig
+from spinta.core.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
 from spinta.utils.schema import NA, is_valid_sort_key

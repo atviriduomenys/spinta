@@ -1,19 +1,21 @@
 import importlib
 import pathlib
 
-from spinta.core.config import RawConfig
+from spinta.core.config import read_config
 from spinta.utils.imports import importstr
 
 
-def create_context(**kwargs):
-    rc = RawConfig()
-    rc.read(**kwargs)
+def create_context(name='spinta', rc=None, context=None, args=None):
+    if rc is None:
+        rc = read_config(args)
 
     load_commands(rc.get('commands', 'modules', cast=list))
 
-    Context = rc.get('components', 'core', 'context', cast=importstr)
-    context = Context('base')
-    context.set('config.raw', rc)
+    if context is None:
+        Context = rc.get('components', 'core', 'context', cast=importstr)
+        context = Context(name)
+
+    context.set('rc', rc)
 
     Config = rc.get('components', 'core', 'config', cast=importstr)
     context.set('config', Config())

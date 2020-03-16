@@ -5,21 +5,19 @@ import typing
 from spinta import commands
 from spinta.components import Node
 from spinta.auth import AdminToken
-from spinta import components
-from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
 from spinta.utils.imports import importstr
-from spinta.core.context import load_commands
+from spinta.core.context import create_context
 from spinta.utils.aiotools import alist, aiter
 from spinta.commands.write import push_stream, dataitem_from_payload
+from spinta.core.config import RawConfig
 
 
-def create_test_context(config, *, name='pytest'):
-    Context = config.get('components', 'core', 'context', cast=importstr)
+def create_test_context(rc: RawConfig, *, name: str = 'pytest'):
+    rc = rc.fork()
+    Context = rc.get('components', 'core', 'context', cast=importstr)
     Context = type('ContextForTests', (ContextForTests, Context), {})
     context = Context(name)
-    context.set('config.raw', config)
-    load_commands(config.get('commands', 'modules', cast=list))
-    return context
+    return create_context(name, rc, context)
 
 
 class ContextForTests:
@@ -32,11 +30,12 @@ class ContextForTests:
         if isinstance(model, str):
             store = self.get('store')
             if resource:
-                resource = store.manifests['default'].objects['dataset'][dataset].resources[resource]
+                manifest = store.manifest
+                resource = manifest.objects['dataset'][dataset].resources[resource]
                 origin = resource.get_model_origin(model) if origin is None else origin
                 return resource.objects[origin][model]
             else:
-                return store.manifests['default'].objects['model'][model]
+                return store.manifest.objects['model'][model]
         else:
             return model
 
@@ -48,12 +47,13 @@ class ContextForTests:
             with self:
                 store = self.get('store')
                 self.set('auth.token', AdminToken())
-                self.attach('transaction', store.manifests['default'].backend.transaction, write=write)
+                backend = store.manifest.backend
+                self.attach('transaction', backend.transaction, write=write)
                 yield self
 
     def pull(self, dataset: str, *, models: list = None, push: bool = True):
         store = self.get('store')
-        dataset = store.manifests['default'].objects['dataset'][dataset]
+        dataset = store.manifest.objects['dataset'][dataset]
         models = models or []
         with self.transaction(write=push) as context:
             try:
@@ -77,8 +77,7 @@ class ContextForTests:
 
     def wipe_all(self):
         store = self.get('store')
-        self.wipe(store.manifests['default'].objects['ns'][''])
-        self.wipe(store.internal.objects['ns'][''])
+        self.wipe(store.manifest.objects['ns'][''])
 
     def load(self, overrides=None):
         # We pass context to tests unloaded, by doing this, we give test
@@ -93,29 +92,25 @@ class ContextForTests:
         if self.loaded:
             raise Exception("test context is already loaded")
 
-        rc = self.get('config.raw')
+        rc = self.get('rc')
 
         if overrides:
-            rc.hardset({
+            rc.add('test', {
                 'environments': {
                     'test': overrides,
                 }
             })
 
-        config = self.set('config', components.Config())
-        store = self.set('store', components.Store())
-
+        config = self.get('config')
         commands.load(self, config, rc)
         commands.check(self, config)
 
+        store = self.get('store')
         commands.load(self, store, config)
         commands.check(self, store)
 
-        # commands.prepare(self, store)
-        # commands.bootstrap(self, store)
-
-        # self.bind('auth.server', AuthorizationServer, self)
-        # self.bind('auth.resource_protector', ResourceProtector, self, BearerTokenValidator)
+        commands.prepare(self, store)
+        commands.bootstrap(self, store)
 
         self.loaded = True
 
