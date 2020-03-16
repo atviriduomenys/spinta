@@ -638,7 +638,6 @@ def build_data_patch_for_write(  # noqa
     if given is NA:
         return saved or []
     if given is None:
-        # XXX: not sure if arrays can be None?
         return []
     patch = [
         build_data_patch_for_write(
