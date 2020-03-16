@@ -632,14 +632,14 @@ def build_data_patch_for_write(  # noqa
     saved: Optional[object],
     insert_action: bool = False,
     update_action: bool = False,
-) -> Union[dict, NotAvailable]:
+) -> Union[dict, list, NotAvailable]:
     if given is NA and not (insert_action or update_action):
         return NA
     if given is NA:
         return saved or []
     if given is None:
         # XXX: not sure if arrays can be None?
-        return None
+        return []
     patch = [
         build_data_patch_for_write(
             context,
@@ -654,12 +654,7 @@ def build_data_patch_for_write(  # noqa
         for value in given
     ]
 
-    # Even if we always overwrite arrays, but in the end, we still check if
-    # whole array has changed or not.
-    if saved == patch:
-        return NA
-    else:
-        return patch
+    return patch
 
 
 
