@@ -841,7 +841,8 @@ def before_write(  # noqa
     *,
     data: DataSubItem,
 ):
-    if data.saved and data.saved != data.given:
+    if data.saved and (data.patch and data.patch != data.saved or
+                       not data.patch and data.patch is not NA):
         prop = dtype.prop
         table = backend.get_table(prop, TableType.LIST)
         transaction = context.get('transaction')
