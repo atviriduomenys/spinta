@@ -13,7 +13,8 @@ def test_update_with_two_array(model, app):
     pk = res['_id']
     rev = res['_revision']
     resp = app.put(f'/{model}/{pk}', json={'_revision': rev,
-                                           'array2': [{'string': 'old'}]})
+                                           'array2': [{'string': 'old'}],
+                                           'array1': ['new']})
     assert resp.status_code == 200
     resp = app.get(f'{model}?select(_id)&array2.string=old')
     assert resp.json() == {'_data': [{'_id': pk}]}
