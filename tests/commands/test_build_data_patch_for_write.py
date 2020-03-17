@@ -174,7 +174,7 @@ def test_array_fill_saved_all_same(context):
         given=given,
         saved=saved,
         update_action=True
-    ) == {'list': [{'foo': '42', 'bar': None}]}
+    ) == {}
 
 
 def test_object_saved(context):

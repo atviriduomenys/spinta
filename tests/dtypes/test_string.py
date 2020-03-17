@@ -121,14 +121,9 @@ def test_update_same(model, app):
     pk, rev0, val = post(app, model, 'old')
     rev1, val = put(app, model, pk, rev0, 'old')
     assert val == 'old'
-    if 'array' in model:
-        assert rev0 != rev1
-        assert get(app, model, pk, rev1) == val
-        assert search(app, model, pk, rev1, val) == [val]
-    else:
-        assert rev0 == rev1
-        assert get(app, model, pk, rev0) == val
-        assert search(app, model, pk, rev0, val) == [val]
+    assert rev0 == rev1
+    assert get(app, model, pk, rev0) == val
+    assert search(app, model, pk, rev0, val) == [val]
 
 
 @pytest.mark.models(
@@ -180,16 +175,10 @@ def test_patch_same(model, app):
     app.authmodel(model, ['insert', 'patch', 'getone', 'search'])
     pk, rev0, val = post(app, model, 'old')
     rev1, val = patch(app, model, pk, rev0, 'old')
-    if 'array' in model:
-        assert val == 'old'
-        assert rev0 != rev1
-        assert get(app, model, pk, rev1) == 'old'
-        assert search(app, model, pk, rev1, 'old') == ['old']
-    else:
-        assert val is NA
-        assert rev0 == rev1
-        assert get(app, model, pk, rev0) == 'old'
-        assert search(app, model, pk, rev0, 'old') == ['old']
+    assert val is NA
+    assert rev0 == rev1
+    assert get(app, model, pk, rev0) == 'old'
+    assert search(app, model, pk, rev0, 'old') == ['old']
 
 
 @pytest.mark.models(
