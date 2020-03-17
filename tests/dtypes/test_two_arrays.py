@@ -1,6 +1,6 @@
 import pytest
 
-# BUG: SPLAT-287
+
 @pytest.mark.models(
     'backends/mongo/dtypes/array/two_arrays',
     'backends/postgres/dtypes/array/two_arrays',

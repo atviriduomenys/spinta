@@ -637,8 +637,11 @@ def build_data_patch_for_write(  # noqa
         return NA
     if given is NA:
         return saved or []
-    if given is None and saved == []:
+    if insert_action and given is None and saved == {}:
+        # to prevent writing array field as null to db
         return []
+    if given is None and saved == []:
+        return NA
     if given is None:
         return None
     patch = [
