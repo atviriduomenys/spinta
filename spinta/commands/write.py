@@ -632,14 +632,15 @@ def build_data_patch_for_write(  # noqa
     saved: Optional[object],
     insert_action: bool = False,
     update_action: bool = False,
-) -> Union[dict, NotAvailable]:
+) -> Union[dict, list, None, NotAvailable]:
     if given is NA and not (insert_action or update_action):
         return NA
     if given is NA:
         return saved or []
+    if given is None and saved == []:
+        return NA
     if given is None:
-        # XXX: not sure if arrays can be None?
-        return None
+        return []
     patch = [
         build_data_patch_for_write(
             context,
@@ -660,7 +661,6 @@ def build_data_patch_for_write(  # noqa
         return NA
     else:
         return patch
-
 
 
 @commands.build_data_patch_for_write.register()  # noqa

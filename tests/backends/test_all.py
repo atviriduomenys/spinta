@@ -440,7 +440,7 @@ def test_update_same_scalar(model, app):
     assert data['scalar'] == 'ok'
     assert data['subarray'] == []
     assert data['subobj'] == {'bar': None, 'foo': None}
-    assert new_revision != revision
+    assert new_revision == revision
 
     # sanity check
     resp = app.get(f'/{model}/{id_}')
@@ -479,7 +479,7 @@ def test_update_same_obj(model, app):
     }
     assert data['scalar'] is None
     assert data['subarray'] == []
-    assert new_revision != revision
+    assert new_revision == revision
 
     # sanity check
     resp = app.get(f'/{model}/{id_}')
