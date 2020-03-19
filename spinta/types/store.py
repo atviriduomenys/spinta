@@ -81,10 +81,7 @@ def freeze(context: Context, store: Store) -> bool:
 
 @commands.bootstrap.register()
 def bootstrap(context: Context, store: Store) -> bool:
-    backend = store.manifest.backend
-    if not backend.bootstrapped(store.manifest):
-        for backend in store.backends.values():
-            commands.bootstrap(context, backend)
+    commands.bootstrap(context, store.manifest)
 
 
 @commands.sync.register()
@@ -94,8 +91,7 @@ def sync(context: Context, store: Store):
 
 @migrate.register()
 def migrate(context: Context, store: Store):
-    for backend in store.backends.values():
-        migrate(context, backend)
+    commands.migrate(context, store.manifest)
 
 
 @push.register()

@@ -1,7 +1,7 @@
 import logging
 
 from spinta.api import init
-from spinta.config import create_context
+from spinta.core.context import create_context
 from spinta import commands
 
 
@@ -18,12 +18,11 @@ commands.load(context, config, rc)
 commands.check(context, config)
 
 store = context.get('store')
-commands.load(context, store, rc)
+commands.load(context, store, config)
 commands.check(context, store)
 
 commands.wait(context, store, rc)
 
-commands.prepare(context, store.internal)
 commands.prepare(context, store)
 
 app = init(context)

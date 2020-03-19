@@ -92,6 +92,30 @@ def wait(ctx, seconds):
 
 @main.command()
 @click.pass_context
+def bootstrap(ctx):
+    context = ctx.obj
+
+    rc = context.get('rc')
+    config = context.get('config')
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
+    store = context.get('store')
+    commands.load(context, store, config)
+    commands.check(context, store)
+
+    commands.prepare(context, store)
+
+    context.set('auth.token', AdminToken())
+
+    with context:
+        backend = store.manifest.backend
+        context.attach('transaction', backend.transaction, write=True)
+        commands.bootstrap(context, store)
+
+
+@main.command()
+@click.pass_context
 def migrate(ctx):
     context = ctx.obj
 

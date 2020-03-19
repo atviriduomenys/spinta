@@ -59,6 +59,26 @@ def freeze(context: Context, manifest: SpintaManifest):
         commands.freeze(context, source)
 
 
+@commands.bootstrap.register()
+def bootstrap(context: Context, manifest: SpintaManifest):
+    backend = manifest.backend
+    if backend.bootstrapped(manifest):
+        # Manifest backend is already bootstrapped, do nothing.
+        return
+
+    # Bootstrap all backends
+    store = context.get('store')
+    for backend in store.backends.values():
+        commands.bootstrap(context, backend)
+
+
+@commands.migrate.register()
+def migrate(context: Context, manifest: SpintaManifest):
+    store = context.get('store')
+    for backend in store.backends.values():
+        migrate(context, backend)
+
+
 @commands.sync.register()
 def sync(context: Context, manifest: SpintaManifest):
     with context:

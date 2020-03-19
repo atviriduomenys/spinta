@@ -198,7 +198,24 @@ def update_yaml_file(file: pathlib.Path, version: SchemaVersion):
         yaml.dump_all(versions, f)
 
 
+@commands.bootstrap.register()
+def bootstrap(context: Context, manifest: YamlManifest):
+    # Yaml manifest can't store state so we always run bootstrap.
+    store = context.get('store')
+    for backend in store.backends.values():
+        commands.bootstrap(context, backend)
+
+
+@commands.migrate.register()
+def migrate(context: Context, manifest: YamlManifest):
+    raise Exception(
+        "Can't run migrations on 'yaml' manifest, use `spinta bootstrap` "
+        "command instead."
+    )
+
+
 @commands.sync.register()
 def sync(context: Context, manifest: YamlManifest):
-    # TODO: sync YAML files from other manifests
-    pass
+    if manifest.sync:
+        # TODO: sync YAML files from other manifests
+        raise NotImplementedError
