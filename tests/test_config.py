@@ -1,15 +1,8 @@
-import pathlib
-
 from ruamel.yaml import YAML
 
-from spinta.core.config import RawConfig, PyDict, Path, EnvVars, EnvFile, CliArgs
+from spinta.core.config import SCHEMA, RawConfig, PyDict, Path, EnvVars, EnvFile, CliArgs
 
 yaml = YAML(typ='safe')
-
-SCHEMA = {
-    'type': 'object',
-    'items': yaml.load(pathlib.Path('spinta/config.yml').read_text()),
-}
 
 
 def test_envvars():
