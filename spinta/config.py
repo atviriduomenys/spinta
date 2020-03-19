@@ -156,6 +156,11 @@ CONFIG = {
     'environments': {
         'dev': {
             'backends': {
+                'default': {
+                    'type': 'postgresql',
+                    'dsn': 'postgresql://admin:admin123@localhost:54321/spinta',
+                    'migrate': 'alembic',
+                },
                 'mongo': {
                     'type': 'mongo',
                     'dsn': 'mongodb://admin:admin123@localhost:27017/',
@@ -167,6 +172,12 @@ CONFIG = {
                 },
             },
             'manifests': {
+                # TODO: remove `default` manifest
+                'default': {
+                    'type': 'yaml',
+                    'path': pathlib.Path() / 'tests/manifest',
+                    'sync': None,
+                },
                 'yaml': {
                     'path': pathlib.Path() / 'tests/manifest',
                 },
@@ -190,6 +201,7 @@ CONFIG = {
                 },
             },
             'manifests': {
+                # TODO: remove `default` manifest
                 'default': {
                     'type': 'yaml',
                     'path': pathlib.Path() / 'tests/manifest',
