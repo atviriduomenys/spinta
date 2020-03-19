@@ -282,7 +282,7 @@ class RawConfig:
         else:
             res = self.get(*key, origin=origin)
             res = res if origin else (res,)
-            yield key, *res
+            yield (key,) + res
 
     def dump(self, names: List[str] = None):
         table = [('Origin', 'Name', 'Value')]
