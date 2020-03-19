@@ -144,7 +144,7 @@ def _resolve_path(context: Context, params: UrlParams) -> None:
         params.path = ''
 
     path = '/'.join(params.path)
-    manifest = context.get('store').manifests['default']
+    manifest = context.get('store').manifest
     nss = manifest.objects['ns']
     i = _find_model_name_index(nss, manifest.endpoints, params.path)
     parts = params.path[i:]

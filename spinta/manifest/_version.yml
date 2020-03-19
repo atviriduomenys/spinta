@@ -1,0 +1,20 @@
+type: model
+name: _version
+properties:
+  version:
+    type: string
+    unique: true
+  created:
+    type: datetime
+  applied:
+    type: datetime
+  model:
+    type: string
+  parents:
+    type: json
+  changes:
+    type: json
+  actions:
+    type: json
+  schema:
+    type: json

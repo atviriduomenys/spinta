@@ -1,14 +1,61 @@
----
 type: model
 name: org
-title: "Organization"
+title: Organization
 version:
-  id: 1
-  date: 2019-02-06
+  date: 2020-03-12 16:30:35.118407+02:00
+  id: 6618f3b5-caf1-4e12-b007-fbb4a8f65fed
 unique:
   - [country, govid]
 properties:
-  _id: {type: pk}
-  title: {type: string}
-  govid: {type: string, title: "Identification number", description: "Identification number assigned by government."}
-  country: {type: ref, object: country}
+  country:
+    type: ref
+    object: country
+  govid:
+    type: string
+    title: Identification number
+    description: Identification number assigned by government.
+  title:
+    type: string
+---
+version:
+  date: 2020-03-12 16:30:35.118407+02:00
+  id: 6618f3b5-caf1-4e12-b007-fbb4a8f65fed
+  parents: []
+changes:
+  - {op: add, path: /type, value: model}
+  - op: add
+    path: /version
+    value:
+      date: 2020-03-12 14:22:55.349809
+      id: 6618f3b5-caf1-4e12-b007-fbb4a8f65fed
+  - op: add
+    path: /unique
+    value:
+    - [country, govid]
+  - {op: add, path: /name, value: org}
+  - {op: add, path: /title, value: Organization}
+  - op: add
+    path: /properties
+    value:
+      _id: {type: pk}
+      country: {object: country, type: ref}
+      govid: {description: Identification number assigned by government., title: Identification
+          number, type: string}
+      title: {type: string}
+migrate:
+  - type: schema
+    upgrade: >-
+      create_table('org',
+        column('_id', pk()),
+        column('_revision', string()),
+        column('_op', string()),
+        column('_type', string()),
+        column('_id', pk()),
+        column('_revision', string()),
+        column('_transaction', integer()),
+        column('_where', rql()),
+        column('country', ref()),
+        column('govid', string()),
+        column('title', string())
+      )
+    downgrade: drop_table('org')

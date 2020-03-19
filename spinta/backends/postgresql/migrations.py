@@ -1,139 +1,139 @@
-from typing import List
+import itertools
 
 from spinta import commands
 from spinta.backends.postgresql import PostgreSQL
 from spinta.components import Context, Model
-from spinta.migrations import (
-    get_new_schema_version,
-    get_parents,
-    get_schema_changes,
-    get_schema_from_changes,
-)
+from spinta.types.datatype import DataType
+from spinta.migrations import SchemaVersion
+from spinta.utils.data import take
 
 
-METACOLS = {
-    '_id': {'type': 'pk'},
-    '_revision': {'type': 'string'},
-}
-
-
-@commands.new_schema_version.register()
-def new_schema_version(
+@commands.freeze.register()
+def freeze(
     context: Context,
+    version: SchemaVersion,
     backend: PostgreSQL,
-    model: Model,
-    *,
-    versions: List[dict],
+    freezed: type(None),
+    current: Model,
 ):
-    old, new = get_schema_from_changes(versions)
-    changes = get_schema_changes(old, new)
-    if changes:
-        migrate = autogen_migration(old, new)
-        parents = get_parents(versions, new, context)
-        version = get_new_schema_version(old, changes, migrate, parents)
-        return version
-    else:
-        return {}
+    props = list(itertools.chain(*[
+        freeze(context, version, backend, None, prop.dtype)
+        for prop in take(['_id', '_revision', all], current.properties).values()
+    ]))
+    version.actions.append({
+        'type': 'schema',
+        'upgrade': {
+            'name': 'create_table',
+            'args': [current.name] + props,
+        },
+        'downgrade': {
+            'name': 'drop_table',
+            'args': [current.name],
+        },
+    })
 
 
-def autogen_migration(old: dict, new: dict) -> dict:
-    if old:
-        table = new['name']
-        old = {
-            **METACOLS,
-            **old.get('properties', {}),
+def dzip(*data):
+    keys = set()
+    for d in data:
+        keys.update(d)
+    for key in keys:
+        yield tuple(d.get(key) for d in data)
+
+
+@commands.freeze.register()
+def freeze(  # noqa
+    context: Context,
+    version: SchemaVersion,
+    backend: PostgreSQL,
+    freezed: Model,
+    current: Model,
+):
+    for freezed_prop, current_prop in dzip(freezed.properties, current.properties):
+        freeze(
+            context,
+            version,
+            backend,
+            freezed_prop.dtype if freezed_prop else freezed,
+            current_prop.dtype if current_prop else current,
+        )
+
+
+@commands.freeze.register()
+def freeze(  # noqa
+    context: Context,
+    version: SchemaVersion,
+    backend: PostgreSQL,
+    freezed: type(None),
+    current: DataType,
+):
+    return [
+        {
+            'name': 'column',
+            'args': [
+                current.prop.name,
+                {
+                    'name': current.name,
+                    'args': [],
+                },
+            ]
+        },
+    ]
+
+
+@commands.freeze.register()
+def freeze(  # noqa
+    context: Context,
+    version: SchemaVersion,
+    backend: PostgreSQL,
+    freezed: Model,
+    current: DataType,
+):
+    version.actions.append({
+        'type': 'schema',
+        'upgrade': {
+            'name': 'add_column',
+            'args': [
+                current.prop.model.name,
+                current.prop.name,
+                {'name': current.name, 'args': []},
+            ]
+        },
+        'downgrade': {
+            'name': 'drop_column',
+            'args': [
+                current.prop.model.name,
+                current.prop.name,
+            ]
         }
-        new = {
-            **METACOLS,
-            **new.get('properties', {}),
-        }
-        migration = {
-            'upgrade': [],
-            'downgrade': [],
-        }
-        _gen_add_columns(migration, table, old, new)
-        _gen_alter_columns(migration, table, old, new)
-        if migration['upgrade'] or migration['downgrade']:
-            return migration
-        else:
-            return {}
-    else:
-        return _gen_create_table(new)
+    })
 
 
-def _gen_create_table(new: dict) -> dict:
-    columns = {
-        **METACOLS,
-        **new.get('properties', {}),
-    }
-
-    # create table
-    return {
-        'upgrade': [
-            {
-                'create_table': {
-                    'name': new['name'],
-                    'columns': [
-                        {
-                            'name': name,
-                            'type': prop['type'],
-                        }
-                        for name, prop in columns.items()
-                    ]
-                }
-            }
-        ],
-        'downgrade': [
-            {
-                'drop_table': {
-                    'name': new['name'],
-                }
-            }
-        ]
-    }
-
-
-def _gen_add_columns(migration: dict, table: str, old: dict, new: dict) -> None:
-    new_col_names = set(new) - set(old)
-    for name in new_col_names:
-        migration['upgrade'].append({
-            'add_column': {
-                'table': table,
-                'name': name,
-                'type': new[name]['type'],
+@commands.freeze.register()
+def freeze(  # noqa
+    context: Context,
+    version: SchemaVersion,
+    backend: PostgreSQL,
+    freezed: DataType,
+    current: DataType,
+):
+    if freezed.name != current.name:
+        version.actions.append({
+            'type': 'schema',
+            'upgrade': {
+                'name': 'alter_column',
+                'args': [
+                    current.prop.model.name,
+                    current.prop.name,
+                    {'name': current.name, 'args': []},
+                ]
+            },
+            'downgrade': {
+                'name': 'alter_column',
+                'args': [
+                    current.prop.model.name,
+                    current.prop.name,
+                    {'name': freezed.name, 'args': []},
+                ]
             }
         })
-        migration['downgrade'].append({
-            'drop_column': {
-                'table': table,
-                'name': name,
-            }
-        })
-
-
-def _gen_alter_columns(migration: dict, table: str, old: dict, new: dict) -> None:
-    same_col_names = set(new) & set(old)
-    for name in same_col_names:
-        upgrade = {}
-        downgrade = {}
-
-        if old[name]['type'] != new[name]['type']:
-            upgrade['type'] = new[name]['type']
-            downgrade['type'] = old[name]['type']
-
-        if upgrade:
-            migration['upgrade'].append({
-                'alter_column': {
-                    'table': table,
-                    'name': name,
-                    **upgrade,
-                },
-            })
-        if downgrade:
-            migration['downgrade'].append({
-                'alter_column': {
-                    'table': table,
-                    'name': name,
-                    **downgrade
-                },
-            })

@@ -7,7 +7,7 @@ import uuid
 import typing
 import enum
 
-from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref
+from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON
 from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
 from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
 from spinta.types import dataset
@@ -223,7 +223,7 @@ def complex_model_properties_check(
                 prop.dtype,
                 prop,
                 data.backend,
-                data.given.get(name, NA),
+                given,
             )
 
 
@@ -267,13 +267,13 @@ def is_object_id(context: Context, value: str):
     #      is_object_id directly with backend and model. That would be nice.
     store = context.get('store')
     candidates = set()
-    for manifest in store.manifests.values():
-        for model in manifest.objects.get('model', {}).values():
-            candidates.add((model.backend.__class__, model.__class__))
-        for dataset_ in manifest.objects.get('dataset', {}).values():
-            for resource in dataset_.resources.values():
-                for model in resource.models():
-                    candidates.add((model.backend.__class__, model.__class__))
+    manifest = store.manifest
+    for model in manifest.objects.get('model', {}).values():
+        candidates.add((model.backend.__class__, model.__class__))
+    for dataset_ in manifest.objects.get('dataset', {}).values():
+        for resource in dataset_.resources.values():
+            for model in resource.models():
+                candidates.add((model.backend.__class__, model.__class__))
 
     # Currently all models use UUID, but dataset models use id generated from
     # other properties that form an unique id.
@@ -757,6 +757,32 @@ def prepare_dtype_for_response(  # noqa
     select: dict = None,
 ):
     return []
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: JSON,
+    value: object,
+    *,
+    select: dict = None,
+):
+    return value
+
+
+@commands.prepare_dtype_for_response.register()
+def prepare_dtype_for_response(  # noqa
+    context: Context,
+    backend: Backend,
+    model: (Model, dataset.Model),
+    dtype: JSON,
+    value: NotAvailable,
+    *,
+    select: dict = None,
+):
+    return None
 
 
 @commands.unload_backend.register()

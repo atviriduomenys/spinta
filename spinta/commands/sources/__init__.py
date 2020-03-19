@@ -37,7 +37,7 @@ def dataset_source_envvar_name(resource: Resource):
 def load(context: Context, source: Source, node: Resource):
     config = context.get('config')
     if not source.name:
-        source.name = config.raw.get(*dataset_source_config_name(node), default=None)
+        source.name = config.rc.get(*dataset_source_config_name(node), default=None)
     return source
 
 
@@ -70,7 +70,7 @@ def coerce_source_value(
 
 
 @commands.coerce_source_value.register()  # noqa
-def coerce_source_value(
+def coerce_source_value(  # noqa
     context: Context,
     source: Source,
     prop: Property,
@@ -81,7 +81,7 @@ def coerce_source_value(
 
 
 @commands.coerce_source_value.register()  # noqa
-def coerce_source_value(
+def coerce_source_value(  # noqa
     context: Context,
     source: Source,
     prop: Property,

@@ -20,9 +20,8 @@ from spinta.auth import AdminToken
 from spinta.auth import ResourceProtector, BearerTokenValidator
 from spinta.commands.formats import Format
 from spinta.commands.write import push_stream, dataitem_from_payload
-from spinta.components import Store, DataStream
-from spinta.config import create_context
-from spinta.migrations import make_migrations
+from spinta.components import DataStream
+from spinta.core.context import create_context
 from spinta.utils.aiotools import alist, aiter
 
 log = logging.getLogger(__name__)
@@ -32,23 +31,42 @@ log = logging.getLogger(__name__)
 @click.option('--option', '-o', multiple=True, help='Set configuration option, example: `-o option.name=value`.')
 @click.pass_context
 def main(ctx, option):
-    context = create_context(cli_args=option)
-    rc = context.get('config.raw')
-    _load_context(context, rc)
-    ctx.ensure_object(dict)
-    ctx.obj['context'] = context
+    ctx.obj = ctx.obj or create_context('cli', args=option)
 
 
 @main.command()
 @click.pass_context
 def check(ctx):
+    context = ctx.obj
+
+    rc = context.get('rc')
+    config = context.get('config')
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
+    store = context.get('store')
+    commands.load(context, store, config)
+    commands.check(context, store)
+
     click.echo("OK")
 
 
 @main.command()
 @click.pass_context
 def freeze(ctx):
-    make_migrations(ctx.obj['context'])
+    context = ctx.obj
+
+    rc = context.get('rc')
+    config = context.get('config')
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
+    store = context.get('store')
+    commands.load(context, store, config)
+    commands.check(context, store)
+
+    commands.freeze(context, store)
+
     click.echo("Done.")
 
 
@@ -56,25 +74,70 @@ def freeze(ctx):
 @click.argument('seconds', type=int, required=False)
 @click.pass_context
 def wait(ctx, seconds):
-    context = ctx.obj['context']
+    context = ctx.obj
+
+    rc = context.get('rc')
+    config = context.get('config')
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
     store = context.get('store')
-    rc = context.get('config.raw')
+    commands.load(context, store, config)
+    commands.check(context, store)
+
     commands.wait(context, store, rc, seconds=seconds)
+
     click.echo("All backends ar up.")
 
 
 @main.command()
 @click.pass_context
-def migrate(ctx):
-    context = ctx.obj['context']
-    store = context.get('store')
+def bootstrap(ctx):
+    context = ctx.obj
 
-    # Prepare internal and other manifests
-    commands.prepare(context, store.internal)
+    rc = context.get('rc')
+    config = context.get('config')
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
+    store = context.get('store')
+    commands.load(context, store, config)
+    commands.check(context, store)
+
     commands.prepare(context, store)
 
-    # Run the migration
-    commands.migrate(context, store)
+    context.set('auth.token', AdminToken())
+
+    with context:
+        backend = store.manifest.backend
+        context.attach('transaction', backend.transaction, write=True)
+        commands.bootstrap(context, store)
+
+
+@main.command()
+@click.pass_context
+def migrate(ctx):
+    context = ctx.obj
+
+    rc = context.get('rc')
+    config = context.get('config')
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
+    store = context.get('store')
+    commands.load(context, store, config)
+    commands.check(context, store)
+
+    commands.prepare(context, store)
+
+    context.set('auth.token', AdminToken())
+
+    with context:
+        backend = store.manifest.backend
+        context.attach('transaction', backend.transaction, write=True)
+        commands.bootstrap(context, store)
+        commands.sync(context, store)
+        commands.migrate(context, store)
 
 
 @main.command(help='Pull data from an external dataset.')
@@ -84,19 +147,24 @@ def migrate(ctx):
 @click.option('--export', '-e', help="Export pulled data to a file or stdout. For stdout use 'stdout:<fmt>', where <fmt> can be 'csv' or other supported format.")
 @click.pass_context
 def pull(ctx, source, model, push, export):
-    context = ctx.obj['context']
+    context = ctx.obj
+
+    rc = context.get('rc')
+    config = context.get('config')
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
     store = context.get('store')
+    commands.load(context, store, config)
+    commands.check(context, store)
 
-    if context.get('config').env != 'test':
-        commands.prepare(context, store.internal)
-        commands.prepare(context, store)
+    commands.prepare(context, store)
 
-    if not context.has('auth.token'):
-        # TODO: probably commands should also use an exsiting token in order to
-        #       track who changed what.
-        context.set('auth.token', AdminToken())
+    # TODO: probably commands should also use an exsiting token in order to
+    #       track who changed what.
+    context.set('auth.token', AdminToken())
 
-    manifest = store.manifests['default']
+    manifest = store.manifest
     if source in manifest.objects['dataset']:
         dataset = manifest.objects['dataset'][source]
     else:
@@ -104,7 +172,8 @@ def pull(ctx, source, model, push, export):
 
     try:
         with context:
-            context.attach('transaction', store.backends['default'].transaction, write=push)
+            backend = store.backends['default']
+            context.attach('transaction', backend.transaction, write=push)
 
             path = None
             exporter = None
@@ -135,7 +204,7 @@ def pull(ctx, source, model, push, export):
 
                 exporter = config.exporters[fmt]
 
-            asyncio.run(
+            asyncio.get_event_loop().run_until_complete(
                 _process_stream(source, stream, exporter, path)
             )
 
@@ -175,20 +244,25 @@ async def _process_stream(
 @click.option('--client', '-c', help="Client name from credentials file.")
 @click.pass_context
 def push(ctx, target, dataset, credentials, client):
-    context = ctx.obj['context']
+    context = ctx.obj
+
+    rc = context.get('rc')
+    config = context.get('config')
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
     store = context.get('store')
+    commands.load(context, store, config)
+    commands.check(context, store)
 
-    if context.get('config').env != 'test':
-        commands.prepare(context, store.internal)
-        commands.prepare(context, store)
+    commands.prepare(context, store)
 
-    if not context.has('auth.token'):
-        # TODO: probably commands should also use an exsiting token in order to
-        #       track who changed what.
-        context.set('auth.token', AdminToken())
-        context.set('auth.resource_protector', ResourceProtector(context, BearerTokenValidator))
+    # TODO: probably commands should also use an exsiting token in order to
+    #       track who changed what.
+    context.set('auth.token', AdminToken())
+    context.set('auth.resource_protector', ResourceProtector(context, BearerTokenValidator))
 
-    manifest = store.manifests['default']
+    manifest = store.manifest
     if dataset and dataset not in manifest.objects['dataset']:
         raise click.ClickException(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
 
@@ -257,23 +331,32 @@ def run(ctx):
     import uvicorn
     import spinta.api
 
-    context = ctx.obj['context']
-    spinta.api.context_var.set(context)
+    context = ctx.obj
+
+    rc = context.get('rc')
+    config = context.get('config')
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
     store = context.get('store')
-    manifest = store.manifests['default']
+    commands.load(context, store, config)
+    commands.check(context, store)
+
+    commands.prepare(context, store)
+
+    app = spinta.api.init(context)
+
     log.info("Spinta has started!")
-    log.info('manifest: %s', manifest.path.resolve())
-    spinta.api.app.debug = context.get('config').debug
-    uvicorn.run(spinta.api.app, host='0.0.0.0', port=8000)
+    uvicorn.run(app, host='0.0.0.0', port=8000)
 
 
 @main.command()
 @click.pass_context
 @click.argument('name', nargs=-1, required=False)
 def config(ctx, name=None):
-    context = ctx.obj['context']
-    config = context.get('config.raw')
-    config.dump(name)
+    context = ctx.obj
+    rc = context.get('rc')
+    rc.dump(name)
 
 
 @main.command()
@@ -286,8 +369,12 @@ def genkeys(ctx, path):
     from authlib.jose import jwk
 
     if path is None:
-        context = ctx.obj['context']
+        context = ctx.obj
+
+        rc = context.get('rc')
         config = context.get('config')
+        commands.load(context, config, rc)
+
         path = config.config_path / 'keys'
         path.mkdir(exist_ok=True)
     else:
@@ -332,8 +419,12 @@ def client_add(ctx, name, secret, add_secret, path):
     yaml = ruamel.yaml.YAML(typ='safe')
 
     if path is None:
-        context = ctx.obj['context']
+        context = ctx.obj
+
+        rc = context.get('rc')
         config = context.get('config')
+        commands.load(context, config, rc)
+
         path = config.config_path / 'clients'
         path.mkdir(exist_ok=True)
     else:
@@ -368,12 +459,3 @@ def client_add(ctx, name, secret, add_secret, path):
         f"Remember this client secret, because only a secure hash of\n"
         f"client secret will be stored in the config file."
     )
-
-
-def _load_context(context, rc):
-    config = context.set('config', components.Config())
-    store = context.set('store', Store())
-    commands.load(context, config, rc)
-    commands.check(context, config)
-    commands.load(context, store, rc)
-    commands.check(context, store)

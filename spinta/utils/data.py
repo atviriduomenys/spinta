@@ -21,6 +21,20 @@ def take(keys, *args):
     | take('a', d1, d2)   | d1 and d1.get('a', NA) or d2 and d2.get('a', NA)   |
     +---------------------+----------------------------------------------------+
 
+    Examples:
+
+        >>> d = {
+        ...     '_a': 1,
+        ...     '_b': 2,
+        ...     'c_': 3,
+        ...     'd_': 4,
+        ... }
+
+    Take specified reserved and all non-reserved keys:
+
+        >>> take(['_a', all], d)
+        {'_a': 1, 'c_': 3, 'd_': 4}
+
     """
     reserved = False
     if keys is all:
@@ -37,6 +51,13 @@ def take(keys, *args):
         keys = []
 
     args = [a for a in args if a]
+
+    if all in keys:
+        keys.remove(all)
+        for arg in reversed(args):
+            for k in arg:
+                if not k.startswith('_') and k not in keys:
+                    keys.append(k)
 
     if len(keys) == 0:
         return {

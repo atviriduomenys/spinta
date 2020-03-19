@@ -1,20 +1,19 @@
 from typing import AsyncIterator, Optional, List, Union, Tuple, Iterator
 
+import cgi
 import contextlib
 import datetime
 import enum
 import hashlib
 import itertools
 import logging
-import typing
 import types
-import cgi
+import typing
 import uuid
 
-import jsonpatch
-import sqlalchemy as sa
-import sqlalchemy.exc
-from ruamel.yaml import YAML
+from multipledispatch import dispatch
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from sqlalchemy.dialects.postgresql import JSONB, UUID, BIGINT, ARRAY
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.ext.compiler import compiles
@@ -22,22 +21,26 @@ from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.sql.type_api import TypeEngine
 from starlette.requests import Request
 from starlette.responses import Response
-from multipledispatch import dispatch
 
+import sqlalchemy as sa
+import sqlalchemy.exc
+
+from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.backends import Backend, BackendFeatures
-from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize
+from spinta.commands import wait, load, prepare, getone, getall, wipe, authorize
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem, DataSubItem, Store
-from spinta.config import RawConfig
+from spinta.core.config import RawConfig
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
 from spinta.utils.schema import NA, is_valid_sort_key
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.aiotools import aiter
 from spinta.utils.data import take
-from spinta.commands.write import prepare_patch, simple_response, validate_data
+from spinta.commands.write import prepare_patch, simple_response, validate_data, write
 from spinta.backends.postgresql.files import DatabaseFile
+from spinta.core.ufuncs import asttoexpr, ufunc
 from spinta.types.datatype import (
     Array,
     DataType,
@@ -100,7 +103,7 @@ class PostgreSQL(Backend):
     def transaction(self, write=False):
         with self.engine.begin() as connection:
             if write:
-                table = self.tables['internal']['transaction']
+                table = self.tables['_txn']
                 result = connection.execute(
                     table.insert().values(
                         # FIXME: commands.gen_object_id should be used here
@@ -145,12 +148,9 @@ class PostgreSQL(Backend):
         node: Union[Model, Property],
         ttype: TableType = TableType.MAIN,
     ):
-        if node.manifest.name not in self.tables:
-            self.tables[node.manifest.name] = {}
-        tables = self.tables[node.manifest.name]
         name = get_table_name(node, ttype)
-        assert name not in tables, name
-        tables[name] = table
+        assert name not in self.tables, name
+        self.tables[name] = table
 
     def get_table(
         self,
@@ -161,9 +161,16 @@ class PostgreSQL(Backend):
     ):
         name = get_table_name(node, ttype)
         if fail:
-            return self.tables[node.manifest.name][name]
+            return self.tables[name]
         else:
-            return self.tables.get(node.manifest.name, {}).get(name)
+            return self.tables.get(name)
+
+    def query_nodes(self):
+        return []
+
+    def bootstrapped(self, manifest):
+        schema = manifest.objects['model']['_schema']
+        return self.get_table(schema).exists()
 
 
 class ReadTransaction:
@@ -239,7 +246,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     pkey_type = commands.get_primary_key_type(context, backend)
     main_table = sa.Table(
         main_table_name, backend.schema,
-        sa.Column('_txn', pkey_type, sa.ForeignKey('transaction._id')),
+        sa.Column('_txn', pkey_type, index=True),
         sa.Column('_created', sa.DateTime),
         sa.Column('_updated', sa.DateTime),
         *columns,
@@ -259,32 +266,29 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         # even for a property with different backend, then this type must
         # implement prepare command and do custom logic there.
         return
+    elif dtype.name in UNSUPPORTED_TYPES:
+        return
 
     prop = dtype.prop
     name = _get_column_name(prop)
+    types = {
+        'string': sa.Text,
+        'date': sa.Date,
+        'datetime': sa.DateTime,
+        'integer': sa.Integer,
+        'number': sa.Float,
+        'boolean': sa.Boolean,
+        'binary': sa.LargeBinary,
+        'json': JSONB,
+        'spatial': sa.Text,  # unsupported
+        'image': sa.Text,  # unsupported
+    }
 
-    if dtype.name == 'string':
-        return sa.Column(name, sa.Text)
-    elif dtype.name == 'date':
-        return sa.Column(name, sa.Date)
-    elif dtype.name == 'datetime':
-        return sa.Column(name, sa.DateTime)
-    elif dtype.name == 'integer':
-        return sa.Column(name, sa.Integer)
-    elif dtype.name == 'number':
-        return sa.Column(name, sa.Float)
-    elif dtype.name == 'boolean':
-        return sa.Column(name, sa.Boolean)
-    elif dtype.name == 'binary':
-        return sa.Column(name, sa.LargeBinary)
-    elif dtype.name in ('spatial', 'image'):
-        # TODO: these property types currently are not implemented
-        return sa.Column(name, sa.Text)
-    elif dtype.name in UNSUPPORTED_TYPES:
-        return
-    else:
+    try:
+        return sa.Column(name, types[dtype.name], unique=dtype.unique)
+    except KeyError:
         raise Exception(
-            f"Unknown property type {dtype.name!r} of {prop.place}."
+            f"Unknown type {dtype.name!r} for property {prop.place!r}."
         )
 
 
@@ -412,7 +416,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array):
         # TODO: List tables eventually will have _id in order to uniquelly
         #       identify list item.
         # sa.Column('_id', pkey_type, primary_key=True),
-        sa.Column('_txn', pkey_type, sa.ForeignKey('transaction._id')),
+        sa.Column('_txn', pkey_type, index=True),
         # Main table id (resource id).
         sa.Column('_rid', pkey_type, sa.ForeignKey(
             f'{main_table_name}._id', ondelete='CASCADE',
@@ -440,8 +444,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Object):
     return columns
 
 
-@migrate.register()
-def migrate(context: Context, backend: PostgreSQL):
+@commands.bootstrap.register()
+def bootstrap(context: Context, backend: PostgreSQL):
     # XXX: I found, that this some times leaks connection, you can check that by
     #      comparing `backend.engine.pool.checkedin()` before and after this
     #      line.
@@ -450,72 +454,52 @@ def migrate(context: Context, backend: PostgreSQL):
     backend.schema.create_all(checkfirst=True)
 
 
-@migrate.register()
-def migrate(context: Context, backend: PostgreSQL, store: Store):
-    schema_table = sa.Table(
-        '_schema', sa.MetaData(backend.engine),
-        sa.Column('id', sa.Text, primary_key=True),  # migration version uuid
-        sa.Column('created', sa.DateTime),
-        sa.Column('updated', sa.DateTime),
-        sa.Column('synced_time', sa.DateTime),
-        sa.Column('applied', sa.DateTime),
-        sa.Column('model', sa.Text),
-        sa.Column('parents', sa.ARRAY(sa.Text)),
-        sa.Column('changes', JSONB),
-        sa.Column('actions', JSONB),
-        sa.Column('schema', JSONB),
-    )
-    schema_table.create(checkfirst=True)
+@commands.migrate.register()
+def migrate(context: Context, backend: PostgreSQL):
+    pass
 
+
+async def _migrate(context: Context, manifest: Manifest, backend: PostgreSQL):
+    config = context.get('config')
+    resolvers = ufunc.resolver.ufuncs()
+    executors = ufunc.executor.ufuncs()
+
+    Env = config.components['migrations']
     conn = backend.engine.connect()
+    ctx = MigrationContext.configure(conn)
+    op = Operations(ctx)
+    scope = {
+        'op': op,
+    }
 
-    # select all ids from migration table
-    select_migration_ids = sa.sql.select([schema_table.c.id])
-    result = conn.execute(select_migration_ids)
-    ids = list(map(lambda x: x[0], result))
+    model = manifest.objects['model']['_version']
+    versions = getall(
+        context, model, backend,
+        action=Action.SEARCH,
+        select=['parents', 'actions', 'schema'],
+        query=spyna.parse('applied = null')
+    )
 
-    yaml = YAML(typ="safe")
-    dt_now = datetime.datetime.now(datetime.timezone.utc).astimezone()
+    for version in versions:
+        for action in version['actions']:
+            ast = action['upgrade']
+            env = Env(context, resolvers, executors, scope)
+            expr = asttoexpr(ast)
+            expr = env.resolve(expr)
+            env.execute(expr)
 
-    all_manifests = [store.internal, *store.manifests.values()]
-    for manifest in all_manifests:
-        for model in manifest.objects['model'].values():
-            data = list(yaml.load_all(model.path))
-            if len(data) == 1:
-                log.warning(
-                    f"Model '{model.name}' does not have migrations. "
-                    f"Create migrations with `spinta freeze` first. "
-                    f"YAML is not synced to DB."
-                )
-            version_schema = {}
-            for migration in data[1:]:
-                # make yaml migration data compatible with SQL
-                migration = fix_data_for_json(migration)
-
-                # build schema for current migration, so we will not need
-                # to do this while querying _schema table
-                changes = migration['changes']
-                patch = jsonpatch.JsonPatch(changes)
-                version_schema = patch.apply(version_schema)
-
-                # if version is not in migrations table - save it
-                version = migration['version']['id']
-                if version not in ids:
-                    # add version to migrations table
-                    conn.execute(
-                        schema_table.insert(),
-                        id=version,
-                        created=migration['version']['date'],
-                        synced_time=dt_now.isoformat(),
-                        model=model.name,
-                        parents=migration['version'].get('parents', []),
-                        changes=migration['changes'],
-                        actions=migration['migrate']['schema'],
-                        schema=version_schema,
-                    )
-                    log.info(
-                        f"Synced migration '{version}' for model: '{model.name}"
-                    )
+            await write(context, model, [
+                {
+                    '_op': 'patch',
+                    '_type': '_version',
+                    'applied': datetime.datetime.now(datetime.timezone.utc),
+                },
+                {
+                    '_op': 'upsert',
+                    '_type': '_version',
+                    'schema': version['schema'],
+                },
+            ])
 
 
 @commands.check_unique_constraint.register()
@@ -1755,7 +1739,7 @@ def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
         # FIXME: Should be pkey_type, but String is used, because dataset models
         #        use sha1 for resource ids.
         sa.Column('_revision', sa.String),
-        sa.Column('_txn', pkey_type, sa.ForeignKey('transaction._id')),
+        sa.Column('_txn', pkey_type, index=True),
         # FIXME: Should be pkey_type, but String is used, because dataset models
         #        use sha1 for resource ids.
         sa.Column('_rid', sa.String),  # reference to main table

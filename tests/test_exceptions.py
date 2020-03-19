@@ -128,7 +128,7 @@ def test_missing_var_in_template():
 
 
 def test_this_model(context):
-    model = context.get('store').manifests['default'].objects['model']['org']
+    model = context.get('store').manifest.objects['model']['org']
     model.path = 'manifest/models/org.yml'
     error = Error(model)
     assert str(error) == (
@@ -141,7 +141,7 @@ def test_this_model(context):
 
 
 def test_this_model_property(context):
-    prop = context.get('store').manifests['default'].objects['model']['org'].properties['title']
+    prop = context.get('store').manifest.objects['model']['org'].properties['title']
     prop.model.path = 'manifest/models/org.yml'
     error = Error(prop)
     assert str(error) == (
@@ -155,7 +155,7 @@ def test_this_model_property(context):
 
 
 def test_this_model_property_dtype(context):
-    dtype = context.get('store').manifests['default'].objects['model']['org'].properties['title'].dtype
+    dtype = context.get('store').manifest.objects['model']['org'].properties['title'].dtype
     dtype.prop.model.path = 'manifest/models/org.yml'
     error = Error(dtype)
     assert str(error) == (
@@ -170,7 +170,7 @@ def test_this_model_property_dtype(context):
 
 
 def test_this_dataset_model(context):
-    model = context.get('store').manifests['default'].objects['dataset']['test'].resources[''].objects['']['backends/postgres/report']
+    model = context.get('store').manifest.objects['dataset']['test'].resources[''].objects['']['backends/postgres/report']
     model.path = 'manifest/backends/postgres/datasets/report.yml'
     error = Error(model)
     assert str(error) == (
@@ -187,7 +187,7 @@ def test_this_dataset_model(context):
 
 
 def test_this_dataset_model_property(context):
-    prop = context.get('store').manifests['default'].objects['dataset']['test'].resources[''].objects['']['backends/postgres/report'].properties['status']
+    prop = context.get('store').manifest.objects['dataset']['test'].resources[''].objects['']['backends/postgres/report'].properties['status']
     prop.model.path = 'manifest/backends/postgres/datasets/report.yml'
     error = Error(prop)
     assert str(error) == (

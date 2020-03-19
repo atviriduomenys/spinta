@@ -400,3 +400,7 @@ class InvalidPostUrl(UserError):
 
 class MultipleParentsError(Exception):
     pass
+
+
+class UnknownPropertyType(UserError):
+    template = "Unknown property type {type!r}."

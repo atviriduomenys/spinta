@@ -6,9 +6,9 @@ from spinta.testing.utils import create_manifest_files
 from spinta.testing.context import create_test_context
 
 
-def check_store(config, tmpdir, files):
+def check_store(rc, tmpdir, files):
     create_manifest_files(tmpdir, files)
-    context = create_test_context(config)
+    context = create_test_context(rc)
     context.load({
         'manifests': {
             'default': {
@@ -18,9 +18,9 @@ def check_store(config, tmpdir, files):
     })
 
 
-def test_engine_name_overshadow(config, tmpdir):
+def test_engine_name_overshadow(rc, tmpdir):
     with pytest.raises(Exception) as e:
-        check_store(config, tmpdir, {
+        check_store(rc, tmpdir, {
             'models/report.yml': {
                 'type': 'model',
                 'name': 'report',
@@ -30,9 +30,9 @@ def test_engine_name_overshadow(config, tmpdir):
     assert "Endpoint name can't overshadow existing model names and 'report' is already a model name." in str(e.value)
 
 
-def test_engine_name_overshadow_other(config, tmpdir):
+def test_engine_name_overshadow_other(rc, tmpdir):
     with pytest.raises(Exception) as e:
-        check_store(config, tmpdir, {
+        check_store(rc, tmpdir, {
             'models/report.yml': {
                 'type': 'model',
                 'name': 'report',

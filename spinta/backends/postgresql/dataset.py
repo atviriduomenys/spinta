@@ -42,7 +42,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         sa.Column('data', JSONB),
         sa.Column('created', sa.DateTime),
         sa.Column('updated', sa.DateTime, nullable=True),
-        sa.Column('transaction', pkey_type, sa.ForeignKey('transaction._id')),
+        sa.Column('transaction', pkey_type, index=True),
     )
     backend.add_table(table, model)
     backend.add_table(

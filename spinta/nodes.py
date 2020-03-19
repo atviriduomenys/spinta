@@ -1,9 +1,102 @@
-from typing import Optional, Type
+from typing import Optional, Type, List
 
-from spinta.components import Context, Manifest, Node, Namespace
+import pathlib
+
+import pkg_resources as pres
+
+from spinta.components import Context, Config, Store, Manifest, Node, Namespace
 from spinta.utils.schema import resolve_schema
 from spinta import exceptions
 from spinta import commands
+
+
+def get_manifest(config: Config, name: str):
+    type_ = config.rc.get('manifests', name, 'type', required=True)
+    Manifest = config.components['manifests'][type_]
+    manifest = Manifest()
+    manifest.name = name
+    manifest.load(config)
+    return manifest
+
+
+def load_manifest(context: Context, store: Store, config: Config, name: str, synced: List[str] = None):
+    synced = synced or []
+    if name in synced:
+        synced = ', '.join(synced)
+        raise Exception(
+            f"Circular manifest sync is detected: {synced}. Check manifest "
+            f"configuration with: `spinta config manifests`."
+        )
+    else:
+        synced += [name]
+
+    manifest = get_manifest(config, name)
+    backend = config.rc.get('manifests', name, 'backend', required=True)
+    manifest.backend = store.backends[backend]
+
+    sync = config.rc.get('manifests', name, 'sync')
+    if not isinstance(sync, list):
+        sync = [sync] if sync else []
+    # Do not fully load manifest, because loading whole manifest might be
+    # expensive and we only need to do that if it is neceserry. For now, just
+    # load empty manifest class.
+    manifest.sync = [load_manifest(config, store, config, x, synced) for x in sync]
+
+    # Add all supported node types.
+    manifest.objects = {}
+    for name in config.components['nodes'].keys():
+        manifest.objects[name] = {}
+
+    # Set some defaults.
+    manifest.parent = None
+    manifest.endpoints = {}
+
+    return manifest
+
+
+def get_internal_manifest(context: Context):
+    config = context.get('config')
+    Manifest = config.components['manifests']['yaml']
+    internal = Manifest()
+    internal.name = 'internal'
+    internal.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
+    return internal
+
+
+def get_node(config: Config, manifest: Manifest, data: dict, check=True):
+    if not isinstance(data, dict):
+        raise exceptions.InvalidManifestFile(
+            manifest=manifest.name,
+            filename=data['path'],
+            error=f"Expected dict got {data.__class__.__name__}.",
+        )
+
+    if 'type' not in data:
+        raise exceptions.InvalidManifestFile(
+            manifest=manifest.name,
+            filename=data['path'],
+            error=f"Required parameter 'type' is not defined.",
+        )
+
+    if data['type'] not in manifest.objects:
+        raise exceptions.InvalidManifestFile(
+            manifest=manifest.name,
+            filename=data['path'],
+            error=f"Unknown type {data['type']!r}.",
+        )
+
+    if check and data['name'] in manifest.objects[data['type']]:
+        raise exceptions.InvalidManifestFile(
+            manifest=manifest.name,
+            filename=data['path'],
+            error=(
+                f"Node {data['type']} with name {data['name']} already defined "
+                f"in {manifest.objects[data['type']][data['name']].path}."
+            ),
+        )
+
+    Node = config.components['nodes'][data['type']]
+    return Node()
 
 
 def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, check_unknowns=True) -> Node:

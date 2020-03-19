@@ -269,7 +269,7 @@ class Store:
     def __init__(self):
         self.config = None
         self.backends = {}
-        self.manifests = {}
+        self.manifest = None
 
 
 class Manifest:
@@ -283,7 +283,7 @@ class Manifest:
     def __init__(self):
         self.name = None
         self.parent = None
-        self.objects = {}
+        self.objects = None
         self.path = None
 
         # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
@@ -292,6 +292,9 @@ class Manifest:
 
     def __repr__(self):
         return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>'
+
+    def load(self, config: Config):
+        pass
 
     def add_model_endpoint(self, model):
         endpoint = model.endpoint
@@ -601,7 +604,7 @@ class DataItem:
         self.model = model
         self.prop = prop
         self.propref = propref
-        self.backend = backend
+        self.backend = model.backend if backend is None and model else backend
         self.action = action
         self.payload = payload
         self.error = error

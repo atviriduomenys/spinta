@@ -164,6 +164,7 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
     load_node(context, dataset, data, manifest)
 
     # Load resources
+    dataset.resources = {}
     for name, params in (data.get('resources') or {}).items():
         params = {
             'path': dataset.path,

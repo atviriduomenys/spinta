@@ -13,6 +13,10 @@ from spinta.nodes import load_namespace, load_model_properties
 
 @load.register()
 def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Model:
+    data = {
+        'parent': manifest,
+        **data,
+    }
     load_node(context, model, data, manifest)
     manifest.add_model_endpoint(model)
     load_namespace(context, manifest, model)
@@ -29,7 +33,7 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
         [resolve_schema(prop, Node), resolve_schema(prop.dtype, DataType)],
         data, prop,
     )
-    if isinstance(prop.dtype, PrimaryKey):
+    if isinstance(prop.dtype, PrimaryKey) or data.get('unique', False):
         prop.dtype.unique = True
     return prop
 

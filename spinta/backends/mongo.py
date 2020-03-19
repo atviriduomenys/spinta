@@ -13,11 +13,12 @@ from starlette.requests import Request
 from spinta import commands
 from spinta.backends import Backend
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataStream, DataItem
-from spinta.config import RawConfig
+from spinta.core.config import RawConfig
 from spinta.renderer import render
 from spinta.types.datatype import Date, DataType, File, Object
 from spinta.utils.schema import NA, is_valid_sort_key
 from spinta.utils.data import take
+from spinta.migrations import SchemaVersion
 from spinta.commands import (
     authorize,
     getall,
@@ -34,12 +35,6 @@ from spinta.exceptions import (
     UnavailableSubresource,
 )
 from spinta import exceptions
-from spinta.migrations import (
-    get_new_schema_version,
-    get_parents,
-    get_schema_changes,
-    get_schema_from_changes,
-)
 from spinta.hacks.recurse import _replace_recurse
 
 
@@ -104,28 +99,24 @@ def prepare(context: Context, backend: Mongo, manifest: Manifest):
     pass
 
 
-@commands.new_schema_version.register()
-def new_schema_version(
+@commands.freeze.register()
+def freeze(
     context: Context,
+    version: SchemaVersion,
     backend: Mongo,
-    model: Model,
-    *,
-    versions: List[dict],
+    old: object,
+    new: object,
 ):
-    old, new = get_schema_from_changes(versions)
-    changes = get_schema_changes(old, new)
-    if changes:
-        migrate = {}
-        parents = get_parents(versions, new, context)
-        version = get_new_schema_version(old, changes, migrate, parents)
-        return version
-    else:
-        return {}
+    pass
+
+
+@commands.bootstrap.register()
+def bootstrap(context: Context, backend: Mongo):
+    pass
 
 
 @migrate.register()
 def migrate(context: Context, backend: Mongo):
-    # Migrate schema changes.
     pass
 
 

@@ -51,8 +51,8 @@ def test_app(app):
     }
     assert next(d for d in data['data'] if d['_id'] == 'report/:ns') == {
         '_type': 'ns',
-        'specifier': ':ns',
         '_id': 'report/:ns',
+        'specifier': ':ns',
         'name': 'report',
         'title': 'report',
     }

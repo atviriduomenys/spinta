@@ -3,12 +3,10 @@ import pathlib
 
 from responses import GET, POST
 
-from spinta.cli import main
+from spinta.cli import pull, push
 
 
-def test_pull(responses, cli, app, mocker, event_loop):
-    mocker.patch('asyncio.run', event_loop.run_until_complete)
-
+def test_pull(responses, rc, cli, app):
     responses.add(
         GET, 'http://example.com/countries.csv',
         status=200, content_type='text/plain; charset=utf-8',
@@ -20,7 +18,7 @@ def test_pull(responses, cli, app, mocker, event_loop):
         ),
     )
 
-    result = cli.invoke(main, ['pull', 'csv'], catch_exceptions=False)
+    result = cli.invoke(rc, pull, ['csv'])
     assert result.output == (
         '\n'
         '\n'
@@ -38,7 +36,7 @@ def test_pull(responses, cli, app, mocker, event_loop):
         '_data': [],
     }
 
-    result = cli.invoke(main, ['pull', 'csv', '--push'], catch_exceptions=False)
+    result = cli.invoke(rc, pull, ['csv', '--push'])
     assert 'csv:' in result.output
 
     rows = sorted(
@@ -52,7 +50,7 @@ def test_pull(responses, cli, app, mocker, event_loop):
     ]
 
 
-def test_push(app, cli, responses, tmpdir):
+def test_push(app, rc, cli, responses, tmpdir):
     continent = 'backends/postgres/continent/:dataset/test'
     app.authorize([
         'spinta_set_meta_fields',
@@ -112,7 +110,7 @@ def test_push(app, cli, responses, tmpdir):
         callback=auth_token,
         content_type='application/json',
     )
-    result = cli.invoke(main, ['push', target, '-r', str(credsfile), '-c', 'client', '-d', 'test'], catch_exceptions=False)
+    result = cli.invoke(rc, push, [target, '-r', str(credsfile), '-c', 'client', '-d', 'test'])
     assert sorted(result.output.splitlines()) == [
         'backends/postgres/continent/:dataset/test   64f17dc0c56b943ed2835cb35705463c86b39c3d',
         'backends/postgres/continent/:dataset/test   e6a2ca1e2b50f1a6cd5203f3153162357add5614',

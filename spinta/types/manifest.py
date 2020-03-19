@@ -1,90 +1,12 @@
 from typing import Dict
 
-import logging
-
 from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
-from ruamel.yaml.error import YAMLError
 
-from spinta.utils.path import is_ignored
-from spinta.commands import load, prepare, check
+from spinta.commands import prepare, check
 from spinta.components import Context, Manifest, Node
-from spinta.config import RawConfig
 from spinta import commands
-from spinta import exceptions
 
 yaml = YAML(typ='safe')
-
-log = logging.getLogger(__name__)
-
-
-@load.register()
-def load(context: Context, manifest: Manifest, c: RawConfig):
-    config = context.get('config')
-    ignore = c.get('ignore', default=[], cast=list)
-
-    # Add all supported node types.
-    # XXX: Not sure if this is a good idea to hardcode 'ns' here, will see.
-    manifest.objects['ns'] = {}
-    for name in config.components['nodes'].keys():
-        manifest.objects[name] = {}
-
-    manifest.parent = None
-    manifest.endpoints = {}
-
-    log.info('Loading manifest %r: %s', manifest.name, manifest.path.resolve())
-
-    for file in manifest.path.glob('**/*.yml'):
-        if is_ignored(ignore, manifest.path, file):
-            continue
-
-        try:
-            data = next(yaml.load_all(file.read_text()))
-        except (ParserError, ScannerError, YAMLError) as e:
-            raise exceptions.InvalidManifestFile(
-                manifest=name,
-                filename=file,
-                error=str(e),
-            )
-        if not isinstance(data, dict):
-            raise exceptions.InvalidManifestFile(
-                manifest=name,
-                filename=file,
-                error=f"Expected dict got {data.__class__.__name__}.",
-            )
-
-        if 'type' not in data:
-            raise exceptions.InvalidManifestFile(
-                manifest=name,
-                filename=file,
-                error=f"Required parameter 'type' is not defined.",
-            )
-
-        if data['type'] not in manifest.objects:
-            raise exceptions.InvalidManifestFile(
-                manifest=name,
-                filename=file,
-                error=f"Unknown type {data['type']!r}.",
-            )
-
-        node = config.components['nodes'][data['type']]()
-        data = {
-            'path': file,
-            'parent': manifest,
-            'backend': manifest.backend,
-            **data,
-        }
-        load(context, node, data, manifest)
-
-        if node.name in manifest.objects[node.type]:
-            raise exceptions.InvalidManifestFile(
-                manifest=name,
-                filename=file,
-                error=f"Node {node.type} with name {node.name} already defined in {manifest.objects[node.type].path}.",
-            )
-
-        manifest.objects[node.type][node.name] = node
 
 
 @prepare.register()
@@ -103,7 +25,7 @@ def check(context: Context, manifest: Manifest):
     # Check dataset names in config.
     config = context.get('config')
     known_datasets = set(manifest.objects.get('dataset', {}).keys())
-    datasets_in_config = set(config.raw.keys('datasets', manifest.name))
+    datasets_in_config = set(config.rc.keys('datasets', manifest.name))
     unknown_datasets = datasets_in_config - known_datasets
     if unknown_datasets:
         raise Exception("Unknown datasets in configuration parameter 'datasets': %s." % (
@@ -126,7 +48,7 @@ def get_error_context(manifest: Manifest, *, prefix='this') -> Dict[str, str]:
 
 
 @commands.get_error_context.register()  # noqa
-def get_error_context(node: Node, *, prefix='this') -> Dict[str, str]:
+def get_error_context(node: Node, *, prefix='this') -> Dict[str, str]:  # noqa
     context = {
         'schema': f'{prefix}.path.__str__()',
     }

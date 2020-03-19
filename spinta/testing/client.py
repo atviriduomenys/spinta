@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Union
 
 import datetime
 
@@ -8,6 +8,22 @@ import starlette.testclient
 
 from spinta import auth
 from spinta import commands
+from spinta import api
+from spinta.components import Context
+from spinta.core.config import RawConfig
+from spinta.testing.context import create_test_context
+
+
+def create_test_client(rc_or_context: Union[RawConfig, Context]):
+    if isinstance(rc_or_context, RawConfig):
+        rc = rc_or_context
+        context = create_test_context(rc, name='pytest/client')
+    else:
+        context = rc_or_context
+    if not context.loaded:
+        context.load()
+    app = api.init(context)
+    return TestClient(context, app, base_url='https://testserver')
 
 
 class TestClient(starlette.testclient.TestClient):
@@ -23,7 +39,7 @@ class TestClient(starlette.testclient.TestClient):
         self._requests_session = requests.Session()
         self._requests_session_base_url = base_url.rstrip('/')
 
-    def authmodel(self, model, actions, creds=None):
+    def authmodel(self, model: str, actions: List[str], creds=None):
         scopes = commands.get_model_scopes(self._spinta_context, model, actions)
         self.authorize(scopes, creds=creds)
 

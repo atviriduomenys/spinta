@@ -4,46 +4,40 @@ import pathlib
 import time
 import types
 
-import pkg_resources as pres
-
 from spinta import commands
 from spinta.commands import load, wait, prepare, migrate, check, push
-from spinta.components import Context, Store, Manifest
-from spinta.config import RawConfig
+from spinta.components import Context, Store, Config
 from spinta.urlparams import get_model_by_name
-from spinta.utils.imports import importstr
+from spinta.nodes import load_manifest, get_internal_manifest, get_node
+from spinta.core.config import RawConfig
 
 
 @load.register()
-def load(context: Context, store: Store, config: RawConfig) -> Store:
+def load(context: Context, store: Store, config: Config) -> Store:
     """Load backends and manifests from configuration."""
 
-    # Load backends.
+    rc = config.rc
+
+    # Load backends
     store.backends = {}
-    for name in config.keys('backends'):
-        Backend = config.get('backends', name, 'backend', cast=importstr)
+    for name in rc.keys('backends'):
+        type_ = rc.get('backends', name, 'type', required=True)
+        Backend = config.components['backends'][type_]
         backend = store.backends[name] = Backend()
         backend.name = name
-        load(context, backend, config)
+        load(context, backend, rc)
 
-    # Load internal manifest.
-    internal = store.internal = Manifest()
-    internal.name = 'internal'
-    internal.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
-    internal.backend = store.backends['default']
-    load(context, internal, config)
+    # Load default manifest
+    manifest = rc.get('manifest', required=True)
+    manifest = store.manifest = load_manifest(context, store, config, manifest)
+    commands.load(context, manifest, rc)
 
-    # Load manifests
-    store.manifests = {}
-    for name in config.keys('manifests'):
-        manifest = store.manifests[name] = Manifest()
-        manifest.name = name
-        manifest.path = config.get('manifests', name, 'path', cast=pathlib.Path, required=True)
-        manifest.backend = store.backends[config.get('manifests', name, 'backend', required=True)]
-        load(context, manifest, config)
-
-    if 'default' not in store.manifests:
-        raise Exception("'default' manifest must be set in the configuration.")
+    # Load internal manifest into default manifest
+    internal = get_internal_manifest(context)
+    for data, versions in internal.read(context):
+        node = get_node(config, manifest, data)
+        node = load(context, node, data, manifest)
+        manifest.objects[node.type][node.name] = node
 
     return store
 
@@ -72,31 +66,37 @@ def wait(
 
 @check.register()
 def check(context: Context, store: Store):
-    check(context, store.internal)
-    for manifest in store.manifests.values():
-        check(context, manifest)
+    check(context, store.manifest)
 
 
 @prepare.register()
 def prepare(context: Context, store: Store):
-    for manifest in store.manifests.values():
-        prepare(context, manifest)
+    prepare(context, store.manifest)
+
+
+@commands.freeze.register()
+def freeze(context: Context, store: Store) -> bool:
+    commands.freeze(context, store.manifest)
+
+
+@commands.bootstrap.register()
+def bootstrap(context: Context, store: Store) -> bool:
+    commands.bootstrap(context, store.manifest)
+
+
+@commands.sync.register()
+def sync(context: Context, store: Store):
+    commands.sync(context, store.manifest)
 
 
 @migrate.register()
 def migrate(context: Context, store: Store):
-    # sync yaml migrations to database
-    # XXX: make new command sync_migrations?
-    commands.migrate(context, store.backends['default'], store)
-
-    # after yaml files are synced to database now we can alter resource tables
-    for backend in store.backends.values():
-        migrate(context, backend)
+    commands.migrate(context, store.manifest)
 
 
 @push.register()
 def push(context: Context, store: Store, stream: types.GeneratorType):
-    manifest = store.manifests['default']
+    manifest = store.manifest
     for data in stream:
         data = dict(data)
         model_name = data.pop('type', None)

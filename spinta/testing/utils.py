@@ -2,6 +2,7 @@ from typing import List
 
 from pathlib import Path
 
+import jsonpatch
 import requests
 
 from ruamel.yaml import YAML
@@ -19,6 +20,16 @@ def create_manifest_files(tmpdir, manifest):
             yaml.dump_all(data, path)
 
 
+def update_manifest_files(tmpdir, manifest):
+    for file, patch in manifest.items():
+        path = Path(tmpdir) / file
+        versions = list(yaml.load_all(path.read_text()))
+        patch = jsonpatch.JsonPatch(patch)
+        patch.apply(versions[0])
+        with path.open('w') as f:
+            yaml.dump_all(versions, f)
+
+
 def read_manifest_files(tmpdir):
     path = Path(tmpdir)
     yaml = YAML(typ='safe')
@@ -28,7 +39,6 @@ def read_manifest_files(tmpdir):
         manifest_file = str(fp)[len(str(tmpdir)) + 1:]
         manifests[manifest_file] = data
     return manifests
-
 
 
 def get_error_codes(response):

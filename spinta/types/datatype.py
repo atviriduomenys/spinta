@@ -54,6 +54,9 @@ class DateTime(DataType):
         if value is None or value is NA:
             return value
 
+        if isinstance(value, datetime):
+            return value
+
         try:
             return datetime.fromisoformat(value)
         except (ValueError, TypeError):
@@ -191,6 +194,10 @@ class RQL(DataType):
     pass
 
 
+class JSON(DataType):
+    pass
+
+
 @load.register()
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
     _add_leaf_props(dtype.prop)
@@ -213,8 +220,8 @@ def _add_leaf_props(prop: Property) -> None:
 
 @load.register()
 def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
-    dtype.properties = data.get('properties', {})
-    for name, params in dtype.properties.items():
+    dtype.properties = {}
+    for name, params in data.get('properties', {}).items():
         place = dtype.prop.place + '.' + name
         params = {
             'name': name,
@@ -264,7 +271,7 @@ def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
 
     dtype = data.get('type')
     if dtype not in config.components['types']:
-        raise Exception(f"Unknown property type {dtype!r}.")
+        raise exceptions.UnknownPropertyType(prop, type=dtype)
 
     dtype = config.components['types'][dtype]()
     type_schema = resolve_schema(dtype, DataType)
@@ -272,7 +279,7 @@ def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
         schema = type_schema[name]
         value = data.get(name, na)
         if schema.get('required', False) and value is na:
-            raise Exception(f"Missing requied option {name!r}.")
+            raise exceptions.MissingRequiredProperty(prop)
         if value is na:
             value = schema.get('default')
         setattr(dtype, name, value)
