@@ -18,7 +18,11 @@ setup(
     setup_requires=['setuptools_scm'],
     license='MIT',
     packages=find_packages(),
-    package_data={'spinta': ['manifest/*.yml', 'templates/*.html']},
+    package_data={'spinta': [
+        'config.yml',
+        'manifest/*.yml',
+        'templates/*.html',
+    ]},
     install_requires=read_requirements('requirements.in'),
     entry_points={
         'console_scripts': [
