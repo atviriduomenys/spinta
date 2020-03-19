@@ -22,7 +22,6 @@ before_script:
 test:
   variables:
     SPINTA_BACKENDS__DEFAULT__DSN: postgresql://ci:secret@postgres:5432/spinta
-    SPINTA_DATASETS__DEFAULT__SQL__DB: postgresql://ci:secret@postgres:5432/spinta
     SPINTA_BACKENDS__MONGO__DSN: mongodb://mongo/
   script:
     - ci/env/bin/py.test -vvxra --tb=native --log-level=debug --cov=spinta --cov-report=term-missing tests
