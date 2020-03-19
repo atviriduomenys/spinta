@@ -1,13 +1,13 @@
 from ruamel.yaml import YAML
 
-from spinta.core.config import SCHEMA, RawConfig, PyDict, Path, EnvVars, EnvFile, CliArgs
+from spinta.core.config import SCHEMA, KeyFormat, RawConfig, PyDict, Path, EnvVars, EnvFile, CliArgs
 
 yaml = YAML(typ='safe')
 
 
 def test_envvars():
     config = EnvVars('envvars', {
-        'SPINTA_MANIFESTS_DEFAULT_TYPE': 'mongo',
+        'SPINTA_MANIFESTS__DEFAULT__TYPE': 'mongo',
     })
     config.read(SCHEMA)
     assert config.config == {
@@ -17,8 +17,8 @@ def test_envvars():
 
 def test_envvars_switch_case():
     config = EnvVars('envvars', {
-        'SPINTA_MANIFESTS_YAML_TYPE': 'yaml',
-        'SPINTA_MANIFESTS_YAML_PATH': 'manifest',
+        'SPINTA_MANIFESTS__YAML__TYPE': 'yaml',
+        'SPINTA_MANIFESTS__YAML__PATH': 'manifest',
     })
     config.read(SCHEMA)
     assert config.config == {
@@ -55,7 +55,7 @@ def test_hardset():
             },
         }),
         EnvVars('envvars', {
-            'SPINTA_MANIFESTS_NEW_PATH': 'envvars',
+            'SPINTA_MANIFESTS__NEW__PATH': 'envvars',
         }),
         PyDict('app', {
             'components.nodes.new': 'component',
@@ -105,8 +105,8 @@ def test_update_config_from_env():
     rc = RawConfig()
     rc.read([
         EnvVars('envvars', {
-            'SPINTA_BACKENDS_DEFAULT_TYPE': 'postgresql',
-            'SPINTA_BACKENDS_NEW_TYPE': 'mongo',
+            'SPINTA_BACKENDS__DEFAULT__TYPE': 'postgresql',
+            'SPINTA_BACKENDS__NEW__TYPE': 'mongo',
         }),
     ])
     assert rc.keys('backends') == ['default', 'new']
@@ -123,8 +123,8 @@ def test_update_config_from_env_file(tmpdir):
     envfile.write(
         '# comment line\n'
         '\n'
-        'SPINTA_BACKENDS_DEFAULT_TYPE=foo\n'
-        'SPINTA_BACKENDS_NEW_TYPE=bar\n',
+        'SPINTA_BACKENDS__DEFAULT__TYPE=foo\n'
+        'SPINTA_BACKENDS__NEW__TYPE=bar\n',
     )
 
     rc = RawConfig()
@@ -196,7 +196,7 @@ def test_custom_env_from_envvars_only():
         Path('defaults', 'spinta.config:CONFIG'),
         EnvVars('envvars', {
             'SPINTA_ENV': 'testing',
-            'SPINTA_TESTING_BACKENDS_DEFAULT_DSN': 'foo',
+            'SPINTA_TESTING__BACKENDS__DEFAULT__DSN': 'foo',
         }),
     ])
     assert rc.get('backends', 'default', 'dsn') == 'foo'
@@ -208,8 +208,8 @@ def test_custom_env_priority():
         Path('defaults', 'spinta.config:CONFIG'),
         EnvVars('envvars', {
             'SPINTA_ENV': 'testing',
-            'SPINTA_BACKENDS_DEFAULT_DSN': 'bar',
-            'SPINTA_TESTING_BACKENDS_DEFAULT_DSN': 'foo',
+            'SPINTA_BACKENDS__DEFAULT__DSN': 'bar',
+            'SPINTA_TESTING__BACKENDS__DEFAULT__DSN': 'foo',
         }),
     ])
     assert rc.get('backends', 'default', 'dsn') == 'foo'
@@ -221,8 +221,8 @@ def test_custom_env_different_env_name():
         Path('defaults', 'spinta.config:CONFIG'),
         EnvVars('envvars', {
             'SPINTA_ENV': 'testing',
-            'SPINTA_BACKENDS_DEFAULT_DSN': 'bar',
-            'SPINTA_PROD_BACKENDS_DEFAULT_DSN': 'foo',
+            'SPINTA_BACKENDS__DEFAULT__DSN': 'bar',
+            'SPINTA_PROD__BACKENDS__DEFAULT__DSN': 'foo',
         }),
     ])
     assert rc.get('backends', 'default', 'dsn') == 'bar'
@@ -232,8 +232,8 @@ def test_custom_env_from_envfile(tmpdir):
     envfile = tmpdir.join('.env')
     envfile.write(
         'SPINTA_ENV=testing\n'
-        'SPINTA_BACKENDS_DEFAULT_DSN=foo\n'
-        'SPINTA_TESTING_BACKENDS_DEFAULT_DSN=bar\n'
+        'SPINTA_BACKENDS__DEFAULT__DSN=foo\n'
+        'SPINTA_TESTING__BACKENDS__DEFAULT__DSN=bar\n'
     )
     rc = RawConfig()
     rc.read([
@@ -247,7 +247,7 @@ def test_custom_env_from_envfile_only(tmpdir):
     envfile = tmpdir.join('.env')
     envfile.write(
         'SPINTA_ENV=testing\n'
-        'SPINTA_TESTING_BACKENDS_DEFAULT_DSN=bar\n'
+        'SPINTA_TESTING__BACKENDS__DEFAULT__DSN=bar\n'
     )
     rc = RawConfig()
     rc.read([
@@ -261,7 +261,7 @@ def test_custom_env_from_envfile_fallback(tmpdir):
     envfile = tmpdir.join('.env')
     envfile.write(
         'SPINTA_ENV=testing\n'
-        'SPINTA_BACKENDS_DEFAULT_DSN=bar\n'
+        'SPINTA_BACKENDS__DEFAULT__DSN=bar\n'
     )
     rc = RawConfig()
     rc.read([
@@ -328,7 +328,7 @@ def test_datasets_params():
     rc.read([
         Path('defaults', 'spinta.config:CONFIG'),
         EnvVars('envvars', {
-            'SPINTA_DATASETS_MANIFEST_DATASET_RESOURCE': 'dsn',
+            'SPINTA_DATASETS__MANIFEST__DATASET__RESOURCE': 'dsn',
             'SPINTA_DATASETS__DEFAULT__GOV_ORG_DATA__SQL': 'dsn',
         }),
     ])
@@ -427,4 +427,138 @@ def test_environments():
     assert list(rc.getall('backends')) == [
         (('backends', 'mongo', 'type'), 'mongo'),
         (('backends', 'fs', 'type'), 'fs'),
+    ]
+
+
+def test_environments_dotted_name():
+    rc = RawConfig()
+    rc.read([
+        PyDict('defaults', {
+            'backends': {
+                'default': {
+                    'type': 'postgresql',
+                },
+            },
+            'env': 'dev',
+            'environments': {
+                'dev': {
+                    'backends.mongo': {
+                        'type': 'mongo',
+                    },
+                    'backends.fs': {
+                        'type': 'fs',
+                    },
+                },
+                'test': {
+                    'backends.default.type': 'mongo',
+                },
+            },
+        }),
+    ])
+
+    rc.add('T1', {'env': 'test'})
+    assert list(rc.getall('backends')) == [
+        (('backends', 'default', 'type'), 'mongo'),
+    ]
+
+    rc.add('T2', {'env': 'dev'})
+    assert list(rc.getall('backends')) == [
+        (('backends', 'default', 'type'), 'postgresql'),
+        (('backends', 'mongo', 'type'), 'mongo'),
+        (('backends', 'fs', 'type'), 'fs'),
+    ]
+
+
+def test_dump():
+    rc = RawConfig()
+    rc.add('defaults', {'backends.default.type': 'mongo'})
+    assert rc.dump(file=None) == [
+        ('Origin', 'Name', 'Value'),
+        ('--------', '---------------------', '-----'),
+        ('defaults', 'backends.default.type', 'mongo'),
+    ]
+
+
+def test_dump_env():
+    rc = RawConfig()
+    rc.add('defaults', {'backends.default.type': 'mongo'})
+    assert rc.dump(fmt=KeyFormat.ENV, file=None) == [
+        ('Origin', 'Name', 'Value'),
+        ('--------', '------------------------------', '-----'),
+        ('defaults', 'SPINTA_BACKENDS__DEFAULT__TYPE', 'mongo'),
+    ]
+
+
+def test_dump_filter():
+    rc = RawConfig()
+    rc.add('defaults', {
+        'backends.default.type': 'postgresql',
+        'backends.mongo.type': 'mongo',
+        'manifests.default.type': 'yaml',
+    })
+    assert rc.dump('backends', file=None) == [
+        ('Origin', 'Name', 'Value'),
+        ('--------', '---------------------', '----------'),
+        ('defaults', 'backends.default.type', 'postgresql'),
+        ('defaults', 'backends.mongo.type', 'mongo'),
+    ]
+
+
+def test_dump_filter_dots():
+    rc = RawConfig()
+    rc.add('defaults', {
+        'backends.default.type': 'postgresql',
+        'backends.default.dsn': 'postgresql://',
+        'manifests.default.type': 'yaml',
+    })
+    assert rc.dump('backends..type', file=None) == [
+        ('Origin', 'Name', 'Value'),
+        ('--------', '---------------------', '----------'),
+        ('defaults', 'backends.default.type', 'postgresql'),
+    ]
+
+
+def test_dump_filter_dots_2():
+    rc = RawConfig()
+    rc.add('defaults', {
+        'backends.default.type': 'postgresql',
+        'backends.default.dsn': 'postgresql://',
+        'manifests.default.type': 'yaml',
+    })
+    assert rc.dump('..type', file=None) == [
+        ('Origin', 'Name', 'Value'),
+        ('--------', '----------------------', '----------'),
+        ('defaults', 'backends.default.type', 'postgresql'),
+        ('defaults', 'manifests.default.type', 'yaml'),
+    ]
+
+
+def test_dump_two_filter():
+    rc = RawConfig()
+    rc.add('defaults', {
+        'backends.default.type': 'postgresql',
+        'backends.default.dsn': 'postgresql://',
+        'manifests.default.type': 'yaml',
+    })
+    assert rc.dump('backends', 'manifests', file=None) == [
+        ('Origin', 'Name', 'Value'),
+        ('--------', '----------------------', '-------------'),
+        ('defaults', 'backends.default.type', 'postgresql'),
+        ('defaults', 'backends.default.dsn', 'postgresql://'),
+        ('defaults', 'manifests.default.type', 'yaml'),
+    ]
+
+
+def test_dump_filter_startswith():
+    rc = RawConfig()
+    rc.add('defaults', {
+        'backends.default.type': 'postgresql',
+        'backends.default.dsn': 'postgresql://',
+        'manifests.default.type': 'yaml',
+    })
+    assert rc.dump('ba', file=None) == [
+        ('Origin', 'Name', 'Value'),
+        ('--------', '---------------------', '-------------'),
+        ('defaults', 'backends.default.type', 'postgresql'),
+        ('defaults', 'backends.default.dsn', 'postgresql://'),
     ]

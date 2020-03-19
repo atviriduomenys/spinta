@@ -4,6 +4,8 @@ import collections
 import logging
 import os
 import pathlib
+import enum
+import sys
 
 from ruamel.yaml import YAML
 import pkg_resources as pres
@@ -44,6 +46,12 @@ def read_config(args=None):
     return rc
 
 
+class KeyFormat(enum.Enum):
+    CFG = 'cfg'
+    CLI = 'cli'
+    ENV = 'env'
+
+
 class ConfigSource:
 
     def __init__(self, name=None, config=None):
@@ -79,19 +87,23 @@ class ConfigSource:
 
     def get(self, key: tuple, env: str = None):
         if env:
-            val = self.get(('environments', env) + key, NA)
-            if val is not NA:
-                return val
-        return self.config.get(key, NA)
+            return self.config.get(('environments', env) + key, NA)
+        else:
+            return self.config.get(key, NA)
 
 
 class PyDict(ConfigSource):
 
     def read(self, schema: Schema):
-        self.config = {
+        envs = self.config.pop('environments', {})
+        config = {
             tuple(k.split('.')): v
             for k, v in self.config.items()
         }
+        for env, values in envs.items():
+            for k, v in values.items():
+                config[('environments', env) + tuple(k.split('.'))] = v
+        self.config = config
         super().read(schema)
 
 
@@ -129,48 +141,12 @@ class EnvVars(ConfigSource):
             if not key.startswith('SPINTA_'):
                 continue
             key = key[len('SPINTA_'):]
-            if '__' in key:
-                key = tuple(key.lower().split('__'))
-                config[key] = val
-            else:
-                parts = key.lower().split('_')
-                for _, key in self._match(schema, parts):
-                    config[key] = val
-                    break
-                else:
-                    raise Exception(f"Unknown environment variable {key}.")
+            key = tuple(key.lower().split('__'))
+            if len(key) > 1 and key[0] not in schema['items'] and key[1] in schema['items']:
+                key = ('environments',) + key
+            config[key] = val
         self.config = config
         super().read(schema)
-
-    def _match(
-        self,
-        schema: Schema,
-        parts: List[str],
-        key: Key = (),
-    ) -> Tuple[Schema, Key]:
-        if not parts:
-            yield schema, key
-        elif schema['type'] == 'object':
-            if 'items' in schema:
-                found = False
-                for i in range(1, len(parts) + 1):
-                    k = '_'.join(parts[:i])
-                    if k in schema['items']:
-                        found = True
-                        s = schema['items'][k]
-                        yield from self._match(s, parts[i:], key + (k,))
-                    elif 'case' in schema:
-                        for case in schema['case'].values():
-                            if k in case:
-                                s = case[k]
-                                yield from self._match(s, parts[i:], key + (k,))
-                if key == () and not found:
-                    yield from self._match(schema, parts[1:], key=('environments', parts[0]))
-            elif schema.get('keys', {}).get('type') == 'string' and 'values' in schema:
-                s = schema['values']
-                for i in range(1, len(parts) + 1):
-                    k = '_'.join(parts[:i])
-                    yield from self._match(s, parts[i:], key + (k,))
 
 
 class EnvFile(EnvVars):
@@ -263,7 +239,10 @@ class RawConfig:
             raise Exception(f"{name} ({value}) path does not exist.")
 
         if origin:
-            return value, config.name
+            if config:
+                return value, config.name
+            else:
+                return value, ''
         else:
             return value
 
@@ -284,17 +263,22 @@ class RawConfig:
             res = res if origin else (res,)
             yield (key,) + res
 
-    def dump(self, names: List[str] = None):
+    def dump(self, *names, fmt: KeyFormat = KeyFormat.CFG, file=sys.stdout):
         table = [('Origin', 'Name', 'Value')]
         sizes = [len(x) for x in table[0]]
         for key, val, origin in self.getall(origin=True):
             if names:
                 for name in names:
-                    if '.'.join(key).startswith(name):
+                    it = enumerate(name.split('.'))
+                    if all(key[i].startswith(k) for i, k in it if k):
                         break
                 else:
                     continue
-            key = '.'.join(key)
+
+            if fmt == KeyFormat.ENV:
+                key = 'SPINTA_' + '__'.join(key).upper()
+            else:
+                key = '.'.join(key)
 
             if isinstance(val, list):
                 for i, v in enumerate(val):
@@ -308,11 +292,14 @@ class RawConfig:
 
         table = (
             table[:1] +
-            [['-' * s for s in sizes]] +
+            [tuple(['-' * s for s in sizes])] +
             table[1:]
         )
-        for row in table:
-            print('  '.join([str(x).ljust(s) for x, s in zip(row, sizes)]))
+        if file:
+            for row in table:
+                print('  '.join([str(x).ljust(s) for x, s in zip(row, sizes)]), file=file)
+        else:
+            return table
 
     def _update_keys(self) -> Dict[Key, List[str]]:
         """Update inner keys respecting already set values."""
@@ -344,6 +331,8 @@ class RawConfig:
                     # Source has explicit value set.
                     if isinstance(v, str):
                         v = [x.strip() for x in v.split(',')]
+                    else:
+                        v = list(v)
                     keys[k] = config, v
                 elif i < n:
                     # No explicit value set, just collect all parents.
@@ -363,6 +352,8 @@ class RawConfig:
         assert isinstance(key, tuple)
         for config in reversed(self._sources):
             val = config.get(key, env)
+            if env and val is NA:
+                val = config.get(key)
             if val is not NA:
                 return val, config
         return default, None

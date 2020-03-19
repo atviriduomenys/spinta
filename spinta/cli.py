@@ -22,6 +22,7 @@ from spinta.commands.formats import Format
 from spinta.commands.write import push_stream, dataitem_from_payload
 from spinta.components import DataStream
 from spinta.core.context import create_context
+from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist, aiter
 
 log = logging.getLogger(__name__)
@@ -353,10 +354,13 @@ def run(ctx):
 @main.command()
 @click.pass_context
 @click.argument('name', nargs=-1, required=False)
-def config(ctx, name=None):
+@click.option('-f', '--format', 'fmt', default='cfg', help=(
+    'Configuration option name format, possible values: cfg, cli, env.'
+))
+def config(ctx, name=None, fmt='cfg'):
     context = ctx.obj
     rc = context.get('rc')
-    rc.dump(name)
+    rc.dump(*name, fmt=KeyFormat[fmt.upper()])
 
 
 @main.command()
