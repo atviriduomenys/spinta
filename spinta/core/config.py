@@ -212,7 +212,10 @@ class RawConfig:
     def fork(self, sources=None, after=None):
         rc = RawConfig(list(self._sources))
         if sources:
-            rc.read(sources, after)
+            if isinstance(sources, dict):
+                rc.add('fork', sources)
+            else:
+                rc.read(sources, after)
         else:
             rc._keys = rc._update_keys()
         return rc
@@ -220,7 +223,7 @@ class RawConfig:
     def lock(self):
         self._locked = True
 
-    def get(self, *key, default=None, cast=None, required=False, exists=False, origin=False):
+    def get(self, *key, default=NA, cast=None, required=False, exists=False, origin=False):
         env, _ = self._get_config_value(('env',), default=None)
         value, config = self._get_config_value(key, default, env)
 
@@ -321,7 +324,7 @@ class RawConfig:
             n = len(key)
             schema = self._schema
             for i in range(1, n + 1):
-                schema = self._get_object_schema(schema, key[i - 1])
+                schema = self._get_key_schema(schema, key[i - 1])
                 if schema is None or schema['type'] != 'object':
                     # Skip all non object keys, only objects can have keys.
                     break
@@ -341,14 +344,19 @@ class RawConfig:
                     if key[i] not in keys[k][1]:
                         keys[k][1].append(key[i])
 
-    def _get_object_schema(self, schema: Schema, key: str):
+    def _get_key_schema(self, schema: Schema, key: str):
         if schema['type'] == 'object':
             if 'items' in schema:
-                return schema['items'].get(key)
+                if key in schema['items']:
+                    return schema['items'][key]
+            if 'case' in schema:
+                for items in schema['case'].values():
+                    if key in items:
+                        return items[key]
             if 'keys' in schema and schema['keys']['type'] == 'string':
                 return schema['values']
 
-    def _get_config_value(self, key: Key, default: Any = None, env: str = None):
+    def _get_config_value(self, key: Key, default: Any = NA, env: str = None):
         assert isinstance(key, tuple)
         for config in reversed(self._sources):
             val = config.get(key, env)
@@ -356,6 +364,16 @@ class RawConfig:
                 val = config.get(key)
             if val is not NA:
                 return val, config
+        if default is NA:
+            schema = self._schema
+            for k in key:
+                schema = self._get_key_schema(schema, k)
+                if schema is None:
+                    break
+            else:
+                default = schema.get('default', NA)
+            if default is NA:
+                default = None
         return default, None
 
 

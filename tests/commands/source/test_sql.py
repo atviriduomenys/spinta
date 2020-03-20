@@ -3,7 +3,7 @@ import collections
 import pytest
 import sqlalchemy as sa
 
-from spinta.testing.context import create_test_context
+from spinta.testing.datasets import pull
 
 SQL = collections.namedtuple('SQL', ('engine', 'schema'))
 
@@ -17,17 +17,9 @@ def sql(rc):
     schema.drop_all()
 
 
-def test_sql(rc, sql, app):
-    context = create_test_context(rc)
-    context.load({
-        'datasets': {
-            'default': {
-                'sql': {
-                    'db': rc.get('backends', 'default', 'dsn'),
-                },
-            }
-        },
-    })
+def test_sql(rc, cli, sql, app):
+    dsn = rc.get('backends', 'default', 'dsn', required=True)
+    rc = rc.fork({'datasets.default.sql.db': dsn})
 
     country = sa.Table(
         'tests_country', sql.schema,
@@ -44,8 +36,8 @@ def test_sql(rc, sql, app):
             {'kodas': 'ee', 'pavadinimas': 'Estija'},
         ])
 
-    assert len(context.pull('sql')) == 3
-    assert len(context.pull('sql')) == 0
+    assert len(pull(cli, rc, 'sql')) == 3
+    assert len(pull(cli, rc, 'sql')) == 0
 
     app.authorize(['spinta_getall', 'spinta_search'])
 

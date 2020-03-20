@@ -2,8 +2,10 @@ import pathlib
 
 from responses import GET
 
+from spinta.testing.datasets import pull
 
-def test_xlsx(app, context, responses, mocker):
+
+def test_xlsx(rc, cli, app, responses):
     responses.add(
         GET, 'http://example.com/data.xlsx',
         status=200, content_type='application/vnd.ms-excel',
@@ -22,7 +24,7 @@ def test_xlsx(app, context, responses, mocker):
     app.authmodel('rinkimai/apylinke/:dataset/xlsx/:resource/data', ['getall'])
     app.authmodel('rinkimai/kandidatas/:dataset/xlsx/:resource/data', ['getall'])
 
-    data = context.pull('xlsx')
+    data = pull(cli, rc, 'xlsx')
     assert len(data) > 0
     data = {d['_id']: d for d in data}
     assert app.getdata('/rinkimai/:dataset/xlsx/:resource/data') == [

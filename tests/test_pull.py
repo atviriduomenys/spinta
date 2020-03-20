@@ -3,9 +3,10 @@ import re
 from responses import GET
 
 from spinta.utils.refs import get_ref_id
+from spinta.testing.datasets import pull
 
 
-def test_csv(app, context, responses):
+def test_csv(rc, cli, app, context, responses):
     responses.add(
         GET, 'http://example.com/continents.csv',
         status=200, stream=True, content_type='text/plain; charset=utf-8',
@@ -24,9 +25,9 @@ def test_csv(app, context, responses):
         body='id,capital\n1,Vilnius\n',
     )
 
-    assert len(context.pull('dependencies', models=['continent'])) == 1
-    assert len(context.pull('dependencies', models=['country'])) == 1
-    assert len(context.pull('dependencies', models=['capital'])) == 1
+    assert len(pull(cli, rc, 'dependencies', 'continent')) == 1
+    assert len(pull(cli, rc, 'dependencies', 'country')) == 1
+    assert len(pull(cli, rc, 'dependencies', 'capital')) == 1
 
     model = 'continent/:dataset/dependencies/:resource/continents'
     app.authmodel(model, ['getall'])
@@ -68,7 +69,7 @@ def test_csv(app, context, responses):
     ]}
 
 
-def test_no_push(app, context, responses):
+def test_no_push(rc, cli, app, context, responses):
     responses.add(
         GET, 'http://example.com/continents.csv',
         status=200, stream=True, content_type='text/plain; charset=utf-8',
@@ -76,7 +77,7 @@ def test_no_push(app, context, responses):
     )
 
     id_ = get_ref_id('1')
-    assert list(context.pull('dependencies', push=False)) == [
+    assert pull(cli, rc, 'dependencies', push=False) == [
         {
             '_op': 'upsert',
             '_type': 'continent/:dataset/dependencies/:resource/continents',
@@ -93,7 +94,7 @@ def test_no_push(app, context, responses):
     assert data == {'_data': []}
 
 
-def test_generator(context, responses):
+def test_generator(rc, cli, context, responses):
 
     def func(request):
         status = 200
@@ -108,7 +109,7 @@ def test_generator(context, responses):
         callback=func, content_type='text/plain; charset=utf-8',
     )
 
-    assert context.pull('generator', push=False) == [
+    assert pull(cli, rc, 'generator', push=False) == [
         {
             '_op': 'upsert',
             '_type': 'continent/:dataset/generator/:resource/continents',
@@ -126,14 +127,14 @@ def test_generator(context, responses):
     ]
 
 
-def test_convert_integers(app, context, responses):
+def test_convert_integers(rc, cli, app, context, responses):
     responses.add(
         GET, 'http://example.com/continents.csv',
         status=200, stream=True, content_type='text/plain; charset=utf-8',
         body='id,continent,population\n1,Europe,9\n2,Africa,10\n',
     )
 
-    assert len(context.pull('dependencies', models=['continent'])) == 2
+    assert len(pull(cli, rc, 'dependencies', 'continent')) == 2
 
     model = 'continent/:dataset/dependencies/:resource/continents'
     app.authmodel(model, ['search'])

@@ -11,7 +11,7 @@ import pymongo
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.backends import Backend
+from spinta.backends import Backend, log_getall, log_getone
 from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataStream, DataItem
 from spinta.core.config import RawConfig
 from spinta.renderer import render
@@ -286,6 +286,8 @@ async def getone(
 ):
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.pk)
+    hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
+    log_getone(context, data, select=params.select, hidden=hidden_props)
     data = commands.prepare_data_for_response(
         context,
         action,
@@ -341,7 +343,7 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, dtype, backend, id_=params.pk)
-
+    log_getone(context, data)
     data = commands.prepare_data_for_response(context, Action.GETONE, prop.dtype, backend, data)
     return render(context, request, prop, params, data, action=action)
 
@@ -422,6 +424,8 @@ async def getall(
         count=params.count,
         query=params.query,
     )
+    hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
+    data = log_getall(context, data, select=params.select, hidden=hidden_props)
     data = (
         commands.prepare_data_for_response(
             context,

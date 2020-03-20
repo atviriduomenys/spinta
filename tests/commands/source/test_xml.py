@@ -3,8 +3,10 @@ import pathlib
 
 from responses import GET
 
+from spinta.testing.datasets import pull
 
-def test_xml(app, context, responses):
+
+def test_xml(rc, cli, app, responses):
     responses.add(
         GET, 'http://example.com/data.xml',
         status=200, content_type='application/xml; charset=utf-8',
@@ -14,7 +16,7 @@ def test_xml(app, context, responses):
 
     app.authmodel('tenure/:dataset/xml/:resource/data', ['getall'])
 
-    data = context.pull('xml')
+    data = pull(cli, rc, 'xml')
     assert len(data) == 8
     data = {d['_id']: d for d in data}
     assert sorted(app.getdata('/tenure/:dataset/xml/:resource/data'), key=operator.itemgetter('_id'))[:2] == [

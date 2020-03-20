@@ -27,6 +27,10 @@ CONFIG = {
             'config': 'spinta.components:Config',
             'store': 'spinta.components:Store',
         },
+        'accesslog': {
+            'file': 'spinta.accesslog.file:FileAccessLog',
+            'python': 'spinta.accesslog.python:PythonAccessLog',
+        },
         'manifests': {
             'spinta': 'spinta.manifests.spinta:SpintaManifest',
             'yaml': 'spinta.manifests.yaml:YamlManifest',
@@ -88,6 +92,11 @@ CONFIG = {
         'json': 'spinta.commands.formats.json:Json',
         'jsonl': 'spinta.commands.formats.jsonl:JsonLines',
         'html': 'spinta.commands.formats.html:Html',
+    },
+    'accesslog': {
+        'type': 'file',
+        'file': 'stdout',
+        'buffer_size': 300,
     },
     'backends': {
         'default': {
@@ -185,6 +194,9 @@ CONFIG = {
             'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
         },
         'test': {
+            'accesslog': {
+                'type': 'python',
+            },
             'backends': {
                 'default': {
                     'type': 'postgresql',

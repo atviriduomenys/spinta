@@ -25,22 +25,22 @@ from starlette.responses import Response
 import sqlalchemy as sa
 import sqlalchemy.exc
 
-from spinta import spyna
 from spinta import commands
 from spinta import exceptions
-from spinta.backends import Backend, BackendFeatures
-from spinta.commands import wait, load, prepare, getone, getall, wipe, authorize
-from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem, DataSubItem, Store
+from spinta import spyna
+from spinta.backends import Backend, BackendFeatures, log_getall, log_getone
+from spinta.backends.postgresql.files import DatabaseFile
+from spinta.commands import wait, load, prepare, migrate, getone, getall, wipe, authorize
+from spinta.commands.write import prepare_patch, simple_response, validate_data, write
+from spinta.components import Context, Manifest, Model, Property, Action, UrlParams, DataItem, DataSubItem
 from spinta.core.config import RawConfig
+from spinta.core.ufuncs import asttoexpr, ufunc
 from spinta.hacks.recurse import _replace_recurse
 from spinta.renderer import render
-from spinta.utils.schema import NA, is_valid_sort_key
-from spinta.utils.json import fix_data_for_json
 from spinta.utils.aiotools import aiter
 from spinta.utils.data import take
-from spinta.commands.write import prepare_patch, simple_response, validate_data, write
-from spinta.backends.postgresql.files import DatabaseFile
-from spinta.core.ufuncs import asttoexpr, ufunc
+from spinta.utils.json import fix_data_for_json
+from spinta.utils.schema import NA, is_valid_sort_key
 from spinta.types.datatype import (
     Array,
     DataType,
@@ -455,7 +455,7 @@ def bootstrap(context: Context, backend: PostgreSQL):
 
 
 @commands.migrate.register()
-def migrate(context: Context, backend: PostgreSQL):
+def migrate(context: Context, backend: PostgreSQL):  # noqa
     pass
 
 
@@ -917,6 +917,8 @@ async def getone(
 ):
     authorize(context, action, model)
     data = getone(context, model, backend, id_=params.pk)
+    hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
+    log_getone(context, data, select=params.select, hidden=hidden_props)
     data = commands.prepare_data_for_response(
         context,
         Action.GETONE,
@@ -973,6 +975,7 @@ async def getone(
 ):
     authorize(context, action, prop)
     data = getone(context, prop, dtype, backend, id_=params.pk)
+    log_getone(context, data)
     data = commands.prepare_data_for_response(
         context,
         Action.GETONE,
@@ -1065,6 +1068,7 @@ async def getone(
 
     # Return file metadata
     if params.propref:
+        log_getone(context, data)
         data = commands.prepare_data_for_response(
             context,
             Action.GETONE,
@@ -1193,6 +1197,17 @@ async def getall(
     params: UrlParams,
 ):
     authorize(context, action, model)
+    all_rows = getall(
+        context, model, backend,
+        select=params.select,
+        sort=params.sort,
+        offset=params.offset,
+        limit=params.limit,
+        query=params.query,
+        # TODO: Add count support.
+    )
+    hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
+    all_rows = log_getall(context, all_rows, select=params.select, hidden=hidden_props)
     result = (
         commands.prepare_data_for_response(
             context,
@@ -1202,15 +1217,7 @@ async def getall(
             row,
             select=params.select,
         )
-        for row in getall(
-            context, model, backend,
-            select=params.select,
-            sort=params.sort,
-            offset=params.offset,
-            limit=params.limit,
-            query=params.query,
-            # TODO: Add count support.
-        )
+        for row in all_rows
     )
     return render(context, request, model, params, result, action=action)
 

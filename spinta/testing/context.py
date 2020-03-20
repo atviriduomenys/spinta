@@ -88,7 +88,6 @@ class ContextForTests:
         # If test function does not explicitly call `context.load`, then it will
         # be called implicitly on `app.request` and on some context methods,
         # that run database queries.
-
         if self.loaded:
             raise Exception("test context is already loaded")
 

@@ -3,10 +3,10 @@ import pathlib
 
 from responses import GET
 
-from spinta.utils.itertools import consume
+from spinta.testing.datasets import pull
 
 
-def test_json(app, context, responses):
+def test_json(cli, rc, app, responses):
     responses.add(
         GET, 'http://example.com/data.json',
         status=200, content_type='application/json; charset=utf-8',
@@ -15,7 +15,7 @@ def test_json(app, context, responses):
 
     app.authmodel('rinkimai/:dataset/json/:resource/data', ['getall'])
 
-    data = context.pull('json')
+    data = pull(cli, rc, 'json')
     assert len(data) == 10
     data = {d['_id']: d for d in data}
     assert sorted(app.get('/rinkimai/:dataset/json/:resource/data').json()['_data'], key=operator.itemgetter('_id'))[:2] == [

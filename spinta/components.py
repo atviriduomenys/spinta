@@ -23,20 +23,21 @@ class Context:
         # Names defined in current context. Names from inherited context are not
         # listed here.
         self._local_names = [set()]
-        self._exitstack = [contextlib.ExitStack()]
+        self._exitstack = [None]
 
         if parent:
-            self._cmgrs = [parent._cmgrs[-1].copy()]
+            # cmgrs are copied in __enter__() method.
+            self._cmgrs = [{}]
             self._factory = [parent._factory[-1].copy()]
             self._names = [parent._names[-1].copy()]
 
             # We only copy explicitly set keys, and exclude keys coming from
             # `bind` or `attach`.
             copy_keys = set(parent._context[-1]) - (
-                set(parent._cmgrs[-1]) | set(parent._factory[-1])
+                set(parent._cmgrs[-1]) |
+                set(parent._factory[-1])
             )
-            parent_context = parent._context[-1]
-            self._context = [{k: parent_context[k] for k in copy_keys}]
+            self._context = [{k: parent._context[-1][k] for k in copy_keys}]
         else:
             self._cmgrs = [{}]
             self._factory = [{}]
@@ -58,7 +59,13 @@ class Context:
         self._names.append(self._names[-1].copy())
         self._local_names.append(set())
         self._factory.append({})
-        self._cmgrs.append({})
+        if self._parent and len(self._cmgrs) == 1:
+            # We delay copying cmgrs from parent, because ExitStack is only
+            # available from inside with block.
+            self._cmgrs.append(self._parent._cmgrs[-1].copy())
+        else:
+            self._cmgrs.append({})
+        return self
 
     def __exit__(self, *exc):
         self._context.pop()
@@ -68,7 +75,6 @@ class Context:
         self._factory.pop()
         self._cmgrs.pop()
 
-    @contextlib.contextmanager
     def fork(self, name):
         """Fork this context manager by creating new state.
 
@@ -108,9 +114,7 @@ class Context:
             base.get('hard_answer')
 
         """
-        context = self.__class__(name, self)
-        with context._exitstack[-1]:
-            yield context
+        return type(self)(name, self)
 
     def bind(self, name, factory, *args, **kwargs):
         """Bind a callable to the context.
@@ -134,6 +138,9 @@ class Context:
         https://www.python.org/dev/peps/pep-0343/
         https://docs.python.org/3/library/contextlib.html
         """
+        assert self._exitstack[-1] is not None, (
+            "You can attach only inside `with context:` block."
+        )
         self._set_local_name(name)
         self._cmgrs[-1][name] = (factory, args, kwargs)
 
@@ -204,7 +211,7 @@ class Context:
                         # previous and current state.
                         self._context[state][name] = value_getter(state, name)
                     if len(self._context) - 1 > state:
-                        # If value was found not in current state, then update
+                        # If value was not found in current state, then update
                         # current state with value from previous state.
                         self._context[-1][name] = self._context[state][name]
                     return self._context[-1][name]

@@ -55,6 +55,9 @@ def context(_context, mocker, tmpdir, request):
             # XXX: There must be a better way to provide tmpdir to fs backend.
             mocker.patch.object(store.backends['fs'], 'path', pathlib.Path(tmpdir))
 
+        # In-memory accesslog used with spinta.accesslog.python.
+        context.set('accesslog.stream', [])
+
         yield context
 
         # At this point, transaction must be closed, if it is not, then something is

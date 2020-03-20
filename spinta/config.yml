@@ -38,6 +38,22 @@ exporters:
   values:
     type: importstr
 
+accesslog:
+  type: object
+  items:
+    type:
+      type: ref
+      ref: components.accesslog
+    buffer_size:
+      type: integer
+      default: 300
+  switch: type
+  case:
+    file:
+      file:
+        type: string
+        default: stdout
+
 backends:
   type: object
   keys:

@@ -3,7 +3,6 @@ import contextlib
 import unittest.mock
 
 import pytest
-import sqlalchemy as sa
 
 from spinta.components import Context
 
@@ -76,12 +75,12 @@ def test_attach_in_nested_state():
         state['active'] = False
 
     state = {'active': None}
-    context.attach('cmgr', cmgr, state)
     with context:
+        context.attach('cmgr', cmgr, state)
         assert state['active'] is None
         context.get('cmgr')
         assert state['active'] is True
-    assert state['active'] is True
+    assert state['active'] is False
 
 
 def test_attach_in_nested_fork():
@@ -94,14 +93,15 @@ def test_attach_in_nested_fork():
         state['active'] = False
 
     state = {'active': None}
-    base.attach('cmgr', cmgr, state)
-    with base.fork('fork') as fork:
-        with fork:
-            assert state['active'] is None
-            fork.get('cmgr')
+    with base:
+        base.attach('cmgr', cmgr, state)
+        with base.fork('fork') as fork:
+            with fork:
+                assert state['active'] is None
+                fork.get('cmgr')
+                assert state['active'] is True
             assert state['active'] is True
-        assert state['active'] is True
-    assert state['active'] is False
+        assert state['active'] is False
 
 
 def test_fork():
@@ -161,8 +161,8 @@ def test_repr():
     base = Context('base')
     assert repr(base) == f'<spinta.components.Context(base:0) at 0x{id(base):02x}>'
     with base.fork('fork') as fork:
-        assert repr(fork) == f'<spinta.components.Context(base:0 < fork:0) at 0x{id(fork):02x}>'
+        assert repr(fork) == f'<spinta.components.Context(base:0 < fork:1) at 0x{id(fork):02x}>'
         with fork:
-            assert repr(fork) == f'<spinta.components.Context(base:0 < fork:1) at 0x{id(fork):02x}>'
+            assert repr(fork) == f'<spinta.components.Context(base:0 < fork:2) at 0x{id(fork):02x}>'
             with fork:
-                assert repr(fork) == f'<spinta.components.Context(base:0 < fork:2) at 0x{id(fork):02x}>'
+                assert repr(fork) == f'<spinta.components.Context(base:0 < fork:3) at 0x{id(fork):02x}>'

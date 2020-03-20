@@ -18,6 +18,10 @@ class JsonLines(Format):
     }
     params = {}
 
+    def __call__(self, data):
+        for row in data:
+            yield json.dumps(row, ensure_ascii=False) + '\n'
+
 
 @commands.render.register()  # noqa
 def render(
@@ -36,7 +40,7 @@ def render(
 
 
 @commands.render.register()  # noqa
-def render(
+def render(  # noqa
     context: Context,
     request: Request,
     model: dataset.Model,
@@ -52,7 +56,7 @@ def render(
 
 
 @commands.render.register()  # noqa
-def render(
+def render(  # noqa
     context: Context,
     request: Request,
     node: Node,
