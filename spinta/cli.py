@@ -17,19 +17,21 @@ from spinta import commands
 from spinta import components
 from spinta import exceptions
 from spinta.auth import AdminToken
-from spinta.auth import ResourceProtector, BearerTokenValidator
 from spinta.commands.formats import Format
-from spinta.commands.write import push_stream, dataitem_from_payload
-from spinta.components import DataStream
+from spinta.commands.write import write
+from spinta.components import Context, DataStream
 from spinta.core.context import create_context
 from spinta.core.config import KeyFormat
-from spinta.utils.aiotools import alist, aiter
+from spinta.utils.aiotools import alist
+from spinta.accesslog import create_accesslog
 
 log = logging.getLogger(__name__)
 
 
 @click.group()
-@click.option('--option', '-o', multiple=True, help='Set configuration option, example: `-o option.name=value`.')
+@click.option('--option', '-o', multiple=True, help=(
+    "Set configuration option, example: `-o option.name=value`."
+))
 @click.pass_context
 def main(ctx, option):
     ctx.obj = ctx.obj or create_context('cli', args=option)
@@ -66,7 +68,9 @@ def freeze(ctx):
     commands.load(context, store, config)
     commands.check(context, store)
 
-    commands.freeze(context, store)
+    with context:
+        _require_auth(context)
+        commands.freeze(context, store)
 
     click.echo("Done.")
 
@@ -107,9 +111,8 @@ def bootstrap(ctx):
 
     commands.prepare(context, store)
 
-    context.set('auth.token', AdminToken())
-
     with context:
+        _require_auth(context)
         backend = store.manifest.backend
         context.attach('transaction', backend.transaction, write=True)
         commands.bootstrap(context, store)
@@ -131,9 +134,8 @@ def migrate(ctx):
 
     commands.prepare(context, store)
 
-    context.set('auth.token', AdminToken())
-
     with context:
+        _require_auth(context)
         backend = store.manifest.backend
         context.attach('transaction', backend.transaction, write=True)
         commands.bootstrap(context, store)
@@ -161,10 +163,6 @@ def pull(ctx, source, model, push, export):
 
     commands.prepare(context, store)
 
-    # TODO: probably commands should also use an exsiting token in order to
-    #       track who changed what.
-    context.set('auth.token', AdminToken())
-
     manifest = store.manifest
     if source in manifest.objects['dataset']:
         dataset = manifest.objects['dataset'][source]
@@ -173,6 +171,7 @@ def pull(ctx, source, model, push, export):
 
     try:
         with context:
+            _require_auth(context)
             backend = store.backends['default']
             context.attach('transaction', backend.transaction, write=push)
 
@@ -181,10 +180,8 @@ def pull(ctx, source, model, push, export):
 
             stream = commands.pull(context, dataset, models=model)
             if push:
-                stream = push_stream(context, aiter(
-                    dataitem_from_payload(context, dataset, data)
-                    for data in stream
-                ))
+                root = manifest.objects['ns']['']
+                stream = write(context, root, stream, changed=True)
 
             if export is None and push is False:
                 export = 'stdout'
@@ -258,11 +255,6 @@ def push(ctx, target, dataset, credentials, client):
 
     commands.prepare(context, store)
 
-    # TODO: probably commands should also use an exsiting token in order to
-    #       track who changed what.
-    context.set('auth.token', AdminToken())
-    context.set('auth.resource_protector', ResourceProtector(context, BearerTokenValidator))
-
     manifest = store.manifest
     if dataset and dataset not in manifest.objects['dataset']:
         raise click.ClickException(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
@@ -270,6 +262,7 @@ def push(ctx, target, dataset, credentials, client):
     ns = manifest.objects['ns']['']
 
     with context:
+        _require_auth(context)
         token = _get_access_token(credentials, client, target)
         headers = {
             'Content-Type': 'application/x-ndjson',
@@ -372,36 +365,40 @@ def genkeys(ctx, path):
 
     from authlib.jose import jwk
 
-    if path is None:
-        context = ctx.obj
+    context = ctx.obj
+    with context:
+        _require_auth(context)
 
-        rc = context.get('rc')
-        config = context.get('config')
-        commands.load(context, config, rc)
+        if path is None:
+            context = ctx.obj
 
-        path = config.config_path / 'keys'
-        path.mkdir(exist_ok=True)
-    else:
-        path = pathlib.Path(path)
+            rc = context.get('rc')
+            config = context.get('config')
+            commands.load(context, config, rc)
 
-    private_file = path / 'private.json'
-    public_file = path / 'public.json'
+            path = config.config_path / 'keys'
+            path.mkdir(exist_ok=True)
+        else:
+            path = pathlib.Path(path)
 
-    if private_file.exists():
-        raise click.Abort(f"{private_file} file already exists.")
+        private_file = path / 'private.json'
+        public_file = path / 'public.json'
 
-    if public_file.exists():
-        raise click.Abort(f"{public_file} file already exists.")
+        if private_file.exists():
+            raise click.Abort(f"{private_file} file already exists.")
 
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
+        if public_file.exists():
+            raise click.Abort(f"{public_file} file already exists.")
 
-    with private_file.open('w') as f:
-        json.dump(jwk.dumps(key), f, indent=4, ensure_ascii=False)
-        click.echo(f"Private key saved to {private_file}.")
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
 
-    with public_file.open('w') as f:
-        json.dump(jwk.dumps(key.public_key()), f, indent=4, ensure_ascii=False)
-        click.echo(f"Public key saved to {public_file}.")
+        with private_file.open('w') as f:
+            json.dump(jwk.dumps(key), f, indent=4, ensure_ascii=False)
+            click.echo(f"Private key saved to {private_file}.")
+
+        with public_file.open('w') as f:
+            json.dump(jwk.dumps(key.public_key()), f, indent=4, ensure_ascii=False)
+            click.echo(f"Public key saved to {public_file}.")
 
 
 @main.group()
@@ -420,46 +417,60 @@ def client_add(ctx, name, secret, add_secret, path):
     import ruamel.yaml
     from spinta.utils import passwords
 
-    yaml = ruamel.yaml.YAML(typ='safe')
+    context = ctx.obj
+    with context:
+        _require_auth(context)
 
-    if path is None:
-        context = ctx.obj
+        yaml = ruamel.yaml.YAML(typ='safe')
 
-        rc = context.get('rc')
-        config = context.get('config')
-        commands.load(context, config, rc)
+        if path is None:
+            context = ctx.obj
 
-        path = config.config_path / 'clients'
-        path.mkdir(exist_ok=True)
-    else:
-        path = pathlib.Path(path)
+            rc = context.get('rc')
+            config = context.get('config')
+            commands.load(context, config, rc)
 
-    client_id = name or str(uuid.uuid4())
-    client_file = path / f'{client_id}.yml'
+            path = config.config_path / 'clients'
+            path.mkdir(exist_ok=True)
+        else:
+            path = pathlib.Path(path)
 
-    if client is None and client_file.exists():
-        raise click.Abort(f"{client_file} file already exists.")
+        client_id = name or str(uuid.uuid4())
+        client_file = path / f'{client_id}.yml'
 
-    client_secret = secret or passwords.gensecret(32)
-    client_secret_hash = passwords.crypt(client_secret)
+        if client is None and client_file.exists():
+            raise click.Abort(f"{client_file} file already exists.")
 
-    data = {
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'client_secret_hash': client_secret_hash,
-        'scopes': [],
-    }
+        client_secret = secret or passwords.gensecret(32)
+        client_secret_hash = passwords.crypt(client_secret)
 
-    if not add_secret:
-        del data['client_secret']
+        data = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'client_secret_hash': client_secret_hash,
+            'scopes': [],
+        }
 
-    yaml.dump(data, client_file)
+        if not add_secret:
+            del data['client_secret']
 
-    click.echo(
-        f"New client created and saved to:\n\n"
-        f"    {client_file}\n\n"
-        f"Client secret:\n\n"
-        f"    {client_secret}\n\n"
-        f"Remember this client secret, because only a secure hash of\n"
-        f"client secret will be stored in the config file."
-    )
+        yaml.dump(data, client_file)
+
+        click.echo(
+            f"New client created and saved to:\n\n"
+            f"    {client_file}\n\n"
+            f"Client secret:\n\n"
+            f"    {client_secret}\n\n"
+            f"Remember this client secret, because only a secure hash of\n"
+            f"client secret will be stored in the config file."
+        )
+
+
+def _require_auth(context: Context):
+    # TODO: probably commands should also use an exsiting token in order to
+    #       track who changed what.
+    context.set('auth.token', AdminToken())
+    context.attach('accesslog', create_accesslog, context, loaders=(
+        context.get('store'),
+        context.get("auth.token"),
+    ))

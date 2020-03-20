@@ -562,3 +562,21 @@ def test_dump_filter_startswith():
         ('defaults', 'backends.default.type', 'postgresql'),
         ('defaults', 'backends.default.dsn', 'postgresql://'),
     ]
+
+
+def test_keys_from_switch_case():
+    rc = RawConfig()
+    rc.add('defaults', {
+        'accesslog': {
+            'type': 'file',
+            'file': 'stdout',
+            'buffer_size': 300,
+        }
+    })
+    assert rc.keys('accesslog') == ['type', 'file', 'buffer_size']
+
+
+def test_schema_default_value():
+    rc = RawConfig()
+    rc.add('defaults', {'accesslog.type': 'file'})
+    assert rc.get('accesslog', 'buffer_size') == 300

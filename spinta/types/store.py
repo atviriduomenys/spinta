@@ -39,6 +39,9 @@ def load(context: Context, store: Store, config: Config) -> Store:
         node = load(context, node, data, manifest)
         manifest.objects[node.type][node.name] = node
 
+    # Load accesslog
+    store.accesslog = commands.load(context, config.AccessLog(), config)
+
     return store
 
 

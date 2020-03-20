@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Union, List, Dict, Optional, Iterable
+from typing import AsyncIterator, Union, List, Dict, Optional, Iterable, Generator
 
 import base64
 import contextlib
@@ -7,14 +7,15 @@ import uuid
 import typing
 import enum
 
-from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON
-from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
-from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
-from spinta.types import dataset
-from spinta.exceptions import ConflictingValue, NoItemRevision
-from spinta.utils.schema import NotAvailable, NA
 from spinta import commands
 from spinta import exceptions
+from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
+from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
+from spinta.exceptions import ConflictingValue, NoItemRevision
+from spinta.types import dataset
+from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON
+from spinta.utils.itertools import chunks, recursive_keys
+from spinta.utils.schema import NotAvailable, NA
 
 SelectTree = Optional[Dict[str, dict]]
 
@@ -995,3 +996,70 @@ def cast_backend_to_python(  # noqa
     data: str,
 ) -> dict:
     return base64.b64decode(data)
+
+
+def log_getall(
+    context: Context,
+    rows: Generator[dict, None, None],
+    select: List[str] = None,
+    hidden: List[str] = None,
+):
+    accesslog = context.get('accesslog')
+    for chunk in chunks(rows, accesslog.buffer_size):
+        resources = [
+            {
+                '_id': data.get('_id'),
+                '_type': data.get('_type'),
+                '_revision': data.get('_revision')
+            } for data in chunk
+        ]
+        fields = get_accessed_fields(chunk[0], select=select, hidden=hidden)
+        accesslog.log(resources=resources, fields=fields)
+        yield from chunk
+
+
+def log_getone(
+    context: Context,
+    result: dict,
+    select: List[str] = None,
+    hidden: List[str] = None,
+):
+    fields = get_accessed_fields(result, select=select, hidden=hidden)
+    # XXX: select queries do not return metadata
+    resource = {
+        '_id': result.get('_id'),  # XXX: subresource queries do not return id
+        '_type': result.get('_type'),
+        '_revision': result.get('_revision'),
+    }
+    accesslog = context.get('accesslog')
+    accesslog.log(resources=[resource], fields=fields)
+
+
+def get_accessed_fields(data, select=None, hidden=None):
+    # Gathers the fields that user is accessing with a query.
+    # It's the meta fields (_id, _type, _revision) with the all other object
+    # non-meta fields which are selected (if no select - then all fields)
+    all_keys = list(recursive_keys(data, dot_notation=True))
+    accessed_fields = []
+    meta = ['_id', '_type', '_revision']
+    for key in all_keys:
+        if select:
+            # if select filter is given - return meta fields + select
+            if key in select or key in meta:
+                accessed_fields.append(key)
+                continue
+        else:
+            if key in meta:
+                accessed_fields.append(key)
+                continue
+            elif hidden and key in hidden:
+                continue
+            else:
+                # check if key is a meta field, we need to return only meta fields
+                # described in `meta` variable.
+                not_meta_attr = [not attrs.startswith('_') for attrs in key.split('.')]
+                if all(not_meta_attr):
+                    accessed_fields.append(key)
+                    continue
+
+    return accessed_fields

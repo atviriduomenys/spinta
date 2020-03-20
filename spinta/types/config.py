@@ -47,6 +47,10 @@ def load(context: Context, config: components.Config, rc: RawConfig) -> componen
         exporter = rc.get('exporters', name, cast=importstr)
         config.exporters[name] = exporter()
 
+    # Load accesslog
+    accesslog = rc.get('accesslog', 'type', required=True)
+    config.AccessLog = config.components['accesslog'][accesslog]
+
     # Load everything else.
     config.debug = rc.get('debug', default=False)
     config.config_path = rc.get('config_path', cast=pathlib.Path, exists=True)

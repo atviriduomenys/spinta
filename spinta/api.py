@@ -14,17 +14,18 @@ from starlette.staticfiles import StaticFiles
 from starlette.routing import Route, Mount
 from starlette.middleware import Middleware
 
+from spinta import components
+from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
 from spinta.commands import prepare, get_version
-from spinta.exceptions import BaseError, MultipleErrors, error_response
-from spinta.urlparams import Version
-from spinta.utils.response import create_http_response
-from spinta.urlparams import get_response_type
-from spinta import components
-from spinta.middlewares import ContextMiddleware
 from spinta.components import Context
-from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
+from spinta.exceptions import BaseError, MultipleErrors, error_response
+from spinta.middlewares import ContextMiddleware
+from spinta.urlparams import Version
+from spinta.urlparams import get_response_type
+from spinta.utils.response import create_http_response
+from spinta.accesslog import create_accesslog
 
 log = logging.getLogger(__name__)
 
@@ -62,9 +63,13 @@ async def homepage(request: Request):
         'headers': request.headers,
     }))
     context.set('auth.token', get_auth_token(context))
+    context.attach('accesslog', create_accesslog, context, loaders=(
+        context.get('store'),
+        context.get("auth.token"),
+        request,
+    ))
 
     config = context.get('config')
-
     UrlParams: Type[components.UrlParams] = config.components['urlparams']['component']
     params = prepare(context, UrlParams(), Version(), request)
 

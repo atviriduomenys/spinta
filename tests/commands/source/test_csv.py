@@ -2,10 +2,10 @@ from operator import itemgetter
 
 from responses import GET
 
-from spinta.utils.itertools import consume
+from spinta.testing.datasets import pull
 
 
-def test_csv(app, context, responses):
+def test_csv(rc, cli, app, responses):
     responses.add(
         GET, 'http://example.com/countries.csv',
         status=200, content_type='text/plain; charset=utf-8',
@@ -17,8 +17,8 @@ def test_csv(app, context, responses):
         ),
     )
 
-    assert len(context.pull('csv')) == 3
-    assert len(context.pull('csv')) == 0
+    assert len(pull(cli, rc, 'csv')) == 3
+    assert len(pull(cli, rc, 'csv')) == 0
 
     app.authmodel('country', ['getall'])
     app.authmodel('country/:dataset/csv/:resource/countries', ['getall'])
@@ -31,7 +31,7 @@ def test_csv(app, context, responses):
     ]
 
 
-def test_denorm(app, context, responses):
+def test_denorm(rc, cli, app, responses):
     responses.add(
         GET, 'http://example.com/orgs.csv',
         status=200, content_type='text/plain; charset=utf-8',
@@ -43,8 +43,8 @@ def test_denorm(app, context, responses):
         ),
     )
 
-    assert consume(context.pull('denorm')) == 5
-    assert consume(context.pull('denorm')) == 0
+    assert len(pull(cli, rc, 'denorm')) == 5
+    assert len(pull(cli, rc, 'denorm')) == 0
 
     lt = '552c4c243ec8c98c313255ea9bf16ee286591f8c'
     lv = 'b5dcb86880816fb966cdfbbacd1f3406739464f4'

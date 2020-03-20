@@ -12,15 +12,15 @@ def create_context(name='spinta', rc=None, context=None, args=None):
     load_commands(rc.get('commands', 'modules', cast=list))
 
     if context is None:
-        Context = rc.get('components', 'core', 'context', cast=importstr)
+        Context = rc.get('components', 'core', 'context', cast=importstr, required=True)
         context = Context(name)
 
     context.set('rc', rc)
 
-    Config = rc.get('components', 'core', 'config', cast=importstr)
+    Config = rc.get('components', 'core', 'config', cast=importstr, required=True)
     context.set('config', Config())
 
-    Store = rc.get('components', 'core', 'store', cast=importstr)
+    Store = rc.get('components', 'core', 'store', cast=importstr, required=True)
     context.set('store', Store())
 
     return context

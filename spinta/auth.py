@@ -150,6 +150,9 @@ class Token(rfc6749.TokenMixin):
     def get_scope(self):
         return self._token.get('scope', '')
 
+    def get_sub(self):
+        return self._token.get('sub', '')
+
 
 class AdminToken(rfc6749.TokenMixin):
 
@@ -158,6 +161,9 @@ class AdminToken(rfc6749.TokenMixin):
 
     def check_scope(self, scope, **kwargs):
         pass
+
+    def get_sub(self):
+        return 'admin'
 
 
 def get_auth_token(context: Context) -> Token:

@@ -5,6 +5,7 @@ import json
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
+from starlette.datastructures import URL, Headers
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -19,8 +20,9 @@ from spinta.types import dataset
 from spinta.types.datatype import DataType, Object, Array, File, Ref
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
-from spinta.utils.aiotools import aslice, alist
+from spinta.utils.aiotools import aslice, alist, aiter
 from spinta.utils.errors import report_error
+from spinta.utils.itertools import recursive_keys
 from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
@@ -61,7 +63,10 @@ async def push(
         stream = _read_request_body(
             context, request, scope, action, params, stop_on_error,
         )
-    dstream = push_stream(context, stream, stop_on_error)
+    dstream = push_stream(context, stream,
+                          stop_on_error=stop_on_error,
+                          url=request.url,
+                          headers=request.headers)
     batch = False
     if params.summary:
         status_code, response = await _summary_response(context, dstream)
@@ -99,6 +104,8 @@ async def push_stream(
     context: Context,
     stream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
+    url: URL = URL(),
+    headers: Headers = Headers(),
 ) -> AsyncIterator[DataItem]:
 
     cmds = {
@@ -127,6 +134,7 @@ async def push_stream(
         dstream = read_existing_data(context, dstream)
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
+        dstream = log_write(context, dstream)
         if prop:
             dstream = cmds[action](
                 context, prop, prop.dtype, prop.backend, dstream=dstream,
@@ -144,12 +152,43 @@ async def push_stream(
             yield data
 
 
-async def write(context: Context, scope: Node, payload):
-    stream = [
+async def write(context: Context, scope: Node, payload, *, changed=False):
+    stream = (
         dataitem_from_payload(context, scope, x)
         for x in payload
-    ]
-    return [d async for d in push_stream(context, alist(stream))]
+    )
+    stream = push_stream(context, aiter(stream))
+    async for data in stream:
+        if changed is False or data.patch:
+            yield _get_simple_response(context, data)
+
+
+async def log_write(context, dstream):
+    accesslog = context.get('accesslog')
+    async for data in dstream:
+        fields = list(recursive_keys(data.payload, dot_notation=True))
+
+        # in case of `set_meta_fields`, data.patch may be empty
+        # for _revision or _id keys, then they must be in the payload
+        # _revision = data.patch.get('_revision') or data.payload['_revision']
+
+        resource = dict(
+            _id=get_metadata_for_write(data, key="_id"),
+            _type=data.model.name,
+            _revision=get_metadata_for_write(data, key="_revision"),
+        )
+        transaction = context.get("transaction")
+        accesslog.log(resources=[resource], fields=fields, txn=transaction.id)
+        yield data
+
+
+def get_metadata_for_write(data_item, key):
+    # XXX: how about when it's `set_meta_fields` situation, when
+    # saved _id may be overwritten by patch _id?
+    if data_item.saved and key in data_item.saved:
+        return data_item.saved[key]
+    if key in data_item.patch:
+        return data_item.patch[key]
 
 
 def _stream_group_key(data: DataItem):

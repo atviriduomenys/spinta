@@ -301,3 +301,5 @@ Internal changes:
   order to remove interdependence between two separate manifests.
   
   Also, `_txn` might be saved on another backend.
+
+- `RawConfig` now can take default values from `spinta/config.yml`.

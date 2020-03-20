@@ -30,14 +30,15 @@ def dataset_source_config_name(resource: Resource):
 
 
 def dataset_source_envvar_name(resource: Resource):
-    return '_'.join(['SPINTA'] + dataset_source_config_name(resource)).upper()
+    return 'SPINTA_' + '__'.join(dataset_source_config_name(resource)).upper()
 
 
 @load.register()
 def load(context: Context, source: Source, node: Resource):
     config = context.get('config')
     if not source.name:
-        source.name = config.rc.get(*dataset_source_config_name(node), default=None)
+        key = dataset_source_config_name(node)
+        source.name = config.rc.get(*key, default=None)
     return source
 
 
