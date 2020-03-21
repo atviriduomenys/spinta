@@ -192,4 +192,13 @@ def init(context: Context):
     context.bind('auth.server', AuthorizationServer, context)
     context.bind('auth.resource_protector', ResourceProtector, context, BearerTokenValidator)
 
+    config.rc.dump(
+        'env',
+        'backends',
+        'manifests',
+        'manifest',
+        'accesslog',
+        'default_auth_client',
+    )
+
     return app
