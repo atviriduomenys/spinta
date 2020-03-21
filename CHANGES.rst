@@ -192,6 +192,14 @@ New features:
 
   All these three commands helps to control schema and data migrations.
 
+- Introduced access log. Access log can be configured using `accesslog`
+  configuration option. Corrently two `accesslog` backends are implemented,
+  `file` and `python`. `python` backend is used only for tests and it logs into
+  memory. `file` backend can log to `stdout`, `stderr`, `/dev/null` and to a
+  file. When `/dev/null` is specified as `accesslog.file`, then nothing is
+  logged, internally logs are not even written to real `/dev/null` file, log
+  messages are simply ignored.
+
 - `spinta config` command now does not tries to load manifest, it just reads
   configuration and prints it. Previously `spinta config` tried to load
   manifest and if something is misconfigured it failed without showing
