@@ -359,8 +359,10 @@ class RawConfig:
     def _get_config_value(self, key: Key, default: Any = NA, env: str = None):
         assert isinstance(key, tuple)
         for config in reversed(self._sources):
-            val = config.get(key, env)
-            if env and val is NA:
+            val = NA
+            if env:
+                val = config.get(key, env)
+            if val is NA:
                 val = config.get(key)
             if val is not NA:
                 return val, config

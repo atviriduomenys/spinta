@@ -36,7 +36,14 @@ upgrade: env/bin/pip-compile
 
 .PHONY: test
 test: env
-	env/bin/py.test -vvxra --log-level=debug --cov=spinta --cov-report=term-missing --doctest-modules tests spinta
+	# XXX: I have no idea woath is going on, but if I run doctests together
+	#      with other tests in `py.test --doctest-modules tests spinta`, then
+	#      for some reason `spinta.config:CONFIG` looses 'environments' item.
+	#      Could not found reason why this happens, bet if I remove `spinta`
+	#      from test paths, then tests pass. Maybe this has something to do
+	#      with py.test?
+	env/bin/py.test -vvxra --tb=native --log-level=debug --doctest-modules spinta
+	env/bin/py.test -vvxra --tb=native --log-level=debug --cov=spinta --cov-report=term-missing tests
 
 .PHONY: dist
 dist: env/bin/pip
