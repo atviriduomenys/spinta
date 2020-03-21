@@ -30,7 +30,7 @@ def test_version(app):
 
 def test_app(app):
     resp = app.get('/', headers={'accept': 'text/html'})
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.text
 
     resp.context.pop('request')
     data = _cleaned_context(resp)

@@ -11,6 +11,7 @@ from spinta.components import Context, Config, Store
 
 class FileAccessLog(AccessLog):
     file: Union[TextIO, pathlib.Path]
+    close: bool
 
     def __exit__(self, *exc):
         if self.close:
@@ -55,6 +56,7 @@ def load(context: Context, accesslog: FileAccessLog, config: Config):
 
     accesslog.file = file
     accesslog.close = close
+    return accesslog
 
 
 @commands.load.register()
@@ -63,3 +65,4 @@ def load(context: Context, accesslog: FileAccessLog, store: Store):  # noqa
     if isinstance(file, pathlib.Path):
         file = file.open('a')
     accesslog.file = file
+    accesslog.close = store.accesslog.close
