@@ -5,66 +5,14 @@ import time
 import types
 
 from spinta import commands
-from spinta.commands import load, wait, prepare, migrate, check, push
-from spinta.components import Context, Store, Config
+from spinta.commands import load, wait, init, migrate, check, push
+from spinta.components import Context, Store
 from spinta.urlparams import get_model_by_name
 from spinta.nodes import load_manifest, get_internal_manifest, get_node
 from spinta.core.config import RawConfig
+from spinta.nodes import create_component
 
 
-@load.register()
-def load(context: Context, store: Store, config: Config) -> Store:
-    """Load backends and manifests from configuration."""
-
-    rc = config.rc
-
-    # Load backends
-    store.backends = {}
-    for name in rc.keys('backends'):
-        type_ = rc.get('backends', name, 'type', required=True)
-        Backend = config.components['backends'][type_]
-        backend = store.backends[name] = Backend()
-        backend.name = name
-        load(context, backend, rc)
-
-    # Load default manifest
-    manifest = rc.get('manifest', required=True)
-    manifest = store.manifest = load_manifest(context, store, config, manifest)
-    commands.load(context, manifest, rc)
-
-    # Load internal manifest into default manifest
-    internal = get_internal_manifest(context)
-    for data, versions in internal.read(context):
-        node = get_node(config, manifest, data)
-        node = load(context, node, data, manifest)
-        manifest.objects[node.type][node.name] = node
-
-    # Load accesslog
-    store.accesslog = commands.load(context, config.AccessLog(), config)
-
-    return store
-
-
-@wait.register()
-def wait(
-    context: Context,
-    store: Store,
-    config: RawConfig,
-    *,
-    seconds: int = None,
-):
-    if seconds is None:
-        seconds = config.get('wait', cast=int, required=True)
-
-    # Wait while all backends are up.
-    for backend in store.backends.values():
-        for i in range(1, seconds + 1):
-            if wait(context, backend, config):
-                break
-            time.sleep(1)
-            print(f"Waiting for {backend.name!r} backend %s..." % i)
-        else:
-            wait(context, backend, config, fail=True)
 
 
 @check.register()
@@ -72,9 +20,9 @@ def check(context: Context, store: Store):
     check(context, store.manifest)
 
 
-@prepare.register()
-def prepare(context: Context, store: Store):
-    prepare(context, store.manifest)
+@init.register()
+def init(context: Context, store: Store):
+    init(context, store.manifest)
 
 
 @commands.freeze.register()

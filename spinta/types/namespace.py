@@ -1,4 +1,4 @@
-from typing import Union, Optional, Iterable
+from typing import Optional, Iterable
 
 import collections
 import itertools
@@ -13,7 +13,6 @@ from spinta.components import Context, UrlParams, Namespace, Action, Model, Prop
 from spinta.renderer import render
 from spinta.nodes import load_node, load_model_properties
 from spinta import exceptions
-from spinta.types import dataset
 
 
 @commands.check.register()
@@ -109,7 +108,7 @@ def traverse_ns_models(
 
 
 def _model_matches_params(
-    model: Union[Model, dataset.Model],
+    model: Model,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
     origin: Optional[str] = None,
@@ -120,29 +119,7 @@ def _model_matches_params(
         origin is None
     ):
         return True
-
-    if not isinstance(model, dataset.Model):
-        return False
-
-    if (
-        dataset_ is not None and
-        dataset_ != model.parent.parent.name
-    ):
-        return False
-
-    if (
-        resource is not None and
-        resource != model.parent.name
-    ):
-        return False
-
-    if (
-        origin is not None and
-        origin != model.origin
-    ):
-        return False
-
-    return True
+    return False
 
 
 def _get_ns_content(

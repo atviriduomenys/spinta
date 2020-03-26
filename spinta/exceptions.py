@@ -277,6 +277,10 @@ class InvalidManifestFile(BaseError):
     template = "Error while parsing {filename!r} file: {error}"
 
 
+class InvalidManifestData(BaseError):
+    template = "Error while loading manifest node: {error}"
+
+
 class UnknownProjectOwner(BaseError):
     template = "Unknown owner {owner}."
     context = {

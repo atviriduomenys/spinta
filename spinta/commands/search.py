@@ -1,5 +1,5 @@
 from spinta.backends import Backend
-from spinta.commands import is_object_id, load, load_search_params, load_operator_value, prepare
+from spinta.commands import is_object_id, load, to_native, load_search_params, load_operator_value
 from spinta.components import Context
 from spinta.exceptions import InvalidValue, EmptyStringSearch
 from spinta.types.datatype import Array, Integer, DataType, PrimaryKey, String
@@ -13,9 +13,9 @@ def load_search_params(
     query_params: dict,
 ) -> object:
     value = query_params['args'][1]
-    value = load(context, dtype, value)
+    value = extern(context, dtype, value)
     load_operator_value(context, backend, dtype, value, query_params=query_params)
-    return prepare(context, dtype, backend, value)
+    return extern(context, dtype, backend, value)
 
 
 @load_search_params.register()
@@ -31,7 +31,7 @@ def load_search_params(
     if operator in ('startswith', 'contains') and value == '':
         raise EmptyStringSearch(dtype, op=operator)
     load_operator_value(context, backend, dtype, value, query_params=query_params)
-    return prepare(context, dtype, backend, value)
+    return to_native(context, dtype, backend, value)
 
 
 @load_search_params.register()
@@ -53,7 +53,7 @@ def load_search_params(
     ):
         raise InvalidValue(dtype)
     load_operator_value(context, backend, dtype, value, query_params=query_params)
-    return prepare(context, dtype, backend, value)
+    return to_native(context, dtype, backend, value)
 
 
 @load_search_params.register()
@@ -74,7 +74,7 @@ def load_search_params(
 
     value = load(context, dtype, value)
     load_operator_value(context, backend, dtype, value, query_params=query_params)
-    return prepare(context, dtype, backend, value)
+    return to_native(context, dtype, backend, value)
 
 
 @load_search_params.register()
@@ -90,4 +90,4 @@ def load_search_params(
     value = query_params['args'][1]
     value = load(context, dtype.items.dtype, value)
     load_operator_value(context, backend, dtype.items.dtype, value, query_params=query_params)
-    return prepare(context, dtype, backend, value)
+    return to_native(context, dtype, backend, value)

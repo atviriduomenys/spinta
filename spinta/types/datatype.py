@@ -205,11 +205,15 @@ def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> D
 
 
 @load.register()
-def load(context: Context, dtype: PrimaryKey, data: dict, manifest: Manifest) -> DataType:
+def load(context: Context, dtype: PrimaryKey) -> None:
     if dtype.prop.name != '_id':
         raise exceptions.InvalidManagedPropertyName(dtype, name='_id')
     _add_leaf_props(dtype.prop)
-    return dtype
+
+
+@commands.init()
+def init(context: Context, dtype: PrimaryKey) -> None:
+    dtype.unique = True
 
 
 def _add_leaf_props(prop: Property) -> None:
@@ -263,31 +267,6 @@ def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> Data
     else:
         dtype.items = None
     return dtype
-
-
-def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
-    na = object()
-    config = context.get('config')
-
-    dtype = data.get('type')
-    if dtype not in config.components['types']:
-        raise exceptions.UnknownPropertyType(prop, type=dtype)
-
-    dtype = config.components['types'][dtype]()
-    type_schema = resolve_schema(dtype, DataType)
-    for name in type_schema:
-        schema = type_schema[name]
-        value = data.get(name, na)
-        if schema.get('required', False) and value is na:
-            raise exceptions.MissingRequiredProperty(prop)
-        if value is na:
-            value = schema.get('default')
-        setattr(dtype, name, value)
-
-    dtype.type = 'datatype'
-    dtype.prop = prop
-    dtype.name = data['type']
-    return load(context, dtype, data, manifest)
 
 
 @load.register()

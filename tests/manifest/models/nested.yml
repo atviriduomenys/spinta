@@ -1,4 +1,6 @@
+type: model
 name: nested
+title: Nested structure
 properties:
   _id: {type: pk}
   some:
@@ -10,6 +12,3 @@ properties:
           type: object
       type: object
     type: array
-title: Nested structure
-type: model
-version: {date: ! '2020-03-12 16:30:35.121859+02:00', id: <function uuid4 at 0x7f8a9a8e2d30>}

@@ -23,6 +23,6 @@ commands.check(context, store)
 
 commands.wait(context, store, rc)
 
-commands.prepare(context, store)
+commands.init(context, store)
 
 app = init(context)

@@ -1,5 +1,8 @@
 from spinta.dispatcher import command
 
+from spinta.components.core import Store
+from spinta.components.manifests import Manifest
+
 
 @command()
 def load():
@@ -34,48 +37,52 @@ def load():
 
 
 @command()
-def load_search_params():
+def load_search_params():  # TODO: rename to `to_native`
     """Load search parameters as native python values.
     """
 
 
 @command()
-def load_operator_value():
+def load_operator_value():  # TODO: rename to `to_native`.
     """Loads URL query operator value given by the user.
     """
 
 
 @command()
-def wait():
-    """Wait while all database backends are up.
-
-    Database backends are a separate services and once you start multiple
-    services at the same time, you need to make sure, that all the required
-    external services are up before running the app.
-    """
-
-
-@command()
 def check():
-    """Check if input value is correct.
+    """Validate component parameters.
 
-    - Check components after load:
-
-        check(Context, Config):
-        check(Context, Store):
-        check(Context, Manifest):
-        check(Context, Node):
-
-    - Check data before push:
-
-        check(Context, Model, Backend, dict, *, action: Action)
-        check(Context, Type, Property, Backend, object, *, data: dict, action: Action)
+    This command is called after loading components and converting parameter
+    values to native python types.
 
     """
 
 
 @command()
-def simple_data_check():
+def validate():
+    """Simple data validation.
+
+    This command validates given data using node parameters. It command does not
+    validate given data agains saved data and does not do any integrity checks
+    or does not do any queries to a backend.
+
+    This command is called before retrieving exising data from a backend.
+    """
+
+
+@command()
+def verify():
+    """Complex data validation.
+
+    This command does a more complex validateion, compares given data with saved
+    data, can do backends queris to verify data integrity.
+
+    This command is called after existing data is retrieved from a backend.
+    """
+
+
+@command()
+def simple_data_check():  # TODO: rename to validate
     """Run a simple data check.
 
     Check data by using restrictions given in schema, do not run any business
@@ -89,7 +96,7 @@ def simple_data_check():
 
 
 @command()
-def complex_data_check():
+def complex_data_check():   # TODO: rename to verify
     """Run a complex data check.
 
     At this point, simple data check is already done and data is passed simple
@@ -101,7 +108,7 @@ def complex_data_check():
 
 
 @command()
-def check_unique_constraint():
+def check_unique_constraint():  # TODO: remove
     """Check if value is unique.
 
     This check is only performed when peroperty has unique property set to true.
@@ -140,7 +147,7 @@ def prepare():
 
 
 @command()
-def prepare_data_for_response():
+def prepare_data_for_response():  # TODO: rename to `to_extern`
     """Prepare Python-native data types for response.
 
     Prepared data must be json-serializable.
@@ -152,7 +159,7 @@ def prepare_data_for_response():
 
 
 @command()
-def prepare_dtype_for_response():
+def prepare_dtype_for_response():  # TODO: rename to `to_extern`
     """Prepare Python-native data types for response.
 
     Prepared data must be json-serializable.
@@ -163,8 +170,53 @@ def prepare_dtype_for_response():
 
 
 @command()
+def to_native():
+    """Convert external data type to python native data type.
+
+    to_native(Context, DataType, PostgreSQL, object)
+        -> convert postgresql data type to python native data type.
+
+    to_native(Context, DataType, Json, object)
+        -> convert JSON data type to python native data type.
+    """
+
+
+@command()
+def to_extern():
+    """Convert python native data type to external data type.
+
+    to_extern(Context, DataType, PostgreSQL, object)
+        -> convert python native data type to postgresql data type.
+
+    to_extern(Context, DataType, Json, object):
+        -> convert python native data type to postgresql data type
+    """
+
+
+@command()
 def freeze():
     """Create new schema version."""
+
+
+@command()
+def wait():
+    """Wait while all database backends are up.
+
+    Database backends are a separate services and once you start multiple
+    services at the same time, you need to make sure, that all the required
+    external services are up before running the app.
+    """
+
+
+@command(
+    (Store, ('manifest')),
+    (Manifest, ('context.store..')),
+)
+def init():
+    """Initialize backends.
+
+    This command is called after loading and checking backend.
+    """
 
 
 @command()
@@ -202,7 +254,7 @@ def insert():
 
 
 @command()
-def insert_many():
+def insert_many():  # TODO: remove
     pass
 
 
@@ -212,7 +264,7 @@ def upsert():
 
 
 @command()
-def upsert_many():
+def upsert_many():  # TODO: remove
     pass
 
 
@@ -222,7 +274,7 @@ def update():
 
 
 @command()
-def update_many():
+def update_many():  # TODO: remove
     pass
 
 
@@ -232,7 +284,7 @@ def patch():
 
 
 @command()
-def patch_many():
+def patch_many():  # TODO: remove
     pass
 
 
@@ -242,7 +294,7 @@ def delete():
 
 
 @command()
-def delete_many():
+def delete_many():  # TODO: remove
     pass
 
 

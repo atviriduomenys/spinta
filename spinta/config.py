@@ -26,6 +26,7 @@ CONFIG = {
             'context': 'spinta.components:Context',
             'config': 'spinta.components:Config',
             'store': 'spinta.components:Store',
+            'source': 'spinta.components:Source',
         },
         'accesslog': {
             'file': 'spinta.accesslog.file:FileAccessLog',
@@ -34,11 +35,32 @@ CONFIG = {
         'manifests': {
             'spinta': 'spinta.manifests.spinta:SpintaManifest',
             'yaml': 'spinta.manifests.yaml:YamlManifest',
+            'inline': 'spinta.manifests.inline:InlineManifest',
         },
         'backends': {
-            'postgresql': 'spinta.backends.postgresql:PostgreSQL',
-            'mongo': 'spinta.backends.mongo:Mongo',
+            # internal
+            'postgresql': 'spinta.backends.internal.postgresql:PostgreSQL',
+            'mongo': 'spinta.backends.internal.mongo:Mongo',
+
+
+            # external
             'fs': 'spinta.backends.fs:FileSystem',
+            'csv': 'spinta.external.csv:Csv',
+            #'json': 'spinta.external.json:Json',
+            #'xlsx': 'spinta.external.xlsx:Xlsx',
+            #'xml': 'spinta.external.xml:Xml',
+            #'sql': 'spinta.external.sql:Sql',
+        },
+        'services': {
+            'http': 'spinta.service.http:Http',
+        },
+        'formats': {
+            'string': 'spinta.formats.string:StringFormat',
+            'ascii': 'spinta.formats.ascii:Ascii',
+            'csv': 'spinta.formats.csv:Csv',
+            'json': 'spinta.formats.json:Json',
+            'jsonl': 'spinta.formats.jsonl:JsonLines',
+            'html': 'spinta.formats.html:Html',
         },
         'migrations': {
             'alembic': 'spinta.migrations.schema.alembic:Alembic',
@@ -46,9 +68,17 @@ CONFIG = {
         'nodes': {
             'ns': 'spinta.components:Namespace',
             'model': 'spinta.components:Model',
-            'project': 'spinta.types.project:Project',
-            'dataset': 'spinta.types.dataset:Dataset',
-            'owner': 'spinta.types.owner:Owner',
+            'property': 'spinta.components:Property',
+
+        },
+        'datasets': {
+            'owner': 'spinta.components.datasets:Owner',
+            'impact': 'spinta.components.datasets:Impact',
+            'project': 'spinta.components.datasets:Project',
+            'dataset': 'spinta.components.datasets:Dataset',
+            'resource': 'spinta.components.datasets.Resource',
+            'entity': 'spinta.components.datasets.Entity',
+            'attribute': 'spinta.components.datasets.Attribute',
         },
         'types': {
             'integer': 'spinta.types.datatype:Integer',
@@ -73,30 +103,17 @@ CONFIG = {
             'rql': 'spinta.types.datatype:RQL',
             'json': 'spinta.types.datatype:JSON',
         },
-        'urlparams': {
-            'component': 'spinta.urlparams:UrlParams',
-        },
-        'sources': {
-            'csv': 'spinta.commands.sources.csv:Csv',
-            'html': 'spinta.commands.sources:Source',  # TODO: this is a stub
-            'json': 'spinta.commands.sources.json:Json',
-            'url': 'spinta.commands.sources:Source',
-            'xlsx': 'spinta.commands.sources.xlsx:Xlsx',
-            'xml': 'spinta.commands.sources.xml:Xml',
-            'sql': 'spinta.commands.sources.sql:Sql',
-        },
-    },
-    'exporters': {
-        'ascii': 'spinta.commands.formats.ascii:Ascii',
-        'csv': 'spinta.commands.formats.csv:Csv',
-        'json': 'spinta.commands.formats.json:Json',
-        'jsonl': 'spinta.commands.formats.jsonl:JsonLines',
-        'html': 'spinta.commands.formats.html:Html',
     },
     'accesslog': {
         'type': 'file',
         'file': 'stdout',
         'buffer_size': 300,
+    },
+    'services': {
+        'http': {
+            'type': 'http',
+            'cache': pathlib.Path() / 'var/cache/http',
+        },
     },
     'backends': {
         'default': {

@@ -2,64 +2,10 @@ from typing import Dict
 
 from spinta.auth import check_generated_scopes
 from spinta.commands import load, check, authorize, prepare
-from spinta.components import Context, Manifest, Node, Model, Property, Action
-from spinta.nodes import load_node
-from spinta.types.datatype import PrimaryKey, DataType, load_type
-from spinta.utils.schema import NA, resolve_schema, check_unkown_params
+from spinta.components import Context, Node, Model, Property, Action, Source
+from spinta.utils.schema import NA
 from spinta import commands
 from spinta import exceptions
-from spinta.nodes import load_namespace, load_model_properties
-
-
-@load.register()
-def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Model:
-    data = {
-        'parent': manifest,
-        **data,
-    }
-    load_node(context, model, data, manifest)
-    manifest.add_model_endpoint(model)
-    load_namespace(context, manifest, model)
-    load_model_properties(context, model, Property, data.get('properties'))
-    return model
-
-
-@load.register()
-def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
-    prop = load_node(context, prop, data, manifest, check_unknowns=False)
-    prop.type = 'property'
-    prop.dtype = load_type(context, prop, data, manifest)
-    check_unkown_params(
-        [resolve_schema(prop, Node), resolve_schema(prop.dtype, DataType)],
-        data, prop,
-    )
-    if isinstance(prop.dtype, PrimaryKey) or data.get('unique', False):
-        prop.dtype.unique = True
-    return prop
-
-
-@load.register()
-def load(context: Context, model: Model, data: dict) -> dict:
-    # check that given data does not have more keys, than model's schema
-    non_hidden_keys = []
-    for key, prop in model.properties.items():
-        if not prop.hidden:
-            non_hidden_keys.append(key)
-
-    unknown_props = set(data.keys()) - set(non_hidden_keys)
-    if unknown_props:
-        raise exceptions.MultipleErrors(
-            exceptions.FieldNotInResource(model, property=prop)
-            for prop in sorted(unknown_props)
-        )
-
-    result = {}
-    for name, prop in model.properties.items():
-        value = data.get(name, NA)
-        value = load(context, prop.dtype, value)
-        if value is not NA:
-            result[name] = value
-    return result
 
 
 @load.register()

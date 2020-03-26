@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING, Tuple, Type
+
 import collections
 import inspect
 import pathlib
@@ -5,18 +7,21 @@ import typing
 
 from multipledispatch.dispatcher import Dispatcher
 
+if TYPE_CHECKING:
+    from spinta.core.components import Component
+
 _commands = {}
 
 
-def command(name: str = None, schema: dict = None):
+def command(*traverse: Tuple[Type[Component], Tuple[str]]):
     """Define a new command."""
 
     def _(func):
-        _name = func.__name__ if name is None else name
+        _name = func.__name__
         if _name in _commands:
             raise Exception(f"{_name!r} is already defined.")
         _commands[_name] = Command(_name)
-        _commands[_name].schema = schema or {}
+        _commands[_name].traverse = traverse
         return _commands[_name]
 
     return _
@@ -24,7 +29,7 @@ def command(name: str = None, schema: dict = None):
 
 class Command(Dispatcher):
 
-    def register(self, *signature_types, schema=None):
+    def register(self, *signature_types):
         def _(func):
             types = signature_types or tuple(_find_func_types(func))
             self.add(types, func)

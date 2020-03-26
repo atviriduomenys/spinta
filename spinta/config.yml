@@ -69,6 +69,13 @@ backends:
       migrate:
         type: ref
         ref: components.migrations
+    switch: type
+    case:
+      csv:
+        io:
+          type: ref
+          ref: backends
+
 
 manifests:
   type: object
@@ -91,6 +98,9 @@ manifests:
       yaml:
         path:
           type: path
+      inline:
+        manifest:
+          type: object
 
 manifest:
   type: ref

@@ -3,7 +3,7 @@ import pathlib
 
 from responses import GET, POST
 
-from spinta.cli import pull, push
+from spinta.cli import push
 
 
 def test_pull(responses, rc, cli, app):
@@ -18,32 +18,56 @@ def test_pull(responses, rc, cli, app):
         ),
     )
 
-    result = cli.invoke(rc, pull, ['csv'])
-    assert result.output == (
-        '\n'
-        '\n'
-        'Table: country/:dataset/csv/:resource/countries\n'
-        '                  _id                      code    title     _op                         _where                    \n'
-        '===================================================================================================================\n'
-        '552c4c243ec8c98c313255ea9bf16ee286591f8c   lt     Lietuva   upsert   _id="552c4c243ec8c98c313255ea9bf16ee286591f8c"\n'
-        'b5dcb86880816fb966cdfbbacd1f3406739464f4   lv     Latvija   upsert   _id="b5dcb86880816fb966cdfbbacd1f3406739464f4"\n'
-        '68de1c04d49aeefabb7081a5baf81c055f235be3   ee     Estija    upsert   _id="68de1c04d49aeefabb7081a5baf81c055f235be3"'
-    )
+    rc = rc.fork({
+        'manifests.default': {
+            'type': 'inline',
+            'manifest': {
+                'datasets/example': {
+                    'type': 'dataset',
+                    'resources': {
+                        'countries': {
+                            'type': 'csv',
+                            'source': 'http://example.com/',
+                        },
+                    },
+                },
+                'datasets/example/country': {
+                    'type': 'model',
+                    'external': {
+                        'dataset': 'datasets/example',
+                        'resource': 'countries',
+                        'source': 'countries.csv',
+                        'pkey': 'code',
+                    },
+                    'properties': {
+                        'code': {
+                            'type': 'string',
+                            'level': 4,
+                            'access': 'open',
+                            'external': 'kodas',
+                        },
+                        'title': {
+                            'type': 'string',
+                            'level': 4,
+                            'access': 'open',
+                            'external': 'šalis',
+                        },
+                    },
+                },
+            },
+        },
+        'backends.http': {
+            'type': 'http',
+        },
+        'backends.example': {
+            'type': 'csv',
+            'io': 'http',
+        },
+    })
 
-    app.authmodel('country/:dataset/csv/:resource/countries', ['getall'])
+    app.authmodel('datasets/example/csv/country', ['getall'])
 
-    assert app.get('/country/:dataset/csv/:resource/countries').json() == {
-        '_data': [],
-    }
-
-    result = cli.invoke(rc, pull, ['csv', '--push'])
-    assert 'csv:' in result.output
-
-    rows = sorted(
-        (row['code'], row['title'], row['_type'])
-        for row in app.get('/country/:dataset/csv/:resource/countries').json()['_data']
-    )
-    assert rows == [
+    assert app.get('/datasets/example/csv/country?select(code,title)&sort(code)').json()['_data'] == [
         ('ee', 'Estija', 'country/:dataset/csv/:resource/countries'),
         ('lt', 'Lietuva', 'country/:dataset/csv/:resource/countries'),
         ('lv', 'Latvija', 'country/:dataset/csv/:resource/countries'),

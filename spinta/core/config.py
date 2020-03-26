@@ -266,7 +266,7 @@ class RawConfig:
             res = res if origin else (res,)
             yield (key,) + res
 
-    def dump(self, *names, fmt: KeyFormat = KeyFormat.CFG, file=sys.stdout):
+    def dump(self, *names, fmt: KeyFormat = KeyFormat.CFG, to=sys.stdout):
         table = [('Origin', 'Name', 'Value')]
         sizes = [len(x) for x in table[0]]
         for key, val, origin in self.getall(origin=True):
@@ -298,7 +298,10 @@ class RawConfig:
             [tuple(['-' * s for s in sizes])] +
             table[1:]
         )
-        if file:
+        if callable(to):
+            for row in table:
+                to('  '.join([str(x).ljust(s) for x, s in zip(row, sizes)]))
+        elif to:
             for row in table:
                 print('  '.join([str(x).ljust(s) for x, s in zip(row, sizes)]), file=file)
         else:

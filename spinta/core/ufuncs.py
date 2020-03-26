@@ -156,7 +156,7 @@ class Env:
             return ufunc(self, expr)
 
 
-def asttoexpr(ast):
+def asttoexpr(ast: dict) -> Expr:
     if isinstance(ast, dict):
         args = [asttoexpr(x) for x in ast['args']]
         return Expr(ast['name'], *args)

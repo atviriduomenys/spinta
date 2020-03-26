@@ -16,7 +16,6 @@ from spinta.auth import check_scope
 from spinta.backends import Backend, BackendFeatures
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
-from spinta.types import dataset
 from spinta.types.datatype import DataType, Object, Array, File, Ref
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
@@ -40,7 +39,7 @@ STREAMING_CONTENT_TYPES = [
 async def push(
     context: Context,
     request: Request,
-    scope: (Namespace, Model, dataset.Model, DataType),
+    scope: (Namespace, Model, DataType),
     backend: (type(None), Backend),
     *,
     action: Action,
@@ -225,7 +224,7 @@ async def _read_request_body(
     stop_on_error: bool = True,
 ) -> AsyncIterator[DataItem]:
 
-    if isinstance(scope, (Property, dataset.Property)):
+    if isinstance(scope, Property):
         model = scope.model
         prop = scope
         propref = params.propref
@@ -577,7 +576,7 @@ async def prepare_patch(
 @commands.build_data_patch_for_write.register()
 def build_data_patch_for_write(
     context: Context,
-    model: (Model, dataset.Model),
+    model: Model,
     *,
     given: dict,
     saved: dict,
@@ -613,7 +612,7 @@ def build_data_patch_for_write(
 @commands.build_data_patch_for_write.register()  # noqa
 def build_data_patch_for_write(  # noqa
     context: Context,
-    prop: (Property, dataset.Property),
+    prop: Property,
     *,
     given: dict,
     saved: dict,
@@ -771,7 +770,7 @@ def prepare_response(
 @commands.build_full_response.register()
 def build_full_response(
     context: Context,
-    dtype: (Object, Model, dataset.Model),
+    dtype: (Object, Model),
     *,
     patch: Optional[object],
     saved: Optional[object],
@@ -1034,7 +1033,7 @@ def _get_simple_response(context: Context, data: DataItem) -> dict:
 @commands.upsert.register()
 async def upsert(
     context: Context,
-    model: (Model, dataset.Model),
+    model: (Model),
     backend: Backend,
     *,
     dstream: DataStream,
@@ -1056,7 +1055,7 @@ async def upsert(
 @commands.patch.register()
 async def patch(
     context: Context,
-    model: (Model, dataset.Model),
+    model: Model,
     backend: Backend,
     *,
     dstream: DataStream,

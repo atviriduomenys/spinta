@@ -6,7 +6,7 @@ import urllib.parse
 
 from starlette.requests import Request
 
-from spinta.commands import prepare
+from spinta.commands import init
 from spinta.components import Context, Manifest, Node
 from spinta.utils import url as urlutil
 from spinta.components import UrlParams, Version
@@ -21,8 +21,8 @@ from spinta.exceptions import (
 )
 
 
-@prepare.register()
-def prepare(context: Context, params: UrlParams, version: Version, request: Request) -> UrlParams:
+@init.register()
+def init(context: Context, params: UrlParams, version: Version, request: Request) -> UrlParams:
     params.parsetree = (
         urlutil.parse_url_path(request.path_params['path'].strip('/')) +
         parse_url_query(urllib.parse.unquote(request.url.query))

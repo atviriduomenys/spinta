@@ -142,16 +142,27 @@ def _load(
     return load(context, node, data, manifest)
 
 
+def yaml_files_sort_key(path):
+    if path.name.endswith('.dataset.yml'):
+        # Datasets must be loaded first.
+        return 0
+    else:
+        return 1
+
+
 def iter_yaml_files(context: Context, manifest: Manifest):
     config = context.get('config')
     ignore = config.rc.get('ignore', default=[], cast=list)
-
-    for file in manifest.path.glob('**/*.yml'):
+    files = sorted(manifest.path.glob('**/*.yml'), key=yaml_files_sort_key)
+    for file in files:
+        if str(file) not in (
+            'tests/manifest/datasets/csv.dataset.yml',
+            'tests/manifest/datasets/csv/country.yml',
+        ):
+            continue
         if is_ignored(ignore, manifest.path, file):
             continue
-
         versions = yaml.load_all(file.read_text())
-
         try:
             data = next(versions)
         except (ParserError, ScannerError, YAMLError) as e:

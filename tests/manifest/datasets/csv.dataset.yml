@@ -1,0 +1,6 @@
+type: dataset
+name: datasets/example/csv
+resources:
+  countries:
+    type: csv
+    source: http://example.com/

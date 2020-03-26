@@ -1,0 +1,18 @@
+type: model
+name: datasets/example/csv/country
+external:
+  dataset: datasets/example/csv
+  resource: countries
+  source: countries.csv
+  pk: code
+properties:
+  code:
+    type: string
+    level: 4
+    access: open
+    external: kodas
+  title:
+    type: string
+    level: 4
+    access: open
+    external: šalis
