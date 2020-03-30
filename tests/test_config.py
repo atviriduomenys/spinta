@@ -323,21 +323,6 @@ def test_custom_config_fron_environ():
     assert rc.get('backends', 'custom', 'dsn') == 'config'
 
 
-def test_datasets_params():
-    rc = RawConfig()
-    rc.read([
-        Path('defaults', 'spinta.config:CONFIG'),
-        EnvVars('envvars', {
-            'SPINTA_DATASETS__MANIFEST__DATASET__RESOURCE': 'dsn',
-            'SPINTA_DATASETS__DEFAULT__GOV_ORG_DATA__SQL': 'dsn',
-        }),
-    ])
-    assert rc.get('datasets', 'manifest', 'dataset', 'resource') == 'dsn'
-    assert rc.get('datasets', 'default', 'gov_org_data', 'sql') == 'dsn'
-    assert rc.keys('datasets') == ['manifest', 'default']
-    assert rc.keys('datasets', 'default') == ['gov_org_data']
-
-
 def test_remove_keys():
     rc = RawConfig()
     rc.read([

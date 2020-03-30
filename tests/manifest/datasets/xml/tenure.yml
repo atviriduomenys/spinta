@@ -1,0 +1,20 @@
+type: model
+name: datasets/xml/tenure
+external:
+  dataset: datasets/xml
+  resource: data
+  name: /SeimoInformacija/SeimoKadencija
+  id: id
+properties:
+  id:
+    type: string
+    external: "@kadencijos_id"
+  title:
+    type: string
+    external: "@pavadinimas"
+  since:
+    type: date
+    external: "@data_nuo"
+  until:
+    type: date
+    external: "@data_iki"

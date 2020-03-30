@@ -5,7 +5,6 @@ import pytest
 
 @pytest.mark.models(
     'backends/postgres/dtypes/binary',
-    'dtypes/binary/:dataset/dtypes/binary/:resource/resource/:origin/origin',
 )
 def test_insert(model, app):
     data = base64.b64encode(b'data').decode('ascii')
@@ -17,7 +16,6 @@ def test_insert(model, app):
 
 @pytest.mark.models(
     'backends/postgres/dtypes/binary',
-    'dtypes/binary/:dataset/dtypes/binary/:resource/resource/:origin/origin',
 )
 def test_upsert(model, app):
     data = base64.b64encode(b'data').decode('ascii')
@@ -49,7 +47,7 @@ def test_upsert(model, app):
 
 
 @pytest.mark.models(
-    'dtypes/binary/:dataset/dtypes/binary/:resource/resource/:origin/origin',
+    'datasets/dtypes/binary',
 )
 def test_getone(model, app):
     data = base64.b64encode(b'data').decode('ascii')
@@ -59,13 +57,13 @@ def test_getone(model, app):
     assert resp.json()['blob'] == data
 
     pk = resp.json()['_id']
-    resp = app.get(f'/{model}'.replace(':dataset/', f'{pk}/:dataset/'))
+    resp = app.get(f'/{model}/{pk}')
     assert resp.status_code == 200, resp.json()
     assert resp.json()['blob'] == data
 
 
 @pytest.mark.models(
-    'dtypes/binary/:dataset/dtypes/binary/:resource/resource/:origin/origin',
+    'datasets/dtypes/binary',
 )
 def test_getall(model, app):
     data = base64.b64encode(b'data').decode('ascii')

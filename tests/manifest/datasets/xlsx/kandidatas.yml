@@ -1,0 +1,63 @@
+type: model
+name: datasets/xlsx/rinkimai/kandidatas
+external:
+  dataset: datasets/xlsx
+  resource: data
+  name: RP_Rinkimu_Rezultatai_Vn_Balsai
+  prepare: offset(8) & limit(1)
+  id:
+    - rinkimai
+    - turas
+    - apygarda
+    - apylinke
+    - vardas
+    - pavarde
+    - gimimo_data
+properties:
+  vardas:
+    type: string
+    external: Kandidato vardas
+  pavarde:
+    type: string
+    external: Kandidato pavardė
+  lytis:
+    type: string
+    external: Lytis
+  tautybe:
+    type: string
+    external: Tautybė
+  gimimo_data:
+    type: date
+    external: Gimimo data
+  kas_iskele_kandidata:
+    type: string
+    external: Kas iškėlė kandidatą
+  gauti_balsai_is_viso:
+    type: integer
+    external: Gauti balsai (iš viso)
+  gauti_balsai_rinkimu_diena:
+    type: integer
+    external: Gauti balsai (rinkimų dieną)
+  gauti_balsai_is_anksto:
+    type: integer
+    external: Gauti balsai (iš anksto)
+  rinkimai:
+    type: ref
+    object: datasets/xlsx/rinkimai
+    external: Rinkimai
+  turas:
+    type: ref
+    object: datasets/xlsx/rinkimai/turas
+    external:
+      - Rinkimai
+      - Turas
+  apygarda:
+    type: ref
+    object: datasets/xlsx/rinkimai/apygarda
+    external: Apygardos Nr.
+  apylinke:
+    type: ref
+    object: datasets/xlsx/rinkimai/apylinke
+    external:
+      - Apygardos Nr.
+      - Apylinkės Nr.

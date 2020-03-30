@@ -1,0 +1,29 @@
+type: model
+name: datasets/xlsx/rinkimai/apylinke
+external:
+  dataset: datasets/xlsx
+  resource: data
+  name: RP_Rinkimu_Rezultatai_Vn_Balsai
+  id: [apygarda, numeris]
+  prepare: offset(8) & limit(10)
+properties:
+  numeris:
+    type: integer
+    external: Apylinkės Nr.
+  pavadinimas:
+    type: string
+    external: Apylinkės pavadinimas
+  rinkimai:
+    type: ref
+    object: datasets/xlsx/rinkimai
+    external: Rinkimai
+  turas:
+    type: ref
+    object: datasets/xlsx/rinkimai/turas
+    external:
+      - Rinkimai
+      - Turas
+  apygarda:
+    type: ref
+    object: datasets/xlsx/rinkimai/apygarda
+    external: Apygardos Nr.

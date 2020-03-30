@@ -1,0 +1,8 @@
+type: model
+name: datasets/nested/dataset/name/model
+external:
+  dataset: datasets/nested/dataset/name
+  resource: resource
+properties:
+  name:
+    type: string

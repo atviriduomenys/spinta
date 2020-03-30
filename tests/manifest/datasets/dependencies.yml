@@ -1,67 +1,10 @@
 ---
-name: dependencies
 type: dataset
+name: datasets/dependencies
 version:
   id: 1
   date: 2019-03-08
 resources:
-
   continents:
     type: csv
-    source: http://example.com
-    objects:
-      "":
-
-        continent:
-          source: "/continents.csv"
-          properties:
-            _id:
-              type: pk
-              source: id
-            title:
-              type: string
-              source: continent
-            continent_id:
-              type: string
-              source: id
-            population:
-              type: integer
-              source: population
-
-        country:
-          source: "/continents/{continent}/countries.csv"
-          dependencies:
-            continent: continent/:dataset/dependencies/:resource/continents.continent_id
-          properties:
-            _id:
-              type: pk
-              source: id
-            title:
-              type: string
-              source: country
-            continent:
-              type: ref
-              object: continent
-              source: continent
-              dependency: true
-            country_id:
-              type: string
-              source: id
-
-        capital:
-          source: "/continents/{continent}/countries/{country}/captials.csv"
-          dependencies:
-            continent: country/:dataset/dependencies/:resource/continents.continent.continent_id
-            country: country/:dataset/dependencies/:resource/continents.country_id
-          properties:
-            _id:
-              type: pk
-              source: id
-            title:
-              type: string
-              source: capital
-            country:
-              type: ref
-              object: country
-              source: country
-              dependency: true
+    external: http://example.com

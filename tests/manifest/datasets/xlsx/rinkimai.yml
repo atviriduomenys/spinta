@@ -1,0 +1,21 @@
+type: model
+name: datasets/xlsx/rinkimai
+external:
+  dataset: datasets/xlsx
+  resource: data
+  name: RP_Rinkimu_Rezultatai_Vn_Balsai
+  id: id
+  prepare: (row[0] = "Rinkimai" | row[0] = "Rinkimų rūšis") & limit(10)
+properties:
+  id:
+    type: string
+    external: Rinkimai
+  rusis:
+    type: string
+    external: Rinkimų rūšis
+  pavadinimas:
+    type: string
+    external: Rinkimai
+  data:
+    type: date
+    external: Rinkimų data

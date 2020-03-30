@@ -1,10 +1,13 @@
 import pathlib
 
+import pytest
+
 from responses import GET
 
 from spinta.testing.datasets import pull
 
 
+@pytest.mark.skip('datasets')
 def test_xlsx(rc, cli, app, responses):
     responses.add(
         GET, 'http://example.com/data.xlsx',

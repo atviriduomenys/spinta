@@ -1,19 +1,13 @@
-import pathlib
-
 from spinta.commands import load
 from spinta.components import Model
-from spinta.backends.postgresql import _get_lists_data
+from spinta.backends.postgresql.commands.write import _get_lists_data
 
 
 def create_model(context, schema):
     manifest = context.get('store').manifest
-    backend = context.get('store').backends['default']
     model = {
         'type': 'model',
         'name': 'model',
-        'path': pathlib.Path('model.yml'),
-        'parent': manifest,
-        'backend': backend,
         **schema,
     }
     return load(context, Model(), model, manifest)

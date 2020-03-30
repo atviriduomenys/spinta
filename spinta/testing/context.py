@@ -1,14 +1,12 @@
-import asyncio
+from typing import Union
+
 import contextlib
-import typing
 
 from spinta import commands
 from spinta.components import Node
 from spinta.auth import AdminToken
 from spinta.utils.imports import importstr
 from spinta.core.context import create_context
-from spinta.utils.aiotools import alist, aiter
-from spinta.commands.write import push_stream, dataitem_from_payload
 from spinta.core.config import RawConfig
 
 
@@ -26,19 +24,6 @@ class ContextForTests:
         super().__init__(name, parent)
         self.loaded = parent.loaded if parent else False
 
-    def _get_model(self, model: typing.Union[str, Node], dataset: str, resource: str, origin: str = None):
-        if isinstance(model, str):
-            store = self.get('store')
-            if resource:
-                manifest = store.manifest
-                resource = manifest.objects['dataset'][dataset].resources[resource]
-                origin = resource.get_model_origin(model) if origin is None else origin
-                return resource.objects[origin][model]
-            else:
-                return store.manifest.objects['model'][model]
-        else:
-            return model
-
     @contextlib.contextmanager
     def transaction(self, *, write=False):
         if self.has('transaction'):
@@ -51,27 +36,10 @@ class ContextForTests:
                 self.attach('transaction', backend.transaction, write=write)
                 yield self
 
-    def pull(self, dataset: str, *, models: list = None, push: bool = True):
-        store = self.get('store')
-        dataset = store.manifest.objects['dataset'][dataset]
-        models = models or []
-        with self.transaction(write=push) as context:
-            try:
-                stream = list(commands.pull(context, dataset, models=models))
-            except Exception:
-                raise Exception(f"Error while processing '{dataset.path}'.")
-            if push:
-                stream = push_stream(context, aiter(
-                    dataitem_from_payload(context, dataset, data)
-                    for data in stream
-                ))
-                # XXX: I don't like that, pull should be a coroutine.
-                stream = asyncio.get_event_loop().run_until_complete(alist(stream))
-                stream = [{**(d.saved or {}), **d.patch} for d in stream if d.patch]
-        return stream
-
-    def wipe(self, model: str, *, dataset: str = None, resource: str = None):
-        model = self._get_model(model, dataset, resource)
+    def wipe(self, model: Union[str, Node]):
+        if isinstance(model, str):
+            store = self.get('store')
+            model = store.manifest.models[model]
         with self.transaction() as context:
             commands.wipe(context, model, model.backend)
 
@@ -106,6 +74,7 @@ class ContextForTests:
 
         store = self.get('store')
         commands.load(self, store, config)
+        commands.link(self, store)
         commands.check(self, store)
 
         commands.prepare(self, store)

@@ -28,7 +28,7 @@ async def getone(
     if params.prop and params.propref:
         return await commands.getone(context, request, params.prop, params.model.backend, action=action, params=params)
     elif params.prop:
-        return await commands.getone(context, request, params.prop, params.prop.backend, action=action, params=params)
+        return await commands.getone(context, request, params.prop, params.prop.dtype.backend or params.model.backend, action=action, params=params)
     else:
         return await commands.getone(context, request, params.model, params.model.backend, action=action, params=params)
 

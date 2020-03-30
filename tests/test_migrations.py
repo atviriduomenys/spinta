@@ -54,7 +54,7 @@ def test_create_model(postgresql, rc, cli, tmpdir, request):
         'manifests.yaml.path': str(tmpdir),
     })
 
-    cli.invoke(rc, freeze)
+    assert cli.invoke(rc, freeze)
 
     manifest = read_manifest_files(tmpdir)
     assert manifest == {

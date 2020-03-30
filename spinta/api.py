@@ -199,6 +199,7 @@ def init(context: Context):
         'manifest',
         'accesslog',
         'default_auth_client',
+        'config_path',
     )
 
     return app

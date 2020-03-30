@@ -6,7 +6,7 @@ version:
   parents: []
 properties:
   datetime: {type: datetime}
-  client_type: {type: string, enum: [dataset, project, system]}
+  client_type: {type: string, choices: [dataset, project, system]}
   client_id: {type: string}
   errors: {type: integer}
 ---
@@ -19,7 +19,7 @@ changes:
     path: /properties
     value:
       datetime: {type: datetime}
-      client_type: {type: string, enum: [dataset, project, system]}
+      client_type: {type: string, choices: [dataset, project, system]}
       client_id: {type: string}
       errors: {type: integer}
   - op: add

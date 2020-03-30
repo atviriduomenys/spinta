@@ -4,38 +4,90 @@ from spinta.auth import check_generated_scopes
 from spinta.commands import load, check, authorize, prepare
 from spinta.components import Context, Manifest, Node, Model, Property, Action
 from spinta.nodes import load_node
-from spinta.types.datatype import PrimaryKey, DataType, load_type
-from spinta.utils.schema import NA, resolve_schema, check_unkown_params
+from spinta.utils.schema import NA
 from spinta import commands
 from spinta import exceptions
 from spinta.nodes import load_namespace, load_model_properties
+from spinta.nodes import get_node
 
 
 @load.register()
 def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Model:
-    data = {
-        'parent': manifest,
-        **data,
-    }
-    load_node(context, model, data, manifest)
+    model.parent = manifest
+    model.manifest = manifest
+    load_node(context, model, data)
+    model.backend = model.backend or manifest.backend
     manifest.add_model_endpoint(model)
     load_namespace(context, manifest, model)
     load_model_properties(context, model, Property, data.get('properties'))
+
+    if model.external:
+        config = context.get('config')
+        external = model.external
+        model.external = get_node(config, manifest, external, group='datasets', ctype='entity', parent=model)
+        model.external.model = model
+        load_node(context, model.external, external, parent=model)
+        commands.load(context, model.external, external, manifest)
+    else:
+        model.external = None
+
     return model
+
+
+@commands.link.register()
+def link(context: Context, model: Model):
+    store = context.get('store')
+    model.backend = store.backends[model.backend]
+    for prop in model.properties.values():
+        commands.link(context, prop)
+    if model.external:
+        commands.link(context, model.external)
 
 
 @load.register()
 def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
-    prop = load_node(context, prop, data, manifest, check_unknowns=False)
+    config = context.get('config')
     prop.type = 'property'
-    prop.dtype = load_type(context, prop, data, manifest)
-    check_unkown_params(
-        [resolve_schema(prop, Node), resolve_schema(prop.dtype, DataType)],
-        data, prop,
-    )
-    if isinstance(prop.dtype, PrimaryKey) or data.get('unique', False):
-        prop.dtype.unique = True
+    prop, data = load_node(context, prop, data, mixed=True)
+    prop.dtype = get_node(config, manifest, data, group='types', parent=prop)
+    prop.dtype.type = 'type'
+    prop.dtype.prop = prop
+    load_node(context, prop.dtype, data)
+    if prop.dtype.backend is None:
+        prop.dtype.backend = prop.model.backend
+    prop.external = _load_property_external(context, manifest, prop, prop.external)
+    commands.load(context, prop.dtype, data, manifest)
     return prop
+
+
+@commands.link.register()
+def link(context: Context, prop: Property):
+    commands.link(context, prop.dtype)
+    if prop.external:
+        if isinstance(prop.external, list):
+            for external in prop.external:
+                commands.link(context, external)
+        else:
+            commands.link(context, prop.external)
+
+
+def _load_property_external(context, manifest, prop, data):
+    if data is None:
+        return None
+
+    if isinstance(data, list):
+        return [
+            _load_property_external(context, manifest, prop, x)
+            for x in data
+        ]
+
+    if isinstance(data, str):
+        return _load_property_external(context, manifest, prop, {'name': data})
+
+    config = context.get('config')
+    external = get_node(config, manifest, data, group='datasets', ctype='attribute', parent=prop)
+    load_node(context, external, data, parent=prop)
+    return external
 
 
 @load.register()
@@ -107,7 +159,7 @@ def prepare(context: Context, model: Model, data: dict, *, action: Action) -> di
 
 @prepare.register()
 def prepare(context: Context, prop: Property, value: object, *, action: Action) -> object:
-    value[prop.name] = prepare(context, prop.dtype, prop.backend, value[prop.name])
+    value[prop.name] = prepare(context, prop.dtype, prop.dtype.backend, value[prop.name])
     return value
 
 
@@ -136,7 +188,20 @@ def get_referenced_model(context: Context, prop: Property, ref: str) -> Node:
 
 
 @commands.get_error_context.register()
+def get_error_context(model: Model, *, prefix='this') -> Dict[str, str]:
+    context = commands.get_error_context(model.manifest, prefix=f'{prefix}.manifest')
+    context['schema'] = f'{prefix}.path.__str__()'
+    context['model'] = f'{prefix}.name'
+    context['dataset'] = f'{prefix}.external.dataset.name'
+    context['resource'] = f'{prefix}.external.resource.name'
+    context['resource.backend'] = f'{prefix}.external.resource.backend.name'
+    context['entity'] = f'{prefix}.external.name'
+    return context
+
+
+@commands.get_error_context.register()
 def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
     context['property'] = f'{prefix}.place'
+    context['attribute'] = f'{prefix}.external.name'
     return context

@@ -1,18 +1,7 @@
 ---
-name: nested/dataset/name
 type: dataset
-version:
-  id: 1
-  date: 2019-02-27
+name: datasets/nested/dataset/name
 resources:
   resource:
     type: csv
-    source: https://example.com/resource.csv
-    objects:
-      "":
-        deeply/nested/model/name:
-          properties:
-            _id:
-              type: pk
-            name:
-              type: string
+    external: https://example.com/resource.csv

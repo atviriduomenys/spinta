@@ -1,11 +1,14 @@
 import re
 
+import pytest
+
 from responses import GET
 
 from spinta.utils.refs import get_ref_id
 from spinta.testing.datasets import pull
 
 
+@pytest.mark.skip('datasets')
 def test_csv(rc, cli, app, context, responses):
     responses.add(
         GET, 'http://example.com/continents.csv',
@@ -69,6 +72,7 @@ def test_csv(rc, cli, app, context, responses):
     ]}
 
 
+@pytest.mark.skip('datasets')
 def test_no_push(rc, cli, app, context, responses):
     responses.add(
         GET, 'http://example.com/continents.csv',
@@ -94,6 +98,7 @@ def test_no_push(rc, cli, app, context, responses):
     assert data == {'_data': []}
 
 
+@pytest.mark.skip('datasets')
 def test_generator(rc, cli, context, responses):
 
     def func(request):
@@ -127,6 +132,7 @@ def test_generator(rc, cli, context, responses):
     ]
 
 
+@pytest.mark.skip('datasets')
 def test_convert_integers(rc, cli, app, context, responses):
     responses.add(
         GET, 'http://example.com/continents.csv',

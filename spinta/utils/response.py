@@ -26,13 +26,25 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
         if params.changes:
             _enforce_limit(context, params)
             return await commands.changes(context, request, params.model, params.model.backend, action=Action.CHANGES, params=params)
+
         elif params.pk:
+            model = params.model
+            action = Action.GETONE
+
             if params.prop and params.propref:
-                return await commands.getone(context, request, params.prop, params.prop.dtype, params.model.backend, action=Action.GETONE, params=params)
+                prop = params.prop
+                dtype = prop.dtype
+                backend = model.backend
+                return await commands.getone(context, request, prop, dtype, backend, action=action, params=params)
             elif params.prop:
-                return await commands.getone(context, request, params.prop, params.prop.dtype, params.prop.backend, action=Action.GETONE, params=params)
+                prop = params.prop
+                dtype = prop.dtype
+                backend = dtype.backend or model.backend
+                return await commands.getone(context, request, prop, dtype, backend, action=action, params=params)
             else:
-                return await commands.getone(context, request, params.model, params.model.backend, action=Action.GETONE, params=params)
+                backend = model.backend
+                return await commands.getone(context, request, model, backend, action=action, params=params)
+
         else:
             search = any((
                 params.query,
@@ -44,17 +56,31 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
             ))
             action = Action.SEARCH if search else Action.GETALL
             _enforce_limit(context, params)
-            return await commands.getall(context, request, params.model, params.model.backend, action=action, params=params)
+
+            if params.external:
+                model = params.model.external
+                backend = model.resource.backend
+            else:
+                model = params.model
+                backend = model.backend
+
+            if backend is not None:
+                # Namespace nodes do not have backend.
+                context.attach(f'transaction.{backend.name}', backend.begin)
+
+            return await commands.getall(context, request, model, backend, action=action, params=params)
+
     elif request.method == 'DELETE' and params.wipe:
         context.attach('transaction', manifest.backend.transaction, write=True)
         return await commands.wipe(context, request, params.model, params.model.backend, action=Action.WIPE, params=params)
+
     else:
         context.attach('transaction', manifest.backend.transaction, write=True)
         action = METHOD_TO_ACTION[request.method]
         if params.prop and params.propref:
             return await commands.push(context, request, params.prop.dtype, params.model.backend, action=action, params=params)
         elif params.prop:
-            return await commands.push(context, request, params.prop.dtype, params.prop.backend, action=action, params=params)
+            return await commands.push(context, request, params.prop.dtype, params.prop.dtype.backend, action=action, params=params)
         else:
             return await commands.push(context, request, params.model, params.model.backend, action=action, params=params)
 

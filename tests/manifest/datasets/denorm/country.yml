@@ -1,0 +1,14 @@
+type: model
+name: datasets/denorm/country
+external:
+  dataset: datasets/denorm
+  resource: orgs
+  name: orgs.csv
+  id: code
+properties:
+  code:
+    type: string
+    external: kodas
+  title:
+    type: string
+    external: šalis

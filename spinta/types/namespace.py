@@ -1,4 +1,4 @@
-from typing import Union, Optional, Iterable
+from typing import Optional, Iterable
 
 import collections
 import itertools
@@ -13,7 +13,6 @@ from spinta.components import Context, UrlParams, Namespace, Action, Model, Prop
 from spinta.renderer import render
 from spinta.nodes import load_node, load_model_properties
 from spinta import exceptions
-from spinta.types import dataset
 
 
 @commands.check.register()
@@ -32,7 +31,7 @@ async def getall(
     params: UrlParams,
 ) -> Response:
     if params.all and params.ns:
-        for model in traverse_ns_models(ns, params.dataset, params.resource, params.origin):
+        for model in traverse_ns_models(ns):
             commands.authorize(context, action, model)
         return _get_ns_content(
             context,
@@ -41,19 +40,13 @@ async def getall(
             params,
             action,
             recursive=True,
-            dataset_=params.dataset,
-            resource=params.resource,
-            origin=params.origin,
         )
     elif params.all:
-        for model in traverse_ns_models(ns, params.dataset, params.resource, params.origin):
+        for model in traverse_ns_models(ns):
             commands.authorize(context, action, model)
         data = getall(
             context, ns, None,
             action=action,
-            dataset_=params.dataset,
-            resource=params.resource,
-            origin=params.origin,
             select=params.select,
             sort=params.sort,
             offset=params.offset,
@@ -76,10 +69,9 @@ def getall(
     action: Optional[Action] = None,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
-    origin: Optional[str] = None,
     **kwargs
 ):
-    return _query_data(context, ns, action, dataset_, resource, origin, **kwargs)
+    return _query_data(context, ns, action, dataset_, resource, **kwargs)
 
 
 def _query_data(
@@ -88,10 +80,9 @@ def _query_data(
     action: Action,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
-    origin: Optional[str] = None,
     **kwargs,
 ):
-    for model in traverse_ns_models(ns, dataset_, resource, origin):
+    for model in traverse_ns_models(ns, dataset_, resource):
         yield from commands.getall(context, model, model.backend, **kwargs)
 
 
@@ -99,46 +90,41 @@ def traverse_ns_models(
     ns: Namespace,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
-    origin: Optional[str] = None,
 ):
     for model in (ns.models or {}).values():
-        if _model_matches_params(model, dataset_, resource, origin):
+        if _model_matches_params(model, dataset_, resource):
             yield model
     for name in ns.names.values():
-        yield from traverse_ns_models(name, dataset_, resource, origin)
+        yield from traverse_ns_models(name, dataset_, resource)
 
 
 def _model_matches_params(
-    model: Union[Model, dataset.Model],
+    model: Model,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
-    origin: Optional[str] = None,
 ):
     if (
         dataset_ is None and
-        resource is None and
-        origin is None
+        resource is None
     ):
         return True
 
-    if not isinstance(model, dataset.Model):
+    if model.external is None:
         return False
 
     if (
-        dataset_ is not None and
-        dataset_ != model.parent.parent.name
+        dataset_ is not None and (
+            model.external.dataset is None or
+            model.external.dataset.name != dataset_
+        )
     ):
         return False
 
     if (
-        resource is not None and
-        resource != model.parent.name
-    ):
-        return False
-
-    if (
-        origin is not None and
-        origin != model.origin
+        resource is not None and (
+            model.external.resource is None or
+            model.external.resource.name != resource
+        )
     ):
         return False
 
@@ -155,17 +141,15 @@ def _get_ns_content(
     recursive: bool = False,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
-    origin: Optional[str] = None,
 ) -> Response:
+
     if recursive:
-        data = _get_ns_content_data_recursive(ns, dataset_, resource, origin)
+        data = _get_ns_content_data_recursive(ns, dataset_, resource)
     else:
-        data = _get_ns_content_data(ns, dataset_, resource, origin)
+        data = _get_ns_content_data(ns, dataset_, resource)
     data = sorted(data, key=lambda x: (x['_type'] != 'ns', x['_id']))
 
     schema = {
-        'path': __file__,
-        'parent': ns.manifest,
         'type': 'model:ns',
         'name': ns.model_type(),
         'properties': {
@@ -176,7 +160,11 @@ def _get_ns_content(
             'title': {'type': 'string'},
         }
     }
-    model = load_node(context, Model(), schema, ns.manifest)
+    model = Model()
+    model.path = None
+    model.parent = ns.manifest  # XXX: deprecated
+    model.manifest = ns.manifest
+    load_node(context, model, schema)
     load_model_properties(context, model, Property, schema['properties'])
 
     return render(context, request, model, params, data, action=action)
@@ -186,19 +174,17 @@ def _get_ns_content_data_recursive(
     ns: Namespace,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
-    origin: Optional[str] = None,
 ) -> Iterable[dict]:
-    yield from _get_ns_content_data(ns, dataset_, resource, origin)
+    yield from _get_ns_content_data(ns, dataset_, resource)
     for name in ns.names.values():
-        yield from _get_ns_content_data_recursive(name, dataset_, resource, origin)
-        yield from _get_ns_content_data(name, dataset_, resource, origin)
+        yield from _get_ns_content_data_recursive(name, dataset_, resource)
+        yield from _get_ns_content_data(name, dataset_, resource)
 
 
 def _get_ns_content_data(
     ns: Namespace,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
-    origin: Optional[str] = None,
 ) -> Iterable[dict]:
     models = itertools.chain(
         ns.names.values(),
@@ -206,7 +192,7 @@ def _get_ns_content_data(
     )
 
     for model in models:
-        if _model_matches_params(model, dataset_, resource, origin):
+        if _model_matches_params(model, dataset_, resource):
             yield {
                 '_type': model.node_type(),
                 '_id': model.model_type(),

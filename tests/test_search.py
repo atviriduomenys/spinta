@@ -66,7 +66,6 @@ def _push_test_data(app, model, data=None):
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',
-    'backends/postgres/report/:dataset/test'
 )
 def test_search_exact(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)
@@ -96,7 +95,6 @@ def test_search_exact_lower(model, context, app):
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',
-    'backends/postgres/report/:dataset/test'
 )
 def test_search_exact_non_string(model, context, app):
     r1, r2, r3, = _push_test_data(app, model)

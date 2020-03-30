@@ -4,7 +4,6 @@ import pytest
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',
-    'backends/postgres/report/:dataset/test',
 )
 def test_sort(model, app):
     app.authmodel(model, ['insert', 'search'])

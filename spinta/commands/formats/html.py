@@ -1,7 +1,6 @@
 from typing import Optional, Union, List
 
 import datetime
-import itertools
 
 import pkg_resources as pres
 
@@ -15,7 +14,6 @@ from spinta.components import Context, Action, UrlParams, Node, Property
 from spinta.utils.url import build_url_path
 from spinta import commands
 from spinta.components import Namespace, Model
-from spinta.types import dataset
 from spinta.utils.nestedstruct import flatten
 
 
@@ -49,22 +47,6 @@ def render(
     context: Context,
     request: Request,
     model: Model,
-    fmt: Html,
-    *,
-    action: Action,
-    params: UrlParams,
-    data,
-    status_code: int = 200,
-    headers: Optional[dict] = None,
-):
-    return _render_model(context, request, model, action, params, data, headers)
-
-
-@commands.render.register()  # noqa
-def render(
-    context: Context,
-    request: Request,
-    model: dataset.Model,
     fmt: Html,
     *,
     action: Action,
@@ -144,49 +126,23 @@ def get_current_location(model, params: UrlParams):
             [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
             [(p, None) for p in parts[-1:]]
         )
-    elif params.dataset:
-        name = '/'.join(itertools.chain(*(
-            [f':{p["name"]}', '/'.join(p['args'])]
-            for p in get_model_link_params(model)
-            if p['name'] in {'dataset', 'resource', 'origin'}
-        )))
-        loc += [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)]
-        if params.pk or params.changes:
-            loc += [(name, get_model_link(model))]
-        if params.pk:
-            if params.changes:
-                loc += (
-                    [(pks, get_model_link(model, pk=pk))] +
-                    [(':changes', None)]
-                )
-            else:
-                loc += (
-                    [(pks, None)] +
-                    [(':changes', get_model_link(model, pk=pk, changes=[]))]
-                )
-        else:
-            if params.changes:
-                loc += (
-                    [(':changes', None)]
-                )
-            else:
-                loc += (
-                    [(name, None)] +
-                    [(':changes', get_model_link(model, changes=[]))]
-                )
     else:
-        if params.pk:
-            loc += (
-                [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts, 1)] +
-                [(pks, None)] +
-                [(':changes', get_model_link(model, pk=pk, changes=[]))]
-            )
+        pk = params.pk
+        changes = params.changes
+        loc += [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)]
+        if pk or changes:
+            loc += [(parts[-1], get_model_link(model))]
         else:
-            loc += (
-                [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
-                [(p, None) for p in parts[-1:]] +
-                [(':changes', get_model_link(model, changes=[]))]
-            )
+            loc += [(parts[-1], None)]
+        if pk:
+            if changes:
+                loc += [(pks, get_model_link(model, pk=pk))]
+            else:
+                loc += [(pks, None)]
+        if changes:
+            loc += [(':changes', None)]
+        else:
+            loc += [(':changes', get_model_link(model, pk=pk, changes=[]))]
     return loc
 
 
@@ -330,9 +286,9 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
 
 def _get_props_from_select(
     context: Context,
-    model: Union[Model, dataset.Model],
+    model: Model,
     select: List[str],
-) -> List[Union[Property, dataset.Property]]:
+) -> List[Property]:
     props = []
     for name in select:
         if name in model.flatprops:
@@ -346,10 +302,10 @@ def _get_props_from_select(
 
 def _find_lined_prop(
     context: Context,
-    model: Union[Model, dataset.Model],
+    model: Model,
     name: str,
     parts: List[str],
-) -> Union[Property, dataset.Property, None]:
+) -> Union[Property, None]:
     # TODO: Add support for nested properties, now only references are
     #       supported.
     prop = model.properties.get(name)
@@ -370,26 +326,6 @@ def get_model_link_params(model: Node, *, pk: Optional[str] = None, **extra):
             ),
         }
     ]
-
-    if isinstance(model, dataset.Model):
-        dset = model.parent.parent
-        ptree.append({
-            'name': 'dataset',
-            'args': [dset.name],
-        })
-
-        resource = model.parent
-        if resource.name:
-            ptree.append({
-                'name': 'resource',
-                'args': [resource.name],
-            })
-
-        if model.origin:
-            ptree.append({
-                'name': 'origin',
-                'args': [model.origin],
-            })
 
     for k, v in extra.items():
         ptree.append({

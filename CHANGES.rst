@@ -212,6 +212,9 @@ New features:
 - `spinta config` now has `-f env` argument to show config option names as
   environment variables.
 
+- Error response now includes `component` context var with pyton path of
+  component class.
+
 Internal changes:
 
 - `RawConfig` was moved from `spinta.config` to `spinta.core.config`.
@@ -311,3 +314,5 @@ Internal changes:
   Also, `_txn` might be saved on another backend.
 
 - `RawConfig` now can take default values from `spinta/config.yml`.
+
+- `prop.backend` was moved to `dtype.backend`.

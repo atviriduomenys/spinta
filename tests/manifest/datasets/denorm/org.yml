@@ -1,0 +1,18 @@
+type: model
+name: datasets/denorm/org
+external:
+  dataset: datasets/denorm
+  resource: orgs
+  name: orgs.csv
+  id: govid
+properties:
+  govid:
+    type: string
+    external: govid
+  title:
+    type: string
+    external: org
+  country:
+    type: ref
+    object: datasets/denorm/country
+    external: kodas

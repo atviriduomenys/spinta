@@ -75,11 +75,14 @@ def freeze(context: Context, manifest: YamlManifest):
         # Load current model version
         current = _load(context, config, manifest, data)
         manifest.objects[current.type][current.name] = current
+        commands.link(context, current)
 
         # Load freezed model version
         patch, freezed = _load_freezed(context, config, manifest, data, versions)
         if patch:
             changes.append((current, patch))
+        if freezed is not None:
+            commands.link(context, freezed)
         manifest.freezed[current.type][current.name] = freezed
 
     # Freeze changes.
@@ -134,11 +137,10 @@ def _load(
     #      this check for freezed nodes.
     check=True,
 ):
-    data = {
-        **data,
-        'parent': manifest,
-    }
-    node = get_node(config, manifest, data, check)
+    node = get_node(config, manifest, data, check=check)
+    node.type = data['type']
+    node.parent = manifest
+    node.manifest = manifest
     return load(context, node, data, manifest)
 
 

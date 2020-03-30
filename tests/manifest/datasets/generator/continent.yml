@@ -1,0 +1,16 @@
+type: model
+name: datasets/generator/continent
+external:
+  dataset: datasets/generator
+  resource: continents
+  name: continents.csv
+  id: id
+  params:
+    - year: range(2000, 2001)
+properties:
+  id:
+    type: string
+    external: id
+  title:
+    type: string
+    external: continent

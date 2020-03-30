@@ -1,27 +1,7 @@
 ---
-name: xml
+name: datasets/xml
 type: dataset
-version:
-  id: 1
-  date: 2019-03-07
 resources:
   data:
     type: xml
-    source: http://example.com/data.xml
-    objects:
-      "":
-        tenure:
-          source: /SeimoInformacija/SeimoKadencija
-          properties:
-            _id:
-              type: pk
-              source: "@kadencijos_id"
-            title:
-              type: string
-              source: "@pavadinimas"
-            since:
-              type: date
-              source: "@data_nuo"
-            until:
-              type: date
-              source: "@data_iki"
+    external: http://example.com/data.xml

@@ -1,15 +1,8 @@
----
-type: dataset
-name: dtypes/binary
-version:
-  id: 1
-  date: 2020-01-23
-resources:
-  resource:
-    type: csv
-    objects:
-      origin:
-        dtypes/binary:
-          properties:
-            blob:
-              type: binary
+type: model
+name: datasets/dtypes/binary
+external:
+  dataset: datasets/dtypes/binary
+  resource: resource
+properties:
+  blob:
+    type: binary

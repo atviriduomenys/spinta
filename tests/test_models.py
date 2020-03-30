@@ -30,6 +30,7 @@ def test_engine_name_overshadow(rc, tmpdir):
     assert "Endpoint name can't overshadow existing model names and 'report' is already a model name." in str(e.value)
 
 
+@pytest.mark.skip('datasets')
 def test_engine_name_overshadow_other(rc, tmpdir):
     with pytest.raises(Exception) as e:
         check_store(rc, tmpdir, {

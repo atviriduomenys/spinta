@@ -1,0 +1,11 @@
+type: model
+name: datasets/backends/postgres/dataset/capital
+external:
+  dataset: datasets/backends/postgres/dataset
+  resource: sql
+properties:
+  title:
+    type: string
+  country:
+    type: ref
+    object: backends/postgres/country

@@ -1,0 +1,21 @@
+type: model
+name: datasets/dependencies/capital
+external:
+  dataset: datasets/dependencies
+  resource: continents
+  params:
+    - continent: query(datasets/dependencies/continent)
+    - country: query(datasets/dependencies/country)
+  name: /continents/{continent.id}/countries/{country.id}/captials.csv
+  id: id
+properties:
+  id:
+    type: string
+    external: id
+  title:
+    type: string
+    external: capital
+  country:
+    type: ref
+    object: datasets/dependencies/country
+    prepare: country.id

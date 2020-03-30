@@ -1,4 +1,4 @@
-from typing import Optional, Iterable
+from typing import Optional, Iterable, List
 
 import asyncio
 import configparser
@@ -19,7 +19,8 @@ from spinta import exceptions
 from spinta.auth import AdminToken
 from spinta.commands.formats import Format
 from spinta.commands.write import write
-from spinta.components import Context, DataStream
+from spinta.components import Context, DataStream, Manifest, Model
+from spinta.datasets.components import Dataset
 from spinta.core.context import create_context
 from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist
@@ -49,6 +50,7 @@ def check(ctx):
 
     store = context.get('store')
     commands.load(context, store, config)
+    commands.link(context, store)
     commands.check(context, store)
 
     click.echo("OK")
@@ -66,6 +68,7 @@ def freeze(ctx):
 
     store = context.get('store')
     commands.load(context, store, config)
+    commands.link(context, store)
     commands.check(context, store)
 
     with context:
@@ -88,6 +91,7 @@ def wait(ctx, seconds):
 
     store = context.get('store')
     commands.load(context, store, config)
+    commands.link(context, store)
     commands.check(context, store)
 
     commands.wait(context, store, rc, seconds=seconds)
@@ -107,6 +111,7 @@ def bootstrap(ctx):
 
     store = context.get('store')
     commands.load(context, store, config)
+    commands.link(context, store)
     commands.check(context, store)
 
     commands.prepare(context, store)
@@ -130,6 +135,7 @@ def migrate(ctx):
 
     store = context.get('store')
     commands.load(context, store, config)
+    commands.link(context, store)
     commands.check(context, store)
 
     commands.prepare(context, store)
@@ -144,12 +150,12 @@ def migrate(ctx):
 
 
 @main.command(help='Pull data from an external dataset.')
-@click.argument('source')
+@click.argument('dataset')
 @click.option('--model', '-m', multiple=True, help="Pull only specified models.")
 @click.option('--push', is_flag=True, default=False, help="Write pulled data to database.")
 @click.option('--export', '-e', help="Export pulled data to a file or stdout. For stdout use 'stdout:<fmt>', where <fmt> can be 'csv' or other supported format.")
 @click.pass_context
-def pull(ctx, source, model, push, export):
+def pull(ctx, dataset, model, push, export):
     context = ctx.obj
 
     rc = context.get('rc')
@@ -159,15 +165,25 @@ def pull(ctx, source, model, push, export):
 
     store = context.get('store')
     commands.load(context, store, config)
+    commands.link(context, store)
     commands.check(context, store)
 
     commands.prepare(context, store)
 
     manifest = store.manifest
-    if source in manifest.objects['dataset']:
-        dataset = manifest.objects['dataset'][source]
+    if dataset in manifest.objects['dataset']:
+        dataset = manifest.objects['dataset'][dataset]
     else:
-        raise click.ClickException(str(exceptions.NodeNotFound(manifest, type='dataset', name=source)))
+        raise click.ClickException(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
+
+    if model:
+        models = []
+        for model in model:
+            if model not in manifest.models:
+                raise click.ClickException(str(exceptions.NodeNotFound(manifest, type='model', name=model)))
+            models.append(manifest.models[model])
+    else:
+        models = _get_dataset_models(manifest, dataset)
 
     try:
         with context:
@@ -178,7 +194,7 @@ def pull(ctx, source, model, push, export):
             path = None
             exporter = None
 
-            stream = commands.pull(context, dataset, models=model)
+            stream = _pull_models(context, models)
             if push:
                 root = manifest.objects['ns']['']
                 stream = write(context, root, stream, changed=True)
@@ -203,12 +219,26 @@ def pull(ctx, source, model, push, export):
                 exporter = config.exporters[fmt]
 
             asyncio.get_event_loop().run_until_complete(
-                _process_stream(source, stream, exporter, path)
+                _process_stream(dataset.name, stream, exporter, path)
             )
 
     except exceptions.BaseError as e:
         print()
         raise click.ClickException(str(e))
+
+
+def _get_dataset_models(manifest: Manifest, dataset: Dataset):
+    for model in manifest.models.values():
+        if model.external and model.external.dataset and model.external.dataset.name == dataset.name:
+            yield model
+
+
+def _pull_models(context: Context, models: List[Model]):
+    for model in models:
+        external = model.external
+        backend = external.resource.backend
+        rows = commands.getall(context, external, backend)
+        yield from rows
 
 
 async def _process_stream(
@@ -251,6 +281,7 @@ def push(ctx, target, dataset, credentials, client):
 
     store = context.get('store')
     commands.load(context, store, config)
+    commands.link(context, store)
     commands.check(context, store)
 
     commands.prepare(context, store)
@@ -334,6 +365,7 @@ def run(ctx):
 
     store = context.get('store')
     commands.load(context, store, config)
+    commands.link(context, store)
     commands.check(context, store)
 
     commands.prepare(context, store)

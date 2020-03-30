@@ -1,0 +1,20 @@
+type: model
+name: datasets/dependencies/country
+external:
+  dataset: datasets/dependencies
+  resource: continents
+  params:
+    - continent: query(datasets/dependencies/continent)
+  name: /continents/{continent.id}/countries.csv
+  id: id
+properties:
+  id:
+    type: string
+    external: id
+  title:
+    type: string
+    external: country
+  continent:
+    type: ref
+    object: datasets/dependencies/continent
+    prepare: continent.id

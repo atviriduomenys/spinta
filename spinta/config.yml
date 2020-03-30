@@ -96,21 +96,6 @@ manifest:
   type: ref
   ref: manifests
 
-datasets:
-  type: object
-  keys:
-    type: string  # manifest
-  values:
-    type: object
-    keys:
-      type: string  # dataset
-    values:
-      type: object
-      keys:
-        type: string  # resource
-      values:
-        type: string  # dsn
-
 # When scanning for manifest YAML files, ignore these files.
 ignore:
   type: array

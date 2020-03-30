@@ -1,0 +1,20 @@
+type: model
+name: datasets/dependencies/continent
+external:
+  dataset: datasets/dependencies
+  resource: continents
+  name: /continents.csv
+  id: id
+properties:
+  id:
+    type: string
+    external: id
+  title:
+    type: string
+    external: continent
+  continent_id:
+    type: string
+    external: id
+  population:
+    type: integer
+    external: population
