@@ -35,6 +35,7 @@ def test_str_with_this():
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
+        '    component: spinta.components.Node\n'
         '    schema: None\n'
         '    model: country\n'
     )
@@ -44,6 +45,7 @@ def test_str_with_this():
         'template': 'Error.',
         'message': 'Error.',
         'context': {
+            'component': 'spinta.components.Node',
             'schema': 'None',
             'model': 'country',
         },
@@ -91,7 +93,6 @@ def test_context_sorting():
         bar=1,
         property=1,
         foo=1,
-        origin=1,
         resource=1,
         model=1,
         dataset=1,
@@ -102,7 +103,6 @@ def test_context_sorting():
         '  Context:\n'
         '    dataset: 1\n'
         '    resource: 1\n'
-        '    origin: 1\n'
         '    model: 1\n'
         '    property: 1\n'
         '    bar: 1\n'
@@ -134,6 +134,7 @@ def test_this_model(context):
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
+        '    component: spinta.components.Model\n'
         '    manifest: default\n'
         '    schema: manifest/models/org.yml\n'
         '    model: org\n'
@@ -147,6 +148,7 @@ def test_this_model_property(context):
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
+        '    component: spinta.components.Property\n'
         '    manifest: default\n'
         '    schema: manifest/models/org.yml\n'
         '    model: org\n'
@@ -161,6 +163,7 @@ def test_this_model_property_dtype(context):
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
+        '    component: spinta.types.datatype.String\n'
         '    manifest: default\n'
         '    schema: manifest/models/org.yml\n'
         '    model: org\n'
@@ -170,35 +173,35 @@ def test_this_model_property_dtype(context):
 
 
 def test_this_dataset_model(context):
-    model = context.get('store').manifest.objects['dataset']['test'].resources[''].objects['']['backends/postgres/report']
-    model.path = 'manifest/backends/postgres/datasets/report.yml'
+    model = context.get('store').manifest.objects['model']['datasets/backends/postgres/dataset/report']
+    model.path = 'manifest/backends/postgres/dataset/report.yml'
     error = Error(model)
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
+        '    component: spinta.components.Model\n'
         '    manifest: default\n'
-        '    schema: manifest/backends/postgres/datasets/report.yml\n'
-        '    backend: default\n'
-        '    dataset: test\n'
-        '    resource: \n'
-        '    origin: \n'
-        '    model: backends/postgres/report\n'
+        '    schema: manifest/backends/postgres/dataset/report.yml\n'
+        '    dataset: datasets/backends/postgres/dataset\n'
+        '    resource: sql\n'
+        '    model: datasets/backends/postgres/dataset/report\n'
+        '    entity: reports\n'
     )
 
 
 def test_this_dataset_model_property(context):
-    prop = context.get('store').manifest.objects['dataset']['test'].resources[''].objects['']['backends/postgres/report'].properties['status']
-    prop.model.path = 'manifest/backends/postgres/datasets/report.yml'
+    prop = context.get('store').manifest.objects['model']['datasets/backends/postgres/dataset/report'].properties['status']
+    prop.model.path = 'manifest/backends/postgres/dataset/report.yml'
     error = Error(prop)
     assert str(error) == (
         'Error.\n'
         '  Context:\n'
+        '    component: spinta.components.Property\n'
         '    manifest: default\n'
-        '    schema: manifest/backends/postgres/datasets/report.yml\n'
-        '    backend: default\n'
-        '    dataset: test\n'
-        '    resource: \n'
-        '    origin: \n'
-        '    model: backends/postgres/report\n'
+        '    schema: manifest/backends/postgres/dataset/report.yml\n'
+        '    dataset: datasets/backends/postgres/dataset\n'
+        '    resource: sql\n'
+        '    model: datasets/backends/postgres/dataset/report\n'
+        '    entity: reports\n'
         '    property: status\n'
     )

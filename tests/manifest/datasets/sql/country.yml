@@ -1,0 +1,14 @@
+type: model
+name: datasets/sql/country
+external:
+  dataset: datasets/sql
+  resource: db
+  name: tests_country
+  id: code
+properties:
+  code:
+    type: string
+    external: kodas
+  title:
+    type: string
+    external: pavadinimas

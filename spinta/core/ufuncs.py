@@ -4,6 +4,9 @@ import importlib
 
 
 from spinta.dispatcher import Command
+from spinta.components import Context
+from spinta import spyna
+from spinta.exceptions import UnknownUfunc
 
 
 class Expr:
@@ -12,6 +15,17 @@ class Expr:
         self.name = name
         self.args = args
         self.kwargs = kwargs
+
+    def __repr__(self):
+        return spyna.unparse({
+            'name': self.name,
+            'args': list(self.args) + [
+                {
+                    'name': 'bind',
+                    'args': [k, v],
+                } for k, v in self.kwargs.items()
+            ],
+        })
 
     def __call__(self, *args, **kwargs):
         return Expr(self.name, *args, **kwargs)
@@ -90,18 +104,22 @@ class Env:
 
     def __init__(
         self,
-        context,
-        resolvers,
-        executors,
+        context: Context,
+        resolvers: UFuncRegistry = None,
+        executors: UFuncRegistry = None,
         scope=None,
     ):
+        if resolvers is None or executors is None:
+            config = context.get('config')
+            resolvers = resolvers or config.resolvers
+            executors = executors or config.executors
         self.context = context
         self._resolvers = resolvers
         self._executors = executors
         self._scope = scope or {}
 
     def __call__(self, **scope):
-        return Env(
+        return type(self)(
             self.context,
             self._resolvers,
             self._executors,
@@ -144,6 +162,9 @@ class Env:
     def execute(self, expr: Any):
         if not isinstance(expr, Expr):
             return expr
+
+        if expr.name not in self._executors:
+            raise UnknownUfunc(name=expr.name)
 
         ufunc = self._executors[expr.name]
 

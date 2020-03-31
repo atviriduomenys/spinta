@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Iterator, Union
+from typing import List, Dict
 
 import cgi
 import itertools
@@ -15,9 +15,7 @@ from spinta import exceptions
 from spinta import spyna
 from spinta.hacks.spyna import binds_to_strs
 from spinta.exceptions import (
-    NodeNotFound,
     ModelNotFound,
-    MultipleDatasetModelsFoundError,
 )
 
 
@@ -61,8 +59,6 @@ def _prepare_urlparams_from_path(params):
             params.ns = True
         elif name == 'all':
             params.all = True
-        elif name in ('dataset', 'resource', 'origin'):
-            setattr(params, name, '/'.join(args))
         elif name == 'select':
             # TODO: Traverse args and resolve all properties, etc.
             if params.select is None:
@@ -113,6 +109,8 @@ def _prepare_urlparams_from_path(params):
         elif name == 'changes':
             params.changes = True
             params.changes_offset = args[0] if args else None
+        elif name == 'external':
+            params.external = True
         elif name == 'format':
             if isinstance(args[0], str):
                 params.format = args[0]
@@ -181,59 +179,6 @@ def get_model_by_name(context: Context, manifest: Manifest, name: str) -> Node:
     return params.model
 
 
-def _get_nodes_by_name(
-    type_: str, name: Optional[str], candidates: List[dict],
-) -> Iterator[Union[Node, dict]]:
-    """Try to find nodes by given name in given list of node dicts.
-
-    Full dataset model name looks like this:
-
-        orgs/:dataset/gov/:resource/sql/:origin/org
-
-    But resource and origin is optional and can be empty strings:
-
-        orgs/:dataset/gov/:resource//:origin/
-
-    Also one can specify only model and dataset:
-
-        orgs/:dataset/gov
-
-    When resource and origin is not given, then Spinta tries to find model in
-    givne dataset, by looking into all resources and all origins. If only one
-    model is found, then that model is returned. But if multiple models are
-    found, then it's an error.
-
-    Also, if resource and/or origin is not given, then Spinta tries to check if
-    there is a resource or a node with empty name, and if it finds one, uses it
-    by default. So that means, if resoruce and/or origin is not specified, then
-    this can mean resource and/or origin with empty name or if there is no
-    resource and/or origin with empty name, then all resources and/or origins
-    are considered.
-    """
-    nodes = {}
-    found = name is None
-    for node, children in candidates:
-        if name is None:
-            if '' in children:
-                yield node, children['']
-            else:
-                yield from zip(itertools.repeat(node), children.values())
-        elif name in children:
-            yield node, children[name]
-            found = True
-        else:
-            nodes[node.name] = node
-    if not found:
-        # Find closest single parent.
-        while len(nodes) > 1:
-            nodes = {
-                node.parent.name: node.parent
-                for node in nodes.values()
-            }
-        node = next(iter(nodes.values()))
-        raise NodeNotFound(node, type=type_, name=name)
-
-
 def get_model_from_params(manifest, params: UrlParams):
     name = params.path
 
@@ -247,42 +192,6 @@ def get_model_from_params(manifest, params: UrlParams):
             return manifest.objects['ns'][name]
         else:
             raise ModelNotFound(manifest, model=name)
-
-    elif params.dataset:
-        # TODO: write tests for this thing below
-        datasets = _get_nodes_by_name('dataset', params.dataset or '', [
-            (manifest, manifest.objects['dataset']),
-        ])
-
-        resources = _get_nodes_by_name('resource', params.resource, (
-            (dataset, dataset.resources) for _, dataset in datasets
-        ))
-
-        origins = _get_nodes_by_name('origin', params.origin, (
-            (resource, resource.objects) for _, resource in resources
-        ))
-
-        if name == '':
-            next(origins)
-            return manifest.objects['ns'][name]
-
-        # FIXME: Here we lose origin in error context. I'm starting to thing,
-        #        that origin should be a normal node object too, not a bare
-        #        dict.
-        models = _get_nodes_by_name('model', name, (
-            (resource, origin) for resource, origin in origins
-        ))
-
-        models = list(itertools.islice(models, 2))
-
-        if len(models) == 0:
-            return None
-        elif len(models) == 1:
-            return models[0][1]
-        else:
-            # FIXME: add resource and origin to error context
-            # FIXME: change name to model
-            raise MultipleDatasetModelsFoundError(name=name, dataset=params.dataset)
 
     elif name in manifest.objects['model']:
         return manifest.objects['model'].get(name)

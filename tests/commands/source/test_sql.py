@@ -17,6 +17,7 @@ def sql(rc):
     schema.drop_all()
 
 
+@pytest.mark.skip('datasets')
 def test_sql(rc, cli, sql, app):
     dsn = rc.get('backends', 'default', 'dsn', required=True)
     rc = rc.fork({'datasets.default.sql.db': dsn})

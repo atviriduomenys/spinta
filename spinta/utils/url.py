@@ -13,14 +13,9 @@ RULES = {
     'all': {
         'maxargs': 0,
     },
-    'dataset': {
-        'minargs': 1,
-    },
-    'resource': {
-        'minargs': 1,
-    },
-    'origin': {
-        'minargs': 1,
+    'external': {
+        'minargs': 0,
+        'maxargs': 1,
     },
     'changes': {
         'minargs': 0,

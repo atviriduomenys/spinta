@@ -48,7 +48,7 @@ class Property(Node):
 
 @load.register()
 def load(context: Context, project: Project, data: dict, manifest: Manifest):
-    load_node(context, project, data, manifest)
+    load_node(context, project, data)
 
     for name, obj in data.get('objects', {}).items():
         project.objects[name] = load_node(context, Model(), {
@@ -58,7 +58,7 @@ def load(context: Context, project: Project, data: dict, manifest: Manifest):
             'parent': project,
             'backend': project.backend,
             **(obj or {}),
-        }, manifest)
+        })
 
     project.impact = [
         {

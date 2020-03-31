@@ -1,47 +1,21 @@
 from typing import AsyncIterator, Union, List, Dict, Optional, Iterable, Generator
 
 import base64
-import contextlib
 import datetime
 import uuid
 import typing
-import enum
 
 from spinta import commands
 from spinta import exceptions
 from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
 from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
 from spinta.exceptions import ConflictingValue, NoItemRevision
-from spinta.types import dataset
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON
 from spinta.utils.itertools import chunks, recursive_keys
 from spinta.utils.schema import NotAvailable, NA
+from spinta.backends.components import Backend
 
 SelectTree = Optional[Dict[str, dict]]
-
-
-class BackendFeatures(enum.Enum):
-    # Files are stored in blocks and file metadata must include _bsize and
-    # _blocks properties.
-    FILE_BLOCKS = 'FILE_BLOCKS'
-
-
-class Backend:
-    metadata = {
-        'name': 'backend',
-    }
-
-    features = set()
-
-    def __repr__(self):
-        return (
-            f'<{self.__class__.__module__}.{self.__class__.__name__}'
-            f'(name={self.name!r}) at 0x{id(self):02x}>'
-        )
-
-    @contextlib.contextmanager
-    def transaction(self):
-        raise NotImplementedError
 
 
 @prepare.register()
@@ -79,7 +53,7 @@ def prepare(context: Context, backend: Backend, prop: Property):
 def simple_data_check(
     context: Context,
     data: DataItem,
-    model: (Model, dataset.Model),
+    model: Model,
     backend: Backend,
 ) -> None:
     simple_model_properties_check(context, data, model, backend)
@@ -89,7 +63,7 @@ def simple_data_check(
 def simple_data_check(  # noqa
     context: Context,
     data: DataItem,
-    prop: (Property, dataset.Property),
+    prop: Property,
     backend: Backend,
 ) -> None:
     simple_data_check(
@@ -112,16 +86,12 @@ def simple_model_properties_check(
         # For datasets, property type is optional.
         # XXX: but I think, it should be mandatory.
         if prop.dtype is not None:
-            if prop.backend.name == backend.name:
-                backend_ = backend
-            else:
-                backend_ = prop.backend
             simple_data_check(
                 context,
                 data,
                 prop.dtype,
                 prop,
-                backend_,
+                backend,
                 data.given.get(name, NA),
             )
 
@@ -142,39 +112,8 @@ def simple_data_check(  # noqa
         raise NoItemRevision(prop)
 
 
-@commands.simple_data_check.register()  # noqa
-def simple_data_check(  # noqa
-    context: Context,
-    data: DataItem,
-    dtype: DataType,
-    prop: dataset.Property,
-    backend: Backend,
-    value: object,
-) -> None:
-    check_type_value(dtype, value)
-
-
 @commands.complex_data_check.register()
 def complex_data_check(
-    context: Context,
-    data: DataItem,
-    model: Model,
-    backend: Backend,
-) -> None:
-    _complex_data_check(context, data, model, backend)
-
-
-@commands.complex_data_check.register()  # noqa
-def complex_data_check(  # noqa
-    context: Context,
-    data: DataItem,
-    model: dataset.Model,
-    backend: Backend,
-) -> None:
-    _complex_data_check(context, data, model, backend)
-
-
-def _complex_data_check(
     context: Context,
     data: DataItem,
     model: Model,
@@ -233,7 +172,7 @@ def complex_data_check(
     context: Context,
     data: DataItem,
     dtype: DataType,
-    prop: (Property, dataset.Property),
+    prop: Property,
     backend: Backend,
     value: object,
 ):
@@ -264,22 +203,18 @@ def is_object_id(context: Context, value: str):
     # TODO: this probably should be cached at load time to increase performance
     #       of object id lookup.
     # XXX: other option would be to implement two pass URL parsing, to get
-    #      information about model, resource and dataset, and then call
-    #      is_object_id directly with backend and model. That would be nice.
+    #      information about model, and then call is_object_id directly with
+    #      backend and model. That would be nice.
     store = context.get('store')
     candidates = set()
     manifest = store.manifest
     for model in manifest.objects.get('model', {}).values():
         candidates.add((model.backend.__class__, model.__class__))
-    for dataset_ in manifest.objects.get('dataset', {}).values():
-        for resource in dataset_.resources.values():
-            for model in resource.models():
-                candidates.add((model.backend.__class__, model.__class__))
 
     # Currently all models use UUID, but dataset models use id generated from
     # other properties that form an unique id.
-    for Backend, Model_ in candidates:
-        backend = Backend()
+    for Backend_, Model_ in candidates:
+        backend = Backend_()
         model = Model_()
         model.name = ''
         if is_object_id(context, backend, model, value):
@@ -311,7 +246,7 @@ def is_object_id(context: Context, backend: type(None), model: Namespace, value:
 def prepare_data_for_response(  # noqa
     context: Context,
     action: Action,
-    model: (Model, dataset.Model),
+    model: Model,
     backend: Backend,
     value: dict,
     *,
@@ -419,7 +354,7 @@ def _apply_always_show_id(
 
 
 def _select_model_props(
-    model: Union[Model, dataset.Model],
+    model: Model,
     value: dict,
     select: SelectTree,
     reserved: List[str],
@@ -441,7 +376,7 @@ def _select_model_props(
 
 
 def _select_prop_props(
-    prop: Union[Property, dataset.Property],
+    prop: Property,
     value: dict,
     select: SelectTree,
     reserved: List[str],
@@ -467,7 +402,7 @@ def _select_prop_props(
 
 def _select_props(
     keys: List[str],
-    props: Optional[Dict[str, Union[Property, dataset.Property]]],
+    props: Optional[Dict[str, Property]],
     value: dict,
     select: SelectTree,
     *,
@@ -507,7 +442,7 @@ def _select_props(
 # FIXME: We should check select list at the very beginning of
 #        request, not when returning results.
 def _check_unknown_props(
-    node: Union[Model, dataset.Model, Property, dataset.Property, DataType],
+    node: Union[Model, Property, DataType],
     select: Optional[Iterable[str]],
     known: Iterable[str],
 ):
@@ -546,7 +481,7 @@ def _flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: DataType,
     value: object,
     *,
@@ -564,7 +499,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: DataType,
     value: NotAvailable,
     *,
@@ -577,7 +512,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: File,
     value: NotAvailable,
     *,
@@ -593,7 +528,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: File,
     value: dict,
     *,
@@ -615,7 +550,7 @@ def prepare_dtype_for_response(  # noqa
             content = value['_content']
         else:
             prop = dtype.prop
-            content = commands.getfile(context, prop, dtype, prop.backend, data=value)
+            content = commands.getfile(context, prop, dtype, dtype.backend, data=value)
 
         if content is None:
             data['_content'] = None
@@ -629,7 +564,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: DateTime,
     value: datetime.datetime,
     *,
@@ -642,7 +577,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: Date,
     value: datetime.date,
     *,
@@ -658,7 +593,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: Binary,
     value: bytes,
     *,
@@ -671,7 +606,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: Ref,
     value: dict,
     *,
@@ -684,7 +619,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: Ref,
     value: str,
     *,
@@ -699,7 +634,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: Object,
     value: dict,
     *,
@@ -728,7 +663,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: Array,
     value: list,
     *,
@@ -751,7 +686,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: Array,
     value: type(None),
     *,
@@ -764,7 +699,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: JSON,
     value: object,
     *,
@@ -777,7 +712,7 @@ def prepare_dtype_for_response(  # noqa
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
-    model: (Model, dataset.Model),
+    model: Model,
     dtype: JSON,
     value: NotAvailable,
     *,
@@ -852,7 +787,7 @@ def make_json_serializable(dtype: Array, value: list):  # noqa
 @commands.update.register()
 def update(
     context: Context,
-    prop: (Property, dataset.Property),
+    prop: Property,
     dtype: DataType,
     backend: Backend,
     *,
@@ -869,7 +804,7 @@ def update(
 @commands.patch.register()
 def patch(
     context: Context,
-    prop: (Property, dataset.Property),
+    prop: Property,
     dtype: DataType,
     backend: Backend,
     *,
@@ -886,7 +821,7 @@ def patch(
 @commands.delete.register()
 def delete(
     context: Context,
-    prop: (Property, dataset.Property),
+    prop: Property,
     dtype: DataType,
     backend: Backend,
     *,
@@ -902,7 +837,7 @@ def delete(
 
 
 async def _prepare_property_for_delete(
-    prop: Union[Property, dataset.Property],
+    prop: Property,
     dstream: AsyncIterator[DataItem],
 ) -> AsyncIterator[DataItem]:
     async for data in dstream:
@@ -917,7 +852,7 @@ async def _prepare_property_for_delete(
 @commands.cast_backend_to_python.register()
 def cast_backend_to_python(  # noqa
     context: Context,
-    model: (Model, dataset.Model),
+    model: Model,
     backend: Backend,
     data: dict,
 ) -> dict:
@@ -935,7 +870,7 @@ def cast_backend_to_python(  # noqa
 @commands.cast_backend_to_python.register()
 def cast_backend_to_python(  # noqa
     context: Context,
-    prop: (Property, dataset.Property),
+    prop: Property,
     backend: Backend,
     data: object,
 ) -> dict:

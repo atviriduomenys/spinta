@@ -1,11 +1,14 @@
 import operator
 import pathlib
 
+import pytest
+
 from responses import GET
 
 from spinta.testing.datasets import pull
 
 
+@pytest.mark.skip('datasets')
 def test_json(cli, rc, app, responses):
     responses.add(
         GET, 'http://example.com/data.json',

@@ -32,6 +32,8 @@ def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: di
 
     added = set()
     context = {}
+    if this:
+        context['component'] = type(this).__module__ + '.' + type(this).__name__
     for k, path in schema.items():
         path = path or k
         name, *names = path.split('.')
@@ -65,14 +67,16 @@ def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: di
 
     # Return sorted context.
     names = [
+        'component',
         'manifest',
         'schema',
         'backend',
         'dataset',
         'resource',
-        'origin',
         'model',
+        'entity',
         'property',
+        'attribute',
         'type',
     ]
     names += [x for x in schema if x not in names]
@@ -239,17 +243,12 @@ class MultipleRowsFound(BaseError):
     template = "Multiple rows were found."
 
 
-class MultipleDatasetModelsFoundError(BaseError):
-    template = ("Found multiple {name!r} models in {dataset!r} "
-                "dataset. Be more specific by providing resource name.")
-
-
 class ManagedProperty(UserError):
     template = "Value of this property is managed automatically and cannot be set manually."
 
 
 class InvalidManagedPropertyName(UserError):
-    template = "Invalid managed property name. Exmpected name {name!r}, got {property!r}."
+    template = "Invalid managed property name. Expected name {name!r}, got {property!r}."
 
 
 class NotFoundError(BaseError):
@@ -404,3 +403,11 @@ class MultipleParentsError(Exception):
 
 class UnknownPropertyType(UserError):
     template = "Unknown property type {type!r}."
+
+
+class UnknownUfunc(UserError):
+    template = "Unknown function {name!r}."
+
+
+class MissingReferrence(UserError):
+    template = "Missing reference {ref!r} referenced from {param!r} parameter."

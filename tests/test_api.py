@@ -59,30 +59,31 @@ def test_app(app):
 
 
 def test_directory(app):
-    resp = app.get('/rinkimai', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/xlsx/rinkimai/:ns', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
     assert _cleaned_context(resp) == {
         'location': [
             ('root', '/'),
+            ('datasets', '/datasets'),
+            ('xlsx', '/datasets/xlsx'),
             ('rinkimai', None),
         ],
         'header': ['_type', '_id', 'name', 'specifier', 'title'],
         'data': [
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'rinkimai/apygarda/:ns', 'name': 'rinkimai/apygarda', 'title': 'apygarda'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'rinkimai/apylinke/:ns', 'name': 'rinkimai/apylinke', 'title': 'apylinke'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'rinkimai/kandidatas/:ns', 'name': 'rinkimai/kandidatas', 'title': 'kandidatas'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'rinkimai/turas/:ns', 'name': 'rinkimai/turas', 'title': 'turas'},
-            {'_type': 'model:dataset', 'specifier': ':dataset/json/:resource/data', '_id': 'rinkimai/:dataset/json/:resource/data', 'name': 'rinkimai', 'title': ''},
-            {'_type': 'model:dataset', 'specifier': ':dataset/xlsx/:resource/data', '_id': 'rinkimai/:dataset/xlsx/:resource/data', 'name': 'rinkimai', 'title': ''},
+            {'_type': 'ns', 'specifier': ':ns', '_id': 'datasets/xlsx/rinkimai/apygarda/:ns', 'name': 'datasets/xlsx/rinkimai/apygarda', 'title': 'apygarda'},
+            {'_type': 'ns', 'specifier': ':ns', '_id': 'datasets/xlsx/rinkimai/apylinke/:ns', 'name': 'datasets/xlsx/rinkimai/apylinke', 'title': 'apylinke'},
+            {'_type': 'ns', 'specifier': ':ns', '_id': 'datasets/xlsx/rinkimai/kandidatas/:ns', 'name': 'datasets/xlsx/rinkimai/kandidatas', 'title': 'kandidatas'},
+            {'_type': 'ns', 'specifier': ':ns', '_id': 'datasets/xlsx/rinkimai/turas/:ns', 'name': 'datasets/xlsx/rinkimai/turas', 'title': 'turas'},
+            {'_type': 'model', 'specifier': '', '_id': 'datasets/xlsx/rinkimai', 'name': 'datasets/xlsx/rinkimai', 'title': ''},
         ],
         'row': [],
         'formats': [
-            ('CSV', '/rinkimai/:format/csv'),
-            ('JSON', '/rinkimai/:format/json'),
-            ('JSONL', '/rinkimai/:format/jsonl'),
-            ('ASCII', '/rinkimai/:format/ascii'),
+            ('CSV', '/datasets/xlsx/rinkimai/:ns/:format/csv'),
+            ('JSON', '/datasets/xlsx/rinkimai/:ns/:format/json'),
+            ('JSONL', '/datasets/xlsx/rinkimai/:ns/:format/jsonl'),
+            ('ASCII', '/datasets/xlsx/rinkimai/:ns/:format/ascii'),
         ],
         'limit_enforced': True,
     }
@@ -200,62 +201,57 @@ def test_model_get(model, app):
 
 
 def test_dataset(app):
-    app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('rinkimai/:dataset/json/:resource/data', ['insert', 'getall'])
-    resp = app.post('/', json={'_data': [
-        {
-            '_op': 'insert',
-            '_type': 'rinkimai/:dataset/json/:resource/data',
-            '_id': get_ref_id('Rinkimai 1'),
-            'pavadinimas': 'Rinkimai 1',
-        },
-    ]})
+    app.authmodel('datasets/json/rinkimai', ['insert', 'getall'])
+    resp = app.post('/datasets/json/rinkimai', json={
+        'id': '1',
+        'pavadinimas': 'Rinkimai 1',
+    })
+    data = resp.json()
+    assert resp.status_code == 201, data
+
+    resp = app.get('/datasets/json/rinkimai', headers={'accept': 'text/html'})
     assert resp.status_code == 200, resp.json()
 
-    resp = app.get('/rinkimai/:dataset/json/:resource/data', headers={'accept': 'text/html'})
-    assert resp.status_code == 200, resp.json()
-
+    pk = data['_id']
     resp.context.pop('request')
     assert resp.context == {
         'location': [
             ('root', '/'),
-            ('rinkimai', '/rinkimai'),
-            (':dataset/json/:resource/data', None),
-            (':changes', '/rinkimai/:dataset/json/:resource/data/:changes'),
+            ('datasets', '/datasets'),
+            ('json', '/datasets/json'),
+            ('rinkimai', None),
+            (':changes', '/datasets/json/rinkimai/:changes'),
         ],
-        'header': ['_id', 'pavadinimas'],
+        'header': ['_id', 'id', 'pavadinimas'],
         'data': [
             [
-                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
+                {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'color': None, 'link': None, 'value': '1'},
                 {'color': None, 'link': None, 'value': 'Rinkimai 1'},
             ],
         ],
         'row': [],
         'formats': [
-            ('CSV', '/rinkimai/:dataset/json/:resource/data/:format/csv'),
-            ('JSON', '/rinkimai/:dataset/json/:resource/data/:format/json'),
-            ('JSONL', '/rinkimai/:dataset/json/:resource/data/:format/jsonl'),
-            ('ASCII', '/rinkimai/:dataset/json/:resource/data/:format/ascii'),
+            ('CSV', '/datasets/json/rinkimai/:format/csv'),
+            ('JSON', '/datasets/json/rinkimai/:format/json'),
+            ('JSONL', '/datasets/json/rinkimai/:format/jsonl'),
+            ('ASCII', '/datasets/json/rinkimai/:format/ascii'),
         ],
         'limit_enforced': True,
     }
 
 
 def test_dataset_with_show(context, app):
-    app.authmodel('rinkimai/:dataset/json/:resource/data', ['insert', 'search'])
-    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('/datasets/json/rinkimai', ['insert', 'search'])
 
-    resp = app.post('/rinkimai/:dataset/json/:resource/data', json={'_data': [
-        {
-            '_op': 'insert',
-            '_type': 'rinkimai/:dataset/json/:resource/data',
-            '_id': get_ref_id('Rinkimai 1'),
-            'pavadinimas': 'Rinkimai 1',
-        },
-    ]})
-    assert resp.status_code == 200, resp.json()
+    resp = app.post('/datasets/json/rinkimai', json={
+        'id': '1',
+        'pavadinimas': 'Rinkimai 1',
+    })
+    data = resp.json()
+    assert resp.status_code == 201, data
 
-    resp = app.get('/rinkimai/:dataset/json?select(pavadinimas)', headers={
+    resp = app.get('/datasets/json/rinkimai?select(pavadinimas)', headers={
         'accept': 'text/html',
     })
     assert resp.status_code == 200
@@ -268,102 +264,102 @@ def test_dataset_with_show(context, app):
 
 
 def test_dataset_url_without_resource(context, app):
-    app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('rinkimai/:dataset/json/:resource/data', ['insert', 'getall'])
-    resp = app.post('/rinkimai/:dataset/json', json={
-        '_id': get_ref_id('Rinkimai 1'),
+    app.authmodel('datasets/json/rinkimai', ['insert', 'getall'])
+    resp = app.post('/datasets/json/rinkimai', json={
+        'id': '1',
         'pavadinimas': 'Rinkimai 1',
     })
-    assert resp.status_code == 201, resp.json()
     data = resp.json()
-    resp = app.get('/rinkimai/:dataset/json', headers={'accept': 'text/html'})
+    pk = data['_id']
+    assert resp.status_code == 201, data
+    resp = app.get('/datasets/json/rinkimai', headers={'accept': 'text/html'})
     assert resp.status_code == 200
-    assert resp.context['header'] == ['_id', 'pavadinimas']
+    assert resp.context['header'] == ['_id', 'id', 'pavadinimas']
     assert resp.context['data'] == [[
-        {'color': None, 'link': f'/rinkimai/{data["_id"]}/:dataset/json/:resource/data', 'value': data['_id'][:8]},
+        {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+        {'color': None, 'link': None, 'value': '1'},
         {'color': None, 'link': None, 'value': 'Rinkimai 1'},
     ]]
 
 
 def test_nested_dataset(app):
-    app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource', ['insert', 'getall'])
-    resp = app.post('/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource', json={
-        '_id': get_ref_id('42'),
+    app.authmodel('datasets/nested/dataset/name/model', ['insert', 'getall'])
+    resp = app.post('/datasets/nested/dataset/name/model', json={
         'name': 'Nested One',
     })
-    assert resp.status_code == 201, resp.json()
+    data = resp.json()
+    assert resp.status_code == 201, data
+    pk = data['_id']
 
-    resp = app.get('/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/nested/dataset/name/model', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
     assert resp.context == {
         'location': [
             ('root', '/'),
-            ('deeply', '/deeply'),
-            ('nested', '/deeply/nested'),
-            ('model', '/deeply/nested/model'),
-            ('name', '/deeply/nested/model/name'),
-            (':dataset/nested/dataset/name/:resource/resource', None),
-            (':changes', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:changes'),
+            ('datasets', '/datasets'),
+            ('nested', '/datasets/nested'),
+            ('dataset', '/datasets/nested/dataset'),
+            ('name', '/datasets/nested/dataset/name'),
+            ('model', None),
+            (':changes', '/datasets/nested/dataset/name/model/:changes'),
         ],
         'header': ['_id', 'name'],
         'data': [
             [
-                {'color': None, 'link': '/deeply/nested/model/name/e2ff1ff0f7d663344abe821582b0908925e5b366/:dataset/nested/dataset/name/:resource/resource', 'value': 'e2ff1ff0'},
+                {'color': None, 'link': f'/datasets/nested/dataset/name/model/{pk}', 'value': pk[:8]},
                 {'color': None, 'link': None, 'value': 'Nested One'},
             ],
         ],
         'row': [],
         'formats': [
-            ('CSV', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:format/csv'),
-            ('JSON', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:format/json'),
-            ('JSONL', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:format/jsonl'),
-            ('ASCII', '/deeply/nested/model/name/:dataset/nested/dataset/name/:resource/resource/:format/ascii'),
+            ('CSV', '/datasets/nested/dataset/name/model/:format/csv'),
+            ('JSON', '/datasets/nested/dataset/name/model/:format/json'),
+            ('JSONL', '/datasets/nested/dataset/name/model/:format/jsonl'),
+            ('ASCII', '/datasets/nested/dataset/name/model/:format/ascii'),
         ],
         'limit_enforced': True,
     }
 
 
 def test_dataset_key(app):
-    app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('rinkimai/:dataset/json/:resource/data', ['insert', 'getone'])
-    resp = app.post('/rinkimai/:dataset/json/:resource/data', json={
-        '_id': get_ref_id('Rinkimai 1'),
+    app.authmodel('datasets/json/rinkimai', ['insert', 'getone'])
+    resp = app.post('/datasets/json/rinkimai', json={
+        'id': '1',
         'pavadinimas': 'Rinkimai 1',
     })
-    assert resp.status_code == 201, resp.json()
     data = resp.json()
+    assert resp.status_code == 201, data
+    pk = data['_id']
+    rev = data['_revision']
 
-    resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', headers={'accept': 'text/html'})
+    resp = app.get(f'/datasets/json/rinkimai/{pk}', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
     assert resp.context == {
         'location': [
             ('root', '/'),
-            ('rinkimai', '/rinkimai'),
-            (':dataset/json/:resource/data', '/rinkimai/:dataset/json/:resource/data'),
-            ('df6b9e04', None),
-            (':changes', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes'),
+            ('datasets', '/datasets'),
+            ('json', '/datasets/json'),
+            ('rinkimai', '/datasets/json/rinkimai'),
+            (pk[:8], None),
+            (':changes', f'/datasets/json/rinkimai/{pk}/:changes'),
         ],
         'formats': [
-            ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/csv'),
-            ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/json'),
-            ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/jsonl'),
-            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:format/ascii'),
+            ('CSV', f'/datasets/json/rinkimai/{pk}/:format/csv'),
+            ('JSON', f'/datasets/json/rinkimai/{pk}/:format/json'),
+            ('JSONL', f'/datasets/json/rinkimai/{pk}/:format/jsonl'),
+            ('ASCII', f'/datasets/json/rinkimai/{pk}/:format/ascii'),
         ],
         'header': [],
         'data': [],
         'row': [
-            ('_type', {'color': None, 'link': None, 'value': 'rinkimai/:dataset/json/:resource/data'}),
-            ('_id', {
-                'color': None,
-                'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data',
-                'value': 'df6b9e04ac9e2467690bcad6d9fd673af6e1919b',
-            }),
-            ('_revision', {'color': None, 'link': None, 'value': data['_revision']}),
+            ('_type', {'color': None, 'link': None, 'value': 'datasets/json/rinkimai'}),
+            ('_id', {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk}),
+            ('_revision', {'color': None, 'link': None, 'value': rev}),
+            ('id', {'color': None, 'link': None, 'value': '1'}),
             ('pavadinimas', {'color': None, 'link': None, 'value': 'Rinkimai 1'}),
         ],
         'limit_enforced': False,
@@ -371,49 +367,59 @@ def test_dataset_key(app):
 
 
 def test_changes_single_object(app, mocker):
-    mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
-    app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('rinkimai/:dataset/json/:resource/data', ['upsert', 'changes'])
-    id_ = get_ref_id('Rinkimai 1')
-    resp = app.post('/rinkimai/:dataset/json/:resource/data', json={
+    app.authmodel('datasets/json/rinkimai', ['upsert', 'changes'])
+    resp = app.post('/datasets/json/rinkimai', json={
         '_op': 'upsert',
-        '_id': id_,
-        '_where': f'_id="{id_}"',
+        '_where': f'id="1"',
+        'id': '1',
         'pavadinimas': 'Rinkimai 1',
     })
-    assert resp.status_code == 201, resp.json()
-    resp = app.post('/rinkimai/:dataset/json/:resource/data', json={
+    data = resp.json()
+    assert resp.status_code == 201, data
+    pk = data['_id']
+    rev1 = data['_revision']
+    resp = app.post('/datasets/json/rinkimai', json={
         '_op': 'upsert',
-        '_id': id_,
-        '_where': f'_id="{id_}"',
+        '_where': f'id="1"',
+        'id': '1',
         'pavadinimas': 'Rinkimai 2',
     })
     assert resp.status_code == 200, resp.json()
     data = resp.json()
+    rev2 = data['_revision']
+    assert rev1 != rev2
     assert data == {
-        '_id': id_,
-        '_revision': data['_revision'],
-        '_type': 'rinkimai/:dataset/json/:resource/data',
+        '_id': pk,
+        '_revision': rev2,
+        '_type': 'datasets/json/rinkimai',
         'pavadinimas': 'Rinkimai 2',
     }
 
-    resp = app.get('/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes', headers={'accept': 'text/html'})
+    resp = app.get(f'/datasets/json/rinkimai/{pk}/:changes', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
+    change = [
+        {
+            k: v['value']
+            for k, v in zip(resp.context['header'], d)
+        }
+        for d in resp.context['data']
+    ]
     assert resp.context == {
         'location': [
             ('root', '/'),
-            ('rinkimai', '/rinkimai'),
-            (':dataset/json/:resource/data', '/rinkimai/:dataset/json/:resource/data'),
-            ('df6b9e04', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data'),
+            ('datasets', '/datasets'),
+            ('json', '/datasets/json'),
+            ('rinkimai', '/datasets/json/rinkimai'),
+            (pk[:8], f'/datasets/json/rinkimai/{pk}'),
             (':changes', None),
         ],
         'formats': [
-            ('CSV', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/csv'),
-            ('JSON', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/json'),
-            ('JSONL', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/jsonl'),
-            ('ASCII', '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data/:changes/:format/ascii'),
+            ('CSV', f'/datasets/json/rinkimai/{pk}/:changes/:format/csv'),
+            ('JSON', f'/datasets/json/rinkimai/{pk}/:changes/:format/json'),
+            ('JSONL', f'/datasets/json/rinkimai/{pk}/:changes/:format/jsonl'),
+            ('ASCII', f'/datasets/json/rinkimai/{pk}/:changes/:format/ascii'),
         ],
         'header': [
             '_id',
@@ -422,25 +428,28 @@ def test_changes_single_object(app, mocker):
             '_created',
             '_op',
             '_rid',
+            'id',
             'pavadinimas',
         ],
         'data': [
             [
-                {'color': None, 'link': None, 'value': resp.context['data'][0][0]['value']},
-                {'color': None, 'link': None, 'value': resp.context['data'][0][1]['value']},
-                {'color': None, 'link': None, 'value': resp.context['data'][0][2]['value']},
-                {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
+                {'color': None, 'link': None, 'value': change[0]['_id']},
+                {'color': None, 'link': None, 'value': rev2},
+                {'color': None, 'link': None, 'value': change[0]['_txn']},
+                {'color': None, 'link': None, 'value': change[0]['_created']},
                 {'color': None, 'link': None, 'value': 'upsert'},
-                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
+                {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'color': '#C1C1C1', 'link': None, 'value': '1'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
             ],
             [
-                {'color': None, 'link': None, 'value': resp.context['data'][1][0]['value']},
-                {'color': None, 'link': None, 'value': resp.context['data'][1][1]['value']},
-                {'color': None, 'link': None, 'value': resp.context['data'][1][2]['value']},
-                {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
+                {'color': None, 'link': None, 'value': change[1]['_id']},
+                {'color': None, 'link': None, 'value': rev1},
+                {'color': None, 'link': None, 'value': change[1]['_txn']},
+                {'color': None, 'link': None, 'value': change[1]['_created']},
                 {'color': None, 'link': None, 'value': 'upsert'},
-                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
+                {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'color': '#B2E2AD', 'link': None, 'value': '1'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 1'},
             ],
         ],
@@ -450,43 +459,53 @@ def test_changes_single_object(app, mocker):
 
 
 def test_changes_object_list(app, mocker):
-    mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
+    app.authmodel('datasets/json/rinkimai', ['upsert', 'changes'])
 
-    app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('rinkimai/:dataset/json/:resource/data', ['upsert', 'changes'])
-
-    id_ = get_ref_id('Rinkimai 1')
-    resp = app.post('/rinkimai/:dataset/json/:resource/data', json={
+    resp = app.post('/datasets/json/rinkimai', json={
         '_op': 'upsert',
-        '_id': id_,
-        '_where': f'_id={id_}',
+        '_where': f'id="1"',
+        'id': '1',
         'pavadinimas': 'Rinkimai 1',
     })
-    assert resp.status_code == 201, resp.json()
-    resp = app.post('/rinkimai/:dataset/json/:resource/data', json={
+    data = resp.json()
+    assert resp.status_code == 201, data
+    pk = data['_id']
+    rev1 = data['_revision']
+    resp = app.post('/datasets/json/rinkimai', json={
         '_op': 'upsert',
-        '_id': id_,
-        '_where': f'_id={id_}',
+        '_where': f'id="1"',
+        'id': '1',
         'pavadinimas': 'Rinkimai 2',
     })
-    assert resp.status_code == 200, resp.json()
+    data = resp.json()
+    assert resp.status_code == 200, data
+    rev2 = data['_revision']
+    assert rev1 != rev2
 
-    resp = app.get('/rinkimai/:dataset/json/:resource/data/:changes', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/json/rinkimai/:changes', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
+    change = [
+        {
+            k: v['value']
+            for k, v in zip(resp.context['header'], d)
+        }
+        for d in resp.context['data']
+    ]
     assert resp.context == {
         'location': [
             ('root', '/'),
-            ('rinkimai', '/rinkimai'),
-            (':dataset/json/:resource/data', '/rinkimai/:dataset/json/:resource/data'),
+            ('datasets', '/datasets'),
+            ('json', '/datasets/json'),
+            ('rinkimai', '/datasets/json/rinkimai'),
             (':changes', None),
         ],
         'formats': [
-            ('CSV', '/rinkimai/:dataset/json/:resource/data/:changes/:format/csv'),
-            ('JSON', '/rinkimai/:dataset/json/:resource/data/:changes/:format/json'),
-            ('JSONL', '/rinkimai/:dataset/json/:resource/data/:changes/:format/jsonl'),
-            ('ASCII', '/rinkimai/:dataset/json/:resource/data/:changes/:format/ascii'),
+            ('CSV', '/datasets/json/rinkimai/:changes/:format/csv'),
+            ('JSON', '/datasets/json/rinkimai/:changes/:format/json'),
+            ('JSONL', '/datasets/json/rinkimai/:changes/:format/jsonl'),
+            ('ASCII', '/datasets/json/rinkimai/:changes/:format/ascii'),
         ],
         'header': [
             '_id',
@@ -495,25 +514,28 @@ def test_changes_object_list(app, mocker):
             '_created',
             '_op',
             '_rid',
+            'id',
             'pavadinimas',
         ],
         'data': [
             [
-                {'color': None, 'link': None, 'value': resp.context['data'][0][0]['value']},
-                {'color': None, 'link': None, 'value': resp.context['data'][0][1]['value']},
-                {'color': None, 'link': None, 'value': resp.context['data'][0][2]['value']},
-                {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
+                {'color': None, 'link': None, 'value': change[0]['_id']},
+                {'color': None, 'link': None, 'value': rev2},
+                {'color': None, 'link': None, 'value': change[0]['_txn']},
+                {'color': None, 'link': None, 'value': change[0]['_created']},
                 {'color': None, 'link': None, 'value': 'upsert'},
-                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
+                {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'color': '#C1C1C1', 'link': None, 'value': '1'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
             ],
             [
-                {'color': None, 'link': None, 'value': resp.context['data'][1][0]['value']},
-                {'color': None, 'link': None, 'value': resp.context['data'][1][1]['value']},
-                {'color': None, 'link': None, 'value': resp.context['data'][1][2]['value']},
-                {'color': None, 'link': None, 'value': '2019-03-06T16:15:00.816308'},
+                {'color': None, 'link': None, 'value': change[1]['_id']},
+                {'color': None, 'link': None, 'value': rev1},
+                {'color': None, 'link': None, 'value': change[1]['_txn']},
+                {'color': None, 'link': None, 'value': change[1]['_created']},
                 {'color': None, 'link': None, 'value': 'upsert'},
-                {'color': None, 'link': '/rinkimai/df6b9e04ac9e2467690bcad6d9fd673af6e1919b/:dataset/json/:resource/data', 'value': 'df6b9e04'},
+                {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'color': '#B2E2AD', 'link': None, 'value': '1'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 1'},
             ],
         ],
@@ -523,31 +545,28 @@ def test_changes_object_list(app, mocker):
 
 
 def test_count(app):
-    app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('rinkimai/:dataset/json/:resource/data', ['upsert', 'search'])
+    app.authmodel('/datasets/json/rinkimai', ['upsert', 'search'])
 
-    id1 = get_ref_id(1)
-    id2 = get_ref_id(2)
-    resp = app.post('/rinkimai/:dataset/json/:resource/data', json={'_data': [
+    resp = app.post('/datasets/json/rinkimai', json={'_data': [
         {
             '_op': 'upsert',
-            '_type': 'rinkimai/:dataset/json/:resource/data',
-            '_id': id1,
-            '_where': f'_id="{id1}"',
+            '_type': 'datasets/json/rinkimai',
+            '_where': f'id="1"',
+            'id': '1',
             'pavadinimas': 'Rinkimai 1',
         },
         {
             '_op': 'upsert',
-            '_type': 'rinkimai/:dataset/json/:resource/data',
-            '_id': id2,
-            '_where': f'_id="{id2}"',
+            '_type': 'datasets/json/rinkimai',
+            '_where': f'id="2"',
+            'id': '2',
             'pavadinimas': 'Rinkimai 2',
         },
     ]})
     # FIXME: Status code on multiple objects must be 207.
     assert resp.status_code == 200, resp.json()
 
-    resp = app.get('/rinkimai/:dataset/json/:resource/data?count()', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/json/rinkimai?count()', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')

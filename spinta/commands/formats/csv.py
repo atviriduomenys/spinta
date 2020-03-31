@@ -8,8 +8,7 @@ from starlette.responses import StreamingResponse
 
 from spinta.commands.formats import Format
 from spinta.utils.nestedstruct import flatten
-from spinta.components import Context, Action, UrlParams
-from spinta.types import dataset
+from spinta.components import Context, Action, UrlParams, Model
 from spinta import commands
 from spinta.utils.response import aiter
 
@@ -56,7 +55,7 @@ class Csv(Format):
 def render(
     context: Context,
     request: Request,
-    model: dataset.Model,
+    model: Model,
     fmt: Csv,
     *,
     action: Action,

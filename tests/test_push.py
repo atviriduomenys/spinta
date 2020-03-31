@@ -4,6 +4,7 @@ import hashlib
 import pytest
 
 
+@pytest.mark.skip('datasets')
 @pytest.mark.models(
     'backends/postgres/report/:dataset/test',
 )
@@ -44,6 +45,7 @@ def sha1(s):
     return hashlib.sha1(s.encode()).hexdigest()
 
 
+@pytest.mark.skip('datasets')
 def test_push_different_models(app):
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('country/:dataset/csv/:resource/countries', ['insert'])

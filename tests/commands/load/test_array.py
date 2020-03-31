@@ -1,19 +1,15 @@
-import pathlib
-
 from spinta.commands import load
 from spinta.components import Model
 from spinta.types.datatype import Object, Array
 
 
+# TODO: There are at least 3 exaclty the same functions, move it to
+#       spinta.testing.
 def create_model(context, schema):
     manifest = context.get('store').manifest
-    backend = context.get('store').backends['default']
     model = {
         'type': 'model',
         'name': 'model',
-        'path': pathlib.Path('model.yml'),
-        'parent': manifest,
-        'backend': backend,
         **schema,
     }
     return load(context, Model(), model, manifest)

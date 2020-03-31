@@ -34,6 +34,16 @@ def load():
 
 
 @command()
+def link():
+    """Link loaded components.
+
+    While loading, components can't be linked, because not all components might
+    be loaded. When linking, all components are loaded and can be linked.
+    """
+    pass
+
+
+@command()
 def load_search_params():
     """Load search parameters as native python values.
     """

@@ -13,7 +13,6 @@ from texttable import Texttable
 from spinta.commands.formats import Format
 from spinta.utils.nestedstruct import flatten
 from spinta.components import Context, Action, UrlParams, Model
-from spinta.types import dataset
 from spinta import commands
 from spinta.utils.response import aiter
 
@@ -84,22 +83,6 @@ def render(
     data,
     status_code: int = 200,
     headers: Optional[dict] = None,
-):
-    return _render(fmt, params, data, status_code, headers)
-
-
-@commands.render.register()  # noqa
-def render(
-    context: Context,
-    request: Request,
-    model: dataset.Model,
-    fmt: Ascii,
-    *,
-    action: Action,
-    params: UrlParams,
-    data,
-    status_code: int = 200,
-    headers: dict = None,
 ):
     return _render(fmt, params, data, status_code, headers)
 

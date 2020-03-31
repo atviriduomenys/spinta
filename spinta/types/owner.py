@@ -20,7 +20,7 @@ class Owner(Node):
 
 @load.register()
 def load(context: Context, owner: Owner, data: dict, manifest: Manifest):
-    return load_node(context, owner, data, manifest)
+    return load_node(context, owner, data)
 
 
 @check.register()

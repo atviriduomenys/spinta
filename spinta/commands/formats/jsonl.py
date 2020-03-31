@@ -8,7 +8,6 @@ from starlette.responses import StreamingResponse
 from spinta.commands.formats import Format
 from spinta.components import Context, Action, UrlParams, Model, Node
 from spinta import commands
-from spinta.types import dataset
 
 
 class JsonLines(Format):
@@ -28,22 +27,6 @@ def render(
     context: Context,
     request: Request,
     model: Model,
-    fmt: JsonLines,
-    *,
-    action: Action,
-    params: UrlParams,
-    data,
-    status_code: int = 200,
-    headers: Optional[dict] = None,
-):
-    return _render(fmt, data, status_code, headers)
-
-
-@commands.render.register()  # noqa
-def render(  # noqa
-    context: Context,
-    request: Request,
-    model: dataset.Model,
     fmt: JsonLines,
     *,
     action: Action,

@@ -1,0 +1,14 @@
+type: model
+name: datasets/csv/country
+external:
+  dataset: datasets/csv
+  resource: countries
+  name: countries.csv
+  id: code
+properties:
+  code:
+    type: string
+    external: kodas
+  title:
+    type: string
+    external: šalis

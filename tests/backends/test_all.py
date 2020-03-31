@@ -186,6 +186,7 @@ def test_get_non_existant_subresource(model, context, app):
         'template': 'Property {property!r} not found.',
         'message': "Property 'foo' not found.",
         'context': {
+            'component': 'spinta.components.Model',
             'schema': f'{manifest.path}/{model}.yml',
             'manifest': 'default',
             'model': model,

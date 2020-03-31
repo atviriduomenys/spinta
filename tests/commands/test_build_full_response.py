@@ -1,5 +1,3 @@
-import pathlib
-
 from spinta.commands import load
 from spinta.commands import build_full_response
 from spinta.components import Model
@@ -7,13 +5,9 @@ from spinta.components import Model
 
 def create_model(context, schema):
     manifest = context.get('store').manifest
-    backend = context.get('store').backends['default']
     model = {
         'type': 'model',
         'name': 'model',
-        'path': pathlib.Path('model.yml'),
-        'parent': manifest,
-        'backend': backend,
         **schema,
     }
     return load(context, Model(), model, manifest)

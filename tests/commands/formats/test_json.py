@@ -1,11 +1,14 @@
 import datetime
 import hashlib
 
+import pytest
+
 
 def sha1(s):
     return hashlib.sha1(s.encode()).hexdigest()
 
 
+@pytest.mark.skip('datasets')
 def test_export_json(app, mocker):
     mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
 

@@ -45,6 +45,11 @@ def load(context: Context, store: Store, config: Config) -> Store:
     return store
 
 
+@commands.link.register()
+def link(context: Context, store: Store):
+    commands.link(context, store.manifest)
+
+
 @wait.register()
 def wait(
     context: Context,

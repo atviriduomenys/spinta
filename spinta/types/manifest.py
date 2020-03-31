@@ -9,6 +9,19 @@ from spinta import commands
 yaml = YAML(typ='safe')
 
 
+@commands.link.register()
+def link(context: Context, manifest: Manifest):
+    manifest.backend = manifest.store.backends[manifest.backend]
+    for nodes in manifest.objects.values():
+        for node in nodes.values():
+            commands.link(context, node)
+
+
+@commands.link.register()
+def link(context: Context, node: Node):
+    pass
+
+
 @prepare.register()
 def prepare(context: Context, manifest: Manifest):
     store = context.get('store')
@@ -22,19 +35,9 @@ def check(context: Context, manifest: Manifest):
         for obj in objects.values():
             check(context, obj)
 
-    # Check dataset names in config.
-    config = context.get('config')
-    known_datasets = set(manifest.objects.get('dataset', {}).keys())
-    datasets_in_config = set(config.rc.keys('datasets', manifest.name))
-    unknown_datasets = datasets_in_config - known_datasets
-    if unknown_datasets:
-        raise Exception("Unknown datasets in configuration parameter 'datasets': %s." % (
-            ', '.join([repr(x) for x in sorted(unknown_datasets)])
-        ))
-
     # Check endpoints.
-    names = {model.name for model in manifest.find_all_models()}
-    for model in manifest.find_all_models():
+    names = set(manifest.models)
+    for model in manifest.models.values():
         if model.endpoint == model.name or model.endpoint in names:
             raise Exception(f"Endpoint name can't overshadow existing model names and {model.endpoint!r} is already a model name.")
 
@@ -45,6 +48,11 @@ def get_error_context(manifest: Manifest, *, prefix='this') -> Dict[str, str]:
         'schema': f'{prefix}.path.__str__()',
         'manifest': f'{prefix}.name'
     }
+
+
+@commands.get_error_context.register(type(None))  # noqa
+def get_error_context(node: Node, *, prefix='this') -> Dict[str, str]:  # noqa
+    return {}
 
 
 @commands.get_error_context.register()  # noqa

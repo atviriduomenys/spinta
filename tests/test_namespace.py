@@ -5,6 +5,7 @@ import hashlib
 import pytest
 
 
+@pytest.mark.skip('todo')
 @pytest.mark.models(
     'backends/postgres/%s/:dataset/test',
 )
@@ -85,6 +86,7 @@ def sha1(s):
     return hashlib.sha1(s.encode()).hexdigest()
 
 
+@pytest.mark.skip('todo')
 @pytest.mark.models(
     'backends/postgres/%s/:dataset/test',
 )

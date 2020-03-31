@@ -1,10 +1,13 @@
 from operator import itemgetter
 
+import pytest
+
 from responses import GET
 
 from spinta.testing.datasets import pull
 
 
+@pytest.mark.skip('datasets')
 def test_csv(rc, cli, app, responses):
     responses.add(
         GET, 'http://example.com/countries.csv',
@@ -31,6 +34,7 @@ def test_csv(rc, cli, app, responses):
     ]
 
 
+@pytest.mark.skip('datasets')
 def test_denorm(rc, cli, app, responses):
     responses.add(
         GET, 'http://example.com/orgs.csv',

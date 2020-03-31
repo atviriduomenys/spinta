@@ -212,7 +212,131 @@ New features:
 - `spinta config` now has `-f env` argument to show config option names as
   environment variables.
 
+- Error response now includes `component` context var with pyton path of
+  component class.
+
 Internal changes:
+
+- Changed internal file structure, not code is organized into packages and each
+  package has following structure::
+
+    backends/
+      backend/
+        constants.py
+        components.py
+        helpers.py
+        commands/
+          load.py
+          link.py
+          check.py
+          wait.py
+          init.py
+          freeze.py
+          bootstrap.py
+          migrate.py
+          encode.py
+          validate.py
+          verify.py
+          write.py
+          read.py
+          query.py
+          changes.py
+          wipe.py
+        types/
+          array/
+            init.py
+            write.py
+            wipe.py
+        manifest/
+          load.py
+          sync.py
+
+    types/
+      array/
+        components.py
+        commands/
+          load.py
+          link.py
+          check.py
+        backends/
+          postgresql/
+            init.py
+            write.py
+            read.py
+            wipe.py
+
+    manifests/
+      yaml/
+        components.py
+        commands/
+          load.py
+          link.py
+          sync.py
+
+  Internal structure now is organized same way as Spinta extensions should be
+  organized. There are two types of structures, one is backend focused and
+  another is type focused. Essentially everything is composed of components and
+  commands, both types and backends are components and there are number of
+  commands responsible for various actions performed on components.
+
+  Actions are organized into these categories:
+
+  - Loading components from manifest:
+
+    - `load` - do initial component loading.
+    - `link` - when everythin is loaded link dependent components.
+    - `check` - when all components are loaded and linked, check components.
+    - `wait` - wait while backends are up and accepts connections.
+    - `init` - initialized backends.
+
+  - Schema and data migration commands:
+
+    - `freeze` - save all changes to manifest files as new migration versions.
+    - `bootstrap` - bootstrap empty databases, just creates all missing tables.
+    - `sync` - synchronizes two manifests.
+    - `migrate` - run migrations
+
+  - Data convertion between external and internam forms:
+
+    - `encode` - convert values from internal to external form.
+    - `decode` - convert values from external to internal form.
+
+  - Data validation:
+    
+    - `validate` - simple data validation.
+    - `verify` - complex data validation involving access to stored data.
+
+  - Writing data to dabases (high level):
+
+    - `insert` - insert new data to database.
+    - `upsert` - insert or modify existing data in database.
+    - `update` - overwrite existing data in database.
+    - `modify` - modify or patch existing data in database.
+    - `delete` - delete exisint data in database.
+
+  - Writing data to database (low level):
+
+    - `insert` - insert new objects into database.
+    - `update` - updated existing data.
+    - `delete` - delete existin data from database.
+
+  - Reading data from database:
+
+    - `getone` - read one object from database.
+    - `getall` - read multiple objects from database.
+
+  - Query functions:
+
+    - Functions used in query.
+
+  - Changelog:
+
+    - `commit` - save changes to changelog.
+    - `changes` - read changes from changelog.
+
+  - Wipe all data in fastest way possible:
+
+    - `wipe` - wipes all data of a given model.
 
 - `RawConfig` was moved from `spinta.config` to `spinta.core.config`.
   `spinta.config` now contains only configration dict `CONFIG`, nothing else.
@@ -311,3 +435,5 @@ Internal changes:
   Also, `_txn` might be saved on another backend.
 
 - `RawConfig` now can take default values from `spinta/config.yml`.
+
+- `prop.backend` was moved to `dtype.backend`.

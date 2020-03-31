@@ -33,10 +33,11 @@ def load(context: Context, manifest: SpintaManifest, rc: RawConfig):
     log.info(
         'Loading manifest %r from %s backend.',
         manifest.name,
-        manifest.backend.name,
+        manifest.backend,
     )
-
-    for data in manifest.backend.query_nodes():
+    backend = manifest.store.backends[manifest.backend]
+    nodes = commands.load(context, manifest, backend)
+    for data in nodes:
         node = config.components['nodes'][data['type']]()
         data = {
             'parent': manifest,

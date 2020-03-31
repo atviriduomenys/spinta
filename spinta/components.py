@@ -1,4 +1,6 @@
-from typing import Dict, List, Optional, Tuple, AsyncIterator
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, AsyncIterator
 
 import enum
 import contextlib
@@ -7,6 +9,13 @@ import pathlib
 
 from spinta import exceptions
 from spinta.utils.schema import NA
+from spinta.core.enums import Access
+
+if TYPE_CHECKING:
+    from spinta.backends.components import Backend
+    from spinta.types.datatype import Array
+    from spitna.datasets.enums import Level
+    from spitna.datasets.components import Attribute
 
 
 class Context:
@@ -279,10 +288,15 @@ class Store:
         self.manifest = None
 
 
-class Manifest:
+class Component:
+    schema = {}
+
+
+class Manifest(Component):
     type: str = 'manifest'
     name: str
     parent: None
+    store: Store = None
     objects: Dict[str, 'Node']
     path: pathlib.Path
     endpoints: Dict[str, str]
@@ -311,27 +325,18 @@ class Manifest:
             elif self.endpoints[endpoint] != model.name:
                 raise Exception(f"Same endpoint, but different model name, endpoint={endpoint!r}, model.name={model.name!r}.")
 
-    def find_all_models(self):
-        yield from self.objects['model'].values()
-        for dataset in self.objects['dataset'].values():
-            for resource in dataset.resources.values():
-                yield from resource.models()
+    @property
+    def models(self):
+        return self.objects['model']
 
 
-class Node:
-    schema = {
-        'type': {'required': True},
-        'path': {'required': True},
-        'parent': {'required': True},
-        'name': {'required': True},
-        'title': {},
-        'description': {},
-        'backend': {'type': 'backend', 'inherit': True, 'required': True},
-    }
+class Node(Component):
+    schema = {}
+
     type: str
     name: str
-    parent: 'Node'
-    manifest: 'Manifest'
+    parent: Node
+    manifest: Manifest
     path: pathlib.Path
 
     def __init__(self):
@@ -387,13 +392,6 @@ class Node:
 
 
 class Namespace(Node):
-    schema = {
-        'names': {'type': 'object'},
-        'models': {'type': 'object'},
-        'backend': {'type': 'string', 'required': False},
-        'path': {'required': False},
-        'properties': {'default': {}},
-    }
 
     def model_specifier(self):
         return ':ns'
@@ -401,6 +399,11 @@ class Namespace(Node):
 
 class Model(Node):
     schema = {
+        'type': {'type': 'string', 'required': True},
+        'name': {'type': 'string', 'required': True},
+        'path': {'type': 'string'},
+        'title': {'type': 'string'},
+        'description': {},
         'version': {
             'type': 'object',
             'properties': {
@@ -408,20 +411,20 @@ class Model(Node):
                 'date': {'type': 'date', 'required': True},
             },
         },
+        'backend': {'type': 'string'},
         'unique': {'default': []},
-        'extends': {},
+        'base': {},
         'link': {},
         'properties': {'default': {}},
-        'flatprops': {},
-        'leafprops': {},
         'endpoint': {},
+        'external': {},
     }
 
     def __init__(self):
         super().__init__()
         self.unique = []
         self.extends = None
-        self.backend = 'default'
+        self.backend = None
         self.version = None
         self.date = None
         self.link = None
@@ -438,34 +441,23 @@ class Model(Node):
 
 class Property(Node):
     schema = {
-        'required': {'default': False},
-        'unique': {'default': False},
-        'const': {},
-        'default': {},
-        'nullable': {'default': False},
-        'check': {},
+        'title': {},
+        'description': {},
         'link': {},
-        'enum': {},
-        'object': {},
-        'items': {},
         'hidden': {'type': 'boolean', 'default': False},
-        'model': {'required': True},
-        'place': {'required': True},
+        'access': {},
+        'level': {},
+        'external': {},
     }
 
-    def __init__(self):
-        super().__init__()
-        self.required = False
-        self.unique = False
-        self.const = None
-        self.default = None
-        self.nullable = False
-        self.check = None
-        self.link = None
-        self.enum = None
-        self.hidden = False
-        # If property is in a list, then self.list points to that list property.
-        self.list = None
+    title: str = None
+    description: str = None
+    link: str = None
+    hidden: bool = False
+    access: Access
+    level: Level
+    external: Attribute
+    list: Array = None
 
     def __repr__(self):
         return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}, type={self.dtype.name!r})>'
@@ -547,9 +539,7 @@ class UrlParams:
     ns: bool = False
     # Recursively select all models in a givne namespace
     all: bool = False
-    dataset: Optional[str] = None
-    resource: Optional[str] = None
-    origin: Optional[str] = None
+    external: bool = False
 
     changes: bool = False
     changes_offset: Optional[str] = None
@@ -590,7 +580,7 @@ class DataItem:
     model: Optional[Node] = None        # Data model.
     prop: Optional[Node] = None         # Action on a property, not a whole model.
     propref: bool = False               # Action on property reference or instance.
-    backend: Optional['spinta.backends.Backend'] = None  # Model or property backend depending on prop and propref.
+    backend: Optional[Backend] = None   # Model or property backend depending on prop and propref.
     action: Optional[Action] = None     # Action.
     payload: Optional[dict] = None      # Original data from request.
     given: Optional[dict] = None        # Request data converted to Python-native data types.
@@ -603,7 +593,7 @@ class DataItem:
         model: Optional[Node] = None,
         prop: Optional[Node] = None,
         propref: bool = False,
-        backend: Optional['spinta.backends.Backend'] = None,
+        backend: Optional[Backend] = None,
         action: Optional[Action] = None,
         payload: Optional[dict] = None,
         error: Optional[exceptions.UserError] = None,

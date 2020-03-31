@@ -1,5 +1,7 @@
 import hashlib
 
+import pytest
+
 
 def _get_data_table(context: dict):
     return [tuple(context['header'])] + [
@@ -12,6 +14,7 @@ def sha1(s):
     return hashlib.sha1(s.encode()).hexdigest()
 
 
+@pytest.mark.skip('datasets')
 def test_select_with_joins(app):
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('continent/:dataset/dependencies/:resource/continents', ['insert'])

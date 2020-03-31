@@ -1,0 +1,13 @@
+type: model
+name: datasets/json/rinkimai
+external:
+  dataset: datasets/json
+  resource: data
+  id: id
+properties:
+  id:
+    type: string
+    external: id
+  pavadinimas:
+    type: string
+    external: label

@@ -4,8 +4,8 @@ import pathlib
 
 import pkg_resources as pres
 
-from spinta.components import Context, Config, Store, Manifest, Node, Namespace
-from spinta.utils.schema import resolve_schema
+from spinta.components import Context, Component, Config, Store, Manifest, Node, Namespace
+from spinta.utils.schema import NA, resolve_schema
 from spinta import exceptions
 from spinta import commands
 
@@ -31,8 +31,8 @@ def load_manifest(context: Context, store: Store, config: Config, name: str, syn
         synced += [name]
 
     manifest = get_manifest(config, name)
-    backend = config.rc.get('manifests', name, 'backend', required=True)
-    manifest.backend = store.backends[backend]
+    manifest.store = store
+    manifest.backend = config.rc.get('manifests', name, 'backend', required=True)
 
     sync = config.rc.get('manifests', name, 'sync')
     if not isinstance(sync, list):
@@ -63,73 +63,104 @@ def get_internal_manifest(context: Context):
     return internal
 
 
-def get_node(config: Config, manifest: Manifest, data: dict, check=True):
-    if not isinstance(data, dict):
+def get_node(
+    config: Config,
+    manifest: Manifest,
+    data: dict = None,
+    *,
+    # Component group from confg.components.
+    group: str = 'nodes',
+    # If None component name will be taken from data['type'].
+    ctype: str = None,
+    # If parent is None, then parent is assumed to be manifest.
+    parent: Node = None,
+    check: bool = True,
+):
+    if data is not None and not isinstance(data, dict):
         raise exceptions.InvalidManifestFile(
+            parent or manifest,
             manifest=manifest.name,
-            filename=data['path'],
-            error=f"Expected dict got {data.__class__.__name__}.",
+            error=f"Expected dict got {type(data).__name__}.",
         )
 
-    if 'type' not in data:
-        raise exceptions.InvalidManifestFile(
-            manifest=manifest.name,
-            filename=data['path'],
-            error=f"Required parameter 'type' is not defined.",
-        )
+    if ctype is None:
+        if 'type' not in data:
+            raise exceptions.InvalidManifestFile(
+                parent or manifest,
+                manifest=manifest.name,
+                filename=data['path'],
+                error=f"Required parameter 'type' is not defined.",
+            )
 
-    if data['type'] not in manifest.objects:
-        raise exceptions.InvalidManifestFile(
-            manifest=manifest.name,
-            filename=data['path'],
-            error=f"Unknown type {data['type']!r}.",
-        )
+        ctype = data['type']
 
-    if check and data['name'] in manifest.objects[data['type']]:
-        raise exceptions.InvalidManifestFile(
-            manifest=manifest.name,
-            filename=data['path'],
-            error=(
-                f"Node {data['type']} with name {data['name']} already defined "
-                f"in {manifest.objects[data['type']][data['name']].path}."
-            ),
-        )
+    if parent is None:
+        # If parent is given, that means we are loading a node wose parent is
+        # not manifest, that means we can't do checks on manifest.objects.
 
-    Node = config.components['nodes'][data['type']]
+        if ctype not in manifest.objects:
+            raise exceptions.InvalidManifestFile(
+                manifest=manifest.name,
+                filename=data['path'],
+                error=f"Unknown type {ctype!r}.",
+            )
+
+        if check:
+            if 'name' not in data:
+                raise exceptions.MissingRequiredProperty(manifest, schema=data['path'], prop='name')
+
+            if data['name'] in manifest.objects[ctype]:
+                raise exceptions.InvalidManifestFile(
+                    manifest=manifest.name,
+                    filename=data['path'],
+                    error=(
+                        f"Node {data['type']} with name {data['name']} already defined "
+                        f"in {manifest.objects[data['type']][data['name']].path}."
+                    ),
+                )
+
+    Node = config.components[group][ctype]
     return Node()
 
 
-def load_node(context: Context, node: Node, data: dict, manifest: Manifest, *, check_unknowns=True) -> Node:
-    na = object()
-    store = context.get('store')
-    node.manifest = manifest
-    node.type = data['type']
-    node.path = data['path']
-    node.name = data['name']
-    node.parent = data['parent']
-
-    node_schema = resolve_schema(node, Node)
+def load_node(context: Context, node: Node, data: dict, *, mixed=False, parent=None) -> Node:
+    remainder = {}
+    node_schema = resolve_schema(node, Component)
     for name in set(node_schema) | set(data):
         if name not in node_schema:
-            if check_unknowns:
-                raise exceptions.UnknownParameter(node, param=name)
-            else:
+            if mixed:
+                remainder[name] = data[name]
                 continue
+            else:
+                raise exceptions.UnknownParameter(node, param=name)
         schema = node_schema[name]
-        value = data.get(name, na)
-        if schema.get('inherit', False) and value is na:
+        if schema.get('parent'):
+            attr = schema.get('attr', name)
+            assert parent is not None, node
+            setattr(node, attr, parent)
+            continue
+        value = data.get(name, NA)
+        if schema.get('inherit', False) and value is NA:
             if node.parent and hasattr(node.parent, name):
                 value = getattr(node.parent, name)
             else:
                 value = None
-        if schema.get('required', False) and (value is na or value is None):
+        if schema.get('required', False) and (value is NA or value is None):
             raise exceptions.MissingRequiredProperty(node, prop=name)
-        if schema.get('type') == 'backend' and isinstance(value, str):
-            value = store.backends[value]
-        if value is na:
-            value = schema.get('default')
-        setattr(node, name, value)
-    return node
+        if value is NA:
+            if 'factory' in schema:
+                value = schema['factory']()
+            else:
+                value = schema.get('default')
+        elif schema.get('type') == 'array':
+            if not isinstance(value, list) and schema.get('force'):
+                value = [value]
+        attr = schema.get('attr', name)
+        setattr(node, attr, value)
+    if mixed:
+        return node, remainder
+    else:
+        return node
 
 
 def load_namespace(context: Context, manifest: Manifest, node: Node):
@@ -140,17 +171,16 @@ def load_namespace(context: Context, manifest: Manifest, node: Node):
         name = '/'.join(parts[1:])
         if name not in manifest.objects['ns']:
             ns = Namespace()
-            data = {
-                'type': 'ns',
-                'name': name,
-                'title': part,
-                'path': manifest.path,
-                'parent': parent,
-                'names': {},
-                'models': {},
-                'backend': None,
-            }
-            manifest.objects['ns'][name] = load_node(context, ns, data, manifest)
+            ns.type = 'ns'
+            ns.name = name
+            ns.title = part
+            ns.path = manifest.path
+            ns.parent = parent
+            ns.manifest = manifest
+            ns.names = {}
+            ns.models = {}
+            ns.backend = None
+            manifest.objects['ns'][name] = ns
         else:
             ns = manifest.objects['ns'][name]
         if part and part not in parent.names:
@@ -177,14 +207,11 @@ def load_model_properties(context: Context, model: Node, Prop: Type[Node], data:
     model.leafprops = {}
     model.properties = {}
     for name, params in data.items():
-        params = {
-            'name': name,
-            'place': name,
-            'path': model.path,
-            'parent': model,
-            'model': model,
-            **params,
-        }
-        prop = commands.load(context, Prop(), params, model.manifest)
+        prop = Prop()
+        prop.name = name
+        prop.place = name
+        prop.path = model.path
+        prop.model = model
+        prop = commands.load(context, prop, params, model.manifest)
         model.properties[name] = prop
         model.flatprops[name] = prop

@@ -1,25 +1,7 @@
 ---
-name: generator
 type: dataset
-version:
-  id: 1
-  date: 2019-03-13
+name: datasets/generator
 resources:
-
   continents:
     type: csv
-    source: http://example.com/{year}/
-    objects:
-      "":
-
-        continent:
-          dependencies:
-            year: {range: {start: 2000, stop: 2001}}
-          source: continents.csv
-          properties:
-            _id:
-              type: pk
-              source: id
-            title:
-              type: string
-              source: continent
+    external: http://example.com/{year}/

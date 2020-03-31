@@ -1,0 +1,16 @@
+type: model
+name: datasets/xlsx/rinkimai/turas
+external:
+  dataset: datasets/xlsx
+  resource: data
+  name: RP_Rinkimu_Rezultatai_Vn_Balsai
+  id: [rinkimai, turas]
+  prepare: offset(8) & limit(10)
+properties:
+  turas:
+    type: integer
+    external: Turas
+  rinkimai:
+    type: ref
+    object: datasets/xlsx/rinkimai
+    external: Rinkimai

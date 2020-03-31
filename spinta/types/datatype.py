@@ -1,4 +1,6 @@
-from typing import Any, Iterable, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Iterable, Union
 
 import base64
 
@@ -8,22 +10,34 @@ from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.commands import load, is_object_id
-from spinta.components import Context, Manifest, Node, Property
-from spinta.utils.schema import NA, NotAvailable, resolve_schema
+from spinta.components import Context, Component, Manifest, Property
+from spinta.utils.schema import NA, NotAvailable
 from spinta.hacks.spyna import binds_to_strs
+from spinta.core.ufuncs import Expr
+
+if TYPE_CHECKING:
+    from spinta.backends.components import Backend
 
 
-class DataType:
-
+class DataType(Component):
     schema = {
-        'required': {'type': 'boolean', 'default': False},
-        'unique': {'type': 'boolean', 'default': False},
-        'const': {'type': 'any'},
-        'default': {'type': 'any'},
-        'nullable': {'type': 'boolean'},
-        'check': {'type': 'command'},
-        'link': {'type': 'string'},
+        'type': {'type': 'string', 'attr': 'name'},
+        'unique': {'type': 'bool', 'default': False},
+        'nullable': {'type': 'bool', 'default': False},
+        'required': {'type': 'bool', 'default': False},
+        'default': {'default': None},
+        'prepare': {'type': 'spyna', 'default': None},
+        'choices': {},
     }
+
+    type: str
+    unique: bool = False
+    nullable: bool = False
+    required: bool = False
+    default: Any = None
+    prepare: Expr = None
+    choices: dict = None
+    backend: Backend = None
 
     def load(self, value: Any):
         return value
@@ -184,6 +198,7 @@ class File(DataType):
         '_id': {'type': 'string'},
         '_content_type': {'type': 'string'},
         '_content': {'type': 'binary'},
+        'backend': {'type': 'string', 'default': None},
         # TODO: add file hash, maybe 'sha1sum'
         # TODO: Maybe add all properties in schema as File.properties and maybe
         #       File should extend Object?
@@ -198,14 +213,22 @@ class JSON(DataType):
     pass
 
 
-@load.register()
+@load.register(Context, DataType, dict, Manifest)
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
     _add_leaf_props(dtype.prop)
     return dtype
 
 
-@load.register()
+@commands.link.register(Context, DataType)
+def link(context: Context, dtype: DataType) -> None:
+    if dtype.backend:
+        dtype.backend = dtype.prop.model.manifest.store.backends[dtype.backend]
+    return dtype
+
+
+@load.register(Context, PrimaryKey, dict, Manifest)
 def load(context: Context, dtype: PrimaryKey, data: dict, manifest: Manifest) -> DataType:
+    dtype.unique = True
     if dtype.prop.name != '_id':
         raise exceptions.InvalidManagedPropertyName(dtype, name='_id')
     _add_leaf_props(dtype.prop)
@@ -218,85 +241,48 @@ def _add_leaf_props(prop: Property) -> None:
     prop.model.leafprops[prop.name].append(prop)
 
 
-@load.register()
+@load.register(Context, Object, dict, Manifest)
 def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
-    dtype.properties = {}
-    for name, params in data.get('properties', {}).items():
+    props = {}
+    for name, params in (dtype.properties or {}).items():
         place = dtype.prop.place + '.' + name
-        params = {
-            'name': name,
-            'place': place,
-            'path': dtype.prop.path,
-            'parent': dtype.prop,
-            'model': dtype.prop.model,
-            **params,
-        }
         prop = dtype.prop.__class__()
+        prop.name = name
+        prop.place = place
+        prop.parent = dtype.prop
+        prop.model = dtype.prop.model
         prop.list = dtype.prop.list
-        prop = load(
-            context,
-            prop,
-            params,
-            dtype.prop.manifest,
-        )
+        load(context, prop, params, manifest)
         dtype.prop.model.flatprops[place] = prop
-        dtype.properties[name] = prop
+        props[name] = prop
+    dtype.properties = props
     return dtype
 
 
-@load.register()
+@load.register(Context, Array, dict, Manifest)
 def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> DataType:
-    if 'items' in data:
-        assert isinstance(data['items'], dict), type(data['items'])
-        params = {
-            'name': dtype.prop.name,
-            'place': dtype.prop.place,
-            'path': dtype.prop.path,
-            'parent': dtype.prop,
-            'model': dtype.prop.model,
-            **data['items'],
-        }
+    if dtype.items:
+        assert isinstance(dtype.items, dict), type(dtype.items)
         prop = dtype.prop.__class__()
         prop.list = dtype.prop
-        prop = load(context, prop, params, dtype.prop.manifest)
+        prop.name = dtype.prop.name
+        prop.place = dtype.prop.place
+        prop.parent = dtype.prop
+        prop.model = dtype.prop.model
+        load(context, prop, dtype.items, manifest)
         dtype.items = prop
     else:
         dtype.items = None
     return dtype
 
 
-def load_type(context: Context, prop: Node, data: dict, manifest: Manifest):
-    na = object()
-    config = context.get('config')
-
-    dtype = data.get('type')
-    if dtype not in config.components['types']:
-        raise exceptions.UnknownPropertyType(prop, type=dtype)
-
-    dtype = config.components['types'][dtype]()
-    type_schema = resolve_schema(dtype, DataType)
-    for name in type_schema:
-        schema = type_schema[name]
-        value = data.get(name, na)
-        if schema.get('required', False) and value is na:
-            raise exceptions.MissingRequiredProperty(prop)
-        if value is na:
-            value = schema.get('default')
-        setattr(dtype, name, value)
-
-    dtype.type = 'datatype'
-    dtype.prop = prop
-    dtype.name = data['type']
-    return load(context, dtype, data, manifest)
-
-
-@load.register()
+@load.register(Context, DataType, object)
 def load(context: Context, dtype: DataType, value: object) -> object:
     # loads value to python native value according to given type
     return dtype.load(value)
 
 
-@load.register()
+@load.register(Context, File, object)
 def load(context: Context, dtype: File, value: object) -> object:
     # loads value into native python dict, including all dict's items
     loaded_obj = dtype.load(value)
@@ -311,7 +297,7 @@ def load(context: Context, dtype: File, value: object) -> object:
     return loaded_obj
 
 
-@load.register()
+@load.register(Context, PrimaryKey, object)
 def load(context: Context, dtype: PrimaryKey, value: object) -> object:
     if value is NA:
         return value
@@ -324,7 +310,7 @@ def load(context: Context, dtype: PrimaryKey, value: object) -> object:
     return value
 
 
-@load.register()
+@load.register(Context, Array, object)
 def load(context: Context, dtype: Array, value: object) -> list:
     # loads value into native python list, including all list items
     array_item_type = dtype.items.dtype
@@ -337,7 +323,7 @@ def load(context: Context, dtype: Array, value: object) -> list:
     return new_loaded_array
 
 
-@load.register()
+@load.register(Context, Object, object)
 def load(context: Context, dtype: Object, value: object) -> dict:
     # loads value into native python dict, including all dict's items
     loaded_obj = dtype.load(value)
@@ -370,7 +356,7 @@ def _check_no_extra_keys(dtype: DataType, schema: Iterable, data: Iterable):
         )
 
 
-@load.register()
+@load.register(Context, RQL, str)
 def load(context: Context, dtype: RQL, value: str) -> dict:
     rql = spyna.parse(value)
     rql = binds_to_strs(rql)
@@ -380,13 +366,13 @@ def load(context: Context, dtype: RQL, value: str) -> dict:
         return [rql]
 
 
-@commands.get_error_context.register()
+@commands.get_error_context.register(DataType)
 def get_error_context(dtype: DataType, *, prefix='this'):
     context = commands.get_error_context(dtype.prop, prefix=f'{prefix}.prop')
     context['type'] = 'this.name'
     return context
 
 
-@commands.rename_metadata.register()
+@commands.rename_metadata.register(Context, dict)
 def rename_metadata(context: Context, data: dict) -> dict:
     return data

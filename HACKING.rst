@@ -97,65 +97,52 @@ Inheritance::
 
 Composition::
 
-   Store
+   config                      (Config)
 
-     config                            (Config)
-
-       commands[]                      (str)
-
-       backends
-         [default]                     (BackendConfig)
-           type                        (str)
-           dsn                         (str)
-
-       manifests:
-         [default]
-           path                        (pathlib.Path)
-
-       ignore[]                        (str)
-
-       debug                           (bool)
+   store                       (Store)
 
      backends
-       [backend]                       (Backend)
+       [backend]               (Backend)
 
-     manifests
-       [ns]                            (Manifest)
-         path                          (pathlib.Path)
-         objects
+     manifest                  (Manifest)
+       path                    (pathlib.Path)
+       objects
 
-            ['model']
-              [name]                   (Model)
-                properties
-                  [name]               (Property)
-                    type               (Type)
+          ['model']
+            [name]             (Model)
+              external         (Entity)
+                dataset        (Dataset)
+                resource       (Resource)
+                name           (str)
+              properties
+                [name]         (Property)
+                  type         (Type)
+                  external     (Attribute)
+                    name       (str)
 
-            ['project']
-              [name]                   (Project)
-                objects
-                  [name]               (ProjectModel)
-                    properties
-                      [name]           (ProjectProperty)
+          ['dataset']
+            [name]             (Dataset)
+              resources
+                [name]         (Resource)
+                  type         (str)
+                  backend      (ExternalBackend)
 
-            ['dataset']
-              [name]                   (Dataset)
-                resources
-                  [name]               (Resource)
-                    objects
-                      [name]           (Object)
-                         properties
-                           [name]      (Property)
-                             type      (Type)
+          ['project']
+            [name]             (Project)
+              objects
+                [name]         (ProjectModel)
+                  properties
+                    [name]     (ProjectProperty)
 
-            ['owner']
-              [name]                   (Owner)
+          ['owner']
+            [name]             (Owner)
 
    Node
-     parent                            (Node)
-     manifest                          (Manifest)
+     parent                    (Node)
+     manifest                  (Manifest)
 
    Type
-     name                              (str)
+     name                      (str)
 
    EnvVars
      environ

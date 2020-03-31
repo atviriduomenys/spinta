@@ -1,0 +1,6 @@
+---
+type: dataset
+name: datasets/dtypes/binary
+resources:
+  resource:
+    type: csv

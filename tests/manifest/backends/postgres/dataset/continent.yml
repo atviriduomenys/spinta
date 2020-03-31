@@ -1,0 +1,8 @@
+type: model
+name: datasets/backends/postgres/dataset/continent
+external:
+  dataset: datasets/backends/postgres/dataset
+  resource: sql
+properties:
+  title:
+    type: string

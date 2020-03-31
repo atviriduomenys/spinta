@@ -6,21 +6,21 @@ from spinta.utils.url import build_url_path
 
 @pytest.mark.parametrize('path, query', [
     ('', [{'name': 'path', 'args': []}]),
-    (':dataset/test', [
-        {'name': 'dataset', 'args': ['test']},
+    (':external', [
+        {'name': 'external', 'args': []},
     ]),
     ('foo/bar', [
         {'name': 'path', 'args': ['foo', 'bar']},
     ]),
-    ('foo/bar/:dataset/deeply/nested/name/:resource/res', [
+    ('foo/bar/:format/csv/:external', [
         {'name': 'path', 'args': ['foo', 'bar']},
-        {'name': 'dataset', 'args': ['deeply', 'nested', 'name']},
-        {'name': 'resource', 'args': ['res']},
+        {'name': 'format', 'args': ['csv']},
+        {'name': 'external', 'args': []},
     ]),
-    ('foo/bar/d12a126e085db85e78379284006d369a8247bfc7/:dataset/vrk/:resource/data', [
+    ('foo/bar/d12a126e085db85e78379284006d369a8247bfc7/:format/csv/:external', [
         {'name': 'path', 'args': ['foo', 'bar', 'd12a126e085db85e78379284006d369a8247bfc7']},
-        {'name': 'dataset', 'args': ['vrk']},
-        {'name': 'resource', 'args': ['data']},
+        {'name': 'format', 'args': ['csv']},
+        {'name': 'external', 'args': []},
     ])
 ])
 def test_parse_url_path(path, query):
@@ -36,8 +36,8 @@ def test_unknown_name():
 
 def test_mingargs():
     with pytest.raises(Exception) as e:
-        parse_url_path('foo/bar/:dataset')
-    assert str(e.value) == "At least 1 argument is required for 'dataset' URL parameter."
+        parse_url_path('foo/bar/:format')
+    assert str(e.value) == "At least 1 argument is required for 'format' URL parameter."
 
 
 def test_maxgargs():

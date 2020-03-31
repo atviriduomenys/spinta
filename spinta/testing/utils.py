@@ -12,6 +12,9 @@ yaml = YAML(typ='safe')
 
 def create_manifest_files(tmpdir, manifest):
     for file, data in manifest.items():
+        if data is None:
+            data = Path('tests/manifest') / file
+            data = next(yaml.load_all(data.read_text()))
         path = Path(tmpdir) / file
         path.parent.mkdir(parents=True, exist_ok=True)
         if isinstance(data, dict):
@@ -25,7 +28,7 @@ def update_manifest_files(tmpdir, manifest):
         path = Path(tmpdir) / file
         versions = list(yaml.load_all(path.read_text()))
         patch = jsonpatch.JsonPatch(patch)
-        patch.apply(versions[0])
+        versions[0] = patch.apply(versions[0])
         with path.open('w') as f:
             yaml.dump_all(versions, f)
 
