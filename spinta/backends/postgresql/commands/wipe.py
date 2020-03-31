@@ -1,6 +1,6 @@
 from spinta import commands
 from spinta.components import Context, Model
-from spinta.types.datatype import Array, DataType, Object
+from spinta.types.datatype import DataType
 from spinta.backends.postgresql.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 
@@ -28,17 +28,3 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
 @commands.wipe.register()
 def wipe(context: Context, dtype: DataType, backend: PostgreSQL):
     pass
-
-
-@commands.wipe.register()
-def wipe(context: Context, dtype: Object, backend: PostgreSQL):
-    for prop in dtype.properties.values():
-        wipe(context, prop.dtype, backend)
-
-
-@commands.wipe.register()
-def wipe(context: Context, dtype: Array, backend: PostgreSQL):
-    wipe(context, dtype.items.dtype, backend)
-    table = backend.get_table(dtype.prop, TableType.LIST)
-    connection = context.get('transaction').connection
-    connection.execute(table.delete())

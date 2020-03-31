@@ -9,7 +9,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.exceptions import UniqueConstraint
 
 
-@commands.check_unique_constraint.register()
+@commands.check_unique_constraint.register(Context, DataItem, DataType, Property, PostgreSQL, object)
 def check_unique_constraint(
     context: Context,
     data: DataItem,

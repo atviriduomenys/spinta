@@ -19,6 +19,7 @@ commands.check(context, config)
 
 store = context.get('store')
 commands.load(context, store, config)
+commands.link(context, store)
 commands.check(context, store)
 
 commands.wait(context, store, rc)

@@ -75,3 +75,16 @@ def get_changes_table(context: Context, backend: PostgreSQL, model: Model):
         sa.Column('data', JSONB),
     )
     return table
+
+
+def flat_dicts_to_nested(value):
+    res = {}
+    for k, v in dict(value).items():
+        names = k.split('.')
+        vref = res
+        for name in names[:-1]:
+            if name not in vref:
+                vref[name] = {}
+            vref = vref[name]
+        vref[names[-1]] = v
+    return res

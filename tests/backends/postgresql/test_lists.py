@@ -1,6 +1,6 @@
 from spinta.commands import load
 from spinta.components import Model
-from spinta.backends.postgresql.commands.write import _get_lists_data
+from spinta.backends.postgresql.types.array.write import _get_lists_data
 
 
 def create_model(context, schema):
