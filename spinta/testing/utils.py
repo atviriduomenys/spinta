@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Iterable
 
 from pathlib import Path
 
@@ -6,6 +6,8 @@ import jsonpatch
 import requests
 
 from ruamel.yaml import YAML
+
+from spinta.utils.schema import NA
 
 yaml = YAML(typ='safe')
 
@@ -42,6 +44,35 @@ def read_manifest_files(tmpdir):
         manifest_file = str(fp)[len(str(tmpdir)) + 1:]
         manifests[manifest_file] = data
     return manifests
+
+
+def errors(resp, *keys):
+    data = resp.json()
+    assert 'errors' in data, data
+    errors = data['errors']
+    return [_extract_error(err, keys) for err in errors]
+
+
+def error(resp, *keys):
+    data = resp.json()
+    assert 'errors' in data, data
+    errors = data['errors']
+    assert len(errors) == 1, errors
+    return _extract_error(errors[0], keys)
+
+
+def _extract_error(err: dict, keys: Iterable[str]):
+    res = {}
+    if keys:
+        for k in keys:
+            if isinstance(k, list):
+                ctx = err.get('context', {})
+                res['context'] = {k: ctx.get(k, NA) for k in k}
+            else:
+                res[k] = err.get(k, NA)
+    else:
+        return err.get('code', NA)
+    return res
 
 
 def get_error_codes(response):

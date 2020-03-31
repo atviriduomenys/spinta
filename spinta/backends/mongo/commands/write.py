@@ -86,7 +86,7 @@ async def delete(
         yield data
 
 
-@commands.before_write.register()
+@commands.before_write.register(Context, Model, Mongo)
 def before_write(
     context: Context,
     model: Model,

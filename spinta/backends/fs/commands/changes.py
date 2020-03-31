@@ -5,7 +5,7 @@ from spinta.components import Context, Property, DataItem
 from spinta.backends.fs.components import FileSystem
 
 
-@commands.create_changelog_entry.register()
+@commands.create_changelog_entry.register(Context, Property, FileSystem)
 def create_changelog_entry(
     context: Context,
     model: Property,

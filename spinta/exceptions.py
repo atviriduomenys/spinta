@@ -295,9 +295,6 @@ class UnknownProjectDataset(BaseError):
 
 class MissingRequiredProperty(BaseError):
     template = "Property {property!r} is required."
-    context = {
-        'property': 'prop',
-    }
 
 
 class FileNotFound(UserError):
@@ -411,3 +408,7 @@ class UnknownUfunc(UserError):
 
 class MissingReferrence(UserError):
     template = "Missing reference {ref!r} referenced from {param!r} parameter."
+
+
+class UnacceptableFileName(UserError):
+    template = "Path is not acceptable in filename"

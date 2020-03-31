@@ -13,7 +13,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
 
 
-@commands.create_changelog_entry.register()
+@commands.create_changelog_entry.register(Context, (Model, Property), PostgreSQL)
 async def create_changelog_entry(
     context: Context,
     node: (Model, Property),

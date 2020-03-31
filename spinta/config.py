@@ -179,7 +179,7 @@ CONFIG = {
                 'mongo': {
                     'type': 'mongo',
                     'dsn': 'mongodb://admin:admin123@localhost:27017/',
-                    'db': 'splat',
+                    'db': 'spinta',
                 },
                 'fs': {
                     'type': 'fs',

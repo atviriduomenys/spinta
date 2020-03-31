@@ -2,11 +2,12 @@ import datetime
 import types
 
 from spinta import commands
+from spinta.utils.json import fix_data_for_json
 from spinta.components import Context, Model, Property
 from spinta.backends.mongo.components import Mongo
 
 
-@commands.create_changelog_entry.register()
+@commands.create_changelog_entry.register(Context, (Model, Property), Mongo)
 async def create_changelog_entry(
     context: Context,
     model: (Model, Property),
@@ -26,6 +27,8 @@ async def create_changelog_entry(
             '_op': data.action.value,
             '_transaction': transaction.id,
             '_created': datetime.datetime.now(),
-            **{k: v for k, v in data.patch.items() if not k.startswith('_')},
+            **fix_data_for_json({
+                k: v for k, v in data.patch.items() if not k.startswith('_')
+            }),
         })
         yield data

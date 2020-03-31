@@ -12,8 +12,8 @@ from spinta.backends.postgresql.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 
 
-@commands.before_write.register()
-def before_write(  # noqa
+@commands.before_write.register(Context, Array, PostgreSQL)
+def before_write(
     context: Context,
     dtype: Array,
     backend: PostgreSQL,

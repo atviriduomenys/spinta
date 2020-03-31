@@ -2,12 +2,15 @@ import base64
 
 import pytest
 
+from spinta.testing.utils import error
+
 
 def _create_file(
     app, model: str, *,
     name: str = 'data.txt',
     ctype: str = 'text/plain',
     body: bytes = b'DATA',
+    status: int = 201
 ):
     assert isinstance(body, bytes)
     resp = app.post(f'/{model}', json={
@@ -17,7 +20,7 @@ def _create_file(
             '_content': base64.b64encode(body).decode(),
         },
     })
-    assert resp.status_code == 201, resp.json()
+    assert resp.status_code == status, resp.json()
     return resp
 
 
@@ -344,4 +347,21 @@ def test_select_all(model, app, tmpdir):
                 },
             },
         ],
+    }
+
+
+@pytest.mark.models(
+    'backends/postgres/dtypes/fs/file',
+    'backends/mongo/dtypes/fs/file',
+)
+@pytest.mark.parametrize('filename', [
+    '/tmp/etc/passwd',
+    '../../etc/passwd',
+])
+def test_path_injection(model, filename, app, tmpdir):
+    app.authmodel(model, ['insert'])
+    resp = _create_file(app, model, name=filename, status=400)
+    assert error(resp, 'code', 'template') == {
+        'code': 'UnacceptableFileName',
+        'template': 'Path is not acceptable in filename',
     }
