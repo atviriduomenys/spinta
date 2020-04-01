@@ -98,8 +98,6 @@ class PostgreSQL(Backend):
     ):
         name = get_table_name(node, ttype)
         if fail:
-            if name not in self.tables:
-                pp(name, list(self.tables))
             return self.tables[name]
         else:
             return self.tables.get(name)
