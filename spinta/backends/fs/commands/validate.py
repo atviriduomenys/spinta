@@ -16,15 +16,15 @@ def simple_data_check(
     dtype: File,
     prop: Property,
     backend: FileSystem,
-    value: pathlib.Path,
+    value: dict,
 ):
     if value['_id'] is not None:
         # Check if given filepath stays on backend.path.
         commonpath = os.path.commonpath([
-            backend.path,
-            value['_id'].resolve(),
+            backend.path.resolve(),
+            (backend.path / value['_id']).resolve(),
         ])
-        if str(commonpath) != str(backend.path):
+        if str(commonpath) != str(backend.path.resolve()):
             raise UnacceptableFileName(dtype)
 
 
