@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, AsyncIterator
+from typing import TYPE_CHECKING, List, Optional, Tuple, AsyncIterator
 
 import enum
 import contextlib
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from spinta.backends.components import Backend
     from spinta.types.datatype import Array
     from spitna.datasets.enums import Level
+    from spinta.manifests.components import Manifest
     from spitna.datasets.components import Attribute
 
 
@@ -290,44 +291,6 @@ class Store:
 
 class Component:
     schema = {}
-
-
-class Manifest(Component):
-    type: str = 'manifest'
-    name: str
-    parent: None
-    store: Store = None
-    objects: Dict[str, 'Node']
-    path: pathlib.Path
-    endpoints: Dict[str, str]
-
-    def __init__(self):
-        self.name = None
-        self.parent = None
-        self.objects = None
-        self.path = None
-
-        # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
-        # name and endpoint for all of them should match.
-        self.endpoints = {}
-
-    def __repr__(self):
-        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>'
-
-    def load(self, config: Config):
-        pass
-
-    def add_model_endpoint(self, model):
-        endpoint = model.endpoint
-        if endpoint:
-            if endpoint not in self.endpoints:
-                self.endpoints[endpoint] = model.name
-            elif self.endpoints[endpoint] != model.name:
-                raise Exception(f"Same endpoint, but different model name, endpoint={endpoint!r}, model.name={model.name!r}.")
-
-    @property
-    def models(self):
-        return self.objects['model']
 
 
 class Node(Component):

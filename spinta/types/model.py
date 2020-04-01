@@ -2,7 +2,8 @@ from typing import Dict
 
 from spinta.auth import check_generated_scopes
 from spinta.commands import load, check, authorize, prepare
-from spinta.components import Context, Manifest, Node, Model, Property, Action
+from spinta.components import Context, Node, Model, Property, Action
+from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.utils.schema import NA
 from spinta import commands

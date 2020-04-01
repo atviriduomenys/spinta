@@ -3,7 +3,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from spinta import commands
-from spinta.components import Context, Manifest, Model
+from spinta.components import Context, Model
+from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, PrimaryKey
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import TableType, UNSUPPORTED_TYPES

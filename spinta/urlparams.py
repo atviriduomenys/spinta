@@ -7,7 +7,8 @@ import urllib.parse
 from starlette.requests import Request
 
 from spinta.commands import prepare
-from spinta.components import Context, Manifest, Node
+from spinta.components import Context, Node
+from spinta.manifests.components import Manifest
 from spinta.utils import url as urlutil
 from spinta.components import UrlParams, Version
 from spinta.commands import is_object_id

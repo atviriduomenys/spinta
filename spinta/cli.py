@@ -19,7 +19,8 @@ from spinta import exceptions
 from spinta.auth import AdminToken
 from spinta.commands.formats import Format
 from spinta.commands.write import write
-from spinta.components import Context, DataStream, Manifest, Model
+from spinta.components import Context, DataStream, Model
+from spinta.manifests.components import Manifest
 from spinta.datasets.components import Dataset
 from spinta.core.context import create_context
 from spinta.core.config import KeyFormat
@@ -121,6 +122,28 @@ def bootstrap(ctx):
         backend = store.manifest.backend
         context.attach('transaction', backend.transaction, write=True)
         commands.bootstrap(context, store)
+
+
+@main.command()
+@click.pass_context
+def sync(ctx):
+    context = ctx.obj
+
+    rc = context.get('rc')
+    config = context.get('config')
+    commands.load(context, config, rc)
+    commands.check(context, config)
+
+    store = context.get('store')
+    commands.load(context, store, config)
+    commands.link(context, store)
+    commands.check(context, store)
+
+    with context:
+        _require_auth(context)
+        commands.sync(context, store)
+
+    click.echo("Done.")
 
 
 @main.command()

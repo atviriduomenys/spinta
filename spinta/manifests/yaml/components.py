@@ -7,7 +7,8 @@ from ruamel.yaml.parser import ParserError
 from ruamel.yaml.scanner import ScannerError
 from ruamel.yaml.error import YAMLError
 
-from spinta.components import Context, Manifest
+from spinta.components import Context
+from spinta.manifests.components import Manifest
 from spinta.utils.path import is_ignored
 from spinta import exceptions
 

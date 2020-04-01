@@ -7,7 +7,7 @@ from spinta.fetcher import fetch
 from spinta.core.ufuncs import Expr
 from spinta.core.config import RawConfig
 from spinta.components import Context
-from spinta.components import Manifest
+from spinta.manifests.components import Manifest
 from spinta.datasets.components import Entity
 from spinta.datasets.utils import iterparams
 from spinta.datasets.backends.csv.components import Csv

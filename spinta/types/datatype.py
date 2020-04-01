@@ -10,7 +10,8 @@ from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.commands import load, is_object_id
-from spinta.components import Context, Component, Manifest, Property
+from spinta.components import Context, Component, Property
+from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA, NotAvailable
 from spinta.hacks.spyna import binds_to_strs
 from spinta.core.ufuncs import Expr

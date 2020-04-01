@@ -1,5 +1,6 @@
 from spinta.commands import load, prepare, check
-from spinta.components import Context, Manifest, Node
+from spinta.components import Context, Node
+from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta import exceptions
 

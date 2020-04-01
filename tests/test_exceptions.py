@@ -1,6 +1,6 @@
 # Register get_error_context commands.
 import spinta.commands  # noqa
-import spinta.types.manifest  # noqa
+import spinta.manifests.commands.error  # noqa
 
 from spinta.exceptions import BaseError, error_response
 from spinta.components import Node

@@ -8,7 +8,8 @@ from spinta import commands
 from spinta.commands import load, wait, prepare, migrate, check, push
 from spinta.components import Context, Store, Config
 from spinta.urlparams import get_model_by_name
-from spinta.nodes import load_manifest, get_internal_manifest, get_node
+from spinta.nodes import get_node
+from spinta.manifests.helpers import load_manifest, get_internal_manifest
 from spinta.core.config import RawConfig
 
 

@@ -7,7 +7,8 @@ from spinta import commands
 from spinta import spyna
 from spinta.core.ufuncs import asttoexpr, ufunc
 from spinta.commands.write import write
-from spinta.components import Context, Manifest, Action
+from spinta.components import Context, Action
+from spinta.manifests.components import Manifest
 from spinta.backends.postgresql.components import PostgreSQL
 
 

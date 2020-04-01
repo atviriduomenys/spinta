@@ -1,4 +1,4 @@
-from spinta.components import Manifest
+from spinta.manifests.components import Manifest
 
 
 class InternalManifest(Manifest):

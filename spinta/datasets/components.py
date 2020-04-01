@@ -7,7 +7,8 @@ import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
 from spinta.core.ufuncs import Expr
-from spinta.components import Node, Manifest, Model, Property
+from spinta.components import Node, Model, Property
+from spinta.manifests.components import Manifest
 from spinta.backends.components import Backend
 from spinta.core.enums import Access
 from spinta.datasets.enums import Level

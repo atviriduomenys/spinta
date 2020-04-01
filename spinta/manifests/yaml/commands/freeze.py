@@ -8,7 +8,8 @@ from ruamel.yaml import YAML
 
 from spinta import spyna
 from spinta import commands
-from spinta.components import Context, Config, Manifest, Model
+from spinta.components import Context, Config, Model
+from spinta.manifests.components import Manifest
 from spinta.manifests.yaml.components import YamlManifest
 from spinta.manifests.helpers import load_manifest_node
 from spinta.migrations import SchemaVersion, get_new_schema_version

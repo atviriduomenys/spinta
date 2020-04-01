@@ -1,6 +1,7 @@
 from spinta import commands
 from spinta.nodes import get_node, load_node
-from spinta.components import Context, Manifest
+from spinta.components import Context
+from spinta.manifests.components import Manifest
 from spinta.datasets.components import Dataset, Resource, Entity
 
 

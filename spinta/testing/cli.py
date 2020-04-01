@@ -17,8 +17,10 @@ class SpintaCliRunner(CliRunner):
             kwargs['obj'] = create_test_context(rc, name='pytest/cli')
         result = super().invoke(cli, args, **kwargs)
         if result.exc_info is not None:
-            print(result.output, file=sys.stderr)
-            traceback.print_exception(*result.exc_info)
+            t, e, tb = result.exc_info
+            if not isinstance(e, SystemExit):
+                print(result.output, file=sys.stderr)
+                traceback.print_exception(t, e, tb)
         if result.exit_code != 0:
             cmd = ' '.join([cli.name] + (args or []))
             pytest.fail(f"Command `{cmd}` failed, exit code {result.exit_code}.")
