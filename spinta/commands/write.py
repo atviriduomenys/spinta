@@ -2,6 +2,7 @@ from typing import AsyncIterator, Union, Optional
 
 import itertools
 import json
+import pathlib
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
@@ -834,8 +835,8 @@ def build_full_response(  # noqa
         }
 
 
-@commands.before_write.register()  # noqa
-def before_write(  # noqa
+@commands.before_write.register(Context, DataType, Backend)
+def before_write(
     context: Context,
     dtype: DataType,
     backend: Backend,
@@ -856,8 +857,8 @@ def after_write(  # noqa
     pass
 
 
-@commands.before_write.register()  # noqa
-def before_write(  # noqa
+@commands.before_write.register(Context, Object, Backend)
+def before_write(
     context: Context,
     dtype: Object,
     backend: Backend,
@@ -889,8 +890,8 @@ def after_write(  # noqa
         commands.after_write(context, prop.dtype, backend, data=data[key])
 
 
-@commands.before_write.register()  # noqa
-def before_write(  # noqa
+@commands.before_write.register(Context, File, Backend)
+def before_write(
     context: Context,
     dtype: File,
     backend: Backend,
@@ -915,13 +916,19 @@ def before_write(  # noqa
         else:
             patch.update(take(['_blocks', '_bsize'], data.patch))
 
+    if isinstance(patch.get('_id'), pathlib.Path):
+        # On FileSystem backend '_id' is a Path.
+        # XXX: It would be nice to decouple this bey visiting each file property
+        #      separaterly.
+        patch['_id'] = str(patch['_id'])
+
     return {
         f'{dtype.prop.place}.{k}': v for k, v in patch.items()
     }
 
 
-@commands.before_write.register()  # noqa
-def before_write(  # noqa
+@commands.before_write.register(Context, Ref, Backend)
+def before_write(
     context: Context,
     dtype: Ref,
     backend: Backend,

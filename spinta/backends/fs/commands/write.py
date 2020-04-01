@@ -4,15 +4,12 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.components import Context
-from spinta.backends.fs.components import FileSystem
-
-from spinta.commands import simple_data_check
-from spinta.commands.write import prepare_patch, simple_response, validate_data
-from spinta.components import Context, Action, UrlParams, DataItem
 from spinta.renderer import render
-from spinta.types.datatype import File
 from spinta.utils.aiotools import aiter
+from spinta.components import Context, Action, UrlParams, DataItem
+from spinta.commands.write import prepare_patch, simple_response, validate_data
+from spinta.types.datatype import File
+from spinta.backends.fs.components import FileSystem
 
 
 @commands.push.register()
@@ -53,7 +50,7 @@ async def push(
         # XXX: Probably here should be a new UUID.
         data.given[prop.name]['_id'] = params.pk
 
-    simple_data_check(context, data, data.prop, data.model.backend)
+    commands.simple_data_check(context, data, data.prop, data.model.backend)
 
     data.saved = commands.getone(context, prop, dtype, prop.model.backend, id_=params.pk)
 

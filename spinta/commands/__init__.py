@@ -34,6 +34,17 @@ def load():
 
 
 @command()
+def decode():
+    """Decode given value from source backend format into target backend format.
+
+    decode(Context, SourceFormat, DataType, value)
+    decode(Context, SourceBackend, DataType, value)
+    decode(Context, SourceFormat, TargetBackend, DataType, value)
+
+    """
+
+
+@command()
 def link():
     """Link loaded components.
 

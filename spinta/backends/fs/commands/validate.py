@@ -1,9 +1,31 @@
+import pathlib
+import os
+
 from spinta import commands
 from spinta.components import Context, Action, Property, DataItem
 from spinta.backends.components import Backend
 from spinta.types.datatype import DataType, File
 from spinta.backends.fs.components import FileSystem
-from spinta.exceptions import FileNotFound, ConflictingValue
+from spinta.exceptions import FileNotFound, ConflictingValue, UnacceptableFileName
+
+
+@commands.simple_data_check.register(Context, DataItem, File, Property, FileSystem, dict)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: File,
+    prop: Property,
+    backend: FileSystem,
+    value: dict,
+):
+    if value['_id'] is not None:
+        # Check if given filepath stays on backend.path.
+        commonpath = os.path.commonpath([
+            backend.path.resolve(),
+            (backend.path / value['_id']).resolve(),
+        ])
+        if str(commonpath) != str(backend.path.resolve()):
+            raise UnacceptableFileName(dtype)
 
 
 @commands.complex_data_check.register()

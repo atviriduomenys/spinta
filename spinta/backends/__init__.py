@@ -2,6 +2,7 @@ from typing import AsyncIterator, Union, List, Dict, Optional, Iterable, Generat
 
 import base64
 import datetime
+import pathlib
 import uuid
 import typing
 
@@ -49,7 +50,7 @@ def prepare(context: Context, backend: Backend, prop: Property):
     return prepare(context, backend, prop.dtype)
 
 
-@commands.simple_data_check.register()
+@commands.simple_data_check.register(Context, DataItem, Model, Backend)
 def simple_data_check(
     context: Context,
     data: DataItem,
@@ -59,8 +60,8 @@ def simple_data_check(
     simple_model_properties_check(context, data, model, backend)
 
 
-@commands.simple_data_check.register()  # noqa
-def simple_data_check(  # noqa
+@commands.simple_data_check.register(Context, DataItem, Property, Backend)
+def simple_data_check(
     context: Context,
     data: DataItem,
     prop: Property,
@@ -83,21 +84,18 @@ def simple_model_properties_check(
     backend: Backend,
 ) -> None:
     for name, prop in model.properties.items():
-        # For datasets, property type is optional.
-        # XXX: but I think, it should be mandatory.
-        if prop.dtype is not None:
-            simple_data_check(
-                context,
-                data,
-                prop.dtype,
-                prop,
-                backend,
-                data.given.get(name, NA),
-            )
+        simple_data_check(
+            context,
+            data,
+            prop.dtype,
+            prop,
+            prop.dtype.backend,
+            data.given.get(name, NA),
+        )
 
 
-@commands.simple_data_check.register()  # noqa
-def simple_data_check(  # noqa
+@commands.simple_data_check.register(Context, DataItem, DataType, Property, Backend, object)
+def simple_data_check(
     context: Context,
     data: DataItem,
     dtype: DataType,
@@ -110,6 +108,34 @@ def simple_data_check(  # noqa
     updating = data.action in (Action.UPDATE, Action.PATCH)
     if updating and '_revision' not in data.given:
         raise NoItemRevision(prop)
+
+
+@commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: DataType,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    for prop in dtype.properties.values():
+        v = value.get(prop.name, NA)
+        simple_data_check(context, data, prop.dtype, prop, prop.dtype.backend, v)
+
+
+@commands.simple_data_check.register(Context, DataItem, Array, Property, Backend, list)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: DataType,
+    prop: Property,
+    backend: Backend,
+    value: list,
+) -> None:
+    dtype = dtype.items.dtype
+    for v in value:
+        simple_data_check(context, data, dtype, prop, dtype.backend, v)
 
 
 @commands.complex_data_check.register()
@@ -242,7 +268,7 @@ def is_object_id(context: Context, backend: type(None), model: Namespace, value:
     return False
 
 
-@commands.prepare_data_for_response.register()
+@commands.prepare_data_for_response.register(Context, Action, Model, Backend, dict)
 def prepare_data_for_response(  # noqa
     context: Context,
     action: Action,
@@ -272,7 +298,7 @@ def prepare_data_for_response(  # noqa
     }
 
 
-@commands.prepare_data_for_response.register()
+@commands.prepare_data_for_response.register(Context, Action, Object, Backend, dict)
 def prepare_data_for_response(  # noqa
     context: Context,
     action: Action,
@@ -301,7 +327,7 @@ def prepare_data_for_response(  # noqa
     }
 
 
-@commands.prepare_data_for_response.register()
+@commands.prepare_data_for_response.register(Context, Action, File, Backend, dict)
 def prepare_data_for_response(  # noqa
     context: Context,
     action: Action,
@@ -477,7 +503,7 @@ def _flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
     return res
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, DataType, object)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -495,7 +521,7 @@ def prepare_dtype_for_response(  # noqa
     return value
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, DataType, NotAvailable)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -508,7 +534,7 @@ def prepare_dtype_for_response(  # noqa
     return dtype.prop.default
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, File, NotAvailable)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -524,7 +550,7 @@ def prepare_dtype_for_response(  # noqa
     }
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, File, dict)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -544,6 +570,10 @@ def prepare_dtype_for_response(  # noqa
         )
     }
 
+    if isinstance(data.get('_id'), pathlib.Path):
+        # _id on FileSystem backend is a Path.
+        data['_id'] = str(data['_id'])
+
     # File content is returned only if explicitly requested.
     if select and '_content' in select:
         if '_content' in value:
@@ -560,7 +590,7 @@ def prepare_dtype_for_response(  # noqa
     return data
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, DateTime, datetime.datetime)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -573,7 +603,7 @@ def prepare_dtype_for_response(  # noqa
     return value.isoformat()
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, Date, datetime.date)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -589,7 +619,7 @@ def prepare_dtype_for_response(  # noqa
         return value.isoformat()
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, Binary, bytes)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -602,7 +632,7 @@ def prepare_dtype_for_response(  # noqa
     return base64.b64encode(value).decode('ascii')
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, Ref, dict)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -615,7 +645,7 @@ def prepare_dtype_for_response(  # noqa
     return value
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, Ref, str)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -630,7 +660,7 @@ def prepare_dtype_for_response(  # noqa
     return {'_id': value}
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, Object, dict)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -659,7 +689,7 @@ def prepare_dtype_for_response(  # noqa
     }
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, Array, list)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -682,7 +712,7 @@ def prepare_dtype_for_response(  # noqa
     ]
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, Array, type(None))
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -695,7 +725,7 @@ def prepare_dtype_for_response(  # noqa
     return []
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, JSON, object)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,
@@ -708,7 +738,7 @@ def prepare_dtype_for_response(  # noqa
     return value
 
 
-@commands.prepare_dtype_for_response.register()
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, JSON, NotAvailable)
 def prepare_dtype_for_response(  # noqa
     context: Context,
     backend: Backend,

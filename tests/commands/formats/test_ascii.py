@@ -42,7 +42,7 @@ def test_export_ascii(app, mocker):
         },
     ]})
     assert resp.status_code == 200, resp.json()
-    assert app.get('/country/:dataset/csv/:resource/countries/:format/ascii?select(code,title)&sort(+code)').text == (
+    assert app.get('/country/:dataset/csv/:resource/countries/:format/ascii?select(code,title)&sort(+code)&format(colwidth(42))').text == (
         'code     title  \n'
         '================\n'
         'lt     Lithuania\n'
@@ -52,7 +52,7 @@ def test_export_ascii(app, mocker):
     resp = app.get('/country/:dataset/csv/:resource/countries/:changes')
     changes = resp.json()['_data']
     changes = [{k: str(v) for k, v in row.items()} for row in changes]
-    res = app.get('country/:dataset/csv/:resource/countries/:changes/:format/ascii').text
+    res = app.get('country/:dataset/csv/:resource/countries/:changes/:format/ascii?format(colwidth(42))').text
     lines = res.splitlines()
     cols = lines[0].split()
     data = [dict(zip(cols, [v.strip() for v in row.split()])) for row in lines[2:]]

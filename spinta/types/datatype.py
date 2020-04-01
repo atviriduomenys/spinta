@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Union
+from typing import TYPE_CHECKING, Any, Union
 
 import base64
 
@@ -14,6 +14,7 @@ from spinta.components import Context, Component, Manifest, Property
 from spinta.utils.schema import NA, NotAvailable
 from spinta.hacks.spyna import binds_to_strs
 from spinta.core.ufuncs import Expr
+from spinta.types.helpers import check_no_extra_keys
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
@@ -221,9 +222,8 @@ def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> D
 
 @commands.link.register(Context, DataType)
 def link(context: Context, dtype: DataType) -> None:
-    if dtype.backend:
-        dtype.backend = dtype.prop.model.manifest.store.backends[dtype.backend]
-    return dtype
+    store = context.get('store')
+    dtype.backend = store.backends[dtype.backend]
 
 
 @load.register(Context, PrimaryKey, dict, Manifest)
@@ -282,21 +282,6 @@ def load(context: Context, dtype: DataType, value: object) -> object:
     return dtype.load(value)
 
 
-@load.register(Context, File, object)
-def load(context: Context, dtype: File, value: object) -> object:
-    # loads value into native python dict, including all dict's items
-    loaded_obj = dtype.load(value)
-    if value is NA:
-        return value
-    # check that given obj does not have more keys, than dtype's schema
-    _check_no_extra_keys(dtype, dtype.schema, loaded_obj)
-
-    if '_content' in value and isinstance(value['_content'], str):
-        value['_content'] = base64.b64decode(value['_content'])
-
-    return loaded_obj
-
-
 @load.register(Context, PrimaryKey, object)
 def load(context: Context, dtype: PrimaryKey, value: object) -> object:
     if value is NA:
@@ -334,7 +319,7 @@ def load(context: Context, dtype: Object, value: object) -> dict:
             non_hidden_keys.append(key)
 
     # check that given obj does not have more keys, than dtype's schema
-    _check_no_extra_keys(dtype, non_hidden_keys, loaded_obj)
+    check_no_extra_keys(dtype, non_hidden_keys, loaded_obj)
 
     new_loaded_obj = {}
     for k, v in dtype.properties.items():
@@ -342,18 +327,6 @@ def load(context: Context, dtype: Object, value: object) -> dict:
         if k in loaded_obj:
             new_loaded_obj[k] = load(context, v.dtype, loaded_obj[k])
     return new_loaded_obj
-
-
-def _check_no_extra_keys(dtype: DataType, schema: Iterable, data: Iterable):
-    unknown = set(data) - set(schema)
-    if unknown:
-        raise exceptions.MultipleErrors(
-            exceptions.FieldNotInResource(
-                dtype.prop,
-                property=f'{dtype.prop.place}.{prop}',
-            )
-            for prop in sorted(unknown)
-        )
 
 
 @load.register(Context, RQL, str)

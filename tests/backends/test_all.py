@@ -226,7 +226,7 @@ def test_delete(model, app, tmpdir):
     resp = app.put(f'/{model}/{ids[0]}/pdf:ref', json={
         '_revision': revisions[0],
         '_content_type': 'application/pdf',
-        '_id': str(pdf),
+        '_id': 'report.pdf',
     })
     assert resp.status_code == 200
 

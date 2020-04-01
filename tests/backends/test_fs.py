@@ -2,9 +2,8 @@ import pathlib
 
 import pytest
 import requests
-import sqlalchemy as sa
 
-from spinta.testing.utils import get_error_codes, get_error_context
+from spinta.testing.utils import error, get_error_codes, get_error_context
 
 
 @pytest.mark.models(
@@ -132,7 +131,7 @@ def test_add_existing_file(model, app, tmpdir):
     resp = app.patch(f'/{model}/{id_}/image:ref', json={
         '_revision': revision_,
         '_content_type': 'image/png',
-        '_id': str(image),
+        '_id': 'image.png',
     })
     assert resp.status_code == 200
     revision_ = resp.json()['_revision']
@@ -140,7 +139,7 @@ def test_add_existing_file(model, app, tmpdir):
     resp = app.patch(f'/{model}/{id_}/image:ref', json={
         '_revision': revision_,
         '_content_type': 'image/png',
-        '_id': str(image),
+        '_id': 'image.png',
     })
     assert resp.status_code == 200
 
@@ -166,12 +165,15 @@ def test_add_missing_file(model, app, tmpdir):
         },
     })
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ['FileNotFound']
-    assert get_error_context(resp.json(), 'FileNotFound', ['manifest', 'model', 'property', 'file']) == {
-        'manifest': 'default',
-        'model': model,
-        'property': 'avatar',
-        'file': str(avatar),
+    assert error(resp) == 'FileNotFound'
+    assert error(resp, 'code', ['manifest', 'model', 'property', 'file']) == {
+        'code': 'FileNotFound',
+        'context': {
+            'manifest': 'default',
+            'model': model,
+            'property': 'avatar',
+            'file': str(avatar),
+        },
     }
 
 
@@ -336,7 +338,7 @@ def test_check_revision_for_file_ref(model, app, tmpdir):
     resp = app.patch(f'/{model}/{id_}/image:ref', json={
         '_revision': revision,
         '_content_type': 'image/png',
-        '_id': str(image),
+        '_id': 'image.png',
     })
     assert resp.status_code == 200
     old_revision = revision

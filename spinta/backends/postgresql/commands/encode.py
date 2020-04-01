@@ -10,7 +10,7 @@ from spinta.types.datatype import Date, DateTime
 from spinta.backends.postgresql.components import PostgreSQL
 
 
-@commands.prepare_data_for_response.register()
+@commands.prepare_data_for_response.register(Context, Action, Model, PostgreSQL, RowProxy)
 def prepare_data_for_response(
     context: Context,
     action: Action,
