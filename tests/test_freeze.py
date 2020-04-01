@@ -13,7 +13,7 @@ from spinta.cli import freeze
 def rc(rc, tmpdir):
     return rc.fork().add('test', {
         'manifests.default': {
-            'type': 'spinta',
+            'type': 'internal',
             'backend': 'default',
             'sync': 'yaml',
         },

@@ -11,7 +11,7 @@ from spinta.cli import freeze, migrate
 def configure(rc, path):
     return rc.fork().add('test', {
         'manifests.default': {
-            'type': 'spinta',
+            'type': 'internal',
             'backend': 'default',
             'sync': 'yaml',
         },

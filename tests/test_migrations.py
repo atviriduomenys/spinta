@@ -26,7 +26,7 @@ def _summarize_actions(actions):
 def configure(rc, path):
     return rc.fork().add('test', {
         'manifests.default': {
-            'type': 'spinta',
+            'type': 'internal',
             'backend': 'default',
             'sync': 'yaml',
         },
@@ -47,7 +47,7 @@ def test_create_model(postgresql, rc, cli, tmpdir, request):
 
     rc = rc.fork().add('test', {
         'manifests.default': {
-            'type': 'spinta',
+            'type': 'internal',
             'backend': 'default',
             'sync': 'yaml',
         },

@@ -27,7 +27,7 @@ def _summarize_actions(actions):
 def configure(rc, path):
     return rc.fork().add('test', {
         'manifests.default': {
-            'type': 'spinta',
+            'type': 'internal',
             'backend': 'default',
             'sync': 'yaml',
         },

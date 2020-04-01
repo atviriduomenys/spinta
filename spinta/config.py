@@ -13,6 +13,7 @@ CONFIG = {
             'spinta.commands.version',
             'spinta.types',
             'spinta.urlparams',
+            'spinta.manifests',
             'spinta.datasets',
         ],
         'service': {
@@ -34,8 +35,8 @@ CONFIG = {
             'python': 'spinta.accesslog.python:PythonAccessLog',
         },
         'manifests': {
-            'spinta': 'spinta.manifests.spinta:SpintaManifest',
-            'yaml': 'spinta.manifests.yaml:YamlManifest',
+            'internal': 'spinta.manifests.internal.components:InternalManifest',
+            'yaml': 'spinta.manifests.yaml.components:YamlManifest',
         },
         'backends': {
             # In memory backends mostly usable in tests
@@ -113,7 +114,7 @@ CONFIG = {
     },
     'manifests': {
         'default': {
-            'type': 'spinta',
+            'type': 'internal',
             'backend': 'default',
             'sync': 'yaml',
         },
