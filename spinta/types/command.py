@@ -2,7 +2,7 @@ from spinta.components import Context, Command, CommandList, Node
 from spinta.commands import load
 
 
-@load.register()
+@load.register(Context, Command, dict)
 def load(
     context: Context, command: Command, data: dict, *,
     parent: Node,
@@ -20,7 +20,7 @@ def load(
     return command
 
 
-@load.register()
+@load.register(Context, CommandList, list)
 def load(
     context: Context, command: CommandList, data: list, *,
     parent: Node,

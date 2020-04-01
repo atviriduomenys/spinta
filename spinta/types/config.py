@@ -12,7 +12,7 @@ from spinta.core.ufuncs import ufunc
 yaml = YAML(typ='safe')
 
 
-@load.register()
+@load.register(Context, components.Config, RawConfig)
 def load(context: Context, config: components.Config, rc: RawConfig) -> components.Config:
     # Save reference to raw config and give chance for other components to read
     # directly from raw config.

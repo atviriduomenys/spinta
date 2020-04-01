@@ -8,7 +8,7 @@ from spinta.manifests.internal.components import InternalManifest
 log = logging.getLogger(__name__)
 
 
-@commands.load.register()
+@commands.load.register(Context, InternalManifest, RawConfig)
 def load(context: Context, manifest: InternalManifest, rc: RawConfig):
     config = context.get('config')
 

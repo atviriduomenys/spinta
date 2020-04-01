@@ -13,7 +13,7 @@ from spinta.manifests.helpers import load_manifest, get_internal_manifest
 from spinta.core.config import RawConfig
 
 
-@load.register()
+@load.register(Context, Store, Config)
 def load(context: Context, store: Store, config: Config) -> Store:
     """Load backends and manifests from configuration."""
 

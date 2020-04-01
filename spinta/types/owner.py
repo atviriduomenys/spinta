@@ -19,7 +19,7 @@ class Owner(Node):
         self.sector = None
 
 
-@load.register()
+@load.register(Context, Owner, dict, Manifest)
 def load(context: Context, owner: Owner, data: dict, manifest: Manifest):
     return load_node(context, owner, data)
 

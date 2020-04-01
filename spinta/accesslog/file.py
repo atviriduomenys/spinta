@@ -33,7 +33,7 @@ class FileAccessLog(AccessLog):
         print(message, file=self.file)
 
 
-@commands.load.register()
+@commands.load.register(Context, FileAccessLog, Config)
 def load(context: Context, accesslog: FileAccessLog, config: Config):
     commands.load[Context, AccessLog, Config](context, accesslog, config)
 
@@ -59,7 +59,7 @@ def load(context: Context, accesslog: FileAccessLog, config: Config):
     return accesslog
 
 
-@commands.load.register()
+@commands.load.register(Context, FileAccessLog, Store)
 def load(context: Context, accesslog: FileAccessLog, store: Store):  # noqa
     file = store.accesslog.file
     if isinstance(file, pathlib.Path):

@@ -5,7 +5,7 @@ from spinta.manifests.components import Manifest
 from spinta.datasets.components import Dataset, Resource, Entity
 
 
-@commands.load.register()
+@commands.load.register(Context, Dataset, dict, Manifest)
 def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
     config = context.get('config')
 
@@ -23,7 +23,7 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
     return dataset
 
 
-@commands.load.register()
+@commands.load.register(Context, Resource, dict, Manifest)
 def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_node(context, resource, data, parent=resource.dataset)
     # Models will be added on `link` command.
@@ -31,6 +31,6 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     return resource
 
 
-@commands.load.register()
+@commands.load.register(Context, Entity, dict, Manifest)
 def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
     return entity

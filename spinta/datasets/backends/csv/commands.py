@@ -13,7 +13,7 @@ from spinta.datasets.utils import iterparams
 from spinta.datasets.backends.csv.components import Csv
 
 
-@commands.load.register()
+@commands.load.register(Context, Csv, RawConfig)
 def load(context: Context, backend: Csv, rc: RawConfig):
     pass
 

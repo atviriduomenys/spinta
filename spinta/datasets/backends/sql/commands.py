@@ -13,7 +13,7 @@ from spinta.datasets.backends.sql.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
 
 
-@commands.load.register()
+@commands.load.register(Context, Sql, RawConfig)
 def load(context: Context, backend: Sql, rc: RawConfig):
     dsn = rc.get('backends', backend.name, 'dsn', required=True)
     backend.engine = sa.create_engine(dsn, echo=False)

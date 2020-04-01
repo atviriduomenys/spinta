@@ -47,7 +47,7 @@ class Property(Node):
     #       serialization.
 
 
-@load.register()
+@load.register(Context, Project, dict, Manifest)
 def load(context: Context, project: Project, data: dict, manifest: Manifest):
     load_node(context, project, data)
 

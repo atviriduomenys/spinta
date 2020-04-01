@@ -12,7 +12,7 @@ from spinta.nodes import load_namespace, load_model_properties
 from spinta.nodes import get_node
 
 
-@load.register()
+@load.register(Context, Model, dict, Manifest)
 def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Model:
     model.parent = manifest
     model.manifest = manifest
@@ -45,7 +45,7 @@ def link(context: Context, model: Model):
         commands.link(context, model.external)
 
 
-@load.register()
+@load.register(Context, Property, dict, Manifest)
 def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Property:
     config = context.get('config')
     prop.type = 'property'
@@ -91,7 +91,7 @@ def _load_property_external(context, manifest, prop, data):
     return external
 
 
-@load.register()
+@load.register(Context, Model, dict)
 def load(context: Context, model: Model, data: dict) -> dict:
     # check that given data does not have more keys, than model's schema
     non_hidden_keys = []
@@ -115,7 +115,7 @@ def load(context: Context, model: Model, data: dict) -> dict:
     return result
 
 
-@load.register()
+@load.register(Context, Property, object)
 def load(context: Context, prop: Property, value: object) -> object:
     value = _prepare_prop_data(prop.name, value)
     value[prop.name] = load(context, prop.dtype, value[prop.name])

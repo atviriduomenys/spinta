@@ -9,7 +9,7 @@ from spinta.manifests.helpers import load_manifest_node
 log = logging.getLogger(__name__)
 
 
-@commands.load.register()
+@commands.load.register(Context, YamlManifest, RawConfig)
 def load(context: Context, manifest: YamlManifest, rc: RawConfig):
     config = context.get('config')
     manifest.load(config)
