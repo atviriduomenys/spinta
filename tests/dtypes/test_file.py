@@ -405,7 +405,7 @@ def test_path_injection(model, filename, app, tmpdir):
     '../../passwd',
 ])
 def test_path_injection_put(model, filename, app):
-    app.authmodel(model, ['insert', 'file_update', 'file_getone'])
+    app.authmodel(model, ['insert', 'file_update'])
     resp = _create_file(app, model)
     id_ = resp.json()['_id']
     rev = resp.json()['_revision']
@@ -415,6 +415,32 @@ def test_path_injection_put(model, filename, app):
         'Content-Type': 'application/json',
         'Content-Disposition': f'attachment; filename="{filename}"',
     }, data=b'CONTENT')
+    assert resp.status_code == 400, resp.json()
+
+    assert error(resp, 'code', 'template') == {
+        'code': 'UnacceptableFileName',
+        'template': 'Path is not acceptable in filename',
+    }
+
+
+@pytest.mark.models(
+    'backends/postgres/dtypes/fs/file',
+    # TODO 'backends/mongo/dtypes/fs/file',
+)
+@pytest.mark.parametrize('filename', [
+    '../../passwd',
+    '/tmp/etc/passwd'
+])
+def test_path_injection_update_file_ref(model, filename, app):
+    app.authmodel(model, ['insert', 'file_patch'])
+    resp = _create_file(app, model)
+    id_ = resp.json()['_id']
+    rev = resp.json()['_revision']
+
+    resp = app.patch(f'/{model}/{id_}/file:ref', json={
+        '_revision': rev,
+        '_id': f'{filename}',
+    })
     assert resp.status_code == 400, resp.json()
 
     assert error(resp, 'code', 'template') == {

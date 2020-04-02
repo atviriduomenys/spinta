@@ -47,6 +47,8 @@ def complex_data_check(
     ](context, data, dtype, prop, backend, given)
     if isinstance(dtype.backend, FileSystem) and data.action != Action.INSERT:
         path = dtype.backend.path / given['_id']
+        if len(path.parts) > 1:
+            raise UnacceptableFileName(dtype)
         if not path.exists():
             raise FileNotFound(prop, file=given['_id'])
 

@@ -925,7 +925,7 @@ def before_write(
     if patch.get('_id'):
         filename = pathlib.PosixPath(patch['_id'])
         if len(filename.parts) > 1:
-            raise exceptions.UnacceptableFileName()
+            raise exceptions.UnacceptableFileName(dtype)
 
     return {
         f'{dtype.prop.place}.{k}': v for k, v in patch.items()
