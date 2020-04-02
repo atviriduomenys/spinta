@@ -148,7 +148,7 @@ def test_add_existing_file(model, app, tmpdir):
 
 
 @pytest.mark.models(
-    # TODO 'backends/mongo/photo',
+    'backends/mongo/photo',
     'backends/postgres/photo',
 )
 def test_add_new_file(model, app, tmpdir):
@@ -210,7 +210,6 @@ def test_add_missing_file_as_prop(model, app, tmpdir):
     id_ = resp.json()['_id']
     revision_ = resp.json()['_revision']
 
-    image = pathlib.Path(tmpdir) / 'missing.png'
     resp = app.put(f'/{model}/{id_}/image:ref', json={
         '_revision': revision_,
         '_content_type': 'image/png',

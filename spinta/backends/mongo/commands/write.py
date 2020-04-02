@@ -2,6 +2,7 @@ import datetime
 
 
 from spinta import commands
+from spinta.types.datatype import File
 from spinta.utils.schema import NA
 from spinta.utils.data import take
 from spinta.components import Context, Action, Model, DataStream, DataItem
@@ -101,6 +102,14 @@ def before_write(
     patch['_created'] = datetime.datetime.now()
     if data.action == Action.INSERT or (data.action == Action.UPSERT and data.saved is NA):
         for k, v in take(data.patch).items():
+            prop = take(k, model.properties)
+            if isinstance(prop.dtype, File):
+                v = commands.before_write(
+                    context,
+                    prop.dtype,
+                    backend,
+                    data=data[prop.name],
+                )
             patch[k] = v
     else:
         for prop in take(model.properties).values():

@@ -351,7 +351,7 @@ def test_select_all(model, app, tmpdir):
 
 
 @pytest.mark.models(
-    # TODO: 'backends/mongo/dtypes/fs/file',
+    'backends/mongo/dtypes/fs/file',
     'backends/postgres/dtypes/fs/file',
 )
 def test_insert_fs(model, app):
@@ -400,7 +400,7 @@ def test_path_injection(model, filename, app):
 
 @pytest.mark.models(
     'backends/postgres/dtypes/fs/file',
-    # TODO 'backends/mongo/dtypes/fs/file',
+    'backends/mongo/dtypes/fs/file',
 )
 @pytest.mark.parametrize('filename', [
     '../../passwd',
@@ -427,7 +427,7 @@ def test_path_injection_put(model, filename, app):
 
 @pytest.mark.models(
     'backends/postgres/dtypes/fs/file',
-    # TODO 'backends/mongo/dtypes/fs/file',
+    'backends/mongo/dtypes/fs/file',
 )
 @pytest.mark.parametrize('filename', [
     '../../passwd',

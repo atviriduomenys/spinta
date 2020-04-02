@@ -15,6 +15,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.auth import check_scope
 from spinta.backends.components import Backend, BackendFeatures
+from spinta.backends.mongo.components import Mongo
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
 from spinta.types.datatype import DataType, Object, Array, File, Ref
@@ -926,6 +927,9 @@ def before_write(
         filename = pathlib.PosixPath(patch['_id'])
         if len(filename.parts) > 1:
             raise exceptions.UnacceptableFileName(dtype, file=filename)
+
+    if isinstance(backend, Mongo) and data.root.action == Action.INSERT:
+        return patch
 
     return {
         f'{dtype.prop.place}.{k}': v for k, v in patch.items()
