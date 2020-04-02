@@ -351,6 +351,36 @@ def test_select_all(model, app, tmpdir):
 
 
 @pytest.mark.models(
+    # TODO: 'backends/mongo/dtypes/fs/file',
+    'backends/postgres/dtypes/fs/file',
+)
+def test_insert_fs(model, app):
+    app.authmodel(model, ['insert', 'getone'])
+
+    resp = _create_file(app, model)
+    data = resp.json()
+
+    pk = data['_id']
+    rev = data['_revision']
+    assert data == {
+        '_type': model,
+        '_id': pk,
+        '_revision': rev,
+        'file': {
+            '_id': 'data.txt',
+            '_content_type': 'text/plain',
+        },
+    }
+
+    resp = app.get(f'{model}/{pk}/file')
+    assert resp.status_code == 200, resp.json()
+    assert resp.content == b'DATA'
+    assert resp.headers['Revision'] == rev
+    assert resp.headers['Content-Type'] == 'text/plain; charset=utf-8'
+    assert resp.headers['Content-Disposition'] == 'attachment; filename="data.txt"'
+
+
+@pytest.mark.models(
     'backends/postgres/dtypes/fs/file',
     'backends/mongo/dtypes/fs/file',
 )
@@ -361,6 +391,32 @@ def test_select_all(model, app, tmpdir):
 def test_path_injection(model, filename, app, tmpdir):
     app.authmodel(model, ['insert'])
     resp = _create_file(app, model, name=filename, status=400)
+    assert error(resp, 'code', 'template') == {
+        'code': 'UnacceptableFileName',
+        'template': 'Path is not acceptable in filename',
+    }
+
+
+@pytest.mark.models(
+    'backends/postgres/dtypes/fs/file',
+    # TODO 'backends/mongo/dtypes/fs/file',
+)
+@pytest.mark.parametrize('filename', [
+    '../../passwd',
+])
+def test_path_injection_put(model, filename, app):
+    app.authmodel(model, ['insert', 'file_update', 'file_getone'])
+    resp = _create_file(app, model)
+    id_ = resp.json()['_id']
+    rev = resp.json()['_revision']
+
+    resp = app.put(f'/{model}/{id_}/file', headers={
+        'Revision': rev,
+        'Content-Type': 'application/json',
+        'Content-Disposition': f'attachment; filename="{filename}"',
+    }, data=b'CONTENT')
+    assert resp.status_code == 400, resp.json()
+
     assert error(resp, 'code', 'template') == {
         'code': 'UnacceptableFileName',
         'template': 'Path is not acceptable in filename',

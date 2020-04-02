@@ -148,32 +148,24 @@ def test_add_existing_file(model, app, tmpdir):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
+    # TODO 'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_add_missing_file(model, app, tmpdir):
+def test_add_new_file(model, app, tmpdir):
     app.authmodel(model, ['insert', 'getone', 'image_patch'])
-
-    avatar = pathlib.Path(tmpdir) / 'missing.png'
 
     resp = app.post(f'/{model}', json={
         '_type': model,
         'name': 'myphoto',
         'avatar': {
-            '_id': str(avatar),
+            '_id': 'new.png',
             '_content_type': 'image/png',
         },
     })
-    assert resp.status_code == 400
-    assert error(resp) == 'FileNotFound'
-    assert error(resp, 'code', ['manifest', 'model', 'property', 'file']) == {
-        'code': 'FileNotFound',
-        'context': {
-            'manifest': 'default',
-            'model': model,
-            'property': 'avatar',
-            'file': str(avatar),
-        },
+    assert resp.status_code == 201
+    assert resp.json()['avatar'] == {
+        '_id': 'new.png',
+        '_content_type': 'image/png',
     }
 
 

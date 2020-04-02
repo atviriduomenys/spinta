@@ -45,7 +45,7 @@ def complex_data_check(
         Backend,
         dict,
     ](context, data, dtype, prop, backend, given)
-    if isinstance(dtype.backend, FileSystem):
+    if isinstance(dtype.backend, FileSystem) and data.action != Action.INSERT:
         path = dtype.backend.path / given['_id']
         if not path.exists():
             raise FileNotFound(prop, file=given['_id'])
