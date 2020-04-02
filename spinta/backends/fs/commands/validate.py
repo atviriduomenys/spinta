@@ -25,7 +25,7 @@ def simple_data_check(
             (backend.path / value['_id']).resolve(),
         ])
         if str(commonpath) != str(backend.path.resolve()):
-            raise UnacceptableFileName(dtype)
+            raise UnacceptableFileName(dtype, file=value['_id'])
 
 
 @commands.complex_data_check.register()
@@ -47,8 +47,8 @@ def complex_data_check(
     ](context, data, dtype, prop, backend, given)
     if isinstance(dtype.backend, FileSystem) and data.action != Action.INSERT:
         path = dtype.backend.path / given['_id']
-        if len(path.parts) > 1:
-            raise UnacceptableFileName(dtype)
+        if len(given['_id'].parts) > 1:
+            raise UnacceptableFileName(dtype, file=given['_id'])
         if not path.exists():
             raise FileNotFound(prop, file=given['_id'])
 

@@ -388,12 +388,13 @@ def test_insert_fs(model, app):
     '/tmp/etc/passwd',
     '../../etc/passwd',
 ])
-def test_path_injection(model, filename, app, tmpdir):
+def test_path_injection(model, filename, app):
     app.authmodel(model, ['insert'])
     resp = _create_file(app, model, name=filename, status=400)
-    assert error(resp, 'code', 'template') == {
+    assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
-        'template': 'Path is not acceptable in filename',
+        'template': 'Path is not acceptable in filename {file!r}',
+        'context': {'file': filename}
     }
 
 
@@ -417,9 +418,10 @@ def test_path_injection_put(model, filename, app):
     }, data=b'CONTENT')
     assert resp.status_code == 400, resp.json()
 
-    assert error(resp, 'code', 'template') == {
+    assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
-        'template': 'Path is not acceptable in filename',
+        'template': 'Path is not acceptable in filename {file!r}',
+        'context': {'file': filename}
     }
 
 
@@ -443,7 +445,8 @@ def test_path_injection_update_file_ref(model, filename, app):
     })
     assert resp.status_code == 400, resp.json()
 
-    assert error(resp, 'code', 'template') == {
+    assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
-        'template': 'Path is not acceptable in filename',
+        'template': 'Path is not acceptable in filename {file!r}',
+        'context': {'file': filename}
     }

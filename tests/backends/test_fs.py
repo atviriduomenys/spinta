@@ -217,8 +217,8 @@ def test_add_missing_file_as_prop(model, app, tmpdir):
         '_id': str(image),
     })
     assert resp.status_code == 400, resp.text
-    assert get_error_codes(resp.json()) == ['FileNotFound']
-    assert get_error_context(resp.json(), 'FileNotFound', ['manifest', 'model', 'property', 'file']) == {
+    assert get_error_codes(resp.json()) == ['UnacceptableFileName']
+    assert get_error_context(resp.json(), 'UnacceptableFileName', ['manifest', 'model', 'property', 'file']) == {
         'manifest': 'default',
         'model': model,
         'property': 'image',
