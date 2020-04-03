@@ -45,11 +45,15 @@ def complex_data_check(
         Backend,
         dict,
     ](context, data, dtype, prop, backend, given)
-    if isinstance(dtype.backend, FileSystem) and data.action != Action.INSERT:
+    if isinstance(dtype.backend, FileSystem):
         path = dtype.backend.path / given['_id']
-        if len(given['_id'].parts) > 1:
+        commonpath = os.path.commonpath([
+            dtype.backend.path.resolve(),
+            (dtype.backend.path / path).resolve(),
+        ])
+        if str(commonpath) != str(dtype.backend.path.resolve()):
             raise UnacceptableFileName(dtype, file=given['_id'])
-        if not path.exists():
+        if not given.get('_content') and not path.exists():
             raise FileNotFound(prop, file=given['_id'])
 
 
@@ -71,3 +75,12 @@ def complex_data_check(
                     given=data.given[k],
                     expected=data.saved[k],
                 )
+        if value.get('_id'):
+            if isinstance(dtype.backend, FileSystem):
+                filename = pathlib.PosixPath(value['_id'])
+                commonpath = os.path.commonpath([
+                    dtype.backend.path.resolve(),
+                    (dtype.backend.path / filename).resolve(),
+                ])
+                if str(commonpath) != str(dtype.backend.path.resolve()):
+                    raise UnacceptableFileName(dtype, file=value['_id'])

@@ -109,7 +109,7 @@ def before_write(  # noqa
     data: DataSubItem,
 ):
     content = take('_content', data.patch)
-    if isinstance(content, bytes) and not isinstance(dtype.backend, FileSystem):
+    if isinstance(content, bytes) and isinstance(dtype.backend, PostgreSQL):
         transaction = context.get('transaction')
         connection = transaction.connection
         prop = dtype.prop

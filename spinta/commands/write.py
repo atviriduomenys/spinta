@@ -3,6 +3,7 @@ from typing import AsyncIterator, Union, Optional
 import itertools
 import json
 import pathlib
+import os
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
@@ -922,11 +923,6 @@ def before_write(
         # XXX: It would be nice to decouple this bey visiting each file property
         #      separaterly.
         patch['_id'] = str(patch['_id'])
-
-    if patch.get('_id'):
-        filename = pathlib.PosixPath(patch['_id'])
-        if len(filename.parts) > 1:
-            raise exceptions.UnacceptableFileName(dtype, file=filename)
 
     if isinstance(backend, Mongo) and data.root.action == Action.INSERT:
         return patch
