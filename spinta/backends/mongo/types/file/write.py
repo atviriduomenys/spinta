@@ -1,9 +1,9 @@
 from spinta import commands
 from spinta.backends.fs.components import FileSystem
+from spinta.types.file.helpers import prepare_patch_data
 from spinta.utils.data import take
 from spinta.types.datatype import File
-from spinta.components import Context, DataSubItem
-from spinta.backends.components import Backend
+from spinta.components import Context, DataSubItem, Action
 from spinta.backends.mongo.components import Mongo
 
 
@@ -21,9 +21,11 @@ def before_write(  # noqa
         with open(filepath, 'wb') as f:
             f.write(content)
 
-    return commands.before_write[type(context), File, Backend](
-        context,
-        dtype,
-        backend,
-        data=data,
-    )
+    patch = prepare_patch_data(dtype, data)
+
+    if data.root.action == Action.INSERT:
+        return patch
+
+    return {
+        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
+    }

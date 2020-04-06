@@ -20,12 +20,7 @@ def simple_data_check(
 ):
     if value['_id'] is not None:
         # Check if given filepath stays on backend.path.
-        commonpath = os.path.commonpath([
-            backend.path.resolve(),
-            (backend.path / value['_id']).resolve(),
-        ])
-        if str(commonpath) != str(backend.path.resolve()):
-            raise UnacceptableFileName(dtype, file=value['_id'])
+        _validate_path(value['_id'], backend, dtype)
 
 
 @commands.complex_data_check.register()
@@ -46,13 +41,8 @@ def complex_data_check(
         dict,
     ](context, data, dtype, prop, backend, given)
     if isinstance(dtype.backend, FileSystem):
+        _validate_path(given['_id'], dtype.backend, dtype)
         path = dtype.backend.path / given['_id']
-        commonpath = os.path.commonpath([
-            dtype.backend.path.resolve(),
-            (dtype.backend.path / path).resolve(),
-        ])
-        if str(commonpath) != str(dtype.backend.path.resolve()):
-            raise UnacceptableFileName(dtype, file=given['_id'])
         if not given.get('_content') and not path.exists():
             raise FileNotFound(prop, file=given['_id'])
 
@@ -78,9 +68,13 @@ def complex_data_check(
         if value.get('_id'):
             if isinstance(dtype.backend, FileSystem):
                 filename = pathlib.PosixPath(value['_id'])
-                commonpath = os.path.commonpath([
-                    dtype.backend.path.resolve(),
-                    (dtype.backend.path / filename).resolve(),
-                ])
-                if str(commonpath) != str(dtype.backend.path.resolve()):
-                    raise UnacceptableFileName(dtype, file=value['_id'])
+                _validate_path(filename, dtype.backend, dtype)
+
+
+def _validate_path(filename: pathlib.PosixPath(), fs: FileSystem, dtype: File):
+    commonpath = os.path.commonpath([
+        fs.path.resolve(),
+        (fs.path / filename).resolve(),
+    ])
+    if str(commonpath) != str(fs.path.resolve()):
+        raise UnacceptableFileName(dtype, file=filename)

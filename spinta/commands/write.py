@@ -892,46 +892,6 @@ def after_write(  # noqa
         commands.after_write(context, prop.dtype, backend, data=data[key])
 
 
-@commands.before_write.register(Context, File, Backend)
-def before_write(
-    context: Context,
-    dtype: File,
-    backend: Backend,
-    *,
-    data: DataSubItem,
-) -> dict:
-    if data.root.action == Action.DELETE:
-        patch = {
-            '_id': None,
-            '_content_type': None,
-            '_size': None,
-        }
-    else:
-        patch = take(['_id', '_content_type', '_size'], data.patch)
-
-    if BackendFeatures.FILE_BLOCKS in dtype.backend.features:
-        if data.root.action == Action.DELETE:
-            patch.update({
-                '_blocks': [],
-                '_bsize': None,
-            })
-        else:
-            patch.update(take(['_blocks', '_bsize'], data.patch))
-
-    if isinstance(patch.get('_id'), pathlib.Path):
-        # On FileSystem backend '_id' is a Path.
-        # XXX: It would be nice to decouple this bey visiting each file property
-        #      separaterly.
-        patch['_id'] = str(patch['_id'])
-
-    if isinstance(backend, Mongo) and data.root.action == Action.INSERT:
-        return patch
-
-    return {
-        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
-    }
-
-
 @commands.before_write.register(Context, Ref, Backend)
 def before_write(
     context: Context,

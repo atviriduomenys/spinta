@@ -102,7 +102,7 @@ def before_write(
     patch['_created'] = datetime.datetime.now()
     if data.action == Action.INSERT or (data.action == Action.UPSERT and data.saved is NA):
         for k, v in take(data.patch).items():
-            prop = take(k, model.properties)
+            prop = model.properties[k]
             if isinstance(prop.dtype, File):
                 v = commands.before_write(
                     context,
