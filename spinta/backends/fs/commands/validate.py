@@ -43,7 +43,7 @@ def complex_data_check(
     if isinstance(dtype.backend, FileSystem):
         _validate_path(given['_id'], dtype.backend, dtype)
         path = dtype.backend.path / given['_id']
-        if not given.get('_content') and not path.exists():
+        if '_content' not in given and not path.exists():
             raise FileNotFound(prop, file=given['_id'])
 
 

@@ -8,7 +8,7 @@ from spinta.backends.mongo.components import Mongo
 
 
 @commands.before_write.register(Context, File, Mongo)
-def before_write(  # noqa
+def before_write(
     context: Context,
     dtype: File,
     backend: Mongo,
@@ -17,7 +17,7 @@ def before_write(  # noqa
 ):
     content = take('_content', data.patch)
     if isinstance(content, bytes) and isinstance(dtype.backend, FileSystem):
-        filepath = dtype.backend.path / data.given['_id']
+        filepath = dtype.backend.path / take('_id', data.given, data.saved)
         with open(filepath, 'wb') as f:
             f.write(content)
 
