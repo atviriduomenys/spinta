@@ -7,6 +7,7 @@ from spinta.utils.data import take
 from spinta.components import Context, Model, DataStream, DataItem, DataSubItem, Action
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.mongo.components import Mongo
+from spinta.utils.schema import NA
 
 
 @commands.insert.register()
@@ -99,8 +100,7 @@ def before_write(
     patch['_revision'] = take('_revision', data.patch, data.saved)
     patch['_txn'] = context.get('transaction').id
     patch['_created'] = datetime.datetime.now()
-    for k, v in take(data.patch).items():
-        prop = model.properties[k]
+    for prop in take(model.properties).values():
         value = commands.before_write(
             context,
             prop.dtype,
