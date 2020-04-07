@@ -24,7 +24,7 @@ def before_write(
     patch = prepare_patch_data(dtype, data)
 
     if data.root.action == Action.INSERT:
-        return patch
+        return {dtype.prop.place: patch}
 
     return {
         f'{dtype.prop.place}.{k}': v for k, v in patch.items()

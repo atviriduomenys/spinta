@@ -2,10 +2,9 @@ import datetime
 
 
 from spinta import commands
-from spinta.types.datatype import File
-from spinta.utils.schema import NA
+from spinta.types.datatype import DataType
 from spinta.utils.data import take
-from spinta.components import Context, Action, Model, DataStream, DataItem
+from spinta.components import Context, Model, DataStream, DataItem, DataSubItem, Action
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.mongo.components import Mongo
 
@@ -100,27 +99,31 @@ def before_write(
     patch['_revision'] = take('_revision', data.patch, data.saved)
     patch['_txn'] = context.get('transaction').id
     patch['_created'] = datetime.datetime.now()
-    if data.action == Action.INSERT or (data.action == Action.UPSERT and data.saved is NA):
-        for k, v in take(data.patch).items():
-            prop = model.properties[k]
-            if isinstance(prop.dtype, File):
-                v = commands.before_write(
-                    context,
-                    prop.dtype,
-                    backend,
-                    data=data[prop.name],
-                )
-            patch[k] = v
-    else:
-        for prop in take(model.properties).values():
-            value = commands.before_write(
-                context,
-                prop.dtype,
-                backend,
-                data=data[prop.name],
-            )
-            patch.update(value)
+    for k, v in take(data.patch).items():
+        prop = model.properties[k]
+        value = commands.before_write(
+            context,
+            prop.dtype,
+            backend,
+            data=data[prop.name],
+        )
+        patch.update(value)
     return take(all, patch)
+
+
+@commands.before_write.register(Context, DataType, Mongo)
+def before_write(
+    context: Context,
+    dtype: DataType,
+    backend: Mongo,
+    *,
+    data: DataSubItem,
+) -> dict:
+    if data.root.action == Action.INSERT or (data.root.action == Action.UPSERT and data.saved is NA):
+        t = {dtype.prop.place: data.patch}
+    else:
+        t = take(all, {dtype.prop.place: data.patch})
+    return t
 
 
 @commands.after_write.register()
