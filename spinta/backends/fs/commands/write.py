@@ -69,8 +69,6 @@ async def push(
         )
 
     elif action == Action.DELETE:
-        if filepath.exists():
-            filepath.unlink()
         dstream = aiter([data])
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
