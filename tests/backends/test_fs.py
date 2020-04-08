@@ -218,19 +218,22 @@ def test_add_missing_file_as_prop(model, app, tmpdir):
     id_ = resp.json()['_id']
     revision_ = resp.json()['_revision']
 
-    image = pathlib.Path(tmpdir) / 'missing.png'
     resp = app.put(f'/{model}/{id_}/image:ref', json={
         '_revision': revision_,
         '_content_type': 'image/png',
-        '_id': str(image),
+        '_id': 'missing.png',
     })
     assert resp.status_code == 400, resp.text
     assert get_error_codes(resp.json()) == ['FileNotFound']
-    assert get_error_context(resp.json(), 'FileNotFound', ['manifest', 'model', 'property', 'file']) == {
+    assert get_error_context(
+        resp.json(),
+        'FileNotFound',
+        ['manifest', 'model', 'property', 'file']
+    ) == {
         'manifest': 'default',
         'model': model,
         'property': 'image',
-        'file': str(image),
+        'file': 'missing.png',
     }
 
 

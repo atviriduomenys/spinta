@@ -3,6 +3,8 @@ import cgi
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.backends.fs.components import FileSystem
+from spinta.types.file.helpers import prepare_patch_data
 from spinta.utils.aiotools import aiter
 from spinta.utils.data import take
 from spinta.renderer import render
@@ -108,7 +110,7 @@ def before_write(  # noqa
     data: DataSubItem,
 ):
     content = take('_content', data.patch)
-    if isinstance(content, bytes):
+    if isinstance(content, bytes) and isinstance(dtype.backend, PostgreSQL):
         transaction = context.get('transaction')
         connection = transaction.connection
         prop = dtype.prop
@@ -118,10 +120,13 @@ def before_write(  # noqa
             data.patch['_size'] = f.size
             data.patch['_blocks'] = f.blocks
             data.patch['_bsize'] = f.bsize
+    elif isinstance(content, bytes) and isinstance(dtype.backend, FileSystem):
+        filepath = dtype.backend.path / data.given['_id']
+        with open(filepath, 'wb') as f:
+            f.write(content)
 
-    return commands.before_write[type(context), File, Backend](
-        context,
-        dtype,
-        backend,
-        data=data,
-    )
+    patch = prepare_patch_data(dtype, data)
+
+    return {
+        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
+    }

@@ -3,6 +3,7 @@ from typing import AsyncIterator, Union, Optional
 import itertools
 import json
 import pathlib
+import os
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
@@ -15,6 +16,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.auth import check_scope
 from spinta.backends.components import Backend, BackendFeatures
+from spinta.backends.mongo.components import Mongo
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
 from spinta.types.datatype import DataType, Object, Array, File, Ref
@@ -888,43 +890,6 @@ def after_write(  # noqa
     for key in (data.patch or ()):
         prop = dtype.properties[key]
         commands.after_write(context, prop.dtype, backend, data=data[key])
-
-
-@commands.before_write.register(Context, File, Backend)
-def before_write(
-    context: Context,
-    dtype: File,
-    backend: Backend,
-    *,
-    data: DataSubItem,
-) -> dict:
-    if data.root.action == Action.DELETE:
-        patch = {
-            '_id': None,
-            '_content_type': None,
-            '_size': None,
-        }
-    else:
-        patch = take(['_id', '_content_type', '_size'], data.patch)
-
-    if BackendFeatures.FILE_BLOCKS in dtype.backend.features:
-        if data.root.action == Action.DELETE:
-            patch.update({
-                '_blocks': [],
-                '_bsize': None,
-            })
-        else:
-            patch.update(take(['_blocks', '_bsize'], data.patch))
-
-    if isinstance(patch.get('_id'), pathlib.Path):
-        # On FileSystem backend '_id' is a Path.
-        # XXX: It would be nice to decouple this bey visiting each file property
-        #      separaterly.
-        patch['_id'] = str(patch['_id'])
-
-    return {
-        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
-    }
 
 
 @commands.before_write.register(Context, Ref, Backend)

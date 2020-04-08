@@ -411,4 +411,4 @@ class MissingReferrence(UserError):
 
 
 class UnacceptableFileName(UserError):
-    template = "Path is not acceptable in filename"
+    template = "Path is not acceptable in filename {file!r}"
