@@ -34,6 +34,14 @@ def manifest_read_versions():
 
 
 @command()
+def configure():
+    """Configure component before loading.
+
+    This is a very first thing that happens to a component.
+    """
+
+
+@command()
 def load():
     """Load primitive data structures to python-native objects.
 

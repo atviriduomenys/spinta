@@ -1,7 +1,7 @@
 type: model
 name: _schema
 id: 7afa3d96-56e6-4d85-90f0-303d31d39c55
-version: fd89829b-b538-4303-b40a-74f63631031b
+version: b31c6550-0c68-47db-a677-757e0367032d
 properties:
   name:
     type: string
@@ -24,7 +24,7 @@ changes:
       type: model
       name: _schema
       id: 7afa3d96-56e6-4d85-90f0-303d31d39c55
-      version: e30f9358-0dc0-4b47-bb52-4fdaf8294763
+      version: b31c6550-0c68-47db-a677-757e0367032d
       properties:
         name:
           type: string

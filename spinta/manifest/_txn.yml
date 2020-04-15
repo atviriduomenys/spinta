@@ -1,7 +1,7 @@
 type: model
 name: _txn
 id: ccb8a8ef-18da-434a-987c-e97839b4913b
-version: 9130ee8d-7856-4533-bb61-67e20d042130
+version: 4fd652c2-9ab3-4c96-b259-df3719846e8a
 properties:
   datetime:
     type: datetime
@@ -26,7 +26,7 @@ changes:
       type: model
       name: _txn
       id: ccb8a8ef-18da-434a-987c-e97839b4913b
-      version: 21e176c8-f5db-4f07-bde6-beac284dd086
+      version: 4fd652c2-9ab3-4c96-b259-df3719846e8a
       properties:
         datetime:
           type: datetime

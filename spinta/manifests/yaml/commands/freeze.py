@@ -10,7 +10,7 @@ from spinta.manifests.yaml.helpers import add_new_version
 @commands.freeze.register()
 def freeze(context: Context, current: YamlManifest):
     # Load current node, that is not yet freezed.
-    commands.load(context, current)
+    commands.load(context, current, freezed=False)
     commands.link(context, current)
     commands.check(context, current)
 

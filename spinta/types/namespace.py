@@ -165,7 +165,7 @@ def _get_ns_content(
         }
     }
     model = Model()
-    model.path = None
+    model.eid = None
     model.parent = ns.manifest  # XXX: deprecated
     model.manifest = ns.manifest
     load_node(context, model, schema)

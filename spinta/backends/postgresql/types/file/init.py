@@ -11,7 +11,7 @@ from spinta.backends.postgresql.helpers import get_pg_name, get_table_name
 from spinta.backends.postgresql.helpers import get_column_name
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, PostgreSQL, File)
 def prepare(context: Context, backend: PostgreSQL, dtype: File):
     prop = dtype.prop
     model = prop.model

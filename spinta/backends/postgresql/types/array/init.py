@@ -10,7 +10,7 @@ from spinta.backends.postgresql.constants import TableType
 from spinta.backends.postgresql.helpers import get_pg_name, get_table_name
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, PostgreSQL, Array)
 def prepare(context: Context, backend: PostgreSQL, dtype: Array):
     prop = dtype.prop
 

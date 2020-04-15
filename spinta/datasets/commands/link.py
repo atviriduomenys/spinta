@@ -1,22 +1,22 @@
 from spinta import commands
 from spinta.components import Context
-from spinta.datasets.components import Dataset, Resource, Entity
+from spinta.datasets.components import Dataset, Resource, Entity, Attribute
 from spinta.exceptions import MissingReferrence
 
 
-@commands.link.register()
+@commands.link.register(Context, Dataset)
 def link(context: Context, dataset: Dataset):
     for resource in dataset.resources.values():
         commands.link(context, resource)
 
 
-@commands.link.register()
+@commands.link.register(Context, Resource)
 def link(context: Context, resource: Resource):
     if resource.backend:
         resource.backend = resource.dataset.manifest.store.backends[resource.backend]
 
 
-@commands.link.register()
+@commands.link.register(Context, Entity)
 def link(context: Context, entity: Entity):
     datasets = entity.model.manifest.objects['dataset']
     if entity.dataset not in datasets:
@@ -30,3 +30,8 @@ def link(context: Context, entity: Entity):
 
     assert entity.model.name not in entity.resource.models
     entity.resource.models[entity.model.name] = entity.model
+
+
+@commands.link.register(Context, Attribute)
+def link(context: Context, entity: Entity):
+    pass

@@ -13,6 +13,7 @@ from spinta.core.enums import Access
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
+    from spinta.types.datatype import DataType
     from spinta.types.datatype import Array
     from spitna.datasets.enums import Level
     from spinta.manifests.components import Manifest
@@ -430,11 +431,13 @@ class Property(Node):
     hidden: bool = False
     access: Access
     level: Level
+    dtype: DataType = None
     external: Attribute
     list: Array = None
 
     def __repr__(self):
-        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}, type={self.dtype.name!r})>'
+        dtype = self.dtype.name if self.dtype else 'none'
+        return f'<{type(self).__module__}.{type(self).__name__}(name={self.name!r}, type={dtype!r})>'
 
     def model_type(self):
         return f'{self.model.name}.{self.place}'

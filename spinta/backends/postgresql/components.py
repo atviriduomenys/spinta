@@ -105,9 +105,14 @@ class PostgreSQL(Backend):
     def query_nodes(self):
         return []
 
-    def bootstrapped(self, manifest):
-        schema = manifest.objects['model']['_schema']
-        return self.get_table(schema).exists()
+    def bootstrapped(self):
+        meta = sa.MetaData(self.engine)
+        table = sa.Table('_schema', meta)
+        if table.exists():
+            with self.engine.begin() as conn:
+                query = sa.select([sa.func.count()]).select_from(table)
+                return conn.execute(query).scalar() > 0
+        return False
 
 
 class ReadTransaction:

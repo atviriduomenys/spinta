@@ -142,6 +142,10 @@ def migrate(ctx):
 
     store = context.get('store')
     commands.load(context, store)
+    commands.load(context, store.manifest)
+    commands.link(context, store.manifest)
+    commands.check(context, store.manifest)
+    commands.prepare(context, store.manifest)
 
     with context:
         _require_auth(context)
@@ -279,10 +283,10 @@ def push(ctx, target, dataset, credentials, client):
 
     store = context.get('store')
     commands.load(context, store)
-    commands.link(context, store)
-    commands.check(context, store)
-
-    commands.prepare(context, store)
+    commands.load(context, store.manifest)
+    commands.link(context, store.manifest)
+    commands.check(context, store.manifest)
+    commands.prepare(context, store.manifest)
 
     manifest = store.manifest
     if dataset and dataset not in manifest.objects['dataset']:

@@ -7,6 +7,8 @@ from spinta.components import Context
 from spinta.manifests.backend.components import BackendManifest
 from spinta.manifests.backend.helpers import list_schemas
 from spinta.manifests.backend.helpers import read_schema
+from spinta.manifests.backend.helpers import get_last_version_eid
+from spinta.manifests.backend.helpers import get_version_schema
 
 
 @commands.manifest_list_schemas.register(Context, BackendManifest)
@@ -22,7 +24,7 @@ def manifest_read_current(
     context: Context,
     manifest: BackendManifest,
     *,
-    eid: pathlib.Path,
+    eid: str,
 ) -> dict:
     return read_schema(context, manifest, eid)
 
@@ -32,9 +34,10 @@ def manifest_read_freezed(
     context: Context,
     manifest: BackendManifest,
     *,
-    eid: pathlib.Path,
+    eid: str,
 ) -> dict:
-    raise NotImplementedError
+    version_eid = get_last_version_eid(context, manifest, eid)
+    return get_version_schema(context, manifest, version_eid)
 
 
 @commands.manifest_read_versions.register(Context, BackendManifest)

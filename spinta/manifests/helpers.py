@@ -1,9 +1,6 @@
 from typing import List, Iterable
 
-import pathlib
-
 import jsonpatch
-import pkg_resources as pres
 
 from spinta import commands
 from spinta.nodes import get_node
@@ -34,7 +31,6 @@ def create_internal_manifest(context: Context, store: Store) -> InternalManifest
     config = context.get('config')
     manifest = InternalManifest()
     manifest.type = 'yaml'
-    manifest.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
     _configure_manifest(context, rc, config, store, manifest, 'internal')
     return manifest
 
@@ -63,6 +59,7 @@ def _configure_manifest(
         manifest.sync.append(
             create_manifest(context, store, source, seen + [source])
         )
+    commands.configure(context, manifest)
 
 
 def load_manifest_nodes(

@@ -30,7 +30,7 @@ def prepare_data_for_response(
     )
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, DateTime, PostgreSQL, datetime.datetime)
 def prepare(
     context: Context,
     dtype: DateTime,
@@ -45,7 +45,7 @@ def prepare(
         return value.isoformat()
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, Date, PostgreSQL, datetime.date)
 def prepare(context: Context, dtype: Date, backend: PostgreSQL, value: datetime.date) -> object:
     # convert date object to isoformat string if it belongs
     # to a nested property

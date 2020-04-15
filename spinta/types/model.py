@@ -190,7 +190,7 @@ def get_referenced_model(context: Context, prop: Property, ref: str) -> Node:
 @commands.get_error_context.register(Model)
 def get_error_context(model: Model, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(model.manifest, prefix=f'{prefix}.manifest')
-    context['schema'] = f'{prefix}.path.__str__()'
+    context['schema'] = f'{prefix}.eid.__str__()'
     context['model'] = f'{prefix}.name'
     context['dataset'] = f'{prefix}.external.dataset.name'
     context['resource'] = f'{prefix}.external.resource.name'

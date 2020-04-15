@@ -217,12 +217,16 @@ class JSON(DataType):
 
 @load.register(Context, DataType, dict, Manifest)
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
+    _set_backend(dtype)
+    _add_leaf_props(dtype.prop)
+    return dtype
+
+
+def _set_backend(dtype: DataType):
     if dtype.backend:
         dtype.backend = dtype.prop.model.manifest.store.backends[dtype.backend]
     else:
         dtype.backend = dtype.prop.model.backend
-    _add_leaf_props(dtype.prop)
-    return dtype
 
 
 @commands.link.register(Context, DataType)
@@ -235,6 +239,7 @@ def load(context: Context, dtype: PrimaryKey, data: dict, manifest: Manifest) ->
     dtype.unique = True
     if dtype.prop.name != '_id':
         raise exceptions.InvalidManagedPropertyName(dtype, name='_id')
+    _set_backend(dtype)
     _add_leaf_props(dtype.prop)
     return dtype
 
@@ -247,6 +252,7 @@ def _add_leaf_props(prop: Property) -> None:
 
 @load.register(Context, Object, dict, Manifest)
 def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
+    _set_backend(dtype)
     props = {}
     for name, params in (dtype.properties or {}).items():
         place = dtype.prop.place + '.' + name
@@ -265,6 +271,7 @@ def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> Dat
 
 @load.register(Context, Array, dict, Manifest)
 def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> DataType:
+    _set_backend(dtype)
     if dtype.items:
         assert isinstance(dtype.items, dict), type(dtype.items)
         prop = dtype.prop.__class__()

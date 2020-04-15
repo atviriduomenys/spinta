@@ -4,12 +4,12 @@ from spinta.manifests.backend.components import BackendManifest
 from spinta.manifests.backend.helpers import run_bootstrap
 
 
-@commands.bootstrap.register()
+@commands.bootstrap.register(Context, BackendManifest)
 async def bootstrap(context: Context, manifest: BackendManifest):
     store = manifest.store
     backend = manifest.backend
 
     commands.load(context, store.internal, into=store.manifest, freezed=True)
 
-    if not backend.bootstrapped(manifest):
+    if not backend.bootstrapped():
         await run_bootstrap(context, manifest)

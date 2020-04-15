@@ -26,7 +26,7 @@ def show(c: Manifest):
         }
 
 
-def test_manifest_loading(postgresql, rc, cli, tmpdir):
+def test_manifest_loading(postgresql, rc, cli, tmpdir, request):
     rc = rc.fork().add('test', {
         'manifest': 'default',
         'manifests.default': {
@@ -59,29 +59,33 @@ def test_manifest_loading(postgresql, rc, cli, tmpdir):
 
     store = context.get('store')
     commands.load(context, store)
-    commands.load(context, store.internal, into=store.manifest)
-    with context:
-        context.attach('transaction', store.manifest.backend.transaction)
-        commands.load(context, store.manifest)
+    commands.load(context, store.manifest)
     commands.link(context, store.manifest)
+    commands.prepare(context, store.manifest)
+
+    request.addfinalizer(context.wipe_all)
 
     assert show(store.manifest) == {
-        'type': 'internal',
+        'type': 'backend',
         'nodes': {
             'ns': {
                 '': None,
                 '_schema': None,
+                '_schema/version': None,
                 '_txn': None,
-                '_version': None,
+                'country': None,
             },
             'model': {
                 '_schema': {
                     'backend': 'default',
                 },
+                '_schema/version': {
+                    'backend': 'default',
+                },
                 '_txn': {
                     'backend': 'default',
                 },
-                '_version': {
+                'country': {
                     'backend': 'default',
                 },
             },

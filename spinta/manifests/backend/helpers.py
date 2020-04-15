@@ -1,5 +1,6 @@
 from typing import AsyncIterator, Iterator, Tuple, Iterable
 
+import collections
 import datetime
 
 from toposort import toposort
@@ -8,6 +9,7 @@ from spinta import commands
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.aiotools import aiter
 from spinta.utils.aiotools import adrain
+from spinta.utils.itertools import last
 from spinta.commands.write import push_stream
 from spinta.components import Context, DataItem, Action
 from spinta.manifests.components import Manifest
@@ -15,13 +17,6 @@ from spinta.manifests.backend.components import BackendManifest
 
 
 async def run_bootstrap(context: Context, manifest: BackendManifest):
-    # Load manifest from sync sources
-    for source in manifest.sync:
-        commands.load(context, source, into=manifest, freezed=True)
-    commands.link(context, manifest)
-    commands.check(context, manifest)
-    commands.prepare(context, manifest)
-
     # Bootstrap all backends
     for backend in manifest.store.backends.values():
         commands.bootstrap(context, backend)
@@ -31,11 +26,9 @@ async def run_bootstrap(context: Context, manifest: BackendManifest):
     stream = versions_to_dstream(manifest, stream, applied=True)
     await adrain(push_stream(context, stream))
 
-    # Update current schemas
-    for nodes in manifest.objects.values():
-        for node in nodes.values():
-            schema = commands.manifest_read_freezed(context, manifest, node.eid)
-            update_schema_version(context, schema)
+    # Update schemas to last version
+    for schema in read_lastest_version_schemas(context, manifest):
+        await update_schema_version(context, manifest, schema)
 
 
 async def run_migrations(context: Context, manifest: BackendManifest):
@@ -47,7 +40,7 @@ async def run_migrations(context: Context, manifest: BackendManifest):
     # Apply unapplied versions
     for version in read_unapplied_versions():
         apply_version(version)
-        update_schema_version(context, version['schema'])
+        await update_schema_version(context, manifest, version['schema'])
 
 
 def read_unapplied_versions():
@@ -59,9 +52,10 @@ def apply_version():
 
 
 def read_sync_versions(context: Context, manifest: Manifest):
-    for source in manifest.sync:
+    sources = [manifest.store.internal] + manifest.sync
+    for source in sources:
         for eid in commands.manifest_list_schemas(context, source):
-            for version in commands.manifest_read_versions(context, source, eid):
+            for version in commands.manifest_read_versions(context, source, eid=eid):
                 yield version
 
 
@@ -72,34 +66,26 @@ async def versions_to_dstream(
     applied: bool = False,
 ) -> AsyncIterator[DataItem]:
     now = datetime.datetime.now(datetime.timezone.utc)
-    model = manifest.objects['model']['_version']
+    model = manifest.objects['model']['_schema/version']
     for version in versions:
         payload = {
             '_op': 'upsert',
             '_where': '_id="%s"' % version['id'],
             '_id': version['id'],
+            'type': version['schema']['type'],
+            'name': version['schema']['name'],
+            'id': version['schema']['id'],
             'created': version['date'],
             'synced': now,
+            'applied': None,
             'parents': version['parents'],
-            'changes': fix_data_for_json(version['changes']),
-            'migrate': version['migrate'],
-            'schema_type': version['schema']['type'],
-            'schema_name': version['schema']['name'],
-            'schema_id': version['schema']['id'],
             'schema': fix_data_for_json(version['schema']),
+            'migrate': version['migrate'],
+            'changes': fix_data_for_json(version['changes']),
         }
         if applied:
             payload['applied'] = now
         yield DataItem(model, action=Action.UPSERT, payload=payload)
-
-
-def read_manifest_schemas(context: Context, manifest: BackendManifest):
-    model = manifest.objects['model']['_schema']
-    query = {
-        'select': ['schema'],
-    }
-    for row in commands.getall(context, model, model.backend, **query):
-        yield row['_id'], row['schema']
 
 
 def list_schemas(context: Context, manifest: BackendManifest):
@@ -117,25 +103,21 @@ def read_schema(context: Context, manifest: BackendManifest, eid: str):
     return row['schema']
 
 
-def list_sorted_versions(
+def list_sorted_unapplied_versions(
     context: Context,
     manifest: Manifest,
-    *,
-    applied: bool = False,
 ) -> Iterator[Tuple[str, str]]:
-    model = manifest.objects['model']['_version']
+    model = manifest.objects['model']['_schema/version']
     query = {
-        'select': ['schema_id', '_id', 'parents'],
-        'query': [],
+        'select': ['id', '_id', 'parents'],
+        'query': [
+            {'name': 'eq', 'args': ['applied', None]}
+        ],
     }
-    if applied:
-        query['query'].append({'name': 'eq', 'args': ['applied', None]})
-    else:
-        query['query'].append({'name': 'ne', 'args': ['applied', None]})
     schemas = {}
     versions = {}
     for row in commands.getall(context, model, model.backend, **query):
-        schemas[row['_id']] = row['schema_id']
+        schemas[row['_id']] = row['id']
         versions[row['_id']] = row['parents']
 
     for group in toposort(versions):
@@ -143,16 +125,68 @@ def list_sorted_versions(
             yield schemas[vid], vid
 
 
-def update_schema_version(context: Context, manifest: Manifest, sid: str, vid: str):
-    model = manifest.objects['model']['_version']
-    version = commands.getone(context, model, model.backend, id_=vid)
+def read_lastest_version_schemas(
+    context: Context,
+    manifest: Manifest,
+) -> Iterator[Tuple[str, str]]:
+    model = manifest.objects['model']['_schema/version']
+    query = {
+        'select': ['id', '_id', 'parents'],
+        'query': [
+            {'name': 'ne', 'args': ['applied', None]}
+        ],
+    }
+    schemas = collections.defaultdict(dict)
+    for row in commands.getall(context, model, model.backend, **query):
+        schemas[row['id']][row['_id']] = set(row['parents'])
+
+    for schema_id, versions in schemas.items():
+        last_version = last(toposort(versions))
+        assert len(last_version) == 1, last_version
+        last_version = next(iter(last_version))
+        yield get_version_schema(context, manifest, last_version)
+
+
+def get_last_version_eid(
+    context: Context,
+    manifest: Manifest,
+    schema_eid: str,
+) -> Iterator[Tuple[str, str]]:
+    model = manifest.objects['model']['_schema/version']
+    query = {
+        'select': ['_id', 'parents'],
+        'query': [
+            {'name': 'eq', 'args': ['id', schema_eid]},
+            {'name': 'ne', 'args': ['applied', None]},
+        ],
+    }
+    versions = {}
+    for row in commands.getall(context, model, model.backend, **query):
+        versions[row['_id']] = row['parents']
+    last_version = last(toposort(versions))
+    assert len(last_version) == 1, last_version
+    return last_version[0]
+
+
+def get_version_schema(
+    context: Context,
+    manifest: Manifest,
+    version_eid: str,
+) -> Iterator[Tuple[str, str]]:
+    model = manifest.objects['model']['_schema/version']
+    version = commands.getone(context, model, model.backend, id_=version_eid)
+    return version['schema']
+
+
+async def update_schema_version(context: Context, manifest: Manifest, schema: dict):
+    model = manifest.objects['model']['_schema']
     data = DataItem(model, action=Action.UPSERT, payload={
         '_op': 'upsert',
-        '_where': '_id="%s"' % sid,
-        '_id': version['schema_id'],
-        'type': version['schema_type'],
-        'name': version['schema_name'],
-        'version': {'_id': version['_id']},
-        'schema': fix_data_for_json(version['schema']),
+        '_where': '_id="%s"' % schema['id'],
+        '_id': schema['id'],
+        'type': schema['type'],
+        'name': schema['name'],
+        'version': schema['version'],
+        'schema': fix_data_for_json(schema),
     })
-    adrain(push_stream(context, aiter([data])))
+    await adrain(push_stream(context, aiter([data])))

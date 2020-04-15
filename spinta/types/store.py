@@ -5,7 +5,6 @@ import time
 import types
 
 from spinta import commands
-from spinta.core.config import RawConfig
 from spinta.components import Context, Store
 from spinta.urlparams import get_model_by_name
 from spinta.manifests.helpers import create_manifest

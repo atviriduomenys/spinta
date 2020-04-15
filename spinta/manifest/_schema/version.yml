@@ -1,28 +1,28 @@
 type: model
 name: _schema/version
 id: 516ad993-c2da-460b-a631-45d2b59c6e2b
-version: 44ac9419-1e55-44b4-a3b2-ae86900ad097
+version: 65588519-f8cc-4c24-9da8-8377823804b9
 properties:
-  applied:
-    type: datetime
-  changes:
-    type: json
+  type:
+    type: string
+  name:
+    type: string
+  id:
+    type: string
   created:
     type: datetime
-  migrate:
-    type: json
+  synced:
+    type: datetime
+  applied:
+    type: datetime
   parents:
     type: json
   schema:
     type: json
-  schema_id:
-    type: string
-  schema_name:
-    type: string
-  schema_type:
-    type: string
-  synced:
-    type: datetime
+  changes:
+    type: json
+  migrate:
+    type: json
 ---
 id: 65588519-f8cc-4c24-9da8-8377823804b9
 date: 2020-04-07 08:23:18.936275
@@ -34,28 +34,28 @@ changes:
       type: model
       name: _schema/version
       id: 516ad993-c2da-460b-a631-45d2b59c6e2b
-      version: a9d8a582-1661-458b-bc8f-fb12fbe5394a
+      version: 65588519-f8cc-4c24-9da8-8377823804b9
       properties:
-        applied:
-          type: datetime
-        changes:
-          type: json
+        type:
+          type: string
+        name:
+          type: string
+        id:
+          type: string
         created:
           type: datetime
-        migrate:
-          type: json
+        synced:
+          type: datetime
+        applied:
+          type: datetime
         parents:
           type: json
         schema:
           type: json
-        schema_id:
-          type: string
-        schema_name:
-          type: string
-        schema_type:
-          type: string
-        synced:
-          type: datetime
+        migrate:
+          type: json
+        changes:
+          type: json
 migrate:
   - type: schema
     upgrade: |-
@@ -63,15 +63,15 @@ migrate:
           '_schema/version',
           column('_id', pk()),
           column('_revision', string()),
-          column('applied', datetime()),
-          column('changes', json()),
+          column('type', string()),
+          column('name', string()),
+          column('id', string()),
           column('created', datetime()),
-          column('migrate', json()),
+          column('synced', datetime()),
+          column('applied', datetime()),
           column('parents', json()),
           column('schema', json()),
-          column('schema_id', string()),
-          column('schema_name', string()),
-          column('schema_type', string()),
-          column('synced', datetime())
+          column('migrate', json()),
+          column('changes', json()),
       )
     downgrade: drop_table('_schema/version')
