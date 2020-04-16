@@ -12,8 +12,7 @@ def link(context: Context, dataset: Dataset):
 
 @commands.link.register(Context, Resource)
 def link(context: Context, resource: Resource):
-    if resource.backend:
-        resource.backend = resource.dataset.manifest.store.backends[resource.backend]
+    pass
 
 
 @commands.link.register(Context, Entity)
