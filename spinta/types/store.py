@@ -51,7 +51,7 @@ def wait(context: Context, store: Store, *, seconds: int = None):
     # Wait while all backends are up.
     for backend in store.backends.values():
         for i in range(1, seconds + 1):
-            if wait(context, backend, rc):
+            if wait(context, backend):
                 break
             time.sleep(1)
             print(f"Waiting for {backend.name!r} backend {i}...")

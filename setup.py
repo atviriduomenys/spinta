@@ -21,6 +21,7 @@ setup(
     package_data={'spinta': [
         'config.yml',
         'manifest/*.yml',
+        'manifest/*/*.yml',
         'templates/*.html',
     ]},
     install_requires=read_requirements('requirements.in'),
