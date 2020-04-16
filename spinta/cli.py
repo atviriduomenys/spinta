@@ -106,9 +106,11 @@ def bootstrap(ctx):
 
     store = context.get('store')
     commands.load(context, store)
-    asyncio.run(
-        commands.bootstrap(context, store.manifest)
-    )
+    commands.load(context, store.manifest)
+    commands.link(context, store.manifest)
+    commands.check(context, store.manifest)
+    commands.prepare(context, store.manifest)
+    commands.bootstrap(context, store.manifest)
 
 
 @main.command()

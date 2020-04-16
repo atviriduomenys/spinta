@@ -2,12 +2,12 @@ import datetime
 
 
 from spinta import commands
-from spinta.types.datatype import DataType
 from spinta.utils.data import take
-from spinta.components import Context, Model, DataStream, DataItem, DataSubItem, Action
+from spinta.components import Context, Model, DataStream, DataItem, DataSubItem
 from spinta.exceptions import ItemDoesNotExist
+from spinta.types.datatype import DataType, Ref
 from spinta.backends.mongo.components import Mongo
-from spinta.utils.schema import NA
+from spinta.backends.mongo.helpers import inserting
 
 
 @commands.insert.register()
@@ -120,11 +120,25 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    if data.root.action == Action.INSERT or (data.root.action == Action.UPSERT and data.saved is NA):
-        t = {dtype.prop.place: data.patch}
+    if inserting(data):
+        return {dtype.prop.name: data.patch}
     else:
-        t = take(all, {dtype.prop.place: data.patch})
-    return t
+        return {dtype.prop.place: data.patch}
+
+
+@commands.before_write.register(Context, Ref, Mongo)
+def before_write(
+    context: Context,
+    dtype: Ref,
+    backend: Mongo,
+    *,
+    data: DataSubItem,
+) -> dict:
+    patch = take(['_id'], data.patch)
+    if inserting(data):
+        return {dtype.prop.name: patch}
+    else:
+        return {dtype.prop.place: patch}
 
 
 @commands.after_write.register(Context, Model, Mongo)

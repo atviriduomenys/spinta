@@ -58,13 +58,12 @@ def get_node(
                 raise exceptions.MissingRequiredProperty(manifest, schema=data['path'], prop='name')
 
             if data['name'] in manifest.objects[ctype]:
+                name = data['name']
+                other = manifest.objects[ctype][name].eid
                 raise exceptions.InvalidManifestFile(
                     manifest=manifest.name,
                     eid=eid,
-                    error=(
-                        f"Node {data['type']} with name {data['name']} already defined "
-                        f"in {manifest.objects[data['type']][data['name']].eid}."
-                    ),
+                    error=f"{ctype!r} with name {name!r} already defined in {other}.",
                 )
 
     Node = config.components[group][ctype]

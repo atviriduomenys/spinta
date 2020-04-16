@@ -1,3 +1,5 @@
+import asyncio
+
 from spinta import commands
 from spinta.components import Context
 from spinta.manifests.backend.components import BackendManifest
@@ -5,11 +7,8 @@ from spinta.manifests.backend.helpers import run_bootstrap
 
 
 @commands.bootstrap.register(Context, BackendManifest)
-async def bootstrap(context: Context, manifest: BackendManifest):
-    store = manifest.store
+def bootstrap(context: Context, manifest: BackendManifest):
     backend = manifest.backend
-
-    commands.load(context, store.internal, into=store.manifest, freezed=True)
-
     if not backend.bootstrapped():
-        await run_bootstrap(context, manifest)
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(run_bootstrap(context, manifest))
