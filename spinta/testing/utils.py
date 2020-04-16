@@ -46,6 +46,31 @@ def read_manifest_files(tmpdir):
     return manifests
 
 
+def readable_manifest_files(manifest):
+    vnum = {}
+    for filename, versions in manifest.items():
+        manifest[filename] = [versions[0]]
+        version = versions[0]
+        name = version['name']
+        if 'version' in version:
+            del version['version']['date']
+        for i, version in enumerate(versions[-1:], len(versions) - 1):
+            del version['version']['date']
+            del version['changes']
+            for action in version['migrate']:
+                action['upgrade'] = action['upgrade'].splitlines()
+                action['downgrade'] = action['downgrade'].splitlines()
+            vnum[version['version']['id']] = f'{name}#{i}'
+            manifest[filename] += [version]
+
+    for filename, versions in manifest.items():
+        for version in versions:
+            if 'version' in version:
+                version['version']['id'] = vnum[version['version']['id']]
+
+    return manifest
+
+
 def errors(resp, *keys):
     data = resp.json()
     assert 'errors' in data, data
