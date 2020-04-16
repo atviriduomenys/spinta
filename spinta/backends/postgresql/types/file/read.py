@@ -15,7 +15,7 @@ from spinta.backends.postgresql.constants import TableType
 from spinta.backends.postgresql.helpers import flat_dicts_to_nested
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Request, Property, File, PostgreSQL)
 async def getone(
     context: Context,
     request: Request,
@@ -76,7 +76,7 @@ async def getone(
         )
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Property, File, PostgreSQL)
 def getone(
     context: Context,
     prop: Property,

@@ -4,7 +4,7 @@ from spinta import commands
 from spinta.components import Context, Node, Action, UrlParams
 
 
-@commands.getall.register()
+@commands.getall.register(Context, Request, Node)
 async def getall(
     context: Context,
     request: Request,
@@ -16,7 +16,7 @@ async def getall(
     return await commands.getall(context, request, node, node.backend, action=action, params=params)
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Request, Node)
 async def getone(
     context: Context,
     request: Request,

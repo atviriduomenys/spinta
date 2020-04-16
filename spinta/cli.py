@@ -44,15 +44,16 @@ def main(ctx, option):
 def check(ctx):
     context = ctx.obj
 
-    rc = context.get('rc')
     config = context.get('config')
-    commands.load(context, config, rc)
+    commands.load(context, config)
     commands.check(context, config)
 
     store = context.get('store')
-    commands.load(context, store, config)
-    commands.link(context, store)
-    commands.check(context, store)
+    commands.load(context, store)
+    commands.load(context, store.internal, into=store.manifest)
+    commands.load(context, store.manifest)
+    commands.link(context, store.manifest)
+    commands.check(context, store.manifest)
 
     click.echo("OK")
 
@@ -62,19 +63,17 @@ def check(ctx):
 def freeze(ctx):
     context = ctx.obj
 
-    rc = context.get('rc')
     config = context.get('config')
-    commands.load(context, config, rc)
+    commands.load(context, config)
     commands.check(context, config)
 
+    # Load just store, manifests will be loaded by freeze command.
     store = context.get('store')
-    commands.load(context, store, config)
-    commands.link(context, store)
-    commands.check(context, store)
+    commands.load(context, store)
 
     with context:
         _require_auth(context)
-        commands.freeze(context, store)
+        commands.freeze(context, store.manifest)
 
     click.echo("Done.")
 
@@ -85,17 +84,13 @@ def freeze(ctx):
 def wait(ctx, seconds):
     context = ctx.obj
 
-    rc = context.get('rc')
     config = context.get('config')
-    commands.load(context, config, rc)
+    commands.load(context, config)
     commands.check(context, config)
 
     store = context.get('store')
-    commands.load(context, store, config)
-    commands.link(context, store)
-    commands.check(context, store)
-
-    commands.wait(context, store, rc, seconds=seconds)
+    commands.load(context, store)
+    commands.wait(context, store, seconds=seconds)
 
     click.echo("All backends ar up.")
 
@@ -105,23 +100,15 @@ def wait(ctx, seconds):
 def bootstrap(ctx):
     context = ctx.obj
 
-    rc = context.get('rc')
     config = context.get('config')
-    commands.load(context, config, rc)
+    commands.load(context, config)
     commands.check(context, config)
 
     store = context.get('store')
-    commands.load(context, store, config)
-    commands.link(context, store)
-    commands.check(context, store)
-
-    commands.prepare(context, store)
-
-    with context:
-        _require_auth(context)
-        backend = store.manifest.backend
-        context.attach('transaction', backend.transaction, write=True)
-        commands.bootstrap(context, store)
+    commands.load(context, store)
+    asyncio.run(
+        commands.bootstrap(context, store.manifest)
+    )
 
 
 @main.command()
@@ -129,19 +116,17 @@ def bootstrap(ctx):
 def sync(ctx):
     context = ctx.obj
 
-    rc = context.get('rc')
     config = context.get('config')
-    commands.load(context, config, rc)
+    commands.load(context, config)
     commands.check(context, config)
 
     store = context.get('store')
-    commands.load(context, store, config)
-    commands.link(context, store)
-    commands.check(context, store)
-
+    commands.load(context, store)
+    commands.load(context, store.internal, into=store.manifest)
     with context:
         _require_auth(context)
-        commands.sync(context, store)
+        coro = commands.sync(context, store.manifest)
+        asyncio.run(coro)
 
     click.echo("Done.")
 
@@ -151,25 +136,17 @@ def sync(ctx):
 def migrate(ctx):
     context = ctx.obj
 
-    rc = context.get('rc')
     config = context.get('config')
-    commands.load(context, config, rc)
+    commands.load(context, config)
     commands.check(context, config)
 
     store = context.get('store')
-    commands.load(context, store, config)
-    commands.link(context, store)
-    commands.check(context, store)
-
-    commands.prepare(context, store)
+    commands.load(context, store)
 
     with context:
         _require_auth(context)
-        backend = store.manifest.backend
-        context.attach('transaction', backend.transaction, write=True)
-        commands.bootstrap(context, store)
-        commands.sync(context, store)
-        commands.migrate(context, store)
+        coro = commands.migrate(context, store.manifest)
+        asyncio.run(coro)
 
 
 @main.command(help='Pull data from an external dataset.')
@@ -181,13 +158,12 @@ def migrate(ctx):
 def pull(ctx, dataset, model, push, export):
     context = ctx.obj
 
-    rc = context.get('rc')
     config = context.get('config')
-    commands.load(context, config, rc)
+    commands.load(context, config)
     commands.check(context, config)
 
     store = context.get('store')
-    commands.load(context, store, config)
+    commands.load(context, store)
     commands.link(context, store)
     commands.check(context, store)
 
@@ -297,13 +273,12 @@ async def _process_stream(
 def push(ctx, target, dataset, credentials, client):
     context = ctx.obj
 
-    rc = context.get('rc')
     config = context.get('config')
-    commands.load(context, config, rc)
+    commands.load(context, config)
     commands.check(context, config)
 
     store = context.get('store')
-    commands.load(context, store, config)
+    commands.load(context, store)
     commands.link(context, store)
     commands.check(context, store)
 
@@ -381,13 +356,12 @@ def run(ctx):
 
     context = ctx.obj
 
-    rc = context.get('rc')
     config = context.get('config')
-    commands.load(context, config, rc)
+    commands.load(context, config)
     commands.check(context, config)
 
     store = context.get('store')
-    commands.load(context, store, config)
+    commands.load(context, store)
     commands.link(context, store)
     commands.check(context, store)
 
@@ -427,9 +401,8 @@ def genkeys(ctx, path):
         if path is None:
             context = ctx.obj
 
-            rc = context.get('rc')
             config = context.get('config')
-            commands.load(context, config, rc)
+            commands.load(context, config)
 
             path = config.config_path / 'keys'
             path.mkdir(exist_ok=True)
@@ -481,9 +454,8 @@ def client_add(ctx, name, secret, add_secret, path):
         if path is None:
             context = ctx.obj
 
-            rc = context.get('rc')
             config = context.get('config')
-            commands.load(context, config, rc)
+            commands.load(context, config)
 
             path = config.config_path / 'clients'
             path.mkdir(exist_ok=True)

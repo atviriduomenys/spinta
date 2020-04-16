@@ -35,7 +35,7 @@ CONFIG = {
             'python': 'spinta.accesslog.python:PythonAccessLog',
         },
         'manifests': {
-            'internal': 'spinta.manifests.internal.components:InternalManifest',
+            'backend': 'spinta.manifests.backend.components:BackendManifest',
             'yaml': 'spinta.manifests.yaml.components:YamlManifest',
         },
         'backends': {
@@ -114,7 +114,7 @@ CONFIG = {
     },
     'manifests': {
         'default': {
-            'type': 'internal',
+            'type': 'backend',
             'backend': 'default',
             'sync': 'yaml',
         },

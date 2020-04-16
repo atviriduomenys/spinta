@@ -13,7 +13,7 @@ from spinta.cli import freeze
 def rc(rc, tmpdir):
     return rc.fork().add('test', {
         'manifests.default': {
-            'type': 'internal',
+            'type': 'backend',
             'backend': 'default',
             'sync': 'yaml',
         },
@@ -42,16 +42,15 @@ def test_create_model(rc, cli):
             {
                 'type': 'model',
                 'name': 'country',
-                'version': {'id': 'country#1'},
+                'id': 'country:0',
+                'version': 'country:1',
                 'properties': {
                     'name': {'type': 'string'},
                 },
             },
             {
-                'version': {
-                    'id': 'country#1',
-                    'parents': [],
-                },
+                'id': 'country:1',
+                'parents': [],
                 'migrate': [
                     {
                         'type': 'schema',
@@ -86,7 +85,7 @@ def test_add_column(rc, cli):
         },
     })
 
-    assert cli.invoke(rc, freeze).exit_code == 0
+    cli.invoke(rc, freeze)
 
     update_manifest_files(tmpdir, {
         'country.yml': [
@@ -96,7 +95,7 @@ def test_add_column(rc, cli):
         ],
     })
 
-    assert cli.invoke(rc, freeze).exit_code == 0
+    cli.invoke(rc, freeze)
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest) == {
@@ -104,17 +103,16 @@ def test_add_column(rc, cli):
             {
                 'type': 'model',
                 'name': 'country',
-                'version': {'id': 'country#2'},
+                'id': 'country:0',
+                'version': 'country:2',
                 'properties': {
                     'name': {'type': 'string'},
                     'code': {'type': 'string'},
                 },
             },
             {
-                'version': {
-                    'id': 'country#2',
-                    'parents': [],
-                },
+                'id': 'country:2',
+                'parents': [],
                 'migrate': [
                     {
                         'type': 'schema',
@@ -123,6 +121,58 @@ def test_add_column(rc, cli):
                         ],
                         'downgrade': [
                             "drop_column('country', 'code')",
+                        ],
+                    },
+                ],
+            },
+        ],
+    }
+
+
+def test_freeze_no_changes(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'name': {'type': 'string'},
+            },
+        },
+    })
+
+    cli.invoke(rc, freeze)
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest) == {
+        'country.yml': [
+            {
+                'type': 'model',
+                'name': 'country',
+                'id': 'country:0',
+                'version': 'country:1',
+                'properties': {
+                    'name': {'type': 'string'},
+                },
+            },
+            {
+                'id': 'country:1',
+                'parents': [],
+                'migrate': [
+                    {
+                        'type': 'schema',
+                        'upgrade': [
+                            "create_table(",
+                            "    'country',",
+                            "    column('_id', pk()),",
+                            "    column('_revision', string()),",
+                            "    column('name', string())",
+                            ")"
+                        ],
+                        'downgrade': [
+                            "drop_table('country')",
                         ],
                     },
                 ],

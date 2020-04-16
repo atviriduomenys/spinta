@@ -19,7 +19,7 @@ from spinta.backends import log_getall, log_getone
 from spinta.backends.mongo.components import Mongo
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Request, Model, Mongo)
 async def getone(
     context: Context,
     request: Request,
@@ -44,7 +44,7 @@ async def getone(
     return render(context, request, model, params, data, action=action)
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Model, Mongo)
 def getone(
     context: Context,
     model: Model,
@@ -61,7 +61,7 @@ def getone(
     return commands.cast_backend_to_python(context, model, backend, data)
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Request, Property, DataType, Mongo)
 async def getone(
     context: Context,
     request: Request,
@@ -75,7 +75,7 @@ async def getone(
     raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Request, Property, (Object, File), Mongo)
 async def getone(
     context: Context,
     request: Request,
@@ -93,7 +93,7 @@ async def getone(
     return render(context, request, prop, params, data, action=action)
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Property, Object, Mongo)
 def getone(
     context: Context,
     prop: Property,
@@ -119,7 +119,7 @@ def getone(
     return commands.cast_backend_to_python(context, prop, backend, result)
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Property, File, Mongo)
 def getone(
     context: Context,
     prop: Property,
@@ -148,7 +148,7 @@ def getone(
     return commands.cast_backend_to_python(context, prop, backend, result)
 
 
-@commands.getall.register()
+@commands.getall.register(Context, Request, Model, Mongo)
 async def getall(
     context: Context,
     request: Request,
@@ -185,7 +185,7 @@ async def getall(
     return render(context, request, model, params, data, action=action)
 
 
-@commands.getall.register()  # noqa
+@commands.getall.register(Context, Model, Mongo)
 def getall(
     context: Context,
     model: Model,

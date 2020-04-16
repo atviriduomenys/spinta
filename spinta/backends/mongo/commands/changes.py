@@ -26,7 +26,7 @@ async def create_changelog_entry(
             '_revision': data.patch['_revision'] if data.patch else data.saved['_revision'],
             '_op': data.action.value,
             '_transaction': transaction.id,
-            '_created': datetime.datetime.now(),
+            '_created': datetime.datetime.now(datetime.timezone.utc),
             **fix_data_for_json({
                 k: v for k, v in data.patch.items() if not k.startswith('_')
             }),

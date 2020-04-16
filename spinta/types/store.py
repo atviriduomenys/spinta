@@ -5,40 +5,36 @@ import time
 import types
 
 from spinta import commands
-from spinta.commands import load, wait, prepare, migrate, check, push
-from spinta.components import Context, Store, Config
-from spinta.urlparams import get_model_by_name
-from spinta.nodes import get_node
-from spinta.manifests.helpers import load_manifest, get_internal_manifest
 from spinta.core.config import RawConfig
+from spinta.components import Context, Store
+from spinta.urlparams import get_model_by_name
+from spinta.manifests.helpers import create_manifest
+from spinta.manifests.helpers import create_internal_manifest
 
 
-@load.register(Context, Store, Config)
-def load(context: Context, store: Store, config: Config) -> Store:
+@commands.load.register(Context, Store)
+def load(context: Context, store: Store) -> Store:
     """Load backends and manifests from configuration."""
 
-    rc = config.rc
+    rc = context.get('rc')
+    config = context.get('config')
 
     # Load backends
     store.backends = {}
     for name in rc.keys('backends'):
-        type_ = rc.get('backends', name, 'type', required=True)
-        Backend = config.components['backends'][type_]
+        btype = rc.get('backends', name, 'type', required=True)
+        Backend = config.components['backends'][btype]
         backend = store.backends[name] = Backend()
         backend.name = name
         load(context, backend, rc)
 
-    # Load default manifest
+    # Create default manifest instance
     manifest = rc.get('manifest', required=True)
-    manifest = store.manifest = load_manifest(context, store, config, manifest)
-    commands.load(context, manifest, rc)
+    manifest = create_manifest(context, store, manifest)
+    store.manifest = manifest
 
-    # Load internal manifest into default manifest
-    internal = get_internal_manifest(context)
-    for data, versions in internal.read(context):
-        node = get_node(config, manifest, data)
-        node = load(context, node, data, manifest)
-        manifest.objects[node.type][node.name] = node
+    # Load internal manifest nodes into default manifest instance
+    store.internal = create_internal_manifest(context, store)
 
     # Load accesslog
     store.accesslog = commands.load(context, config.AccessLog(), config)
@@ -46,64 +42,25 @@ def load(context: Context, store: Store, config: Config) -> Store:
     return store
 
 
-@commands.link.register()
-def link(context: Context, store: Store):
-    commands.link(context, store.manifest)
+@commands.wait.register(Context, Store)
+def wait(context: Context, store: Store, *, seconds: int = None):
+    rc = context.get('rc')
 
-
-@wait.register()
-def wait(
-    context: Context,
-    store: Store,
-    config: RawConfig,
-    *,
-    seconds: int = None,
-):
     if seconds is None:
-        seconds = config.get('wait', cast=int, required=True)
+        seconds = rc.get('wait', cast=int, required=True)
 
     # Wait while all backends are up.
     for backend in store.backends.values():
         for i in range(1, seconds + 1):
-            if wait(context, backend, config):
+            if wait(context, backend, rc):
                 break
             time.sleep(1)
-            print(f"Waiting for {backend.name!r} backend %s..." % i)
+            print(f"Waiting for {backend.name!r} backend {i}...")
         else:
-            wait(context, backend, config, fail=True)
+            wait(context, backend, fail=True)
 
 
-@check.register()
-def check(context: Context, store: Store):
-    check(context, store.manifest)
-
-
-@prepare.register()
-def prepare(context: Context, store: Store):
-    prepare(context, store.manifest)
-
-
-@commands.freeze.register()
-def freeze(context: Context, store: Store) -> bool:
-    commands.freeze(context, store.manifest)
-
-
-@commands.bootstrap.register()
-def bootstrap(context: Context, store: Store) -> bool:
-    commands.bootstrap(context, store.manifest)
-
-
-@commands.sync.register()
-def sync(context: Context, store: Store):
-    commands.sync(context, store.manifest)
-
-
-@migrate.register()
-def migrate(context: Context, store: Store):
-    commands.migrate(context, store.manifest)
-
-
-@push.register()
+@commands.push.register(Context, Store, types.GeneratorType)
 def push(context: Context, store: Store, stream: types.GeneratorType):
     manifest = store.manifest
     for data in stream:
@@ -119,7 +76,7 @@ def push(context: Context, store: Store, stream: types.GeneratorType):
             yield id_
 
 
-@push.register()
+@commands.push.register(Context, Store, list)
 def push(context: Context, store: Store, stream: list):
     yield from push(context, store, (x for x in stream))
 

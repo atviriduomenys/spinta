@@ -20,17 +20,17 @@ def load(context: Context, backend: Sql, rc: RawConfig):
     backend.schema = sa.MetaData(backend.engine)
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, Sql, Manifest)
 def prepare(context: Context, backend: Sql, manifest: Manifest):
     backend.schema.reflect()
 
 
-@commands.bootstrap.register()
+@commands.bootstrap.register(Context, Sql)
 def bootstrap(context: Context, backend: Sql):
     pass
 
 
-@commands.getall.register()
+@commands.getall.register(Context, Entity, Sql)
 def getall(
     context: Context,
     entity: Entity,

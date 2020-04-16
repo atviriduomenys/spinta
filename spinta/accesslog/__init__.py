@@ -35,11 +35,7 @@ class AccessLog:
             'http_method': method or self.method,
             'url': self.url,
             'reason': reason or self.reason,
-            'timestamp': (
-                datetime.datetime.now().
-                astimezone(datetime.timezone.utc).
-                isoformat()
-            ),
+            'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'transaction_id': txn,
             'resources': resources,
             'fields': fields,

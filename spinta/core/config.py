@@ -232,6 +232,8 @@ class RawConfig:
                 value = value.split(',') if value else []
             elif value is not None:
                 value = cast(value)
+            else:
+                value = default or []
 
         if required and not value:
             name = '.'.join(key)

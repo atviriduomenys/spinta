@@ -14,7 +14,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name, flat_dicts_to_nested
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Request, Property, Object, PostgreSQL)
 async def getone(
     context: Context,
     request: Request,
@@ -38,7 +38,7 @@ async def getone(
     return render(context, request, prop, params, data, action=action)
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Property, Object, PostgreSQL)
 def getone(
     context: Context,
     prop: Property,

@@ -1,122 +1,51 @@
-from typing import Iterable
-
-import pathlib
-
-import jsonpatch
-
-from ruamel.yaml import YAML
-
-from spinta import spyna
 from spinta import commands
-from spinta.components import Context, Config, Model
-from spinta.manifests.components import Manifest
+from spinta.migrations import get_new_schema_version
+from spinta.components import Context
 from spinta.manifests.yaml.components import YamlManifest
-from spinta.manifests.helpers import load_manifest_node
-from spinta.migrations import SchemaVersion, get_new_schema_version
-
-yaml = YAML(typ='safe')
+from spinta.manifests.helpers import create_manifest
+from spinta.manifests.helpers import get_current_schema_changes
+from spinta.manifests.yaml.helpers import add_new_version
 
 
 @commands.freeze.register()
-def freeze(context: Context, manifest: YamlManifest):
-    yaml = YAML()
-    yaml.indent(mapping=2, sequence=4, offset=2)
-    yaml.width = 80
-    yaml.explicit_start = False
+def freeze(context: Context, current: YamlManifest):
+    # Load current node, that is not yet freezed.
+    commands.load(context, current)
+    commands.link(context, current)
+    commands.check(context, current)
 
-    manifest.objects = {}
-    manifest.freezed = {}  # Already freezed nodes.
-    config = context.get('config')
-    for name in config.components['nodes'].keys():
-        manifest.objects[name] = {}
-        manifest.freezed[name] = {}
+    # Load previously freezed version, we don't need to run check, because
+    # freezed version was already checked before freezing it.
+    freezed = create_manifest(context, current.store, current.name)
+    commands.load(context, freezed, freezed=True)
+    commands.link(context, freezed)
 
-    changes = []
-    for data, versions in manifest.read(context):
-        # Load current model version
-        current = load_manifest_node(context, config, manifest, data)
-        manifest.objects[current.type][current.name] = current
-        commands.link(context, current)
+    # Read current nodes, get freezed versions and freeze changes between
+    # current and previously freezed node into a new version.
+    for ntype, nodes in current.objects.items():
 
-        # Load freezed model version
-        patch, freezed = _load_freezed(context, config, manifest, data, versions)
-        if patch:
-            changes.append((current, patch))
-        if freezed is not None:
-            commands.link(context, freezed)
-        manifest.freezed[current.type][current.name] = freezed
+        if ntype == 'ns':
+            # Namespaces do not have phisical form, yet, se there is no need to
+            # freeze them.
+            continue
 
-    # Freeze changes.
-    for current, patch in changes:
-        freezed = manifest.freezed[current.type][current.name]
-        version = get_new_schema_version(patch)
+        for name, cnode in nodes.items():
 
-        if isinstance(current, Model):
-            freeze(context, version, current.backend, freezed, current)
+            # Get freezed node
+            if name in freezed.objects[ntype]:
+                fnode = freezed.objects[ntype][name]
+            else:
+                fnode = None
 
-        print(f"Add new version {version.id} to {current.path}")
-        update_yaml_file(current.path, version)
+            # Check if current and freezed schema versions changed
+            changes = get_current_schema_changes(context, current, cnode.eid)
+            if not changes:
+                continue
 
+            # Autodectect and write changes into version instance.
+            version = get_new_schema_version(changes)
+            commands.freeze(context, version, cnode.backend, fnode, cnode)
 
-def update_yaml_file(file: pathlib.Path, version: SchemaVersion):
-    # Read YAML file
-    versions = yaml.load_all(file.read_text())
-    versions = list(versions)
-
-    # Update current version
-    current = versions[0]
-    if 'version' not in current:
-        current['version'] = {}
-    current['version']['id'] = version.id
-    current['version']['date'] = version.date
-
-    # Add new version
-    versions.append({
-        'version': {
-            'id': version.id,
-            'date': version.date,
-            'parents': version.parents,
-        },
-        'changes': version.changes,
-        'migrate': [
-            {
-                'type': 'schema',
-                'upgrade': spyna.unparse(action['upgrade'], pretty=True),
-                'downgrade': spyna.unparse(action['downgrade'], pretty=True),
-            }
-            for action in version.actions
-        ],
-    })
-
-    # Write updates back to YAML file
-    with file.open('w') as f:
-        yaml.dump_all(versions, f)
-
-
-def _load_freezed(
-    context: Context,
-    config: Config,
-    manifest: Manifest,
-    data: dict,
-    versions: Iterable[dict],
-):
-    freezed_data = _get_freezed_schema(versions)
-    data = data.copy()
-    path = data.pop('path')
-    patch = list(jsonpatch.make_patch(freezed_data, data))
-    if patch and freezed_data:
-        freezed = load_manifest_node(context, config, manifest, {
-            **freezed_data,
-            'path': path,
-        }, check=False)
-        return patch, freezed
-    return patch, None
-
-
-def _get_freezed_schema(versions: Iterable[dict]):
-    data = {}
-    for version in versions:
-        patch = version.get('changes')
-        patch = jsonpatch.JsonPatch(patch)
-        data = patch.apply(data)
-    return data
+            # Write version data back to node file.
+            print(f"Adding new version {version.id} to {cnode.eid}")
+            add_new_version(cnode.eid, version)

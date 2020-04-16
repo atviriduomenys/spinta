@@ -20,7 +20,7 @@ from spinta.exceptions import (
 )
 
 
-@prepare.register()
+@prepare.register(Context, UrlParams, Version, Request)
 def prepare(context: Context, params: UrlParams, version: Version, request: Request) -> UrlParams:
     params.parsetree = (
         urlutil.parse_url_path(request.path_params['path'].strip('/')) +

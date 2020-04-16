@@ -1,40 +1,31 @@
 import logging
 
 from spinta import commands
-from spinta.core.config import RawConfig
 from spinta.components import Context
+from spinta.manifests.components import Manifest
+from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.internal.components import InternalManifest
+from spinta.manifests.yaml.helpers import yaml_config_params
+from spinta.manifests.yaml.helpers import read_manifest_schemas
+from spinta.manifests.yaml.helpers import read_freezed_manifest_schemas
 
 log = logging.getLogger(__name__)
 
 
-@commands.load.register(Context, InternalManifest, RawConfig)
-def load(context: Context, manifest: InternalManifest, rc: RawConfig):
-    config = context.get('config')
+@commands.load.register(Context, InternalManifest)
+def load(
+    context: Context,
+    manifest: InternalManifest,
+    *,
+    into: Manifest = None,
+    freezed: bool = True,
+):
+    yaml_config_params(context, manifest)
 
-    # Add all supported node types.
-    manifest.objects = {}
-    for name in config.components['nodes'].keys():
-        manifest.objects[name] = {}
+    if freezed:
+        schemas = read_freezed_manifest_schemas(manifest)
+    else:
+        schemas = read_manifest_schemas(manifest)
 
-    manifest.parent = None
-    manifest.endpoints = {}
-
-    log.info(
-        'Loading manifest %r from %s backend.',
-        manifest.name,
-        manifest.backend,
-    )
-    backend = manifest.store.backends[manifest.backend]
-    nodes = commands.load(context, manifest, backend)
-    for data in nodes:
-        node = config.components['nodes'][data['type']]()
-        data = {
-            'parent': manifest,
-            'backend': manifest.backend,
-            **data,
-        }
-        load(context, node, data, manifest)
-        manifest.objects[node.type][node.name] = node
-
-    return manifest
+    target = into or manifest
+    load_manifest_nodes(context, target, schemas)

@@ -27,6 +27,6 @@ def get_schema_changes(old: dict, new: dict) -> List[dict]:
 def get_new_schema_version(changes: List[dict]) -> dict:
     return SchemaVersion(
         str(uuid.uuid4()),
-        datetime.datetime.now(datetime.timezone.utc).astimezone(),
+        datetime.datetime.now(datetime.timezone.utc),
         changes
     )

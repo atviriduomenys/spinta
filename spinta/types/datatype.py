@@ -217,14 +217,17 @@ class JSON(DataType):
 
 @load.register(Context, DataType, dict, Manifest)
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
+    if dtype.backend:
+        dtype.backend = dtype.prop.model.manifest.store.backends[dtype.backend]
+    else:
+        dtype.backend = dtype.prop.model.backend
     _add_leaf_props(dtype.prop)
     return dtype
 
 
 @commands.link.register(Context, DataType)
 def link(context: Context, dtype: DataType) -> None:
-    store = context.get('store')
-    dtype.backend = store.backends[dtype.backend]
+    pass
 
 
 @load.register(Context, PrimaryKey, dict, Manifest)

@@ -47,26 +47,33 @@ def read_manifest_files(tmpdir):
 
 
 def readable_manifest_files(manifest):
-    vnum = {}
+    ids = {}
     for filename, versions in manifest.items():
         manifest[filename] = [versions[0]]
         version = versions[0]
         name = version['name']
-        if 'version' in version:
-            del version['version']['date']
+
+        # Fill ids dict
+        for i, version in enumerate(versions):
+            if 'id' in version:
+                ids[version['id']] = f'{name}:{i}'
+
+        # Read only last version.
         for i, version in enumerate(versions[-1:], len(versions) - 1):
-            del version['version']['date']
+            del version['date']
             del version['changes']
             for action in version['migrate']:
                 action['upgrade'] = action['upgrade'].splitlines()
                 action['downgrade'] = action['downgrade'].splitlines()
-            vnum[version['version']['id']] = f'{name}#{i}'
             manifest[filename] += [version]
 
+    # Replaces UUIDs to human version numbers
     for filename, versions in manifest.items():
         for version in versions:
-            if 'version' in version:
-                version['version']['id'] = vnum[version['version']['id']]
+            if 'id' in version:
+                version['id'] = ids.get(version['id'], '(UNKNOWN)')
+            if 'version' in version and isinstance(version['version'], str):
+                version['version'] = ids.get(version['version'], '(UNKNOWN)')
 
     return manifest
 

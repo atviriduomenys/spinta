@@ -99,7 +99,7 @@ def before_write(
     patch['__id'] = take('_id', data.patch)
     patch['_revision'] = take('_revision', data.patch, data.saved)
     patch['_txn'] = context.get('transaction').id
-    patch['_created'] = datetime.datetime.now()
+    patch['_created'] = datetime.datetime.now(datetime.timezone.utc)
     for prop in take(model.properties).values():
         value = commands.before_write(
             context,
@@ -108,7 +108,6 @@ def before_write(
             data=data[prop.name],
         )
         patch.update(value)
-    return take(all, patch)
 
 
 @commands.before_write.register(Context, DataType, Mongo)
@@ -126,7 +125,7 @@ def before_write(
     return t
 
 
-@commands.after_write.register()
+@commands.after_write.register(Context, Model, Mongo)
 def after_write(
     context: Context,
     model: Model,

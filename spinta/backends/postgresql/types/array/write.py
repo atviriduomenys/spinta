@@ -36,8 +36,8 @@ def before_write(
         return take({dtype.prop.place: data.patch})
 
 
-@commands.after_write.register()
-def after_write(  # noqa
+@commands.after_write.register(Context, Array, PostgreSQL)
+def after_write(
     context: Context,
     dtype: Array,
     backend: PostgreSQL,

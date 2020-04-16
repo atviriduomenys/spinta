@@ -1,5 +1,5 @@
-from spinta.manifests.components import Manifest
+from spinta.manifests.yaml.components import YamlManifest
 
 
-class InternalManifest(Manifest):
+class InternalManifest(YamlManifest):
     pass

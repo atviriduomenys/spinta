@@ -1,82 +1,99 @@
-from typing import List
+from typing import List, Iterable
 
 import pathlib
 
+import jsonpatch
 import pkg_resources as pres
 
 from spinta import commands
 from spinta.nodes import get_node
-from spinta.components import Context, Config, Store
+from spinta.core.config import RawConfig
+from spinta.components import Context, Config, Store, MetaData, EntryId
 from spinta.manifests.components import Manifest
+from spinta.manifests.internal.components import InternalManifest
 
 
-def get_manifest(config: Config, name: str):
-    type_ = config.rc.get('manifests', name, 'type', required=True)
-    Manifest = config.components['manifests'][type_]
-    manifest = Manifest()
-    manifest.type = type_
-    manifest.name = name
-    manifest.load(config)
-    return manifest
-
-
-def load_manifest(context: Context, store: Store, config: Config, name: str, synced: List[str] = None):
-    synced = synced or []
-    if name in synced:
-        synced = ', '.join(synced)
-        raise Exception(
-            f"Circular manifest sync is detected: {synced}. Check manifest "
-            f"configuration with: `spinta config manifests`."
-        )
-    else:
-        synced += [name]
-
-    manifest = get_manifest(config, name)
-    manifest.store = store
-    manifest.backend = config.rc.get('manifests', name, 'backend', required=True)
-
-    sync = config.rc.get('manifests', name, 'sync')
-    if not isinstance(sync, list):
-        sync = [sync] if sync else []
-    # Do not fully load manifest, because loading whole manifest might be
-    # expensive and we only need to do that if it is neceserry. For now, just
-    # load empty manifest class.
-    manifest.sync = [load_manifest(config, store, config, x, synced) for x in sync]
-
-    # Add all supported node types.
-    manifest.objects = {}
-    for name in config.components['nodes'].keys():
-        manifest.objects[name] = {}
-
-    # Set some defaults.
-    manifest.parent = None
-    manifest.endpoints = {}
-
-    return manifest
-
-
-def get_internal_manifest(context: Context):
+def create_manifest(
+    context: Context,
+    store: Store,
+    name: str,
+    seen: List[str] = None,
+) -> Manifest:
+    rc = context.get('rc')
     config = context.get('config')
-    Manifest = config.components['manifests']['yaml']
-    internal = Manifest()
-    internal.name = 'internal'
-    internal.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
-    return internal
+    mtype = rc.get('manifests', name, 'type', required=True)
+    Manifest = config.components['manifests'][mtype]
+    manifest = Manifest()
+    manifest.type = mtype
+    _configure_manifest(context, rc, config, store, manifest, name, seen)
+    return manifest
+
+
+def create_internal_manifest(context: Context, store: Store) -> InternalManifest:
+    rc = context.get('rc')
+    config = context.get('config')
+    manifest = InternalManifest()
+    manifest.type = 'yaml'
+    manifest.path = pathlib.Path(pres.resource_filename('spinta', 'manifest'))
+    _configure_manifest(context, rc, config, store, manifest, 'internal')
+    return manifest
+
+
+def _configure_manifest(
+    context: Context,
+    rc: RawConfig,
+    config: Config,
+    store: Store,
+    manifest: Manifest,
+    name: str,
+    seen: List[str] = None,
+):
+    seen = seen or []
+    manifest.name = name
+    manifest.store = store
+    manifest.parent = None
+    manifest.backend = rc.get('manifests', name, 'backend', default='default')
+    manifest.backend = store.backends[manifest.backend]
+    manifest.endpoints = {}
+    manifest.objects = {name: {} for name in config.components['nodes']}
+    manifest.sync = []
+    for source in rc.get('manifests', name, 'sync', default=[], cast=list):
+        if source in seen:
+            raise Exception("Manifest sync cycle: " + ' -> '.join(seen + [source]))
+        manifest.sync.append(
+            create_manifest(context, store, source, seen + [source])
+        )
+
+
+def load_manifest_nodes(
+    context: Context,
+    manifest: Manifest,
+    schemas: Iterable[dict],
+) -> None:
+    config = context.get('config')
+    for eid, schema in schemas:
+        node = load_manifest_node(context, config, manifest, eid, schema)
+        manifest.objects[node.type][node.name] = node
 
 
 def load_manifest_node(
     context: Context,
     config: Config,
     manifest: Manifest,
+    eid: EntryId,
     data: dict,
-    *,
-    # XXX: This is a temporary workaround and should be removed.
-    #      `check is used to not check if node is already defined, we disable
-    #      this check for freezed nodes.
-    check=True,
-):
-    node = get_node(config, manifest, data, check=check)
+) -> MetaData:
+    node = get_node(config, manifest, eid, data)
+    node.eid = eid
     node.type = data['type']
     node.parent = manifest
     node.manifest = manifest
-    return commands.load(context, node, data, manifest)
+    commands.load(context, node, data, manifest)
+    return node
+
+
+def get_current_schema_changes(context: Context, manifest: Manifest, eid: EntryId) -> dict:
+    freezed = commands.manifest_read_freezed(context, manifest, eid=eid)
+    current = commands.manifest_read_current(context, manifest, eid=eid)
+    patch = jsonpatch.make_patch(freezed, current)
+    return list(patch)

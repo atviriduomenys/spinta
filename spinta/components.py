@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional, Tuple, AsyncIterator
+from typing import TYPE_CHECKING, List, Optional, Tuple, AsyncIterator, Union
 
 import enum
 import contextlib
@@ -360,20 +360,31 @@ class Namespace(Node):
         return ':ns'
 
 
-class Model(Node):
+# MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
+# etc, depends on manifest type.
+EntryId = Union[int, str, pathlib.Path]
+
+
+class MetaData(Node):
+    """Manifest metadata entry.
+
+    This is a top level manifest node like Model, Dataset, Project, Owner.
+    """
+
+    eid: EntryId
+
     schema = {
         'type': {'type': 'string', 'required': True},
         'name': {'type': 'string', 'required': True},
-        'path': {'type': 'string'},
+        'id': {'type': 'string'},
+        'version': {'type': 'string'},
         'title': {'type': 'string'},
         'description': {},
-        'version': {
-            'type': 'object',
-            'properties': {
-                'number': {'type': 'integer', 'required': True},
-                'date': {'type': 'date', 'required': True},
-            },
-        },
+    }
+
+
+class Model(MetaData):
+    schema = {
         'backend': {'type': 'string'},
         'unique': {'default': []},
         'base': {},

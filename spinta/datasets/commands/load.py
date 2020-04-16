@@ -14,7 +14,7 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
     # Load resources
     dataset.resources = {}
     for name, params in (data.get('resources') or {}).items():
-        resource = get_node(config, manifest, data, parent=dataset, group='datasets', ctype='resource')
+        resource = get_node(config, manifest, dataset.eid, data, parent=dataset, group='datasets', ctype='resource')
         resource.type = params.get('type')
         resource.name = name
         resource.dataset = dataset

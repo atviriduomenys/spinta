@@ -1,6 +1,6 @@
 from typing import Optional, Type
 
-from spinta.components import Context, Component, Config, Node, Namespace
+from spinta.components import Context, Component, Config, Node, Namespace, EntryId
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA, resolve_schema
 from spinta import exceptions
@@ -10,6 +10,9 @@ from spinta import commands
 def get_node(
     config: Config,
     manifest: Manifest,
+    # MetaData entry ID, for yaml manifests it's filename, for backend manifests
+    # it's UUID, for CSV tables it's row number.
+    eid: EntryId,
     data: dict = None,
     *,
     # Component group from confg.components.
@@ -24,6 +27,7 @@ def get_node(
         raise exceptions.InvalidManifestFile(
             parent or manifest,
             manifest=manifest.name,
+            eid=eid,
             error=f"Expected dict got {type(data).__name__}.",
         )
 
@@ -32,7 +36,7 @@ def get_node(
             raise exceptions.InvalidManifestFile(
                 parent or manifest,
                 manifest=manifest.name,
-                filename=data['path'],
+                eid=eid,
                 error=f"Required parameter 'type' is not defined.",
             )
 
@@ -45,7 +49,7 @@ def get_node(
         if ctype not in manifest.objects:
             raise exceptions.InvalidManifestFile(
                 manifest=manifest.name,
-                filename=data['path'],
+                eid=eid,
                 error=f"Unknown type {ctype!r}.",
             )
 
@@ -56,10 +60,10 @@ def get_node(
             if data['name'] in manifest.objects[ctype]:
                 raise exceptions.InvalidManifestFile(
                     manifest=manifest.name,
-                    filename=data['path'],
+                    eid=eid,
                     error=(
                         f"Node {data['type']} with name {data['name']} already defined "
-                        f"in {manifest.objects[data['type']][data['name']].path}."
+                        f"in {manifest.objects[data['type']][data['name']].eid}."
                     ),
                 )
 

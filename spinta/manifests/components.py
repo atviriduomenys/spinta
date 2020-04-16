@@ -2,7 +2,7 @@ from typing import Dict
 
 import pathlib
 
-from spinta.components import Component, Config, Store
+from spinta.components import Component, Store, MetaData
 
 
 class Manifest(Component):
@@ -10,7 +10,7 @@ class Manifest(Component):
     name: str = None
     parent: Component = None
     store: Store = None
-    objects: Dict[str, 'Node'] = None
+    objects: Dict[str, MetaData] = None
     path: pathlib.Path = None
 
     # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
@@ -18,10 +18,10 @@ class Manifest(Component):
     endpoints: Dict[str, str] = None
 
     def __repr__(self):
-        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>'
-
-    def load(self, config: Config):
-        pass
+        return (
+            f'<{type(self).__module__}.{type(self).__name__}'
+            f'(name={self.name!r})>'
+        )
 
     def add_model_endpoint(self, model):
         endpoint = model.endpoint
@@ -29,7 +29,10 @@ class Manifest(Component):
             if endpoint not in self.endpoints:
                 self.endpoints[endpoint] = model.name
             elif self.endpoints[endpoint] != model.name:
-                raise Exception(f"Same endpoint, but different model name, endpoint={endpoint!r}, model.name={model.name!r}.")
+                raise Exception(
+                    f"Same endpoint, but different model name, "
+                    f"endpoint={endpoint!r}, model.name={model.name!r}."
+                )
 
     @property
     def models(self):

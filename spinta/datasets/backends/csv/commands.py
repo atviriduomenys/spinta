@@ -18,17 +18,17 @@ def load(context: Context, backend: Csv, rc: RawConfig):
     pass
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, Csv, Manifest)
 def prepare(context: Context, backend: Csv, manifest: Manifest):
     pass
 
 
-@commands.bootstrap.register()
+@commands.bootstrap.register(Context, Csv)
 def bootstrap(context: Context, backend: Csv):
     pass
 
 
-@commands.getall.register()
+@commands.getall.register(Context, Entity, Csv)
 def getall(
     context: Context,
     external: Entity,

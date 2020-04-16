@@ -69,11 +69,11 @@ class ContextForTests:
             })
 
         config = self.get('config')
-        commands.load(self, config, rc)
+        commands.load(self, config)
         commands.check(self, config)
 
         store = self.get('store')
-        commands.load(self, store, config)
+        commands.load(self, store)
         commands.link(self, store)
         commands.check(self, store)
 

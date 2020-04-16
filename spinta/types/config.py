@@ -4,19 +4,18 @@ from ruamel.yaml import YAML
 
 from spinta.utils.imports import importstr
 from spinta.commands import load, check
-from spinta.components import Context
-from spinta.core.config import RawConfig
+from spinta.components import Context, Config
 from spinta import components
 from spinta.core.ufuncs import ufunc
 
 yaml = YAML(typ='safe')
 
 
-@load.register(Context, components.Config, RawConfig)
-def load(context: Context, config: components.Config, rc: RawConfig) -> components.Config:
+@load.register(Context, Config)
+def load(context: Context, config: Config) -> Config:
     # Save reference to raw config and give chance for other components to read
     # directly from raw config.
-    config.rc = rc
+    rc = config.rc = context.get('rc')
 
     # Load commands.
     config.commands = {}
@@ -66,7 +65,7 @@ def load(context: Context, config: components.Config, rc: RawConfig) -> componen
     return config
 
 
-@check.register()
+@check.register(Context, components.Config)
 def check(context: Context, config: components.Config):
     if config.default_auth_client and not (config.config_path / 'clients' / f'{config.default_auth_client}.yml').exists():
         clients_dir = config.config_path / 'clients'

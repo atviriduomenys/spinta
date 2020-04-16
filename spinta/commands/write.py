@@ -2,8 +2,6 @@ from typing import AsyncIterator, Union, Optional
 
 import itertools
 import json
-import pathlib
-import os
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
@@ -15,8 +13,7 @@ from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import check_scope
-from spinta.backends.components import Backend, BackendFeatures
-from spinta.backends.mongo.components import Mongo
+from spinta.backends.components import Backend
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
 from spinta.types.datatype import DataType, Object, Array, File, Ref
@@ -879,8 +876,8 @@ def before_write(
     return patch
 
 
-@commands.after_write.register()  # noqa
-def after_write(  # noqa
+@commands.after_write.register(Context, Object, Backend)
+def after_write(
     context: Context,
     dtype: Object,
     backend: Backend,

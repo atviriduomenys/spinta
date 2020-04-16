@@ -14,11 +14,11 @@ context = create_context('asgi')
 
 rc = context.get('rc')
 config = context.get('config')
-commands.load(context, config, rc)
+commands.load(context, config)
 commands.check(context, config)
 
 store = context.get('store')
-commands.load(context, store, config)
+commands.load(context, store)
 commands.link(context, store)
 commands.check(context, store)
 
