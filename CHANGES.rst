@@ -47,7 +47,7 @@ Backwards incompatible features:
   exists and it is specified like this::
 
     manifest               = default
-    manifests.default.type = spinta
+    manifests.default.type = internal
     manifests.default.sync = yaml
     manifests.yaml.type    = yaml
 
@@ -70,9 +70,9 @@ Backwards incompatible features:
 
 - Previously there was only one manifest type, YAML files based manifest. Now
   multiple manifest types were introduced and currently implemented two
-  manifest types `spinta` and `yaml`.
+  manifest types `internal` and `yaml`.
 
-  `spinta` manifest is stored in `manifests..backend` database, in `_schema`
+  `internal` manifest is stored in `manifests..backend` database, in `_schema`
   and `_schema/version` models.
 
   `yaml` manifest is same manifest as was used previously.
@@ -81,7 +81,7 @@ Backwards incompatible features:
   loading manifest into memory, running migrations, synchronizing manifest from
   specified sources and etc.
 
-  Now default manifest usualy should be `spinta`, which is synchronized from a
+  Now default manifest usualy should be `internal`, which is synchronized from a
   `yaml` manifest.
 
 - Internal `transaction` model was renamed to `_txn`.
@@ -177,7 +177,7 @@ New features:
 
   `spinta bootstrap` - this command does same thing as previously did `spinta
   migrate` it simply creates all missing tables from scratch and upates all
-  migration versions as applied. With `spinta` manifest `bootstrap` does
+  migration versions as applied. With `internal` manifest `bootstrap` does
   nothing if it finds that `_schema/version` table is created. But with `yaml`
   manifest `bootstrap` always tries to create all missing tables.
 

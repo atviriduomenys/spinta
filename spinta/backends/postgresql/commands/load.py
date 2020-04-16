@@ -3,16 +3,10 @@ import sqlalchemy as sa
 from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.components import Context
-from spinta.manifests.spinta import SpintaManifest
 from spinta.backends.postgresql.components import PostgreSQL
 
 
-@commands.load.register()
-def load(context: Context, manifest: SpintaManifest, backend: PostgreSQL):
-    return []
-
-
-@load.register()
+@commands.load.register(Context, PostgreSQL, RawConfig)
 def load(context: Context, backend: PostgreSQL, config: RawConfig):
     backend.dsn = config.get('backends', backend.name, 'dsn', required=True)
     backend.engine = sa.create_engine(backend.dsn, echo=False)

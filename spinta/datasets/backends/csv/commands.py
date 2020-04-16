@@ -7,28 +7,28 @@ from spinta.fetcher import fetch
 from spinta.core.ufuncs import Expr
 from spinta.core.config import RawConfig
 from spinta.components import Context
-from spinta.components import Manifest
+from spinta.manifests.components import Manifest
 from spinta.datasets.components import Entity
 from spinta.datasets.utils import iterparams
 from spinta.datasets.backends.csv.components import Csv
 
 
-@commands.load.register()
+@commands.load.register(Context, Csv, RawConfig)
 def load(context: Context, backend: Csv, rc: RawConfig):
     pass
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, Csv, Manifest)
 def prepare(context: Context, backend: Csv, manifest: Manifest):
     pass
 
 
-@commands.bootstrap.register()
+@commands.bootstrap.register(Context, Csv)
 def bootstrap(context: Context, backend: Csv):
     pass
 
 
-@commands.getall.register()
+@commands.getall.register(Context, Entity, Csv)
 def getall(
     context: Context,
     external: Entity,

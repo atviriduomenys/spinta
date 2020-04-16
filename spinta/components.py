@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, AsyncIterator
+from typing import TYPE_CHECKING, List, Optional, Tuple, AsyncIterator, Union
 
 import enum
 import contextlib
@@ -13,8 +13,10 @@ from spinta.core.enums import Access
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
+    from spinta.types.datatype import DataType
     from spinta.types.datatype import Array
     from spitna.datasets.enums import Level
+    from spinta.manifests.components import Manifest
     from spitna.datasets.components import Attribute
 
 
@@ -292,44 +294,6 @@ class Component:
     schema = {}
 
 
-class Manifest(Component):
-    type: str = 'manifest'
-    name: str
-    parent: None
-    store: Store = None
-    objects: Dict[str, 'Node']
-    path: pathlib.Path
-    endpoints: Dict[str, str]
-
-    def __init__(self):
-        self.name = None
-        self.parent = None
-        self.objects = None
-        self.path = None
-
-        # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
-        # name and endpoint for all of them should match.
-        self.endpoints = {}
-
-    def __repr__(self):
-        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>'
-
-    def load(self, config: Config):
-        pass
-
-    def add_model_endpoint(self, model):
-        endpoint = model.endpoint
-        if endpoint:
-            if endpoint not in self.endpoints:
-                self.endpoints[endpoint] = model.name
-            elif self.endpoints[endpoint] != model.name:
-                raise Exception(f"Same endpoint, but different model name, endpoint={endpoint!r}, model.name={model.name!r}.")
-
-    @property
-    def models(self):
-        return self.objects['model']
-
-
 class Node(Component):
     schema = {}
 
@@ -397,20 +361,31 @@ class Namespace(Node):
         return ':ns'
 
 
-class Model(Node):
+# MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
+# etc, depends on manifest type.
+EntryId = Union[int, str, pathlib.Path]
+
+
+class MetaData(Node):
+    """Manifest metadata entry.
+
+    This is a top level manifest node like Model, Dataset, Project, Owner.
+    """
+
+    eid: EntryId
+
     schema = {
         'type': {'type': 'string', 'required': True},
         'name': {'type': 'string', 'required': True},
-        'path': {'type': 'string'},
+        'id': {'type': 'string'},
+        'version': {'type': 'string'},
         'title': {'type': 'string'},
         'description': {},
-        'version': {
-            'type': 'object',
-            'properties': {
-                'number': {'type': 'integer', 'required': True},
-                'date': {'type': 'date', 'required': True},
-            },
-        },
+    }
+
+
+class Model(MetaData):
+    schema = {
         'backend': {'type': 'string'},
         'unique': {'default': []},
         'base': {},
@@ -456,11 +431,13 @@ class Property(Node):
     hidden: bool = False
     access: Access
     level: Level
+    dtype: DataType = None
     external: Attribute
     list: Array = None
 
     def __repr__(self):
-        return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r}, type={self.dtype.name!r})>'
+        dtype = self.dtype.name if self.dtype else 'none'
+        return f'<{type(self).__module__}.{type(self).__name__}(name={self.name!r}, type={dtype!r})>'
 
     def model_type(self):
         return f'{self.model.name}.{self.place}'

@@ -4,7 +4,7 @@ from spinta.types.datatype import Object
 from spinta.backends.postgresql.components import PostgreSQL
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, PostgreSQL, Object)
 def prepare(context: Context, backend: PostgreSQL, dtype: Object):
     columns = []
     for prop in dtype.properties.values():

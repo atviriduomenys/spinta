@@ -14,16 +14,18 @@ context = create_context('asgi')
 
 rc = context.get('rc')
 config = context.get('config')
-commands.load(context, config, rc)
+commands.load(context, config)
 commands.check(context, config)
 
 store = context.get('store')
-commands.load(context, store, config)
-commands.link(context, store)
-commands.check(context, store)
+commands.load(context, store)
 
-commands.wait(context, store, rc)
+commands.load(context, store.manifest)
+commands.link(context, store.manifest)
+commands.check(context, store.manifest)
 
-commands.prepare(context, store)
+commands.wait(context, store)
+
+commands.prepare(context, store.manifest)
 
 app = init(context)

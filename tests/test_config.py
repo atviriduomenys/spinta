@@ -43,7 +43,7 @@ def test_hardset():
         PyDict('defaults', {
             'manifests': {
                 'default': {
-                    'type': 'spinta',
+                    'type': 'internal',
                     'backend': 'default',
                     'sync': 'yaml',
                 },
@@ -66,7 +66,7 @@ def test_hardset():
     assert rc.get('components', 'nodes', 'new') == 'component'
     assert rc.get('manifests', 'new', 'path') == 'here'
     assert list(rc.getall()) == [
-        (('manifests', 'default', 'type'), 'spinta'),
+        (('manifests', 'default', 'type'), 'internal'),
         (('manifests', 'default', 'backend'), 'default'),
         (('manifests', 'default', 'sync'), 'yaml'),
         (('manifests', 'yaml', 'type'), 'yaml'),

@@ -1,10 +1,11 @@
 from spinta.commands import load, prepare, check
-from spinta.components import Context, Manifest, Node
+from spinta.components import Context, Node, MetaData
+from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta import exceptions
 
 
-class Project(Node):
+class Project(MetaData):
     schema = {
         'version': {'type': 'integer', 'required': True},
         'date': {'type': 'date', 'required': True},
@@ -46,7 +47,7 @@ class Property(Node):
     #       serialization.
 
 
-@load.register()
+@load.register(Context, Project, dict, Manifest)
 def load(context: Context, project: Project, data: dict, manifest: Manifest):
     load_node(context, project, data)
 
@@ -71,13 +72,13 @@ def load(context: Context, project: Project, data: dict, manifest: Manifest):
     ]
 
 
-@prepare.register()
+@prepare.register(Context, Project)
 def prepare(context: Context, project: Project):
     for model in project.objects.values():
         prepare(context, model)
 
 
-@check.register()
+@check.register(Context, Project)
 def check(context: Context, project: Project):
     if project.owner and project.owner not in project.manifest.objects['owner']:
         raise exceptions.UnknownOwner(project)

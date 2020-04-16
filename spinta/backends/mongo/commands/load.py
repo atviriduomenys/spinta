@@ -6,7 +6,7 @@ from spinta.components import Context
 from spinta.backends.mongo.components import Mongo
 
 
-@commands.load.register()
+@commands.load.register(Context, Mongo, RawConfig)
 def load(context: Context, backend: Mongo, rc: RawConfig):
     # Load Mongo client using configuration.
     backend.dsn = rc.get('backends', backend.name, 'dsn', required=True)

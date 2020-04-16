@@ -1,12 +1,8 @@
-import sqlalchemy as sa
-
 from spinta import commands
-from spinta.utils.schema import NA
-from spinta.components import Context, Action, Property
+from spinta.components import Context, Property, DataItem
 from spinta.types.datatype import DataType
-from spinta.components import Context, Property, Action, DataItem
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.exceptions import UniqueConstraint
+from spinta.backends.postgresql.helpers.validate import pg_check_unique_constraint
 
 
 @commands.check_unique_constraint.register(Context, DataItem, DataType, Property, PostgreSQL, object)
@@ -18,22 +14,4 @@ def check_unique_constraint(
     backend: PostgreSQL,
     value: object,
 ):
-    table = backend.get_table(prop)
-
-    if (
-        data.action in (Action.UPDATE, Action.PATCH) or
-        data.action == Action.UPSERT and data.saved is not NA
-    ):
-        if prop.name == '_id' and value == data.saved['_id']:
-            return
-        condition = sa.and_(
-            table.c[prop.name] == value,
-            table.c._id != data.saved['_id'],
-        )
-    else:
-        condition = table.c[prop.name] == value
-    not_found = object()
-    connection = context.get('transaction').connection
-    result = backend.get(connection, table.c[prop.name], condition, default=not_found)
-    if result is not not_found:
-        raise UniqueConstraint(prop)
+    pg_check_unique_constraint(context, backend, prop, prop.name, data, value)

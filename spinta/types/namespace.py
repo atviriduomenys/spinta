@@ -15,12 +15,17 @@ from spinta.nodes import load_node, load_model_properties
 from spinta import exceptions
 
 
-@commands.check.register()
+@commands.link.register(Context, Namespace)
+def link(context: Context, ns: Namespace):
+    pass
+
+
+@commands.check.register(Context, Namespace)
 def check(context: Context, ns: Namespace):
     pass
 
 
-@commands.getall.register()
+@commands.getall.register(Context, Request, Namespace, type(None))
 async def getall(
     context: Context,
     request: Request,
@@ -59,8 +64,7 @@ async def getall(
         return _get_ns_content(context, request, ns, params, action)
 
 
-@commands.getall.register()
-@getall.register()  # noqa
+@commands.getall.register(Context, Namespace, type(None))
 def getall(
     context: Context,
     ns: Namespace,
@@ -161,7 +165,7 @@ def _get_ns_content(
         }
     }
     model = Model()
-    model.path = None
+    model.eid = None
     model.parent = ns.manifest  # XXX: deprecated
     model.manifest = ns.manifest
     load_node(context, model, schema)
@@ -202,7 +206,7 @@ def _get_ns_content_data(
             }
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Request, Namespace)
 async def getone(
     context: Context,
     request: Request,

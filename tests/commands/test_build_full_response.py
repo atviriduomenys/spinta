@@ -5,12 +5,14 @@ from spinta.components import Model
 
 def create_model(context, schema):
     manifest = context.get('store').manifest
-    model = {
+    data = {
         'type': 'model',
         'name': 'model',
         **schema,
     }
-    return load(context, Model(), model, manifest)
+    model = Model()
+    model.eid = '9244f3a6-a672-4aac-bb1c-831646264a51'
+    return load(context, model, data, manifest)
 
 
 def test_scalar_with_empty_saved(context):

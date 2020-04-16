@@ -22,3 +22,10 @@ def recursive_keys(dct, dot_notation=False, prefix=None):
                 prefix = f"{k}."
             yield from recursive_keys(v, dot_notation=dot_notation, prefix=prefix)
             prefix = None
+
+
+def last(it, default=None):
+    res = default
+    for res in it:
+        pass
+    return res

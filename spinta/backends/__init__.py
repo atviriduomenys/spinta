@@ -19,7 +19,7 @@ from spinta.backends.components import Backend
 SelectTree = Optional[Dict[str, dict]]
 
 
-@prepare.register()
+@prepare.register(Context, DataType, Backend, object)
 def prepare(context: Context, dtype: DataType, backend: Backend, value: object) -> object:
     # prepares value for data store
     # for simple types - loaded native values should work
@@ -27,13 +27,13 @@ def prepare(context: Context, dtype: DataType, backend: Backend, value: object) 
     return value
 
 
-@prepare.register()
+@prepare.register(Context, Array, Backend, list)
 def prepare(context: Context, dtype: Array, backend: Backend, value: list) -> list:
     # prepare array and it's items for datastore
     return [prepare(context, dtype.items.dtype, backend, v) for v in value]
 
 
-@prepare.register()
+@prepare.register(Context, Object, Backend, dict)
 def prepare(context: Context, dtype: Object, backend: Backend, value: dict) -> dict:
     # prepare objects and it's properties for datastore
     new_loaded_obj = {}
@@ -45,7 +45,7 @@ def prepare(context: Context, dtype: Object, backend: Backend, value: dict) -> d
     return new_loaded_obj
 
 
-@prepare.register()
+@prepare.register(Context, Backend, Property)
 def prepare(context: Context, backend: Backend, prop: Property):
     return prepare(context, backend, prop.dtype)
 
@@ -138,7 +138,7 @@ def simple_data_check(
         simple_data_check(context, data, dtype, prop, dtype.backend, v)
 
 
-@commands.complex_data_check.register()
+@commands.complex_data_check.register(Context, DataItem, Model, Backend)
 def complex_data_check(
     context: Context,
     data: DataItem,
@@ -193,7 +193,7 @@ def complex_model_properties_check(
             )
 
 
-@complex_data_check.register()
+@complex_data_check.register(Context, DataItem, DataType, Property, Backend, object)
 def complex_data_check(
     context: Context,
     data: DataItem,
@@ -218,12 +218,12 @@ def check_type_value(dtype: DataType, value: object):
         raise Exception(f"{dtype.prop.name!r} is required for {dtype.prop.model.name!r}.")
 
 
-@gen_object_id.register()
+@gen_object_id.register(Context, Backend, Node)
 def gen_object_id(context: Context, backend: Backend, model: Node):
     return str(uuid.uuid4())
 
 
-@is_object_id.register()
+@is_object_id.register(Context, str)
 def is_object_id(context: Context, value: str):
     # Collect all available backend/model combinations.
     # TODO: this probably should be cached at load time to increase performance
@@ -247,7 +247,7 @@ def is_object_id(context: Context, value: str):
             return True
 
 
-@is_object_id.register()
+@is_object_id.register(Context, Backend, Model, str)
 def is_object_id(context: Context, backend: Backend, model: Model, value: str):
     try:
         return uuid.UUID(value).version == 4
@@ -255,21 +255,21 @@ def is_object_id(context: Context, backend: Backend, model: Model, value: str):
         return False
 
 
-@is_object_id.register()
+@is_object_id.register(Context, Backend, Model, object)
 def is_object_id(context: Context, backend: Backend, model: Model, value: object):
     # returns false if object id is non string.
     # strings are handled by other command
     return False
 
 
-@is_object_id.register()
+@is_object_id.register(Context, type(None), Namespace, object)
 def is_object_id(context: Context, backend: type(None), model: Namespace, value: object):
     # Namespaces do not have object id.
     return False
 
 
 @commands.prepare_data_for_response.register(Context, Action, Model, Backend, dict)
-def prepare_data_for_response(  # noqa
+def prepare_data_for_response(
     context: Context,
     action: Action,
     model: Model,
@@ -299,7 +299,7 @@ def prepare_data_for_response(  # noqa
 
 
 @commands.prepare_data_for_response.register(Context, Action, Object, Backend, dict)
-def prepare_data_for_response(  # noqa
+def prepare_data_for_response(
     context: Context,
     action: Action,
     dtype: Object,
@@ -328,7 +328,7 @@ def prepare_data_for_response(  # noqa
 
 
 @commands.prepare_data_for_response.register(Context, Action, File, Backend, dict)
-def prepare_data_for_response(  # noqa
+def prepare_data_for_response(
     context: Context,
     action: Action,
     dtype: File,
@@ -504,7 +504,7 @@ def _flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, DataType, object)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -522,7 +522,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, DataType, NotAvailable)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -535,7 +535,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, File, NotAvailable)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -551,7 +551,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, File, dict)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -591,7 +591,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, DateTime, datetime.datetime)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -604,7 +604,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, Date, datetime.date)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -620,7 +620,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, Binary, bytes)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -633,7 +633,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, Ref, dict)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -646,7 +646,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, Ref, str)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -661,7 +661,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, Object, dict)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -690,7 +690,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, Array, list)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -713,7 +713,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, Array, type(None))
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -726,7 +726,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, JSON, object)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -739,7 +739,7 @@ def prepare_dtype_for_response(  # noqa
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, JSON, NotAvailable)
-def prepare_dtype_for_response(  # noqa
+def prepare_dtype_for_response(
     context: Context,
     backend: Backend,
     model: Model,
@@ -751,13 +751,20 @@ def prepare_dtype_for_response(  # noqa
     return None
 
 
-@commands.unload_backend.register()
+@commands.unload_backend.register(Context, Backend)
 def unload_backend(context: Context, backend: Backend):
     pass
 
 
-@load_operator_value.register()
-def load_operator_value(context: Context, backend: Backend, dtype: DataType, value: object, *, query_params: dict):
+@load_operator_value.register(Context, Backend, DataType, object)
+def load_operator_value(
+    context: Context,
+    backend: Backend,
+    dtype: DataType,
+    value: object,
+    *,
+    query_params: dict,
+):
     operator = query_params['name']
     # XXX: That is probably not a very reliable way of getting original operator
     #      name. Maybe at least this should be documented some how.
@@ -768,28 +775,28 @@ def load_operator_value(context: Context, backend: Backend, dtype: DataType, val
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
 
 
-@commands.make_json_serializable.register()
+@commands.make_json_serializable.register(Model, dict)
 def make_json_serializable(model: Model, value: dict) -> dict:
     return commands.make_json_serializable[Object, dict](model, value)
 
 
-@commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: DataType, value: object):  # noqa
+@commands.make_json_serializable.register(DataType, object)
+def make_json_serializable(dtype: DataType, value: object):
     return value
 
 
-@commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: DateTime, value: datetime.datetime):  # noqa
+@commands.make_json_serializable.register(DateTime, datetime.datetime)
+def make_json_serializable(dtype: DateTime, value: datetime.datetime):
     return value.isoformat()
 
 
-@commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: Date, value: datetime.date):  # noqa
+@commands.make_json_serializable.register(Date, datetime.date)
+def make_json_serializable(dtype: Date, value: datetime.date):
     return value.isoformat()
 
 
-@commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: Date, value: datetime.datetime):  # noqa
+@commands.make_json_serializable.register(Date, datetime.datetime)
+def make_json_serializable(dtype: Date, value: datetime.datetime):
     return value.date().isoformat()
 
 
@@ -801,20 +808,20 @@ def _get_json_serializable_props(dtype: Object, value: dict):
             Exception(f"Unknown {k} key in {dtype!r} object.")
 
 
-@commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: Object, value: dict):  # noqa
+@commands.make_json_serializable.register(Object, dict)
+def make_json_serializable(dtype: Object, value: dict):
     return {
         prop.name: commands.make_json_serializable(prop.dtype, v)
         for prop, v in _get_json_serializable_props(dtype, value)
     }
 
 
-@commands.make_json_serializable.register()  # noqa
-def make_json_serializable(dtype: Array, value: list):  # noqa
+@commands.make_json_serializable.register(Array, list)
+def make_json_serializable(dtype: Array, value: list):
     return [make_json_serializable(dtype.items.dtype, v) for v in value]
 
 
-@commands.update.register()
+@commands.update.register(Context, Property, DataType, Backend)
 def update(
     context: Context,
     prop: Property,
@@ -831,7 +838,7 @@ def update(
     )
 
 
-@commands.patch.register()
+@commands.patch.register(Context, Property, DataType, Backend)
 def patch(
     context: Context,
     prop: Property,
@@ -848,7 +855,7 @@ def patch(
     )
 
 
-@commands.delete.register()
+@commands.delete.register(Context, Property, DataType, Backend)
 def delete(
     context: Context,
     prop: Property,
@@ -879,8 +886,8 @@ async def _prepare_property_for_delete(
         yield data
 
 
-@commands.cast_backend_to_python.register()
-def cast_backend_to_python(  # noqa
+@commands.cast_backend_to_python.register(Context, Model, Backend, dict)
+def cast_backend_to_python(
     context: Context,
     model: Model,
     backend: Backend,
@@ -897,8 +904,8 @@ def cast_backend_to_python(  # noqa
     }
 
 
-@commands.cast_backend_to_python.register()
-def cast_backend_to_python(  # noqa
+@commands.cast_backend_to_python.register(Context, Property, Backend, object)
+def cast_backend_to_python(
     context: Context,
     prop: Property,
     backend: Backend,
@@ -907,8 +914,8 @@ def cast_backend_to_python(  # noqa
     return commands.cast_backend_to_python(context, prop.dtype, backend, data)
 
 
-@commands.cast_backend_to_python.register()
-def cast_backend_to_python(  # noqa
+@commands.cast_backend_to_python.register(Context, DataType, Backend, object)
+def cast_backend_to_python(
     context: Context,
     dtype: DataType,
     backend: Backend,
@@ -917,8 +924,8 @@ def cast_backend_to_python(  # noqa
     return data
 
 
-@commands.cast_backend_to_python.register()
-def cast_backend_to_python(  # noqa
+@commands.cast_backend_to_python.register(Context, Object, Backend, dict)
+def cast_backend_to_python(
     context: Context,
     dtype: Object,
     backend: Backend,
@@ -935,8 +942,8 @@ def cast_backend_to_python(  # noqa
     }
 
 
-@commands.cast_backend_to_python.register()
-def cast_backend_to_python(  # noqa
+@commands.cast_backend_to_python.register(Context, Array, Backend, list)
+def cast_backend_to_python(
     context: Context,
     dtype: Array,
     backend: Backend,
@@ -953,8 +960,8 @@ def cast_backend_to_python(  # noqa
     ]
 
 
-@commands.cast_backend_to_python.register()
-def cast_backend_to_python(  # noqa
+@commands.cast_backend_to_python.register(Context, Binary, Backend, str)
+def cast_backend_to_python(
     context: Context,
     dtype: Binary,
     backend: Backend,

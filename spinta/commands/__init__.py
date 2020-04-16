@@ -2,6 +2,46 @@ from spinta.dispatcher import command
 
 
 @command()
+def manifest_list_schemas():
+    """Return iterator of manifest schema entry ids.
+
+    For YAML manifests entry id is file path, for backend manifests, entry id is
+    _id, for tabular manifests, entry id is table row id.
+
+    """
+
+
+@command()
+def manifest_read_current():
+    """Return current schema by given schema entry id.
+
+    For YAML manifests, current schema is first YAML file document entry. For
+    Backend manifests, current schema is read from _schema table.
+    """
+
+
+@command()
+def manifest_read_freezed():
+    """Return last freezed schema by given schema entry id.
+
+    Freezed schema is schema of last freezed version.
+    """
+
+
+@command()
+def manifest_read_versions():
+    """Return iterator of all schema versions by given schema entry id."""
+
+
+@command()
+def configure():
+    """Configure component before loading.
+
+    This is a very first thing that happens to a component.
+    """
+
+
+@command()
 def load():
     """Load primitive data structures to python-native objects.
 
@@ -185,7 +225,16 @@ def prepare_dtype_for_response():
 
 @command()
 def freeze():
-    """Create new schema version."""
+    """Create new schema version.
+
+    Freeze commands receive empty manifest instance, returned by create_manifest
+    helper funciton. Then freeze command should fully load two versions of
+    manijest, one version is current and another is freezed.
+
+    Then these two manifests will be compared and a new version will be produced
+    for each model if current differs from freezed.
+
+    """
 
 
 @command()

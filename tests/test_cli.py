@@ -135,7 +135,7 @@ def test_push(app, rc, cli, responses, tmpdir):
         content_type='application/json',
     )
     result = cli.invoke(rc, push, [target, '-r', str(credsfile), '-c', 'client', '-d', 'datasets/backends/postgres/dataset'])
-    assert sorted(result.output.splitlines()) == [
+    assert sorted(result.stdout.splitlines()) == [
         f"datasets/backends/postgres/dataset/continent  {data[0]['_id']}",
         f"datasets/backends/postgres/dataset/continent  {data[1]['_id']}",
     ]

@@ -3,15 +3,18 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from spinta import commands
-from spinta.components import Context, Manifest, Model
+from spinta.components import Context, Model
+from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, PrimaryKey
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import TableType, UNSUPPORTED_TYPES
-from spinta.backends.postgresql.helpers import get_pg_name, get_table_name, get_changes_table
+from spinta.backends.postgresql.helpers import get_pg_name
+from spinta.backends.postgresql.helpers import get_table_name
 from spinta.backends.postgresql.helpers import get_column_name
+from spinta.backends.postgresql.helpers.changes import get_changes_table
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, PostgreSQL, Manifest)
 def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
     # Prepare backend for models.
     for model in manifest.models.values():
@@ -19,7 +22,7 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
             commands.prepare(context, backend, model)
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     columns = []
     for prop in model.properties.values():
@@ -50,7 +53,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, PostgreSQL, DataType)
 def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
     if dtype.name in UNSUPPORTED_TYPES:
         return
@@ -83,7 +86,7 @@ def get_primary_key_type(context: Context, backend: PostgreSQL):
     return UUID()
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, PostgreSQL, PrimaryKey)
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
     pkey_type = commands.get_primary_key_type(context, backend)
     return sa.Column('_id', pkey_type, primary_key=True)

@@ -6,31 +6,31 @@ from spinta import commands
 from spinta.core.ufuncs import Expr
 from spinta.core.config import RawConfig
 from spinta.components import Context
-from spinta.components import Manifest
+from spinta.manifests.components import Manifest
 from spinta.datasets.components import Entity
 from spinta.datasets.utils import iterparams
 from spinta.datasets.backends.sql.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
 
 
-@commands.load.register()
+@commands.load.register(Context, Sql, RawConfig)
 def load(context: Context, backend: Sql, rc: RawConfig):
     dsn = rc.get('backends', backend.name, 'dsn', required=True)
     backend.engine = sa.create_engine(dsn, echo=False)
     backend.schema = sa.MetaData(backend.engine)
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, Sql, Manifest)
 def prepare(context: Context, backend: Sql, manifest: Manifest):
     backend.schema.reflect()
 
 
-@commands.bootstrap.register()
+@commands.bootstrap.register(Context, Sql)
 def bootstrap(context: Context, backend: Sql):
     pass
 
 
-@commands.getall.register()
+@commands.getall.register(Context, Entity, Sql)
 def getall(
     context: Context,
     entity: Entity,

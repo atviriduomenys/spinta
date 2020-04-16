@@ -12,7 +12,7 @@ from spinta.backends.postgresql.helpers import get_pg_name, get_table_name
 from spinta.backends.postgresql.helpers import get_column_name
 
 
-@commands.prepare.register()
+@commands.prepare.register(Context, PostgreSQL, Ref)
 def prepare(context: Context, backend: PostgreSQL, dtype: Ref):
     # TODO: rename dtype.object to dtype.model
     ref_model = commands.get_referenced_model(context, dtype.prop, dtype.object)

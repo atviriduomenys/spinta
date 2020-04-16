@@ -273,7 +273,7 @@ class SourceNotSet(UserError):
 
 
 class InvalidManifestFile(BaseError):
-    template = "Error while parsing {filename!r} file: {error}"
+    template = "Error while parsing {eid!r} manifest entry: {error}"
 
 
 class UnknownProjectOwner(BaseError):

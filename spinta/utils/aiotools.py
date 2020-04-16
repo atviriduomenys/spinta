@@ -62,3 +62,8 @@ async def aslice(it: AsyncIterator[T], *args) -> AsyncIterator[T]:
         if i in r:
             yield x
         i += 1
+
+
+async def adrain(it: AsyncIterator[T]) -> None:
+    async for _ in it:
+        pass

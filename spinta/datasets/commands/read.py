@@ -9,7 +9,7 @@ from spinta.datasets.components import ExternalBackend
 from spinta.datasets.components import Entity
 
 
-@commands.getall.register()
+@commands.getall.register(Context, Request, Entity, ExternalBackend)
 async def getall(
     context: Context,
     request: Request,

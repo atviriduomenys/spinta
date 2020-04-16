@@ -1,7 +1,6 @@
-from spinta.testing.utils import create_manifest_files, read_manifest_files
+from spinta.testing.utils import create_manifest_files, read_manifest_files, readable_manifest_files
 from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
-from spinta.utils.json import fix_data_for_json
 from spinta.cli import freeze, migrate
 
 
@@ -26,7 +25,7 @@ def _summarize_actions(actions):
 def configure(rc, path):
     return rc.fork().add('test', {
         'manifests.default': {
-            'type': 'spinta',
+            'type': 'backend',
             'backend': 'default',
             'sync': 'yaml',
         },
@@ -47,48 +46,44 @@ def test_create_model(postgresql, rc, cli, tmpdir, request):
 
     rc = rc.fork().add('test', {
         'manifests.default': {
-            'type': 'spinta',
+            'type': 'backend',
             'backend': 'default',
             'sync': 'yaml',
         },
         'manifests.yaml.path': str(tmpdir),
     })
 
-    assert cli.invoke(rc, freeze)
+    cli.invoke(rc, freeze)
 
     manifest = read_manifest_files(tmpdir)
-    assert manifest == {
+    assert readable_manifest_files(manifest) == {
         'country.yml': [
             {
                 'type': 'model',
                 'name': 'country',
-                'version': {
-                    'id': manifest['country.yml'][1]['version']['id'],
-                    'date': manifest['country.yml'][1]['version']['date'],
-                },
+                'id': 'country:0',
+                'version': 'country:1',
                 'properties': {
                     'name': {'type': 'string'},
                 },
             },
             {
-                'version': {
-                    'id': manifest['country.yml'][1]['version']['id'],
-                    'date': manifest['country.yml'][1]['version']['date'],
-                    'parents': [],
-                },
-                'changes': manifest['country.yml'][1]['changes'],
+                'id': 'country:1',
+                'parents': [],
                 'migrate': [
                     {
                         'type': 'schema',
-                        'upgrade': (
-                            "create_table(\n"
-                            "    'country',\n"
-                            "    column('_id', pk()),\n"
-                            "    column('_revision', string()),\n"
-                            "    column('name', string())\n"
-                            ")"
-                        ),
-                        'downgrade': "drop_table('country')",
+                        'upgrade': [
+                            "create_table(",
+                            "    'country',",
+                            "    column('_id', pk()),",
+                            "    column('_revision', string()),",
+                            "    column('name', string())",
+                            ")",
+                        ],
+                        'downgrade': [
+                            "drop_table('country')",
+                        ],
                     },
                 ],
             },
@@ -101,20 +96,10 @@ def test_create_model(postgresql, rc, cli, tmpdir, request):
     request.addfinalizer(context.wipe_all)
 
     client = create_test_client(context)
-    client.authmodel('_version', ['getall', 'search'])
+    client.authmodel('_schema/version', ['getall', 'search'])
 
-    data = client.get('/_version').json()['_data']
-
-    assert len(data) == 1
-    data = data[0]
-    data['actions'] = _summarize_actions(data['actions'])
-    assert data['actions'] == [
-        {
-            'type': 'schema',
-            'upgrade': ('create_table', 'country'),
-            'downgrade': ('drop_table', 'country'),
-        },
+    data = client.get('/_schema/version?select("type", "name")').json()['_data']
+    data = [d for d in data if not d['name'].startswith('_')]
+    assert data == [
+        {'type': 'model', 'name': 'country'},
     ]
-    assert data['applied'] is None
-    assert data['version'] == manifest['country.yml'][1]['version']['id']
-    assert data['schema'] == fix_data_for_json(manifest['country.yml'][0])

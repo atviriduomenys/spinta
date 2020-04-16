@@ -35,11 +35,7 @@ class AccessLog:
             'http_method': method or self.method,
             'url': self.url,
             'reason': reason or self.reason,
-            'timestamp': (
-                datetime.datetime.now().
-                astimezone(datetime.timezone.utc).
-                isoformat()
-            ),
+            'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'transaction_id': txn,
             'resources': resources,
             'fields': fields,
@@ -58,12 +54,12 @@ class AccessLog:
         raise NotImplementedError
 
 
-@commands.load.register()
+@commands.load.register(Context, AccessLog, Config)
 def load(context: Context, accesslog: AccessLog, config: Config):
     accesslog.buffer_size = config.rc.get('accesslog', 'buffer_size', required=True)
 
 
-@commands.load.register()
+@commands.load.register(Context, AccessLog, rfc6749.TokenMixin)
 def load(context: Context, accesslog: AccessLog, token: rfc6749.TokenMixin):  # noqa
     accesslog.accessors.append({
         'type': 'client',
@@ -71,7 +67,7 @@ def load(context: Context, accesslog: AccessLog, token: rfc6749.TokenMixin):  # 
     })
 
 
-@commands.load.register()
+@commands.load.register(Context, AccessLog, Request)
 def load(context: Context, accesslog: AccessLog, request: Request):  # noqa
     accesslog.method = request.method
     accesslog.url = str(request.url)

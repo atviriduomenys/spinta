@@ -6,7 +6,7 @@ from spinta.commands import get_version
 from spinta.components import Context
 
 
-@get_version.register()
+@get_version.register(Context)
 def get_version(context: Context):
     try:
         version = get_distribution('spinta').version

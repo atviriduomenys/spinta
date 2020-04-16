@@ -194,7 +194,6 @@ def init(context: Context):
 
     config.rc.dump(
         'env',
-        'backends',
         'manifests',
         'manifest',
         'accesslog',

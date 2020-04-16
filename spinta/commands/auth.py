@@ -3,7 +3,7 @@ from spinta.components import Context
 from spinta.utils.scopes import name_to_scope
 
 
-@commands.get_model_scopes.register()
+@commands.get_model_scopes.register(Context, str, list)
 def get_model_scopes(context: Context, model: str, actions: list):
     config = context.get('config')
     return [

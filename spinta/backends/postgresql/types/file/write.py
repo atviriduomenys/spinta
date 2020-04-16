@@ -102,7 +102,7 @@ async def push(
 
 
 @commands.before_write.register(Context, File, PostgreSQL)
-def before_write(  # noqa
+def before_write(
     context: Context,
     dtype: File,
     backend: PostgreSQL,

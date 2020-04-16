@@ -8,7 +8,7 @@ from spinta.types.datatype import DataType, File
 from spinta.exceptions import ItemDoesNotExist
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Request, Property, File, FileSystem)
 async def getone(
     context: Context,
     request: Request,
@@ -39,7 +39,7 @@ async def getone(
     )
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Property, DataType, FileSystem)
 def getone(
     context: Context,
     prop: Property,
@@ -51,7 +51,7 @@ def getone(
     raise NotImplementedError
 
 
-@commands.getone.register()
+@commands.getone.register(Context, Property, File, FileSystem)
 def getone(
     context: Context,
     prop: Property,

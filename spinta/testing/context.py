@@ -69,16 +69,16 @@ class ContextForTests:
             })
 
         config = self.get('config')
-        commands.load(self, config, rc)
+        commands.load(self, config)
         commands.check(self, config)
 
         store = self.get('store')
-        commands.load(self, store, config)
-        commands.link(self, store)
-        commands.check(self, store)
-
-        commands.prepare(self, store)
-        commands.bootstrap(self, store)
+        commands.load(self, store)
+        commands.load(self, store.manifest)
+        commands.link(self, store.manifest)
+        commands.check(self, store.manifest)
+        commands.prepare(self, store.manifest)
+        commands.bootstrap(self, store.manifest)
 
         self.loaded = True
 
