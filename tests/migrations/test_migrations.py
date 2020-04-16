@@ -11,7 +11,7 @@ from spinta.cli import freeze, migrate
 def configure(rc, path):
     return rc.fork().add('test', {
         'manifests.default': {
-            'type': 'internal',
+            'type': 'backend',
             'backend': 'default',
             'sync': 'yaml',
         },
@@ -20,6 +20,8 @@ def configure(rc, path):
 
 
 def test_create_table(rc, cli, tmpdir):
+    rc = configure(rc, tmpdir)
+
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
@@ -29,16 +31,15 @@ def test_create_table(rc, cli, tmpdir):
             },
         },
     })
-    rc = configure(rc, tmpdir)
+
     cli.invoke(rc, freeze)
+
     manifest = read_manifest_files(tmpdir)
     freezed = manifest['country.yml'][-1]
     assert freezed == {
-        'version': {
-            'id': freezed['version']['id'],
-            'date': freezed['version']['date'],
-            'parents': [],
-        },
+        'id': freezed['id'],
+        'date': freezed['date'],
+        'parents': [],
         'changes': freezed['changes'],
         'migrate': [
             {
