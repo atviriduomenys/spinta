@@ -383,6 +383,17 @@ class MetaData(Node):
         'description': {},
     }
 
+    def get_eid_for_error_context(self):
+        if (
+            isinstance(self.eid, pathlib.Path) and
+            self.manifest and
+            isinstance(getattr(self.manifest, 'path', None), pathlib.Path)
+        ):
+            # XXX: Didn't wanted to create command just for this so added na if.
+            return str(self.eid.relative_to(self.manifest.path))
+        else:
+            return str(self.eid)
+
 
 class Model(MetaData):
     schema = {

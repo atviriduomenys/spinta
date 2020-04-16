@@ -20,10 +20,8 @@ def get_error_context(node: type(None), *, prefix='this') -> Dict[str, str]:
 
 @commands.get_error_context.register(Node)
 def get_error_context(node: Node, *, prefix='this') -> Dict[str, str]:
-    context = {
-        'schema': f'{prefix}.path.__str__()',
-    }
     depth = 0
+    context = {}
     while node:
         name = prefix + ('.' if depth else '') + '.'.join(['parent'] * depth)
         if isinstance(node, Manifest):

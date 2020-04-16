@@ -36,7 +36,6 @@ def test_str_with_this():
         'Error.\n'
         '  Context:\n'
         '    component: spinta.components.Node\n'
-        '    schema: None\n'
         '    model: country\n'
     )
     assert error_response(error) == {
@@ -46,7 +45,6 @@ def test_str_with_this():
         'message': 'Error.',
         'context': {
             'component': 'spinta.components.Node',
-            'schema': 'None',
             'model': 'country',
         },
     }
@@ -136,7 +134,7 @@ def test_this_model(context):
         '  Context:\n'
         '    component: spinta.components.Model\n'
         '    manifest: default\n'
-        '    schema: tests/manifest/models/org.yml\n'
+        '    schema: models/org.yml\n'
         '    model: org\n'
     )
 
@@ -150,7 +148,7 @@ def test_this_model_property(context):
         '  Context:\n'
         '    component: spinta.components.Property\n'
         '    manifest: default\n'
-        '    schema: tests/manifest/models/org.yml\n'
+        '    schema: models/org.yml\n'
         '    model: org\n'
         '    property: title\n'
     )
@@ -165,7 +163,7 @@ def test_this_model_property_dtype(context):
         '  Context:\n'
         '    component: spinta.types.datatype.String\n'
         '    manifest: default\n'
-        '    schema: tests/manifest/models/org.yml\n'
+        '    schema: models/org.yml\n'
         '    model: org\n'
         '    property: title\n'
         '    type: string\n'
@@ -181,7 +179,7 @@ def test_this_dataset_model(context):
         '  Context:\n'
         '    component: spinta.components.Model\n'
         '    manifest: default\n'
-        '    schema: tests/manifest/backends/postgres/dataset/report.yml\n'
+        '    schema: backends/postgres/dataset/report.yml\n'
         '    dataset: datasets/backends/postgres/dataset\n'
         '    resource: sql\n'
         '    model: datasets/backends/postgres/dataset/report\n'
@@ -198,7 +196,7 @@ def test_this_dataset_model_property(context):
         '  Context:\n'
         '    component: spinta.components.Property\n'
         '    manifest: default\n'
-        '    schema: tests/manifest/backends/postgres/dataset/report.yml\n'
+        '    schema: backends/postgres/dataset/report.yml\n'
         '    dataset: datasets/backends/postgres/dataset\n'
         '    resource: sql\n'
         '    model: datasets/backends/postgres/dataset/report\n'

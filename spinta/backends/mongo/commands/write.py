@@ -21,7 +21,6 @@ async def insert(
 ):
     table = backend.db[model.model_type()]
     async for data in dstream:
-        commands.before_write.print_methods(context, model, backend, data=data)
         patch = commands.before_write(context, model, backend, data=data)
         # TODO: Insert batches in a single query, using `insert_many`.
         table.insert_one(patch)
