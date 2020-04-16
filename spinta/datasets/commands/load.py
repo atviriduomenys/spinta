@@ -26,6 +26,8 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
 @commands.load.register(Context, Resource, dict, Manifest)
 def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_node(context, resource, data, parent=resource.dataset)
+    if resource.backend:
+        resource.backend = resource.dataset.manifest.store.backends[resource.backend]
     # Models will be added on `link` command.
     resource.models = {}
     return resource
