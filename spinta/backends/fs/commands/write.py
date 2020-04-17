@@ -61,7 +61,7 @@ async def push(
     if action in (Action.UPDATE, Action.PATCH):
         dstream = aiter([data])
         dstream = validate_data(context, dstream)
-        dstream = create_file(filepath, dstream, request.stream())
+        dstream = before_write(context, prop.model, backend, filepath, dstream, request.stream())
         dstream = prepare_patch(context, dstream)
         dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
         dstream = commands.create_changelog_entry(
@@ -86,11 +86,14 @@ async def push(
     return render(context, request, prop, params, response, status_code=status_code)
 
 
-async def create_file(
+async def before_write(
+    context: Context,
+    model: File,
+    backend: FileSystem,
     filepath: pathlib.PosixPath,
     dstream: typing.AsyncIterator[DataItem],
-    fstream: typing.AsyncGenerator[bytes, None]
-) -> typing.AsyncIterator[DataItem]:
+    fstream: typing.AsyncIterator[bytes]
+) -> typing.AsyncGenerator[DataItem, DataItem]:
     async for d in dstream:
         yield d
 
