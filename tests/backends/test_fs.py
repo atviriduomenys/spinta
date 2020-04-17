@@ -80,7 +80,7 @@ def test_crud(model, app, tmpdir):
     }
     assert data['_revision'] != revision
     revision = data['_revision']
-    assert img.is_file() is False
+    assert img.is_file() is True
 
     resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.status_code == 200

@@ -264,7 +264,7 @@ def test_delete(model, app, tmpdir):
         "id": ids[0],
     }
 
-    assert pdf.is_file() is False
+    assert pdf.is_file() is True
 
     resp = app.get(f'/{model}').json()
     data = [x['_id'] for x in resp['_data']]

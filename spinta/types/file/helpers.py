@@ -1,7 +1,6 @@
 import pathlib
 
 from spinta.backends.components import BackendFeatures
-from spinta.backends.fs.components import FileSystem
 from spinta.components import DataSubItem, Action
 from spinta.types.datatype import File
 from spinta.utils.data import take
@@ -17,10 +16,6 @@ def prepare_patch_data(
             '_content_type': None,
             '_size': None,
         }
-        if isinstance(dtype.backend, FileSystem) and data.saved and data.saved['_id']:
-            filepath = dtype.backend.path / data.saved['_id']
-            if filepath.exists():
-                filepath.unlink()
     else:
         patch = take(['_id', '_content_type', '_size'], data.patch)
 
