@@ -5,7 +5,7 @@ from spinta.manifests.backend.helpers import run_bootstrap
 from spinta.manifests.backend.helpers import run_migrations
 
 
-@commands.migrate.register()
+@commands.migrate.register(Context, BackendManifest)
 async def migrate(context: Context, manifest: BackendManifest):
     context.attach('transaction', manifest.backend.transaction, write=True)
     if manifest.backend.bootstrapped():

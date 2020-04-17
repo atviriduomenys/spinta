@@ -2,6 +2,7 @@ from typing import AsyncIterator, Iterator, Tuple, Iterable
 
 import collections
 import datetime
+import itertools
 
 from toposort import toposort
 
@@ -11,6 +12,7 @@ from spinta.utils.aiotools import aiter
 from spinta.utils.aiotools import adrain
 from spinta.utils.itertools import last
 from spinta.commands.write import push_stream
+from spinta.commands.write import write
 from spinta.components import Context, DataItem, Action
 from spinta.manifests.components import Manifest
 from spinta.manifests.backend.components import BackendManifest
@@ -38,17 +40,60 @@ async def run_migrations(context: Context, manifest: BackendManifest):
     await adrain(push_stream(context, stream))
 
     # Apply unapplied versions
-    for version in read_unapplied_versions():
-        apply_version(version)
-        await update_schema_version(context, manifest, version['schema'])
+    store = manifest.store
+    model = manifest.objects['ns']['']
+    backends = {}
+    versions = read_unapplied_versions(context, manifest)
+    versions = itertools.groupby(versions, key=lambda v: v.get('backend', 'default'))
+    for name, group in versions:
+        if name not in backends:
+            backend = store.backends[name]
+            context.attach(f'transaction.{backend.name}', backend.begin)
+            backends[backend] = commands.migrate(context, manifest, backend)
+        execute = backends[backend]
+        async for version in execute(group):
+            schema = version['schema']
+            assert schema['version'] == version['id'], (
+                schema['version'],
+                version['id'],
+            )
+            await write(context, model, [
+                {
+                    '_op': 'patch',
+                    '_type': '_schema/version',
+                    '_where': '_id="%s"' % version['id'],
+                    'applied': datetime.datetime.now(datetime.timezone.utc),
+                },
+                {
+                    '_op': 'upsert',
+                    '_type': '_schema',
+                    '_where': '_id="%s"' % schema['id'],
+                    '_id': schema['id'],
+                    'type': schema['type'],
+                    'name': schema['name'],
+                    'version': schema['version'],
+                    'schema': fix_data_for_json(schema),
+                },
+            ])
 
 
-def read_unapplied_versions():
-    raise NotImplementedError
-
-
-def apply_version():
-    raise NotImplementedError
+def read_unapplied_versions(
+    context: Context,
+    manifest: Manifest,
+):
+    model = manifest.objects['model']['_schema/version']
+    query = {
+        'select': ['id', '_id', 'parents'],
+        'query': [
+            {'name': 'ne', 'args': ['applied', None]}
+        ],
+    }
+    versions = {}
+    for row in commands.getall(context, model, model.backend, **query):
+        versions[row['_id']] = set(row['parents'])
+    for group in toposort(versions):
+        for vid in sorted(group):
+            yield get_version_schema(context, manifest, vid)
 
 
 def read_sync_versions(context: Context, manifest: Manifest):

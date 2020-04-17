@@ -18,6 +18,7 @@ pprint.pformat = pprintpp.pformat
 
 pytest_plugins = ['spinta.testing.pytest']
 
+import asyncio
 import pytest  # noqa
 import sqlalchemy as sa  # noqa
 import sqlalchemy_utils as su  # noqa
@@ -34,3 +35,9 @@ def check_if_database_is_clean(rc):
         query = sa.select([sa.func.count()]).select_from(table)
         with engine.begin() as conn:
             assert conn.execute(query).scalar() == 0
+
+
+@pytest.fixture(autouse=True, scope='function')
+def check_event_loop(rc):
+    yield
+    asyncio.get_event_loop()

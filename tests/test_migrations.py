@@ -1,7 +1,7 @@
 from spinta.testing.utils import create_manifest_files, read_manifest_files, readable_manifest_files
 from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
-from spinta.cli import freeze, migrate
+from spinta.cli import bootstrap, freeze, migrate
 
 
 def _summarize_ast(ast):
@@ -34,6 +34,17 @@ def configure(rc, path):
 
 
 def test_create_model(postgresql, rc, cli, tmpdir, request):
+    rc = rc.fork().add('test', {
+        'manifests.default': {
+            'type': 'backend',
+            'backend': 'default',
+            'sync': 'yaml',
+        },
+        'manifests.yaml.path': str(tmpdir),
+    })
+
+    cli.invoke(rc, bootstrap)
+
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
@@ -42,15 +53,6 @@ def test_create_model(postgresql, rc, cli, tmpdir, request):
                 'name': {'type': 'string'},
             },
         },
-    })
-
-    rc = rc.fork().add('test', {
-        'manifests.default': {
-            'type': 'backend',
-            'backend': 'default',
-            'sync': 'yaml',
-        },
-        'manifests.yaml.path': str(tmpdir),
     })
 
     cli.invoke(rc, freeze)

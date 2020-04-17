@@ -110,7 +110,9 @@ def bootstrap(ctx):
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)
     commands.prepare(context, store.manifest)
-    commands.bootstrap(context, store.manifest)
+    with context:
+        _require_auth(context)
+        commands.bootstrap(context, store.manifest)
 
 
 @main.command()
@@ -151,8 +153,8 @@ def migrate(ctx):
 
     with context:
         _require_auth(context)
-        coro = commands.migrate(context, store.manifest)
-        asyncio.run(coro)
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(commands.migrate(context, store.manifest))
 
 
 @main.command(help='Pull data from an external dataset.')
