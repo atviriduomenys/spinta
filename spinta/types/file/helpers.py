@@ -35,3 +35,11 @@ def prepare_patch_data(
         patch['_id'] = str(patch['_id'])
 
     return patch
+
+
+def create_file(
+    filepath: pathlib.PosixPath,
+    file: bytes
+):
+    with open(filepath, 'wb') as f:
+        f.write(file)
