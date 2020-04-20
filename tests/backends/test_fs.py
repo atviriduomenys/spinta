@@ -10,7 +10,7 @@ from spinta.testing.utils import error, get_error_codes, get_error_context
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_crud(model, app):
+def test_crud(model, app, tmpdir):
     app.authmodel(model, [
         'insert',
         'update',
@@ -42,6 +42,8 @@ def test_crud(model, app):
         'content-disposition': 'attachment; filename="myimg.png"',
     })
     assert resp.status_code == 200, resp.text
+    img = pathlib.Path(tmpdir) / 'myimg.png'
+    assert img.is_file() is True
 
     resp = app.get(f'/{model}/{id_}')
     data = resp.json()
@@ -78,6 +80,7 @@ def test_crud(model, app):
     }
     assert data['_revision'] != revision
     revision = data['_revision']
+    assert img.is_file() is True
 
     resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.status_code == 200
