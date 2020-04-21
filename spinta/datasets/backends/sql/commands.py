@@ -20,6 +20,11 @@ def load(context: Context, backend: Sql, rc: RawConfig):
     backend.schema = sa.MetaData(backend.engine)
 
 
+@commands.wait.register(Context, Sql)
+def wait(context: Context, backend: Sql):
+    return True
+
+
 @commands.prepare.register(Context, Sql, Manifest)
 def prepare(context: Context, backend: Sql, manifest: Manifest):
     backend.schema.reflect()

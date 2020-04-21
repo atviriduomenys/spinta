@@ -3,6 +3,7 @@ alembic
 asyncpg
 # FIXME: https://jira.tilaajavastuu.fi/browse/SPLAT-152
 authlib==0.11
+boto3
 click
 gunicorn
 jinja2

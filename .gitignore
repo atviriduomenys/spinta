@@ -10,3 +10,6 @@
 /env/
 /tags
 /var/
+
+# pyenv
+.python-version

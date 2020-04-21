@@ -47,6 +47,7 @@ CONFIG = {
             'postgresql': 'spinta.backends.postgresql.components:PostgreSQL',
             'mongo': 'spinta.backends.mongo.components:Mongo',
             'fs': 'spinta.backends.fs.components:FileSystem',
+            's3': 'spinta.backends.s3:S3',
 
             # External backends
             'sql': 'spinta.datasets.backends.sql.components:Sql',
@@ -187,6 +188,13 @@ CONFIG = {
                     'type': 'fs',
                     'path': pathlib.Path() / 'var/files',
                 },
+                's3': {
+                    'type': 's3',
+                    'region': 'eu-north-1',
+                    # 'bucket': 'change me',
+                    # 'access_key_id': 'change me',
+                    # 'secret_access_key': 'change me',
+                },
             },
             'manifests': {
                 # TODO: remove `default` manifest
@@ -218,6 +226,13 @@ CONFIG = {
                 'fs': {
                     'type': 'fs',
                     'path': pathlib.Path() / 'var/files',
+                },
+                's3': {  # actually should run on localstack
+                    'type': 's3',
+                    'bucket': 'splat-test',
+                    'region': 'eu-north-1',
+                    'access_key_id': 'test_access_key',
+                    'secret_access_key': 'test_secret_access_key',
                 },
             },
             'manifests': {

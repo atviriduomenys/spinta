@@ -1,0 +1,15 @@
+---
+type: model
+name: backends/mongo/s3_file
+endpoint: backends/mongo/s3_files
+backend: mongo
+title: "S3 file"
+version:
+  id: 1
+  date: "2020-03-20"
+properties:
+  title: {type: string}
+
+  file:
+    type: file
+    backend: s3
