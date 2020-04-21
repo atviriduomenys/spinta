@@ -37,6 +37,7 @@ CONFIG = {
         'manifests': {
             'backend': 'spinta.manifests.backend.components:BackendManifest',
             'yaml': 'spinta.manifests.yaml.components:YamlManifest',
+            'tabular': 'spinta.manifests.tabular.components:TabularManifest',
         },
         'backends': {
             # In memory backends mostly usable in tests

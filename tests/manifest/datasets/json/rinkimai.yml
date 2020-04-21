@@ -3,7 +3,7 @@ name: datasets/json/rinkimai
 external:
   dataset: datasets/json
   resource: data
-  id: id
+  pk: id
 properties:
   id:
     type: string

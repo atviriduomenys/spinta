@@ -24,7 +24,7 @@ def test_getall(rc, cli, tmpdir, request):
                 'dataset': 'datasets/example',
                 'resource': 'countries',
                 'name': 'tests_country',
-                'id': 'code',
+                'pk': 'code',
             },
             'properties': {
                 'code': {

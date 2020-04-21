@@ -4,7 +4,7 @@ external:
   dataset: datasets/generator
   resource: continents
   name: continents.csv
-  id: id
+  pk: id
   params:
     - year: range(2000, 2001)
 properties:

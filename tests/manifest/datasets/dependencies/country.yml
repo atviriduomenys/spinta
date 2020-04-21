@@ -6,7 +6,7 @@ external:
   params:
     - continent: query(datasets/dependencies/continent)
   name: /continents/{continent.id}/countries.csv
-  id: id
+  pk: id
 properties:
   id:
     type: string

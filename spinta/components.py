@@ -10,14 +10,14 @@ import pathlib
 from spinta import exceptions
 from spinta.utils.schema import NA
 from spinta.core.enums import Access
+from spinta.datasets.enums import Level
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
     from spinta.types.datatype import DataType
     from spinta.types.datatype import Array
-    from spitna.datasets.enums import Level
     from spinta.manifests.components import Manifest
-    from spitna.datasets.components import Attribute
+    from spinta.datasets.components import Attribute
 
 
 class Context:
@@ -395,6 +395,17 @@ class MetaData(Node):
             return str(self.eid)
 
 
+class Base(Node):
+    model: Model        # a.base.b - here `model` is `b`
+    parent: Model       # a.base.b - here `parent` is `a`
+    pk: List[Property]  # a.base.b - list of properties of `a` model
+
+    schema = {
+        'model': {'type': 'string'},
+        'pk': {'type': 'string'},
+    }
+
+
 class Model(MetaData):
     schema = {
         'backend': {'type': 'string'},
@@ -404,6 +415,16 @@ class Model(MetaData):
         'properties': {'default': {}},
         'endpoint': {},
         'external': {},
+        'level': {
+            'type': 'integer',
+            'choices': Level,
+            'inherit': 'external.resource.level',
+        },
+        'access': {
+            'type': 'string',
+            'choices': Access,
+            'inherit': 'external.resource.access',
+        },
     }
 
     def __init__(self):
@@ -431,8 +452,16 @@ class Property(Node):
         'description': {},
         'link': {},
         'hidden': {'type': 'boolean', 'default': False},
-        'access': {},
-        'level': {},
+        'level': {
+            'type': 'integer',
+            'choices': Level,
+            'inherit': 'model.level',
+        },
+        'access': {
+            'type': 'string',
+            'choices': Access,
+            'inherit': 'model.access',
+        },
         'external': {},
     }
 

@@ -4,7 +4,7 @@ external:
   dataset: datasets/denorm
   resource: orgs
   name: orgs.csv
-  id: govid
+  pk: govid
 properties:
   govid:
     type: string

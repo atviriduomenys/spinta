@@ -7,7 +7,7 @@ external:
     - continent: query(datasets/dependencies/continent)
     - country: query(datasets/dependencies/country)
   name: /continents/{continent.id}/countries/{country.id}/captials.csv
-  id: id
+  pk: id
 properties:
   id:
     type: string
