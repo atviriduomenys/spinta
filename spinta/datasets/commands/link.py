@@ -27,10 +27,12 @@ def link(context: Context, entity: Entity):
         raise MissingReferrence(entity, param='resource', ref=entity.resource)
     entity.resource = resources[entity.resource]
 
+    entity.pkeys = [entity.model.properties[p] for p in (entity.pkeys or [])]
+
     assert entity.model.name not in entity.resource.models
     entity.resource.models[entity.model.name] = entity.model
 
 
 @commands.link.register(Context, Attribute)
-def link(context: Context, entity: Entity):
+def link(context: Context, attribute: Attribute):
     pass

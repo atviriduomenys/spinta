@@ -5,7 +5,7 @@ external:
   resource: data
   name: RP_Rinkimu_Rezultatai_Vn_Balsai
   prepare: offset(8) & limit(1)
-  id:
+  pk:
     - rinkimai
     - turas
     - apygarda

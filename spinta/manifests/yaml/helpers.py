@@ -81,7 +81,7 @@ def read_schema_versions(path: pathlib.Path):
 
 def read_manifest_schemas(
     manifest: YamlManifest,
-) -> Iterator[Tuple[pathlib.Path, Optional[dict], None]]:
+) -> Iterator[Tuple[pathlib.Path, Optional[dict]]]:
     for path in list_yaml_files(manifest):
         yield path, next(read_yaml_file(path), None)
 

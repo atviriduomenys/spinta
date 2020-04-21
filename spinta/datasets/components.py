@@ -118,7 +118,7 @@ class Entity(External):
             'type': 'array',
             'items': {'type': 'object'},
         },
-        'id': {
+        'pk': {
             'type': 'array',
             'force': True,
             'attr': 'pkeys',

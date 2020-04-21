@@ -4,7 +4,7 @@ external:
   dataset: datasets/xlsx
   resource: data
   name: RP_Rinkimu_Rezultatai_Vn_Balsai
-  id: id
+  pk: id
   prepare: (row[0] = "Rinkimai" | row[0] = "Rinkimų rūšis") & limit(10)
 properties:
   id:

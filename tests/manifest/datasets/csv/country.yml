@@ -4,7 +4,7 @@ external:
   dataset: datasets/csv
   resource: countries
   name: countries.csv
-  id: code
+  pk: code
 properties:
   code:
     type: string

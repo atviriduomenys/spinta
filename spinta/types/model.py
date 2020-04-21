@@ -2,7 +2,7 @@ from typing import Dict
 
 from spinta.auth import check_generated_scopes
 from spinta.commands import load, check, authorize, prepare
-from spinta.components import Context, Node, Model, Property, Action
+from spinta.components import Context, Node, Base, Model, Property, Action
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.utils.schema import NA
@@ -25,8 +25,16 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
     load_namespace(context, manifest, model)
     load_model_properties(context, model, Property, data.get('properties'))
 
+    config = context.get('config')
+
+    if model.base:
+        base = model.base
+        model.base = get_node(config, manifest, model.eid, base, group='bases', ctype='model', parent=model)
+        model.base.parent = model
+        load_node(context, model.base, base, parent=model)
+        commands.load(context, model.base, base, manifest)
+
     if model.external:
-        config = context.get('config')
         external = model.external
         model.external = get_node(config, manifest, model.eid, external, group='datasets', ctype='entity', parent=model)
         model.external.model = model
@@ -38,12 +46,26 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
     return model
 
 
+@load.register(Context, Base, dict, Manifest)
+def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
+    pass
+
+
 @commands.link.register(Context, Model)
 def link(context: Context, model: Model):
     for prop in model.properties.values():
         commands.link(context, prop)
     if model.external:
         commands.link(context, model.external)
+
+
+@commands.link.register(Context, Base)
+def link(context: Context, base: Base):
+    base.model = base.parent.manifest.models[base.model]
+    base.pk = [
+        base.parent.properties[pk]
+        for pk in base.pk
+    ]
 
 
 @load.register(Context, Property, dict, Manifest)

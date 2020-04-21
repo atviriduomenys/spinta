@@ -4,7 +4,7 @@ external:
   dataset: datasets/sql
   resource: db
   name: tests_country
-  id: code
+  pk: code
 properties:
   code:
     type: string
