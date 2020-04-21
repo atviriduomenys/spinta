@@ -1,6 +1,7 @@
 codecov
 ipdb
 ipython
+moto
 pp-ez
 pprintpp
 pytest

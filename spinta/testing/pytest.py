@@ -1,5 +1,7 @@
 import pathlib
 
+import boto3
+import moto
 import pytest
 import sqlalchemy_utils as su
 from responses import RequestsMock
@@ -41,7 +43,27 @@ def mongo(rc):
 
 
 @pytest.fixture(scope='session')
-def _context(rc, postgresql, mongo):
+def s3(rc):
+    with moto.mock_s3():
+        yield
+        bucket_name = rc.get('backends', 's3', 'bucket', required=False)
+        if bucket_name:
+            s3 = boto3.resource('s3')
+            s3_client = boto3.client('s3')
+            try:
+                objs = s3_client.list_objects(Bucket=bucket_name)
+                obj_keys = {'Objects': [
+                    {'Key': obj['Key'] for obj in objs['Contents']}
+                ]}
+                bucket = s3.Bucket(bucket_name)
+                bucket.delete_objects(Delete=obj_keys)
+                bucket.delete()
+            except s3_client.exceptions.NoSuchBucket:
+                pass
+
+
+@pytest.fixture(scope='session')
+def _context(rc, postgresql, mongo, s3):
     context = create_test_context(rc)
     context.load()
     yield context

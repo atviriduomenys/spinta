@@ -1,26 +1,26 @@
 version: "3"
 
 services:
-    db:
-        image: postgres:11.2-alpine
-        ports:
-            - "54321:5432"
-        environment:
-            - POSTGRES_DB=spinta
-            - POSTGRES_USER=admin
-            - POSTGRES_PASSWORD=admin123
-        volumes:
-            - postgres:/var/lib/postgresql/data
-    mongo:
-        image: mongo:4.0.9-xenial
-        ports:
-            - "27017:27017"
-        environment:
-            - MONGO_INITDB_DATABASE=spinta
-            - MONGO_INITDB_ROOT_USERNAME=admin
-            - MONGO_INITDB_ROOT_PASSWORD=admin123
-        volumes:
-            - mongo:/data/db
+  db:
+    image: postgres:11.2-alpine
+    ports:
+      - "54321:5432"
+    environment:
+      - POSTGRES_DB=spinta
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin123
+    volumes:
+      - postgres:/var/lib/postgresql/data
+  mongo:
+    image: mongo:4.0.9-xenial
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=spinta
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin123
+    volumes:
+      - mongo:/data/db
 
 volumes:
   postgres:

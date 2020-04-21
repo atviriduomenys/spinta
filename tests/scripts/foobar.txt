@@ -1,0 +1,2 @@
+Hello world in foobar.txt
+Line number 2

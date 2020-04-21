@@ -77,6 +77,7 @@ class ContextForTests:
         commands.load(self, store.manifest)
         commands.link(self, store.manifest)
         commands.check(self, store.manifest)
+        commands.wait(self, store)
         commands.prepare(self, store.manifest)
         commands.bootstrap(self, store.manifest)
 

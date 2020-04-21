@@ -1,0 +1,14 @@
+---
+type: model
+name: backends/postgres/s3_file
+endpoint: backends/postgres/s3_files
+title: "S3 file"
+version:
+  id: 1
+  date: "2020-03-20"
+properties:
+  title: {type: string}
+
+  file:
+    type: file
+    backend: s3
