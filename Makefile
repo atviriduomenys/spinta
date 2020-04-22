@@ -2,7 +2,7 @@
 env: .env env/.done var/.done requirements.txt docs/requirements.txt
 
 env/bin/pip:
-	python3.7 -m venv env
+	python3.8 -m venv env
 	env/bin/pip install --upgrade pip wheel setuptools
 
 env/.done: env/bin/pip setup.py requirements-dev.txt

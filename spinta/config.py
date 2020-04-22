@@ -188,12 +188,10 @@ CONFIG = {
                     'type': 'fs',
                     'path': pathlib.Path() / 'var/files',
                 },
+                # Locally we don't have access to s3.
                 's3': {
-                    'type': 's3',
-                    'region': 'eu-north-1',
-                    # 'bucket': 'change me',
-                    # 'access_key_id': 'change me',
-                    # 'secret_access_key': 'change me',
+                    'type': 'fs',
+                    'path': pathlib.Path() / 'var/files',
                 },
             },
             'manifests': {
