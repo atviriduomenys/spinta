@@ -69,6 +69,18 @@ backends:
       migrate:
         type: ref
         ref: components.migrations
+    switch: type
+    case:
+      s3:
+        bucket:
+          type: string
+        region:
+          type: string
+          default: 'eu-north-1'
+        access_key_id:
+          type: string
+        secret_access_key:
+          type: string
 
 manifests:
   type: object
