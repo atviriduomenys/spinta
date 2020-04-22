@@ -3,7 +3,6 @@ from typing import Optional, Union
 from spinta import commands
 from spinta.components import Context
 from spinta.types.datatype import File
-from spinta.types.file.helpers import create_file
 from spinta.utils.schema import NotAvailable, NA
 
 
@@ -23,9 +22,6 @@ def build_data_patch_for_write(
             '_content_type': given.get('_content_type', None) if given else None,
             '_content': given.get('_content', NA) if given else NA,
         }
-        if update_action and context.has("file"):
-            filepath = dtype.backend.path / given['_id']
-            create_file(filepath, context.get("file"))
     else:
         given = {
             '_id': given.get('_id', NA) if given else NA,
