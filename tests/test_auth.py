@@ -238,8 +238,9 @@ def test_invalid_access_token(app):
 
 
 def test_token_validation_key_config(backends, rc, tmpdir, request):
-    prvkey = json.loads(pathlib.Path('tests/config/keys/private.json').read_text())
-    pubkey = json.loads(pathlib.Path('tests/config/keys/public.json').read_text())
+    confdir = pathlib.Path(__file__).parent
+    prvkey = json.loads((confdir / 'config/keys/private.json').read_text())
+    pubkey = json.loads((confdir / 'config/keys/public.json').read_text())
 
     rc = rc.fork({
         'config_path': str(tmpdir),
