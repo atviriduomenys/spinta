@@ -233,6 +233,7 @@ class RawConfig:
             elif value is not None:
                 value = cast(value)
             else:
+                # XXX: why []?
                 value = default or []
 
         if required and not value:

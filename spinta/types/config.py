@@ -1,3 +1,4 @@
+import json
 import pathlib
 
 from ruamel.yaml import YAML
@@ -57,6 +58,7 @@ def load(context: Context, config: Config) -> Config:
     config.scope_prefix = rc.get('scope_prefix')
     config.scope_max_length = rc.get('scope_max_length', cast=int)
     config.default_auth_client = rc.get('default_auth_client')
+    config.token_validation_key = rc.get('token_validation_key', cast=json.loads) or None
     config.datasets = rc.get('datasets', default={})
     config.env = rc.get('env')
     config.docs_path = rc.get('docs_path', default=None)

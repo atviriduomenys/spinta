@@ -58,12 +58,10 @@ class TestClient(starlette.testclient.TestClient):
         else:
             # Create access token using private key.
             context = self._spinta_context
-            private_key = auth.load_key(context, 'private.json')
-            client_id = 'baa448a8-205c-4faa-a048-a10e4b32a136'
-            client = auth.query_client(context, client_id)
-            grant_type = 'client_credentials'
+            private_key = auth.load_key(context, auth.KeyType.private)
+            client = 'baa448a8-205c-4faa-a048-a10e4b32a136'
             expires_in = int(datetime.timedelta(days=10).total_seconds())
-            token = auth.create_access_token(context, private_key, client, grant_type, expires_in, scopes=self._scopes)
+            token = auth.create_access_token(context, private_key, client, expires_in, scopes=self._scopes)
 
         if self._requests_session:
             session = self._requests_session

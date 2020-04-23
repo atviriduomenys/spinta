@@ -412,3 +412,11 @@ class MissingReferrence(UserError):
 
 class UnacceptableFileName(UserError):
     template = "Path is not acceptable in filename {file!r}"
+
+
+class NoAuthServer(UserError):
+    template = "Authorization server is disabled, use an external authorization server."
+
+
+class NoTokenValidationKey(UserError):
+    template = "A token validation key is required, set it via token_validation_key configuration parameter."
