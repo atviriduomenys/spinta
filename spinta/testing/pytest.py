@@ -52,9 +52,10 @@ def s3(rc):
             s3_client = boto3.client('s3')
             try:
                 objs = s3_client.list_objects(Bucket=bucket_name)
-                if 'Contents' in objs:
+                contents = objs.get('Contents')
+                if contents:
                     obj_keys = {'Objects': [
-                        {'Key': obj['Key'] for obj in objs['Contents']}
+                        {'Key': obj['Key'] for obj in contents}
                     ]}
                     bucket = s3.Bucket(bucket_name)
                     bucket.delete_objects(Delete=obj_keys)

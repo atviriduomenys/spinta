@@ -156,9 +156,8 @@ def test_delete(model, app):
     assert data == {
         '_type': f'{model}.file',
         '_revision': data['_revision'],
-        '_id': id_,
-        '_content_type': None,
     }
+
     assert data['_revision'] != revision
     revision = data['_revision']
 

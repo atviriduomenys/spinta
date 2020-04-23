@@ -1,5 +1,6 @@
 import cgi
 import tempfile
+import typing
 
 import boto3
 import botocore
@@ -29,8 +30,8 @@ def load(context: Context, backend: S3, config: RawConfig):
     backend.bucket_name = config.get('backends', backend.name, 'bucket', required=True)
     backend.region = config.get('backends', backend.name, 'region', required=True)
 
-    access_key = config.get('backends', backend.name, 'access_key_id', required=True)
-    secret_key = config.get('backends', backend.name, 'secret_access_key', required=True)
+    access_key = config.get('backends', backend.name, 'access_key_id')
+    secret_key = config.get('backends', backend.name, 'secret_access_key')
     backend.credentials = {
         'aws_access_key_id': access_key,
         'aws_secret_access_key': secret_key,
@@ -72,17 +73,6 @@ def migrate(context: Context, backend: S3):
     pass
 
 
-def _datastream_pipeline(context, prop, dtype, data):
-    dstream = aiter([data])
-    dstream = validate_data(context, dstream)
-    dstream = prepare_patch(context, dstream)
-    dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
-    dstream = commands.create_changelog_entry(
-        context, prop.model, prop.model.backend, dstream=dstream,
-    )
-    return dstream
-
-
 @commands.push.register()
 async def push(
     context: Context,
@@ -93,9 +83,6 @@ async def push(
     action: Action,
     params: UrlParams,
 ):
-    aws_session = get_aws_session(backend)
-    s3_bucket = aws_session.resource('s3').Bucket(backend.bucket_name)
-
     prop = dtype.prop
     commands.authorize(context, action, prop)
     data = DataItem(
@@ -129,21 +116,45 @@ async def push(
     if action == Action.UPDATE:
         if 'content-length' not in request.headers:
             raise HTTPException(status_code=411)
-        with tempfile.TemporaryFile() as f:
-            async for chunk in request.stream():
-                f.write(chunk)
-            f.seek(0)
-            s3_bucket.upload_fileobj(f, filename)
+        dstream = aiter([data])
+        dstream = validate_data(context, dstream)
+        dstream = prepare_patch(context, dstream)
+        dstream = upload_file_to_s3(backend, filename, dstream, request.stream())
+        dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
+        dstream = commands.create_changelog_entry(
+            context, prop.model, prop.model.backend, dstream=dstream,
+        )
     elif action == Action.DELETE:
-        # Explicitly pass delete action as spinta does soft deletes
-        pass
+        dstream = aiter([data])
+        dstream = validate_data(context, dstream)
+        dstream = prepare_patch(context, dstream)
+        dstream = commands.delete(context, prop, dtype, prop.model.backend, dstream=dstream)
+        dstream = commands.create_changelog_entry(
+            context, prop.model, prop.model.backend, dstream=dstream,
+        )
     else:
         raise Exception(f"Unknown action {action!r}.")
 
-    dstream = _datastream_pipeline(context, prop, dtype, data)
-
     status_code, response = await simple_response(context, dstream)
     return render(context, request, prop, params, response, status_code=status_code)
+
+
+async def upload_file_to_s3(
+    backend: S3,
+    filename: str,
+    dstream: typing.AsyncIterator[DataItem],
+    fstream: typing.AsyncIterator[bytes]
+) -> typing.AsyncGenerator[DataItem, None]:
+    aws_session = get_aws_session(backend)
+    s3_bucket = aws_session.resource('s3').Bucket(backend.bucket_name)
+
+    async for d in dstream:
+        with tempfile.TemporaryFile() as f:
+            async for chunk in fstream:
+                f.write(chunk)
+            f.seek(0)
+            s3_bucket.upload_fileobj(f, filename)
+        yield d
 
 
 @commands.getone.register()
