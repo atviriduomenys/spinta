@@ -228,7 +228,7 @@ CONFIG = {
                     'type': 'fs',
                     'path': pathlib.Path() / 'var/files',
                 },
-                's3': {  # actually should run on localstack
+                's3': {
                     'type': 's3',
                     'bucket': 'splat-test',
                     'region': 'eu-north-1',
