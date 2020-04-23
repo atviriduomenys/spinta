@@ -14,6 +14,8 @@ from spinta.cli import genkeys
 from spinta.cli import client_add
 from spinta.components import Action
 from spinta.testing.utils import get_error_codes
+from spinta.testing.client import create_test_client
+from spinta.testing.context import create_test_context
 
 
 def test_app(context, app):
@@ -108,12 +110,10 @@ def test_invalid_client(app):
 
 
 def args_for_token(context):
-    private_key = auth.load_key(context, 'private.json')
-    client_id = 'baa448a8-205c-4faa-a048-a10e4b32a136'
-    client = auth.query_client(context, client_id)
-    grant_type = 'client_credentials'
+    private_key = auth.load_key(context, auth.KeyType.private)
+    client = 'baa448a8-205c-4faa-a048-a10e4b32a136'
     expires_in = int(datetime.timedelta(days=10).total_seconds())
-    return context, private_key, client, grant_type, expires_in
+    return context, private_key, client, expires_in
 
 
 def test_check_generated_scopes_global(context, app):
@@ -235,3 +235,26 @@ def test_invalid_access_token(app):
     assert 'WWW-Authenticate' in resp.headers
     assert resp.headers['WWW-Authenticate'] == 'Bearer error="invalid_token"'
     assert get_error_codes(resp.json()) == ["InvalidToken"]
+
+
+def test_token_validation_key_config(backends, rc, tmpdir, request):
+    prvkey = json.loads(pathlib.Path('tests/config/keys/private.json').read_text())
+    pubkey = json.loads(pathlib.Path('tests/config/keys/public.json').read_text())
+
+    rc = rc.fork({
+        'config_path': str(tmpdir),
+        'default_auth_client': None,
+        'token_validation_key': json.dumps(pubkey),
+    })
+
+    context = create_test_context(rc).load()
+    request.addfinalizer(context.wipe_all)
+
+    prvkey = jwk.loads(prvkey)
+    client = 'RANDOMID'
+    scopes = ['spinta_report_getall']
+    token = auth.create_access_token(context, prvkey, client, scopes=scopes)
+
+    client = create_test_client(context)
+    resp = client.get('/reports', headers={'Authorization': f'Bearer {token}'})
+    assert resp.status_code == 200

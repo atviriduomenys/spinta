@@ -215,6 +215,13 @@ New features:
 - Error response now includes `component` context var with pyton path of
   component class.
 
+- Added new command `spinta decode-token`, this command decoded token from
+  stdin and prints its content to stdout in JSON format.
+
+- Added support for Json Web Key Sets.
+
+- Added new `token_validation_key` configuration parameter.
+
 Internal changes:
 
 - Changed internal file structure, not code is organized into packages and each

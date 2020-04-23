@@ -52,14 +52,24 @@ def s3(rc):
             s3_client = boto3.client('s3')
             try:
                 objs = s3_client.list_objects(Bucket=bucket_name)
-                obj_keys = {'Objects': [
-                    {'Key': obj['Key'] for obj in objs['Contents']}
-                ]}
-                bucket = s3.Bucket(bucket_name)
-                bucket.delete_objects(Delete=obj_keys)
-                bucket.delete()
+                if 'Contents' in objs:
+                    obj_keys = {'Objects': [
+                        {'Key': obj['Key'] for obj in objs['Contents']}
+                    ]}
+                    bucket = s3.Bucket(bucket_name)
+                    bucket.delete_objects(Delete=obj_keys)
+                    bucket.delete()
             except s3_client.exceptions.NoSuchBucket:
                 pass
+
+
+@pytest.fixture(scope='session')
+def backends(postgresql, mongo, s3):
+    yield {
+        'postgresql': postgresql,
+        'mongo': mongo,
+        's3': s3,
+    }
 
 
 @pytest.fixture(scope='session')

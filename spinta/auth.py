@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import datetime
+import enum
 import json
 import logging
 import time
@@ -7,6 +10,8 @@ import ruamel.yaml
 
 from starlette.responses import JSONResponse
 from starlette.exceptions import HTTPException
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 from authlib.jose import jwk
 from authlib.jose import jwt
@@ -19,7 +24,7 @@ from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 
 from spinta.components import Context
-from spinta.exceptions import InvalidToken
+from spinta.exceptions import InvalidToken, NoTokenValidationKey
 from spinta.utils import passwords
 from spinta.utils.scopes import name_to_scope
 
@@ -40,7 +45,10 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         )
         self.register_grant(grants.ClientCredentialsGrant)
         self._context = context
-        self._private_key = load_key(context, 'private.json')
+        self._private_key = load_key(context, KeyType.private, required=False)
+
+    def enabled(self):
+        return self._private_key is not None
 
     def create_oauth2_request(self, request):
         return get_auth_request(request)
@@ -60,10 +68,10 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
     def _get_expires_in(self, client, grant_type):
         return int(datetime.timedelta(days=10).total_seconds())
 
-    def _generate_token(self, client, grant_type, user, scope, **kwargs):
+    def _generate_token(self, client: Client, grant_type, user, scope, **kwargs):
         expires_in = self._get_expires_in(client, grant_type)
         scopes = scope.split() if scope else []
-        return create_access_token(self._context, self._private_key, client, grant_type, expires_in, scopes)
+        return create_access_token(self._context, self._private_key, client.id, expires_in, scopes)
 
 
 class ResourceProtector(rfc6749.ResourceProtector):
@@ -79,7 +87,7 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
     def __init__(self, context):
         super().__init__()
         self._context = context
-        self._public_key = load_key(context, 'public.json')
+        self._public_key = load_key(context, KeyType.public)
 
     def authenticate_token(self, token_string: str):
         return Token(token_string, self)
@@ -93,7 +101,7 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
 
 class Client(rfc6749.ClientMixin):
 
-    def __init__(self, *, id, secret_hash, scopes):
+    def __init__(self, *, id: str, secret_hash: str, scopes: list):
         self.id = id
         self.secret_hash = secret_hash
         self.scopes = set(scopes)
@@ -121,8 +129,8 @@ class Token(rfc6749.TokenMixin):
     def __init__(self, token_string, validator: BearerTokenValidator):
         try:
             self._token = jwt.decode(token_string, validator._public_key)
-        except JoseError:
-            raise InvalidToken()
+        except JoseError as e:
+            raise InvalidToken(error=str(e))
 
         self._validator = validator
 
@@ -193,24 +201,61 @@ def get_auth_request(request: dict) -> OAuth2Request:
     )
 
 
-def load_key(context: Context, filename: str):
+def create_key_pair():
+    return rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
+
+
+class KeyType(enum.Enum):
+    public = 'public'
+    private = 'private'
+
+
+def load_key(context: Context, key_type: KeyType, *, required: bool = True):
+    key = None
     config = context.get('config')
-    with (config.config_path / 'keys' / filename).open() as f:
-        key = json.load(f)
+
+    # Public key can be set via configuration.
+    if key_type == KeyType.public:
+        key = config.token_validation_key
+
+    # Load key from a file.
+    if key is None:
+        keypath = config.config_path / 'keys' / f'{key_type.value}.json'
+        if keypath.exists():
+            with keypath.open() as f:
+                key = json.load(f)
+
+    if required and key is None:
+        raise NoTokenValidationKey(key_type=key_type.value)
+
+    if isinstance(key, dict) and 'keys' in key:
+        # XXX: Maybe I should load all keys and then pick right one by algorithm
+        #      used in token?
+        keys = [k for k in key['keys'] if k['alg'] == 'RS512']
+        key = keys[0]
+
     key = jwk.loads(key)
     return key
 
 
-def create_client_access_token(context: Context, client_id: str):
-    private_key = load_key(context, 'private.json')
-    client = query_client(context, client_id)
-    grant_type = 'client_credentials'
+def create_client_access_token(context: Context, client: str):
+    private_key = load_key(context, KeyType.private)
+    client = query_client(context, client)
     expires_in = int(datetime.timedelta(days=10).total_seconds())
-    return create_access_token(context, private_key, client, grant_type, expires_in, client.scopes)
+    return create_access_token(context, private_key, client.id, expires_in, client.scopes)
 
 
-def create_access_token(context, private_key, client, grant_type, expires_in, scopes):
+def create_access_token(
+    context: Context,
+    private_key,
+    client: str,
+    expires_in: int = None,
+    scopes: list = None,
+):
     config = context.get('config')
+
+    if expires_in is None:
+        expires_in = int(datetime.timedelta(minutes=10).total_seconds())
 
     header = {
         'typ': 'JWT',
@@ -222,8 +267,8 @@ def create_access_token(context, private_key, client, grant_type, expires_in, sc
     scopes = ' '.join(sorted(scopes)) if scopes else ''
     payload = {
         'iss': config.server_url,
-        'sub': client.id,
-        'aud': client.id,
+        'sub': client,
+        'aud': client,
         'iat': iat,
         'exp': exp,
         'scope': scopes,
@@ -231,9 +276,9 @@ def create_access_token(context, private_key, client, grant_type, expires_in, sc
     return jwt.encode(header, payload, private_key).decode('ascii')
 
 
-def query_client(context: Context, client_id: str):
+def query_client(context: Context, client: str):
     config = context.get('config')
-    client_file = config.config_path / 'clients' / f'{client_id}.yml'
+    client_file = config.config_path / 'clients' / f'{client}.yml'
     try:
         data = yaml.load(client_file)
     except FileNotFoundError:
@@ -242,7 +287,7 @@ def query_client(context: Context, client_id: str):
     if not isinstance(data['scopes'], list):
         raise Exception(f'Client {client_file} scopes must be list of scopes.')
     client = Client(
-        id=client_id,
+        id=client,
         secret_hash=data['client_secret_hash'],
         scopes=data['scopes'],
     )

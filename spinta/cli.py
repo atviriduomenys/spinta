@@ -7,16 +7,22 @@ import pathlib
 import uuid
 import logging
 import types
+import sys
 import urllib.parse
 
 import click
 import tqdm
 import requests
+from authlib.jose import jwt
+from authlib.jose import jwk
 
 from spinta import commands
 from spinta import components
 from spinta import exceptions
 from spinta.auth import AdminToken
+from spinta.auth import KeyType
+from spinta.auth import load_key
+from spinta.auth import create_key_pair
 from spinta.commands.formats import Format
 from spinta.commands.write import write
 from spinta.components import Context, DataStream, Model
@@ -397,11 +403,6 @@ def config(ctx, name=None, fmt='cfg'):
 @click.option('--path', '-p', type=click.Path(exists=True, file_okay=False, writable=True))
 @click.pass_context
 def genkeys(ctx, path):
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.asymmetric import rsa
-
-    from authlib.jose import jwk
-
     context = ctx.obj
     with context:
         _require_auth(context)
@@ -426,7 +427,7 @@ def genkeys(ctx, path):
         if public_file.exists():
             raise click.Abort(f"{public_file} file already exists.")
 
-        key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
+        key = create_key_pair()
 
         with private_file.open('w') as f:
             json.dump(jwk.dumps(key), f, indent=4, ensure_ascii=False)
@@ -499,6 +500,18 @@ def client_add(ctx, name, secret, add_secret, path):
             f"Remember this client secret, because only a secure hash of\n"
             f"client secret will be stored in the config file."
         )
+
+
+@main.command('decode-token')
+@click.pass_context
+def decode_token(ctx):
+    context = ctx.obj
+    config = context.get('config')
+    commands.load(context, config)
+    key = load_key(context, KeyType.public)
+    token = sys.stdin.read().strip()
+    token = jwt.decode(token, key)
+    click.echo(json.dumps(token, indent='  '))
 
 
 def _require_auth(context: Context):

@@ -169,6 +169,9 @@ CONFIG = {
 
     'default_auth_client': None,
 
+    # Public JWK key for validating auth bearer tokens.
+    'token_validation_key': None,
+
     'env': 'dev',
 
     'environments': {

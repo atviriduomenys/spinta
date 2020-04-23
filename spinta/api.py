@@ -26,6 +26,7 @@ from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
 from spinta.utils.response import create_http_response
 from spinta.accesslog import create_accesslog
+from spinta.exceptions import NoAuthServer
 
 log = logging.getLogger(__name__)
 
@@ -44,13 +45,16 @@ async def version(request: Request):
 
 
 async def auth_token(request: Request):
-    auth = request.state.context.get('auth.server')
-    return auth.create_token_response({
-        'method': request.method,
-        'url': str(request.url),
-        'body': dict(await request.form()),
-        'headers': request.headers,
-    })
+    auth_server = request.state.context.get('auth.server')
+    if auth_server.enabled():
+        return auth_server.create_token_response({
+            'method': request.method,
+            'url': str(request.url),
+            'body': dict(await request.form()),
+            'headers': request.headers,
+        })
+    else:
+        raise NoAuthServer()
 
 
 async def homepage(request: Request):
