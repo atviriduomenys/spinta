@@ -225,8 +225,11 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True):
             with keypath.open() as f:
                 key = json.load(f)
 
-    if required and key is None:
-        raise NoTokenValidationKey(key_type=key_type.value)
+    if key is None:
+        if required:
+            raise NoTokenValidationKey(key_type=key_type.value)
+        else:
+            return
 
     if isinstance(key, dict) and 'keys' in key:
         # XXX: Maybe I should load all keys and then pick right one by algorithm
