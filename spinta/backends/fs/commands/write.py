@@ -1,4 +1,6 @@
 import cgi
+import pathlib
+import typing
 
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
@@ -57,12 +59,10 @@ async def push(
     filepath = backend.path / data.given[prop.name]['_id']
 
     if action in (Action.UPDATE, Action.PATCH):
-        with open(filepath, 'wb') as f:
-            async for chunk in request.stream():
-                f.write(chunk)
         dstream = aiter([data])
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
+        dstream = create_file(filepath, dstream, request.stream())
         dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
         dstream = commands.create_changelog_entry(
             context, prop.model, prop.model.backend, dstream=dstream,
@@ -82,3 +82,16 @@ async def push(
 
     status_code, response = await simple_response(context, dstream)
     return render(context, request, prop, params, response, status_code=status_code)
+
+
+async def create_file(
+    filepath: pathlib.PosixPath,
+    dstream: typing.AsyncIterator[DataItem],
+    fstream: typing.AsyncIterator[bytes]
+) -> typing.AsyncGenerator[DataItem, None]:
+    # we know that dstream contains one DataItem element
+    async for d in dstream:
+        with open(filepath, 'wb') as f:
+            async for chunk in fstream:
+                f.write(chunk)
+        yield d

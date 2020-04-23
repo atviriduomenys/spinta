@@ -1,4 +1,5 @@
 import base64
+import pathlib
 
 import pytest
 
@@ -422,9 +423,11 @@ def test_insert_fs_file(model, app):
     '/tmp/etc/passwd',
     '../../etc/passwd',
 ])
-def test_insert_fs_file_with_injection(model, filename, app):
+def test_insert_fs_file_with_injection(model, filename, app, tmpdir):
     app.authmodel(model, ['insert'])
     resp = _create_file(app, model, name=filename, status=400)
+    filepath = pathlib.PosixPath(tmpdir) / filename
+    assert filepath.is_file() is False
     assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
         'template': 'Path is not acceptable in filename {file!r}',
@@ -479,7 +482,7 @@ def test_upload_fs_file(model, app):
     '/tmp/etc/passwd',
     '../../etc/passwd',
 ])
-def test_upload_fs_file_with_path_injection(model, app, filename):
+def test_upload_fs_file_with_path_injection(model, app, filename, tmpdir):
     app.authmodel(model, ['insert', 'update', 'getone'])
 
     resp = _create_file(app, model)
@@ -496,6 +499,8 @@ def test_upload_fs_file_with_path_injection(model, app, filename):
         },
     })
     assert resp.status_code == 400, resp.json()
+    filepath = pathlib.PosixPath(tmpdir) / filename
+    assert filepath.is_file() is False
     assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
         'template': 'Path is not acceptable in filename {file!r}',
@@ -550,7 +555,7 @@ def test_patch_fs_file(model, app):
     '/tmp/etc/passwd',
     '../../etc/passwd',
 ])
-def test_patch_fs_file_with_path_injection(model, app, filename):
+def test_patch_fs_file_with_path_injection(model, app, filename, tmpdir):
     app.authmodel(model, ['insert', 'patch', 'getone'])
 
     resp = _create_file(app, model)
@@ -567,6 +572,8 @@ def test_patch_fs_file_with_path_injection(model, app, filename):
         },
     })
     assert resp.status_code == 400, resp.json()
+    filepath = pathlib.PosixPath(tmpdir) / filename
+    assert filepath.is_file() is False
     assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
         'template': 'Path is not acceptable in filename {file!r}',
@@ -580,12 +587,15 @@ def test_patch_fs_file_with_path_injection(model, app, filename):
 )
 @pytest.mark.parametrize('filename', [
     '../../passwd',
+    '/tmp/etc/passwd',
 ])
-def test_path_injection_put(model, filename, app):
+def test_path_injection_put(model, filename, app, tmpdir):
     app.authmodel(model, ['insert', 'file_update'])
     resp = _create_file(app, model)
     id_ = resp.json()['_id']
     rev = resp.json()['_revision']
+    filepath = pathlib.PosixPath(tmpdir) / filename
+    assert filepath.is_file() is False
 
     resp = app.put(f'/{model}/{id_}/file', headers={
         'Revision': rev,
@@ -593,6 +603,7 @@ def test_path_injection_put(model, filename, app):
         'Content-Disposition': f'attachment; filename="{filename}"',
     }, data=b'CONTENT')
     assert resp.status_code == 400, resp.json()
+    assert filepath.is_file() is False
 
     assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
@@ -607,12 +618,15 @@ def test_path_injection_put(model, filename, app):
 )
 @pytest.mark.parametrize('filename', [
     '../../passwd',
+    '/tmp/etc/passwd',
 ])
-def test_path_injection_patch(model, filename, app):
+def test_path_injection_patch(model, filename, app, tmpdir):
     app.authmodel(model, ['insert', 'file_patch'])
     resp = _create_file(app, model)
     id_ = resp.json()['_id']
     rev = resp.json()['_revision']
+    filepath = pathlib.PosixPath(tmpdir) / filename
+    assert filepath.is_file() is False
 
     resp = app.patch(f'/{model}/{id_}/file', headers={
         'Revision': rev,
@@ -620,6 +634,7 @@ def test_path_injection_patch(model, filename, app):
         'Content-Disposition': f'attachment; filename="{filename}"',
     }, data=b'CONTENT')
     assert resp.status_code == 400, resp.json()
+    assert filepath.is_file() is False
 
     assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
