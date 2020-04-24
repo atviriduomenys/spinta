@@ -3,6 +3,7 @@ from starlette.responses import FileResponse
 
 from spinta import commands
 from spinta.components import Context, Property, UrlParams
+from spinta.backends import log_getone
 from spinta.backends.fs.components import FileSystem
 from spinta.types.datatype import DataType, File
 from spinta.exceptions import ItemDoesNotExist
@@ -21,6 +22,7 @@ async def getone(
 ):
     commands.authorize(context, action, prop)
     data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
+    log_getone(context, data)
     value = data[prop.name]
     filename = value['_id']
     if filename is None:
@@ -40,7 +42,7 @@ async def getone(
 
 
 @commands.getone.register(Context, Property, DataType, FileSystem)
-def getone(
+def getone(  # noqa
     context: Context,
     prop: Property,
     dtype: DataType,
@@ -52,7 +54,7 @@ def getone(
 
 
 @commands.getone.register(Context, Property, File, FileSystem)
-def getone(
+def getone(  # noqa
     context: Context,
     prop: Property,
     dtype: File,

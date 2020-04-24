@@ -6,6 +6,12 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.components import Context
+from spinta.backends.fs.components import FileSystem
+
+from spinta.commands import simple_data_check
+from spinta.commands.write import prepare_patch, simple_response, validate_data, log_write
+from spinta.components import Action, UrlParams, DataItem
 from spinta.renderer import render
 from spinta.utils.aiotools import aiter
 from spinta.components import Context, Action, UrlParams, DataItem
@@ -58,27 +64,20 @@ async def push(
 
     filepath = backend.path / data.given[prop.name]['_id']
 
+    dstream = aiter([data])
+    dstream = validate_data(context, dstream)
+    dstream = prepare_patch(context, dstream)
+    dstream = log_write(context, dstream)
     if action in (Action.UPDATE, Action.PATCH):
-        dstream = aiter([data])
-        dstream = validate_data(context, dstream)
-        dstream = prepare_patch(context, dstream)
         dstream = create_file(filepath, dstream, request.stream())
         dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
-        dstream = commands.create_changelog_entry(
-            context, prop.model, prop.model.backend, dstream=dstream,
-        )
-
     elif action == Action.DELETE:
-        dstream = aiter([data])
-        dstream = validate_data(context, dstream)
-        dstream = prepare_patch(context, dstream)
         dstream = commands.delete(context, prop, dtype, prop.model.backend, dstream=dstream)
-        dstream = commands.create_changelog_entry(
-            context, prop.model, prop.model.backend, dstream=dstream,
-        )
-
     else:
         raise Exception(f"Unknown action {action!r}.")
+    dstream = commands.create_changelog_entry(
+        context, prop.model, prop.model.backend, dstream=dstream,
+    )
 
     status_code, response = await simple_response(context, dstream)
     return render(context, request, prop, params, response, status_code=status_code)

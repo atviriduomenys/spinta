@@ -105,6 +105,9 @@ def simple_data_check(
 ) -> None:
     check_type_value(dtype, value)
 
+    # Action.DELETE is ignore for qvarn compatibility reasons.
+    # XXX: make `spinta` check for revision on Action.DELETE,
+    #      implementers can override this command as they please.
     updating = data.action in (Action.UPDATE, Action.PATCH)
     if updating and '_revision' not in data.given:
         raise NoItemRevision(prop)
@@ -985,7 +988,7 @@ def log_getall(
                 '_revision': data.get('_revision')
             } for data in chunk
         ]
-        fields = get_accessed_fields(chunk[0], select=select, hidden=hidden)
+        fields = sorted(select or [])
         accesslog.log(resources=resources, fields=fields)
         yield from chunk
 
@@ -996,7 +999,7 @@ def log_getone(
     select: List[str] = None,
     hidden: List[str] = None,
 ):
-    fields = get_accessed_fields(result, select=select, hidden=hidden)
+    fields = sorted(select or [])
     # XXX: select queries do not return metadata
     resource = {
         '_id': result.get('_id'),  # XXX: subresource queries do not return id
@@ -1005,33 +1008,3 @@ def log_getone(
     }
     accesslog = context.get('accesslog')
     accesslog.log(resources=[resource], fields=fields)
-
-
-def get_accessed_fields(data, select=None, hidden=None):
-    # Gathers the fields that user is accessing with a query.
-    # It's the meta fields (_id, _type, _revision) with the all other object
-    # non-meta fields which are selected (if no select - then all fields)
-    all_keys = list(recursive_keys(data, dot_notation=True))
-    accessed_fields = []
-    meta = ['_id', '_type', '_revision']
-    for key in all_keys:
-        if select:
-            # if select filter is given - return meta fields + select
-            if key in select or key in meta:
-                accessed_fields.append(key)
-                continue
-        else:
-            if key in meta:
-                accessed_fields.append(key)
-                continue
-            elif hidden and key in hidden:
-                continue
-            else:
-                # check if key is a meta field, we need to return only meta fields
-                # described in `meta` variable.
-                not_meta_attr = [not attrs.startswith('_') for attrs in key.split('.')]
-                if all(not_meta_attr):
-                    accessed_fields.append(key)
-                    continue
-
-    return accessed_fields

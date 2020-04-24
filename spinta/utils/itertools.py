@@ -12,16 +12,34 @@ def chunks(it, n=100):
 
 def recursive_keys(dct, dot_notation=False, prefix=None):
     # yields all keys from a given nested dictionaries
+    # e.g.:
+    # d = dict(a=1, b=dict(c=2))
+    # list(recursive_keys(dct, dot_notation=True))
+    # >>> ['a', 'b.c']
     for k, v in dct.items():
-        if prefix:
-            k = f"{prefix}{k}"
-        yield k
-
         if isinstance(v, dict):
             if dot_notation:
+                if prefix:
+                    k = f"{prefix}{k}"
                 prefix = f"{k}."
             yield from recursive_keys(v, dot_notation=dot_notation, prefix=prefix)
             prefix = None
+        elif isinstance(v, list):
+            # if there are lists - take first value from the list
+            # assume that schema for all list elements are the same
+            if dot_notation:
+                if prefix:
+                    k = f"{prefix}{k}"
+                prefix = f"{k}."
+            if v and isinstance(v[0], dict):
+                yield from recursive_keys(v[0], dot_notation=dot_notation, prefix=prefix)
+            else:
+                yield k
+            prefix = None
+        else:  # do not yield dict's root key as it's redundant
+            if prefix:
+                k = f"{prefix}{k}"
+            yield k
 
 
 def last(it, default=None):
