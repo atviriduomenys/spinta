@@ -11,6 +11,7 @@ DATASET = [
     'ref',
     'level',
     'access',
+    'uri',
     'title',
     'description',
 ]

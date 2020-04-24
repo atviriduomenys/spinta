@@ -15,17 +15,17 @@ def test_loading(postgresql, rc, cli, tmpdir, request):
     })
 
     table = striptable('''
-    id | d | r | b | m | property | source      | prepare   | type   | ref     | level | access | title   | description
-       | datasets/gov/example     |             |           |        |         |       |        | Example |
-       |   | data                 |             |           |        |         |       |        | Data    |
-       |   |   |                  |             |           |        |         |       |        |         |
-       |   |   |   | country      |             | code='lt' |        | code    |       |        | Country |
-       |   |   |   |   | code     | kodas       | lower()   | string |         | 3     | open   | Code    |
-       |   |   |   |   | name     | pavadinimas |           | string |         | 3     | open   | Name    |
-       |   |   |                  |             |           |        |         |       |        |         |
-       |   |   |   | city         |             |           |        | name    |       |        | City    |
-       |   |   |   |   | name     | pavadinimas |           | string |         | 3     | open   | Name    |
-       |   |   |   |   | country  | šalis       |           | ref    | country | 4     | open   | Country |
+    id | d | r | b | m | property | source      | prepare   | type   | ref     | level | access | uri | title   | description
+       | datasets/gov/example     |             |           |        |         |       |        |     | Example |
+       |   | data                 |             |           |        |         |       |        |     | Data    |
+       |   |   |                  |             |           |        |         |       |        |     |         |
+       |   |   |   | country      |             | code='lt' |        | code    |       |        |     | Country |
+       |   |   |   |   | code     | kodas       | lower()   | string |         | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |           | string |         | 3     | open   |     | Name    |
+       |   |   |                  |             |           |        |         |       |        |     |         |
+       |   |   |   | city         |             |           |        | name    |       |        |     | City    |
+       |   |   |   |   | name     | pavadinimas |           | string |         | 3     | open   |     | Name    |
+       |   |   |   |   | country  | šalis       |           | ref    | country | 4     | open   |     | Country |
     ''')
 
     create_tabular_manifest(tmpdir / 'manifest.csv', table)

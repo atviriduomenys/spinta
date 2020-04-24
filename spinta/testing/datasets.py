@@ -60,7 +60,7 @@ def _create_tabular_dataset_manifest(lines):
             continue
         row = line.split('|')
         row = [x.strip() for x in row]
-        rem = 14 - len(row)
+        rem = len(DATASET) - len(row)
         row = row[:6 - rem] + [''] * rem + row[6 - rem:]
         assert len(DATASET) == len(row), line
         yield row
