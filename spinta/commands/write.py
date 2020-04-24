@@ -2,6 +2,7 @@ from typing import AsyncIterator, Union, Optional
 
 import itertools
 import json
+import pathlib
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
@@ -13,7 +14,7 @@ from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import check_scope
-from spinta.backends.components import Backend
+from spinta.backends.components import Backend, BackendFeatures
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
 from spinta.types.datatype import DataType, Object, Array, File, Ref
@@ -21,7 +22,6 @@ from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
 from spinta.utils.errors import report_error
-from spinta.utils.itertools import recursive_keys
 from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
@@ -165,29 +165,22 @@ async def write(context: Context, scope: Node, payload, *, changed=False):
 async def log_write(context, dstream):
     accesslog = context.get('accesslog')
     async for data in dstream:
-        fields = list(recursive_keys(data.payload, dot_notation=True))
+        # on writes only log PATCH'ed fields and nothing else
+        # as this is the specification
+        if data.action == Action.PATCH:
+            fields = sorted(list(data.patch.keys()))
+        else:
+            fields = []
 
-        # in case of `set_meta_fields`, data.patch may be empty
-        # for _revision or _id keys, then they must be in the payload
-        # _revision = data.patch.get('_revision') or data.payload['_revision']
-
-        resource = dict(
-            _id=get_metadata_for_write(data, key="_id"),
-            _type=data.model.name,
-            _revision=get_metadata_for_write(data, key="_revision"),
+        resource = take(
+            ['_id', '_type', '_revision'],
+            data.patch,
+            data.saved,
+            {'_type': data.model.name}
         )
         transaction = context.get("transaction")
         accesslog.log(resources=[resource], fields=fields, txn=transaction.id)
         yield data
-
-
-def get_metadata_for_write(data_item, key):
-    # XXX: how about when it's `set_meta_fields` situation, when
-    # saved _id may be overwritten by patch _id?
-    if data_item.saved and key in data_item.saved:
-        return data_item.saved[key]
-    if key in data_item.patch:
-        return data_item.patch[key]
 
 
 def _stream_group_key(data: DataItem):
@@ -887,6 +880,43 @@ def after_write(
     for key in (data.patch or ()):
         prop = dtype.properties[key]
         commands.after_write(context, prop.dtype, backend, data=data[key])
+
+
+@commands.before_write.register(Context, File, Backend)
+def before_write(
+    context: Context,
+    dtype: File,
+    backend: Backend,
+    *,
+    data: DataSubItem,
+) -> dict:
+    if data.root.action == Action.DELETE:
+        patch = {
+            '_id': None,
+            '_content_type': None,
+            '_size': None,
+        }
+    else:
+        patch = take(['_id', '_content_type', '_size'], data.patch)
+
+    if BackendFeatures.FILE_BLOCKS in dtype.backend.features:
+        if data.root.action == Action.DELETE:
+            patch.update({
+                '_blocks': [],
+                '_bsize': None,
+            })
+        else:
+            patch.update(take(['_blocks', '_bsize'], data.patch))
+
+    if isinstance(patch.get('_id'), pathlib.Path):
+        # On FileSystem backend '_id' is a Path.
+        # XXX: It would be nice to decouple this bey visiting each file property
+        #      separaterly.
+        patch['_id'] = str(patch['_id'])
+
+    return {
+        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
+    }
 
 
 @commands.before_write.register(Context, Ref, Backend)

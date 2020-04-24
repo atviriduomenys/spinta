@@ -10,7 +10,7 @@ from spinta.utils.data import take
 from spinta.renderer import render
 from spinta.components import Context, Action, UrlParams, DataItem
 from spinta.types.datatype import DataType, File
-from spinta.commands.write import prepare_patch, simple_response, validate_data
+from spinta.commands.write import prepare_patch, simple_response, validate_data, log_write
 from spinta.components import Context, DataSubItem
 from spinta.backends.components import Backend
 from spinta.backends.postgresql.files import DatabaseFile
@@ -81,13 +81,14 @@ async def push(
     dstream = aiter([data])
     dstream = validate_data(context, dstream)
     dstream = prepare_patch(context, dstream)
-
+    dstream = log_write(context, dstream)
     if action in (Action.UPDATE, Action.PATCH, Action.DELETE):
         dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
         dstream = commands.create_changelog_entry(
             context, prop.model, prop.model.backend, dstream=dstream,
         )
-
+    # XXX: This will never be executed, due to previous conditional.
+    #      How it should be done correctly?
     elif action == Action.DELETE:
         dstream = commands.delete(context, prop, dtype, prop.model.backend, dstream=dstream)
         dstream = commands.create_changelog_entry(

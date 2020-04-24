@@ -136,14 +136,20 @@ def getone(
     })
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
+    # merge file property data with defaults
+    file_data = {
+        **{
+            '_content_type': None,
+            '_id': None,
+            '_size': None,
+        },
+        **data.get(prop.name, {}),
+    }
     result = {
         '_id': data['__id'],
         '_revision': data['_revision'],
         '_type': prop.model_type(),
-        prop.name: data.get(prop.name, {
-            '_content_type': None,
-            '_id': None
-        }),
+        prop.name: file_data,
     }
     return commands.cast_backend_to_python(context, prop, backend, result)
 
