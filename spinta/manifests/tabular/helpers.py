@@ -85,7 +85,8 @@ def read_tabular_manifest(
                     'eid': i,
                     'name': row['resource'],
                     'schema': {
-                        'type': 'resource',
+                        'type': row['type'],
+                        'backend': row['ref'],
                         'external': row['source'],
                         'level': row['level'],
                         'access': row['access'],
@@ -106,7 +107,7 @@ def read_tabular_manifest(
                         f"Row {i}: resource must be defined before base."
                     )
                 base = {
-                    'model': get_relative_model_name(dataset, resource, row['base']),
+                    'model': get_relative_model_name(dataset, row['base']),
                     'pk': row['ref'],
                 }
 
@@ -129,7 +130,7 @@ def read_tabular_manifest(
                     'properties': {},
                     'schema': {
                         'type': 'model',
-                        'name': get_relative_model_name(dataset, resource, row['model']),
+                        'name': get_relative_model_name(dataset, row['model']),
                         'id': row['id'],
                         'level': row['level'],
                         'access': row['access'],
@@ -183,7 +184,7 @@ def read_tabular_manifest(
                 else:
                     prop['schema']['external'] = row['source']
                 if row['ref']:
-                    prop['schema']['object'] = get_relative_model_name(dataset, resource, row['ref'])
+                    prop['schema']['object'] = get_relative_model_name(dataset, row['ref'])
                 model['properties'][row['property']] = i
                 model['schema']['properties'][row['property']] = prop['schema']
 
@@ -193,27 +194,20 @@ def read_tabular_manifest(
             yield model['eid'], model['schema']
 
 
-def get_relative_model_name(dataset: dict, resource: dict, name: str) -> str:
+def get_relative_model_name(dataset: dict, name: str) -> str:
     if name.startswith('/'):
         return name[1:]
     else:
         return '/'.join([
             dataset['schema']['name'],
-            resource['name'],
             name,
         ])
 
 
 def to_relative_model_name(base: Model, model: Model) -> str:
     """Convert absolute model `name` to relative."""
-    if (
-        base.external.dataset.name == model.external.dataset.name and
-        base.external.resource.name == model.external.resource.name
-    ):
-        prefix = '/'.join([
-            base.external.dataset.name,
-            base.external.resource.name,
-        ])
+    if base.external.dataset.name == model.external.dataset.name:
+        prefix = base.external.dataset.name
         return model.name[len(prefix) + 1:]
     else:
         return '/' + model.name
@@ -248,6 +242,8 @@ def datasets_to_tabular(manifest: Manifest):
             resource = model.external.resource
             yield torow(DATASET, {
                 'resource': resource.name,
+                'source': resource.external,
+                'ref': resource.backend.name if resource.backend else '',
                 'level': resource.level,
                 'access': resource.access,
                 'title': resource.title,

@@ -26,8 +26,22 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
 @commands.load.register(Context, Resource, dict, Manifest)
 def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_node(context, resource, data, parent=resource.dataset)
-    if resource.backend:
-        resource.backend = resource.dataset.manifest.store.backends[resource.backend]
+
+    store = resource.dataset.manifest.store
+    possible_backends = [
+        resource.backend,
+        f'{resource.dataset.name}/{resource.name}',
+        f'{resource.dataset.name}',
+        f'{resource.type}',
+    ]
+    possible_backends = [pb.replace('/', '_') for pb in possible_backends if pb]
+    for backend in possible_backends:
+        if backend in store.backends:
+            resource.backend = store.backends[backend]
+            break
+    else:
+        resource.backend = None
+
     # Models will be added on `link` command.
     resource.models = {}
     return resource

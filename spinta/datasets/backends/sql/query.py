@@ -19,7 +19,7 @@ class SqlQueryBuilder(Env):
         qry = sa.select(self.select)
         qry = qry.select_from(self.joins)
 
-        if where:
+        if where is not None:
             qry = qry.where(where)
 
         if self.sort:
@@ -36,7 +36,18 @@ class SqlQueryBuilder(Env):
 
 @ufunc.resolver(SqlQueryBuilder, Bind, str)
 def eq(env, field, value):
-    return env.table.c[field.name] == value
+    name = env.model.properties[field.name].external.name
+    return env.table.c[name] == value
+
+
+@ufunc.resolver(SqlQueryBuilder, Expr, name='and')
+def and_(env, expr):
+    args, kwargs = expr.resolve(env)
+    args = [a for a in args if a is not None]
+    if len(args) > 1:
+        return sa.and_(*args)
+    elif args:
+        return args[0]
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr)

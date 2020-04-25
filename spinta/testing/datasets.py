@@ -36,6 +36,7 @@ def striptable(table):
 
 def create_tabular_manifest(path: pathlib.Path, manifest: str):
     parser = None
+    manifest = striptable(manifest)
     lines = iter(manifest.splitlines())
     for line in lines:
         line = line.strip()

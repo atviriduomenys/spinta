@@ -4,6 +4,7 @@ import sqlalchemy as sa
 
 from spinta import commands
 from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import asttoexpr
 from spinta.core.config import RawConfig
 from spinta.components import Context
 from spinta.manifests.components import Manifest
@@ -51,6 +52,21 @@ def getall(
         for p in entity.model.properties.values()
         if p.external
     }
+
+    if entity.prepare:
+        prepare = asttoexpr(entity.prepare)
+        if query:
+            if query.name == 'and' and prepare.name == 'and':
+                query.args.extend(prepare)
+            elif query.name == 'and':
+                query.args.append(prepare)
+            elif prepare.name == 'and':
+                query = Expr('and', query, *prepare.args)
+            else:
+                query = Expr('and', query, prepare)
+        else:
+            query = prepare
+
     for params in iterparams(entity.model):
         table = entity.name.format(**params)
         table = backend.schema.tables[table]
