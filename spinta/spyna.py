@@ -12,8 +12,9 @@ GRAMMAR = r'''
 ?term: factor (FACTOR factor)*
 ?factor: SIGN factor | composition
 ?composition: atom trailer*
-?atom: "(" group? ")" | func | value | name
+?atom: "(" group? ")" | "[" list? "]" | func | value | name
 group: test ("," test)* [","]
+list: test ("," test)* [","]
 ?trailer: "[" filter? "]" | method | attr
 func: NAME call
 method: "." NAME call
@@ -24,7 +25,7 @@ kwarg: NAME ":" test
 filter: test
 attr: "." NAME
 name: NAME
-value: NULL | BOOL | INT | FLOAT | STRING
+value: NULL | BOOL | INT | FLOAT | STRING | ALL
 
 COMP: ">=" | "<=" | "!=" | "=" | "<" | ">"
 TERM: "+" | "-"
@@ -32,9 +33,11 @@ FACTOR: "*" | "/" | "%"
 SIGN: "+" | "-"
 
 NAME: /[a-z_][a-z0-9_]*/i
-STRING : /"(?!"").*?(?<!\\)(\\\\)*?"|'(?!'').*?(?<!\\)(\\\\)*?'/i
-INT: /0|[1-9]\d*/
+
+ALL: "*"
+STRING: /"(?!"").*?(?<!\\)(\\\\)*?"|'(?!'').*?(?<!\\)(\\\\)*?'/i
 FLOAT: /\d+(\.\d+)?/
+INT: /0|[1-9]\d*/
 BOOL: "false" | "true"
 NULL: "null"
 
@@ -136,6 +139,11 @@ class Visitor:
                 'false': False,
                 'true': True,
             }[token.value]
+        if token.type == 'ALL':
+            return {
+                'name': 'op',
+                'args': ['*'],
+            }
         raise Exception(f"Unknown token type: {token.type}")
 
     def func(self, node, name, args):
@@ -270,6 +278,12 @@ def unparse(rql, pretty=False):
 
     if name == 'group':
         return '(' + ', '.join(unparse(arg) for arg in rql['args']) + ')'
+
+    if name == 'list':
+        return '[' + ', '.join(unparse(arg) for arg in rql['args']) + ']'
+
+    if name == 'op':
+        return rql['args'][0]
 
     if name in ('add', 'sub', 'mul', 'div', 'mod'):
         symbols = {

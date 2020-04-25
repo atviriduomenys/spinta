@@ -127,6 +127,55 @@ def test_filter_join(rc, tmpdir, sqlite):
     ]
 
 
+def test_filter_join_array_value(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare                  | type   | ref     | level | access | uri | title   | description
+       | datasets/gov/example     |             |                          |        |         |       |        |     | Example |
+       |   | data                 |             |                          | sql    |         |       |        |     | Data    |
+       |   |   |                  |             |                          |        |         |       |        |     |         |
+       |   |   |   | country      | salis       |                          |        | code    |       |        |     | Country |
+       |   |   |   |   | code     | kodas       |                          | string |         | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |                          | string |         | 3     | open   |     | Name    |
+       |   |   |                  |             |                          |        |         |       |        |     |         |
+       |   |   |   | city         | miestas     | country.code=['lt','lv'] |        | name    |       |        |     | City    |
+       |   |   |   |   | name     | pavadinimas |                          | string |         | 3     | open   |     | Name    |
+       |   |   |   |   | country  | salis       |                          | ref    | country | 4     | open   |     | Country |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    app.authmodel('datasets/gov/example/city', ['search_external'])
+    qry = '/datasets/gov/example/city/:external?sort(name)'
+    assert query(app, qry, 'country', 'name') == [
+        ({'_id': 'lv'}, 'Ryga'),
+        ({'_id': 'lt'}, 'Vilnius'),
+    ]
+
+
+def test_filter_join_ne_array_value(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare                   | type   | ref     | level | access | uri | title   | description
+       | datasets/gov/example     |             |                           |        |         |       |        |     | Example |
+       |   | data                 |             |                           | sql    |         |       |        |     | Data    |
+       |   |   |                  |             |                           |        |         |       |        |     |         |
+       |   |   |   | country      | salis       |                           |        | code    |       |        |     | Country |
+       |   |   |   |   | code     | kodas       |                           | string |         | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |                           | string |         | 3     | open   |     | Name    |
+       |   |   |                  |             |                           |        |         |       |        |     |         |
+       |   |   |   | city         | miestas     | country.code!=['lt','lv'] |        | name    |       |        |     | City    |
+       |   |   |   |   | name     | pavadinimas |                           | string |         | 3     | open   |     | Name    |
+       |   |   |   |   | country  | salis       |                           | ref    | country | 4     | open   |     | Country |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    app.authmodel('datasets/gov/example/city', ['search_external'])
+    qry = '/datasets/gov/example/city/:external?sort(name)'
+    assert query(app, qry, 'country', 'name') == [
+        ({'_id': 'ee'}, 'Talinas'),
+    ]
+
+
 def test_getall(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description

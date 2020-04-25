@@ -42,7 +42,37 @@ class SqlQueryBuilder(Env):
         return qry
 
     def default_resolver(self, expr, *args, **kwargs):
-        raise UnknownExpr(expr=str(expr(*args, **kwargs)))
+        raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
+
+    def get_table(self, prop: ForeignProperty) -> sa.Table:
+        for fpr in prop.chain:
+            if fpr.name in self.joins:
+                continue
+
+            lmodel = fpr.left.model
+            ltable = self.backend.schema.tables[lmodel.external.name]
+            lrkeys = [fpr.left.external.name]
+
+            rmodel = fpr.right.model
+            rtable = self.backend.schema.tables[rmodel.external.name]
+            rpkeys = [k.external.name for k in rmodel.external.pkeys]
+
+            assert len(lrkeys) == len(rpkeys), (lrkeys, rpkeys)
+            condition = []
+            for lrk, rpk in zip(lrkeys, rpkeys):
+                condition += [ltable.c[lrk] == rtable.c[rpk]]
+
+            assert len(condition) > 0
+            if len(condition) == 1:
+                condition = condition[0]
+            else:
+                condition = sa.and_(condition)
+
+            self.from_ = self.joins[fpr.name] = self.from_.join(rtable, condition)
+
+        model = fpr.right.model
+        table = self.backend.schema.tables[model.external.name]
+        return table
 
 
 class ForeignProperty:
@@ -84,35 +114,23 @@ def eq(env, field, value):
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, str)
 def eq(env, prop, value):
-    for fpr in prop.chain:
-        if fpr.name in env.joins:
-            continue
-
-        lmodel = fpr.left.model
-        ltable = env.backend.schema.tables[lmodel.external.name]
-        lrkeys = [fpr.left.external.name]
-
-        rmodel = fpr.right.model
-        rtable = env.backend.schema.tables[rmodel.external.name]
-        rpkeys = [k.external.name for k in rmodel.external.pkeys]
-
-        assert len(lrkeys) == len(rpkeys), (lrkeys, rpkeys)
-        condition = []
-        for lrk, rpk in zip(lrkeys, rpkeys):
-            condition += [ltable.c[lrk] == rtable.c[rpk]]
-
-        assert len(condition) > 0
-        if len(condition) == 1:
-            condition = condition[0]
-        else:
-            condition = sa.and_(condition)
-
-        env.from_ = env.joins[fpr.name] = env.from_.join(rtable, condition)
-
-    model = fpr.right.model
-    table = env.backend.schema.tables[model.external.name]
-    name = fpr.right.external.name
+    table = env.get_table(prop)
+    name = prop.right.external.name
     return table.c[name] == value
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
+def eq(env, prop, value):
+    table = env.get_table(prop)
+    name = prop.right.external.name
+    return table.c[name].in_(value)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
+def ne(env, prop, value):
+    table = env.get_table(prop)
+    name = prop.right.external.name
+    return ~table.c[name].in_(value)
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr, name='and')
@@ -123,6 +141,12 @@ def and_(env, expr):
         return sa.and_(*args)
     elif args:
         return args[0]
+
+
+@ufunc.resolver(SqlQueryBuilder, Expr, name='list')
+def list_(env, expr):
+    args, kwargs = expr.resolve(env)
+    return args
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr)

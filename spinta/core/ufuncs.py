@@ -164,7 +164,7 @@ class Env:
             return expr
 
         if expr.name not in self._executors:
-            raise UnknownExpr(expr=expr.name)
+            raise UnknownExpr(expr=str(expr), name=expr.name)
 
         ufunc = self._executors[expr.name]
 

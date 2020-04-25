@@ -124,3 +124,11 @@ def test_attr_filter():
 
 def test_null():
     check("null")
+
+
+def test_array():
+    check("[1, 'a']")
+
+
+def test_select_all():
+    check("select(*)")
