@@ -71,7 +71,7 @@ def getall(
         table = entity.name.format(**params)
         table = backend.schema.tables[table]
 
-        env = builder.init(table)
+        env = builder.init(backend, table)
         expr = env.resolve(query)
         where = env.execute(expr)
         qry = env.build(where)

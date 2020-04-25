@@ -41,6 +41,9 @@ class DataType(Component):
     choices: dict = None
     backend: Backend = None
 
+    def __repr__(self):
+        return f'<{self.prop.name}:{self.name}>'
+
     def load(self, value: Any):
         return value
 
