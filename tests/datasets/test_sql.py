@@ -125,7 +125,6 @@ def test_filter_join(rc, tmpdir, sqlite):
     assert query(app, qry, 'country', 'name') == [
         ({'_id': 'lt'}, 'Vilnius'),
     ]
-    assert False
 
 
 def test_getall(rc, tmpdir, sqlite):
