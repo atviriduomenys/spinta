@@ -44,7 +44,7 @@ class SqlQueryBuilder(Env):
     def default_resolver(self, expr, *args, **kwargs):
         raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
 
-    def get_table(self, prop: ForeignProperty) -> sa.Table:
+    def get_joined_table(self, prop: ForeignProperty) -> sa.Table:
         for fpr in prop.chain:
             if fpr.name in self.joins:
                 continue
@@ -114,14 +114,14 @@ def eq(env, field, value):
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, str)
 def eq(env, prop, value):
-    table = env.get_table(prop)
+    table = env.get_joined_table(prop)
     name = prop.right.external.name
     return table.c[name] == value
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
 def eq(env, prop, value):
-    table = env.get_table(prop)
+    table = env.get_joined_table(prop)
     name = prop.right.external.name
     return table.c[name].in_(value)
 
@@ -134,14 +134,14 @@ def ne(env, field, value):
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, str)
 def ne(env, prop, value):
-    table = env.get_table(prop)
+    table = env.get_joined_table(prop)
     name = prop.right.external.name
     return table.c[name] != value
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
 def ne(env, prop, value):
-    table = env.get_table(prop)
+    table = env.get_joined_table(prop)
     name = prop.right.external.name
     return ~table.c[name].in_(value)
 

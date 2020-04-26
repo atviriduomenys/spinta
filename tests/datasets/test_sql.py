@@ -176,7 +176,6 @@ def test_filter_join_ne_array_value(rc, tmpdir, sqlite):
     ]
 
 
-@pytest.mark.skip('TODO')
 def test_filter_multi_column_pk(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare            | type   | ref           | level | access | uri | title   | description
@@ -198,7 +197,8 @@ def test_filter_multi_column_pk(rc, tmpdir, sqlite):
     app.authmodel('datasets/gov/example/city', ['search_external'])
     qry = '/datasets/gov/example/city/:external?sort(name)'
     assert query(app, qry, 'country', 'name') == [
-        ({'_id': 'ee'}, 'Talinas'),
+        ({'_id': 'lv'}, 'Ryga'),
+        ({'_id': 'lt'}, 'Vilnius'),
     ]
 
 
