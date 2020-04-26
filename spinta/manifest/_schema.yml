@@ -11,7 +11,7 @@ properties:
     type: string
   version:
     type: ref
-    object: _schema/version
+    model: _schema/version
     unique: true
 ---
 id: b31c6550-0c68-47db-a677-757e0367032d
@@ -34,7 +34,7 @@ changes:
           type: string
         version:
           type: ref
-          object: _schema/version
+          model: _schema/version
           unique: true
 migrate:
   - type: schema

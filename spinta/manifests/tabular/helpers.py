@@ -184,7 +184,22 @@ def read_tabular_manifest(
                 else:
                     prop['schema']['external'] = row['source']
                 if row['ref']:
-                    prop['schema']['object'] = get_relative_model_name(dataset, row['ref'])
+                    ref = spyna.parse(row['ref'])
+                    if ref['name'] == 'filter':
+                        fmodel, group = ref['args']
+                    else:
+                        fmodel = ref
+                        group = []
+                    assert fmodel['name'] == 'bind', ref
+                    assert len(fmodel['args']) == 1, ref
+                    fmodel = fmodel['args'][0]
+                    prop['schema']['model'] = get_relative_model_name(dataset, fmodel)
+                    if group:
+                        prop['schema']['properties'] = []
+                        for p in group:
+                            assert p['name'] == 'bind', ref
+                            assert len(p['args']) == 1, ref
+                            prop['schema']['properties'].append(p['args'][0])
                 model['properties'][row['property']] = i
                 model['schema']['properties'][row['property']] = prop['schema']
 
@@ -279,7 +294,7 @@ def datasets_to_tabular(manifest: Manifest):
                 'description': prop.description,
             }
             if prop.dtype.name == 'ref':
-                data['ref'] = to_relative_model_name(model, model.manifest.models[prop.dtype.object])
+                data['ref'] = to_relative_model_name(model, prop.dtype.model)
             yield torow(DATASET, data)
 
 

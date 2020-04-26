@@ -122,6 +122,10 @@ def test_attr_filter():
     check("foo.bar.baz[a=2]")
 
 
+def test_filter_group():
+    check("foo[bar, baz]")
+
+
 def test_null():
     check("null")
 
@@ -132,3 +136,7 @@ def test_array():
 
 def test_select_all():
     check("select(*)")
+
+
+def test_group():
+    check("foo, bar, baz")

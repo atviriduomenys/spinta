@@ -264,7 +264,7 @@ def test_new_version_w_foreign_key(rc, cli, tmpdir):
                 },
                 'properties': {
                     'title': {'type': 'string'},
-                    'country': {'type': 'ref', 'object': 'country'},
+                    'country': {'type': 'ref', 'model': 'country'},
                 }
             }
         ],

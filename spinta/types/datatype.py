@@ -148,14 +148,21 @@ class Spatial(DataType):
 
 class Ref(DataType):
     schema = {
-        'object': {'type': 'string'},
+        'model': {
+            'type': 'string',
+        },
+        'properties': {
+            'attr': 'rkeys',
+            'type': 'array',
+            'items': {'type': 'string'},
+        },
         'enum': {'type': 'array'},
     }
 
 
 class BackRef(DataType):
     schema = {
-        'object': {'type': 'string'},
+        'model': {'type': 'string'},
         'property': {'type': 'string'},
         'secondary': {'type': 'string'},
     }
@@ -163,7 +170,7 @@ class BackRef(DataType):
 
 class Generic(DataType):
     schema = {
-        'object': {'type': 'string'},
+        'model': {'type': 'string'},
         'enum': {'type': 'array'},
     }
 

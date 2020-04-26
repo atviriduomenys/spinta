@@ -16,5 +16,5 @@ properties:
     external: country
   continent:
     type: ref
-    object: datasets/dependencies/continent
+    model: datasets/dependencies/continent
     prepare: continent.id

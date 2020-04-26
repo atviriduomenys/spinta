@@ -17,5 +17,5 @@ properties:
     external: capital
   country:
     type: ref
-    object: datasets/dependencies/country
+    model: datasets/dependencies/country
     prepare: country.id

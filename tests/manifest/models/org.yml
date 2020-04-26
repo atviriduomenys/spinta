@@ -9,7 +9,7 @@ unique:
 properties:
   country:
     type: ref
-    object: country
+    model: country
   govid:
     type: string
     title: Identification number
@@ -38,7 +38,7 @@ changes:
     path: /properties
     value:
       _id: {type: pk}
-      country: {object: country, type: ref}
+      country: {model: country, type: ref}
       govid: {description: Identification number assigned by government., title: Identification
           number, type: string}
       title: {type: string}

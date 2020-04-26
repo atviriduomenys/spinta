@@ -55,7 +55,8 @@ class SqlQueryBuilder(Env):
 
             rmodel = fpr.right.model
             rtable = self.backend.schema.tables[rmodel.external.name]
-            rpkeys = [k.external.name for k in rmodel.external.pkeys]
+            rpkeys = fpr.left.dtype.rkeys or rmodel.external.pkeys
+            rpkeys = [k.external.name for k in rpkeys]
 
             assert len(lrkeys) == len(rpkeys), (lrkeys, rpkeys)
             condition = []
@@ -101,8 +102,7 @@ def getattr(env, field, attr):
 
 @ufunc.resolver(SqlQueryBuilder, Ref, Bind)
 def getattr(env, dtype, attr):
-    model = dtype.prop.model.manifest.models[dtype.object]
-    prop = model.properties[attr.name]
+    prop = dtype.model.properties[attr.name]
     return ForeignProperty(None, dtype.prop, prop)
 
 
@@ -124,6 +124,19 @@ def eq(env, prop, value):
     table = env.get_table(prop)
     name = prop.right.external.name
     return table.c[name].in_(value)
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind, str)
+def ne(env, field, value):
+    name = env.model.properties[field.name].external.name
+    return env.table.c[name] != value
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, str)
+def ne(env, prop, value):
+    table = env.get_table(prop)
+    name = prop.right.external.name
+    return table.c[name] != value
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)

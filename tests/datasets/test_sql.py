@@ -176,6 +176,32 @@ def test_filter_join_ne_array_value(rc, tmpdir, sqlite):
     ]
 
 
+@pytest.mark.skip('TODO')
+def test_filter_multi_column_pk(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare            | type   | ref           | level | access | uri | title   | description
+       | datasets/gov/example     |             |                    |        |               |       |        |     | Example |
+       |   | data                 |             |                    | sql    |               |       |        |     | Data    |
+       |   |   |                  |             |                    |        |               |       |        |     |         |
+       |   |   |   | country      | salis       |                    |        | id,code       |       |        |     | Country |
+       |   |   |   |   | id       | id          |                    | string |               | 3     | open   |     | Code    |
+       |   |   |   |   | code     | kodas       |                    | string |               | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |                    | string |               | 3     | open   |     | Name    |
+       |   |   |                  |             |                    |        |               |       |        |     |         |
+       |   |   |   | city         | miestas     | country.code!='ee' |        | name          |       |        |     | City    |
+       |   |   |   |   | name     | pavadinimas |                    | string |               | 3     | open   |     | Name    |
+       |   |   |   |   | country  | salis       |                    | ref    | country[code] | 4     | open   |     | Country |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    app.authmodel('datasets/gov/example/city', ['search_external'])
+    qry = '/datasets/gov/example/city/:external?sort(name)'
+    assert query(app, qry, 'country', 'name') == [
+        ({'_id': 'ee'}, 'Talinas'),
+    ]
+
+
 def test_getall(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description

@@ -192,7 +192,7 @@ def test_build_schema_relation_graph(rc, cli, tmpdir):
             'name': 'org',
             'properties': {
                 'title': {'type': 'string'},
-                'country': {'type': 'ref', 'object': 'country'},
+                'country': {'type': 'ref', 'model': 'country'},
             }
         },
         'report.yml': {
@@ -200,7 +200,7 @@ def test_build_schema_relation_graph(rc, cli, tmpdir):
             'name': 'report',
             'properties': {
                 'title': {'type': 'string'},
-                'org': {'type': 'ref', 'object': 'org'},
+                'org': {'type': 'ref', 'model': 'org'},
             },
         }
     })
