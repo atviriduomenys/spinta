@@ -12,5 +12,5 @@ properties:
     external: Turas
   rinkimai:
     type: ref
-    object: datasets/xlsx/rinkimai
+    model: datasets/xlsx/rinkimai
     external: Rinkimai

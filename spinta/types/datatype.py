@@ -41,6 +41,9 @@ class DataType(Component):
     choices: dict = None
     backend: Backend = None
 
+    def __repr__(self):
+        return f'<{self.prop.name}:{self.name}>'
+
     def load(self, value: Any):
         return value
 
@@ -145,14 +148,21 @@ class Spatial(DataType):
 
 class Ref(DataType):
     schema = {
-        'object': {'type': 'string'},
+        'model': {
+            'type': 'string',
+        },
+        'properties': {
+            'attr': 'rkeys',
+            'type': 'array',
+            'items': {'type': 'string'},
+        },
         'enum': {'type': 'array'},
     }
 
 
 class BackRef(DataType):
     schema = {
-        'object': {'type': 'string'},
+        'model': {'type': 'string'},
         'property': {'type': 'string'},
         'secondary': {'type': 'string'},
     }
@@ -160,7 +170,7 @@ class BackRef(DataType):
 
 class Generic(DataType):
     schema = {
-        'object': {'type': 'string'},
+        'model': {'type': 'string'},
         'enum': {'type': 'array'},
     }
 

@@ -402,8 +402,8 @@ class UnknownPropertyType(UserError):
     template = "Unknown property type {type!r}."
 
 
-class UnknownUfunc(UserError):
-    template = "Unknown function {name!r}."
+class UnknownExpr(UserError):
+    template = "Unknown expression {expr!r}."
 
 
 class MissingReferrence(UserError):

@@ -199,16 +199,6 @@ def authorize(context: Context, action: Action, prop: Property):
     check_generated_scopes(context, name, action.value, prop_scope_name, prop.hidden)
 
 
-@commands.get_referenced_model.register(Context, Property, str)
-def get_referenced_model(context: Context, prop: Property, ref: str) -> Node:
-    model = prop.model
-
-    if ref in model.manifest.objects['model']:
-        return model.manifest.objects['model'][ref]
-
-    raise exceptions.ModelReferenceNotFound(prop, ref=ref)
-
-
 @commands.get_error_context.register(Model)
 def get_error_context(model: Model, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(model.manifest, prefix=f'{prefix}.manifest')

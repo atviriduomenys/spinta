@@ -11,4 +11,4 @@ properties:
     unique: true
   continent:
     type: ref
-    object: datasets/backends/postgres/dataset/continent
+    model: datasets/backends/postgres/dataset/continent

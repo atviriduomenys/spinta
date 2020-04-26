@@ -2,7 +2,8 @@ import lark
 
 
 GRAMMAR = r'''
-?start: test
+?start: testlist
+?testlist: test ("," test)* [","]
 ?test: or
 ?or: and ("|" and)*
 ?and: not ("&" not)*
@@ -12,8 +13,9 @@ GRAMMAR = r'''
 ?term: factor (FACTOR factor)*
 ?factor: SIGN factor | composition
 ?composition: atom trailer*
-?atom: "(" group? ")" | func | value | name
+?atom: "(" group? ")" | "[" list? "]" | func | value | name
 group: test ("," test)* [","]
+list: test ("," test)* [","]
 ?trailer: "[" filter? "]" | method | attr
 func: NAME call
 method: "." NAME call
@@ -21,10 +23,10 @@ method: "." NAME call
 arglist: argument ("," argument)*  [","]
 ?argument: test | kwarg
 kwarg: NAME ":" test
-filter: test
+filter: test ("," test)* [","]
 attr: "." NAME
 name: NAME
-value: NULL | BOOL | INT | FLOAT | STRING
+value: NULL | BOOL | INT | FLOAT | STRING | ALL
 
 COMP: ">=" | "<=" | "!=" | "=" | "<" | ">"
 TERM: "+" | "-"
@@ -32,9 +34,11 @@ FACTOR: "*" | "/" | "%"
 SIGN: "+" | "-"
 
 NAME: /[a-z_][a-z0-9_]*/i
-STRING : /"(?!"").*?(?<!\\)(\\\\)*?"|'(?!'').*?(?<!\\)(\\\\)*?'/i
-INT: /0|[1-9]\d*/
+
+ALL: "*"
+STRING: /"(?!"").*?(?<!\\)(\\\\)*?"|'(?!'').*?(?<!\\)(\\\\)*?'/i
 FLOAT: /\d+(\.\d+)?/
+INT: /0|[1-9]\d*/
 BOOL: "false" | "true"
 NULL: "null"
 
@@ -136,6 +140,11 @@ class Visitor:
                 'false': False,
                 'true': True,
             }[token.value]
+        if token.type == 'ALL':
+            return {
+                'name': 'op',
+                'args': ['*'],
+            }
         raise Exception(f"Unknown token type: {token.type}")
 
     def func(self, node, name, args):
@@ -157,10 +166,10 @@ class Visitor:
             'args': self._args(arg, name),
         }
 
-    def filter_comp(self, node, arg, filter_):
+    def filter_comp(self, node, arg, *args):
         return {
             'name': 'filter',
-            'args': self._args(arg, filter_),
+            'args': self._args(arg, self._args(*args)),
         }
 
     def composition(self, node, *args):
@@ -257,8 +266,8 @@ def unparse(rql, pretty=False):
         return unparse(obj) + '.' + unparse(key)
 
     if name == 'filter':
-        obj, filter_ = rql['args']
-        return unparse(obj) + '[' + unparse(filter_) + ']'
+        obj, group = rql['args']
+        return unparse(obj) + '[' + ', '.join(unparse(arg) for arg in group) + ']'
 
     if name == 'positive':
         arg, = rql['args']
@@ -268,8 +277,17 @@ def unparse(rql, pretty=False):
         arg, = rql['args']
         return '-' + unparse(arg)
 
+    if name == 'testlist':
+        return ', '.join(unparse(arg) for arg in rql['args'])
+
     if name == 'group':
         return '(' + ', '.join(unparse(arg) for arg in rql['args']) + ')'
+
+    if name == 'list':
+        return '[' + ', '.join(unparse(arg) for arg in rql['args']) + ']'
+
+    if name == 'op':
+        return rql['args'][0]
 
     if name in ('add', 'sub', 'mul', 'div', 'mod'):
         symbols = {

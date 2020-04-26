@@ -245,10 +245,7 @@ def wipe(context: Context, ns: Namespace, backend: type(None)):
             graph[name] = set()
         for prop in model.properties.values():
             if prop.dtype.name == 'ref':
-                ref_model = commands.get_referenced_model(
-                    context, prop, prop.dtype.object
-                )
-                graph[ref_model.model_type()].add(name)
+                graph[prop.dtype.model.model_type()].add(name)
 
     for names in toposort(graph):
         for name in names:

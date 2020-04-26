@@ -14,5 +14,5 @@ properties:
     external: org
   country:
     type: ref
-    object: datasets/denorm/country
+    model: datasets/denorm/country
     external: kodas

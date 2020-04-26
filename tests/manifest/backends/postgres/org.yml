@@ -10,4 +10,4 @@ unique:
 properties:
   title: {type: string}
   govid: {type: string, title: "Identification number", description: "Identification number assigned by government."}
-  country: {type: ref, object: backends/postgres/country}
+  country: {type: ref, model: backends/postgres/country}

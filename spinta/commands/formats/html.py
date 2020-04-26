@@ -216,8 +216,8 @@ def get_cell(context: Context, prop, value, shorten=False, color=None):
         link = '/' + value
     elif prop.name == '_id' and value:
         model = prop.model
-    elif prop.dtype.name == 'ref' and prop.dtype.object and value:
-        model = commands.get_referenced_model(context, prop, prop.dtype.object)
+    elif prop.dtype.name == 'ref' and prop.dtype.model and value:
+        model = prop.dtype.model
 
     if model:
         link = '/' + build_url_path(get_model_link_params(model, pk=value))
@@ -310,7 +310,7 @@ def _find_lined_prop(
     #       supported.
     prop = model.properties.get(name)
     if parts and prop and isinstance(prop.dtype, Ref):
-        model = commands.get_referenced_model(context, prop, prop.dtype.object)
+        model = prop.dtype.model
         return _find_lined_prop(context, model, parts[0], parts[1:])
     else:
         return prop

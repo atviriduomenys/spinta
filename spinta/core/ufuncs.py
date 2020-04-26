@@ -6,7 +6,7 @@ import importlib
 from spinta.dispatcher import Command
 from spinta.components import Context
 from spinta import spyna
-from spinta.exceptions import UnknownUfunc
+from spinta.exceptions import UnknownExpr
 
 
 class Expr:
@@ -164,7 +164,7 @@ class Env:
             return expr
 
         if expr.name not in self._executors:
-            raise UnknownUfunc(name=expr.name)
+            raise UnknownExpr(expr=str(expr), name=expr.name)
 
         ufunc = self._executors[expr.name]
 
@@ -190,9 +190,15 @@ class Bind:
     def __init__(self, name):
         self.name = name
 
+    def __repr__(self):
+        return self.name
+
 
 class Pair:
 
     def __init__(self, name, value):
         self.name = name
         self.value = value
+
+    def __repr__(self):
+        return f'{self.name}: {self.value!r}'

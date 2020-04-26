@@ -171,6 +171,11 @@ Backwards incompatible features:
   configuration object, so now there is no issues related with using same
   context for multiple commands.
 
+- Removed `get_referenced_model` command. Now `Ref` objects are linked with
+  referenced model in `link` command.
+
+- Renamed `object` to `model` on `ref` properties.
+
 New features:
 
 - New commands:
