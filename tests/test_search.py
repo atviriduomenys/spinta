@@ -1007,6 +1007,7 @@ def test_search_select_in_or(model, app):
     app.authmodel(model, ['search', 'getone'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?(report_type="STV"|status="OK")&select(_id)')
+    # XXX: Flaky test, some times it gives [2, 0], don't know why.
     assert ids(resp) == [0, 2]
 
 
