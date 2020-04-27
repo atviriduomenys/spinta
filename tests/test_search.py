@@ -1,7 +1,13 @@
 import pytest
 import requests
 
+from spinta.utils.data import take
 from spinta.testing.utils import get_error_codes, get_error_context, RowIds
+from spinta.testing.context import create_test_context
+from spinta.testing.client import create_test_client
+from spinta.testing.tabular import striptable
+from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.data import listdata
 
 
 test_data = [
@@ -1048,3 +1054,54 @@ def test_search_not_null(model, app):
     ]))
     resp = app.get(f'/{model}?status!=null')
     assert ids(resp) == [0]
+
+
+@pytest.mark.parametrize('backend', ['default', 'mongo'])
+def test_extra_fields_on_mongo(postgresql, mongo, backend, rc, tmpdir):
+    rc = rc.fork({
+        'backends': [backend],
+        'manifests.default': {
+            'type': 'tabular',
+            'path': str(tmpdir / 'manifest.csv'),
+            'backend': backend,
+        },
+    })
+
+    # Create data into a extrafields model with code and name properties.
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    m | property | type
+    extrafields  |
+      | code     | string
+      | name     | string
+    '''))
+    context = create_test_context(rc)
+    app = create_test_client(context)
+    app.authmodel('extrafields', ['insert'])
+    resp = app.post('/extrafields', json={'_data': [
+        {'_op': 'insert', 'code': 'lt', 'name': 'Lietuva'},
+        {'_op': 'insert', 'code': 'lv', 'name': 'Latvija'},
+        {'_op': 'insert', 'code': 'ee', 'name': 'Estija'},
+    ]})
+    assert resp.status_code == 200, resp.json()
+
+    # Now try to read from same model, but loaded with just one property.
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    m | property | type
+    extrafields  |
+      | name     | string
+    '''))
+    context = create_test_context(rc)
+    app = create_test_client(context)
+    app.authmodel('extrafields', ['getall', 'getone'])
+    resp = app.get('/extrafields')
+    assert listdata(resp, sort=True) == [
+        "Estija",
+        "Latvija",
+        "Lietuva",
+    ]
+
+    pk = resp.json()['_data'][0]['_id']
+    resp = app.get(f'/extrafields/{pk}')
+    data = resp.json()
+    assert resp.status_code == 200, data
+    assert take(data) == {'name': 'Lietuva'}

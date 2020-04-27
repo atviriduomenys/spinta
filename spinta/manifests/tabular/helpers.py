@@ -1,7 +1,6 @@
 from typing import Iterator, Optional, Tuple
 
 import csv
-import itertools
 
 from spinta import spyna
 from spinta.components import Model
@@ -14,12 +13,12 @@ def read_tabular_manifest(
     manifest: TabularManifest
 ) -> Iterator[Tuple[int, Optional[dict]]]:
     with manifest.path.open() as f:
-        reader = csv.DictReader(f)
+        reader = csv.reader(f)
         header = next(reader, None)
         if header is None:
             return
-        reader = itertools.chain([header], reader)
-        header = list(header)
+
+        header = [h.strip().lower() for h in header]
 
         unknown_columns = set(header[:len(DATASET)]) - set(DATASET)
         if unknown_columns:
@@ -33,7 +32,11 @@ def read_tabular_manifest(
         models = {}
         datasets = {}
         category = ['dataset', 'resource', 'base', 'model']
-        for i, row in enumerate(reader):
+        defaults = {k: '' for k in DATASET}
+        for i, row in enumerate(reader, 1):
+            row = dict(zip(header, row))
+            row = {**defaults, **row}
+
             if all(row[k] == '' for k in category + ['property']):
                 continue
 
@@ -114,7 +117,7 @@ def read_tabular_manifest(
             elif row['model']:
                 if model:
                     yield model['eid'], model['schema']
-                if resource is None:
+                if dataset is not None and resource is None:
                     raise Exception(
                         f"Row {i}: resource must be defined before model."
                     )
@@ -136,20 +139,26 @@ def read_tabular_manifest(
                         'access': row['access'],
                         'title': row['title'],
                         'description': row['description'],
+                        'properties': {},
+                    },
+                }
+                if resource is not None:
+                    model['schema'].update({
                         'external': {
                             'dataset': dataset['schema']['name'],
                             'resource': resource['name'],
                             'name': row['source'],
                         },
-                        'properties': {},
-                    },
-                }
-                if row['prepare']:
-                    model['schema']['external']['prepare'] = spyna.parse(row['prepare'])
-                if row['ref']:
-                    model['schema']['external']['pk'] = [
-                        x.strip() for x in row['ref'].split(',')
-                    ]
+                    })
+                    if row['prepare']:
+                        model['schema']['external']['prepare'] = spyna.parse(row['prepare'])
+                    if row['ref']:
+                        model['schema']['external']['pk'] = [
+                            x.strip() for x in row['ref'].split(',')
+                        ]
+                else:
+                    if row['prepare']:
+                        model['schema']['prepare'] = spyna.parse(row['prepare'])
                 if base:
                     model['base'] = base
                     base = None
@@ -176,30 +185,36 @@ def read_tabular_manifest(
                         'external': row['source'],
                     },
                 }
-                if row['prepare']:
-                    prop['schema']['external'] = {
-                        'name': row['source'],
-                        'prepare': spyna.parse(row['prepare']),
-                    }
-                else:
-                    prop['schema']['external'] = row['source']
-                if row['ref']:
-                    ref = spyna.parse(row['ref'])
-                    if ref['name'] == 'filter':
-                        fmodel, group = ref['args']
+                if resource is not None:
+                    if row['prepare']:
+                        prop['schema']['external'] = {
+                            'name': row['source'],
+                            'prepare': spyna.parse(row['prepare']),
+                        }
                     else:
-                        fmodel = ref
-                        group = []
-                    assert fmodel['name'] == 'bind', ref
-                    assert len(fmodel['args']) == 1, ref
-                    fmodel = fmodel['args'][0]
-                    prop['schema']['model'] = get_relative_model_name(dataset, fmodel)
-                    if group:
-                        prop['schema']['refprops'] = []
-                        for p in group:
-                            assert p['name'] == 'bind', ref
-                            assert len(p['args']) == 1, ref
-                            prop['schema']['refprops'].append(p['args'][0])
+                        prop['schema']['external'] = row['source']
+                    if row['ref']:
+                        ref = spyna.parse(row['ref'])
+                        if ref['name'] == 'filter':
+                            fmodel, group = ref['args']
+                        else:
+                            fmodel = ref
+                            group = []
+                        assert fmodel['name'] == 'bind', ref
+                        assert len(fmodel['args']) == 1, ref
+                        fmodel = fmodel['args'][0]
+                        prop['schema']['model'] = get_relative_model_name(dataset, fmodel)
+                        if group:
+                            prop['schema']['refprops'] = []
+                            for p in group:
+                                assert p['name'] == 'bind', ref
+                                assert len(p['args']) == 1, ref
+                                prop['schema']['refprops'].append(p['args'][0])
+                else:
+                    if row['prepare']:
+                        prop['schema']['prepare'] = spyna.parse(row['prepare'])
+                    if row['ref']:
+                        prop['schema']['model'] = row['ref']
                 model['properties'][row['property']] = i
                 model['schema']['properties'][row['property']] = prop['schema']
 
@@ -212,6 +227,8 @@ def read_tabular_manifest(
 def get_relative_model_name(dataset: dict, name: str) -> str:
     if name.startswith('/'):
         return name[1:]
+    elif dataset is None:
+        return name
     else:
         return '/'.join([
             dataset['schema']['name'],

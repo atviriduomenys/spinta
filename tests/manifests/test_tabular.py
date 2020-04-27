@@ -1,8 +1,8 @@
 from spinta import commands
 from spinta.testing.context import create_test_context
-from spinta.testing.datasets import striptable
-from spinta.testing.datasets import create_tabular_manifest
-from spinta.testing.datasets import render_tabular_manifest
+from spinta.testing.tabular import striptable
+from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.tabular import render_tabular_manifest
 
 
 def test_loading(postgresql, rc, cli, tmpdir, request):

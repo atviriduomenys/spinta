@@ -31,7 +31,10 @@ def create_internal_manifest(context: Context, store: Store) -> InternalManifest
     config = context.get('config')
     manifest = InternalManifest()
     manifest.type = 'yaml'
-    _configure_manifest(context, rc, config, store, manifest, 'internal')
+    _configure_manifest(
+        context, rc, config, store, manifest, 'internal',
+        backend=store.manifest.backend.name,
+    )
     return manifest
 
 
@@ -43,12 +46,14 @@ def _configure_manifest(
     manifest: Manifest,
     name: str,
     seen: List[str] = None,
+    *,
+    backend: str = 'default',
 ):
     seen = seen or []
     manifest.name = name
     manifest.store = store
     manifest.parent = None
-    manifest.backend = rc.get('manifests', name, 'backend', default='default')
+    manifest.backend = rc.get('manifests', name, 'backend', default=backend)
     manifest.backend = store.backends[manifest.backend]
     manifest.endpoints = {}
     manifest.objects = {name: {} for name in config.components['nodes']}
