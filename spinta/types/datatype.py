@@ -151,8 +151,7 @@ class Ref(DataType):
         'model': {
             'type': 'string',
         },
-        'properties': {
-            'attr': 'rkeys',
+        'refprops': {
             'type': 'array',
             'items': {'type': 'string'},
         },

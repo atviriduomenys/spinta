@@ -24,10 +24,16 @@ def urlparams_to_expr(params: UrlParams) -> Expr:
         ast += params.query
 
     if params.select:
-        ast.append({'name': 'select', 'args': params.select})
+        ast.append({'name': 'select', 'args': [
+            arg if isinstance(arg, dict) else {'name': 'bind', 'args': [arg]}
+            for arg in params.select
+        ]})
 
     if params.sort:
-        ast.append({'name': 'sort', 'args': params.sort})
+        ast.append({'name': 'sort', 'args': [
+            arg if isinstance(arg, dict) else {'name': 'bind', 'args': [arg]}
+            for arg in params.sort
+        ]})
 
     if params.limit:
         ast.append({'name': 'limit', 'args': [params.limit]})

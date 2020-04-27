@@ -2,6 +2,7 @@ from typing import AsyncIterator, Union, List, Dict, Optional, Iterable, Generat
 
 import base64
 import datetime
+import decimal
 import pathlib
 import uuid
 import typing
@@ -11,8 +12,8 @@ from spinta import exceptions
 from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
 from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
 from spinta.exceptions import ConflictingValue, NoItemRevision
-from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON
-from spinta.utils.itertools import chunks, recursive_keys
+from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON, Number
+from spinta.utils.itertools import chunks
 from spinta.utils.schema import NotAvailable, NA
 from spinta.backends.components import Backend
 
@@ -752,6 +753,19 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     return None
+
+
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, Number, decimal.Decimal)
+def prepare_dtype_for_response(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    dtype: Number,
+    value: decimal.Decimal,
+    *,
+    select: dict = None,
+):
+    return float(value)
 
 
 @commands.unload_backend.register(Context, Backend)

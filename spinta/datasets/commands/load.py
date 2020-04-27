@@ -40,7 +40,7 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
             resource.backend = store.backends[backend]
             break
     else:
-        resource.backend = None
+        resource.backend = manifest.backend
 
     # Models will be added on `link` command.
     resource.models = {}

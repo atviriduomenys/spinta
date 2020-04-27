@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import sqlalchemy as sa
+import sqlalchemy.sql.functions
 
-from spinta.core.ufuncs import Env, Expr, Bind, ufunc
+from spinta.core.ufuncs import Env, ufunc
+from spinta.core.ufuncs import Expr, Bind, Negative
 from spinta.exceptions import UnknownExpr
 from spinta.components import Property
 from spinta.backends.components import Backend
+from spinta.types.datatype import DataType
 from spinta.types.datatype import Ref
 
 
@@ -50,12 +53,12 @@ class SqlQueryBuilder(Env):
                 continue
 
             lmodel = fpr.left.model
-            ltable = self.backend.schema.tables[lmodel.external.name]
+            ltable = self.backend.get_table(lmodel.external.name)
             lrkeys = [fpr.left.external.name]
 
             rmodel = fpr.right.model
-            rtable = self.backend.schema.tables[rmodel.external.name]
-            rpkeys = fpr.left.dtype.rkeys or rmodel.external.pkeys
+            rtable = self.backend.get_table(rmodel.external.name)
+            rpkeys = fpr.left.dtype.refprops or rmodel.external.pkeys
             rpkeys = [k.external.name for k in rpkeys]
 
             assert len(lrkeys) == len(rpkeys), (lrkeys, rpkeys)
@@ -72,7 +75,7 @@ class SqlQueryBuilder(Env):
             self.from_ = self.joins[fpr.name] = self.from_.join(rtable, condition)
 
         model = fpr.right.model
-        table = self.backend.schema.tables[model.external.name]
+        table = self.backend.get_table(model.external.name)
         return table
 
 
@@ -96,8 +99,7 @@ class ForeignProperty:
 @ufunc.resolver(SqlQueryBuilder, Bind, Bind)
 def getattr(env, field, attr):
     prop = env.model.properties[field.name]
-    expr = Expr('getattr', prop.dtype, attr)
-    return env.resolve(expr)
+    return env.call('getattr', prop.dtype, attr)
 
 
 @ufunc.resolver(SqlQueryBuilder, Ref, Bind)
@@ -124,6 +126,11 @@ def eq(env, prop, value):
     table = env.get_joined_table(prop)
     name = prop.right.external.name
     return table.c[name].in_(value)
+
+
+@ufunc.resolver(SqlQueryBuilder, sqlalchemy.sql.functions.Function, object)
+def eq(env, func, value):
+    return func == value
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, str)
@@ -166,9 +173,56 @@ def list_(env, expr):
 def select(env, expr):
     args, kwargs = expr.resolve(env)
     if args:
-        env.select = args
+        env.select = [
+            env.call('select', arg)
+            for arg in args
+        ]
     else:
         env.select = [env.table]
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind)
+def select(env, arg):
+    prop = env.model.flatprops[arg.name]
+    return env.call('select', prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, str)
+def select(env, arg):
+    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
+    prop = env.model.flatprops[arg]
+    return env.call('select', prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def select(env, dtype):
+    table = env.backend.get_table(env.model.external.name)
+    name = dtype.prop.external.name
+    return table.c[name]
+
+
+@ufunc.resolver(SqlQueryBuilder, sqlalchemy.sql.functions.Function)
+def select(env, func):
+    return func
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind, name='len')
+def len_(env, bind):
+    prop = env.model.flatprops[bind.name]
+    return env.call('len', prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, str, name='len')
+def len_(env, bind):
+    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
+    prop = env.model.flatprops[bind]
+    return env.call('len', prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType, name='len')
+def len_(env, dtype):
+    name = dtype.prop.external.name
+    return sa.func.length(env.table.c[name])
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr)
@@ -176,6 +230,19 @@ def sort(env, expr):
     args, kwargs = expr.resolve(env)
     env.sort = []
     for key in args:
-        col = env.model.properties[key].external.name
-        field = env.table.c[col]
+        col = env.model.properties[key.name].external.name
+        if isinstance(key, Negative):
+            field = env.table.c[col].desc()
+        else:
+            field = env.table.c[col].asc()
         env.sort.append(field)
+
+
+@ufunc.resolver(SqlQueryBuilder, int)
+def limit(env, n):
+    env.limit = n
+
+
+@ufunc.resolver(SqlQueryBuilder, int)
+def offset(env, n):
+    env.offset = n

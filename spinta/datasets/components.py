@@ -137,6 +137,6 @@ class Attribute(External):
 
     schema = {
         'property': {'parent': True},
-        'name': {'type': 'string', 'required': True},
+        'name': {'required': True},
         'prepare': {'type': 'spyna', 'default': None},
     }

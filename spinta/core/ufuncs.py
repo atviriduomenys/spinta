@@ -135,6 +135,15 @@ class Env:
     def default_resolver(self, expr, *args, **kwargs):
         return expr(*args, **kwargs)
 
+    def call(self, name, *args, **kwargs):
+        if name not in self._resolvers:
+            raise UnknownExpr(expr=str(Expr(name, *args, **kwargs)), name=name)
+        ufunc = self._resolvers[name]
+        try:
+            return ufunc(self, *args, **kwargs)
+        except NotImplementedError:
+            raise UnknownExpr(expr=str(Expr(name, *args, **kwargs)), name=name)
+
     def resolve(self, expr: Any):
         if not isinstance(expr, Expr):
             # Expression is already resolved, return resolved value.
@@ -202,3 +211,11 @@ class Pair:
 
     def __repr__(self):
         return f'{self.name}: {self.value!r}'
+
+
+class Negative(Bind):
+    pass
+
+
+class Positive(Bind):
+    pass

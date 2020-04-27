@@ -264,6 +264,10 @@ class ModelReferenceNotFound(BaseError):
     template = "Model reference {ref!r} not found."
 
 
+class ModelReferenceKeyNotFound(BaseError):
+    template = "Model reference key {ref!r} not found in {model!r}."
+
+
 class SourceNotSet(UserError):
     status_code = 404
     template = (
