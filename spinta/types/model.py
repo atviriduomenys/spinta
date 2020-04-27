@@ -2,7 +2,7 @@ from typing import Dict
 
 from spinta.auth import check_generated_scopes
 from spinta.commands import load, check, authorize, prepare
-from spinta.components import Context, Node, Base, Model, Property, Action
+from spinta.components import Context, Base, Model, Property, Action
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.utils.schema import NA
@@ -103,7 +103,7 @@ def _load_property_external(context, manifest, prop, data):
             for x in data
         ]
 
-    if isinstance(data, str):
+    if isinstance(data, (str, int)):
         return _load_property_external(context, manifest, prop, {'name': data})
 
     config = context.get('config')

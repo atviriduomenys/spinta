@@ -195,11 +195,11 @@ def read_tabular_manifest(
                     fmodel = fmodel['args'][0]
                     prop['schema']['model'] = get_relative_model_name(dataset, fmodel)
                     if group:
-                        prop['schema']['properties'] = []
+                        prop['schema']['refprops'] = []
                         for p in group:
                             assert p['name'] == 'bind', ref
                             assert len(p['args']) == 1, ref
-                            prop['schema']['properties'].append(p['args'][0])
+                            prop['schema']['refprops'].append(p['args'][0])
                 model['properties'][row['property']] = i
                 model['schema']['properties'][row['property']] = prop['schema']
 

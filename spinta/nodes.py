@@ -66,6 +66,13 @@ def get_node(
                     error=f"{ctype!r} with name {name!r} already defined in {other}.",
                 )
 
+    if ctype not in config.components[group]:
+        raise exceptions.InvalidManifestFile(
+            manifest=manifest.name,
+            eid=eid,
+            error=f"Unknown component {ctype!r} in {group!r}.",
+        )
+
     Node = config.components[group][ctype]
     return Node()
 

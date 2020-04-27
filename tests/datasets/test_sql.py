@@ -234,3 +234,69 @@ def test_getall(rc, tmpdir, sqlite):
         ({'_id': 'ee'}, 'Talinas', 'datasets/gov/example/city'),
         ({'_id': 'lt'}, 'Vilnius', 'datasets/gov/example/city'),
     ]
+
+
+def test_select(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
+       | datasets/gov/example     |             |         |        |         |       |        |     | Example |
+       |   | data                 |             |         | sql    |         |       |        |     | Data    |
+       |   |   |                  |             |         |        |         |       |        |     |         |
+       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    app.authmodel('datasets/gov/example/country', ['search_external'])
+    qry = '/datasets/gov/example/country/:external?select(code,name)&sort(code)'
+    assert query(app, qry, 'code', 'name') == [
+        ('ee', 'Estija'),
+        ('lt', 'Lietuva'),
+        ('lv', 'Latvija'),
+    ]
+
+
+@pytest.mark.skip('TODO')
+def test_select_len(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
+       | datasets/gov/example     |             |         |        |         |       |        |     | Example |
+       |   | data                 |             |         | sql    |         |       |        |     | Data    |
+       |   |   |                  |             |         |        |         |       |        |     |         |
+       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    app.authmodel('datasets/gov/example/country', ['search_external'])
+    qry = '/datasets/gov/example/country/:external?select(code,len(name))&sort(code)'
+    assert query(app, qry, 'code', 'len(name)') == [
+        ('ee', 6),
+        ('lt', 7),
+        ('lv', 7),
+    ]
+
+
+def test_filter_len(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
+       | datasets/gov/example     |             |         |        |         |       |        |     | Example |
+       |   | data                 |             |         | sql    |         |       |        |     | Data    |
+       |   |   |                  |             |         |        |         |       |        |     |         |
+       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    app.authmodel('datasets/gov/example/country', ['search_external'])
+    qry = '/datasets/gov/example/country/:external?select(code,name)&len(name)=7&sort(code)'
+    assert query(app, qry, 'code', 'name') == [
+        ('lt', 'Lietuva'),
+        ('lv', 'Latvija'),
+    ]

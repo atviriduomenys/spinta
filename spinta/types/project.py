@@ -50,17 +50,6 @@ class Property(Node):
 @load.register(Context, Project, dict, Manifest)
 def load(context: Context, project: Project, data: dict, manifest: Manifest):
     load_node(context, project, data)
-
-    for name, obj in data.get('objects', {}).items():
-        project.objects[name] = load_node(context, Model(), {
-            'type': 'model',
-            'name': name,
-            'path': project.path,
-            'parent': project,
-            'backend': project.backend,
-            **(obj or {}),
-        })
-
     project.impact = [
         {
             'year': None,

@@ -1,6 +1,8 @@
+import logging
 import uuid
 
 import sqlalchemy as sa
+import sqlalchemy.exc
 
 from spinta import commands
 from spinta.core.ufuncs import Expr
@@ -13,22 +15,42 @@ from spinta.datasets.utils import iterparams
 from spinta.datasets.backends.sql.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
 
+log = logging.getLogger(__name__)
+
 
 @commands.load.register(Context, Sql, RawConfig)
 def load(context: Context, backend: Sql, rc: RawConfig):
     dsn = rc.get('backends', backend.name, 'dsn', required=True)
+    schema = rc.get('backends', backend.name, 'schema')
     backend.engine = sa.create_engine(dsn, echo=False)
-    backend.schema = sa.MetaData(backend.engine)
+    backend.schema = sa.MetaData(backend.engine, schema=schema)
+    backend.dbschema = schema
 
 
 @commands.wait.register(Context, Sql)
-def wait(context: Context, backend: Sql):
-    return True
+def wait(context: Context, backend: Sql, *, fail: bool = False) -> bool:
+    rc = context.get('rc')
+    dsn = rc.get('backends', backend.name, 'dsn', required=True)
+    engine = sa.create_engine(dsn)
+    try:
+        conn = engine.connect()
+    except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.DBAPIError):
+        if fail:
+            raise
+        else:
+            return False
+    else:
+        conn.close()
+        engine.dispose()
+        return True
 
 
 @commands.prepare.register(Context, Sql, Manifest)
 def prepare(context: Context, backend: Sql, manifest: Manifest):
-    backend.schema.reflect()
+    # XXX: Moved reflection to spinta/datasets/backends/sql/components:Sql.get_table
+    # log.info(f"Reflecting database for {backend.name!r} backend, this might take time...")
+    # backend.schema.reflect()
+    pass
 
 
 @commands.bootstrap.register(Context, Sql)
@@ -69,7 +91,7 @@ def getall(
 
     for params in iterparams(entity.model):
         table = entity.name.format(**params)
-        table = backend.schema.tables[table]
+        table = backend.get_table(table)
 
         env = builder.init(backend, table)
         expr = env.resolve(query)
