@@ -184,6 +184,7 @@ def test_this_dataset_model(context):
         '    resource: sql\n'
         '    model: datasets/backends/postgres/dataset/report\n'
         '    entity: reports\n'
+        '    resource.backend: default\n'
     )
 
 
@@ -202,4 +203,5 @@ def test_this_dataset_model_property(context):
         '    model: datasets/backends/postgres/dataset/report\n'
         '    entity: reports\n'
         '    property: status\n'
+        '    resource.backend: default\n'
     )

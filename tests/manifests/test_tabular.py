@@ -17,7 +17,7 @@ def test_loading(postgresql, rc, cli, tmpdir, request):
     table = striptable('''
     id | d | r | b | m | property | source      | prepare   | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |           |        |         |       |        |     | Example |
-       |   | data                 |             |           |        |         |       |        |     | Data    |
+       |   | data                 |             |           |        | default |       |        |     | Data    |
        |   |   |                  |             |           |        |         |       |        |     |         |
        |   |   |   | country      |             | code='lt' |        | code    |       |        |     | Country |
        |   |   |   |   | code     | kodas       | lower()   | string |         | 3     | open   |     | Code    |
