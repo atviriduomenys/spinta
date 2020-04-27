@@ -256,7 +256,7 @@ class QueryBuilder:
         limit: int = None,
         query: Optional[List[dict]] = None,
     ) -> dict:
-        keys = select or self.model.flatprops
+        keys = select if select and '*' not in select else self.model.flatprops
         keys = {k: 1 for k in keys}
         keys['_id'] = 0
         keys['__id'] = 1
