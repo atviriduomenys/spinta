@@ -53,7 +53,11 @@ def getone(
     id_: str,
 ):
     table = backend.db[model.model_type()]
-    data = table.find_one({'__id': id_})
+    keys = {k: 1 for k in model.flatprops}
+    keys['__id'] = 1
+    keys['_id'] = 0
+    query = {'__id': id_}
+    data = table.find_one(query, keys)
     if data is None:
         raise ItemDoesNotExist(model, id=id_)
     data['_id'] = data['__id']
@@ -212,7 +216,8 @@ def getall(
     cursor = qb.build(select, sort, offset, limit, query)
 
     for row in cursor:
-        row['_id'] = row.pop('__id')
+        if '__id' in row:
+            row['_id'] = row.pop('__id')
         row['_type'] = model.model_type()
         yield commands.cast_backend_to_python(context, model, backend, row)
 
@@ -251,7 +256,13 @@ class QueryBuilder:
         limit: int = None,
         query: Optional[List[dict]] = None,
     ) -> dict:
-        cursor = self.table.find(self.op_and(*(query or [])))
+        keys = select or self.model.flatprops
+        keys = {k: 1 for k in keys}
+        keys['_id'] = 0
+        keys['__id'] = 1
+        keys['_revision'] = 1
+        query = self.op_and(*(query or []))
+        cursor = self.table.find(query, keys)
 
         if limit is not None:
             cursor = cursor.limit(limit)

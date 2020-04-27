@@ -323,27 +323,34 @@ def dataitem_from_payload(
         report_error(error, stop_on_error)
         return DataItem(error=error)
 
-    if '_type' not in payload:
-        error = exceptions.MissingRequiredProperty(scope, prop='_type')
-        return DataItem(payload=payload, error=error)
+    if '_type' in payload:
+        model = payload['_type']
 
-    model = payload['_type']
-    if '.' in model:
-        model, prop = model.split('.', 1)
-        if prop.endswith(':ref'):
-            prop = prop[:-len(':ref')]
-            propref = True
+        if '.' in model:
+            model, prop = model.split('.', 1)
+            if prop.endswith(':ref'):
+                prop = prop[:-len(':ref')]
+                propref = True
+            else:
+                propref = False
         else:
+            prop = None
             propref = False
-    else:
+
+        try:
+            model = get_model_by_name(context, scope.manifest, model)
+        except exceptions.UserError as error:
+            report_error(error, stop_on_error)
+            return DataItem(model, payload=payload, error=error)
+
+    elif isinstance(scope, Model):
+        model = scope
         prop = None
         propref = False
 
-    try:
-        model = get_model_by_name(context, scope.manifest, model)
-    except exceptions.UserError as error:
-        report_error(error, stop_on_error)
-        return DataItem(model, payload=payload, error=error)
+    else:
+        error = exceptions.MissingRequiredProperty(scope, prop='_type')
+        return DataItem(payload=payload, error=error)
 
     if model and prop:
         if prop in model.flatprops:
@@ -989,7 +996,8 @@ async def simple_response(context: Context, results: AsyncIterator[DataItem]) ->
 def _get_simple_response(context: Context, data: DataItem) -> dict:
     resp = prepare_response(context, data)
     resp = {k: v for k, v in resp.items() if not k.startswith('_')}
-    resp['_type'] = (data.prop or data.model).model_type()
+    if data.prop or data.model:
+        resp['_type'] = (data.prop or data.model).model_type()
     if data.patch and '_id' in data.patch and data.prop is None:
         resp['_id'] = data.patch['_id']
     elif (

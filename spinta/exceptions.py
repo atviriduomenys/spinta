@@ -298,7 +298,7 @@ class UnknownProjectDataset(BaseError):
 
 
 class MissingRequiredProperty(BaseError):
-    template = "Property {property!r} is required."
+    template = "Property {prop!r} is required."
 
 
 class FileNotFound(UserError):

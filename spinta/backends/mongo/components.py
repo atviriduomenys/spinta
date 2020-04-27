@@ -20,7 +20,7 @@ class Mongo(Backend):
 
     @contextlib.contextmanager
     def transaction(self, write=False):
-        with self.engine.begin() as connection:
+        with self.begin() as connection:
             if write:
                 # TODO: get a real transaction id
                 transaction_id = 1
