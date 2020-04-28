@@ -9,8 +9,8 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import asttoexpr
 from spinta.core.config import RawConfig
 from spinta.components import Context
+from spinta.components import Model
 from spinta.manifests.components import Manifest
-from spinta.datasets.components import Entity
 from spinta.datasets.utils import iterparams
 from spinta.datasets.backends.sql.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
@@ -58,25 +58,25 @@ def bootstrap(context: Context, backend: Sql):
     pass
 
 
-@commands.getall.register(Context, Entity, Sql)
+@commands.getall.register(Context, Model, Sql)
 def getall(
     context: Context,
-    entity: Entity,
+    model: Model,
     backend: Sql,
     *,
     query: Expr = None,
 ):
     conn = context.get(f'transaction.{backend.name}')
     builder = SqlQueryBuilder(context)
-    builder.update(model=entity.model)
+    builder.update(model=model)
     props = {
         p.external.name: p.name
-        for p in entity.model.properties.values()
+        for p in model.properties.values()
         if p.external
     }
 
-    if entity.prepare:
-        prepare = asttoexpr(entity.prepare)
+    if model.external.prepare:
+        prepare = asttoexpr(model.external.prepare)
         if query:
             if query.name == 'and' and prepare.name == 'and':
                 query.args = query.args + prepare.args
@@ -89,8 +89,8 @@ def getall(
         else:
             query = prepare
 
-    for params in iterparams(entity.model):
-        table = entity.name.format(**params)
+    for params in iterparams(model):
+        table = model.external.name.format(**params)
         table = backend.get_table(table)
 
         env = builder.init(backend, table)
@@ -104,6 +104,6 @@ def getall(
                 for k, v in row.items()
                 if k in props
             }
-            row['_type'] = entity.model.model_type()
+            row['_type'] = model.model_type()
             row['_id'] = str(uuid.uuid4())
-            yield commands.cast_backend_to_python(context, entity.model, backend, row)
+            yield commands.cast_backend_to_python(context, model, backend, row)

@@ -110,8 +110,6 @@ def _prepare_urlparams_from_path(params):
         elif name == 'changes':
             params.changes = True
             params.changes_offset = args[0] if args else None
-        elif name == 'external':
-            params.external = True
         elif name == 'format':
             if isinstance(args[0], str):
                 params.format = args[0]
