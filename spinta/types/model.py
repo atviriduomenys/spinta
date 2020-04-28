@@ -10,6 +10,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.nodes import load_namespace, load_model_properties
 from spinta.nodes import get_node
+from spinta.core.access import load_access_param
 
 
 @load.register(Context, Model, dict, Manifest)
@@ -17,6 +18,7 @@ def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Mode
     model.parent = manifest
     model.manifest = manifest
     load_node(context, model, data)
+    model.access = load_access_param(model, model.access)
     if model.backend:
         model.backend = manifest.store.backends[model.backend]
     else:
@@ -73,6 +75,7 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
     config = context.get('config')
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
+    prop.access = load_access_param(prop, prop.access)
     prop.dtype = get_node(config, manifest, prop.model.eid, data, group='types', parent=prop)
     prop.dtype.type = 'type'
     prop.dtype.prop = prop

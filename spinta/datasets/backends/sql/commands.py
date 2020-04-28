@@ -91,7 +91,7 @@ def getall(
 
     for params in iterparams(model):
         table = model.external.name.format(**params)
-        table = backend.get_table(table)
+        table = backend.get_table(model, table)
 
         env = builder.init(backend, table)
         expr = env.resolve(query)

@@ -424,6 +424,7 @@ class Model(MetaData):
             'type': 'string',
             'choices': Access,
             'inherit': 'external.resource.access',
+            'default': 'protected',
         },
     }
 
@@ -461,6 +462,7 @@ class Property(Node):
             'type': 'string',
             'choices': Access,
             'inherit': 'model.access',
+            'default': 'protected',
         },
         'external': {},
     }

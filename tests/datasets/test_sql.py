@@ -287,3 +287,24 @@ def test_filter_len(rc, tmpdir, sqlite):
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
     ]
+
+
+def test_access_private_property(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
+       | datasets/gov/example     |             |            |        |         |       |         |     | Example |
+       |   | data                 |             |            | sql    |         |       |         |     | Data    |
+       |   |   |                  |             |            |        |         |       |         |     |         |
+       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   |   | code     | kodas       |            | string |         | 3     | private |     | Code    |
+       |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    app.authmodel('datasets/gov/example/country', ['getall'])
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp) == [
+        'Latvija',
+        'Lietuva',
+    ]
