@@ -79,9 +79,9 @@ def getall(
         prepare = asttoexpr(entity.prepare)
         if query:
             if query.name == 'and' and prepare.name == 'and':
-                query.args.extend(prepare)
+                query.args = query.args + prepare.args
             elif query.name == 'and':
-                query.args.append(prepare)
+                query.args = query.args + (prepare,)
             elif prepare.name == 'and':
                 query = Expr('and', query, *prepare.args)
             else:
