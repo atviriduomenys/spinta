@@ -44,6 +44,10 @@ def test_post_accesslog(model, app, context):
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
             {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
+            {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
             },
@@ -83,6 +87,10 @@ def test_post_array_accesslog(model, app, context):
         'transaction_id': accesslog[-1]['transaction_id'],
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
+            {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
             {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
@@ -128,6 +136,10 @@ def test_put_accesslog(model, app, context):
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
             {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
+            {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
             },
@@ -160,6 +172,10 @@ def test_pdf_put_accesslog(model, app, context):
         'transaction_id': accesslog[-1]['transaction_id'],
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
+            {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
             {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
@@ -205,6 +221,10 @@ def test_patch_accesslog(model, app, context):
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
             {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
+            {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
             },
@@ -246,6 +266,10 @@ def test_get_accesslog(app, model, context):
         'transaction_id': accesslog[-1]['transaction_id'],
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
+            {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
             {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
@@ -290,6 +314,10 @@ def test_get_array_accesslog(model, app, context):
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
             {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
+            {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
             },
@@ -326,6 +354,10 @@ def test_pdf_get_accesslog(model, app, context):
         'transaction_id': accesslog[-1]['transaction_id'],
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
+            {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
             {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
@@ -366,6 +398,10 @@ def test_get_prop_accesslog(app, model, context):
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
             {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
+            {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
             }
@@ -403,6 +439,10 @@ def test_get_w_select_accesslog(app, model, context):
         'transaction_id': accesslog[-1]['transaction_id'],
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
+            {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
             {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
@@ -444,6 +484,10 @@ def test_getall_accesslog(app, model, context):
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
             {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
+            {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
             },
@@ -481,6 +525,10 @@ def test_getall_w_select_accesslog(app, model, context):
         'transaction_id': accesslog[-1]['transaction_id'],
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
+            {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
             {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
@@ -530,6 +578,10 @@ def test_accesslog_file(model, postgresql, rc, request, tmpdir):
         'transaction_id': accesslog[-1]['transaction_id'],
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
+            {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
             {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
@@ -591,6 +643,10 @@ def test_delete_accesslog(model, app, context):
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
             {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
+            {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
             },
@@ -627,6 +683,10 @@ def test_pdf_delete_accesslog(model, app, context):
         'transaction_id': accesslog[-1]['transaction_id'],
         'timestamp': accesslog[-1]['timestamp'],
         'accessors': [
+            {
+                'type': 'person',
+                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+            },
             {
                 'type': 'client',
                 'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',

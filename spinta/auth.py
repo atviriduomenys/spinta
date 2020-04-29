@@ -161,6 +161,9 @@ class Token(rfc6749.TokenMixin):
     def get_sub(self):
         return self._token.get('sub', '')
 
+    def get_aud(self):
+        return self._token.get('aud', '')
+
 
 class AdminToken(rfc6749.TokenMixin):
 
@@ -171,6 +174,9 @@ class AdminToken(rfc6749.TokenMixin):
         pass
 
     def get_sub(self):
+        return 'admin'
+
+    def get_aud(self):
         return 'admin'
 
 
