@@ -3,6 +3,7 @@ from spinta.nodes import get_node, load_node
 from spinta.components import Context
 from spinta.manifests.components import Manifest
 from spinta.datasets.components import Dataset, Resource, Entity
+from spinta.core.access import load_access_param
 
 
 @commands.load.register(Context, Dataset, dict, Manifest)
@@ -10,6 +11,7 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
     config = context.get('config')
 
     load_node(context, dataset, data, parent=manifest)
+    dataset.access = load_access_param(dataset, dataset.access)
 
     # Load resources
     dataset.resources = {}
@@ -26,6 +28,7 @@ def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
 @commands.load.register(Context, Resource, dict, Manifest)
 def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_node(context, resource, data, parent=resource.dataset)
+    resource.access = load_access_param(resource, resource.access)
 
     store = resource.dataset.manifest.store
     possible_backends = [

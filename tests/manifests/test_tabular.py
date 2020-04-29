@@ -16,14 +16,14 @@ def test_loading(postgresql, rc, cli, tmpdir, request):
 
     table = striptable('''
     id | d | r | b | m | property | source      | prepare   | type   | ref     | level | access | uri | title   | description
-       | datasets/gov/example     |             |           |        |         |       |        |     | Example |
-       |   | data                 |             |           |        | default |       |        |     | Data    |
+       | datasets/gov/example     |             |           |        |         |       | open   |     | Example |
+       |   | data                 |             |           |        | default |       | open   |     | Data    |
        |   |   |                  |             |           |        |         |       |        |     |         |
-       |   |   |   | country      |             | code='lt' |        | code    |       |        |     | Country |
+       |   |   |   | country      |             | code='lt' |        | code    |       | open   |     | Country |
        |   |   |   |   | code     | kodas       | lower()   | string |         | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |           | string |         | 3     | open   |     | Name    |
        |   |   |                  |             |           |        |         |       |        |     |         |
-       |   |   |   | city         |             |           |        | name    |       |        |     | City    |
+       |   |   |   | city         |             |           |        | name    |       | open   |     | City    |
        |   |   |   |   | name     | pavadinimas |           | string |         | 3     | open   |     | Name    |
        |   |   |   |   | country  | šalis       |           | ref    | country | 4     | open   |     | Country |
     ''')

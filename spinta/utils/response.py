@@ -57,12 +57,8 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
             action = Action.SEARCH if search else Action.GETALL
             _enforce_limit(context, params)
 
-            if params.external:
-                model = params.model.external
-                backend = model.resource.backend
-            else:
-                model = params.model
-                backend = model.backend
+            model = params.model
+            backend = model.backend
 
             if backend is not None:
                 # Namespace nodes do not have backend.

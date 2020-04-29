@@ -1,0 +1,169 @@
+.. default-role:: literal
+
+Access control
+##############
+
+Spinta uses `OAuth 2.0 Authorization Framework`_ for client authorization.  In
+order to access data you need to be registered in the `Authorization Server`_. 
+
+
+Client registration
+===================
+
+Spinta provides a simple built-in `Authorization Server`_, here a
+new client can be registered like this::
+
+    spinta client add -n client_id -s client_secret
+
+Registered clients will be stored in `$SPINTA_CONFIG_PATH/clients/` directory as
+YAML files. You can edit these files to manage client scopes.
+
+If you use an external `Authorization Server`_, then you need to register
+client there using wathever steps required by the authorization server.
+
+
+Default client
+==============
+
+Spinta can be configured with a default client. Default client will be used
+when access token is not given. Default client can be set using
+`$SPINTA_DEFAULT_AUTH_CLIENT` configuration parameter and it should point to an
+existing client in `$SPINTA_CONFIG_PATH/clients/`.
+
+All unauthorized clients will be given default client permissions.
+
+
+Scopes
+======
+
+Each client can be given list of scopes. Scopes names uses following pattern::
+
+    {$SPINTA_SCOPE_PREFIX}{ns}_{model}_{property}_{action}
+
+`$SPINTA_SCOPE_PREFIX` can be set via configuration, default scope prefix is
+`spinta_`. `ns`, `model` and `property` are all optional, only `action` is
+required. Following actions are available:
+
+:getone:
+  Client can get single object by id.
+
+:getall:
+  Client can get list of all objects, but can't use any search parameters.
+
+:search:
+  Client can use search parameters to filter objects.
+
+:changes:
+  Client can query whole model or single object changelog.
+
+:insert:
+  Client can create new objects.
+
+:upsert:
+  Client can create or update existing objects using upsert operation.
+
+:update:
+  Client can update existing objects by fully overwriting them.
+
+:patch:
+  Clients can patch existing objects by providing a patch.
+
+:delete:
+  Clients can do a soft delete, deleted objects will still be stored in
+  changelog.
+
+:wipe:
+  Clients can do a hard delete, objects will be deleted permanently.
+
+
+For example you can give read access to all data by giving client
+these scopes::
+
+    spinta_getone
+    spinta_getall
+    spinta_search
+
+Or you can give read access to all models in a namespace::
+
+    spinta_geo_getone
+    spinta_geo_getall
+    spinta_geo_search
+
+Or you can give explicit read access to a model::
+
+    spinta_geo_country_getone
+    spinta_geo_country_getall
+    spinta_geo_country_search
+
+Or to a property::
+
+    spinta_geo_country_code_getone
+    spinta_geo_country_code_getall
+    spinta_geo_country_code_search
+
+
+Access token
+============
+
+When you have a registered client with some scopes, then you can get access
+token like this::
+
+    http -a $client:$secret -f $server/auth/token grant_type=client_credentials scope="$scopes" | jq -r .access_token
+
+Once you have an access token, then you can access data by passing token to
+`Authorization` header like this::
+
+    Authorization: Bearer $token
+
+
+Access levels
+=============
+
+Access level can be sed to models and properties in manifest YAML files. For
+example:
+
+.. code-block:: yaml
+
+    type: model
+    name: geo/country
+    access: private
+    properties:
+      code:
+        type: string
+        access: private
+      name:
+        type: string
+    
+Here `country` model and `code` property have `access` set to `private`.
+
+`access` can be one of following:
+
+:private:
+  Explicit model or property scope is required to access data. For example if
+  client has `spinta_geo_getall` scope, `/geo/country` model data still can't
+  be accessed, because model requires explicit `spinta_geo_country_getall`
+  scope. Same applies to properties. The only way to access `code` property is
+  via subresource call `/geo/country/ID/code` and with explicit
+  `spinta_geo_country_code_getall` scope.
+
+  Private data can't be accessed directly, but can be used in filters or
+  sorting.
+
+:protected:
+  Explicit scope is not required, model can be accessed if at least namespace
+  scope is given and property can be accessed if at least model or namespace
+  scope is given.
+
+:public:
+  Data can be accessed publicly, but access token is still required in order to
+  check if user has read and accepted data usage terms and conditions. Default
+  client `$SPINTA_DEFAULT_AUTH_CLIENT` can't be used to access data.
+
+:open:
+  Data can be accessed freeely withouf any restrictions. Access token is not
+  required if `$SPINTA_DEFAULT_AUTH_CLIENT` is set, scopes of the default
+  client will be used.
+
+
+.. _OAuth 2.0 Authorization Framework: https://tools.ietf.org/html/rfc6749
+.. _Authorization Server: https://tools.ietf.org/html/rfc6749#section-1.1

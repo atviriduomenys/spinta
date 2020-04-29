@@ -265,7 +265,7 @@ def datasets_to_tabular(manifest: Manifest):
                 'id': dataset.id,
                 'dataset': dataset.name,
                 'level': dataset.level,
-                'access': dataset.access,
+                'access': dataset.access.name,
                 'title': dataset.title,
                 'description': dataset.description,
             })
@@ -277,7 +277,7 @@ def datasets_to_tabular(manifest: Manifest):
                 'source': resource.external,
                 'ref': resource.backend.name if resource.backend else '',
                 'level': resource.level,
-                'access': resource.access,
+                'access': resource.access.name,
                 'title': resource.title,
                 'description': resource.description,
             })
@@ -291,7 +291,7 @@ def datasets_to_tabular(manifest: Manifest):
             'prepare': spyna.unparse(model.external.prepare) if model.external.prepare else None,
             'ref': ','.join([p.name for p in model.external.pkeys]),
             'level': model.level,
-            'access': model.access,
+            'access': model.access.name,
             'title': model.title,
             'description': model.description,
         }
@@ -306,7 +306,7 @@ def datasets_to_tabular(manifest: Manifest):
                 'prepare': spyna.unparse(prop.external.prepare) if prop.external and prop.external.prepare else None,
                 'type': prop.dtype.name,
                 'level': prop.level,
-                'access': prop.access,
+                'access': prop.access.name,
                 'title': prop.title,
                 'description': prop.description,
             }
