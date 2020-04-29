@@ -61,10 +61,16 @@ def load(context: Context, accesslog: AccessLog, config: Config):
 
 @commands.load.register(Context, AccessLog, rfc6749.TokenMixin)
 def load(context: Context, accesslog: AccessLog, token: rfc6749.TokenMixin):  # noqa
-    accesslog.accessors.append({
-        'type': 'client',
-        'id': token.get_sub(),
-    })
+    accesslog.accessors.extend([
+        {
+            'type': 'person',
+            'id': token.get_sub(),
+        },
+        {
+            'type': 'client',
+            'id': token.get_aud(),
+        },
+    ])
 
 
 @commands.load.register(Context, AccessLog, Request)
