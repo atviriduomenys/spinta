@@ -424,3 +424,7 @@ class NoAuthServer(UserError):
 
 class NoTokenValidationKey(UserError):
     template = "A token validation key is required, set it via token_validation_key configuration parameter."
+
+
+class NoExternalName(UserError):
+    template = "Property {property} does not have 'external' name."

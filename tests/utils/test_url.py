@@ -6,21 +6,16 @@ from spinta.utils.url import build_url_path
 
 @pytest.mark.parametrize('path, query', [
     ('', [{'name': 'path', 'args': []}]),
-    (':external', [
-        {'name': 'external', 'args': []},
-    ]),
     ('foo/bar', [
         {'name': 'path', 'args': ['foo', 'bar']},
     ]),
-    ('foo/bar/:format/csv/:external', [
+    ('foo/bar/:format/csv', [
         {'name': 'path', 'args': ['foo', 'bar']},
         {'name': 'format', 'args': ['csv']},
-        {'name': 'external', 'args': []},
     ]),
-    ('foo/bar/d12a126e085db85e78379284006d369a8247bfc7/:format/csv/:external', [
+    ('foo/bar/d12a126e085db85e78379284006d369a8247bfc7/:format/csv', [
         {'name': 'path', 'args': ['foo', 'bar', 'd12a126e085db85e78379284006d369a8247bfc7']},
         {'name': 'format', 'args': ['csv']},
-        {'name': 'external', 'args': []},
     ])
 ])
 def test_parse_url_path(path, query):

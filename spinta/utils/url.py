@@ -13,10 +13,6 @@ RULES = {
     'all': {
         'maxargs': 0,
     },
-    'external': {
-        'minargs': 0,
-        'maxargs': 1,
-    },
     'changes': {
         'minargs': 0,
         'maxargs': 1,

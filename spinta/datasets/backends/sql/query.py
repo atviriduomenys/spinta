@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlalchemy as sa
 import sqlalchemy.sql.functions
 
+from spinta.core.enums import Access
 from spinta.core.ufuncs import Env, ufunc
 from spinta.core.ufuncs import Expr, Bind, Negative
 from spinta.exceptions import UnknownExpr
@@ -52,19 +53,18 @@ class SqlQueryBuilder(Env):
             if fpr.name in self.joins:
                 continue
 
-            lmodel = fpr.left.model
-            ltable = self.backend.get_table(lmodel.external.name)
-            lrkeys = [fpr.left.external.name]
+            ltable = self.backend.get_table(fpr.left.model)
+            lrkeys = [self.backend.get_column(ltable, fpr.left)]
 
             rmodel = fpr.right.model
-            rtable = self.backend.get_table(rmodel.external.name)
+            rtable = self.backend.get_table(rmodel)
             rpkeys = fpr.left.dtype.refprops or rmodel.external.pkeys
-            rpkeys = [k.external.name for k in rpkeys]
+            rpkeys = [self.backend.get_column(rtable, k) for k in rpkeys]
 
             assert len(lrkeys) == len(rpkeys), (lrkeys, rpkeys)
             condition = []
             for lrk, rpk in zip(lrkeys, rpkeys):
-                condition += [ltable.c[lrk] == rtable.c[rpk]]
+                condition += [lrk == rpk]
 
             assert len(condition) > 0
             if len(condition) == 1:
@@ -75,7 +75,7 @@ class SqlQueryBuilder(Env):
             self.from_ = self.joins[fpr.name] = self.from_.join(rtable, condition)
 
         model = fpr.right.model
-        table = self.backend.get_table(model.external.name)
+        table = self.backend.get_table(model)
         return table
 
 
@@ -110,22 +110,23 @@ def getattr(env, dtype, attr):
 
 @ufunc.resolver(SqlQueryBuilder, Bind, str)
 def eq(env, field, value):
-    name = env.model.properties[field.name].external.name
-    return env.table.c[name] == value
+    prop = env.model.properties[field.name]
+    column = env.backend.get_column(env.table, prop)
+    return column == value
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, str)
-def eq(env, prop, value):
-    table = env.get_joined_table(prop)
-    name = prop.right.external.name
-    return table.c[name] == value
+def eq(env, fpr, value):
+    table = env.get_joined_table(fpr)
+    column = env.backend.get_column(table, fpr.right)
+    return column == value
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
-def eq(env, prop, value):
-    table = env.get_joined_table(prop)
-    name = prop.right.external.name
-    return table.c[name].in_(value)
+def eq(env, fpr, value):
+    table = env.get_joined_table(fpr)
+    column = env.backend.get_column(table, fpr.right)
+    return column.in_(value)
 
 
 @ufunc.resolver(SqlQueryBuilder, sqlalchemy.sql.functions.Function, object)
@@ -135,22 +136,23 @@ def eq(env, func, value):
 
 @ufunc.resolver(SqlQueryBuilder, Bind, str)
 def ne(env, field, value):
-    name = env.model.properties[field.name].external.name
-    return env.table.c[name] != value
+    prop = env.model.properties[field.name]
+    column = env.backend.get_column(env.table, prop)
+    return column != value
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, str)
-def ne(env, prop, value):
-    table = env.get_joined_table(prop)
-    name = prop.right.external.name
-    return table.c[name] != value
+def ne(env, fpr, value):
+    table = env.get_joined_table(fpr)
+    column = env.backend.get_column(table, fpr.right)
+    return column != value
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
-def ne(env, prop, value):
-    table = env.get_joined_table(prop)
-    name = prop.right.external.name
-    return ~table.c[name].in_(value)
+def ne(env, fpr, value):
+    table = env.get_joined_table(fpr)
+    column = env.backend.get_column(table, fpr.right)
+    return ~column.in_(value)
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr, name='and')
@@ -178,7 +180,13 @@ def select(env, expr):
             for arg in args
         ]
     else:
-        env.select = [env.table]
+        env.select = [
+            env.backend.get_column(env.table, prop, select=True)
+            for prop in env.model.flatprops.values() if (
+                not prop.name.startswith('_') and
+                prop.access > Access.private
+            )
+        ]
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
@@ -196,9 +204,9 @@ def select(env, arg):
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def select(env, dtype):
-    table = env.backend.get_table(env.model.external.name)
-    name = dtype.prop.external.name
-    return table.c[name]
+    table = env.backend.get_table(env.model)
+    column = env.backend.get_column(table, dtype.prop, select=True)
+    return column
 
 
 @ufunc.resolver(SqlQueryBuilder, sqlalchemy.sql.functions.Function)
@@ -221,8 +229,8 @@ def len_(env, bind):
 
 @ufunc.resolver(SqlQueryBuilder, DataType, name='len')
 def len_(env, dtype):
-    name = dtype.prop.external.name
-    return sa.func.length(env.table.c[name])
+    column = env.backend.get_column(env.table, dtype.prop)
+    return sa.func.length(column)
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr)
@@ -230,12 +238,13 @@ def sort(env, expr):
     args, kwargs = expr.resolve(env)
     env.sort = []
     for key in args:
-        col = env.model.properties[key.name].external.name
+        prop = env.model.properties[key.name]
+        column = env.backend.get_column(env.table, prop)
         if isinstance(key, Negative):
-            field = env.table.c[col].desc()
+            column = column.desc()
         else:
-            field = env.table.c[col].asc()
-        env.sort.append(field)
+            column = column.asc()
+        env.sort.append(column)
 
 
 @ufunc.resolver(SqlQueryBuilder, int)
