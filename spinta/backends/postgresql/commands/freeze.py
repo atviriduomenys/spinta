@@ -8,7 +8,7 @@ from spinta.migrations import SchemaVersion
 from spinta.utils.data import take
 
 
-@commands.freeze.register()
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), Model)
 def freeze(
     context: Context,
     version: SchemaVersion,
@@ -41,7 +41,7 @@ def dzip(*data):
         yield tuple(d.get(key) for d in data)
 
 
-@commands.freeze.register()
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Model, Model)
 def freeze(  # noqa
     context: Context,
     version: SchemaVersion,
@@ -59,7 +59,7 @@ def freeze(  # noqa
         )
 
 
-@commands.freeze.register()
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), DataType)
 def freeze(  # noqa
     context: Context,
     version: SchemaVersion,
@@ -81,7 +81,7 @@ def freeze(  # noqa
     ]
 
 
-@commands.freeze.register()
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Model, DataType)
 def freeze(  # noqa
     context: Context,
     version: SchemaVersion,
@@ -109,7 +109,7 @@ def freeze(  # noqa
     })
 
 
-@commands.freeze.register()
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, DataType, DataType)
 def freeze(  # noqa
     context: Context,
     version: SchemaVersion,

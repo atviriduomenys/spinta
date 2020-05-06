@@ -179,3 +179,56 @@ def test_freeze_no_changes(rc, cli):
             },
         ],
     }
+
+
+def test_freeze_array(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'names': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string',
+                    }
+                },
+            },
+        },
+    })
+
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
+        {
+            'type': 'schema',
+            'upgrade': [
+                "create_table(",
+                "    'country/:list/names',",
+                "    column('_txn', uuid()),",
+                "    column('_rid', ref('country._id', ondelete: 'CASCADE')),",
+                "    column('names', string())",
+                ")",
+            ],
+            'downgrade': [
+                "drop_table('country/:list/names')",
+            ],
+        },
+        {
+            'type': 'schema',
+            'upgrade': [
+                "create_table(",
+                "    'country',",
+                "    column('_id', pk()),",
+                "    column('_revision', string()),",
+                "    column('names', json())",
+                ")"
+            ],
+            'downgrade': [
+                "drop_table('country')",
+            ],
+        },
+    ]

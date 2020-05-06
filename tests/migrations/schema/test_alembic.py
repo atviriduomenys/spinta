@@ -27,18 +27,29 @@ def ufunc(context, engine):
 def test_create_table(engine, ufunc, request):
     ufunc('''\
     create_table(
-        '_test_table',
+        '_test_table_country',
         column(_id, uuid(), primary_key: true),
         column(_revision, string(), unique: true),
         column(name, string(), nullable: true),
-        column('foo.bar', string(), nullable: true),
+    )
+    ''')
+    ufunc('''
+    create_table(
+        '_test_table_city',
+        column(_id, uuid(), primary_key: true),
+        column(_revision, string(), unique: true),
+        column(name, string(), nullable: true),
+        column('country._id', uuid(), ref('_test_table_country._id', ondelete: 'CASCADE')),
+        column('country', json()),
     )
     ''')
     meta = sa.MetaData(engine)
     request.addfinalizer(meta.drop_all)
-    table = sa.Table('_test_table', meta, autoload=True)
-    assert table.primary_key.columns.keys() == ['_id']
-    assert table.columns.keys() == ['_id', '_revision', 'name', 'foo.bar']
+    country = sa.Table('_test_table_country', meta, autoload=True)
+    city = sa.Table('_test_table_city', meta, autoload=True)
+    assert country.primary_key.columns.keys() == ['_id']
+    assert city.columns.keys() == ['_id', '_revision', 'name', 'country._id', 'country']
+    assert next(iter(city.c['country._id'].foreign_keys)).ondelete == 'CASCADE'
 
 
 def test_drop_table(engine, ufunc):
