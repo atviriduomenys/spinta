@@ -4,7 +4,7 @@ from spinta.migrations import SchemaVersion
 from spinta.backends.mongo.components import Mongo
 
 
-@commands.freeze.register()
+@commands.freeze.register(Context, SchemaVersion, Mongo, object, object)
 def freeze(
     context: Context,
     version: SchemaVersion,

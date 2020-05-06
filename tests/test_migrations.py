@@ -23,7 +23,8 @@ def _summarize_actions(actions):
 
 
 def configure(rc, path):
-    return rc.fork().add('test', {
+    return rc.fork({
+        'backends': ['default'],
         'manifests.default': {
             'type': 'backend',
             'backend': 'default',
@@ -34,14 +35,7 @@ def configure(rc, path):
 
 
 def test_create_model(postgresql, rc, cli, tmpdir, request):
-    rc = rc.fork().add('test', {
-        'manifests.default': {
-            'type': 'backend',
-            'backend': 'default',
-            'sync': 'yaml',
-        },
-        'manifests.yaml.path': str(tmpdir),
-    })
+    rc = configure(rc, tmpdir)
 
     cli.invoke(rc, bootstrap)
 

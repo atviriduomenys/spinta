@@ -17,6 +17,9 @@ class Expr:
         self.kwargs = kwargs
 
     def __repr__(self):
+        return f'Expr({self})'
+
+    def __str__(self):
         return spyna.unparse({
             'name': self.name,
             'args': list(self.args) + [

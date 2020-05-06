@@ -1,13 +1,29 @@
 import sqlalchemy as sa
 
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql.type_api import TypeEngine
+from sqlalchemy.dialects.postgresql import JSONB
 
+from spinta.exceptions import UnknownExpr
 from spinta.core.ufuncs import Env, Expr, Bind, ufunc
 
 
+TYPES = {
+    'string': sa.Text,
+    'integer': sa.Integer,
+    'number': sa.Float,
+    'boolean': sa.Boolean,
+    'binary': sa.LargeBinary,
+    'date': sa.Date,
+    'datetime': sa.DateTime,
+    'json': JSONB,
+    'uuid': UUID,
+}
+
+
 class Alembic(Env):
-    pass
+
+    def default_resolver(self, expr, *args, **kwargs):
+        raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
 
 
 @ufunc.resolver(Alembic, Expr)
@@ -20,40 +36,41 @@ def create_table(env, expr):
 
 
 @ufunc.executor(Alembic, Expr)
-def create_table(env, expr):  # noqa
+def create_table(env, expr):
     env.op.create_table(*expr.args, **expr.kwargs)
+
+
+@ufunc.resolver(Alembic, str)
+def drop_table(env, table):
+    return Expr('drop_table', table)
 
 
 @ufunc.resolver(Alembic, Bind)
 def drop_table(env, table):
-    return table.name
+    return Expr('drop_table', table.name)
 
 
 @ufunc.executor(Alembic, Expr)
-def drop_table(env, expr):  # noqa
+def drop_table(env, expr):
     env.op.drop_table(*expr.args, **expr.kwargs)
 
 
-@ufunc.resolver(Alembic, str, TypeEngine)
-def column(env, name, dtype, **kwargs):
-    return sa.Column(name, dtype, **kwargs)
+@ufunc.resolver(Alembic, Expr)
+def column(env, expr):
+    args, kwargs = expr.resolve(env)
+    name, type_, *args = args
+    if isinstance(name, Bind):
+        name = name.name
+    return sa.Column(name, type_, *args, **kwargs)
 
 
-@ufunc.resolver(Alembic, Bind, TypeEngine)
-def column(env, name, dtype, **kwargs):  # noqa
-    return sa.Column(name.name, dtype, **kwargs)
+@ufunc.resolver(Alembic, Expr, names=list(TYPES))
+def type_(env, expr):
+    args, kwargs = expr.resolve(env)
+    Type = TYPES[expr.name]
+    return Type(*args, **kwargs)
 
 
-@ufunc.resolver(Alembic)
-def uuid(env):  # noqa
-    return UUID()
-
-
-@ufunc.resolver(Alembic)
-def string(env):  # noqa
-    return sa.String()
-
-
-@ufunc.resolver(Alembic, int)
-def string(env, length):  # noqa
-    return sa.String(length)
+@ufunc.resolver(Alembic, str)
+def ref(env, reference, **kwargs):
+    return sa.ForeignKey(reference, **kwargs)

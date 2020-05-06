@@ -7,7 +7,7 @@ from spinta.manifests.helpers import get_current_schema_changes
 from spinta.manifests.yaml.helpers import add_new_version
 
 
-@commands.freeze.register()
+@commands.freeze.register(Context, YamlManifest)
 def freeze(context: Context, current: YamlManifest):
     # Load current node, that is not yet freezed.
     commands.load(context, current, freezed=False)
