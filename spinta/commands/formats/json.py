@@ -3,8 +3,7 @@ import ujson as json
 from typing import Optional
 
 from starlette.requests import Request
-from starlette.responses import JSONResponse
-from starlette.responses import StreamingResponse
+from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from spinta.commands.formats import Format
 from spinta.components import Context, Action, UrlParams, Node
@@ -76,6 +75,8 @@ def _render(
             media_type=fmt.content_type,
             headers=headers,
         )
+    elif action == Action.DELETE:
+        return Response(None, status_code=status_code, headers=headers)
     else:
         return JSONResponse(
             fmt.data(data),

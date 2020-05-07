@@ -188,7 +188,6 @@ def test_patch_same(model, app):
 def test_delete(model, app):
     app.authmodel(model, ['insert', 'delete', 'getone', 'search'])
     pk, rev0, val = post(app, model, 'old')
-    rev1 = delete(app, model, pk, rev0)
-    assert rev0 != rev1
-    assert get(app, model, pk, rev1, status=404) == ['ItemDoesNotExist']
+    delete(app, model, pk, rev0)
+    assert get(app, model, pk, rev0, status=404) == ['ItemDoesNotExist']
     assert search(app, model, pk, rev0, 'old') == []

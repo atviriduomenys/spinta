@@ -631,8 +631,8 @@ def test_delete_accesslog(model, app, context):
 
     resp = app.delete(f'/{model}/{id_}')
     assert resp.status_code == 204
+    assert resp.content == b''
 
-    data = resp.json()
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
@@ -672,7 +672,7 @@ def test_pdf_delete_accesslog(model, app, context):
 
     resp = app.delete(f'/{model}/{id_}/pdf')
     assert resp.status_code == 204
-    revision = resp.json()['_revision']
+    assert resp.content == b''
 
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 3  # 3 accesses overall: POST, PUT, DELETE
