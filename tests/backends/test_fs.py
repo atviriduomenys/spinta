@@ -73,23 +73,12 @@ def test_crud(model, app, tmpdir):
 
     resp = app.delete(f'/{model}/{id_}/image')
     assert resp.status_code == 204, resp.text
-    data = resp.json()
-    assert data == {
-        '_type': f'{model}.image',
-        '_revision': data['_revision'],
-    }
-    assert data['_revision'] != revision
-    revision = data['_revision']
+    assert resp.content == b''
     assert img.is_file() is True
 
     resp = app.get(f'/{model}/{id_}/image:ref')
     assert resp.status_code == 200
-    assert resp.json() == {
-        '_type': f'{model}.image',
-        '_revision': revision,
-        '_id': None,
-        '_content_type': None,
-    }
+    revision = resp.json()['_revision']
 
     resp = app.get(f'/{model}/{id_}/image')
     assert resp.status_code == 404
@@ -453,7 +442,7 @@ def test_file_get_headers(model, app):
     'backends/postgres/photo',
 )
 def test_rename_non_existing_file(model, app):
-    app.authmodel(model, ['insert', 'image_update', 'image_patch', 'image_delete'])
+    app.authmodel(model, ['getone', 'insert', 'image_update', 'image_patch', 'image_delete'])
 
     # Create a new report resource.
     resp = app.post(f'/{model}', json={
@@ -476,9 +465,12 @@ def test_rename_non_existing_file(model, app):
     # DELETE the file
     resp = app.delete(f'/{model}/{id_}/image')
     assert resp.status_code == 204, resp.text
-    revision = resp.json()['_revision']
+    assert resp.content == b''
 
     # Try to change reference file name, when file does not exist
+    resp = app.get(f'/{model}/{id_}')
+    revision = resp.json()['_revision']
+
     resp = app.patch(f'/{model}/{id_}/image:ref', json={
         '_revision': revision,
         '_content_type': 'application/pdf',

@@ -136,7 +136,7 @@ async def push(
         raise Exception(f"Unknown action {action!r}.")
 
     status_code, response = await simple_response(context, dstream)
-    return render(context, request, prop, params, response, status_code=status_code)
+    return render(context, request, prop, params, response, action=action, status_code=status_code)
 
 
 async def upload_file_to_s3(
