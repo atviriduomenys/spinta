@@ -155,16 +155,8 @@ def delete(app, model: str, pk: str, rev: str):
         '_revision': rev,
     }))
     resp = app.delete(f'/{model}/{pk}', json=data)
-    data = resp.json()
-    assert resp.status_code == 204, data
-    pk = data['_id']
-    rev = data['_revision']
-    assert data == {
-        '_type': model,
-        '_id': pk,
-        '_revision': rev,
-    }
-    return rev
+    assert resp.content == b''
+    assert resp.status_code == 204
 
 
 def get(app, model, pk, rev, status=200):

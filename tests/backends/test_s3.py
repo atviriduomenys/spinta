@@ -152,15 +152,10 @@ def test_delete(model, app):
 
     resp = app.delete(f'/{model}/{id_}/file')
     assert resp.status_code == 204, resp.text
-    data = resp.json()
-    assert data == {
-        '_type': f'{model}.file',
-        '_revision': data['_revision'],
-    }
+    assert resp.content == b''
 
-    assert data['_revision'] != revision
-    revision = data['_revision']
-
+    resp = app.get(f'/{model}/{id_}')
+    revision = resp.json()['_revision']
     resp = app.get(f'/{model}/{id_}/file:ref')
     assert resp.status_code == 200
     assert resp.json() == {

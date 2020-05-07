@@ -178,6 +178,8 @@ async def log_write(context, dstream):
             data.saved,
             {'_type': data.model.name}
         )
+        if data.action == Action.DELETE:
+            resource['_revision'] = take('_revision', data.saved)
         transaction = context.get("transaction")
         accesslog.log(resources=[resource], fields=fields, txn=transaction.id)
         yield data
