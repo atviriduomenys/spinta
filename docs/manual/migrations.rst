@@ -4,7 +4,7 @@ Migrations
 ##########
 
 There are two types of migrations, schema and data migrations. Schema
-migrations are responsible for applying changes to you schema, data migrations
+migrations are responsible for applying changes to your schema, data migrations
 are responsible for updating data when you found some kind of error in data.
 
 For better visibility all migrations are stored as part of manifest YAML files.
@@ -25,9 +25,14 @@ Model YAML file is a multi-document_ file and documents are organized this way:
   ---
   ...
 
-First document in YAML file is always latest model schema with all the changes
-applied ant possibly new changes that are net yet freezed into model's version
-history.
+
+First document in YAML file is the latest schema version. In YAML files, first
+document is usually used to change model schema. Once first document is updated
+in-place, you need to freeze those changes, no create a new schema version.
+
+Migrations always use freezed schema versions. So if you have a modified first
+YAML fiel document, then changes will not be used in migrations untill they are
+not freezed.
 
 
 Creating new model
@@ -59,7 +64,7 @@ freeze only one model:
 
   spinta freeze country
 
-After freezing model YAML file is updated an now looks like this:
+After freezing, YAML file is updated and now looks like this:
 
 .. code-block:: yaml
 
@@ -81,6 +86,7 @@ After freezing model YAML file is updated an now looks like this:
     - {op: add, path: /properties, value: {name: string}}
   migrate:
     - type: schema
+      backend: default
       upgrade: >-
         create_table(
           country,
@@ -91,11 +97,15 @@ After freezing model YAML file is updated an now looks like this:
       downgrade: >-
         drop_table(country)
 
-Current model schema updated with new version and now model is ready to use.
+Current model schema was updated with a new version and now model is ready to
+be used.
 
-In new version document we see all the information aboult changes. In `changes`
+In the new version we see all the information aboult changes. In `changes`
 parameter we see what exactly was changed in schema document and in `migrate`
 we see all the steps that will be performed on database.
+
+`migrate` parameter contains migration actions specific to a specific backend
+instance (see :ref:`backend-configuration`).
 
 Different backends might generate different migration steps. For example Mongo
 backend will not have any steps, because Mongo is schemaless database.
