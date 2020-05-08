@@ -27,6 +27,7 @@ from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
 from spinta.hacks.spyna import binds_to_strs
+from spinta.core.ufuncs import asttoexpr
 
 
 STREAMING_CONTENT_TYPES = [
@@ -458,12 +459,11 @@ async def read_existing_data(
                 )]
             else:
                 query = data.given['_where']
-                query = query if isinstance(query, list) else [query]
+                query = asttoexpr(query)
                 rows = commands.getall(
                     context,
                     data.model,
                     data.model.backend,
-                    action=Action.SEARCH,
                     query=query,
                 )
         except exceptions.ItemDoesNotExist:
