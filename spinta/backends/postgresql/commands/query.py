@@ -1,4 +1,6 @@
-from typing import Optional, List, Union, Tuple, Dict
+from __future__ import annotations
+
+from typing import Optional, List, Union, Tuple
 
 import sqlalchemy as sa
 
@@ -6,7 +8,10 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from spinta import commands
 from spinta import exceptions
-from spinta.components import Context, Model, Property
+from spinta.core.ufuncs import Env, ufunc
+from spinta.core.ufuncs import Bind
+from spinta.exceptions import UnknownExpr
+from spinta.components import Property
 from spinta.hacks.recurse import _replace_recurse
 from spinta.utils.schema import is_valid_sort_key
 from spinta.types.datatype import Array
@@ -15,52 +20,107 @@ from spinta.backends.postgresql.constants import TableType
 from spinta.backends.postgresql.helpers import get_column_name
 
 
-class QueryBuilder:
-    compops = (
-        'eq',
-        'ge',
-        'gt',
-        'le',
-        'lt',
-        'ne',
-        'contains',
-        'startswith',
-    )
+class PgQueryBuilder(Env):
 
-    def __init__(
-        self,
-        context: Context,
-        model: Model,
-        backend: PostgreSQL,
-    ):
-        self.context = context
-        self.model = model
-        self.backend = backend
-        self.select = []
-        self.where = []
-        self.joins = backend.get_table(model)
+    def init(self, backend: PostgreSQL, table: sa.Table):
+        return self(
+            backend=backend,
+            table=table,
+            # TODO: Select list must be taken from params.select.
+            select=[table],
+            joins={},
+            from_=table,
+            sort=[],
+            limit=None,
+            offset=None,
+        )
 
-    def build(
-        self,
-        select: List[str] = None,
-        sort: Dict[str, dict] = None,
-        offset: int = None,
-        limit: int = None,
-        query: Optional[List[dict]] = None,
-    ) -> sa.sql.Select:
-        # TODO: Select list must be taken from params.select.
-        qry = sa.select([self.backend.get_table(self.model)])
+    def build(self, where):
+        qry = sa.select(self.select)
+        qry = qry.select_from(self.from_)
 
-        if query:
-            qry = qry.where(self.op_and(*query))
+        if where is not None:
+            qry = qry.where(where)
 
-        if sort:
-            qry = self.sort(qry, sort)
+        if self.sort:
+            qry = qry.order_by(*self.sort)
 
-        qry = _getall_offset(qry, offset)
-        qry = _getall_limit(qry, limit)
-        qry = qry.select_from(self.joins)
+        if self.limit is not None:
+            qry = qry.limit(self.limit)
+
+        if self.offset is not None:
+            qry = qry.offset(self.offset)
+
         return qry
+
+    def default_resolver(self, expr, *args, **kwargs):
+        raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
+
+    def get_joined_table(self, prop: ForeignProperty) -> sa.Table:
+        for fpr in prop.chain:
+            if fpr.name in self.joins:
+                continue
+
+            ltable = self.backend.get_table(fpr.left.model)
+            lrkeys = [self.backend.get_column(ltable, fpr.left)]
+
+            rmodel = fpr.right.model
+            rtable = self.backend.get_table(rmodel)
+            rpkeys = fpr.left.dtype.refprops or rmodel.external.pkeys
+            rpkeys = [self.backend.get_column(rtable, k) for k in rpkeys]
+
+            assert len(lrkeys) == len(rpkeys), (lrkeys, rpkeys)
+            condition = []
+            for lrk, rpk in zip(lrkeys, rpkeys):
+                condition += [lrk == rpk]
+
+            assert len(condition) > 0
+            if len(condition) == 1:
+                condition = condition[0]
+            else:
+                condition = sa.and_(condition)
+
+            self.from_ = self.joins[fpr.name] = self.from_.join(rtable, condition)
+
+        model = fpr.right.model
+        table = self.backend.get_table(model)
+        return table
+
+
+class ForeignProperty:
+
+    def __init__(self, fpr: ForeignProperty, left: Property, right: Property):
+        if fpr is None:
+            self.name = left.place
+            self.chain = [self]
+        else:
+            self.name += '->' + left.place
+            self.chain = fpr.chain + [self]
+
+        self.left = left
+        self.right = right
+
+    def __repr__(self):
+        return f'<{self.name}->{self.right.name}:{self.right.dtype.name}>'
+
+
+@ufunc.resolver(PgQueryBuilder, Bind, str)
+def eq(env, field, value):
+    prop = env.model.flatprops[field.name]
+    column = env.backend.get_column(env.table, prop)
+    return column == value
+
+
+@ufunc.resolver(PgQueryBuilder, str, str)
+def eq(env, field, value):
+    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
+    #      should be Bind.
+    prop = env.model.flatprops[field]
+    column = env.backend.get_column(env.table, prop)
+    return column == value
+
+
+class Legacy:
 
     def _get_method(self, name):
         method = getattr(self, f'op_{name}', None)

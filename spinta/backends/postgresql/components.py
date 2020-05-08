@@ -13,6 +13,7 @@ from spinta.backends.postgresql.sqlalchemy import utcnow
 from spinta.backends.postgresql.constants import TableType
 from spinta.backends.postgresql.helpers import get_table_name
 from spinta.exceptions import MultipleRowsFound, NotFoundError
+from spinta.exceptions import PropertyNotFound
 
 
 class PostgreSQL(Backend):
@@ -101,6 +102,11 @@ class PostgreSQL(Backend):
             return self.tables[name]
         else:
             return self.tables.get(name)
+
+    def get_column(self, table: sa.Table, prop: Property, *, select=False) -> sa.Column:
+        if prop.place not in table.c:
+            raise PropertyNotFound(prop, property=prop.place)
+        return table.c[prop.place]
 
     def query_nodes(self):
         return []
