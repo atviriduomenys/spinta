@@ -26,7 +26,7 @@ from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 
 from spinta.core.enums import Access
-from spinta.components import Context, Namespace, Model, Property
+from spinta.components import Context, Action, Namespace, Model, Property
 from spinta.exceptions import InvalidToken, NoTokenValidationKey
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.utils import passwords
@@ -320,64 +320,42 @@ def query_client(context: Context, client: str):
     return client
 
 
-# XXX: Deprecated and should be deleted, use authorized() instead.
-def check_generated_scopes(context: Context,
-                           name: str,
-                           action: str,
-                           prop: str = None,
-                           prop_hidden: bool = False) -> None:
-    config = context.get('config')
-    token = context.get('auth.token')
-    prefix = config.scope_prefix
-
-    # If global scope is available, no need to check anything else
-    global_scope = f'{prefix}{action}'
-    if token.valid_scope(global_scope):
-        return
-
-    model_scope = name_to_scope(
-        '{prefix}{name}_{action}',
-        name,
-        maxlen=config.scope_max_length,
-        params={
-            'prefix': prefix,
-            'action': action,
-        },
-    )
-
-    # if no property - then check for model scopes
-    if prop is None:
-        token.check_scope(model_scope)
-    else:
-        prop_scope = name_to_scope(
-            '{prefix}{name}_{action}',
-            prop,
-            maxlen=config.scope_max_length,
-            params={
-                'prefix': prefix,
-                'action': action,
-            },
-        )
-        # if prop is hidden - explicit property scope is required,
-        # otherwise either model or property scope can be used
-        if prop_hidden:
-            token.check_scope(prop_scope)
-        else:
-            token.check_scope([model_scope, prop_scope], operator='OR')
-
-
 def check_scope(context: Context, scope: str):
     config = context.get('config')
     token = context.get('auth.token')
     token.check_scope(f'{config.scope_prefix}{scope}')
 
 
+def _get_scope_name(context: Context, node: Union[Namespace, Model, Property], action: Action):
+    config = context.get('config')
+
+    if isinstance(node, Namespace):
+        name = node.name
+    elif isinstance(node, Model):
+        name = node.model_type()
+    elif isinstance(node, Property):
+        name = node.model.model_type() + '_' + node.place
+    else:
+        raise Exception(f"Unknown node type {node}.")
+
+    return name_to_scope(
+        '{prefix}{name}_{action}' if name else '{prefix}{action}',
+        name,
+        maxlen=config.scope_max_length,
+        params={
+            'prefix': config.scope_prefix,
+            'action': action.value,
+        },
+    )
+
+
 def authorized(
     context: Context,
     node: Union[Namespace, Model, Property],
-    action: str,
+    action: Access,
     *,
     throw: bool = False,
+    scope_builder=_get_scope_name,
 ):
     config = context.get('config')
     token = context.get('auth.token')
@@ -390,9 +368,10 @@ def authorized(
         else:
             return False
 
-    scopes = []
+    # Private nodes can only be accessed with explicit node scope.
+    scopes = [node]
 
-    # Clients with inherited scope can't access private nodes.
+    # Protected and higher level nodes can be accessed with parent nodes scopes.
     if node.access > Access.private:
         ns = None
 
@@ -401,45 +380,23 @@ def authorized(
             # XXX: `hidden` parameter should only be used for API control, not
             #      access control. See docs.
             if not node.hidden:
-                scopes.append(node.model.model_type())
-                scopes.append(node.model.ns.name)
+                scopes.append(node.model)
+                scopes.append(node.model.ns)
                 ns = node.model.ns
         elif isinstance(node, Model):
-            scopes.append(node.ns.name)
+            scopes.append(node.ns)
             ns = node.ns
         elif isinstance(node, Namespace):
             ns = node
 
         # Add all parent namespace scopes too.
         if ns:
-            for parent in ns.parents():
-                scopes.append(parent.name)
-
-    # Private nodes can only be accessed with explicit node scope.
-    if isinstance(node, Property):
-        scopes.append(node.model.model_type() + '_' + node.place)
-    elif isinstance(node, Model):
-        scopes.append(node.model_type())
-    elif isinstance(node, Namespace):
-        scopes.append(node.name)
-    else:
-        raise Exception(f"Unknown node type {node}.")
+            scopes.extend(ns.parents())
 
     # Build scope names.
-    scopes = [
-        name_to_scope(
-            '{prefix}{name}_{action}' if name else '{prefix}{action}',
-            name,
-            maxlen=config.scope_max_length,
-            params={
-                'prefix': config.scope_prefix,
-                'action': action.value,
-            },
-        )
-        for name in scopes
-    ]
+    scopes = [scope_builder(context, scope, action) for scope in scopes]
 
-    # Check if client has at least one of required scope.
+    # Check if client has at least one of required scopes.
     if throw:
         token.check_scope(scopes, operator='OR')
     else:
