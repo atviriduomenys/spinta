@@ -1057,7 +1057,7 @@ def test_search_not_null(model, app):
 
 
 @pytest.mark.parametrize('backend', ['default', 'mongo'])
-def test_extra_fields_on_mongo(postgresql, mongo, backend, rc, tmpdir):
+def test_extra_fields(postgresql, mongo, backend, rc, tmpdir):
     rc = rc.fork({
         'backends': [backend],
         'manifests.default': {
@@ -1105,3 +1105,54 @@ def test_extra_fields_on_mongo(postgresql, mongo, backend, rc, tmpdir):
     data = resp.json()
     assert resp.status_code == 200, data
     assert take(data) == {'name': 'Lietuva'}
+
+
+@pytest.mark.parametrize('backend', ['mongo'])
+def test_missing_fields(postgresql, mongo, backend, rc, tmpdir):
+    rc = rc.fork({
+        'backends': [backend],
+        'manifests.default': {
+            'type': 'tabular',
+            'path': str(tmpdir / 'manifest.csv'),
+            'backend': backend,
+        },
+    })
+
+    # Create data into a extrafields model with code and name properties.
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    m | property  | type
+    missingfields |
+      | code      | string
+    '''))
+    context = create_test_context(rc)
+    app = create_test_client(context)
+    app.authmodel('missingfields', ['insert'])
+    resp = app.post('/missingfields', json={'_data': [
+        {'_op': 'insert', 'code': 'lt'},
+        {'_op': 'insert', 'code': 'lv'},
+        {'_op': 'insert', 'code': 'ee'},
+    ]})
+    assert resp.status_code == 200, resp.json()
+
+    # Now try to read from same model, but loaded with just one property.
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    m | property  | type
+    missingfields |
+      | code      | string
+      | name      | string
+    '''))
+    context = create_test_context(rc)
+    app = create_test_client(context)
+    app.authmodel('missingfields', ['search', 'getone'])
+    resp = app.get('/missingfields?select(_id,code,name)')
+    assert listdata(resp, sort=True) == [
+        ('ee', None),
+        ('lt', None),
+        ('lv', None),
+    ]
+
+    pk = resp.json()['_data'][0]['_id']
+    resp = app.get(f'/missingfields/{pk}')
+    data = resp.json()
+    assert resp.status_code == 200, data
+    assert take(data) == {'code': 'lt'}

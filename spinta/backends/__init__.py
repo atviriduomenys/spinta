@@ -389,7 +389,6 @@ def _select_model_props(
     select: SelectTree,
     reserved: List[str],
 ):
-    _check_unknown_props(model, select, set(reserved) | set(value))
     yield from _select_props(
         reserved,
         model.properties,
@@ -674,7 +673,6 @@ def prepare_dtype_for_response(
     *,
     select: dict = None,
 ):
-    _check_unknown_props(dtype, select, set(value)),
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
