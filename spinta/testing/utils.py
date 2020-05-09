@@ -78,14 +78,18 @@ def readable_manifest_files(manifest):
     return manifest
 
 
-def errors(resp, *keys):
+def errors(resp, *keys, status: int = None):
+    status = status or resp.status_code
+    assert resp.status_code == status
     data = resp.json()
     assert 'errors' in data, data
     errors = data['errors']
     return [_extract_error(err, keys) for err in errors]
 
 
-def error(resp, *keys):
+def error(resp, *keys, status: int = None):
+    status = status or resp.status_code
+    assert resp.status_code == status
     data = resp.json()
     assert 'errors' in data, data
     errors = data['errors']

@@ -31,7 +31,7 @@ def _upload_pdf(model, app):
 def test_post_accesslog(model, app, context):
     app.authmodel(model, ['insert'])
     resp = app.post(f'/{model}', json={'status': '42'})
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.json()
 
     data = resp.json()
     accesslog = context.get('accesslog.stream')
@@ -45,11 +45,11 @@ def test_post_accesslog(model, app, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],
@@ -89,11 +89,11 @@ def test_post_array_accesslog(model, app, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],
@@ -137,11 +137,11 @@ def test_put_accesslog(model, app, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],
@@ -174,11 +174,11 @@ def test_pdf_put_accesslog(model, app, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],
@@ -222,11 +222,11 @@ def test_patch_accesslog(model, app, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [
@@ -268,11 +268,11 @@ def test_get_accesslog(app, model, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],
@@ -315,11 +315,11 @@ def test_get_array_accesslog(model, app, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],
@@ -356,11 +356,11 @@ def test_pdf_get_accesslog(model, app, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],
@@ -399,11 +399,11 @@ def test_get_prop_accesslog(app, model, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             }
         ],
         'fields': [],
@@ -441,11 +441,11 @@ def test_get_w_select_accesslog(app, model, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [
@@ -485,11 +485,11 @@ def test_getall_accesslog(app, model, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],
@@ -527,11 +527,11 @@ def test_getall_w_select_accesslog(app, model, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [
@@ -580,11 +580,11 @@ def test_accesslog_file(model, postgresql, rc, request, tmpdir):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],
@@ -644,11 +644,11 @@ def test_delete_accesslog(model, app, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],
@@ -685,11 +685,11 @@ def test_pdf_delete_accesslog(model, app, context):
         'accessors': [
             {
                 'type': 'person',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
             {
                 'type': 'client',
-                'id': 'baa448a8-205c-4faa-a048-a10e4b32a136',
+                'id': 'test-client',
             },
         ],
         'fields': [],

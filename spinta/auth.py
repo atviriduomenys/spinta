@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Union
+
 import datetime
 import enum
 import json
@@ -23,8 +25,10 @@ from authlib.oauth2.rfc6749 import grants
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 
-from spinta.components import Context
+from spinta.core.enums import Access
+from spinta.components import Context, Namespace, Model, Property
 from spinta.exceptions import InvalidToken, NoTokenValidationKey
+from spinta.exceptions import AuthorizedClientsOnly
 from spinta.utils import passwords
 from spinta.utils.scopes import name_to_scope
 
@@ -148,9 +152,16 @@ class Token(rfc6749.TokenMixin):
                 scope = [scope]
 
             missing_scopes = ', '.join(sorted(scope))
-            log.error(f"client {client_id!r} is missing required scope: %s", missing_scopes)
+
             # FIXME: this should be wrapped into UserError.
-            raise InsufficientScopeError(description=f"Missing scope: {missing_scopes}")
+            if operator == 'AND':
+                log.error(f"client {client_id!r} is missing required scopes: %s", missing_scopes)
+                raise InsufficientScopeError(description=f"Missing scopes: {missing_scopes}")
+            elif operator == 'OR':
+                log.error(f"client {client_id!r} is missing one of required scopes: %s", missing_scopes)
+                raise InsufficientScopeError(description=f"Missing one of scopes: {missing_scopes}")
+            else:
+                raise Exception(f"Unknown operator {operator}.")
 
     def get_expires_at(self):
         return self._token['exp']
@@ -158,11 +169,14 @@ class Token(rfc6749.TokenMixin):
     def get_scope(self):
         return self._token.get('scope', '')
 
-    def get_sub(self):
+    def get_sub(self):  # User.
         return self._token.get('sub', '')
 
-    def get_aud(self):
+    def get_aud(self):  # Client.
         return self._token.get('aud', '')
+
+    def get_client_id(self):
+        return self.get_aud()
 
 
 class AdminToken(rfc6749.TokenMixin):
@@ -173,11 +187,14 @@ class AdminToken(rfc6749.TokenMixin):
     def check_scope(self, scope, **kwargs):
         pass
 
-    def get_sub(self):
+    def get_sub(self):  # User.
         return 'admin'
 
-    def get_aud(self):
+    def get_aud(self):  # Client.
         return 'admin'
+
+    def get_client_id(self):
+        return self.get_aud()
 
 
 def get_auth_token(context: Context) -> Token:
@@ -303,6 +320,7 @@ def query_client(context: Context, client: str):
     return client
 
 
+# XXX: Deprecated and should be deleted, use authorized() instead.
 def check_generated_scopes(context: Context,
                            name: str,
                            action: str,
@@ -352,3 +370,77 @@ def check_scope(context: Context, scope: str):
     config = context.get('config')
     token = context.get('auth.token')
     token.check_scope(f'{config.scope_prefix}{scope}')
+
+
+def authorized(
+    context: Context,
+    node: Union[Namespace, Model, Property],
+    action: str,
+    *,
+    throw: bool = False,
+):
+    config = context.get('config')
+    token = context.get('auth.token')
+
+    # Unauthorized clients can only access open nodes.
+    unauthorized = token.get_client_id() == config.default_auth_client
+    if unauthorized and node.access < Access.open:
+        if throw:
+            raise AuthorizedClientsOnly()
+        else:
+            return False
+
+    scopes = []
+
+    # Clients with inherited scope can't access private nodes.
+    if node.access > Access.private:
+        ns = None
+
+        if isinstance(node, Property):
+            # Hidden nodes also require explicit scope.
+            # XXX: `hidden` parameter should only be used for API control, not
+            #      access control. See docs.
+            if not node.hidden:
+                scopes.append(node.model.model_type())
+                scopes.append(node.model.ns.name)
+                ns = node.model.ns
+        elif isinstance(node, Model):
+            scopes.append(node.ns.name)
+            ns = node.ns
+        elif isinstance(node, Namespace):
+            ns = node
+
+        # Add all parent namespace scopes too.
+        if ns:
+            for parent in ns.parents():
+                scopes.append(parent.name)
+
+    # Private nodes can only be accessed with explicit node scope.
+    if isinstance(node, Property):
+        scopes.append(node.model.model_type() + '_' + node.place)
+    elif isinstance(node, Model):
+        scopes.append(node.model_type())
+    elif isinstance(node, Namespace):
+        scopes.append(node.name)
+    else:
+        raise Exception(f"Unknown node type {node}.")
+
+    # Build scope names.
+    scopes = [
+        name_to_scope(
+            '{prefix}{name}_{action}' if name else '{prefix}{action}',
+            name,
+            maxlen=config.scope_max_length,
+            params={
+                'prefix': config.scope_prefix,
+                'action': action.value,
+            },
+        )
+        for name in scopes
+    ]
+
+    # Check if client has at least one of required scope.
+    if throw:
+        token.check_scope(scopes, operator='OR')
+    else:
+        return token.valid_scope(scopes, operator='OR')
