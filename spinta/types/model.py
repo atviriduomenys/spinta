@@ -1,6 +1,6 @@
 from typing import Dict
 
-from spinta.auth import check_generated_scopes
+from spinta.auth import authorized
 from spinta.commands import load, check, authorize, prepare
 from spinta.components import Context, Base, Model, Property, Action
 from spinta.manifests.components import Manifest
@@ -75,7 +75,7 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
     config = context.get('config')
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
-    prop.access = load_access_param(prop, prop.access)
+    prop.access = load_access_param(prop, prop.access, [prop.model])
     prop.dtype = get_node(config, manifest, prop.model.eid, data, group='types', parent=prop)
     prop.dtype.type = 'type'
     prop.dtype.prop = prop
@@ -190,16 +190,12 @@ def prepare(context: Context, prop: Property, value: object, *, action: Action) 
 
 @authorize.register(Context, Action, Model)
 def authorize(context: Context, action: Action, model: Model):
-    check_generated_scopes(context, model.model_type(), action.value)
+    authorized(context, model, action, throw=True)
 
 
 @authorize.register(Context, Action, Property)
 def authorize(context: Context, action: Action, prop: Property):
-    # if property is hidden - specific scope must be provided
-    # otherwise generic model scope is also enough
-    name = prop.model.model_type()
-    prop_scope_name = name + '_' + prop.place
-    check_generated_scopes(context, name, action.value, prop_scope_name, prop.hidden)
+    authorized(context, prop, action, throw=True)
 
 
 @commands.get_error_context.register(Model)

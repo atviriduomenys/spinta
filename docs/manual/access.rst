@@ -149,6 +149,10 @@ Here `country` model and `code` property have `access` set to `private`.
   Private data can't be accessed directly, but can be used in filters or
   sorting.
 
+  Do not confuse `private` access level, with `hidden` properties. `hidden`
+  properties has nothing to do with authorization. `hidden` properties can only
+  be accessed via subresources API.
+
 :protected:
   Explicit scope is not required, model can be accessed if at least namespace
   scope is given and property can be accessed if at least model or namespace

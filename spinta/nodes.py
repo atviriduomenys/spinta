@@ -141,6 +141,7 @@ def load_namespace(context: Context, manifest: Manifest, node: Node):
             parent.names[part] = ns
         parent = ns
     parent.models[node.model_type()] = node
+    node.ns = ns
 
 
 def load_model_properties(context: Context, model: Node, Prop: Type[Node], data: Optional[dict]) -> None:

@@ -360,6 +360,12 @@ class Namespace(Node):
     def model_specifier(self):
         return ':ns'
 
+    def parents(self):
+        ns = self.parent
+        while isinstance(ns, Namespace):
+            yield ns
+            ns = ns.parent
+
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
 # etc, depends on manifest type.

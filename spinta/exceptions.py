@@ -239,6 +239,11 @@ class InvalidToken(UserError):
     headers = {'WWW-Authenticate': 'Bearer error="invalid_token"'}
 
 
+class AuthorizedClientsOnly(UserError):
+    status_code = 401
+    template = "This resource can only be access by an authorized client."
+
+
 class MultipleRowsFound(BaseError):
     template = "Multiple rows were found."
 

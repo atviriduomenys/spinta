@@ -3,11 +3,11 @@ from __future__ import annotations
 import sqlalchemy as sa
 import sqlalchemy.sql.functions
 
-from spinta.core.enums import Access
+from spinta.auth import authorized
 from spinta.core.ufuncs import Env, ufunc
 from spinta.core.ufuncs import Expr, Bind, Negative
 from spinta.exceptions import UnknownExpr
-from spinta.components import Property
+from spinta.components import Action, Property
 from spinta.backends.components import Backend
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Ref
@@ -174,6 +174,7 @@ def list_(env, expr):
 @ufunc.resolver(SqlQueryBuilder, Expr)
 def select(env, expr):
     args, kwargs = expr.resolve(env)
+
     if args:
         env.select = [
             env.call('select', arg)
@@ -184,9 +185,11 @@ def select(env, expr):
             env.backend.get_column(env.table, prop, select=True)
             for prop in env.model.flatprops.values() if (
                 not prop.name.startswith('_') and
-                prop.access > Access.private
+                authorized(env.context, prop, Action.GETALL)
             )
         ]
+
+    assert len(env.select) > 0, args
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
