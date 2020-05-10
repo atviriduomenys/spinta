@@ -1,4 +1,4 @@
-from typing import List, Iterable
+from typing import List, Iterable, Optional
 
 import jsonpatch
 
@@ -8,6 +8,8 @@ from spinta.core.config import RawConfig
 from spinta.components import Context, Config, Store, MetaData, EntryId
 from spinta.manifests.components import Manifest
 from spinta.manifests.internal.components import InternalManifest
+from spinta.utils.enums import enum_by_name
+from spinta.core.enums import Access
 
 
 def create_manifest(
@@ -53,6 +55,8 @@ def _configure_manifest(
     manifest.name = name
     manifest.store = store
     manifest.parent = None
+    manifest.access = rc.get('manifests', name, 'access') or 'protected'
+    manifest.access = enum_by_name(manifest, 'access', Access, manifest.access)
     manifest.backend = rc.get('manifests', name, 'backend', default=backend)
     manifest.backend = store.backends[manifest.backend]
     manifest.endpoints = {}
@@ -71,17 +75,20 @@ def load_manifest_nodes(
     context: Context,
     manifest: Manifest,
     schemas: Iterable[dict],
+    *,
+    source: Manifest = None,
 ) -> None:
     config = context.get('config')
     for eid, schema in schemas:
-        node = load_manifest_node(context, config, manifest, eid, schema)
+        node = _load_manifest_node(context, config, manifest, source, eid, schema)
         manifest.objects[node.type][node.name] = node
 
 
-def load_manifest_node(
+def _load_manifest_node(
     context: Context,
     config: Config,
     manifest: Manifest,
+    source: Optional[Manifest],
     eid: EntryId,
     data: dict,
 ) -> MetaData:
@@ -90,7 +97,7 @@ def load_manifest_node(
     node.type = data['type']
     node.parent = manifest
     node.manifest = manifest
-    commands.load(context, node, data, manifest)
+    commands.load(context, node, data, manifest, source=source)
     return node
 
 

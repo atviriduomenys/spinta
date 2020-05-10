@@ -5,6 +5,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
 from spinta.exceptions import NoExternalName
+from spinta.exceptions import PropertyNotFound
 from spinta.components import Model, Property
 from spinta.datasets.components import ExternalBackend
 
@@ -35,4 +36,6 @@ class Sql(ExternalBackend):
     def get_column(self, table: sa.Table, prop: Property, *, select=False) -> sa.Column:
         if prop.external is None:
             raise NoExternalName(prop)
+        if prop.external.name not in table.c:
+            raise PropertyNotFound(prop.model, property=prop.name, external=prop.external.name)
         return table.c[prop.external.name]

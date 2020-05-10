@@ -1,11 +1,9 @@
-import datetime
 import uuid
 
 import pytest
 
 from spinta.testing.utils import get_error_codes, get_error_context
 from spinta.utils.nestedstruct import flatten
-from spinta.utils.refs import get_ref_id
 
 
 def _cleaned_context(resp):
@@ -29,6 +27,7 @@ def test_version(app):
 
 
 def test_app(app):
+    app.authorize(['spinta_getall'])
     resp = app.get('/', headers={'accept': 'text/html'})
     assert resp.status_code == 200, resp.text
 
@@ -38,7 +37,7 @@ def test_app(app):
         'location': [
             ('root', '/'),
         ],
-        'header': ['_type', '_id', 'name', 'specifier', 'title'],
+        'header': ['_type', '_id', 'title'],
         'data': data['data'],
         'row': [],
         'formats': [
@@ -49,16 +48,15 @@ def test_app(app):
         ],
         'limit_enforced': True,
     }
-    assert next(d for d in data['data'] if d['_id'] == 'report/:ns') == {
-        '_type': 'ns',
-        '_id': 'report/:ns',
-        'specifier': ':ns',
-        'name': 'report',
-        'title': 'report',
+    assert next(d for d in data['data'] if d['_id'] == 'report') == {
+        '_type': 'model',
+        '_id': 'report',
+        'title': 'Report',
     }
 
 
 def test_directory(app):
+    app.authorize(['spinta_datasets_getall'])
     resp = app.get('/datasets/xlsx/rinkimai/:ns', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
@@ -70,13 +68,12 @@ def test_directory(app):
             ('xlsx', '/datasets/xlsx'),
             ('rinkimai', None),
         ],
-        'header': ['_type', '_id', 'name', 'specifier', 'title'],
+        'header': ['_type', '_id', 'title'],
         'data': [
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'datasets/xlsx/rinkimai/apygarda/:ns', 'name': 'datasets/xlsx/rinkimai/apygarda', 'title': 'apygarda'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'datasets/xlsx/rinkimai/apylinke/:ns', 'name': 'datasets/xlsx/rinkimai/apylinke', 'title': 'apylinke'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'datasets/xlsx/rinkimai/kandidatas/:ns', 'name': 'datasets/xlsx/rinkimai/kandidatas', 'title': 'kandidatas'},
-            {'_type': 'ns', 'specifier': ':ns', '_id': 'datasets/xlsx/rinkimai/turas/:ns', 'name': 'datasets/xlsx/rinkimai/turas', 'title': 'turas'},
-            {'_type': 'model', 'specifier': '', '_id': 'datasets/xlsx/rinkimai', 'name': 'datasets/xlsx/rinkimai', 'title': ''},
+            {'_type': 'model', '_id': 'datasets/xlsx/rinkimai/apygarda', 'title': ''},
+            {'_type': 'model', '_id': 'datasets/xlsx/rinkimai/apylinke', 'title': ''},
+            {'_type': 'model', '_id': 'datasets/xlsx/rinkimai/kandidatas', 'title': ''},
+            {'_type': 'model', '_id': 'datasets/xlsx/rinkimai/turas', 'title': ''},
         ],
         'row': [],
         'formats': [

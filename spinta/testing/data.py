@@ -4,22 +4,35 @@ import operator
 
 import requests
 
+from spinta.utils.schema import NA
+
 
 def listdata(
     resp: requests.Response,
     *keys: Tuple[str],
     sort: Union[bool, str] = True,
 ) -> List[tuple]:
-    data = resp.json()
-    assert resp.status_code == 200, data
-    assert '_data' in data, data
-    data = data['_data']
-    keys = keys or sorted({k for d in data for k in d if not k.startswith('_')})
+    if resp.headers['content-type'].startswith('text/html'):
+        data = resp.context
+        assert resp.status_code == 200, data
+        assert 'data' in data, data
+        assert 'header' in data, data
+        keys = keys or [k for k in data['header'] if not k.startswith('_')]
+        data = [
+            {k: v['value'] for k, v in zip(data['header'], row)}
+            for row in data['data']
+        ]
+    else:
+        data = resp.json()
+        assert resp.status_code == 200, data
+        assert '_data' in data, data
+        data = data['_data']
+        keys = keys or sorted({k for d in data for k in d if not k.startswith('_')})
     if len(keys) == 1:
         k = keys[0]
-        data = [row[k] for row in data]
+        data = [row.get(k, NA) for row in data]
     else:
-        data = [tuple(row[k] for k in keys) for row in data]
+        data = [tuple(row.get(k, NA) for k in keys) for row in data]
     if sort is True:
         data = sorted(data)
     elif sort:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union
+from typing import Union, Callable
 
 import datetime
 import enum
@@ -326,7 +326,7 @@ def check_scope(context: Context, scope: str):
     token.check_scope(f'{config.scope_prefix}{scope}')
 
 
-def _get_scope_name(context: Context, node: Union[Namespace, Model, Property], action: Action):
+def get_scope_name(context: Context, node: Union[Namespace, Model, Property], action: Action):
     config = context.get('config')
 
     if isinstance(node, Namespace):
@@ -355,7 +355,7 @@ def authorized(
     action: Access,
     *,
     throw: bool = False,
-    scope_builder=_get_scope_name,
+    scope_formatter: Callable = None,
 ):
     config = context.get('config')
     token = context.get('auth.token')
@@ -394,7 +394,8 @@ def authorized(
             scopes.extend(ns.parents())
 
     # Build scope names.
-    scopes = [scope_builder(context, scope, action) for scope in scopes]
+    scope_formatter = scope_formatter or config.scope_formatter
+    scopes = [scope_formatter(context, scope, action) for scope in scopes]
 
     # Check if client has at least one of required scopes.
     if throw:

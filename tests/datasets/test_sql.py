@@ -354,3 +354,73 @@ def test_model_open_access(rc, tmpdir, sqlite):
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
     ]
+
+
+def test_property_public_access(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
+       | datasets/gov/example     |             |            |        |         |       |         |     | Example |
+       |   | data                 |             |            | sql    |         |       |         |     | Data    |
+       |   |   |                  |             |            |        |         |       |         |     |         |
+       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   |   | code     | kodas       |            | string |         | 3     | public  |     | Code    |
+       |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp) == [
+        'Latvija',
+        'Lietuva',
+    ]
+
+    resp = app.get('/datasets/gov/example/country', headers={'Accept': 'text/html'})
+    assert listdata(resp) == [
+        'Latvija',
+        'Lietuva',
+    ]
+
+
+def test_select_protected_property(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
+       | datasets/gov/example     |             |            |        |         |       |         |     | Example |
+       |   | data                 |             |            | sql    |         |       |         |     | Data    |
+       |   |   |                  |             |            |        |         |       |         |     |         |
+       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   |   | code     | kodas       |            | string |         | 3     | public  |     | Code    |
+       |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    resp = app.get('/datasets/gov/example/country?select(code,name)')
+    assert error(resp) == 'PropertyNotFound'
+
+    resp = app.get('/datasets/gov/example/country?select(code,name)', headers={'Accept': 'text/html'})
+    assert error(resp) == 'PropertyNotFound'
+
+
+def test_ns_getall(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
+       | datasets/gov/example     |             |            |        |         |       |         |     | Example |
+       |   | data                 |             |            | sql    |         |       |         |     | Data    |
+       |   |   |                  |             |            |        |         |       |         |     |         |
+       |   |   |   | country      | salis       | code!='ee' |        | code    |       |         |     | Country |
+       |   |   |   |   | code     | kodas       |            | string |         | 3     | public  |     | Code    |
+       |   |   |   |   | name     | pavadinimas |            | string |         | 3     | open    |     | Name    |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    resp = app.get('/datasets/gov/example')
+    assert listdata(resp, '_id', 'title') == [
+        ('datasets/gov/example/country', 'Country'),
+    ]
+
+    resp = app.get('/datasets/gov/example', headers={'Accept': 'text/html'})
+    assert listdata(resp, '_id', 'title') == [
+        ('datasets/gov/example/country', 'Country'),
+    ]

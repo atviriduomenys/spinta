@@ -36,8 +36,10 @@ def load(
             )
         with backend.engine.begin() as conn:
             schemas = read_manifest_schemas(context, backend, conn)
-            target = into or manifest
-            load_manifest_nodes(context, target, schemas)
+            if into:
+                load_manifest_nodes(context, into, schemas, source=manifest)
+            else:
+                load_manifest_nodes(context, manifest, schemas)
 
     else:
         log.warning(
@@ -45,5 +47,11 @@ def load(
             manifest.name,
             manifest.backend.name,
         )
+
+        target = into or manifest
+        if '_schema' not in target.models:
+            store = context.get('store')
+            commands.load(context, store.internal, into=target)
+
         for source in manifest.sync:
             commands.load(context, source, into=into or manifest, freezed=freezed)

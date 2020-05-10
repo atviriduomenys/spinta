@@ -48,7 +48,14 @@ class Property(Node):
 
 
 @load.register(Context, Project, dict, Manifest)
-def load(context: Context, project: Project, data: dict, manifest: Manifest):
+def load(
+    context: Context,
+    project: Project,
+    data: dict,
+    manifest: Manifest,
+    *,
+    source: Manifest = None,
+):
     load_node(context, project, data)
     project.impact = [
         {

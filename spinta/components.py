@@ -356,6 +356,7 @@ class Node(Component):
 
 
 class Namespace(Node):
+    access: Access
 
     def model_specifier(self):
         return ':ns'

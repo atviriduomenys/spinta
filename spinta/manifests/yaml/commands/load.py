@@ -20,8 +20,9 @@ def load(
     freezed: bool = False,
 ):
     target = into or manifest
-    store = context.get('store')
-    commands.load(context, store.internal, into=target)
+    if '_schema' not in target.models:
+        store = context.get('store')
+        commands.load(context, store.internal, into=target)
 
     if freezed:
         if into:
@@ -54,4 +55,7 @@ def load(
             )
         schemas = read_manifest_schemas(manifest)
 
-    load_manifest_nodes(context, target, schemas)
+    if into:
+        load_manifest_nodes(context, into, schemas, source=manifest)
+    else:
+        load_manifest_nodes(context, manifest, schemas)

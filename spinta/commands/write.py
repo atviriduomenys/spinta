@@ -1104,7 +1104,7 @@ async def wipe(  # noqa
     action: Action,
     params: UrlParams,
 ):
-    for model in traverse_ns_models(ns):
+    for model in traverse_ns_models(context, ns, action):
         commands.authorize(context, Action.WIPE, model)
     commands.wipe(context, ns, backend)
     response = {'wiped': True}

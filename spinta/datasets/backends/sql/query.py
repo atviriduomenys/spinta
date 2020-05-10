@@ -7,6 +7,7 @@ from spinta.auth import authorized
 from spinta.core.ufuncs import Env, ufunc
 from spinta.core.ufuncs import Expr, Bind, Negative
 from spinta.exceptions import UnknownExpr
+from spinta.exceptions import PropertyNotFound
 from spinta.components import Action, Property
 from spinta.backends.components import Backend
 from spinta.types.datatype import DataType
@@ -108,14 +109,22 @@ def getattr(env, dtype, attr):
     return ForeignProperty(None, dtype.prop, prop)
 
 
-@ufunc.resolver(SqlQueryBuilder, Bind, str)
+@ufunc.resolver(SqlQueryBuilder, str, object)
+def eq(env, field, value):
+    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
+    prop = env.model.properties[field]
+    column = env.backend.get_column(env.table, prop)
+    return column == value
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind, object)
 def eq(env, field, value):
     prop = env.model.properties[field.name]
     column = env.backend.get_column(env.table, prop)
     return column == value
 
 
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, str)
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, object)
 def eq(env, fpr, value):
     table = env.get_joined_table(fpr)
     column = env.backend.get_column(table, fpr.right)
@@ -134,18 +143,41 @@ def eq(env, func, value):
     return func == value
 
 
-@ufunc.resolver(SqlQueryBuilder, Bind, str)
+@ufunc.resolver(SqlQueryBuilder, str, object)
+def ne(env, field, value):
+    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
+    prop = env.model.properties[field]
+    column = env.backend.get_column(env.table, prop)
+    return column != value
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind, object)
 def ne(env, field, value):
     prop = env.model.properties[field.name]
     column = env.backend.get_column(env.table, prop)
     return column != value
 
 
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, str)
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, object)
 def ne(env, fpr, value):
     table = env.get_joined_table(fpr)
     column = env.backend.get_column(table, fpr.right)
     return column != value
+
+
+@ufunc.resolver(SqlQueryBuilder, str, list)
+def ne(env, field, value):
+    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
+    prop = env.model.properties[field]
+    column = env.backend.get_column(env.table, prop)
+    return ~column.in_(value)
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind, list)
+def ne(env, field, value):
+    prop = env.model.properties[field.name]
+    column = env.backend.get_column(env.table, prop)
+    return ~column.in_(value)
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
@@ -161,6 +193,16 @@ def and_(env, expr):
     args = [a for a in args if a is not None]
     if len(args) > 1:
         return sa.and_(*args)
+    elif args:
+        return args[0]
+
+
+@ufunc.resolver(SqlQueryBuilder, Expr, name='or')
+def or_(env, expr):
+    args, kwargs = expr.resolve(env)
+    args = [a for a in args if a is not None]
+    if len(args) > 1:
+        return sa.or_(*args)
     elif args:
         return args[0]
 
@@ -194,15 +236,23 @@ def select(env, expr):
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def select(env, arg):
-    prop = env.model.flatprops[arg.name]
+    prop = _get_property_for_select(env, arg.name)
     return env.call('select', prop.dtype)
 
 
 @ufunc.resolver(SqlQueryBuilder, str)
 def select(env, arg):
     # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    prop = env.model.flatprops[arg]
+    prop = _get_property_for_select(env, arg)
     return env.call('select', prop.dtype)
+
+
+def _get_property_for_select(env: SqlQueryBuilder, name: str):
+    prop = env.model.flatprops.get(name)
+    if prop and authorized(env.context, prop, Action.SEARCH):
+        return prop
+    else:
+        raise PropertyNotFound(env.model, property=name)
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)

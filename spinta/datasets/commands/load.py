@@ -7,7 +7,14 @@ from spinta.core.access import load_access_param
 
 
 @commands.load.register(Context, Dataset, dict, Manifest)
-def load(context: Context, dataset: Dataset, data: dict, manifest: Manifest):
+def load(
+    context: Context,
+    dataset: Dataset,
+    data: dict,
+    manifest: Manifest,
+    *,
+    source: Manifest = None,
+):
     config = context.get('config')
 
     load_node(context, dataset, data, parent=manifest)

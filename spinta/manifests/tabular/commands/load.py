@@ -21,9 +21,11 @@ def load(
     assert freezed, (
         "TabularManifest does not have unfreezed version of manifest."
     )
+
     target = into or manifest
-    store = context.get('store')
-    commands.load(context, store.internal, into=target)
+    if '_schema' not in target.models:
+        store = context.get('store')
+        commands.load(context, store.internal, into=target)
 
     if into:
         log.info(
@@ -32,11 +34,13 @@ def load(
             into.name,
             manifest.path.resolve(),
         )
+        schemas = read_tabular_manifest(manifest)
+        load_manifest_nodes(context, into, schemas, source=manifest)
     else:
         log.info(
             'Loading freezed manifest %r from %s.',
             manifest.name,
             manifest.path.resolve(),
         )
-    schemas = read_tabular_manifest(manifest)
-    load_manifest_nodes(context, target, schemas)
+        schemas = read_tabular_manifest(manifest)
+        load_manifest_nodes(context, manifest, schemas)
