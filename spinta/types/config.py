@@ -56,6 +56,7 @@ def load(context: Context, config: Config) -> Config:
     config.config_path = rc.get('config_path', cast=pathlib.Path, exists=True)
     config.server_url = rc.get('server_url')
     config.scope_prefix = rc.get('scope_prefix')
+    config.scope_formatter = rc.get('scope_formatter', cast=importstr)
     config.scope_max_length = rc.get('scope_max_length', cast=int)
     config.default_auth_client = rc.get('default_auth_client')
     config.token_validation_key = rc.get('token_validation_key', cast=json.loads) or None

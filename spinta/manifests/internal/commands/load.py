@@ -50,5 +50,7 @@ def load(
             )
         schemas = read_manifest_schemas(manifest)
 
-    target = into or manifest
-    load_manifest_nodes(context, target, schemas)
+    if into:
+        load_manifest_nodes(context, into, schemas, source=manifest)
+    else:
+        load_manifest_nodes(context, manifest, schemas)

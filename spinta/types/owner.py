@@ -20,7 +20,14 @@ class Owner(MetaData):
 
 
 @load.register(Context, Owner, dict, Manifest)
-def load(context: Context, owner: Owner, data: dict, manifest: Manifest):
+def load(
+    context: Context,
+    owner: Owner,
+    data: dict,
+    manifest: Manifest,
+    *,
+    source: Manifest = None,
+):
     return load_node(context, owner, data)
 
 

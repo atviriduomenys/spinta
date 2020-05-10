@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List
 
 import cgi
 import itertools
@@ -129,9 +129,17 @@ def _prepare_urlparams_from_path(params):
             params.query.append(param)
 
 
-def _find_model_name_index(nss: Dict[str, Node], endpoints: dict, parts: List[str]) -> int:
+def _find_model_name_index(
+    manifest: Manifest,
+    parts: List[str],
+) -> int:
+    keys = (
+        set(manifest.objects['ns']) |
+        set(manifest.models) |
+        set(manifest.endpoints)
+    )
     for i, name in enumerate(itertools.accumulate(parts, '{}/{}'.format)):
-        if name not in nss and name not in endpoints:
+        if name not in keys:
             return i
     return len(parts)
 
@@ -142,8 +150,7 @@ def _resolve_path(context: Context, params: UrlParams) -> None:
 
     path = '/'.join(params.path)
     manifest = context.get('store').manifest
-    nss = manifest.objects['ns']
-    i = _find_model_name_index(nss, manifest.endpoints, params.path)
+    i = _find_model_name_index(manifest, params.path)
     parts = params.path[i:]
     params.path = '/'.join(params.path[:i])
     params.model = get_model_from_params(manifest, params)

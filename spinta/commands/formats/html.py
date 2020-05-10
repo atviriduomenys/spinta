@@ -15,6 +15,7 @@ from spinta.utils.url import build_url_path
 from spinta import commands
 from spinta.components import Namespace, Model
 from spinta.utils.nestedstruct import flatten
+from spinta.auth import authorized
 
 
 class Html(Format):
@@ -78,7 +79,7 @@ def _render_model(
         row = list(get_row(context, data, model))
         data = []
     elif action in (Action.GETALL, Action.SEARCH):
-        data = get_data(context, data, model, params)
+        data = get_data(context, data, model, params, action)
         header = next(data)
         data = list(data)
 
@@ -244,7 +245,7 @@ def get_cell(context: Context, prop, value, shorten=False, color=None):
     }
 
 
-def get_data(context: Context, rows, model: Node, params: UrlParams):
+def get_data(context: Context, rows, model: Node, params: UrlParams, action: Action):
     # XXX: For things like aggregations, a dynamic model should be created with
     #      all the properties coming from aggregates.
     if params.count:
@@ -267,6 +268,7 @@ def get_data(context: Context, rows, model: Node, params: UrlParams):
                 include = {'_id'}
             props = [
                 p for p in model.properties.values() if (
+                    authorized(context, p, action) and
                     not p.hidden and
                     # TODO: object and array are not supported yet
                     p.dtype.name not in ('object', 'array') and

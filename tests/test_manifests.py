@@ -27,16 +27,19 @@ def show(c: Manifest):
 
 
 def test_manifest_loading(postgresql, rc, cli, tmpdir, request):
-    rc = rc.fork().add('test', {
+    rc = rc.fork({
         'manifest': 'default',
-        'manifests.default': {
-            'type': 'backend',
-            'sync': 'yaml',
+        'manifests': {
+            'default': {
+                'type': 'backend',
+                'sync': 'yaml',
+            },
+            'yaml': {
+                'type': 'yaml',
+                'path': str(tmpdir),
+            }
         },
-        'manifests.yaml': {
-            'type': 'yaml',
-            'path': str(tmpdir),
-        },
+        'backends': ['default'],
     })
 
     create_manifest_files(tmpdir, {
@@ -71,9 +74,6 @@ def test_manifest_loading(postgresql, rc, cli, tmpdir, request):
             'ns': {
                 '': None,
                 '_schema': None,
-                '_schema/version': None,
-                '_txn': None,
-                'country': None,
             },
             'model': {
                 '_schema': {

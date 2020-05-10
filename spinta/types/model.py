@@ -1,5 +1,7 @@
 from typing import Dict
 
+import itertools
+
 from spinta.auth import authorized
 from spinta.commands import load, check, authorize, prepare
 from spinta.components import Context, Base, Model, Property, Action
@@ -14,17 +16,26 @@ from spinta.core.access import load_access_param
 
 
 @load.register(Context, Model, dict, Manifest)
-def load(context: Context, model: Model, data: dict, manifest: Manifest) -> Model:
+def load(
+    context: Context,
+    model: Model,
+    data: dict,
+    manifest: Manifest,
+    *,
+    source: Manifest = None,
+) -> Model:
     model.parent = manifest
     model.manifest = manifest
     load_node(context, model, data)
-    model.access = load_access_param(model, model.access)
     if model.backend:
         model.backend = manifest.store.backends[model.backend]
+    elif source and source.backend:
+        model.backend = source.backend
     else:
         model.backend = manifest.backend
     manifest.add_model_endpoint(model)
     load_namespace(context, manifest, model)
+    model.access = load_access_param(model, model.access)
     load_model_properties(context, model, Property, data.get('properties'))
 
     config = context.get('config')
@@ -75,7 +86,10 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
     config = context.get('config')
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
-    prop.access = load_access_param(prop, prop.access, [prop.model])
+    prop.access = load_access_param(prop, prop.access, itertools.chain(
+        [prop.model, prop.model.ns],
+        prop.model.ns.parents(),
+    ))
     prop.dtype = get_node(config, manifest, prop.model.eid, data, group='types', parent=prop)
     prop.dtype.type = 'type'
     prop.dtype.prop = prop

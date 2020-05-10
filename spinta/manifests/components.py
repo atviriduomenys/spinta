@@ -2,6 +2,7 @@ from typing import Dict
 
 import pathlib
 
+from spinta.core.enums import Access
 from spinta.components import Component, Store, MetaData
 
 
@@ -12,6 +13,7 @@ class Manifest(Component):
     store: Store = None
     objects: Dict[str, MetaData] = None
     path: pathlib.Path = None
+    access: Access = Access.protected
 
     # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
     # name and endpoint for all of them should match.

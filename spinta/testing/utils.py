@@ -79,22 +79,25 @@ def readable_manifest_files(manifest):
 
 
 def errors(resp, *keys, status: int = None):
-    status = status or resp.status_code
-    assert resp.status_code == status
-    data = resp.json()
-    assert 'errors' in data, data
-    errors = data['errors']
+    errors = _get_errors_data(resp, status)
     return [_extract_error(err, keys) for err in errors]
 
 
 def error(resp, *keys, status: int = None):
-    status = status or resp.status_code
-    assert resp.status_code == status
-    data = resp.json()
-    assert 'errors' in data, data
-    errors = data['errors']
+    errors = _get_errors_data(resp, status)
     assert len(errors) == 1, errors
     return _extract_error(errors[0], keys)
+
+
+def _get_errors_data(resp, status: int = None):
+    if resp.headers['content-type'].startswith('text/html'):
+        data = resp.context
+    else:
+        data = resp.json()
+    status = status or resp.status_code
+    assert resp.status_code == status, data
+    assert 'errors' in data, data
+    return data['errors']
 
 
 def _extract_error(err: dict, keys: Iterable[str]):

@@ -120,7 +120,7 @@ def load_node(context: Context, node: Node, data: dict, *, mixed=False, parent=N
 def load_namespace(context: Context, manifest: Manifest, node: Node):
     parts = []
     parent = manifest
-    for part in [''] + node.name.split('/'):
+    for part in [''] + node.name.split('/')[:-1]:
         parts.append(part)
         name = '/'.join(parts[1:])
         if name not in manifest.objects['ns']:
@@ -131,6 +131,7 @@ def load_namespace(context: Context, manifest: Manifest, node: Node):
             ns.path = manifest.path
             ns.parent = parent
             ns.manifest = manifest
+            ns.access = manifest.access
             ns.names = {}
             ns.models = {}
             ns.backend = None

@@ -13,6 +13,7 @@ from spinta.components import Context, UrlParams, Namespace, Action, Model, Prop
 from spinta.renderer import render
 from spinta.nodes import load_node, load_model_properties
 from spinta import exceptions
+from spinta.auth import authorized
 
 
 @commands.link.register(Context, Namespace)
@@ -25,6 +26,11 @@ def check(context: Context, ns: Namespace):
     pass
 
 
+@commands.authorize.register(Context, Action, Namespace)
+def authorize(context: Context, action: Action, ns: Namespace):
+    authorized(context, ns, action, throw=True)
+
+
 @commands.getall.register(Context, Request, Namespace, type(None))
 async def getall(
     context: Context,
@@ -35,8 +41,9 @@ async def getall(
     action: Action,
     params: UrlParams,
 ) -> Response:
+    commands.authorize(context, action, ns)
     if params.all and params.ns:
-        for model in traverse_ns_models(ns):
+        for model in traverse_ns_models(context, ns, action):
             commands.authorize(context, action, model)
         return _get_ns_content(
             context,
@@ -47,7 +54,7 @@ async def getall(
             recursive=True,
         )
     elif params.all:
-        for model in traverse_ns_models(ns):
+        for model in traverse_ns_models(context, ns, action):
             commands.authorize(context, action, model)
         data = getall(
             context, ns, None,
@@ -86,27 +93,34 @@ def _query_data(
     resource: Optional[str] = None,
     **kwargs,
 ):
-    for model in traverse_ns_models(ns, dataset_, resource):
+    for model in traverse_ns_models(context, ns, action, dataset_, resource):
         yield from commands.getall(context, model, model.backend, **kwargs)
 
 
 def traverse_ns_models(
+    context: Context,
     ns: Namespace,
+    action: Action,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
 ):
     for model in (ns.models or {}).values():
-        if _model_matches_params(model, dataset_, resource):
+        if _model_matches_params(context, model, action, dataset_, resource):
             yield model
     for name in ns.names.values():
-        yield from traverse_ns_models(name, dataset_, resource)
+        yield from traverse_ns_models(context, name, action, dataset_, resource)
 
 
 def _model_matches_params(
+    context: Context,
     model: Model,
+    action: Action,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
 ):
+    if not authorized(context, model, action):
+        return False
+
     if (
         dataset_ is None and
         resource is None
@@ -148,24 +162,32 @@ def _get_ns_content(
 ) -> Response:
 
     if recursive:
-        data = _get_ns_content_data_recursive(ns, dataset_, resource)
+        data = _get_ns_content_data_recursive(context, ns, action, dataset_, resource)
     else:
-        data = _get_ns_content_data(ns, dataset_, resource)
+        data = _get_ns_content_data(context, ns, action, dataset_, resource)
     data = sorted(data, key=lambda x: (x['_type'] != 'ns', x['_id']))
 
     schema = {
         'type': 'model:ns',
         'name': ns.model_type(),
         'properties': {
-            '_type': {'type': 'string'},
-            '_id': {'type': 'pk'},
-            'name': {'type': 'string'},
-            'specifier': {'type': 'string'},
-            'title': {'type': 'string'},
+            '_type': {
+                'type': 'string',
+                'access': ns.access.value,
+            },
+            '_id': {
+                'type': 'pk',
+                'access': ns.access.value,
+            },
+            'title': {
+                'type': 'string',
+                'access': ns.access.value,
+            },
         }
     }
     model = Model()
     model.eid = None
+    model.ns = ns
     model.parent = ns.manifest  # XXX: deprecated
     model.manifest = ns.manifest
     load_node(context, model, schema)
@@ -175,18 +197,22 @@ def _get_ns_content(
 
 
 def _get_ns_content_data_recursive(
+    context: Context,
     ns: Namespace,
+    action: Action,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
 ) -> Iterable[dict]:
-    yield from _get_ns_content_data(ns, dataset_, resource)
+    yield from _get_ns_content_data(context, ns, action, dataset_, resource)
     for name in ns.names.values():
-        yield from _get_ns_content_data_recursive(name, dataset_, resource)
-        yield from _get_ns_content_data(name, dataset_, resource)
+        yield from _get_ns_content_data_recursive(context, name, action, dataset_, resource)
+        yield from _get_ns_content_data(context, name, action, dataset_, resource)
 
 
 def _get_ns_content_data(
+    context: Context,
     ns: Namespace,
+    action: Action,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
 ) -> Iterable[dict]:
@@ -196,12 +222,10 @@ def _get_ns_content_data(
     )
 
     for model in models:
-        if _model_matches_params(model, dataset_, resource):
+        if _model_matches_params(context, model, action, dataset_, resource):
             yield {
                 '_type': model.node_type(),
                 '_id': model.model_type(),
-                'name': model.name,
-                'specifier': model.model_specifier(),
                 'title': model.title,
             }
 
@@ -234,9 +258,11 @@ def in_namespace(node: Node, parent: Node) -> bool:  # noqa
 
 @commands.wipe.register()
 def wipe(context: Context, ns: Namespace, backend: type(None)):
+    commands.authorize(context, Action.WIPE, ns)
+
     models = {
         model.model_type(): model
-        for model in traverse_ns_models(ns)
+        for model in traverse_ns_models(context, ns, Action.WIPE)
     }
 
     graph = collections.defaultdict(set)
