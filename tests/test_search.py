@@ -2,6 +2,7 @@ import pytest
 import requests
 
 from spinta.utils.data import take
+from spinta.testing.utils import error
 from spinta.testing.utils import get_error_codes, get_error_context, RowIds
 from spinta.testing.context import create_test_context
 from spinta.testing.client import create_test_client
@@ -592,6 +593,28 @@ def test_search_contains_with_select(model, context, app, mocker):
     assert data[0] == {
         '_id': r2['_id'],
     }
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_select_unknown_property(model, context, app, mocker):
+    _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?select(nothere)')
+    assert error(resp) == 'FieldNotInResource'
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_select_unknown_property_in_object(model, context, app, mocker):
+    _push_test_data(app, model)
+    app.authmodel(model, ['search'])
+    resp = app.get(f'/{model}?select(notes.nothere)')
+    assert error(resp) == 'FieldNotInResource'
 
 
 @pytest.mark.models(
