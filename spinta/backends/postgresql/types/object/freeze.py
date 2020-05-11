@@ -6,7 +6,7 @@ from spinta.migrations import SchemaVersion
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), Object)
-def freeze(  # noqa
+def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
