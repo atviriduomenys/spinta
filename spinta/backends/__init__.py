@@ -390,6 +390,8 @@ def _select_model_props(
     select: SelectTree,
     reserved: List[str],
 ):
+    _check_unknown_props(model, select, set(reserved) | set(take(model.properties)))
+
     if select is None:
         keys = value.keys()
     elif '*' in select:
@@ -697,6 +699,15 @@ def prepare_dtype_for_response(
     *,
     select: dict = None,
 ):
+    _check_unknown_props(dtype, select, set(take(dtype.properties)))
+
+    if select is None:
+        keys = value.keys()
+    elif '*' in select:
+        keys = take(dtype.properties).keys()
+    else:
+        keys = [k for k in select if not k.startswith('_')]
+
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
@@ -708,7 +719,7 @@ def prepare_dtype_for_response(
         )
         for prop, val, sel in _select_props(
             dtype.prop,
-            value.keys(),
+            keys,
             dtype.properties,
             value,
             select,
