@@ -71,7 +71,7 @@ def freeze(  # noqa
         {
             'name': 'column',
             'args': [
-                current.prop.name,
+                current.prop.place,
                 {
                     'name': current.name,
                     'args': [],
