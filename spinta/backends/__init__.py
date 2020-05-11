@@ -363,7 +363,7 @@ def prepare_data_for_response(
     else:
         data = {}
 
-    for key, val, sel in _select_props(reserved, None, value, select):
+    for key, val, sel in _select_props(prop, reserved, None, value, select):
         data[key] = val
 
     return data
@@ -398,12 +398,14 @@ def _select_model_props(
         keys = [k for k in select if not k.startswith('_')]
 
     yield from _select_props(
+        model,
         reserved,
         model.properties,
         value,
         select,
     )
     yield from _select_props(
+        model,
         keys,
         model.properties,
         value,
@@ -423,6 +425,7 @@ def _select_prop_props(
     else:
         _check_unknown_props(prop, select, set(reserved))
     yield from _select_props(
+        prop,
         reserved,
         prop.model.properties,
         value,
@@ -430,6 +433,7 @@ def _select_prop_props(
     )
     if prop.name in value:
         yield from _select_props(
+            prop,
             value[prop.name].keys(),
             prop.dtype.properties,
             value[prop.name],
@@ -438,6 +442,7 @@ def _select_prop_props(
 
 
 def _select_props(
+    node: Union[Namespace, Model, Property],
     keys: List[str],
     props: Optional[Dict[str, Property]],
     value: dict,
@@ -470,6 +475,10 @@ def _select_props(
         if props is None:
             prop = k
         else:
+            if k not in props:
+                # FIXME: We should check select list at the very beginning of
+                #        request, not when returning results.
+                raise exceptions.FieldNotInResource(node, property=k)
             prop = props[k]
             if prop.hidden:
                 continue
@@ -580,6 +589,7 @@ def prepare_dtype_for_response(
     data = {
         key: val
         for key, val, sel in _select_props(
+            dtype.prop,
             ['_id', '_content_type'],
             None,
             value,
@@ -697,6 +707,7 @@ def prepare_dtype_for_response(
             select=sel,
         )
         for prop, val, sel in _select_props(
+            dtype.prop,
             value.keys(),
             dtype.properties,
             value,
