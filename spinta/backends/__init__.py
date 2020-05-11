@@ -15,6 +15,7 @@ from spinta.exceptions import ConflictingValue, NoItemRevision
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON, Number
 from spinta.utils.itertools import chunks
 from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.data import take
 from spinta.backends.components import Backend
 
 SelectTree = Optional[Dict[str, dict]]
@@ -389,6 +390,13 @@ def _select_model_props(
     select: SelectTree,
     reserved: List[str],
 ):
+    if select is None:
+        keys = value.keys()
+    elif '*' in select:
+        keys = take(model.properties).keys()
+    else:
+        keys = [k for k in select if not k.startswith('_')]
+
     yield from _select_props(
         reserved,
         model.properties,
@@ -396,7 +404,7 @@ def _select_model_props(
         select,
     )
     yield from _select_props(
-        value.keys(),
+        keys,
         model.properties,
         value,
         select,
@@ -439,7 +447,7 @@ def _select_props(
 ):
     for k in keys:
 
-        if k not in value:
+        if select is None and k not in value:
             # Omit all keys if they are not present in value, this is a common
             # case in PATCH requests.
             continue
@@ -456,7 +464,8 @@ def _select_props(
         else:
             continue
 
-        sel = sel or {'*': {}}
+        if sel is not None and sel == {}:
+            sel = {'*': {}}
 
         if props is None:
             prop = k
@@ -465,7 +474,12 @@ def _select_props(
             if prop.hidden:
                 continue
 
-        yield prop, value[k], sel
+        if k in value:
+            val = value[k]
+        else:
+            val = None
+
+        yield prop, val, sel
 
 
 # FIXME: We should check select list at the very beginning of
