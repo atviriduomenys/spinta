@@ -195,6 +195,15 @@ def test_freeze_array(rc, cli):
                         'type': 'string',
                     }
                 },
+                'notes': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'note': {'type': 'string'}
+                        }
+                    }
+                }
             },
         },
     })
@@ -218,17 +227,92 @@ def test_freeze_array(rc, cli):
             ],
         },
         {
+            'downgrade': ["drop_table('country/:list/notes')"],
+            'type': 'schema',
+            'upgrade': [
+                'create_table(',
+                "    'country/:list/notes',",
+                "    column('_txn', uuid()),",
+                "    column('_rid', ref('country._id', ondelete: 'CASCADE')),",
+                "    column('notes.note', string())",
+                ')',
+            ],
+        },
+        {
             'type': 'schema',
             'upgrade': [
                 "create_table(",
                 "    'country',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
-                "    column('names', json())",
+                "    column('names', json()),",
+                "    column('notes', json())",
                 ")"
             ],
             'downgrade': [
                 "drop_table('country')",
+            ],
+        },
+    ]
+
+
+def test_freeze_object(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'report.yml': {
+            'type': 'model',
+            'name': 'report',
+            'properties': {
+                'str': {'type': 'string'},
+                'note': {
+                    'type': 'object',
+                    'properties': {
+                        'text': {'type': 'string'},
+                        'number': {'type': 'integer'},
+                        'list': {
+                            'type': 'array',
+                            'items': {
+                                'type': 'string'
+                            }
+                        }
+                    }
+                },
+            },
+        },
+    })
+
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['report.yml'][-1]['migrate'] == [
+        {
+            'downgrade': ["drop_table('report/:list/note.list')"],
+            'type': 'schema',
+            'upgrade': [
+                'create_table(',
+                "    'report/:list/note.list',",
+                "    column('_txn', uuid()),",
+                "    column('_rid', ref('report._id', ondelete: 'CASCADE')),",
+                "    column('note.list', string())",
+                ')',
+            ],
+        },
+        {
+            'type': 'schema',
+            'upgrade': [
+                "create_table(",
+                "    'report',",
+                "    column('_id', pk()),",
+                "    column('_revision', string()),",
+                "    column('note.list', json()),",
+                "    column('note.number', integer()),",
+                "    column('note.text', string()),",
+                "    column('str', string())",
+                ")"
+            ],
+            'downgrade': [
+                "drop_table('report')",
             ],
         },
     ]
