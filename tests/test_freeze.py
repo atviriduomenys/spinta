@@ -195,15 +195,6 @@ def test_freeze_array(rc, cli):
                         'type': 'string',
                     }
                 },
-                'notes': {
-                    'type': 'array',
-                    'items': {
-                        'type': 'object',
-                        'properties': {
-                            'note': {'type': 'string'}
-                        }
-                    }
-                }
             },
         },
     })
@@ -227,6 +218,48 @@ def test_freeze_array(rc, cli):
             ],
         },
         {
+            'type': 'schema',
+            'upgrade': [
+                "create_table(",
+                "    'country',",
+                "    column('_id', pk()),",
+                "    column('_revision', string()),",
+                "    column('names', json())",
+                ")"
+            ],
+            'downgrade': [
+                "drop_table('country')",
+            ],
+        },
+    ]
+
+
+def test_freeze_array_with_object(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'notes': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'note': {'type': 'string'}
+                        }
+                    }
+                }
+            },
+        },
+    })
+
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
+        {
             'downgrade': ["drop_table('country/:list/notes')"],
             'type': 'schema',
             'upgrade': [
@@ -245,7 +278,6 @@ def test_freeze_array(rc, cli):
                 "    'country',",
                 "    column('_id', pk()),",
                 "    column('_revision', string()),",
-                "    column('names', json()),",
                 "    column('notes', json())",
                 ")"
             ],
