@@ -15,6 +15,7 @@ from spinta.exceptions import ConflictingValue, NoItemRevision
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON, Number
 from spinta.utils.itertools import chunks
 from spinta.utils.schema import NotAvailable, NA
+from spinta.utils.data import take
 from spinta.backends.components import Backend
 
 SelectTree = Optional[Dict[str, dict]]
@@ -362,7 +363,7 @@ def prepare_data_for_response(
     else:
         data = {}
 
-    for key, val, sel in _select_props(reserved, None, value, select):
+    for key, val, sel in _select_props(prop, reserved, None, value, select):
         data[key] = val
 
     return data
@@ -389,15 +390,23 @@ def _select_model_props(
     select: SelectTree,
     reserved: List[str],
 ):
-    _check_unknown_props(model, select, set(reserved) | set(value))
+    if select is None:
+        keys = value.keys()
+    elif '*' in select:
+        keys = take(model.properties).keys()
+    else:
+        keys = [k for k in select if not k.startswith('_')]
+
     yield from _select_props(
+        model,
         reserved,
         model.properties,
         value,
         select,
     )
     yield from _select_props(
-        value.keys(),
+        model,
+        keys,
         model.properties,
         value,
         select,
@@ -416,6 +425,7 @@ def _select_prop_props(
     else:
         _check_unknown_props(prop, select, set(reserved))
     yield from _select_props(
+        prop,
         reserved,
         prop.model.properties,
         value,
@@ -423,6 +433,7 @@ def _select_prop_props(
     )
     if prop.name in value:
         yield from _select_props(
+            prop,
             value[prop.name].keys(),
             prop.dtype.properties,
             value[prop.name],
@@ -431,6 +442,7 @@ def _select_prop_props(
 
 
 def _select_props(
+    node: Union[Namespace, Model, Property],
     keys: List[str],
     props: Optional[Dict[str, Property]],
     value: dict,
@@ -440,7 +452,7 @@ def _select_props(
 ):
     for k in keys:
 
-        if k not in value:
+        if select is None and k not in value:
             # Omit all keys if they are not present in value, this is a common
             # case in PATCH requests.
             continue
@@ -457,16 +469,26 @@ def _select_props(
         else:
             continue
 
-        sel = sel or {'*': {}}
+        if sel is not None and sel == {}:
+            sel = {'*': {}}
 
         if props is None:
             prop = k
         else:
+            if k not in props:
+                # FIXME: We should check select list at the very beginning of
+                #        request, not when returning results.
+                raise exceptions.FieldNotInResource(node, property=k)
             prop = props[k]
             if prop.hidden:
                 continue
 
-        yield prop, value[k], sel
+        if k in value:
+            val = value[k]
+        else:
+            val = None
+
+        yield prop, val, sel
 
 
 # FIXME: We should check select list at the very beginning of
@@ -567,6 +589,7 @@ def prepare_dtype_for_response(
     data = {
         key: val
         for key, val, sel in _select_props(
+            dtype.prop,
             ['_id', '_content_type'],
             None,
             value,
@@ -674,7 +697,6 @@ def prepare_dtype_for_response(
     *,
     select: dict = None,
 ):
-    _check_unknown_props(dtype, select, set(value)),
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
@@ -685,6 +707,7 @@ def prepare_dtype_for_response(
             select=sel,
         )
         for prop, val, sel in _select_props(
+            dtype.prop,
             value.keys(),
             dtype.properties,
             value,
