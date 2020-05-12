@@ -5,6 +5,7 @@ import operator
 import requests
 
 from spinta.utils.schema import NA
+from spinta.testing.client import TestClient
 
 
 def listdata(
@@ -37,4 +38,14 @@ def listdata(
         data = sorted(data)
     elif sort:
         data = sorted(data, key=operator.itemgetter(keys.index(sort)))
+    return data
+
+
+def pushdata(app: TestClient, data: Union[List[dict], dict]):
+    if isinstance(data, list):
+        data = {'_data': data}
+    resp = app.post('/', json=data)
+    data = resp.json()
+    assert resp.status_code == 200, data
+    data = sorted(data['_data'], key=lambda x: x['_id'])
     return data

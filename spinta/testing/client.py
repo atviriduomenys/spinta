@@ -1,10 +1,17 @@
+from __future__ import annotations
+
 from typing import Optional, List, Union
 
+import json
 import datetime
+import pathlib
 
 import pprintpp as pprint
 import requests
 import starlette.testclient
+
+from responses import RequestsMock
+from responses import POST
 
 from spinta import auth
 from spinta import commands
@@ -24,6 +31,60 @@ def create_test_client(rc_or_context: Union[RawConfig, Context]):
         context.load()
     app = api.init(context)
     return TestClient(context, app, base_url='https://testserver')
+
+
+def create_remote_client(
+    responses: RequestsMock,
+    app: TestClient,
+    url: str = 'https://example.com/',
+):
+    """
+    """
+
+    def remote(request):
+        stream = request.body
+        resp = app.post('/', headers=request.headers, data=stream)
+        return resp.status_code, resp.headers, resp.content
+
+    def auth_token(request):
+        _, token = app.headers['Authorization'].split(None, 1)
+        return 200, {}, json.dumps({
+            'access_token': token,
+        })
+
+    responses.add_callback(
+        POST, url,
+        callback=remote,
+        content_type='application/json',
+    )
+
+    responses.add_callback(
+        POST, url + 'auth/token',
+        callback=auth_token,
+        content_type='application/json',
+    )
+
+    return url
+
+
+def create_client_creentials_file(
+    base: pathlib.Path,
+    client: str = 'client',
+    secret: str = '',
+    remote: str = 'example.com',
+    scopes: list = None,
+):
+    base = pathlib.Path(base)
+    scopes = scopes or []
+    scopes = '\n' + '\n'.join(f'  {s}' for s in scopes)
+    credsfile = base / 'credentials.cfg'
+    credsfile.write_text(
+        f'[{client}@{remote}]\n'
+        f'client_id = {client}\n'
+        f'client_secret = {secret}\n'
+        f'scopes = {scopes}\n'
+    )
+    return credsfile
 
 
 class TestClient(starlette.testclient.TestClient):
