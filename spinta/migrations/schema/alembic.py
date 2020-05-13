@@ -2,12 +2,14 @@ import sqlalchemy as sa
 
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY
 
 from spinta.exceptions import UnknownExpr
 from spinta.core.ufuncs import Env, Expr, Bind, ufunc
 
 
 TYPES = {
+    'array': ARRAY,
     'string': sa.Text,
     'integer': sa.Integer,
     'number': sa.Float,
