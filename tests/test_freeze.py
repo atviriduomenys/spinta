@@ -470,3 +470,134 @@ def test_freeze_list_of_files(rc, cli):
             ],
         },
     ]
+
+
+def test_freeze_ref(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'name': {'type': 'string'},
+            },
+        },
+        'city.yml': {
+            'type': 'model',
+            'name': 'city',
+            'properties': {
+                'country': {
+                    'type': 'ref',
+                    'model': 'country'
+                },
+                'name': {'type': 'string'}
+            }
+        }
+    })
+
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    manifest_files = readable_manifest_files(manifest)
+    assert manifest_files['city.yml'][-1]['migrate'] == [
+        {
+            'downgrade': ["drop_table('city')"],
+            'type': 'schema',
+            'upgrade': [
+                'create_table(',
+                "    'city',",
+                "    column('_id', pk()),",
+                "    column('_revision', string()),",
+                "    column('country._id', ref('country._id')),",
+                "    column('name', string())",
+                ')',
+            ],
+        },
+    ]
+    assert manifest_files['country.yml'][-1]['migrate'] == [
+        {
+            'type': 'schema',
+            'upgrade': [
+                "create_table(",
+                "    'country',",
+                "    column('_id', pk()),",
+                "    column('_revision', string()),",
+                "    column('name', string())",
+                ")"
+            ],
+            'downgrade': ["drop_table('country')"],
+        },
+    ]
+
+
+def test_freeze_ref_in_array(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'cities': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'ref',
+                        'model': 'city'
+                    }
+                },
+            },
+        },
+        'city.yml': {
+            'type': 'model',
+            'name': 'city',
+            'properties': {
+                'name': {'type': 'string'}
+            }
+        }
+    })
+
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    manifest_files = readable_manifest_files(manifest)
+    assert manifest_files['city.yml'][-1]['migrate'] == [
+        {
+            'downgrade': ["drop_table('city')"],
+            'type': 'schema',
+            'upgrade': [
+                'create_table(',
+                "    'city',",
+                "    column('_id', pk()),",
+                "    column('_revision', string()),",
+                "    column('name', string())",
+                ')',
+            ],
+        },
+    ]
+    assert manifest_files['country.yml'][-1]['migrate'] == [
+        {
+            'type': 'schema',
+            'upgrade': [
+                "create_table(",
+                "    'country/:list/cities',",
+                "    column('_txn', uuid()),",
+                "    column('_rid', ref('country._id', ondelete: 'CASCADE')),",
+                "    column('cities._id', ref('city._id'))",
+                ")"
+            ],
+            'downgrade': ["drop_table('country/:list/cities')"],
+        },
+        {
+            'type': 'schema',
+            'upgrade': [
+                "create_table(",
+                "    'country',",
+                "    column('_id', pk()),",
+                "    column('_revision', string()),",
+                "    column('cities', json())",
+                ")"
+            ],
+            'downgrade': ["drop_table('country')"],
+        }
+    ]
