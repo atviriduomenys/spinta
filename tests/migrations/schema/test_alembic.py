@@ -2,7 +2,7 @@ import pytest
 
 import sqlalchemy as sa
 
-from alembic.migration import MigrationContext
+from alembic.runtime.migration import MigrationContext
 from alembic.operations import Operations
 
 from spinta.testing.ufuncs import UFuncTester
@@ -41,6 +41,7 @@ def test_create_table(engine, ufunc, request):
         column(name, string(), nullable: true),
         column('country._id', uuid(), ref('_test_table_country._id', ondelete: 'CASCADE')),
         column('country', json()),
+        column('flags', array(uuid())),
     )
     ''')
     meta = sa.MetaData(engine)
@@ -48,7 +49,7 @@ def test_create_table(engine, ufunc, request):
     country = sa.Table('_test_table_country', meta, autoload=True)
     city = sa.Table('_test_table_city', meta, autoload=True)
     assert country.primary_key.columns.keys() == ['_id']
-    assert city.columns.keys() == ['_id', '_revision', 'name', 'country._id', 'country']
+    assert city.columns.keys() == ['_id', '_revision', 'name', 'country._id', 'country', 'flags']
     assert next(iter(city.c['country._id'].foreign_keys)).ondelete == 'CASCADE'
 
 

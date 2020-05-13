@@ -348,3 +348,125 @@ def test_freeze_object(rc, cli):
             ],
         },
     ]
+
+
+def test_freeze_file(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'flag': {'type': 'file'},
+                'anthem': {
+                    'type': 'file',
+                    'backend': 'fs'
+                },
+            },
+        },
+    })
+
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
+        {
+            'downgrade': ["drop_table('country/:file/flag')"],
+            'type': 'schema',
+            'upgrade': [
+                'create_table(',
+                "    'country/:file/flag',",
+                "    column('_id', uuid()),",
+                "    column('_block', binary())",
+                ')',
+            ],
+        },
+        {
+            'type': 'schema',
+            'upgrade': [
+                "create_table(",
+                "    'country',",
+                "    column('_id', pk()),",
+                "    column('_revision', string()),",
+                "    column('anthem._id', string()),",
+                "    column('anthem._content_type', string()),",
+                "    column('anthem._size', integer()),",
+                "    column('flag._id', string()),",
+                "    column('flag._content_type', string()),",
+                "    column('flag._size', integer()),",
+                "    column('flag._bsize', integer()),",
+                "    column('flag._blocks', array(uuid()))",
+                ")"
+            ],
+            'downgrade': [
+                "drop_table('country')",
+            ],
+        },
+    ]
+
+
+def test_freeze_list_of_files(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'flags': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'file'
+                    }
+                },
+            },
+        },
+    })
+
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
+        {
+            'downgrade': ["drop_table('country/:file/flags')"],
+            'type': 'schema',
+            'upgrade': [
+                'create_table(',
+                "    'country/:file/flags',",
+                "    column('_id', uuid()),",
+                "    column('_block', binary())",
+                ')',
+            ],
+        },
+        {
+            'downgrade': ["drop_table('country/:list/flags')"],
+            'type': 'schema',
+            'upgrade': [
+                'create_table(',
+                "    'country/:list/flags',",
+                "    column('_txn', uuid()),",
+                "    column('_rid', ref('country._id', ondelete: 'CASCADE')),",
+                "    column('flags._id', string()),",
+                "    column('flags._content_type', string()),",
+                "    column('flags._size', integer()),",
+                "    column('flags._bsize', integer()),",
+                "    column('flags._blocks', array(uuid()))",
+                ')',
+            ],
+        },
+        {
+            'type': 'schema',
+            'upgrade': [
+                "create_table(",
+                "    'country',",
+                "    column('_id', pk()),",
+                "    column('_revision', string()),",
+                "    column('flags', json())",
+                ")"
+            ],
+            'downgrade': [
+                "drop_table('country')",
+            ],
+        },
+    ]
