@@ -2,7 +2,7 @@ from spinta import commands
 from spinta.backends.components import BackendFeatures
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import TableType
-from spinta.backends.postgresql.helpers import get_pg_name, get_table_name
+from spinta.backends.postgresql.helpers import get_pg_name, get_table_name, get_column_name
 from spinta.components import Context
 from spinta.types.datatype import File
 from spinta.migrations import SchemaVersion
@@ -17,8 +17,8 @@ def freeze(
     current: File,
 ):
     if current.backend is backend:
-        list_table_name = get_pg_name(get_table_name(current.prop, TableType.FILE))
-        list_table_columns = [
+        file_blocks_table_name = get_pg_name(get_table_name(current.prop, TableType.FILE))
+        file_table_columns = [
             {
                 'name': 'column',
                 'args': ['_id', {'name': 'uuid', 'args': []}],
@@ -32,18 +32,18 @@ def freeze(
             'type': 'schema',
             'upgrade': {
                 'name': 'create_table',
-                'args': [list_table_name] + list_table_columns,
+                'args': [file_blocks_table_name] + file_table_columns,
             },
             'downgrade': {
                 'name': 'drop_table',
-                'args': [list_table_name],
+                'args': [file_blocks_table_name],
             },
         })
     pr = [
         {
             'name': 'column',
             'args': [
-                f'{current.prop.place}._id',
+                f'{get_column_name(current.prop)}._id',
                 {
                     'name': 'string',
                     'args': [],
@@ -53,7 +53,7 @@ def freeze(
         {
             'name': 'column',
             'args': [
-                f'{current.prop.place}._content_type',
+                f'{get_column_name(current.prop)}._content_type',
                 {
                     'name': 'string',
                     'args': [],
@@ -63,7 +63,7 @@ def freeze(
         {
             'name': 'column',
             'args': [
-                f'{current.prop.place}._size',
+                f'{get_column_name(current.prop)}._size',
                 {
                     'name': 'integer',
                     'args': [],
@@ -77,7 +77,7 @@ def freeze(
                 {
                     'name': 'column',
                     'args': [
-                        f'{current.prop.place}._bsize',
+                        f'{get_column_name(current.prop)}._bsize',
                         {
                             'name': 'integer',
                             'args': [],
@@ -87,7 +87,7 @@ def freeze(
                 {
                     'name': 'column',
                     'args': [
-                        f'{current.prop.place}._blocks',
+                        f'{get_column_name(current.prop)}._blocks',
                         {
                             'name': 'array',
                             'args': [{'name': 'uuid', 'args': []}],
