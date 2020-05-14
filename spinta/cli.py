@@ -14,20 +14,23 @@ import click
 import tqdm
 import requests
 from authlib.jose import jwt
-from authlib.jose import jwk
 
+from spinta import spyna
 from spinta import commands
 from spinta import components
 from spinta import exceptions
 from spinta.auth import AdminToken
 from spinta.auth import KeyType
 from spinta.auth import load_key
-from spinta.auth import create_key_pair
+from spinta.auth import gen_auth_server_keys
+from spinta.auth import KeyFileExists
+from spinta.auth import create_client_file
 from spinta.commands.formats import Format
 from spinta.commands.write import write
 from spinta.components import Context, DataStream, Model
 from spinta.manifests.components import Manifest
 from spinta.datasets.components import Dataset
+from spinta.datasets.components import ExternalBackend
 from spinta.core.context import create_context
 from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist
@@ -298,6 +301,11 @@ def push(ctx, target, dataset, credentials, client):
     commands.check(context, store.manifest)
     commands.prepare(context, store.manifest)
 
+    if credentials:
+        credentials = pathlib.Path(credentials)
+        if not credentials.exists():
+            raise click.Abort(f"Credentials file {credentials} does not exit.")
+
     manifest = store.manifest
     if dataset and dataset not in manifest.objects['dataset']:
         raise click.ClickException(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
@@ -312,6 +320,8 @@ def push(ctx, target, dataset, credentials, client):
             'Authorization': f'Bearer {token}',
         }
         context.attach('transaction', manifest.backend.transaction)
+        for backend in store.backends.values():
+            context.attach(f'transaction.{backend.name}', backend.begin)
         stream = _read_data(context, ns, dataset)
         resp = requests.post(target, headers=headers, data=stream)
         if resp.status_code >= 400:
@@ -319,7 +329,7 @@ def push(ctx, target, dataset, credentials, client):
             raise click.Abort("Error while pushing data.")
 
 
-def _get_access_token(credsfile, client, url):
+def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
     url = urllib.parse.urlparse(url)
     section = f'{client}@{url.hostname}'
     creds = configparser.ConfigParser()
@@ -348,17 +358,54 @@ def _read_data(
         action=components.Action.GETALL,
         dataset_=dataset,
     )
+    manifest = context.get('store').manifest
     for data in stream:
-        id_ = data['_id']
-        type_ = data['_type']
-        click.echo(f'{type_:42}  {id_}')
-        payload = {
-            '_op': 'upsert',
-            '_type': type_,
-            '_id': id_,
-            '_where': f'_id="{id_}"',
-            **{k: v for k, v in data.items() if not k.startswith('_')}
-        }
+        _id = data['_id']
+        _type = data['_type']
+        click.echo(f'{_type:42}  {_id}')
+        model = manifest.models[_type]
+
+        if isinstance(model.backend, ExternalBackend):
+            where = []
+            for prop in model.external.pkeys:
+                where.append({
+                    'name': 'eq',
+                    'args': [
+                        {'name': 'bind', 'args': [prop.name]},
+                        data[prop.name],
+                    ]
+                })
+
+            if len(where) > 1:
+                where = {'name': 'and', 'args': where}
+            elif len(where) == 1:
+                where = where[0]
+            else:
+                raise Exception(f"Model {model} does not have `external.pkeys`.")
+
+            payload = {
+                '_op': 'upsert',
+                '_type': _type,
+                '_where': spyna.unparse(where),
+                **{k: v for k, v in data.items() if not k.startswith('_')}
+            }
+
+        else:
+            where = {
+                'name': 'eq',
+                'args': [
+                    {'name': 'bind', 'args': ['_id']},
+                    _id,
+                ]
+            }
+            payload = {
+                '_op': 'upsert',
+                '_type': _type,
+                '_id': _id,
+                '_where': spyna.unparse(where),
+                **{k: v for k, v in data.items() if not k.startswith('_')}
+            }
+
         yield json.dumps(payload).encode('utf-8') + b'\n'
 
 
@@ -409,33 +456,19 @@ def genkeys(ctx, path):
 
         if path is None:
             context = ctx.obj
-
             config = context.get('config')
             commands.load(context, config)
-
-            path = config.config_path / 'keys'
-            path.mkdir(exist_ok=True)
+            path = config.config_path
         else:
             path = pathlib.Path(path)
 
-        private_file = path / 'private.json'
-        public_file = path / 'public.json'
+        try:
+            prv, pub = gen_auth_server_keys(path)
+        except KeyFileExists as e:
+            raise click.Abort(str(e))
 
-        if private_file.exists():
-            raise click.Abort(f"{private_file} file already exists.")
-
-        if public_file.exists():
-            raise click.Abort(f"{public_file} file already exists.")
-
-        key = create_key_pair()
-
-        with private_file.open('w') as f:
-            json.dump(jwk.dumps(key), f, indent=4, ensure_ascii=False)
-            click.echo(f"Private key saved to {private_file}.")
-
-        with public_file.open('w') as f:
-            json.dump(jwk.dumps(key.public_key()), f, indent=4, ensure_ascii=False)
-            click.echo(f"Public key saved to {public_file}.")
+        click.echo(f"Private key saved to {prv}.")
+        click.echo(f"Public key saved to {pub}.")
 
 
 @main.group()
@@ -451,14 +484,9 @@ def client(ctx):
 @click.option('--path', '-p', type=click.Path(exists=True, file_okay=False, writable=True))
 @click.pass_context
 def client_add(ctx, name, secret, add_secret, path):
-    import ruamel.yaml
-    from spinta.utils import passwords
-
     context = ctx.obj
     with context:
         _require_auth(context)
-
-        yaml = ruamel.yaml.YAML(typ='safe')
 
         if path is None:
             context = ctx.obj
@@ -471,27 +499,16 @@ def client_add(ctx, name, secret, add_secret, path):
         else:
             path = pathlib.Path(path)
 
-        client_id = name or str(uuid.uuid4())
-        client_file = path / f'{client_id}.yml'
+        name = name or str(uuid.uuid4())
 
-        if client is None and client_file.exists():
-            raise click.Abort(f"{client_file} file already exists.")
+        client_file, client = create_client_file(
+            path,
+            name,
+            secret,
+            add_secret=add_secret,
+        )
 
-        client_secret = secret or passwords.gensecret(32)
-        client_secret_hash = passwords.crypt(client_secret)
-
-        data = {
-            'client_id': client_id,
-            'client_secret': client_secret,
-            'client_secret_hash': client_secret_hash,
-            'scopes': [],
-        }
-
-        if not add_secret:
-            del data['client_secret']
-
-        yaml.dump(data, client_file)
-
+        client_secret = client['client_secret']
         click.echo(
             f"New client created and saved to:\n\n"
             f"    {client_file}\n\n"

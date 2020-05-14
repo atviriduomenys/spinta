@@ -34,7 +34,7 @@ class SpintaCliRunner(CliRunner):
                 exc = exc.replace(os.getcwd() + '/', '')
                 print(exc, file=sys.stderr)
         if result.exit_code != 0:
-            print(result.output)
+            print(result.output, file=sys.stderr)
             cmd = ' '.join([cli.name] + (args or []))
             pytest.fail(f"Command `{cmd}` failed, exit code {result.exit_code}.")
         return result

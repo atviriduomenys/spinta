@@ -6,6 +6,7 @@ import pytest
 
 import sqlalchemy as sa
 
+from spinta.cli import push
 from spinta.core.config import RawConfig
 from spinta.testing.data import listdata
 from spinta.testing.client import create_test_client
@@ -13,62 +14,77 @@ from spinta.testing.context import create_test_context
 from spinta.testing.tabular import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
+from spinta.testing.client import create_remote_server
+
+
+class Sqlite:
+
+    def __init__(self, dsn: str):
+        self.dsn = dsn
+        self.engine = sa.create_engine(dsn)
+        self.schema = sa.MetaData(self.engine)
+
+        self.tables = {
+            'country': sa.Table(
+                'salis', self.schema,
+                sa.Column('id', sa.Integer, primary_key=True),
+                sa.Column('kodas', sa.Text),
+                sa.Column('pavadinimas', sa.Text),
+            ),
+            'city': sa.Table(
+                'miestas', self.schema,
+                sa.Column('id', sa.Integer, primary_key=True),
+                sa.Column('pavadinimas', sa.Text),
+                sa.Column('salis', sa.Text),
+            )
+        }
+
+    def write(self, table, data):
+        table = self.tables[table]
+        with self.engine.begin() as conn:
+            conn.execute(table.insert(), data)
 
 
 @pytest.fixture(scope='module')
 def sqlite():
     with tempfile.TemporaryDirectory() as tmpdir:
-        dsn = 'sqlite:///' + os.path.join(tmpdir, 'db.sqlite')
-        engine = sa.create_engine(dsn)
-        schema = sa.MetaData(engine)
-
-        country = sa.Table(
-            'salis', schema,
-            sa.Column('id', sa.Integer, primary_key=True),
-            sa.Column('kodas', sa.Text),
-            sa.Column('pavadinimas', sa.Text),
-        )
-
-        city = sa.Table(
-            'miestas', schema,
-            sa.Column('id', sa.Integer, primary_key=True),
-            sa.Column('pavadinimas', sa.Text),
-            sa.Column('salis', sa.Text),
-        )
-
-        schema.create_all()
-
-        with engine.begin() as conn:
-            conn.execute(country.insert(), [
-                {'kodas': 'lt', 'pavadinimas': 'Lietuva'},
-                {'kodas': 'lv', 'pavadinimas': 'Latvija'},
-                {'kodas': 'ee', 'pavadinimas': 'Estija'},
-            ])
-            conn.execute(city.insert(), [
-                {'salis': 'lt', 'pavadinimas': 'Vilnius'},
-                {'salis': 'lv', 'pavadinimas': 'Ryga'},
-                {'salis': 'ee', 'pavadinimas': 'Talinas'},
-            ])
-
-        yield dsn
+        db = Sqlite('sqlite:///' + os.path.join(tmpdir, 'db.sqlite'))
+        db.schema.create_all()
+        db.write('country', [
+            {'kodas': 'lt', 'pavadinimas': 'Lietuva'},
+            {'kodas': 'lv', 'pavadinimas': 'Latvija'},
+            {'kodas': 'ee', 'pavadinimas': 'Estija'},
+        ])
+        db.write('city', [
+            {'salis': 'lt', 'pavadinimas': 'Vilnius'},
+            {'salis': 'lv', 'pavadinimas': 'Ryga'},
+            {'salis': 'ee', 'pavadinimas': 'Talinas'},
+        ])
+        yield db
 
 
-def create_client(rc: RawConfig, tmpdir: pathlib.Path, sqlite):
-    rc = rc.fork({
-        'manifests.default': {
-            'type': 'tabular',
-            'path': str(tmpdir / 'manifest.csv'),
-            'backend': 'sql',
+def create_rc(rc: RawConfig, tmpdir: pathlib.Path, sqlite: Sqlite):
+    return rc.fork({
+        'manifests': {
+            'default': {
+                'type': 'tabular',
+                'path': str(tmpdir / 'manifest.csv'),
+                'backend': 'sql',
+            },
         },
         'backends': {
             'sql': {
                 'type': 'sql',
-                'dsn': sqlite,
+                'dsn': sqlite.dsn,
             },
         },
         # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
         'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
     })
+
+
+def create_client(rc: RawConfig, tmpdir: pathlib.Path, sqlite: Sqlite):
+    rc = create_rc(rc, tmpdir, sqlite)
     context = create_test_context(rc)
     return create_test_client(context)
 
@@ -423,4 +439,95 @@ def test_ns_getall(rc, tmpdir, sqlite):
     resp = app.get('/datasets/gov/example', headers={'Accept': 'text/html'})
     assert listdata(resp, '_id', 'title') == [
         ('datasets/gov/example/country', 'Country'),
+    ]
+
+
+def test_push(mongo, rc, cli, responses, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
+       | datasets/gov/example     |             |         |        |         |       |        |     | Example |
+       |   | data                 |             |         | sql    |         |       |        |     | Data    |
+       |   |   |                  |             |         |        |         |       |        |     |         |
+       |   |   |   | country      | salis       |         |        | code    |       |        |     | Country |
+       |   |   |   |   | code     | kodas       |         | string |         | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
+       |   |   |                  |             |         |        |         |       |        |     |         |
+       |   |   |   | city         | miestas     |         |        | name    |       |        |     | City    |
+       |   |   |   |   | name     | pavadinimas |         | string |         | 3     | open   |     | Name    |
+       |   |   |   |   | country  | salis       |         | ref    | country | 4     | open   |     | Country |
+    '''))
+
+    # Create remote server with Mongo backend
+    tmpdir = pathlib.Path(tmpdir)
+    remoterc = rc.fork({
+        'manifests': {
+            'default': {
+                'type': 'tabular',
+                'path': str(tmpdir / 'manifest.csv'),
+                'backend': 'mongo',
+            },
+        },
+        'backends': ['mongo'],
+    })
+    remote = create_remote_server(
+        remoterc,
+        tmpdir,
+        responses,
+        scopes=['spinta_upsert'],
+        credsfile=True,
+    )
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmpdir, sqlite)
+
+    # Push data from local to remote.
+    cli.invoke(localrc, push, [
+        remote.url,
+        '-r', str(remote.credsfile),
+        '-c', remote.client,
+        '-d', 'datasets/gov/example',
+    ])
+
+    remote.app.authmodel('datasets/gov/example/country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('ee', 'Estija'),
+        ('lt', 'Lietuva'),
+        ('lv', 'Latvija')
+    ]
+
+    remote.app.authmodel('datasets/gov/example/city', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/city')
+    assert listdata(resp, 'country._id', 'name') == [
+        (None, 'Ryga'),
+        (None, 'Talinas'),
+        (None, 'Vilnius'),
+    ]
+
+    # Add new data to local server
+    sqlite.write('city', [
+        {'salis': 'lt', 'pavadinimas': 'Kaunas'},
+    ])
+
+    # Push data from local to remote.
+    cli.invoke(localrc, push, [
+        remote.url,
+        '-r', str(remote.credsfile),
+        '-c', remote.client,
+        '-d', 'datasets/gov/example',
+    ])
+
+    resp = remote.app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('ee', 'Estija'),
+        ('lt', 'Lietuva'),
+        ('lv', 'Latvija')
+    ]
+
+    resp = remote.app.get('/datasets/gov/example/city')
+    assert listdata(resp, 'country._id', 'name') == [
+        (None, 'Kaunas'),
+        (None, 'Ryga'),
+        (None, 'Talinas'),
+        (None, 'Vilnius'),
     ]

@@ -1,13 +1,15 @@
-import pytest
-
-import json
 import pathlib
 
-from responses import GET, POST
+import pytest
+
+from responses import GET
 
 from spinta.cli import pull, push
+from spinta.testing.client import create_remote_server
+from spinta.testing.client import create_client_creentials_file
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.utils import update_manifest_files
+from spinta.testing.data import pushdata
 
 
 @pytest.mark.skip('datasets')
@@ -71,71 +73,4 @@ def test_pull(responses, rc, cli, app, tmpdir):
         ('ee', 'Estija', 'country/:dataset/csv/:resource/countries'),
         ('lt', 'Lietuva', 'country/:dataset/csv/:resource/countries'),
         ('lv', 'Latvija', 'country/:dataset/csv/:resource/countries'),
-    ]
-
-
-def test_push(app, rc, cli, responses, tmpdir):
-    continent = 'datasets/backends/postgres/dataset/continent'
-    app.authorize([
-        'spinta_set_meta_fields',
-        'spinta_getall',
-    ])
-    app.authmodel(continent, ['insert', 'upsert'])
-
-    tmpdir = pathlib.Path(str(tmpdir))
-    credsfile = tmpdir / 'credentials.cfg'
-    credsfile.write_text(
-        '[client@example.com]\n'
-        'client_id = client\n'
-        'client_secret =\n'
-        'scopes =\n'
-        '  spinta_set_meta_fields\n'
-        '  spinta_upsert\n'
-    )
-
-    data = [
-        {
-            '_op': 'insert',
-            '_type': continent,
-            'title': 'Europe',
-        },
-        {
-            '_op': 'insert',
-            '_type': continent,
-            'title': 'Africa',
-        },
-    ]
-    headers = {'content-type': 'application/x-ndjson'}
-    payload = (json.dumps(d) + '\n' for d in data)
-    resp = app.post('/', headers=headers, data=payload)
-    data = resp.json()
-    assert resp.status_code == 200, data
-    data = sorted(data['_data'], key=lambda x: x['_id'])
-
-    def remote(request):
-        stream = request.body
-        resp = app.post('/', headers=request.headers, data=stream)
-        return resp.status_code, resp.headers, resp.content
-
-    def auth_token(request):
-        _, token = app.headers['Authorization'].split(None, 1)
-        return 200, {}, json.dumps({
-            'access_token': token,
-        })
-
-    target = 'https://example.com/'
-    responses.add_callback(
-        POST, target,
-        callback=remote,
-        content_type='application/json',
-    )
-    responses.add_callback(
-        POST, target + 'auth/token',
-        callback=auth_token,
-        content_type='application/json',
-    )
-    result = cli.invoke(rc, push, [target, '-r', str(credsfile), '-c', 'client', '-d', 'datasets/backends/postgres/dataset'])
-    assert sorted(result.stdout.splitlines()) == [
-        f"datasets/backends/postgres/dataset/continent  {data[0]['_id']}",
-        f"datasets/backends/postgres/dataset/continent  {data[1]['_id']}",
     ]

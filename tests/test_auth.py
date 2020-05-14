@@ -1,4 +1,3 @@
-import datetime
 import json
 import pathlib
 
@@ -7,7 +6,6 @@ import ruamel.yaml
 
 from authlib.jose import jwk
 from authlib.jose import jwt
-from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
 from spinta import auth
 from spinta.cli import genkeys
@@ -52,11 +50,11 @@ def test_app(context, app):
 def test_genkeys(rc, cli, tmpdir):
     result = cli.invoke(rc, genkeys, ['-p', str(tmpdir)])
     assert result.output == (
-        f'Private key saved to {tmpdir}/private.json.\n'
-        f'Public key saved to {tmpdir}/public.json.\n'
+        f'Private key saved to {tmpdir}/keys/private.json.\n'
+        f'Public key saved to {tmpdir}/keys/public.json.\n'
     )
-    jwk.loads(json.loads(tmpdir.join('private.json').read()))
-    jwk.loads(json.loads(tmpdir.join('public.json').read()))
+    jwk.loads(json.loads(tmpdir.join('keys/private.json').read()))
+    jwk.loads(json.loads(tmpdir.join('keys/public.json').read()))
 
 
 def test_client_add(rc, cli, tmpdir):
