@@ -9,6 +9,7 @@ import typing
 
 from spinta import commands
 from spinta import exceptions
+from spinta.auth import authorized
 from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
 from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
 from spinta.exceptions import ConflictingValue, NoItemRevision
@@ -284,6 +285,9 @@ def prepare_data_for_response(
     select: typing.List[str] = None,
 ) -> dict:
     select = _apply_always_show_id(context, action, select)
+    if select is None and action in (Action.GETALL, Action.SEARCH):
+        # If select is not given, select everything.
+        select = {'*': {}}
     select = _flat_select_to_nested(select)
     return {
         prop.name: commands.prepare_dtype_for_response(
@@ -295,6 +299,8 @@ def prepare_data_for_response(
             select=sel,
         )
         for prop, val, sel in _select_model_props(
+            context,
+            action,
             model,
             value,
             select,
@@ -385,6 +391,8 @@ def _apply_always_show_id(
 
 
 def _select_model_props(
+    context: Context,
+    action: Action,
     model: Model,
     value: dict,
     select: SelectTree,
@@ -395,7 +403,14 @@ def _select_model_props(
     if select is None:
         keys = value.keys()
     elif '*' in select:
-        keys = take(model.properties).keys()
+        keys = [
+            p.name
+            for p in model.properties.values() if (
+                not p.name.startswith('_') and
+                not p.hidden and
+                authorized(context, p, action)
+            )
+        ]
     else:
         keys = [k for k in select if not k.startswith('_')]
 
@@ -671,7 +686,16 @@ def prepare_dtype_for_response(
     *,
     select: dict = None,
 ):
-    return value
+    return {
+        key: val
+        for key, val, sel in _select_props(
+            dtype.prop,
+            ['_id'],
+            None,
+            value,
+            select,
+        )
+    }
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, Ref, str)
