@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Union, Callable
+from typing import Union, Callable, List, Tuple
 
 import datetime
 import enum
 import json
 import logging
 import time
+import pathlib
 
 import ruamel.yaml
 
@@ -24,6 +25,7 @@ from authlib.oauth2 import rfc6750
 from authlib.oauth2.rfc6749 import grants
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.errors import InvalidClientError
+from authlib.oauth2 import OAuth2Error
 
 from spinta.core.enums import Access
 from spinta.components import Context, Action, Namespace, Model, Property
@@ -57,8 +59,16 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
     def create_oauth2_request(self, request):
         return get_auth_request(request)
 
-    def handle_response(self, status_code, payload, headers):
+    def handle_response(self, status_code, payload, headers) -> JSONResponse:
         return JSONResponse(payload, status_code=status_code, headers=dict(headers))
+
+    def handle_error_response(
+        self,
+        request: OAuth2Request,
+        error: OAuth2Error,
+    ) -> JSONResponse:
+        log.exception('Authorization server error: %s', error)
+        return super().handle_error_response(request, error)
 
     def send_signal(self, *args, **kwargs):
         pass
@@ -110,7 +120,12 @@ class Client(rfc6749.ClientMixin):
         self.secret_hash = secret_hash
         self.scopes = set(scopes)
 
+    def __repr__(self):
+        cls = type(self)
+        return f'{cls.__module__}.{cls.__name__}(id={self.id!r})'
+
     def check_client_secret(self, client_secret):
+        log.debug(f"Incorrect client {self.id!r} secret hash.")
         return passwords.verify(client_secret, self.secret_hash)
 
     def check_token_endpoint_auth_method(self, method: str):
@@ -402,3 +417,78 @@ def authorized(
         token.check_scope(scopes, operator='OR')
     else:
         return token.valid_scope(scopes, operator='OR')
+
+
+def gen_auth_server_keys(
+    path: pathlib.Path,
+    *,
+    overwrite: bool = False,
+    exist_ok: bool = False,
+) -> Tuple[pathlib.Path, pathlib.Path]:
+    path = path / 'keys'
+    path.mkdir(exist_ok=True)
+
+    files = (
+        path / 'private.json',
+        path / 'public.json',
+    )
+
+    if overwrite:
+        create = True
+    else:
+        create = False
+        for file in files:
+            if file.exists():
+                if not exist_ok:
+                    raise KeyFileExists(f"{file} file already exists.")
+            else:
+                create = True
+
+    if create:
+        key = create_key_pair()
+        keys = (key, key.public_key())
+        for k, file in zip(keys, files):
+            with file.open('w') as f:
+                json.dump(jwk.dumps(k), f, indent=4, ensure_ascii=False)
+
+    return files
+
+
+class KeyFileExists(Exception):
+    pass
+
+
+def create_client_file(
+    path: pathlib.Path,
+    client: str,
+    secret: str = None,
+    scopes: List[str] = None,
+    *,
+    add_secret: bool = False,
+) -> Tuple[pathlib.Path, dict]:
+    client_file = path / f'{client}.yml'
+
+    if client_file.exists():
+        raise ClientExist(f"{client_file} file already exists.")
+
+    secret = secret or passwords.gensecret(32)
+    secret_hash = passwords.crypt(secret)
+
+    data = write = {
+        'client_id': client,
+        'client_secret': secret,
+        'client_secret_hash': secret_hash,
+        'scopes': scopes or [],
+    }
+
+    if not add_secret:
+        write = data.copy()
+        del write['client_secret']
+
+    yaml.dump(write, client_file)
+
+    return client_file, data
+
+
+class ClientExist(Exception):
+    pass

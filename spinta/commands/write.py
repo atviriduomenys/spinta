@@ -148,7 +148,6 @@ async def push_stream(
             context, model, model.backend, dstream=dstream,
         )
         async for data in dstream:
-            pp(data)
             yield data
 
 

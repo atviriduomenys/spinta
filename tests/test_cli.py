@@ -1,11 +1,11 @@
-import pytest
-
 import pathlib
+
+import pytest
 
 from responses import GET
 
 from spinta.cli import pull, push
-from spinta.testing.client import create_remote_client
+from spinta.testing.client import create_remote_server
 from spinta.testing.client import create_client_creentials_file
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.utils import update_manifest_files
@@ -73,24 +73,4 @@ def test_pull(responses, rc, cli, app, tmpdir):
         ('ee', 'Estija', 'country/:dataset/csv/:resource/countries'),
         ('lt', 'Lietuva', 'country/:dataset/csv/:resource/countries'),
         ('lv', 'Latvija', 'country/:dataset/csv/:resource/countries'),
-    ]
-
-
-def test_push(app, rc, cli, responses, tmpdir):
-    continent = 'datasets/backends/postgres/dataset/continent'
-    app.authorize(['spinta_set_meta_fields'])
-    app.authmodel(continent, ['insert', 'upsert', 'getall'])
-
-    data = pushdata(app, [
-        {'_op': 'insert', '_type': continent, 'title': 'Europe'},
-        {'_op': 'insert', '_type': continent, 'title': 'Africa'},
-    ])
-
-    remote = create_remote_client(responses, app)
-    credsfile = create_client_creentials_file(tmpdir, scopes=['spinta_upsert'])
-
-    result = cli.invoke(rc, push, [remote, '-r', str(credsfile), '-c', 'client', '-d', 'datasets/backends/postgres/dataset'])
-    assert sorted(result.stdout.splitlines()) == [
-        f"datasets/backends/postgres/dataset/continent  {data[0]['_id']}",
-        f"datasets/backends/postgres/dataset/continent  {data[1]['_id']}",
     ]

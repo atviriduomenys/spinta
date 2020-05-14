@@ -1,5 +1,7 @@
 import pathlib
 
+from spinta.auth import gen_auth_server_keys
+
 
 CONFIG = {
     'environments': {
@@ -22,3 +24,10 @@ CONFIG = {
         },
     },
 }
+
+
+def create_config_path(path: pathlib.Path) -> pathlib.Path:
+    path.mkdir(exist_ok=True)
+    (path / 'clients').mkdir(exist_ok=True)
+    gen_auth_server_keys(path, exist_ok=True)
+    return path

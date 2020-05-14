@@ -16,6 +16,10 @@ class Sql(ExternalBackend):
     dbschema: str = None  # Database schema name
 
     @contextlib.contextmanager
+    def transaction(self, write=False):
+        raise NotImplementedError
+
+    @contextlib.contextmanager
     def begin(self):
         with self.engine.begin() as conn:
             yield conn

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Optional, List, Union
 
-import json
+import dataclasses
 import datetime
 import pathlib
+import re
+import urllib.parse
 
 import pprintpp as pprint
 import requests
@@ -19,6 +21,8 @@ from spinta import api
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.context import create_test_context
+from spinta.auth import create_client_file
+from spinta.testing.config import create_config_path
 
 
 def create_test_client(rc_or_context: Union[RawConfig, Context]):
@@ -33,65 +37,106 @@ def create_test_client(rc_or_context: Union[RawConfig, Context]):
     return TestClient(context, app, base_url='https://testserver')
 
 
-def create_remote_client(
+def create_remote_server(
+    rc: RawConfig,
+    tmpdir: pathlib.Path,
     responses: RequestsMock,
-    app: TestClient,
+    *,
     url: str = 'https://example.com/',
-):
-    """
-    """
+    client: str = 'client',
+    secret: str = 'secret',
+    scopes: List[str] = None,
+    credsfile: Union[bool, pathlib.Path] = None,
+) -> RemoteServer:
 
     def remote(request):
-        stream = request.body
-        resp = app.post('/', headers=request.headers, data=stream)
+        path = request.url[len(url.rstrip('/')):]
+        resp = app.request(
+            request.method,
+            path,
+            headers=request.headers,
+            data=request.body,
+        )
         return resp.status_code, resp.headers, resp.content
 
-    def auth_token(request):
-        _, token = app.headers['Authorization'].split(None, 1)
-        return 200, {}, json.dumps({
-            'access_token': token,
-        })
+    confdir = create_config_path(tmpdir / 'config')
+    rc = rc.fork({
+        'config_path': confdir,
+        'default_auth_client': None,
+    })
+    context = create_test_context(rc)
+    app = create_test_client(context)
+
+    if scopes:
+        client_file, client = create_client_file(
+            confdir / 'clients',
+            client=client,
+            secret=secret,
+            scopes=scopes,
+            add_secret=True,
+        )
+        secret = client['client_secret']
+        client = client['client_id']
+
+    if credsfile:
+        if credsfile is True:
+            credsfile = tmpdir / 'credentials.cfg'
+        urlp = urllib.parse.urlparse(url)
+        create_client_creentials_file(
+            credsfile,
+            client=client,
+            secret=secret,
+            server=urlp.netloc,
+            scopes=scopes,
+        )
 
     responses.add_callback(
-        POST, url,
+        POST, re.compile(re.escape(url) + r'.*'),
         callback=remote,
         content_type='application/json',
     )
 
-    responses.add_callback(
-        POST, url + 'auth/token',
-        callback=auth_token,
-        content_type='application/json',
+    return RemoteServer(
+        app=app,
+        url=url,
+        client=client,
+        secret=secret,
+        credsfile=credsfile,
     )
 
-    return url
+
+@dataclasses.dataclass
+class RemoteServer:
+    app: TestClient
+    url: str
+    client: str = None
+    secret: str = None
+    credsfile: pathlib.Path = None
 
 
 def create_client_creentials_file(
-    base: pathlib.Path,
-    client: str = 'client',
-    secret: str = '',
-    remote: str = 'example.com',
+    path: pathlib.Path,
+    # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
+    client: str = '3388ea36-4a4f-4821-900a-b574c8829d52',
+    secret: str = 'b5DVbOaEY1BGnfbfv82oA0-4XEBgLQuJ',
+    server: str = 'example.com',
     scopes: list = None,
 ):
-    base = pathlib.Path(base)
     scopes = scopes or []
     scopes = '\n' + '\n'.join(f'  {s}' for s in scopes)
-    credsfile = base / 'credentials.cfg'
-    credsfile.write_text(
-        f'[{client}@{remote}]\n'
+    path.write_text(
+        f'[{client}@{server}]\n'
         f'client_id = {client}\n'
         f'client_secret = {secret}\n'
         f'scopes = {scopes}\n'
     )
-    return credsfile
 
 
 class TestClient(starlette.testclient.TestClient):
 
     def __init__(self, context, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._spinta_context = context
+        self.context = context
         self._requests_session = None
         self._requests_session_base_url = None
         self._scopes = []
@@ -101,7 +146,7 @@ class TestClient(starlette.testclient.TestClient):
         self._requests_session_base_url = base_url.rstrip('/')
 
     def authmodel(self, model: str, actions: List[str], creds=None):
-        scopes = commands.get_model_scopes(self._spinta_context, model, actions)
+        scopes = commands.get_model_scopes(self.context, model, actions)
         self.authorize(scopes, creds=creds)
 
     def authorize(self, scopes: Optional[list] = None, creds=None):
@@ -118,7 +163,7 @@ class TestClient(starlette.testclient.TestClient):
             token = resp.json()['access_token']
         else:
             # Create access token using private key.
-            context = self._spinta_context
+            context = self.context
             private_key = auth.load_key(context, auth.KeyType.private)
             client = 'test-client'
             expires_in = int(datetime.timedelta(days=10).total_seconds())
