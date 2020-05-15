@@ -2,8 +2,9 @@ import itertools
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers import get_column_name, get_table_name
 from spinta.components import Context, Model
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Object, Array
 from spinta.migrations import SchemaVersion
 from spinta.utils.data import take
 
@@ -81,6 +82,35 @@ def freeze(  # noqa
     ]
 
 
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Model, Object)
+def freeze(
+    context: Context,
+    version: SchemaVersion,
+    backend: PostgreSQL,
+    freezed: Model,
+    current: Object,
+):
+    for name, prop in current.properties.items():
+        version.actions.append({
+            'type': 'schema',
+            'upgrade': {
+                'name': 'add_column',
+                'args': [
+                    get_table_name(prop),
+                    get_column_name(prop),
+                    {'name': prop.dtype.name, 'args': []},
+                ]
+            },
+            'downgrade': {
+                'name': 'drop_column',
+                'args': [
+                    get_table_name(prop),
+                    get_column_name(prop),
+                ]
+            }
+        })
+
+
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, Model, DataType)
 def freeze(  # noqa
     context: Context,
@@ -94,19 +124,64 @@ def freeze(  # noqa
         'upgrade': {
             'name': 'add_column',
             'args': [
-                current.prop.model.name,
-                current.prop.name,
+                get_table_name(current.prop),
+                get_column_name(current.prop),
                 {'name': current.name, 'args': []},
             ]
         },
         'downgrade': {
             'name': 'drop_column',
             'args': [
-                current.prop.model.name,
-                current.prop.name,
+                get_table_name(current.prop),
+                get_column_name(current.prop),
             ]
         }
     })
+
+
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Object, Object)
+def freeze(
+    context: Context,
+    version: SchemaVersion,
+    backend: PostgreSQL,
+    freezed: Object,
+    current: Object,
+):
+    for name, prop in current.properties.items():
+        if name in freezed.properties:
+            commands.freeze(context, version, backend, freezed.properties[name].dtype, prop.dtype)
+        else:
+            commands.freeze(context, version, backend, Model(), prop.dtype)
+
+
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Array, Array)
+def freeze(
+    context: Context,
+    version: SchemaVersion,
+    backend: PostgreSQL,
+    freezed: Array,
+    current: Array,
+):
+    if current.items.dtype.name != freezed.items.dtype.name:
+        version.actions.append({
+            'type': 'schema',
+            'upgrade': {
+                'name': 'alter_column',
+                'args': [
+                    get_table_name(current.prop),
+                    get_column_name(current.prop),
+                    {'name': current.name, 'args': [current.items.dtype.name]},
+                ]
+            },
+            'downgrade': {
+                'name': 'alter_column',
+                'args': [
+                    get_table_name(current.prop),
+                    get_column_name(current.prop),
+                    {'name': freezed.name, 'args': [freezed.items.dtype.name]},
+                ]
+            }
+        })
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, DataType, DataType)
@@ -123,16 +198,16 @@ def freeze(  # noqa
             'upgrade': {
                 'name': 'alter_column',
                 'args': [
-                    current.prop.model.name,
-                    current.prop.name,
+                    get_table_name(current.prop),
+                    get_column_name(current.prop),
                     {'name': current.name, 'args': []},
                 ]
             },
             'downgrade': {
                 'name': 'alter_column',
                 'args': [
-                    current.prop.model.name,
-                    current.prop.name,
+                    get_table_name(current.prop),
+                    get_column_name(current.prop),
                     {'name': freezed.name, 'args': []},
                 ]
             }

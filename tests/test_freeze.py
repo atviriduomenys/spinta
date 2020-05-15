@@ -601,3 +601,116 @@ def test_freeze_ref_in_array(rc, cli):
             'downgrade': ["drop_table('country')"],
         }
     ]
+
+
+def test_freeze_change_field_type(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'population': {
+                    'type': 'object',
+                    'properties': {
+                        'amount': {'type': 'string'}
+                    },
+                },
+                'list': {
+                    'type': 'array',
+                    'items': {'type': 'string'}
+                }
+            }
+        }
+    })
+
+    cli.invoke(rc, freeze)
+    update_manifest_files(tmpdir, {
+        'country.yml': [
+            {
+                'op': 'replace',
+                'path': '/properties/population/properties/amount/type',
+                'value': 'integer',
+            },
+            {
+                'op': 'replace',
+                'path': '/properties/list/items/type',
+                'value': 'integer',
+            }
+        ]
+    })
+
+    cli.invoke(rc, freeze)
+    manifest2 = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest2)['country.yml'][-1]['migrate'] == [
+        {
+            'type': 'schema',
+            'upgrade': [
+                "alter_column('country', 'population.amount', integer())"
+            ],
+            'downgrade': [
+                "alter_column('country', 'population.amount', string())"
+            ],
+        },
+        {
+            'type': 'schema',
+            'upgrade': ["alter_column('country', 'list', array('integer'))"],
+            'downgrade': ["alter_column('country', 'list', array('string'))"],
+        },
+    ]
+
+
+def test_freeze_add_field(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'population': {
+                    'type': 'object',
+                    'properties': {
+                        'amount': {'type': 'string'}
+                    },
+                }
+            }
+        }
+    })
+
+    cli.invoke(rc, freeze)
+    update_manifest_files(tmpdir, {
+        'country.yml': [
+            {
+                'op': 'add',
+                'path': '/properties/population/properties/code',
+                'value': {'type': 'string'}
+            },
+            {
+                'op': 'add',
+                'path': '/properties/cities',
+                'value': {
+                    'type': 'object',
+                    'properties': {
+                        'name': {'type': 'string'}
+                    }
+                }
+            }
+        ]
+    })
+
+    cli.invoke(rc, freeze)
+    manifest2 = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest2)['country.yml'][-1]['migrate'] == [
+        {
+            'type': 'schema',
+            'upgrade': ["add_column('country', 'population.code', string())"],
+            'downgrade': ["drop_column('country', 'population.code')"],
+        },
+        {
+            'type': 'schema',
+            'upgrade': ["add_column('country', 'cities.name', string())"],
+            'downgrade': ["drop_column('country', 'cities.name')"],
+        }
+    ]
