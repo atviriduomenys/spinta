@@ -603,7 +603,7 @@ def test_freeze_ref_in_array(rc, cli):
     ]
 
 
-def test_freeze_change_field_type(rc, cli):
+def test_freeze_change_field_type_in_object(rc, cli):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -617,10 +617,6 @@ def test_freeze_change_field_type(rc, cli):
                         'amount': {'type': 'string'}
                     },
                 },
-                'list': {
-                    'type': 'array',
-                    'items': {'type': 'string'}
-                }
             }
         }
     })
@@ -633,17 +629,12 @@ def test_freeze_change_field_type(rc, cli):
                 'path': '/properties/population/properties/amount/type',
                 'value': 'integer',
             },
-            {
-                'op': 'replace',
-                'path': '/properties/list/items/type',
-                'value': 'integer',
-            }
         ]
     })
 
     cli.invoke(rc, freeze)
-    manifest2 = read_manifest_files(tmpdir)
-    assert readable_manifest_files(manifest2)['country.yml'][-1]['migrate'] == [
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
             'type': 'schema',
             'upgrade': [
@@ -653,15 +644,48 @@ def test_freeze_change_field_type(rc, cli):
                 "alter_column('country', 'population.amount', string())"
             ],
         },
+    ]
+
+
+def test_freeze_change_field_type_in_list(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'flags': {
+                    'type': 'array',
+                    'items': {'type': 'string'}
+                }
+            }
+        }
+    })
+
+    cli.invoke(rc, freeze)
+    update_manifest_files(tmpdir, {
+        'country.yml': [
+            {
+                'op': 'replace',
+                'path': '/properties/flags/items/type',
+                'value': 'integer',
+            }
+        ]
+    })
+
+    cli.invoke(rc, freeze)
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
             'type': 'schema',
-            'upgrade': ["alter_column('country', 'list', array('integer'))"],
-            'downgrade': ["alter_column('country', 'list', array('string'))"],
+            'upgrade': ["alter_column('country', 'flags', array('integer'))"],
+            'downgrade': ["alter_column('country', 'flags', array('string'))"],
         },
     ]
 
 
-def test_freeze_add_field(rc, cli):
+def test_freeze_add_field_to_object(rc, cli):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -687,6 +711,36 @@ def test_freeze_add_field(rc, cli):
                 'path': '/properties/population/properties/code',
                 'value': {'type': 'string'}
             },
+        ]
+    })
+
+    cli.invoke(rc, freeze)
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
+        {
+            'type': 'schema',
+            'upgrade': ["add_column('country', 'population.code', string())"],
+            'downgrade': ["drop_column('country', 'population.code')"],
+        },
+    ]
+
+
+def test_freeze_add_field(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'name': {'type': 'string'}
+            }
+        }
+    })
+
+    cli.invoke(rc, freeze)
+    update_manifest_files(tmpdir, {
+        'country.yml': [
             {
                 'op': 'add',
                 'path': '/properties/cities',
@@ -701,13 +755,8 @@ def test_freeze_add_field(rc, cli):
     })
 
     cli.invoke(rc, freeze)
-    manifest2 = read_manifest_files(tmpdir)
-    assert readable_manifest_files(manifest2)['country.yml'][-1]['migrate'] == [
-        {
-            'type': 'schema',
-            'upgrade': ["add_column('country', 'population.code', string())"],
-            'downgrade': ["drop_column('country', 'population.code')"],
-        },
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
             'type': 'schema',
             'upgrade': ["add_column('country', 'cities.name', string())"],
