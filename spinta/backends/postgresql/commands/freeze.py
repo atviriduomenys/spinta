@@ -1,8 +1,8 @@
-import itertools
-
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_column_name, get_table_name
+from spinta.backends.postgresql.constants import TableType
+from spinta.backends.postgresql.helpers import get_column_name, get_table_name, \
+    get_pg_name
 from spinta.components import Context, Model
 from spinta.types.datatype import DataType, Object, Array
 from spinta.migrations import SchemaVersion
@@ -17,10 +17,11 @@ def freeze(
     freezed: type(None),
     current: Model,
 ):
-    props = list(itertools.chain(*[
-        freeze(context, version, backend, None, prop.dtype)
-        for prop in take(['_id', '_revision', all], current.properties).values()
-    ]))
+    props = []
+    for prop in take(['_id', '_revision', all], current.properties).values():
+        props.extend(
+            freeze(context, version, backend, prop.dtype)
+        )
     version.actions.append({
         'type': 'schema',
         'upgrade': {
@@ -43,7 +44,7 @@ def dzip(*data):
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, Model, Model)
-def freeze(  # noqa
+def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
@@ -55,17 +56,16 @@ def freeze(  # noqa
             context,
             version,
             backend,
-            freezed_prop.dtype if freezed_prop else freezed,
-            current_prop.dtype if current_prop else current,
+            freezed_prop.dtype if freezed_prop else None,
+            current_prop.dtype if current_prop else None,
         )
 
 
-@commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), DataType)
-def freeze(  # noqa
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, DataType)
+def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
-    freezed: type(None),
     current: DataType,
 ):
     return [
@@ -82,12 +82,12 @@ def freeze(  # noqa
     ]
 
 
-@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Model, Object)
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), Object)
 def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
-    freezed: Model,
+    freezed: type(None),
     current: Object,
 ):
     for name, prop in current.properties.items():
@@ -111,12 +111,12 @@ def freeze(
         })
 
 
-@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Model, DataType)
-def freeze(  # noqa
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), DataType)
+def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
-    freezed: Model,
+    freezed: type(None),
     current: DataType,
 ):
     version.actions.append({
@@ -151,7 +151,7 @@ def freeze(
         if name in freezed.properties:
             commands.freeze(context, version, backend, freezed.properties[name].dtype, prop.dtype)
         else:
-            commands.freeze(context, version, backend, Model(), prop.dtype)
+            commands.freeze(context, version, backend, None, prop.dtype)
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, Array, Array)
@@ -163,22 +163,23 @@ def freeze(
     current: Array,
 ):
     if current.items.dtype.name != freezed.items.dtype.name:
+        list_table_name = get_pg_name(get_table_name(current.prop, TableType.LIST))
         version.actions.append({
             'type': 'schema',
             'upgrade': {
                 'name': 'alter_column',
                 'args': [
-                    get_table_name(current.prop),
+                    list_table_name,
                     get_column_name(current.prop),
-                    {'name': current.name, 'args': [current.items.dtype.name]},
+                    {'name': current.items.dtype.name, 'args': []},
                 ]
             },
             'downgrade': {
                 'name': 'alter_column',
                 'args': [
-                    get_table_name(current.prop),
+                    list_table_name,
                     get_column_name(current.prop),
-                    {'name': freezed.name, 'args': [freezed.items.dtype.name]},
+                    {'name': freezed.items.dtype.name, 'args': []},
                 ]
             }
         })

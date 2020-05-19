@@ -679,8 +679,8 @@ def test_freeze_change_field_type_in_list(rc, cli):
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
             'type': 'schema',
-            'upgrade': ["alter_column('country', 'flags', array('integer'))"],
-            'downgrade': ["alter_column('country', 'flags', array('string'))"],
+            'upgrade': ["alter_column('country/:list/flags', 'flags', integer())"],
+            'downgrade': ["alter_column('country/:list/flags', 'flags', string())"],
         },
     ]
 

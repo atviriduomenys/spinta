@@ -8,12 +8,11 @@ from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers import get_table_name
 
 
-@commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), Array)
-def freeze(  # noqa
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Array)
+def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
-    freezed: type(None),
     current: Array,
 ):
     list_table_name = get_pg_name(get_table_name(current.prop, TableType.LIST))
@@ -34,7 +33,7 @@ def freeze(  # noqa
             ]}],
         },
     ]
-    props += commands.freeze(context, version, backend, None, current.items.dtype)
+    props += commands.freeze(context, version, backend, current.items.dtype)
     version.actions.append({
         'type': 'schema',
         'upgrade': {
