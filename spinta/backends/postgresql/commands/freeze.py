@@ -145,27 +145,7 @@ def freeze(
     freezed: Array,
     current: Array,
 ):
-    if current.items.dtype.name != freezed.items.dtype.name:
-        list_table_name = get_pg_name(get_table_name(current.prop, TableType.LIST))
-        version.actions.append({
-            'type': 'schema',
-            'upgrade': {
-                'name': 'alter_column',
-                'args': [
-                    list_table_name,
-                    get_column_name(current.prop),
-                    {'name': current.items.dtype.name, 'args': []},
-                ]
-            },
-            'downgrade': {
-                'name': 'alter_column',
-                'args': [
-                    list_table_name,
-                    get_column_name(current.prop),
-                    {'name': freezed.items.dtype.name, 'args': []},
-                ]
-            }
-        })
+    commands.freeze(context, version, backend, freezed.items.dtype, current.items.dtype)
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, DataType, DataType)
@@ -177,12 +157,15 @@ def freeze(  # noqa
     current: DataType,
 ):
     if freezed.name != current.name:
+        table_name = get_table_name(current.prop)
+        if current.prop.list:
+            table_name = get_pg_name(get_table_name(current.prop, TableType.LIST))
         version.actions.append({
             'type': 'schema',
             'upgrade': {
                 'name': 'alter_column',
                 'args': [
-                    get_table_name(current.prop),
+                    table_name,
                     get_column_name(current.prop),
                     {'name': current.name, 'args': []},
                 ]
@@ -190,7 +173,7 @@ def freeze(  # noqa
             'downgrade': {
                 'name': 'alter_column',
                 'args': [
-                    get_table_name(current.prop),
+                    table_name,
                     get_column_name(current.prop),
                     {'name': freezed.name, 'args': []},
                 ]
