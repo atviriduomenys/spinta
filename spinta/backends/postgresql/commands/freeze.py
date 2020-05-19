@@ -90,25 +90,8 @@ def freeze(
     freezed: type(None),
     current: Object,
 ):
-    for name, prop in current.properties.items():
-        version.actions.append({
-            'type': 'schema',
-            'upgrade': {
-                'name': 'add_column',
-                'args': [
-                    get_table_name(prop),
-                    get_column_name(prop),
-                    {'name': prop.dtype.name, 'args': []},
-                ]
-            },
-            'downgrade': {
-                'name': 'drop_column',
-                'args': [
-                    get_table_name(prop),
-                    get_column_name(prop),
-                ]
-            }
-        })
+    for _, prop in current.properties.items():
+        commands.freeze(context, version, backend, freezed, prop.dtype)
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), DataType)
