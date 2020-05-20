@@ -6,11 +6,12 @@ from spinta.types.datatype import Ref
 from spinta.migrations import SchemaVersion
 
 
-@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Ref)
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), Ref)
 def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
+    freezed: type(None),
     current: Ref,
 ):
     return [

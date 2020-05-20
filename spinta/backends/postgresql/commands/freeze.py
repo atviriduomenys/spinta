@@ -20,7 +20,7 @@ def freeze(
     props = []
     for prop in take(['_id', '_revision', all], current.properties).values():
         props.extend(
-            freeze(context, version, backend, prop.dtype)
+            freeze(context, version, backend, freezed, prop.dtype)
         )
     version.actions.append({
         'type': 'schema',
@@ -56,42 +56,9 @@ def freeze(
             context,
             version,
             backend,
-            freezed_prop.dtype if freezed_prop else None,
-            current_prop.dtype if current_prop else None,
+            freezed_prop.dtype if freezed_prop else freezed,
+            current_prop.dtype if current_prop else current,
         )
-
-
-@commands.freeze.register(Context, SchemaVersion, PostgreSQL, DataType)
-def freeze(
-    context: Context,
-    version: SchemaVersion,
-    backend: PostgreSQL,
-    current: DataType,
-):
-    return [
-        {
-            'name': 'column',
-            'args': [
-                current.prop.place,
-                {
-                    'name': current.name,
-                    'args': [],
-                },
-            ]
-        },
-    ]
-
-
-@commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), Object)
-def freeze(
-    context: Context,
-    version: SchemaVersion,
-    backend: PostgreSQL,
-    freezed: type(None),
-    current: Object,
-):
-    for _, prop in current.properties.items():
-        commands.freeze(context, version, backend, freezed, prop.dtype)
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), DataType)
@@ -100,6 +67,34 @@ def freeze(
     version: SchemaVersion,
     backend: PostgreSQL,
     freezed: type(None),
+    current: DataType,
+):
+    column = {
+        'name': 'column',
+        'args': [
+            current.prop.place,
+            {
+                'name': current.name,
+                'args': [],
+            }
+        ]
+    }
+    if current.nullable:
+        column['args'].append(
+            {
+                'name': 'nullable',
+                'args': [True],
+            }
+        )
+    return [column]
+
+
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Model, DataType)
+def freeze(
+    context: Context,
+    version: SchemaVersion,
+    backend: PostgreSQL,
+    freezed: Model,
     current: DataType,
 ):
     version.actions.append({
@@ -120,32 +115,6 @@ def freeze(
             ]
         }
     })
-
-
-@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Object, Object)
-def freeze(
-    context: Context,
-    version: SchemaVersion,
-    backend: PostgreSQL,
-    freezed: Object,
-    current: Object,
-):
-    for name, prop in current.properties.items():
-        if name in freezed.properties:
-            commands.freeze(context, version, backend, freezed.properties[name].dtype, prop.dtype)
-        else:
-            commands.freeze(context, version, backend, None, prop.dtype)
-
-
-@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Array, Array)
-def freeze(
-    context: Context,
-    version: SchemaVersion,
-    backend: PostgreSQL,
-    freezed: Array,
-    current: Array,
-):
-    commands.freeze(context, version, backend, freezed.items.dtype, current.items.dtype)
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, DataType, DataType)
@@ -176,6 +145,27 @@ def freeze(  # noqa
                     table_name,
                     get_column_name(current.prop),
                     {'name': freezed.name, 'args': []},
+                ]
+            }
+        })
+    if freezed.nullable != current.nullable:
+        version.actions.append({
+            'type': 'schema',
+            'upgrade': {
+                'name': 'alter_column',
+                'args': [
+                    get_table_name(current.prop),
+                    get_column_name(current.prop),
+                    {'name': 'nullable', 'args': [current.nullable]},
+
+                ]
+            },
+            'downgrade': {
+                'name': 'alter_column',
+                'args': [
+                    get_table_name(current.prop),
+                    get_column_name(current.prop),
+                    {'name': 'nullable', 'args': [freezed.nullable]},
                 ]
             }
         })

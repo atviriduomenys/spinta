@@ -8,11 +8,12 @@ from spinta.types.datatype import File
 from spinta.migrations import SchemaVersion
 
 
-@commands.freeze.register(Context, SchemaVersion, PostgreSQL, File)
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), File)
 def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
+    freezed: type(None),
     current: File,
 ):
     if current.backend is backend:

@@ -763,3 +763,73 @@ def test_freeze_add_field(rc, cli):
             'downgrade': ["drop_column('country', 'cities.name')"],
         }
     ]
+
+
+def test_add_nullable(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'name': {
+                    'type': 'string',
+                    'nullable': True
+                }
+            }
+        }
+    })
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
+        {
+            'type': 'schema',
+            'upgrade': ["create_table(",
+                        "    'country',",
+                        "    column('_id', pk()),",
+                        "    column('_revision', string()),",
+                        "    column('name', string(), nullable(true))",
+                        ")"],
+            'downgrade': ["drop_table('country')"],
+        }
+    ]
+
+
+def test_change_nullable(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'name': {
+                    'type': 'string',
+                    'nullable': True
+                }
+            }
+        }
+    })
+    cli.invoke(rc, freeze)
+
+    update_manifest_files(tmpdir, {
+        'country.yml': [
+            {
+                'op': 'replace',
+                'path': '/properties/name/nullable',
+                'value': False
+            }
+        ]
+    })
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
+        {
+            'downgrade': ["alter_column('country', 'name', nullable(true))"],
+            'type': 'schema',
+            'upgrade': ["alter_column('country', 'name', nullable(false))"],
+        },
+    ]
