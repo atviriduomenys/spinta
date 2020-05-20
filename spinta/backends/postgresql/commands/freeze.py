@@ -157,7 +157,6 @@ def freeze(  # noqa
                     get_table_name(current.prop),
                     get_column_name(current.prop),
                     {'name': 'nullable', 'args': [current.nullable]},
-
                 ]
             },
             'downgrade': {

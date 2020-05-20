@@ -603,7 +603,7 @@ def test_freeze_ref_in_array(rc, cli):
     ]
 
 
-def test_freeze_change_field_type_in_object(rc, cli):
+def test_change_field_type_in_object(rc, cli):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -647,7 +647,7 @@ def test_freeze_change_field_type_in_object(rc, cli):
     ]
 
 
-def test_freeze_change_field_type_in_list(rc, cli):
+def test_change_field_type_in_list(rc, cli):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -685,7 +685,7 @@ def test_freeze_change_field_type_in_list(rc, cli):
     ]
 
 
-def test_freeze_add_field_to_object(rc, cli):
+def test_add_field_to_object(rc, cli):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -725,7 +725,7 @@ def test_freeze_add_field_to_object(rc, cli):
     ]
 
 
-def test_freeze_add_field(rc, cli):
+def test_add_field(rc, cli):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -762,6 +762,68 @@ def test_freeze_add_field(rc, cli):
             'upgrade': ["add_column('country', 'cities.name', string())"],
             'downgrade': ["drop_column('country', 'cities.name')"],
         }
+    ]
+
+
+def test_change_ref_model(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'name': {'type': 'string'},
+            },
+        },
+        'continent.yml': {
+            'type': 'model',
+            'name': 'continent',
+            'properties': {
+                'name': {'type': 'string'},
+            },
+        },
+        'city.yml': {
+            'type': 'model',
+            'name': 'city',
+            'properties': {
+                'country': {
+                    'type': 'ref',
+                    'model': 'country',
+                },
+                'name': {'type': 'string'},
+            }
+        }
+    })
+    cli.invoke(rc, freeze)
+
+    update_manifest_files(tmpdir, {
+        'city.yml': [
+            {
+                'op': 'replace',
+                'path': '/properties/country/model',
+                'value': 'continent',
+            }
+        ]
+    })
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    manifest_files = readable_manifest_files(manifest)
+    assert manifest_files['city.yml'][-1]['migrate'] == [
+        {
+            'downgrade': [
+                "alter_column('city', 'country._id', ref('country._id'))",
+            ],
+            'type': 'schema',
+            'upgrade': [
+                "alter_column(",
+                "    'city',",
+                "    'country._id',",
+                "    ref('continent._id')",
+                ")",
+            ],
+        },
     ]
 
 
