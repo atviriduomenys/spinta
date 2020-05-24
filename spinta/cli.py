@@ -27,14 +27,14 @@ from spinta.auth import KeyFileExists
 from spinta.auth import create_client_file
 from spinta.commands.formats import Format
 from spinta.commands.write import write
-from spinta.components import Context, DataStream, Model
+from spinta.components import Context, DataStream, Action, Model
 from spinta.manifests.components import Manifest
 from spinta.datasets.components import Dataset
-from spinta.datasets.components import ExternalBackend
 from spinta.core.context import create_context
 from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist
 from spinta.accesslog import create_accesslog
+from spinta.types.namespace import sort_models_by_refs
 
 log = logging.getLogger(__name__)
 
@@ -322,11 +322,20 @@ def push(ctx, target, dataset, credentials, client):
         context.attach('transaction', manifest.backend.transaction)
         for backend in store.backends.values():
             context.attach(f'transaction.{backend.name}', backend.begin)
-        stream = _read_data(context, ns, dataset)
-        resp = requests.post(target, headers=headers, data=stream)
-        if resp.status_code >= 400:
-            click.echo(resp.text)
-            raise click.Abort("Error while pushing data.")
+        for keymap in store.keymaps.values():
+            context.attach(f'keymap.{keymap.name}', lambda: keymap)
+
+        from spinta.types.namespace import traverse_ns_models
+
+        models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
+        models = sort_models_by_refs(models)
+        models = reversed(list(models))
+        for model in models:
+            stream = _read_model_data(context, model)
+            resp = requests.post(target, headers=headers, data=stream)
+            if resp.status_code >= 400:
+                click.echo(resp.text)
+                raise click.Abort("Error while pushing data.")
 
 
 def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
@@ -348,64 +357,28 @@ def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
     return resp.json()['access_token']
 
 
-def _read_data(
+def _read_model_data(
     context: components.Context,
-    ns: components.Namespace,
-    dataset: Optional[str] = None,
+    model: components.Model,
 ) -> Iterable[dict]:
-    stream = commands.getall(
-        context, ns, None,
-        action=components.Action.GETALL,
-        dataset_=dataset,
-    )
-    manifest = context.get('store').manifest
+    stream = commands.getall(context, model, model.backend)
     for data in stream:
         _id = data['_id']
         _type = data['_type']
-        click.echo(f'{_type:42}  {_id}')
-        model = manifest.models[_type]
-
-        if isinstance(model.backend, ExternalBackend):
-            where = []
-            for prop in model.external.pkeys:
-                where.append({
-                    'name': 'eq',
-                    'args': [
-                        {'name': 'bind', 'args': [prop.name]},
-                        data[prop.name],
-                    ]
-                })
-
-            if len(where) > 1:
-                where = {'name': 'and', 'args': where}
-            elif len(where) == 1:
-                where = where[0]
-            else:
-                raise Exception(f"Model {model} does not have `external.pkeys`.")
-
-            payload = {
-                '_op': 'upsert',
-                '_type': _type,
-                '_where': spyna.unparse(where),
-                **{k: v for k, v in data.items() if not k.startswith('_')}
-            }
-
-        else:
-            where = {
-                'name': 'eq',
-                'args': [
-                    {'name': 'bind', 'args': ['_id']},
-                    _id,
-                ]
-            }
-            payload = {
-                '_op': 'upsert',
-                '_type': _type,
-                '_id': _id,
-                '_where': spyna.unparse(where),
-                **{k: v for k, v in data.items() if not k.startswith('_')}
-            }
-
+        where = {
+            'name': 'eq',
+            'args': [
+                {'name': 'bind', 'args': ['_id']},
+                _id,
+            ]
+        }
+        payload = {
+            '_op': 'upsert',
+            '_type': _type,
+            '_id': _id,
+            '_where': spyna.unparse(where),
+            **{k: v for k, v in data.items() if not k.startswith('_')}
+        }
         yield json.dumps(payload).encode('utf-8') + b'\n'
 
 

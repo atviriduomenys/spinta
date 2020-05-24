@@ -68,6 +68,9 @@ CONFIG = {
             'entity': 'spinta.datasets.components:Entity',
             'attribute': 'spinta.datasets.components:Attribute',
         },
+        'keymaps': {
+            'sqlalchemy': 'spinta.datasets.keymaps.sqlalchemy:SqlAlchemyKeyMap',
+        },
         'types': {
             'integer': 'spinta.types.datatype:Integer',
             'any': 'spinta.types.datatype:DataType',
@@ -245,6 +248,7 @@ CONFIG = {
                     'type': 'yaml',
                     'path': pathlib.Path() / 'tests/manifest',
                     'sync': None,
+                    'keymap': 'default',
                 },
             },
             'config_path': pathlib.Path('tests/config'),

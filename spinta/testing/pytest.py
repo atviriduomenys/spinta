@@ -1,4 +1,6 @@
+import os
 import pathlib
+import tempfile
 
 import boto3
 import moto
@@ -14,10 +16,17 @@ from spinta.core.config import read_config
 
 @pytest.fixture(scope='session')
 def rc():
-    rc = read_config()
-    rc.add('pytest', {'env': 'test'})
-    rc.lock()
-    return rc
+    with tempfile.TemporaryDirectory() as tmpdir:
+        rc = read_config()
+        rc.add('pytest', {
+            'env': 'test',
+            'keymaps.default': {
+                'type': 'sqlalchemy',
+                'dsn': 'sqlite:////' + os.path.join(tmpdir, 'keymaps.db'),
+            },
+        })
+        rc.lock()
+        yield rc
 
 
 @pytest.fixture(scope='session')

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
+
+import dataclasses
+
 import sqlalchemy as sa
 import sqlalchemy.sql.functions
 
@@ -11,7 +15,9 @@ from spinta.exceptions import PropertyNotFound
 from spinta.components import Action, Property
 from spinta.backends.components import Backend
 from spinta.types.datatype import DataType
+from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
+from spinta.utils.data import take
 
 
 class SqlQueryBuilder(Env):
@@ -20,7 +26,7 @@ class SqlQueryBuilder(Env):
         return self(
             backend=backend,
             table=table,
-            select=[table],
+            select=None,
             joins={},
             from_=table,
             sort=[],
@@ -29,7 +35,17 @@ class SqlQueryBuilder(Env):
         )
 
     def build(self, where):
-        qry = sa.select(self.select)
+        if self.select is None:
+            self.call('select', Expr('select'))
+
+        select = []
+        for sel in self.select.values():
+            if isinstance(sel.item, list):
+                select += sel.item
+            else:
+                select.append(sel.item)
+        qry = sa.select(select)
+
         qry = qry.select_from(self.from_)
 
         if where is not None:
@@ -59,8 +75,17 @@ class SqlQueryBuilder(Env):
 
             rmodel = fpr.right.model
             rtable = self.backend.get_table(rmodel)
-            rpkeys = fpr.left.dtype.refprops or rmodel.external.pkeys
-            rpkeys = [self.backend.get_column(rtable, k) for k in rpkeys]
+            rpkeys = []
+            for rpk in fpr.left.dtype.refprops:
+                if isinstance(rpk.dtype, PrimaryKey):
+                    rpkeys += [
+                        self.backend.get_column(rtable, rpk)
+                        for rpk in rmodel.external.pkeys
+                    ]
+                else:
+                    rpkeys += [
+                        self.backend.get_column(rtable, rpk)
+                    ]
 
             assert len(lrkeys) == len(rpkeys), (lrkeys, rpkeys)
             condition = []
@@ -95,6 +120,12 @@ class ForeignProperty:
 
     def __repr__(self):
         return f'<{self.name}->{self.right.name}:{self.right.dtype.name}>'
+
+
+@dataclasses.dataclass
+class Selected:
+    item: Any
+    prop: Property = None
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, Bind)
@@ -215,23 +246,21 @@ def list_(env, expr):
 
 @ufunc.resolver(SqlQueryBuilder, Expr)
 def select(env, expr):
+    keys = [str(k) for k in expr.args]
     args, kwargs = expr.resolve(env)
+    args = list(zip(keys, args)) + list(kwargs.items())
+
+    env.select = {}
 
     if args:
-        env.select = [
-            env.call('select', arg)
-            for arg in args
-        ]
+        for key, arg in args:
+            env.select[key] = env.call('select', arg)
     else:
-        env.select = [
-            env.backend.get_column(env.table, prop, select=True)
-            for prop in env.model.flatprops.values() if (
-                not prop.name.startswith('_') and
-                authorized(env.context, prop, Action.GETALL)
-            )
-        ]
+        for prop in take(['_id', all], env.model.properties).values():
+            if authorized(env.context, prop, Action.GETALL):
+                env.select[prop.place] = env.call('select', prop.dtype)
 
-    assert len(env.select) > 0, args
+    assert env.select, args
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
@@ -259,12 +288,33 @@ def _get_property_for_select(env: SqlQueryBuilder, name: str):
 def select(env, dtype):
     table = env.backend.get_table(env.model)
     column = env.backend.get_column(table, dtype.prop, select=True)
-    return column
+    return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, PrimaryKey)
+def select(env, dtype):
+    table = env.backend.get_table(env.model)
+    columns = [
+        env.backend.get_column(table, prop, select=True)
+        for prop in env.model.external.pkeys
+    ]
+    return Selected(columns, dtype.prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, Ref)
+def select(env, dtype):
+    prop = dtype.prop
+    table = env.backend.get_table(env.model)
+    if isinstance(prop.external, list):
+        raise NotImplementedError
+    else:
+        columns = [env.backend.get_column(table, prop, select=True)]
+    return Selected(columns, dtype.prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, sqlalchemy.sql.functions.Function)
 def select(env, func):
-    return func
+    return Selected(func)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, name='len')

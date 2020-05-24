@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from spinta.types.datatype import Array
     from spinta.manifests.components import Manifest
     from spinta.datasets.components import Attribute
+    from spinta.datasets.keymaps.components import KeyMap
 
 
 class Context:
@@ -286,6 +287,7 @@ class Store:
 
     def __init__(self):
         self.config = None
+        self.keymaps = {}
         self.backends = {}
         self.manifest = None
 
@@ -357,6 +359,7 @@ class Node(Component):
 
 class Namespace(Node):
     access: Access
+    keymap: KeyMap = None
 
     def model_specifier(self):
         return ':ns'
@@ -415,6 +418,7 @@ class Base(Node):
 
 class Model(MetaData):
     schema = {
+        'keymap': {'type': 'string'},
         'backend': {'type': 'string'},
         'unique': {'default': []},
         'base': {},
@@ -439,6 +443,7 @@ class Model(MetaData):
         super().__init__()
         self.unique = []
         self.extends = None
+        self.keymap = None
         self.backend = None
         self.version = None
         self.date = None
@@ -485,8 +490,16 @@ class Property(Node):
     list: Array = None
 
     def __repr__(self):
+        pypath = [type(self).__module__, type(self).__name__]
+        pypath = '.'.join(pypath)
         dtype = self.dtype.name if self.dtype else 'none'
-        return f'<{type(self).__module__}.{type(self).__name__}(name={self.name!r}, type={dtype!r})>'
+        kwargs = [
+            f'name={self.place!r}',
+            f'type={dtype!r}',
+            f'model={self.model.name!r}',
+        ]
+        kwargs = ', '.join(kwargs)
+        return f'<{pypath}({kwargs})>'
 
     def model_type(self):
         return f'{self.model.name}.{self.place}'

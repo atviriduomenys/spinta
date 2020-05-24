@@ -1,14 +1,22 @@
-from typing import Dict
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Dict
 
 import pathlib
 
 from spinta.core.enums import Access
 from spinta.components import Component, Store, MetaData
 
+if TYPE_CHECKING:
+    from spinta.backends.components import Backend
+    from spinta.datasets.keymaps.components import KeyMap
+
 
 class Manifest(Component):
     type: str = None
     name: str = None
+    keymap: KeyMap = None
+    backend: Backend = None
     parent: Component = None
     store: Store = None
     objects: Dict[str, MetaData] = None

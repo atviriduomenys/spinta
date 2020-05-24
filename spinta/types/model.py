@@ -27,16 +27,28 @@ def load(
     model.parent = manifest
     model.manifest = manifest
     load_node(context, model, data)
+
+    if model.keymap:
+        model.keymap = manifest.store.keymaps[model.keymap]
+    else:
+        model.keymap = manifest.keymap
+    if model.external and model.keymap is None:
+        raise exceptions.NoKeyMap(model)
+
     if model.backend:
         model.backend = manifest.store.backends[model.backend]
     elif source and source.backend:
         model.backend = source.backend
     else:
         model.backend = manifest.backend
+
     manifest.add_model_endpoint(model)
     load_namespace(context, manifest, model)
     model.access = load_access_param(model, model.access)
     load_model_properties(context, model, Property, data.get('properties'))
+
+    # XXX: Maybe it is worth to leave possibility to override _id access?
+    model.properties['_id'].access = model.access
 
     config = context.get('config')
 

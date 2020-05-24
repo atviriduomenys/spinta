@@ -64,6 +64,9 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
                 # Namespace nodes do not have backend.
                 context.attach(f'transaction.{backend.name}', backend.begin)
 
+            if model.keymap:
+                context.attach(f'keymap.{model.keymap.name}', lambda: model.keymap)
+
             return await commands.getall(context, request, model, backend, action=action, params=params)
 
     elif request.method == 'DELETE' and params.wipe:

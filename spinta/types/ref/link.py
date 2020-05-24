@@ -19,4 +19,6 @@ def link(context: Context, dtype: Ref) -> None:
             refprops.append(dtype.model.properties[rprop])
         dtype.refprops = refprops
     else:
-        dtype.refprops = None
+        dtype.refprops = [
+            dtype.model.properties['_id'],
+        ]

@@ -30,6 +30,7 @@ def _upload_pdf(model, app):
 )
 def test_post_accesslog(model, app, context):
     app.authmodel(model, ['insert'])
+
     resp = app.post(f'/{model}', json={'status': '42'})
     assert resp.status_code == 201, resp.json()
 
@@ -467,6 +468,7 @@ def test_get_w_select_accesslog(app, model, context):
 )
 def test_getall_accesslog(app, model, context):
     app.authmodel(model, ['insert', 'getall'])
+
     resp = app.post(f'/{model}', json={'status': '42'})
     assert resp.status_code == 201
 
