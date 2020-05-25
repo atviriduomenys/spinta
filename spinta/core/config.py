@@ -29,11 +29,11 @@ SCHEMA = {
 }
 
 
-def read_config(args=None):
+def read_config(args=None, envfile=None):
     rc = RawConfig()
     rc.read([
         Path('spinta', 'spinta.config:CONFIG'),
-        EnvFile('envfile', '.env'),
+        EnvFile('envfile', envfile or '.env'),
         EnvVars('envvars', os.environ),
         CliArgs('cliargs', args or []),
     ])

@@ -1,10 +1,17 @@
+from typing import List
+
 import csv
 import pathlib
 import textwrap
 
+from spinta import commands
+from spinta.core.config import RawConfig
 from spinta.manifests.components import Manifest
+from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.helpers import datasets_to_tabular
+from spinta.manifests.tabular.helpers import read_tabular_manifest
+from spinta.testing.context import create_test_context
 
 
 SHORT_NAMES = {
@@ -53,13 +60,41 @@ def _read_tabular_manifest(header, lines):
         yield row
 
 
-def render_tabular_manifest(manifest: Manifest) -> str:
+def load_tabular_manifest(rc: RawConfig, path: pathlib.Path):
+    rc = rc.fork({
+        'manifest': 'default',
+        'manifests': {
+            'default': {
+                'type': 'tabular',
+                'path': str(path),
+                'keymap': 'default',
+            },
+        },
+    })
+
+    context = create_test_context(rc)
+
+    config = context.get('config')
+    commands.load(context, config)
+
+    store = context.get('store')
+    commands.load(context, store)
+
+    schemas = read_tabular_manifest(path)
+    load_manifest_nodes(context, store.manifest, schemas)
+
+    commands.link(context, store.manifest)
+
+    return store.manifest
+
+
+def render_tabular_manifest(manifest: Manifest, cols: List[str] = None) -> str:
     rows = datasets_to_tabular(manifest)
-    cols = DATASET
-    hs = 1                       # hierachical cols start
-    he = cols.index('property')  # hierachical cols end
-    hsize = 1                    # hierachical column size
-    bsize = 3                    # border size
+    cols = cols or DATASET
+    hs = 1 if 'id' in cols else 0  # hierachical cols start
+    he = cols.index('property')    # hierachical cols end
+    hsize = 1                      # hierachical column size
+    bsize = 3                      # border size
     sizes = dict(
         [(c, len(c)) for c in cols[:hs]] +
         [(c, 1) for c in cols[hs:he]] +
@@ -82,13 +117,14 @@ def render_tabular_manifest(manifest: Manifest) -> str:
     for col in cols:
         size = sizes[col]
         line.append(col[:size].ljust(size))
+    lines = [line]
 
     depth = 0
-    lines = [line]
     for row in rows:
-        line = [
-            row['id'][:2] if row['id'] else '  '
-        ]
+        if 'id' in cols:
+            line = [row['id'][:2] if row['id'] else '  ']
+        else:
+            line = []
 
         for i, col in enumerate(cols[hs:he + 1]):
             val = row[col] or ''
@@ -97,10 +133,15 @@ def render_tabular_manifest(manifest: Manifest) -> str:
                 break
         else:
             val = ''
-            if depth < he - hs:
+            if 'base' in cols:
+                if 'id' in cols:
+                    depth = cols.index('base') - 1
+                else:
+                    depth = cols.index('base')
+            elif depth < he - hs:
                 depth += 1
             else:
-                depth = 2
+                depth = 0
 
         line += [' ' * hsize] * depth
         size = (hsize + bsize) * (he - hs - depth) + sizes['property']

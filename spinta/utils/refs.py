@@ -5,6 +5,7 @@ import msgpack
 
 
 def get_ref_id(value):
+    # XXX: deprecated use spinta.datasets.helpers.encode_primary_key
     if isinstance(value, list):
         value = list(value)
     else:

@@ -57,6 +57,8 @@ def _configure_manifest(
     manifest.parent = None
     manifest.access = rc.get('manifests', name, 'access') or 'protected'
     manifest.access = enum_by_name(manifest, 'access', Access, manifest.access)
+    manifest.keymap = rc.get('manifests', name, 'keymap', default=None)
+    manifest.keymap = store.keymaps[manifest.keymap] if manifest.keymap else None
     manifest.backend = rc.get('manifests', name, 'backend', default=backend)
     manifest.backend = store.backends[manifest.backend]
     manifest.endpoints = {}

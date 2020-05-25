@@ -25,16 +25,20 @@ from spinta.auth import load_key
 from spinta.auth import gen_auth_server_keys
 from spinta.auth import KeyFileExists
 from spinta.auth import create_client_file
+from spinta.auth import create_client_access_token
+from spinta.auth import Token
+from spinta.auth import BearerTokenValidator
 from spinta.commands.formats import Format
 from spinta.commands.write import write
-from spinta.components import Context, DataStream, Model
+from spinta.components import Context, DataStream, Action, Model
 from spinta.manifests.components import Manifest
 from spinta.datasets.components import Dataset
-from spinta.datasets.components import ExternalBackend
 from spinta.core.context import create_context
 from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist
+from spinta.utils.json import fix_data_for_json
 from spinta.accesslog import create_accesslog
+from spinta.types.namespace import sort_models_by_refs
 
 log = logging.getLogger(__name__)
 
@@ -43,9 +47,10 @@ log = logging.getLogger(__name__)
 @click.option('--option', '-o', multiple=True, help=(
     "Set configuration option, example: `-o option.name=value`."
 ))
+@click.option('--env-file', help="Load configuration from a given .env file.")
 @click.pass_context
-def main(ctx, option):
-    ctx.obj = ctx.obj or create_context('cli', args=option)
+def main(ctx, option, env_file):
+    ctx.obj = ctx.obj or create_context('cli', args=option, envfile=env_file)
 
 
 @main.command()
@@ -286,8 +291,9 @@ async def _process_stream(
 @click.option('--dataset', '-d', help="Push only specified dataset.")
 @click.option('--credentials', '-r', help="Credentials file.")
 @click.option('--client', '-c', help="Client name from credentials file.")
+@click.option('--auth', '-a', help="Authorize as client.")
 @click.pass_context
-def push(ctx, target, dataset, credentials, client):
+def push(ctx, target, dataset, credentials, client, auth):
     context = ctx.obj
 
     config = context.get('config')
@@ -296,6 +302,7 @@ def push(ctx, target, dataset, credentials, client):
 
     store = context.get('store')
     commands.load(context, store)
+    click.echo(f"Loading manifest {store.manifest.name}...")
     commands.load(context, store.manifest)
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)
@@ -313,7 +320,8 @@ def push(ctx, target, dataset, credentials, client):
     ns = manifest.objects['ns']['']
 
     with context:
-        _require_auth(context)
+        _require_auth(context, auth)
+        click.echo(f"Get access token from {target}")
         token = _get_access_token(credentials, client, target)
         headers = {
             'Content-Type': 'application/x-ndjson',
@@ -322,16 +330,30 @@ def push(ctx, target, dataset, credentials, client):
         context.attach('transaction', manifest.backend.transaction)
         for backend in store.backends.values():
             context.attach(f'transaction.{backend.name}', backend.begin)
-        stream = _read_data(context, ns, dataset)
-        resp = requests.post(target, headers=headers, data=stream)
-        if resp.status_code >= 400:
-            click.echo(resp.text)
-            raise click.Abort("Error while pushing data.")
+        for keymap in store.keymaps.values():
+            context.attach(f'keymap.{keymap.name}', lambda: keymap)
+
+        from spinta.types.namespace import traverse_ns_models
+
+        models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
+        models = sort_models_by_refs(models)
+        models = list(reversed(list(models)))
+        total = len(models)
+        click.echo(f"Push {total} models..")
+        for i, model in enumerate(models, 1):
+            click.echo(f"({i}/{total}) {model.name}")
+            stream = _read_model_data(context, model)
+            resp = requests.post(target, headers=headers, data=stream)
+            if resp.status_code >= 400:
+                click.echo(resp.text)
+                raise click.Abort("Error while pushing data.")
 
 
 def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
     url = urllib.parse.urlparse(url)
     section = f'{client}@{url.hostname}'
+    if url.port:
+        section += f':{url.port}'
     creds = configparser.ConfigParser()
     creds.read(credsfile)
     auth = (
@@ -348,64 +370,29 @@ def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
     return resp.json()['access_token']
 
 
-def _read_data(
+def _read_model_data(
     context: components.Context,
-    ns: components.Namespace,
-    dataset: Optional[str] = None,
+    model: components.Model,
 ) -> Iterable[dict]:
-    stream = commands.getall(
-        context, ns, None,
-        action=components.Action.GETALL,
-        dataset_=dataset,
-    )
-    manifest = context.get('store').manifest
+    stream = commands.getall(context, model, model.backend)
     for data in stream:
         _id = data['_id']
         _type = data['_type']
-        click.echo(f'{_type:42}  {_id}')
-        model = manifest.models[_type]
-
-        if isinstance(model.backend, ExternalBackend):
-            where = []
-            for prop in model.external.pkeys:
-                where.append({
-                    'name': 'eq',
-                    'args': [
-                        {'name': 'bind', 'args': [prop.name]},
-                        data[prop.name],
-                    ]
-                })
-
-            if len(where) > 1:
-                where = {'name': 'and', 'args': where}
-            elif len(where) == 1:
-                where = where[0]
-            else:
-                raise Exception(f"Model {model} does not have `external.pkeys`.")
-
-            payload = {
-                '_op': 'upsert',
-                '_type': _type,
-                '_where': spyna.unparse(where),
-                **{k: v for k, v in data.items() if not k.startswith('_')}
-            }
-
-        else:
-            where = {
-                'name': 'eq',
-                'args': [
-                    {'name': 'bind', 'args': ['_id']},
-                    _id,
-                ]
-            }
-            payload = {
-                '_op': 'upsert',
-                '_type': _type,
-                '_id': _id,
-                '_where': spyna.unparse(where),
-                **{k: v for k, v in data.items() if not k.startswith('_')}
-            }
-
+        where = {
+            'name': 'eq',
+            'args': [
+                {'name': 'bind', 'args': ['_id']},
+                _id,
+            ]
+        }
+        payload = {
+            '_op': 'upsert',
+            '_type': _type,
+            '_id': _id,
+            '_where': spyna.unparse(where),
+            **{k: v for k, v in data.items() if not k.startswith('_')}
+        }
+        payload = fix_data_for_json(payload)
         yield json.dumps(payload).encode('utf-8') + b'\n'
 
 
@@ -531,10 +518,18 @@ def decode_token(ctx):
     click.echo(json.dumps(token, indent='  '))
 
 
-def _require_auth(context: Context):
+def _require_auth(context: Context, client: str = None):
     # TODO: probably commands should also use an exsiting token in order to
     #       track who changed what.
-    context.set('auth.token', AdminToken())
+    if client is None:
+        token = AdminToken()
+    else:
+        if client == 'default':
+            config = context.get('config')
+            client = config.default_auth_client
+        token = create_client_access_token(context, client)
+        token = Token(token, BearerTokenValidator(context))
+    context.set('auth.token', token)
     context.attach('accesslog', create_accesslog, context, loaders=(
         context.get('store'),
         context.get("auth.token"),

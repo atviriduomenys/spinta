@@ -1,18 +1,20 @@
-from typing import Iterator, Optional, Tuple
+from typing import Iterator, Optional, Tuple, Iterable
 
 import csv
+import pathlib
 
 from spinta import spyna
+from spinta.core.enums import Access
 from spinta.components import Model
+from spinta.types.datatype import Ref
 from spinta.manifests.components import Manifest
-from spinta.manifests.tabular.components import TabularManifest
 from spinta.manifests.tabular.constants import DATASET
 
 
 def read_tabular_manifest(
-    manifest: TabularManifest
+    path: pathlib.Path
 ) -> Iterator[Tuple[int, Optional[dict]]]:
-    with manifest.path.open() as f:
+    with path.open() as f:
         reader = csv.reader(f)
         header = next(reader, None)
         if header is None:
@@ -203,7 +205,10 @@ def read_tabular_manifest(
                         assert fmodel['name'] == 'bind', ref
                         assert len(fmodel['args']) == 1, ref
                         fmodel = fmodel['args'][0]
-                        prop['schema']['model'] = get_relative_model_name(dataset, fmodel)
+                        prop['schema']['model'] = get_relative_model_name(
+                            dataset,
+                            fmodel,
+                        )
                         if group:
                             prop['schema']['refprops'] = []
                             for p in group:
@@ -238,6 +243,8 @@ def get_relative_model_name(dataset: dict, name: str) -> str:
 
 def to_relative_model_name(base: Model, model: Model) -> str:
     """Convert absolute model `name` to relative."""
+    if model.external is None:
+        return model.name
     if base.external.dataset.name == model.external.dataset.name:
         prefix = base.external.dataset.name
         return model.name[len(prefix) + 1:]
@@ -252,68 +259,102 @@ def tabular_eid(model: Model):
         return 0
 
 
-def datasets_to_tabular(manifest: Manifest):
+def datasets_to_tabular(
+    manifest: Manifest,
+    *,
+    external: bool = True,
+    access: Access = Access.private,
+):
     dataset = None
     resource = None
-    for model in sorted(manifest.objects['model'].values(), key=tabular_eid):
-        if not model.external:
+    for model in sorted(manifest.models.values(), key=tabular_eid):
+        if model.access < access:
             continue
 
-        if dataset is None or dataset.name != model.external.dataset.name:
-            dataset = model.external.dataset
-            yield torow(DATASET, {
-                'id': dataset.id,
-                'dataset': dataset.name,
-                'level': dataset.level,
-                'access': dataset.access.name,
-                'title': dataset.title,
-                'description': dataset.description,
-            })
+        if external and model.external:
+            if dataset is None or dataset.name != model.external.dataset.name:
+                dataset = model.external.dataset
+                yield torow(DATASET, {
+                    'id': dataset.id,
+                    'dataset': dataset.name,
+                    'level': dataset.level,
+                    'access': dataset.access.name,
+                    'title': dataset.title,
+                    'description': dataset.description,
+                })
 
-        if resource is None or resource.name != model.external.resource.name:
-            resource = model.external.resource
-            yield torow(DATASET, {
-                'resource': resource.name,
-                'source': resource.external,
-                'ref': resource.backend.name if resource.backend else '',
-                'level': resource.level,
-                'access': resource.access.name,
-                'title': resource.title,
-                'description': resource.description,
-            })
+            if resource is None or resource.name != model.external.resource.name:
+                resource = model.external.resource
+                yield torow(DATASET, {
+                    'resource': resource.name,
+                    'source': resource.external,
+                    'ref': resource.backend.name if resource.backend else '',
+                    'level': resource.level,
+                    'access': resource.access.name,
+                    'title': resource.title,
+                    'description': resource.description,
+                })
 
         yield torow(DATASET, {})
 
         data = {
             'id': model.id,
-            'model': to_relative_model_name(model, model),
-            'source': ','.join(model.external.name),
-            'prepare': spyna.unparse(model.external.prepare) if model.external.prepare else None,
-            'ref': ','.join([p.name for p in model.external.pkeys]),
+            'model': model.name,
             'level': model.level,
             'access': model.access.name,
             'title': model.title,
             'description': model.description,
         }
+        if external and model.external:
+            data.update({
+                'model': to_relative_model_name(model, model),
+                'source': model.external.name,
+                'prepare': spyna.unparse(model.external.prepare) if model.external.prepare else None,
+                'ref': ','.join([p.name for p in model.external.pkeys]),
+            })
         yield torow(DATASET, data)
 
         for prop in model.properties.values():
             if prop.name.startswith('_'):
                 continue
+
+            if prop.access < access:
+                continue
+
             data = {
-                'property': prop.name,
-                'source': prop.external.name if prop.external else None,
-                'prepare': spyna.unparse(prop.external.prepare) if prop.external and prop.external.prepare else None,
+                'property': prop.place,
                 'type': prop.dtype.name,
                 'level': prop.level,
                 'access': prop.access.name,
                 'title': prop.title,
                 'description': prop.description,
             }
-            if prop.dtype.name == 'ref':
-                data['ref'] = to_relative_model_name(model, prop.dtype.model)
+            if external and prop.external:
+                if isinstance(prop.external, list):
+                    data['source'] = ', '.join(x.name for x in prop.external)
+                    data['prepare'] = ', '.join(
+                        spyna.unparse(x.prepare)
+                        for x in prop.external if x.prepare
+                    )
+                elif prop.external:
+                    data['source'] = prop.external.name
+                    if prop.external.prepare:
+                        data['prepare'] = spyna.unparse(prop.external.prepare)
+
+                if isinstance(prop.dtype, Ref):
+                    data['ref'] = to_relative_model_name(model, prop.dtype.model)
+            else:
+                if isinstance(prop.dtype, Ref):
+                    data['ref'] = prop.dtype.model.name
             yield torow(DATASET, data)
 
 
 def torow(keys, values):
     return {k: values.get(k) for k in keys}
+
+
+def write_tabular_manifest(file: pathlib.Path, rows: Iterable[dict]):
+    with file.open('w') as f:
+        writer = csv.DictWriter(f, fieldnames=DATASET)
+        writer.writeheader()
+        writer.writerows(rows)

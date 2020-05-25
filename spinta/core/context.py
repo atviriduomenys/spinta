@@ -5,9 +5,9 @@ from spinta.core.config import read_config
 from spinta.utils.imports import importstr
 
 
-def create_context(name='spinta', rc=None, context=None, args=None):
+def create_context(name='spinta', rc=None, context=None, args=None, envfile=None):
     if rc is None:
-        rc = read_config(args)
+        rc = read_config(args, envfile)
 
     load_commands(rc.get('commands', 'modules', cast=list))
 

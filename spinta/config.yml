@@ -54,6 +54,19 @@ accesslog:
         type: string
         default: stdout
 
+keymaps:
+  type: object
+  keys:
+    type: string
+  values:
+    type: object
+    items:
+      type:
+        type: ref
+        ref: components.keymaps
+      dsn:
+        type: string
+
 backends:
   type: object
   keys:
@@ -95,6 +108,9 @@ manifests:
       backend:
         type: ref
         ref: backends
+      keymap:
+        type: ref
+        ref: keymaps
       sync:
         type: ref
         ref: manifests

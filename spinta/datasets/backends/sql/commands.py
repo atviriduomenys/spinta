@@ -1,5 +1,4 @@
 import logging
-import uuid
 
 import sqlalchemy as sa
 import sqlalchemy.exc
@@ -11,6 +10,8 @@ from spinta.core.config import RawConfig
 from spinta.components import Context
 from spinta.components import Model
 from spinta.manifests.components import Manifest
+from spinta.types.datatype import PrimaryKey
+from spinta.types.datatype import Ref
 from spinta.datasets.utils import iterparams
 from spinta.datasets.backends.sql.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
@@ -69,11 +70,6 @@ def getall(
     conn = context.get(f'transaction.{backend.name}')
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
-    props = {
-        p.external.name: p.name
-        for p in model.properties.values()
-        if p.external
-    }
 
     if model.external.prepare:
         prepare = asttoexpr(model.external.prepare)
@@ -89,6 +85,8 @@ def getall(
         else:
             query = prepare
 
+    keymap = context.get(f'keymap.{model.keymap.name}')
+
     for params in iterparams(model):
         table = model.external.name.format(**params)
         table = backend.get_table(model, table)
@@ -99,11 +97,22 @@ def getall(
         qry = env.build(where)
 
         for row in conn.execute(qry):
-            row = {
-                props[k]: v
-                for k, v in row.items()
-                if k in props
+            res = {
+                '_type': model.model_type(),
             }
-            row['_type'] = model.model_type()
-            row['_id'] = str(uuid.uuid4())
-            yield commands.cast_backend_to_python(context, model, backend, row)
+            for key, sel in env.select.items():
+                if sel.prop:
+                    if isinstance(sel.prop.dtype, PrimaryKey):
+                        val = [row[k] for k in sel.item]
+                        val = keymap.encode(model.model_type(), val)
+                    elif isinstance(sel.prop.dtype, Ref):
+                        val = [row[k] for k in sel.item]
+                        val = keymap.encode(sel.prop.dtype.model.model_type(), val)
+                        val = {'_id': val}
+                    else:
+                        val = row[sel.item]
+                else:
+                    val = row[sel.item]
+                res[key] = val
+            res = commands.cast_backend_to_python(context, model, backend, res)
+            yield res

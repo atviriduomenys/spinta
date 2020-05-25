@@ -433,3 +433,7 @@ class NoTokenValidationKey(UserError):
 
 class NoExternalName(UserError):
     template = "Property {property} does not have 'external' name."
+
+
+class NoKeyMap(UserError):
+    template = "Key map is not configured."

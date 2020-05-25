@@ -1,0 +1,7 @@
+client_id: test
+client_secret: secret
+client_secret_hash: pbkdf2$sha256$588330$R3lZVmet9DgWjhRtkzHvBg$hRMg81e5XDqBAXtcWcj3LkCTslzhr2WZzR0-AF3J7zE
+scopes:
+  - spinta_set_meta_fields
+  - spinta_datasets_gov_vpt_old_upsert
+  - spinta_datasets_gov_vpt_new_upsert

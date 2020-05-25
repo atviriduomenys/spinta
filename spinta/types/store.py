@@ -18,6 +18,15 @@ def load(context: Context, store: Store) -> Store:
     rc = context.get('rc')
     config = context.get('config')
 
+    # Load keymaps
+    store.keymaps = {}
+    for name in rc.keys('keymaps'):
+        keymap_type = rc.get('keymaps', name, 'type', required=True)
+        KeyMap = config.components['keymaps'][keymap_type]
+        keymap = store.keymaps[name] = KeyMap()
+        keymap.name = name
+        commands.configure(context, keymap)
+
     # Load backends
     store.backends = {}
     for name in rc.keys('backends'):
@@ -25,7 +34,7 @@ def load(context: Context, store: Store) -> Store:
         Backend = config.components['backends'][btype]
         backend = store.backends[name] = Backend()
         backend.name = name
-        load(context, backend, rc)
+        commands.load(context, backend, rc)
 
     # Create default manifest instance
     manifest = rc.get('manifest', required=True)

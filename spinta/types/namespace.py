@@ -1,4 +1,4 @@
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Iterator
 
 import collections
 import itertools
@@ -256,24 +256,35 @@ def in_namespace(node: Node, parent: Node) -> bool:  # noqa
     return False
 
 
-@commands.wipe.register()
+@commands.wipe.register(Context, Namespace, type(None))
 def wipe(context: Context, ns: Namespace, backend: type(None)):
     commands.authorize(context, Action.WIPE, ns)
+    models = traverse_ns_models(context, ns, Action.WIPE)
+    models = sort_models_by_refs(models)
+    for model in models:
+        commands.wipe(context, model, model.backend)
 
-    models = {
-        model.model_type(): model
-        for model in traverse_ns_models(context, ns, Action.WIPE)
-    }
 
+def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
+    models = {model.model_type(): model for model in models}
     graph = collections.defaultdict(set)
     for name, model in models.items():
-        if name not in graph:
-            graph[name] = set()
-        for prop in model.properties.values():
-            if prop.dtype.name == 'ref':
-                graph[prop.dtype.model.model_type()].add(name)
+        graph[''].add(name)
+        for prop in iter_model_refs(model):
+            ref = prop.dtype.model.model_type()
+            if ref in models:
+                graph[ref].add(name)
+    graph = toposort(graph)
+    seen = {''}
+    for group in graph:
+        for name in sorted(group):
+            if name in seen:
+                continue
+            seen.add(name)
+            yield models[name]
 
-    for names in toposort(graph):
-        for name in names:
-            model = models[name]
-            commands.wipe(context, model, model.backend)
+
+def iter_model_refs(model: Model):
+    for prop in model.properties.values():
+        if prop.dtype.name == 'ref':
+            yield prop
