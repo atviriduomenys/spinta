@@ -182,6 +182,10 @@ CONFIG = {
 
     'environments': {
         'dev': {
+            'keymaps.default': {
+                'type': 'sqlalchemy',
+                'dsn': 'sqlite:///var/keymaps.db',
+            },
             'backends': {
                 'default': {
                     'type': 'postgresql',
@@ -209,6 +213,7 @@ CONFIG = {
                     'type': 'yaml',
                     'path': pathlib.Path() / 'tests/manifest',
                     'sync': None,
+                    'keymap': 'default',
                 },
                 'yaml': {
                     'path': pathlib.Path() / 'tests/manifest',

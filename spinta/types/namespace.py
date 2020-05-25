@@ -271,7 +271,9 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
     for name, model in models.items():
         graph[''].add(name)
         for prop in iter_model_refs(model):
-            graph[prop.dtype.model.model_type()].add(name)
+            ref = prop.dtype.model.model_type()
+            if ref in models:
+                graph[ref].add(name)
     graph = toposort(graph)
     seen = {''}
     for group in graph:

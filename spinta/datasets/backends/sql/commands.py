@@ -114,4 +114,5 @@ def getall(
                 else:
                     val = row[sel.item]
                 res[key] = val
-            yield commands.cast_backend_to_python(context, model, backend, res)
+            res = commands.cast_backend_to_python(context, model, backend, res)
+            yield res

@@ -34,7 +34,7 @@ def load(
             into.name,
             manifest.path.resolve(),
         )
-        schemas = read_tabular_manifest(manifest)
+        schemas = read_tabular_manifest(manifest.path)
         load_manifest_nodes(context, into, schemas, source=manifest)
     else:
         log.info(
@@ -42,5 +42,5 @@ def load(
             manifest.name,
             manifest.path.resolve(),
         )
-        schemas = read_tabular_manifest(manifest)
+        schemas = read_tabular_manifest(manifest.path)
         load_manifest_nodes(context, manifest, schemas)
