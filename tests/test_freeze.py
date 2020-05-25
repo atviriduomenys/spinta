@@ -636,12 +636,20 @@ def test_change_field_type_in_object(rc, cli):
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
+            'downgrade': [
+                'alter_column(',
+                "    'country',",
+                "    'population.amount',",
+                '    type_: string()',
+                ')',
+            ],
             'type': 'schema',
             'upgrade': [
-                "alter_column('country', 'population.amount', integer())"
-            ],
-            'downgrade': [
-                "alter_column('country', 'population.amount', string())"
+                'alter_column(',
+                "    'country',",
+                "    'population.amount',",
+                '    type_: integer()',
+                ')',
             ],
         },
     ]
@@ -678,9 +686,21 @@ def test_change_field_type_in_list(rc, cli):
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
+            'downgrade': [
+                'alter_column(',
+                "    'country/:list/flags',",
+                "    'flags',",
+                '    type_: string()',
+                ')',
+            ],
             'type': 'schema',
-            'upgrade': ["alter_column('country/:list/flags', 'flags', integer())"],
-            'downgrade': ["alter_column('country/:list/flags', 'flags', string())"],
+            'upgrade': [
+                'alter_column(',
+                "    'country/:list/flags',",
+                "    'flags',",
+                '    type_: integer()',
+                ')',
+            ],
         },
     ]
 
@@ -765,69 +785,7 @@ def test_add_field(rc, cli):
     ]
 
 
-def test_change_ref_model(rc, cli):
-    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
-
-    create_manifest_files(tmpdir, {
-        'country.yml': {
-            'type': 'model',
-            'name': 'country',
-            'properties': {
-                'name': {'type': 'string'},
-            },
-        },
-        'continent.yml': {
-            'type': 'model',
-            'name': 'continent',
-            'properties': {
-                'name': {'type': 'string'},
-            },
-        },
-        'city.yml': {
-            'type': 'model',
-            'name': 'city',
-            'properties': {
-                'country': {
-                    'type': 'ref',
-                    'model': 'country',
-                },
-                'name': {'type': 'string'},
-            }
-        }
-    })
-    cli.invoke(rc, freeze)
-
-    update_manifest_files(tmpdir, {
-        'city.yml': [
-            {
-                'op': 'replace',
-                'path': '/properties/country/model',
-                'value': 'continent',
-            }
-        ]
-    })
-    cli.invoke(rc, freeze)
-
-    manifest = read_manifest_files(tmpdir)
-    manifest_files = readable_manifest_files(manifest)
-    assert manifest_files['city.yml'][-1]['migrate'] == [
-        {
-            'downgrade': [
-                "alter_column('city', 'country._id', ref('country._id'))",
-            ],
-            'type': 'schema',
-            'upgrade': [
-                "alter_column(",
-                "    'city',",
-                "    'country._id',",
-                "    ref('continent._id')",
-                ")",
-            ],
-        },
-    ]
-
-
-def test_add_nullable(rc, cli):
+def test_freeze_nullable(rc, cli):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -852,7 +810,7 @@ def test_add_nullable(rc, cli):
                         "    'country',",
                         "    column('_id', pk()),",
                         "    column('_revision', string()),",
-                        "    column('name', string(), nullable(true))",
+                        "    column('name', string(), nullable: true)",
                         ")"],
             'downgrade': ["drop_table('country')"],
         }
@@ -890,8 +848,56 @@ def test_change_nullable(rc, cli):
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
-            'downgrade': ["alter_column('country', 'name', nullable(true))"],
+            'downgrade': ["alter_column('country', 'name', nullable: true)"],
             'type': 'schema',
-            'upgrade': ["alter_column('country', 'name', nullable(false))"],
+            'upgrade': ["alter_column('country', 'name', nullable: false)"],
+        },
+    ]
+
+
+def test_add_nullable_column(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'name': {'type': 'string'},
+            },
+        },
+    })
+    cli.invoke(rc, freeze)
+
+    update_manifest_files(tmpdir, {
+        'country.yml': [
+            {
+                'op': 'add',
+                'path': '/properties/flag',
+                'value': {
+                    'type': 'string',
+                    'nullable': True,
+                },
+            }
+        ]
+    })
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    manifest_files = readable_manifest_files(manifest)
+    assert manifest_files['country.yml'][-1]['migrate'] == [
+        {
+            'downgrade': [
+                "drop_column('country', 'flag')",
+            ],
+            'type': 'schema',
+            'upgrade': [
+                "add_column(",
+                "    'country',",
+                "    'flag',",
+                "    string(),",
+                "    nullable: true",
+                ")",
+            ],
         },
     ]

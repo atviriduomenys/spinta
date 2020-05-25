@@ -40,13 +40,13 @@ def freeze(
     current: Object,
 ):
     for name in set(freezed.properties) | set(current.properties):
-        freezed_dtype = Model()
-        if freezed.properties.get(name):
-            freezed_dtype = freezed.properties.get(name).dtype
+        freezed_dtype = freezed.prop.model
+        if name in freezed.properties:
+            freezed_dtype = freezed.properties[name].dtype
 
-        current_dtype = Model()
-        if current.properties.get(name):
-            current_dtype = current.properties.get(name).dtype
+        current_dtype = current.prop.model
+        if name in current.properties:
+            current_dtype = current.properties[name].dtype
 
         commands.freeze(
             context,

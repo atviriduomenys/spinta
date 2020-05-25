@@ -80,12 +80,7 @@ def freeze(
         ]
     }
     if current.nullable:
-        column['args'].append(
-            {
-                'name': 'nullable',
-                'args': [True],
-            }
-        )
+        column['args'].append({'name': 'bind', 'args': ['nullable', True]})
     return [column]
 
 
@@ -97,16 +92,20 @@ def freeze(
     freezed: Model,
     current: DataType,
 ):
+    upgrade = {
+        'name': 'add_column',
+        'args': [
+            get_table_name(current.prop),
+            get_column_name(current.prop),
+            {'name': current.name, 'args': []},
+        ]
+    }
+    if current.nullable:
+        upgrade['args'].append({'name': 'bind', 'args': ['nullable', True]})
+
     version.actions.append({
         'type': 'schema',
-        'upgrade': {
-            'name': 'add_column',
-            'args': [
-                get_table_name(current.prop),
-                get_column_name(current.prop),
-                {'name': current.name, 'args': []},
-            ]
-        },
+        'upgrade': upgrade,
         'downgrade': {
             'name': 'drop_column',
             'args': [
@@ -118,25 +117,31 @@ def freeze(
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, DataType, DataType)
-def freeze(  # noqa
+def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
     freezed: DataType,
     current: DataType,
 ):
+    table_name = get_table_name(current.prop)
+    if current.prop.list:
+        table_name = get_pg_name(get_table_name(current.prop, TableType.LIST))
     if freezed.name != current.name:
-        table_name = get_table_name(current.prop)
-        if current.prop.list:
-            table_name = get_pg_name(get_table_name(current.prop, TableType.LIST))
-        version.actions.append({
+        actions = {
             'type': 'schema',
             'upgrade': {
                 'name': 'alter_column',
                 'args': [
                     table_name,
                     get_column_name(current.prop),
-                    {'name': current.name, 'args': []},
+                    {
+                        'name': 'bind',
+                        'args': [
+                            'type_',
+                            {'name': current.name, 'args': []}
+                        ]
+                    },
                 ]
             },
             'downgrade': {
@@ -144,27 +149,41 @@ def freeze(  # noqa
                 'args': [
                     table_name,
                     get_column_name(current.prop),
-                    {'name': freezed.name, 'args': []},
+                    {
+                        'name': 'bind',
+                        'args': [
+                            'type_',
+                            {'name': freezed.name, 'args': []}
+                        ]
+                    },
                 ]
             }
-        })
-    if freezed.nullable != current.nullable:
+        }
+        if freezed.nullable != current.nullable:
+            actions['upgrade']['args'].append(
+                {'name': 'bind', 'args': ['nullable', current.nullable]}
+            )
+            actions['downgrade']['args'].append(
+                {'name': 'bind', 'args': ['nullable', freezed.nullable]}
+            )
+        version.actions.append(actions)
+    elif freezed.nullable != current.nullable:
         version.actions.append({
             'type': 'schema',
             'upgrade': {
                 'name': 'alter_column',
                 'args': [
-                    get_table_name(current.prop),
+                    table_name,
                     get_column_name(current.prop),
-                    {'name': 'nullable', 'args': [current.nullable]},
+                    {'name': 'bind', 'args': ['nullable', current.nullable]},
                 ]
             },
             'downgrade': {
                 'name': 'alter_column',
                 'args': [
-                    get_table_name(current.prop),
+                    table_name,
                     get_column_name(current.prop),
-                    {'name': 'nullable', 'args': [freezed.nullable]},
+                    {'name': 'bind', 'args': ['nullable', freezed.nullable]},
                 ]
             }
         })
