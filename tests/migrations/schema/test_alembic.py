@@ -59,25 +59,3 @@ def test_drop_table(engine, ufunc):
     table.create()
     ufunc('drop_table("_test_table")')
     assert not table.exists()
-
-
-def test_alter_column_type(engine, ufunc, request):
-    meta = sa.MetaData(engine)
-    table = sa.Table(
-        '_test_alter_column_table',
-        meta,
-        sa.Column('id', sa.String()),
-    )
-    table.create()
-    ufunc('''
-    alter_column(
-        '_test_alter_column_table',
-        'id',
-        type_: integer()
-    )
-    ''')
-
-    meta = sa.MetaData(engine)
-    request.addfinalizer(meta.drop_all)
-    table = sa.Table('_test_alter_column_table', meta, autoload=True)
-    assert str(table.columns.values()[0].type) == 'INTEGER'

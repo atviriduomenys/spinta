@@ -29,22 +29,6 @@ class Alembic(Env):
 
 
 @ufunc.resolver(Alembic, Expr)
-def alter_column(env, expr):
-    args, kwargs = expr.resolve(env)
-    table, name, *args = args
-    if isinstance(table, Bind):
-        table = table.name
-    if 'type_' in kwargs and 'postgresql_using' not in kwargs:
-        kwargs['postgresql_using'] = f'{name}::{kwargs["type_"]}'
-    return Expr(expr.name, table, name, *args, **kwargs)
-
-
-@ufunc.executor(Alembic, Expr)
-def alter_column(env, expr):
-    env.op.alter_column(*expr.args, **expr.kwargs)
-
-
-@ufunc.resolver(Alembic, Expr)
 def create_table(env, expr):
     args, kwargs = expr.resolve(env)
     table, *args = args
