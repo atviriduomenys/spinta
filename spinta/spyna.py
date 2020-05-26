@@ -49,12 +49,30 @@ WS: /[ \t\f\r\n]+/
 %ignore COMMENT
 '''
 
+_parser = lark.Lark(GRAMMAR)
+
 
 def parse(rql):
-    parser = lark.Lark(GRAMMAR)
-    ast = parser.parse(rql)
-    visit = Visitor()
-    return visit(ast)
+    if rql:
+        if rql.startswith('_id=') and len(rql) == 42:
+            # Performance optimization for
+            # _id='d6ee6808-6fc8-43eb-b1a5-cfb21c4be906' case.
+            _id = rql[5:41]
+
+        elif rql.startswith('eq(_id,') and len(rql) == 47:
+            # Performance optimization for
+            # eq(_id, 'd6ee6808-6fc8-43eb-b1a5-cfb21c4be906') case.
+            _id = rql[9:45]
+
+        else:
+            ast = _parser.parse(rql)
+            visit = Visitor()
+            return visit(ast)
+
+        return {'name': 'eq', 'args': [{'name': 'bind', 'args': ['_id']}, _id]}
+
+    else:
+        return None
 
 
 class Visitor:

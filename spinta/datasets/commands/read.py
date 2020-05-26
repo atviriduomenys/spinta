@@ -24,15 +24,16 @@ async def getall(
     rows = commands.getall(context, model, backend, query=expr)
     hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
     rows = log_getall(context, rows, select=params.select, hidden=hidden_props)
-    result = (
-        commands.prepare_data_for_response(
-            context,
-            action,
-            model,
-            backend,
-            row,
-            select=params.select,
+    if not params.count:
+        rows = (
+            commands.prepare_data_for_response(
+                context,
+                action,
+                model,
+                backend,
+                row,
+                select=params.select,
+            )
+            for row in rows
         )
-        for row in rows
-    )
-    return render(context, request, model, params, result, action=action)
+    return render(context, request, model, params, rows, action=action)

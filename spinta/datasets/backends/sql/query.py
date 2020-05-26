@@ -244,6 +244,13 @@ def list_(env, expr):
     return args
 
 
+@ufunc.resolver(SqlQueryBuilder)
+def count(env):
+    env.select = {
+        'count()': Selected(sa.func.count()),
+    }
+
+
 @ufunc.resolver(SqlQueryBuilder, Expr)
 def select(env, expr):
     keys = [str(k) for k in expr.args]

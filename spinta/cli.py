@@ -9,6 +9,7 @@ import logging
 import types
 import sys
 import urllib.parse
+import itertools
 
 import click
 import tqdm
@@ -28,6 +29,7 @@ from spinta.auth import create_client_file
 from spinta.auth import create_client_access_token
 from spinta.auth import Token
 from spinta.auth import BearerTokenValidator
+from spinta.core.ufuncs import Expr
 from spinta.commands.formats import Format
 from spinta.commands.write import write
 from spinta.components import Context, DataStream, Action, Model
@@ -292,8 +294,9 @@ async def _process_stream(
 @click.option('--credentials', '-r', help="Credentials file.")
 @click.option('--client', '-c', help="Client name from credentials file.")
 @click.option('--auth', '-a', help="Authorize as client.")
+@click.option('--limit', type=int, help="Limit number of rows read from each model.")
 @click.pass_context
-def push(ctx, target, dataset, credentials, client, auth):
+def push(ctx, target, dataset, credentials, client, auth, limit):
     context = ctx.obj
 
     config = context.get('config')
@@ -338,15 +341,33 @@ def push(ctx, target, dataset, credentials, client, auth):
         models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
-        total = len(models)
-        click.echo(f"Push {total} models..")
+
+        counts = {}
+        for model in tqdm.tqdm(models, 'Count rows', leave=False):
+            try:
+                counts[model.name] = _get_row_count(context, model)
+            except Exception:
+                log.exception("Error on _get_row_count({model.name}).")
+
+        if limit is None:
+            total = sum(counts.values())
+        else:
+            total = sum(min(c, limit) for c in counts.values())
+        pbar = tqdm.tqdm(desc='PUSH', total=total)
+
         for i, model in enumerate(models, 1):
-            click.echo(f"({i}/{total}) {model.name}")
-            stream = _read_model_data(context, model)
-            resp = requests.post(target, headers=headers, data=stream)
-            if resp.status_code >= 400:
-                click.echo(resp.text)
-                raise click.Abort("Error while pushing data.")
+            try:
+                stream = _read_model_data(
+                    context,
+                    model,
+                    limit=limit,
+                    count=counts.get(model.name),
+                    pbar=pbar,
+                )
+                resp = requests.post(target, headers=headers, data=stream)
+                resp.raise_for_status()
+            except Exception:
+                log.exception("Erro on push for {model.name}.")
 
 
 def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
@@ -370,11 +391,35 @@ def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
     return resp.json()['access_token']
 
 
+def _get_row_count(
+    context: components.Context,
+    model: components.Model,
+) -> int:
+    stream = commands.getall(context, model, model.backend, query=Expr('count'))
+    for data in stream:
+        return data['count()']
+
+
 def _read_model_data(
     context: components.Context,
     model: components.Model,
+    *,
+    count: int = None,
+    limit: int = None,
+    pbar=None,
 ) -> Iterable[dict]:
-    stream = commands.getall(context, model, model.backend)
+
+    if limit is None:
+        query = None
+    else:
+        query = Expr('limit', limit)
+        count = min(count, limit) if count else count
+
+    stream = commands.getall(context, model, model.backend, query=query)
+
+    if pbar is not None:
+        stream = tqdm.tqdm(stream, model.name, total=count, leave=False)
+
     for data in stream:
         _id = data['_id']
         _type = data['_type']
@@ -394,6 +439,43 @@ def _read_model_data(
         }
         payload = fix_data_for_json(payload)
         yield json.dumps(payload).encode('utf-8') + b'\n'
+
+        if pbar is not None:
+            pbar.update(1)
+
+
+@main.command('import', help='Import data from a file.')
+@click.argument('source')
+@click.option('--auth', '-a', help="Authorize as client.")
+@click.option('--limit', type=int, help="Limit number of rows read from source.")
+@click.pass_context
+def import_(ctx, source, auth, limit):
+    context = ctx.obj
+
+    config = context.get('config')
+    commands.load(context, config)
+    commands.check(context, config)
+
+    store = context.get('store')
+    commands.load(context, store)
+    click.echo(f"Loading manifest {store.manifest.name}...")
+    commands.load(context, store.manifest)
+    commands.link(context, store.manifest)
+    commands.check(context, store.manifest)
+    commands.prepare(context, store.manifest)
+
+    manifest = store.manifest
+    root = manifest.objects['ns']['']
+
+    with context:
+        _require_auth(context)
+        context.attach('transaction', manifest.backend.transaction, write=True)
+        with open(source) as f:
+            stream = (json.loads(line.strip()) for line in f)
+            stream = itertools.islice(stream, limit) if limit else stream
+            stream = write(context, root, stream, changed=True)
+            coro = _process_stream(source, stream)
+            asyncio.get_event_loop().run_until_complete(coro)
 
 
 @main.command()
