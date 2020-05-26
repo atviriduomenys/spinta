@@ -294,10 +294,16 @@ def select(env, dtype):
 @ufunc.resolver(SqlQueryBuilder, PrimaryKey)
 def select(env, dtype):
     table = env.backend.get_table(env.model)
-    columns = [
-        env.backend.get_column(table, prop, select=True)
-        for prop in env.model.external.pkeys
-    ]
+    if env.model.external.pkeys:
+        columns = [
+            env.backend.get_column(table, prop, select=True)
+            for prop in env.model.external.pkeys
+        ]
+    else:
+        columns = [
+            env.backend.get_column(table, prop, select=True)
+            for prop in take(env.model.properties).values()
+        ]
     return Selected(columns, dtype.prop)
 
 
