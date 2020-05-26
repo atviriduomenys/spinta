@@ -595,3 +595,20 @@ def test_no_primary_key(rc, tmpdir, sqlite):
         ('lt', 'lt', 'Lietuva'),
         ('lv', 'lv', 'Latvija'),
     ]
+
+
+def test_count(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | source      | type   | ref | access
+    datasets/gov/example     |             |        |     |
+      | data                 |             | sql    |     |
+      |   |                  |             |        |     |
+      |   |   | country      | salis       |        |     |
+      |   |   |   | code     | kodas       | string |     | open
+      |   |   |   | name     | pavadinimas | string |     | open
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    resp = app.get('/datasets/gov/example/country?count()')
+    assert listdata(resp) == [3]
