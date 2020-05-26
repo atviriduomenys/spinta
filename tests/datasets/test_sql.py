@@ -571,3 +571,27 @@ def test_push(postgresql, rc, cli, responses, tmpdir, sqlite):
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
     ]
+
+
+def test_no_primary_key(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | source      | type   | ref | access
+    datasets/gov/example     |             |        |     |
+      | data                 |             | sql    |     |
+      |   |                  |             |        |     |
+      |   |   | country      | salis       |        |     |
+      |   |   |   | code     | kodas       | string |     | open
+      |   |   |   | name     | pavadinimas | string |     | open
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    resp = app.get('/datasets/gov/example/country')
+    codes = dict(listdata(resp, '_id', 'code'))
+    data = listdata(resp, '_id', 'code', 'name', sort='code')
+    data = [(codes.get(_id), code, name) for _id, code, name in data]
+    assert data == [
+        ('ee', 'ee', 'Estija'),
+        ('lt', 'lt', 'Lietuva'),
+        ('lv', 'lv', 'Latvija'),
+    ]
