@@ -92,16 +92,23 @@ def freeze(
     freezed: Model,
     current: DataType,
 ):
+    column = {
+        'name': 'column',
+        'args': [
+            get_column_name(current.prop),
+            {'name': current.name, 'args': []}
+        ]
+    }
+    if current.nullable:
+        column['args'].append({'name': 'bind', 'args': ['nullable', True]})
+
     upgrade = {
         'name': 'add_column',
         'args': [
             get_table_name(current.prop),
-            get_column_name(current.prop),
-            {'name': current.name, 'args': []},
+            column,
         ]
     }
-    if current.nullable:
-        upgrade['args'].append({'name': 'bind', 'args': ['nullable', True]})
 
     version.actions.append({
         'type': 'schema',

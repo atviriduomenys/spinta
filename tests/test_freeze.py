@@ -117,7 +117,7 @@ def test_add_column(rc, cli):
                     {
                         'type': 'schema',
                         'upgrade': [
-                            "add_column('country', 'code', string())",
+                            "add_column('country', column('code', string()))",
                         ],
                         'downgrade': [
                             "drop_column('country', 'code')",
@@ -739,7 +739,11 @@ def test_add_field_to_object(rc, cli):
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
             'type': 'schema',
-            'upgrade': ["add_column('country', 'population.code', string())"],
+            'upgrade': [
+                "add_column(",
+                "    'country',",
+                "    column('population.code', string())",
+                ")"],
             'downgrade': ["drop_column('country', 'population.code')"],
         },
     ]
@@ -779,7 +783,7 @@ def test_add_field(rc, cli):
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
             'type': 'schema',
-            'upgrade': ["add_column('country', 'cities.name', string())"],
+            'upgrade': ["add_column('country', column('cities.name', string()))"],
             'downgrade': ["drop_column('country', 'cities.name')"],
         }
     ]
@@ -894,9 +898,7 @@ def test_add_nullable_column(rc, cli):
             'upgrade': [
                 "add_column(",
                 "    'country',",
-                "    'flag',",
-                "    string(),",
-                "    nullable: true",
+                "    column('flag', string(), nullable: true)",
                 ")",
             ],
         },
