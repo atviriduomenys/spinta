@@ -7,6 +7,7 @@ import pytest
 import sqlalchemy as sa
 
 from spinta.cli import push
+from spinta.scripts import copycsvmodels
 from spinta.core.config import RawConfig
 from spinta.testing.data import listdata
 from spinta.testing.client import create_test_client
@@ -82,6 +83,34 @@ def create_rc(rc: RawConfig, tmpdir: pathlib.Path, sqlite: Sqlite):
         # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
         'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
     })
+
+
+def configure_remote_server(cli, rc: RawConfig, tmpdir: pathlib.Path, responses):
+    cli.invoke(rc, copycsvmodels.main, [
+        '--no-external', '--access', 'open',
+        str(tmpdir / 'manifest.csv'),
+        str(tmpdir / 'remote.csv'),
+    ])
+
+    # Create remote server with PostgreSQL backend
+    tmpdir = pathlib.Path(tmpdir)
+    remoterc = rc.fork({
+        'manifests': {
+            'default': {
+                'type': 'tabular',
+                'path': str(tmpdir / 'remote.csv'),
+                'backend': 'default',
+            },
+        },
+        'backends': ['default'],
+    })
+    return create_remote_server(
+        remoterc,
+        tmpdir,
+        responses,
+        scopes=['spinta_set_meta_fields', 'spinta_upsert'],
+        credsfile=True,
+    )
 
 
 def create_client(rc: RawConfig, tmpdir: pathlib.Path, sqlite: Sqlite):
@@ -482,35 +511,8 @@ def test_push(postgresql, rc, cli, responses, tmpdir, sqlite):
       |   |   |   | country  | salis       | ref    | country | open
     '''))
 
-    create_tabular_manifest(tmpdir / 'remote.csv', striptable('''
-    m | property                 | type   | ref                          | access
-    datasets/gov/example/country |        |                              |
-      | code                     | string |                              | open
-      | name                     | string |                              | open
-    datasets/gov/example/city    |        |                              |
-      | name                     | string |                              | open
-      | country                  | ref    | datasets/gov/example/country | open
-    '''))
-
-    # Create remote server with PostgreSQL backend
-    tmpdir = pathlib.Path(tmpdir)
-    remoterc = rc.fork({
-        'manifests': {
-            'default': {
-                'type': 'tabular',
-                'path': str(tmpdir / 'remote.csv'),
-                'backend': 'default',
-            },
-        },
-        'backends': ['default'],
-    })
-    remote = create_remote_server(
-        remoterc,
-        tmpdir,
-        responses,
-        scopes=['spinta_set_meta_fields', 'spinta_upsert'],
-        credsfile=True,
-    )
+    # Configure remote server
+    remote = configure_remote_server(cli, rc, tmpdir, responses)
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmpdir, sqlite)
@@ -612,3 +614,38 @@ def test_count(rc, tmpdir, sqlite):
 
     resp = app.get('/datasets/gov/example/country?count()')
     assert listdata(resp) == [3]
+
+
+def test_push_chunks(postgresql, rc, cli, responses, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | source      | type   | ref     | access
+    datasets/gov/example     |             |        |         |
+      | data                 |             | sql    |         |
+      |   |                  |             |        |         |
+      |   |   | country      | salis       |        | code    |
+      |   |   |   | code     | kodas       | string |         | open
+      |   |   |   | name     | pavadinimas | string |         | open
+    '''))
+
+    # Configure remote server
+    remote = configure_remote_server(cli, rc, tmpdir, responses)
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmpdir, sqlite)
+
+    # Push data from local to remote.
+    cli.invoke(localrc, push, [
+        remote.url,
+        '-r', str(remote.credsfile),
+        '-c', remote.client,
+        '-d', 'datasets/gov/example',
+        '--chunk-size=1',
+    ])
+
+    remote.app.authmodel('datasets/gov/example/country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('ee', 'Estija'),
+        ('lt', 'Lietuva'),
+        ('lv', 'Latvija')
+    ]
