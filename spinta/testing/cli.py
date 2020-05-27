@@ -33,8 +33,6 @@ class SpintaCliRunner(CliRunner):
                 exc = ''.join(traceback.format_exception(t, e, tb))
                 exc = exc.replace(os.getcwd() + '/', '')
                 print(exc, file=sys.stderr)
-        if isinstance(result.exception, NotImplementedError):
-            raise NotImplementedError
         if result.exit_code != 0:
             print(result.output, file=sys.stderr)
             cmd = ' '.join([cli.name] + (args or []))

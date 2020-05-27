@@ -627,7 +627,7 @@ def test_change_ref_model(rc, cli):
     })
 
     with pytest.raises(NotImplementedError) as e:
-        cli.invoke(rc, freeze)
+        cli.invoke(rc, freeze, catch_exceptions=False)
 
 
 def test_freeze_ref_in_array(rc, cli):
