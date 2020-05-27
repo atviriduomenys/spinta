@@ -9,7 +9,7 @@ from spinta.backends.postgresql.helpers import get_table_name
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), Array)
-def freeze(  # noqa
+def freeze(
     context: Context,
     version: SchemaVersion,
     backend: PostgreSQL,
@@ -64,3 +64,14 @@ def freeze(  # noqa
 
     else:
         return []
+
+
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, Array, Array)
+def freeze(
+    context: Context,
+    version: SchemaVersion,
+    backend: PostgreSQL,
+    freezed: Array,
+    current: Array,
+):
+    commands.freeze(context, version, backend, freezed.items.dtype, current.items.dtype)

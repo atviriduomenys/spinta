@@ -125,7 +125,7 @@ def test_new_version_with_changes(rc, cli, tmpdir):
     assert freezed['migrate'] == [
         {
             'type': 'schema',
-            'upgrade': "add_column('report', 'status', integer())",
+            'upgrade': "add_column('report', column('status', integer()))",
             'downgrade': "drop_column('report', 'status')",
         }
     ]
