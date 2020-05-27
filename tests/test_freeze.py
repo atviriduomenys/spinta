@@ -960,7 +960,7 @@ def test_delete_property_from_object(rc, cli):
         'country.yml': [
             {
                 'op': 'remove',
-                'path': '/properties/info',
+                'path': '/properties/info/properties/flag',
             }
         ]
     })
