@@ -39,6 +39,7 @@ from spinta.core.context import create_context
 from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist
 from spinta.utils.json import fix_data_for_json
+from spinta.utils.itertools import schunks
 from spinta.accesslog import create_accesslog
 from spinta.types.namespace import sort_models_by_refs
 
@@ -295,8 +296,9 @@ async def _process_stream(
 @click.option('--client', '-c', help="Client name from credentials file.")
 @click.option('--auth', '-a', help="Authorize as client.")
 @click.option('--limit', type=int, help="Limit number of rows read from each model.")
+@click.option('--chunk-size', type=int, help="Push data in chunks, defualt unit is Mb.")
 @click.pass_context
-def push(ctx, target, dataset, credentials, client, auth, limit):
+def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size):
     context = ctx.obj
 
     config = context.get('config')
@@ -326,10 +328,6 @@ def push(ctx, target, dataset, credentials, client, auth, limit):
         _require_auth(context, auth)
         click.echo(f"Get access token from {target}")
         token = _get_access_token(credentials, client, target)
-        headers = {
-            'Content-Type': 'application/x-ndjson',
-            'Authorization': f'Bearer {token}',
-        }
         context.attach('transaction', manifest.backend.transaction)
         for backend in store.backends.values():
             context.attach(f'transaction.{backend.name}', backend.begin)
@@ -343,7 +341,7 @@ def push(ctx, target, dataset, credentials, client, auth, limit):
         models = list(reversed(list(models)))
 
         counts = {}
-        for model in tqdm.tqdm(models, 'Count rows', leave=False):
+        for model in tqdm.tqdm(models, 'Count rows', ascii=True, leave=False):
             try:
                 counts[model.name] = _get_row_count(context, model)
             except Exception:
@@ -353,7 +351,12 @@ def push(ctx, target, dataset, credentials, client, auth, limit):
             total = sum(counts.values())
         else:
             total = sum(min(c, limit) for c in counts.values())
-        pbar = tqdm.tqdm(desc='PUSH', total=total)
+        pbar = tqdm.tqdm(desc='PUSH', ascii=True, total=total)
+
+        headers = {
+            'Content-Type': 'application/x-ndjson',
+            'Authorization': f'Bearer {token}',
+        }
 
         for i, model in enumerate(models, 1):
             try:
@@ -364,8 +367,14 @@ def push(ctx, target, dataset, credentials, client, auth, limit):
                     count=counts.get(model.name),
                     pbar=pbar,
                 )
-                resp = requests.post(target, headers=headers, data=stream)
-                resp.raise_for_status()
+                if chunk_size:
+                    for chunk in schunks(stream, chunk_size):
+                        chunk = b''.join(chunk)
+                        resp = requests.post(target, headers=headers, data=chunk)
+                        resp.raise_for_status()
+                else:
+                    resp = requests.post(target, headers=headers, data=stream)
+                    resp.raise_for_status()
             except Exception:
                 log.exception("Erro on push for {model.name}.")
 
@@ -418,7 +427,7 @@ def _read_model_data(
     stream = commands.getall(context, model, model.backend, query=query)
 
     if pbar is not None:
-        stream = tqdm.tqdm(stream, model.name, total=count, leave=False)
+        stream = tqdm.tqdm(stream, model.name, ascii=True, total=count, leave=False)
 
     for data in stream:
         _id = data['_id']

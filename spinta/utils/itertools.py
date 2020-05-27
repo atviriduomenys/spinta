@@ -10,6 +10,21 @@ def chunks(it, n=100):
     yield from iter(lambda: list(islice(it, n)), [])
 
 
+def schunks(it, s=100):
+    blen = 0
+    buff = []
+    for v in it:
+        vlen = len(v)
+        if blen + vlen > s and buff:
+            yield buff
+            blen = 0
+            buff = []
+        buff.append(v)
+        blen += vlen
+    if buff:
+        yield buff
+
+
 def recursive_keys(dct, dot_notation=False, prefix=None):
     # yields all keys from a given nested dictionaries
     # e.g.:
