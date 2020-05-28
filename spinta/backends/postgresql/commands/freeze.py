@@ -123,6 +123,17 @@ def freeze(
     })
 
 
+@commands.freeze.register(Context, SchemaVersion, PostgreSQL, DataType, Model)
+def freeze(
+    context: Context,
+    version: SchemaVersion,
+    backend: PostgreSQL,
+    freezed: DataType,
+    current: Model,
+):
+    pass
+
+
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, DataType, DataType)
 def freeze(
     context: Context,
