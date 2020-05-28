@@ -4,6 +4,7 @@ import sqlalchemy as sa
 
 from alembic.runtime.migration import MigrationContext
 from alembic.operations import Operations
+from sqlalchemy.dialects.postgresql import UUID
 
 from spinta.testing.ufuncs import UFuncTester
 from spinta.migrations.schema.alembic import Alembic
@@ -59,3 +60,61 @@ def test_drop_table(engine, ufunc):
     table.create()
     ufunc('drop_table("_test_table")')
     assert not table.exists()
+
+
+def test_add_column(engine, ufunc, request):
+    meta = sa.MetaData(engine)
+    table = sa.Table('_test_add_colunm_table', meta, sa.Column('id', sa.String()))
+    table.create()
+    ufunc('''
+    add_column(
+        '_test_add_colunm_table',
+        column(new_column, pk())
+    )
+    ''')
+
+    meta = sa.MetaData(engine)
+    request.addfinalizer(meta.drop_all)
+    table = sa.Table('_test_add_colunm_table', meta, autoload=True)
+    assert table.columns.keys() == ['id', 'new_column']
+    type_ = [i.type for i in table.columns.values() if i.name == 'new_column'][0]
+    assert isinstance(type_, UUID)
+
+
+def test_drop_column(engine, ufunc, request):
+    meta = sa.MetaData(engine)
+    table = sa.Table(
+        '_test_drop_column_table',
+        meta,
+        sa.Column('id', sa.String()),
+        sa.Column('name', sa.String())
+    )
+    table.create()
+    ufunc('drop_column("_test_drop_column_table", "name")')
+
+    meta = sa.MetaData(engine)
+    request.addfinalizer(meta.drop_all)
+    table = sa.Table('_test_drop_column_table', meta, autoload=True)
+    assert table.columns.keys() == ['id']
+
+
+def test_alter_column(engine, ufunc, request):
+    meta = sa.MetaData(engine)
+    table = sa.Table(
+        '_test_alter_column_table',
+        meta,
+        sa.Column('id', sa.String()),
+    )
+    table.create()
+    ufunc('''
+    alter_column(
+        '_test_alter_column_table',
+        'id',
+        nullable: true
+    )
+    ''')
+
+    meta = sa.MetaData(engine)
+    request.addfinalizer(meta.drop_all)
+    table = sa.Table('_test_alter_column_table', meta, autoload=True)
+    assert table.columns.values()[0].nullable is True

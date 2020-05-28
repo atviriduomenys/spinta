@@ -4,6 +4,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import ARRAY
 
+from spinta.backends.postgresql.components import PostgreSQL
+from spinta.commands import get_primary_key_type
 from spinta.exceptions import UnknownExpr
 from spinta.core.ufuncs import Env, Expr, Bind, ufunc
 
@@ -26,6 +28,54 @@ class Alembic(Env):
 
     def default_resolver(self, expr, *args, **kwargs):
         raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
+
+
+@ufunc.resolver(Alembic, Expr)
+def pk(env, expr):
+    return get_primary_key_type(env.context, PostgreSQL())
+
+
+@ufunc.executor(Alembic, Expr)
+def pk(env, expr):
+    env.op.pk(*expr.args, **expr.kwargs)
+
+
+@ufunc.resolver(Alembic, Expr)
+def add_column(env, expr):
+    args, kwargs = expr.resolve(env)
+    table, name, *args = args
+    return Expr(expr.name, table, name, **kwargs)
+
+
+@ufunc.executor(Alembic, Expr)
+def add_column(env, expr):
+    env.op.add_column(*expr.args, **expr.kwargs)
+
+
+@ufunc.resolver(Alembic, Expr)
+def drop_column(env, expr):
+    args, kwargs = expr.resolve(env)
+    table, name, *args = args
+    return Expr(expr.name, table, name, **kwargs)
+
+
+@ufunc.executor(Alembic, Expr)
+def drop_column(env, expr):
+    env.op.drop_column(*expr.args, **expr.kwargs)
+
+
+@ufunc.resolver(Alembic, Expr)
+def alter_column(env, expr):
+    args, kwargs = expr.resolve(env)
+    table, name, *args = args
+    if isinstance(table, Bind):
+        table = table.name
+    return Expr(expr.name, table, name, *args, **kwargs)
+
+
+@ufunc.executor(Alembic, Expr)
+def alter_column(env, expr):
+    env.op.alter_column(*expr.args, **expr.kwargs)
 
 
 @ufunc.resolver(Alembic, Expr)
