@@ -10,6 +10,7 @@ import types
 import sys
 import urllib.parse
 import itertools
+import time
 
 import click
 import tqdm
@@ -40,6 +41,7 @@ from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.itertools import schunks
+from spinta.utils.units import tobytes, toseconds
 from spinta.accesslog import create_accesslog
 from spinta.types.namespace import sort_models_by_refs
 
@@ -296,9 +298,16 @@ async def _process_stream(
 @click.option('--client', '-c', help="Client name from credentials file.")
 @click.option('--auth', '-a', help="Authorize as client.")
 @click.option('--limit', type=int, help="Limit number of rows read from each model.")
-@click.option('--chunk-size', type=int, help="Push data in chunks, defualt unit is Mb.")
+@click.option('--chunk-size', help="Push data in chunks (1b, 1k, 2m, ...)")
+@click.option('--stop-time', help="Stop pushing after given time (1s, 1m, 2h, ...).")
 @click.pass_context
-def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size):
+def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size, stop_time):
+    if chunk_size:
+        chunk_size = tobytes(chunk_size)
+
+    if stop_time:
+        stop_time = toseconds(stop_time)
+
     context = ctx.obj
 
     config = context.get('config')
@@ -351,12 +360,19 @@ def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size):
             total = sum(counts.values())
         else:
             total = sum(min(c, limit) for c in counts.values())
-        pbar = tqdm.tqdm(desc='PUSH', ascii=True, total=total)
 
         headers = {
             'Content-Type': 'application/x-ndjson',
             'Authorization': f'Bearer {token}',
         }
+
+        loop = _UpdateLoop()
+
+        pbar = tqdm.tqdm(desc='PUSH', ascii=True, total=total)
+        loop.update(_progress_bar, pbar)
+
+        if stop_time:
+            loop.update(_stop_timer, time.time(), stop_time)
 
         for i, model in enumerate(models, 1):
             try:
@@ -364,9 +380,10 @@ def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size):
                     context,
                     model,
                     limit=limit,
-                    count=counts.get(model.name),
-                    pbar=pbar,
                 )
+                stream = loop(stream)
+                count = counts.get(model.name)
+                stream = _add_progress_bar(stream, model, count, limit)
                 if chunk_size:
                     for chunk in schunks(stream, chunk_size):
                         chunk = b''.join(chunk)
@@ -377,6 +394,40 @@ def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size):
                     resp.raise_for_status()
             except Exception:
                 log.exception("Erro on push for {model.name}.")
+
+
+class _UpdateLoop:
+
+    def __init__(self):
+        self.callbacks = []
+
+    def update(self, callback, *args, **kwargs):
+        self.callbacks.append((callback, args, kwargs))
+
+    def __call__(self, loop):
+        for item in loop:
+            yield item
+            stop = any(
+                callback(*args, **kwargs)
+                for callback, args, kwargs in self.callbacks
+            )
+            if stop:
+                break
+
+
+def _progress_bar(pbar):
+    pbar.update(1)
+
+
+def _stop_timer(start, stop):
+    if time.time() - start > stop:
+        click.echo("Inter")
+        return True
+
+
+def _add_progress_bar(stream, model, count, limit):
+    count = min(count, limit) if limit else count
+    return tqdm.tqdm(stream, model.name, ascii=True, total=count, leave=False)
 
 
 def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
@@ -413,21 +464,15 @@ def _read_model_data(
     context: components.Context,
     model: components.Model,
     *,
-    count: int = None,
     limit: int = None,
-    pbar=None,
 ) -> Iterable[dict]:
 
     if limit is None:
         query = None
     else:
         query = Expr('limit', limit)
-        count = min(count, limit) if count else count
 
     stream = commands.getall(context, model, model.backend, query=query)
-
-    if pbar is not None:
-        stream = tqdm.tqdm(stream, model.name, ascii=True, total=count, leave=False)
 
     for data in stream:
         _id = data['_id']
@@ -448,9 +493,6 @@ def _read_model_data(
         }
         payload = fix_data_for_json(payload)
         yield json.dumps(payload).encode('utf-8') + b'\n'
-
-        if pbar is not None:
-            pbar.update(1)
 
 
 @main.command('import', help='Import data from a file.')

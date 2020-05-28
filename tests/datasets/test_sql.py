@@ -649,3 +649,39 @@ def test_push_chunks(postgresql, rc, cli, responses, tmpdir, sqlite):
         ('lt', 'Lietuva'),
         ('lv', 'Latvija')
     ]
+
+
+def test_push_state(postgresql, rc, cli, responses, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | source      | type   | ref     | access
+    datasets/gov/example     |             |        |         |
+      | data                 |             | sql    |         |
+      |   |                  |             |        |         |
+      |   |   | country      | salis       |        | code    |
+      |   |   |   | code     | kodas       | string |         | open
+      |   |   |   | name     | pavadinimas | string |         | open
+    '''))
+
+    # Configure remote server
+    remote = configure_remote_server(cli, rc, tmpdir, responses)
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmpdir, sqlite)
+
+    # Push data from local to remote.
+    cli.invoke(localrc, push, [
+        remote.url,
+        '-r', str(remote.credsfile),
+        '-c', remote.client,
+        '-d', 'datasets/gov/example',
+        '--chunk-size', '1k',
+        '--stop-time', '1h',
+    ])
+
+    remote.app.authmodel('datasets/gov/example/country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('ee', 'Estija'),
+        ('lt', 'Lietuva'),
+        ('lv', 'Latvija')
+    ]
