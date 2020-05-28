@@ -531,6 +531,105 @@ def test_freeze_ref(rc, cli):
     ]
 
 
+def test_add_reference_column(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'name': {'type': 'string'},
+            },
+        },
+        'city.yml': {
+            'type': 'model',
+            'name': 'city',
+            'properties': {
+                'name': {'type': 'string'}
+            },
+        },
+    })
+    cli.invoke(rc, freeze)
+
+    update_manifest_files(tmpdir, {
+        'country.yml': [
+            {
+                'op': 'add',
+                'path': '/properties/city',
+                'value': {
+                    'type': 'ref',
+                    'model': 'city',
+                },
+            }
+        ]
+    })
+    cli.invoke(rc, freeze)
+
+    manifest = read_manifest_files(tmpdir)
+    manifest_files = readable_manifest_files(manifest)
+    assert manifest_files['country.yml'][-1]['migrate'] == [
+        {
+            'downgrade': [
+                "drop_column('country', 'city._id')",
+            ],
+            'type': 'schema',
+            'upgrade': [
+                "add_column(",
+                "    'country',",
+                "    column('city._id', ref('city._id'))",
+                ")",
+            ],
+        },
+    ]
+
+
+def test_change_ref_model(rc, cli):
+    tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
+
+    create_manifest_files(tmpdir, {
+        'country.yml': {
+            'type': 'model',
+            'name': 'country',
+            'properties': {
+                'name': {'type': 'string'},
+            },
+        },
+        'continent.yml': {
+            'type': 'model',
+            'name': 'continent',
+            'properties': {
+                'name': {'type': 'string'},
+            },
+        },
+        'city.yml': {
+            'type': 'model',
+            'name': 'city',
+            'properties': {
+                'country': {
+                    'type': 'ref',
+                    'model': 'country',
+                },
+                'name': {'type': 'string'},
+            }
+        }
+    })
+    cli.invoke(rc, freeze)
+
+    update_manifest_files(tmpdir, {
+        'city.yml': [
+            {
+                'op': 'replace',
+                'path': '/properties/country/model',
+                'value': 'continent',
+            }
+        ]
+    })
+
+    with pytest.raises(NotImplementedError) as e:
+        cli.invoke(rc, freeze, catch_exceptions=False)
+
+
 def test_freeze_ref_in_array(rc, cli):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
