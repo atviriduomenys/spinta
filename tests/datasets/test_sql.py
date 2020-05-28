@@ -668,7 +668,7 @@ def test_push_state(postgresql, rc, cli, responses, tmpdir, sqlite):
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmpdir, sqlite)
 
-    # Push data from local to remote.
+    # Push one row, save state and stop.
     cli.invoke(localrc, push, [
         remote.url,
         '-r', str(remote.credsfile),
@@ -676,12 +676,22 @@ def test_push_state(postgresql, rc, cli, responses, tmpdir, sqlite):
         '-d', 'datasets/gov/example',
         '--chunk-size', '1k',
         '--stop-time', '1h',
+        '--stop-row', '2',
+        '--state', str(tmpdir / 'state.db'),
     ])
 
     remote.app.authmodel('datasets/gov/example/country', ['getall'])
     resp = remote.app.get('/datasets/gov/example/country')
-    assert listdata(resp, 'code', 'name') == [
-        ('ee', 'Estija'),
-        ('lt', 'Lietuva'),
-        ('lv', 'Latvija')
-    ]
+    assert len(listdata(resp)) == 1
+
+    cli.invoke(localrc, push, [
+        remote.url,
+        '-r', str(remote.credsfile),
+        '-c', remote.client,
+        '-d', 'datasets/gov/example',
+        '--stop-row', '3',
+        '--state', str(tmpdir / 'state.db'),
+    ])
+
+    resp = remote.app.get('/datasets/gov/example/country')
+    assert len(listdata(resp)) == 2

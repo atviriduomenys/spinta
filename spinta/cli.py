@@ -11,10 +11,14 @@ import sys
 import urllib.parse
 import itertools
 import time
+import datetime
+import hashlib
 
 import click
 import tqdm
 import requests
+import msgpack
+import sqlalchemy as sa
 from authlib.jose import jwt
 
 from spinta import spyna
@@ -42,6 +46,8 @@ from spinta.utils.aiotools import alist
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.itertools import schunks
 from spinta.utils.units import tobytes, toseconds
+from spinta.utils.data import take
+from spinta.utils.nestedstruct import flatten
 from spinta.accesslog import create_accesslog
 from spinta.types.namespace import sort_models_by_refs
 
@@ -300,8 +306,22 @@ async def _process_stream(
 @click.option('--limit', type=int, help="Limit number of rows read from each model.")
 @click.option('--chunk-size', help="Push data in chunks (1b, 1k, 2m, ...)")
 @click.option('--stop-time', help="Stop pushing after given time (1s, 1m, 2h, ...).")
+@click.option('--stop-row', type=int, help="Stop after pushing n rows.")
+@click.option('--state', help="Save push state into a file.")
 @click.pass_context
-def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size, stop_time):
+def push(
+    ctx,
+    target: str,
+    dataset: str,
+    credentials: str,
+    client: str,
+    auth: str,
+    limit: int,
+    chunk_size: str,
+    stop_time: str,
+    stop_row: int,
+    state: str,
+):
     if chunk_size:
         chunk_size = tobytes(chunk_size)
 
@@ -366,68 +386,102 @@ def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size, sto
             'Authorization': f'Bearer {token}',
         }
 
-        loop = _UpdateLoop()
+        if state:
+            engine, metadata = _init_push_state(state, models)
 
-        pbar = tqdm.tqdm(desc='PUSH', ascii=True, total=total)
-        loop.update(_progress_bar, pbar)
+        rows = _iter_model_rows(context, models, counts, limit)
 
         if stop_time:
-            loop.update(_stop_timer, time.time(), stop_time)
+            rows = _add_stop_time(rows, stop_time)
 
-        for i, model in enumerate(models, 1):
-            try:
-                stream = _read_model_data(
-                    context,
-                    model,
-                    limit=limit,
-                )
-                stream = loop(stream)
-                count = counts.get(model.name)
-                stream = _add_progress_bar(stream, model, count, limit)
-                if chunk_size:
-                    for chunk in schunks(stream, chunk_size):
-                        chunk = b''.join(chunk)
-                        resp = requests.post(target, headers=headers, data=chunk)
-                        resp.raise_for_status()
-                else:
-                    resp = requests.post(target, headers=headers, data=stream)
+        rows = tqdm.tqdm(rows, desc='PUSH', ascii=True, total=total)
+
+        if state:
+            rows = _add_push_state(rows, engine, metadata)
+
+        if stop_row:
+            rows = itertools.islice(rows, stop_row)
+
+        rows = _to_json(rows)
+
+        for row in rows:
+            if chunk_size:
+                for chunk in schunks(rows, chunk_size):
+                    chunk = b''.join(chunk)
+                    resp = requests.post(target, headers=headers, data=chunk)
                     resp.raise_for_status()
-            except Exception:
-                log.exception("Erro on push for {model.name}.")
-
-
-class _UpdateLoop:
-
-    def __init__(self):
-        self.callbacks = []
-
-    def update(self, callback, *args, **kwargs):
-        self.callbacks.append((callback, args, kwargs))
-
-    def __call__(self, loop):
-        for item in loop:
-            yield item
-            stop = any(
-                callback(*args, **kwargs)
-                for callback, args, kwargs in self.callbacks
-            )
-            if stop:
-                break
-
-
-def _progress_bar(pbar):
-    pbar.update(1)
-
-
-def _stop_timer(start, stop):
-    if time.time() - start > stop:
-        click.echo("Inter")
-        return True
+            else:
+                resp = requests.post(target, headers=headers, data=rows)
+                resp.raise_for_status()
 
 
 def _add_progress_bar(stream, model, count, limit):
     count = min(count, limit) if limit else count
     return tqdm.tqdm(stream, model.name, ascii=True, total=count, leave=False)
+
+
+def _add_stop_time(rows, stop):
+    start = time.time()
+    for row in rows:
+        yield row
+        if time.time() - start > stop:
+            break
+
+
+def _iter_model_rows(context, models, counts, limit):
+    for model in models:
+        count = counts.get(model.name)
+        rows = _read_model_data(context, model, limit=limit)
+        rows = _add_progress_bar(rows, model, count, limit)
+        yield from rows
+
+
+def _init_push_state(file: str, models: List[Model]):
+    engine = sa.create_engine(f'sqlite:///{file}')
+    metadata = sa.MetaData(engine)
+    for model in models:
+        table = sa.Table(
+            model.name, metadata,
+            sa.Column('id', sa.String, primary_key=True),
+            sa.Column('rev', sa.String),
+            sa.Column('pushed', sa.DateTime),
+        )
+        table.create(checkfirst=True)
+    return engine, metadata
+
+
+def _add_push_state(
+    rows: Iterable[dict],
+    engine: sa.engine.Engine,
+    metadata: sa.MetaData,
+):
+    with engine.begin() as conn:
+        for model, group in itertools.groupby(rows, key=lambda row: row['_type']):
+            table = metadata.tables[model]
+
+            query = sa.select([table.c.id, table.c.rev])
+            revs = {
+                state[table.c.id]: state[table.c.rev]
+                for state in conn.execute(query)
+            }
+
+            for row in group:
+                _id = row['_id']
+                rev = flatten([take(row)])
+                rev = [[k, v] for x in rev for k, v in sorted(x.items())]
+                rev = msgpack.dumps(rev, strict_types=True)
+                rev = hashlib.sha1(rev).hexdigest()
+
+                if revs.get(_id) == rev:
+                    continue  # Nothing has changed.
+
+                yield row
+
+                conn.execute(table.insert().values(
+                    id=_id,
+                    rev=rev,
+                    pushed=datetime.datetime.now(),
+                ))
 
 
 def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
@@ -492,6 +546,11 @@ def _read_model_data(
             **{k: v for k, v in data.items() if not k.startswith('_')}
         }
         payload = fix_data_for_json(payload)
+        yield payload
+
+
+def _to_json(stream):
+    for payload in stream:
         yield json.dumps(payload).encode('utf-8') + b'\n'
 
 
