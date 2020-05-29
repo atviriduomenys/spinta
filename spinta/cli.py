@@ -1,4 +1,6 @@
-from typing import Optional, Iterable, List
+from __future__ import annotations
+
+from typing import Optional, Iterator, Iterable, List, Dict, Tuple
 
 import asyncio
 import configparser
@@ -10,10 +12,15 @@ import types
 import sys
 import urllib.parse
 import itertools
+import time
+import datetime
+import hashlib
 
 import click
 import tqdm
 import requests
+import msgpack
+import sqlalchemy as sa
 from authlib.jose import jwt
 
 from spinta import spyna
@@ -39,7 +46,10 @@ from spinta.core.context import create_context
 from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist
 from spinta.utils.json import fix_data_for_json
-from spinta.utils.itertools import schunks
+from spinta.utils.itertools import drain
+from spinta.utils.units import tobytes, toseconds
+from spinta.utils.data import take
+from spinta.utils.nestedstruct import flatten
 from spinta.accesslog import create_accesslog
 from spinta.types.namespace import sort_models_by_refs
 
@@ -296,9 +306,30 @@ async def _process_stream(
 @click.option('--client', '-c', help="Client name from credentials file.")
 @click.option('--auth', '-a', help="Authorize as client.")
 @click.option('--limit', type=int, help="Limit number of rows read from each model.")
-@click.option('--chunk-size', type=int, help="Push data in chunks, defualt unit is Mb.")
+@click.option('--chunk-size', default='1m', help="Push data in chunks (1b, 1k, 2m, ...), default: 1m.")
+@click.option('--stop-time', help="Stop pushing after given time (1s, 1m, 2h, ...).")
+@click.option('--stop-row', type=int, help="Stop after pushing n rows.")
+@click.option('--state', help="Save push state into a file.")
 @click.pass_context
-def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size):
+def push(
+    ctx,
+    target: str,
+    dataset: str,
+    credentials: str,
+    client: str,
+    auth: str,
+    limit: int,
+    chunk_size: str,
+    stop_time: str,
+    stop_row: int,
+    state: str,
+):
+    if chunk_size:
+        chunk_size = tobytes(chunk_size)
+
+    if stop_time:
+        stop_time = toseconds(stop_time)
+
     context = ctx.obj
 
     config = context.get('config')
@@ -326,8 +357,6 @@ def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size):
 
     with context:
         _require_auth(context, auth)
-        click.echo(f"Get access token from {target}")
-        token = _get_access_token(credentials, client, target)
         context.attach('transaction', manifest.backend.transaction)
         for backend in store.backends.values():
             context.attach(f'transaction.{backend.name}', backend.begin)
@@ -339,44 +368,251 @@ def push(ctx, target, dataset, credentials, client, auth, limit, chunk_size):
         models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
+        counts = _count_rows(context, models, limit)
 
-        counts = {}
-        for model in tqdm.tqdm(models, 'Count rows', ascii=True, leave=False):
-            try:
-                counts[model.name] = _get_row_count(context, model)
-            except Exception:
-                log.exception("Error on _get_row_count({model.name}).")
+        if state:
+            engine, metadata = _init_push_state(state, models)
+            context.attach('push.state.conn', engine.begin)
 
-        if limit is None:
-            total = sum(counts.values())
-        else:
-            total = sum(min(c, limit) for c in counts.values())
-        pbar = tqdm.tqdm(desc='PUSH', ascii=True, total=total)
+        rows = _iter_model_rows(context, models, counts, limit)
 
-        headers = {
-            'Content-Type': 'application/x-ndjson',
-            'Authorization': f'Bearer {token}',
+        rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
+
+        if stop_time:
+            rows = _add_stop_time(rows, stop_time)
+
+        if state:
+            rows = _check_push_state(context, rows, metadata)
+
+        if stop_row:
+            rows = itertools.islice(rows, stop_row)
+
+        rows = _push_to_remote(rows, target, credentials, client, chunk_size)
+
+        if state:
+            rows = _save_push_state(context, rows, metadata)
+
+        drain(rows)
+
+
+class _PushRow:
+    data: dict
+    rev: str
+    saved: bool = False
+
+    def __init__(self, data: dict):
+        self.data = data
+        self.rev = None
+        self.saved = False
+
+
+def _count_rows(
+    context: Context,
+    models: List[Model],
+    limit: int,
+) -> Dict[str, int]:
+    counts = {}
+    for model in tqdm.tqdm(models, 'Count rows', ascii=True, leave=False):
+        try:
+            count = _get_row_count(context, model)
+        except Exception:
+            log.exception("Error on _get_row_count({model.name}).")
+        if limit:
+            count = min(count, limit)
+        counts[model.name] = count
+    return counts
+
+
+def _get_row_count(
+    context: components.Context,
+    model: components.Model,
+) -> int:
+    stream = commands.getall(context, model, model.backend, query=Expr('count'))
+    for data in stream:
+        return data['count()']
+
+
+def _iter_model_rows(
+    context: Context,
+    models: List[Model],
+    counts: Dict[str, int],
+    limit: int,
+) -> Iterator[_PushRow]:
+    for model in models:
+        rows = _read_model_data(context, model, limit)
+        count = counts.get(model.name)
+        rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
+        yield from rows
+
+
+def _read_model_data(
+    context: components.Context,
+    model: components.Model,
+    limit: int = None,
+) -> Iterable[_PushRow]:
+
+    if limit is None:
+        query = None
+    else:
+        query = Expr('limit', limit)
+
+    stream = commands.getall(context, model, model.backend, query=query)
+
+    for data in stream:
+        _id = data['_id']
+        _type = data['_type']
+        where = {
+            'name': 'eq',
+            'args': [
+                {'name': 'bind', 'args': ['_id']},
+                _id,
+            ]
+        }
+        payload = {
+            '_op': 'upsert',
+            '_type': _type,
+            '_id': _id,
+            '_where': spyna.unparse(where),
+            **{k: v for k, v in data.items() if not k.startswith('_')}
+        }
+        yield _PushRow(payload)
+
+
+def _push_to_remote(
+    rows: Iterable[_PushRow],
+    target: str,
+    credentials: str,
+    client: str,
+    chunk_size: int,
+):
+    click.echo(f"Get access token from {target}")
+    token = _get_access_token(credentials, client, target)
+
+    session = requests.Session()
+    session.headers['Content-Type'] = 'application/json'
+    session.headers['Authorization'] = f'Bearer {token}'
+
+    prefix = '{"_data":['
+    suffix = ']}'
+    slen = len(suffix)
+    chunk = prefix
+    ready = []
+
+    for row in rows:
+        data = fix_data_for_json(row.data)
+        data = json.dumps(data, ensure_ascii=False)
+        if ready and len(chunk) + len(data) + slen > chunk_size:
+            yield from _send_and_receive(session, target, ready, chunk + suffix)
+            chunk = prefix
+            ready = []
+        chunk += (',' if ready else '') + data
+        ready.append(row)
+
+    if ready:
+        yield from _send_and_receive(session, target, ready, chunk + suffix)
+
+
+def _send_and_receive(session, target, rows: List[_PushRow], data: str):
+    data = data.encode('utf-8')
+    resp = session.post(target, data=data)
+    resp.raise_for_status()
+    data = resp.json()['_data']
+    assert len(rows) == len(data), (
+        f"len(sent) = {len(rows)}, len(received) = {len(data)}"
+    )
+    for sent, recv in zip(rows, data):
+        assert sent.data['_id'] == recv['_id'], (
+            f"sent._id = {sent.data['_id']}, received._id = {recv['_id']}"
+        )
+        yield sent
+
+
+def _add_stop_time(rows, stop):
+    start = time.time()
+    for row in rows:
+        yield row
+        if time.time() - start > stop:
+            break
+
+
+def _init_push_state(
+    file: str,
+    models: List[Model],
+) -> Tuple[sa.engine.Engine, sa.MetaData]:
+    engine = sa.create_engine(f'sqlite:///{file}')
+    metadata = sa.MetaData(engine)
+    for model in models:
+        table = sa.Table(
+            model.name, metadata,
+            sa.Column('id', sa.Unicode, primary_key=True),
+            sa.Column('rev', sa.Unicode),
+            sa.Column('pushed', sa.DateTime),
+        )
+        table.create(checkfirst=True)
+    return engine, metadata
+
+
+def _check_push_state(
+    context: Context,
+    rows: Iterable[_PushRow],
+    metadata: sa.MetaData,
+):
+    conn = context.get('push.state.conn')
+
+    for model, group in itertools.groupby(rows, key=lambda row: row.data['_type']):
+        table = metadata.tables[model]
+
+        query = sa.select([table.c.id, table.c.rev])
+        saved = {
+            state[table.c.id]: state[table.c.rev]
+            for state in conn.execute(query)
         }
 
-        for i, model in enumerate(models, 1):
-            try:
-                stream = _read_model_data(
-                    context,
-                    model,
-                    limit=limit,
-                    count=counts.get(model.name),
-                    pbar=pbar,
+        for row in group:
+            _id = row.data['_id']
+
+            rev = flatten([take(row.data)])
+            rev = [[k, v] for x in rev for k, v in sorted(x.items())]
+            rev = msgpack.dumps(rev, strict_types=True)
+            rev = hashlib.sha1(rev).hexdigest()
+
+            row.rev = rev
+            row.saved = _id in saved
+
+            if saved.get(_id) == row.rev:
+                continue  # Nothing has changed.
+
+            yield row
+
+
+def _save_push_state(
+    context: Context,
+    rows: Iterable[_PushRow],
+    metadata: sa.MetaData,
+):
+    conn = context.get('push.state.conn')
+    for row in rows:
+        table = metadata.tables[row.data['_type']]
+        if row.saved:
+            conn.execute(
+                table.update().
+                where(table.c.id == row.data['_id']).
+                values(
+                    id=row.data['_id'],
+                    rev=row.rev,
+                    pushed=datetime.datetime.now(),
                 )
-                if chunk_size:
-                    for chunk in schunks(stream, chunk_size):
-                        chunk = b''.join(chunk)
-                        resp = requests.post(target, headers=headers, data=chunk)
-                        resp.raise_for_status()
-                else:
-                    resp = requests.post(target, headers=headers, data=stream)
-                    resp.raise_for_status()
-            except Exception:
-                log.exception("Erro on push for {model.name}.")
+            )
+        else:
+            conn.execute(
+                table.insert().
+                values(
+                    id=row.data['_id'],
+                    rev=row.rev,
+                    pushed=datetime.datetime.now(),
+                )
+            )
+        yield row
 
 
 def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
@@ -398,59 +634,6 @@ def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
         click.echo(resp.text)
         raise click.Abort("Can't get access token.")
     return resp.json()['access_token']
-
-
-def _get_row_count(
-    context: components.Context,
-    model: components.Model,
-) -> int:
-    stream = commands.getall(context, model, model.backend, query=Expr('count'))
-    for data in stream:
-        return data['count()']
-
-
-def _read_model_data(
-    context: components.Context,
-    model: components.Model,
-    *,
-    count: int = None,
-    limit: int = None,
-    pbar=None,
-) -> Iterable[dict]:
-
-    if limit is None:
-        query = None
-    else:
-        query = Expr('limit', limit)
-        count = min(count, limit) if count else count
-
-    stream = commands.getall(context, model, model.backend, query=query)
-
-    if pbar is not None:
-        stream = tqdm.tqdm(stream, model.name, ascii=True, total=count, leave=False)
-
-    for data in stream:
-        _id = data['_id']
-        _type = data['_type']
-        where = {
-            'name': 'eq',
-            'args': [
-                {'name': 'bind', 'args': ['_id']},
-                _id,
-            ]
-        }
-        payload = {
-            '_op': 'upsert',
-            '_type': _type,
-            '_id': _id,
-            '_where': spyna.unparse(where),
-            **{k: v for k, v in data.items() if not k.startswith('_')}
-        }
-        payload = fix_data_for_json(payload)
-        yield json.dumps(payload).encode('utf-8') + b'\n'
-
-        if pbar is not None:
-            pbar.update(1)
 
 
 @main.command('import', help='Import data from a file.')

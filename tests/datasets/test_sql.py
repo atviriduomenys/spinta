@@ -496,7 +496,7 @@ def test_ns_getall(rc, tmpdir, sqlite):
     ]
 
 
-def test_push(postgresql, rc, cli, responses, tmpdir, sqlite):
+def test_push(postgresql, rc, cli, responses, tmpdir, sqlite, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
@@ -513,6 +513,7 @@ def test_push(postgresql, rc, cli, responses, tmpdir, sqlite):
 
     # Configure remote server
     remote = configure_remote_server(cli, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmpdir, sqlite)
@@ -616,7 +617,7 @@ def test_count(rc, tmpdir, sqlite):
     assert listdata(resp) == [3]
 
 
-def test_push_chunks(postgresql, rc, cli, responses, tmpdir, sqlite):
+def test_push_chunks(postgresql, rc, cli, responses, tmpdir, sqlite, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
@@ -629,6 +630,7 @@ def test_push_chunks(postgresql, rc, cli, responses, tmpdir, sqlite):
 
     # Configure remote server
     remote = configure_remote_server(cli, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmpdir, sqlite)
@@ -649,3 +651,50 @@ def test_push_chunks(postgresql, rc, cli, responses, tmpdir, sqlite):
         ('lt', 'Lietuva'),
         ('lv', 'Latvija')
     ]
+
+
+def test_push_state(postgresql, rc, cli, responses, tmpdir, sqlite, request):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | source      | type   | ref     | access
+    datasets/gov/example     |             |        |         |
+      | data                 |             | sql    |         |
+      |   |                  |             |        |         |
+      |   |   | country      | salis       |        | code    |
+      |   |   |   | code     | kodas       | string |         | open
+      |   |   |   | name     | pavadinimas | string |         | open
+    '''))
+
+    # Configure remote server
+    remote = configure_remote_server(cli, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmpdir, sqlite)
+
+    # Push one row, save state and stop.
+    cli.invoke(localrc, push, [
+        remote.url,
+        '-r', str(remote.credsfile),
+        '-c', remote.client,
+        '-d', 'datasets/gov/example',
+        '--chunk-size', '1k',
+        '--stop-time', '1h',
+        '--stop-row', '1',
+        '--state', str(tmpdir / 'state.db'),
+    ])
+
+    remote.app.authmodel('datasets/gov/example/country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/country')
+    assert len(listdata(resp)) == 1
+
+    cli.invoke(localrc, push, [
+        remote.url,
+        '-r', str(remote.credsfile),
+        '-c', remote.client,
+        '-d', 'datasets/gov/example',
+        '--stop-row', '1',
+        '--state', str(tmpdir / 'state.db'),
+    ])
+
+    resp = remote.app.get('/datasets/gov/example/country')
+    assert len(listdata(resp)) == 2
