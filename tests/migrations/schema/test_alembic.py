@@ -71,7 +71,7 @@ def test_add_column(engine, ufunc, request):
     ufunc('''
     add_column(
         '_test_add_colunm_table',
-        column(new_column, pk())
+        column('new_column', pk())
     )
     ''')
 
