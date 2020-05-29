@@ -6,6 +6,11 @@ def consume(generator, n=None):
     return sum((1 for _ in generator), 0)
 
 
+def drain(g):
+    for x in g:
+        pass
+
+
 def chunks(it, n=100):
     yield from iter(lambda: list(islice(it, n)), [])
 
