@@ -20,6 +20,7 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL):
     op = Operations(ctx)
     scope = {
         'op': op,
+        'backend': backend
     }
 
     async def execute(versions):

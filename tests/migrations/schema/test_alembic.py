@@ -6,6 +6,7 @@ from alembic.runtime.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy.dialects.postgresql import UUID
 
+from spinta.backends.postgresql.components import PostgreSQL
 from spinta.testing.ufuncs import UFuncTester
 from spinta.migrations.schema.alembic import Alembic
 
@@ -22,6 +23,7 @@ def ufunc(context, engine):
     op = Operations(ctx)
     return UFuncTester(Alembic, context, scope={
         'op': op,
+        'backend': PostgreSQL()
     })
 
 

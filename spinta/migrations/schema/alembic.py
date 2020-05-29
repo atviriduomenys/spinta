@@ -32,19 +32,13 @@ class Alembic(Env):
 
 @ufunc.resolver(Alembic, Expr)
 def pk(env, expr):
-    return get_primary_key_type(env.context, PostgreSQL())
-
-
-@ufunc.executor(Alembic, Expr)
-def pk(env, expr):
-    env.op.pk(*expr.args, **expr.kwargs)
+    return get_primary_key_type(env.context, env.backend)
 
 
 @ufunc.resolver(Alembic, Expr)
 def add_column(env, expr):
     args, kwargs = expr.resolve(env)
-    table, name, *args = args
-    return Expr(expr.name, table, name, **kwargs)
+    return expr(*args, **kwargs)
 
 
 @ufunc.executor(Alembic, Expr)
@@ -55,8 +49,7 @@ def add_column(env, expr):
 @ufunc.resolver(Alembic, Expr)
 def drop_column(env, expr):
     args, kwargs = expr.resolve(env)
-    table, name, *args = args
-    return Expr(expr.name, table, name, **kwargs)
+    return expr(*args, **kwargs)
 
 
 @ufunc.executor(Alembic, Expr)
