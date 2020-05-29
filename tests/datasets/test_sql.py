@@ -496,7 +496,7 @@ def test_ns_getall(rc, tmpdir, sqlite):
     ]
 
 
-def test_push(postgresql, rc, cli, responses, tmpdir, sqlite):
+def test_push(postgresql, rc, cli, responses, tmpdir, sqlite, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
@@ -513,6 +513,7 @@ def test_push(postgresql, rc, cli, responses, tmpdir, sqlite):
 
     # Configure remote server
     remote = configure_remote_server(cli, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmpdir, sqlite)
@@ -616,7 +617,7 @@ def test_count(rc, tmpdir, sqlite):
     assert listdata(resp) == [3]
 
 
-def test_push_chunks(postgresql, rc, cli, responses, tmpdir, sqlite):
+def test_push_chunks(postgresql, rc, cli, responses, tmpdir, sqlite, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
@@ -629,6 +630,7 @@ def test_push_chunks(postgresql, rc, cli, responses, tmpdir, sqlite):
 
     # Configure remote server
     remote = configure_remote_server(cli, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmpdir, sqlite)
@@ -651,7 +653,7 @@ def test_push_chunks(postgresql, rc, cli, responses, tmpdir, sqlite):
     ]
 
 
-def test_push_state(postgresql, rc, cli, responses, tmpdir, sqlite):
+def test_push_state(postgresql, rc, cli, responses, tmpdir, sqlite, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
@@ -664,6 +666,7 @@ def test_push_state(postgresql, rc, cli, responses, tmpdir, sqlite):
 
     # Configure remote server
     remote = configure_remote_server(cli, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmpdir, sqlite)
@@ -676,7 +679,7 @@ def test_push_state(postgresql, rc, cli, responses, tmpdir, sqlite):
         '-d', 'datasets/gov/example',
         '--chunk-size', '1k',
         '--stop-time', '1h',
-        '--stop-row', '2',
+        '--stop-row', '1',
         '--state', str(tmpdir / 'state.db'),
     ])
 
@@ -689,7 +692,7 @@ def test_push_state(postgresql, rc, cli, responses, tmpdir, sqlite):
         '-r', str(remote.credsfile),
         '-c', remote.client,
         '-d', 'datasets/gov/example',
-        '--stop-row', '3',
+        '--stop-row', '1',
         '--state', str(tmpdir / 'state.db'),
     ])
 

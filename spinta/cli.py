@@ -1,4 +1,6 @@
-from typing import Optional, Iterable, List
+from __future__ import annotations
+
+from typing import Optional, Iterator, Iterable, List, Dict, Tuple
 
 import asyncio
 import configparser
@@ -44,7 +46,7 @@ from spinta.core.context import create_context
 from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist
 from spinta.utils.json import fix_data_for_json
-from spinta.utils.itertools import schunks
+from spinta.utils.itertools import drain
 from spinta.utils.units import tobytes, toseconds
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten
@@ -304,7 +306,7 @@ async def _process_stream(
 @click.option('--client', '-c', help="Client name from credentials file.")
 @click.option('--auth', '-a', help="Authorize as client.")
 @click.option('--limit', type=int, help="Limit number of rows read from each model.")
-@click.option('--chunk-size', help="Push data in chunks (1b, 1k, 2m, ...)")
+@click.option('--chunk-size', default='1m', help="Push data in chunks (1b, 1k, 2m, ...), default: 1m.")
 @click.option('--stop-time', help="Stop pushing after given time (1s, 1m, 2h, ...).")
 @click.option('--stop-row', type=int, help="Stop after pushing n rows.")
 @click.option('--state', help="Save push state into a file.")
@@ -355,8 +357,6 @@ def push(
 
     with context:
         _require_auth(context, auth)
-        click.echo(f"Get access token from {target}")
-        token = _get_access_token(credentials, client, target)
         context.attach('transaction', manifest.backend.transaction)
         for backend in store.backends.values():
             context.attach(f'transaction.{backend.name}', backend.begin)
@@ -368,141 +368,59 @@ def push(
         models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
-
-        counts = {}
-        for model in tqdm.tqdm(models, 'Count rows', ascii=True, leave=False):
-            try:
-                counts[model.name] = _get_row_count(context, model)
-            except Exception:
-                log.exception("Error on _get_row_count({model.name}).")
-
-        if limit is None:
-            total = sum(counts.values())
-        else:
-            total = sum(min(c, limit) for c in counts.values())
-
-        headers = {
-            'Content-Type': 'application/x-ndjson',
-            'Authorization': f'Bearer {token}',
-        }
+        counts = _count_rows(context, models, limit)
 
         if state:
             engine, metadata = _init_push_state(state, models)
+            context.attach('push.state.conn', engine.begin)
 
         rows = _iter_model_rows(context, models, counts, limit)
+
+        rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
 
         if stop_time:
             rows = _add_stop_time(rows, stop_time)
 
-        rows = tqdm.tqdm(rows, desc='PUSH', ascii=True, total=total)
-
         if state:
-            rows = _add_push_state(rows, engine, metadata)
+            rows = _check_push_state(context, rows, metadata)
 
         if stop_row:
             rows = itertools.islice(rows, stop_row)
 
-        rows = _to_json(rows)
+        rows = _push_to_remote(rows, target, credentials, client, chunk_size)
 
-        for row in rows:
-            if chunk_size:
-                for chunk in schunks(rows, chunk_size):
-                    chunk = b''.join(chunk)
-                    resp = requests.post(target, headers=headers, data=chunk)
-                    resp.raise_for_status()
-            else:
-                resp = requests.post(target, headers=headers, data=rows)
-                resp.raise_for_status()
+        if state:
+            rows = _save_push_state(context, rows, metadata)
+
+        drain(rows)
 
 
-def _add_progress_bar(stream, model, count, limit):
-    count = min(count, limit) if limit else count
-    return tqdm.tqdm(stream, model.name, ascii=True, total=count, leave=False)
+class _PushRow:
+    data: dict
+    rev: str
+    saved: bool = False
+
+    def __init__(self, data: dict):
+        self.data = data
+        self.rev = None
+        self.saved = False
 
 
-def _add_stop_time(rows, stop):
-    start = time.time()
-    for row in rows:
-        yield row
-        if time.time() - start > stop:
-            break
-
-
-def _iter_model_rows(context, models, counts, limit):
-    for model in models:
-        count = counts.get(model.name)
-        rows = _read_model_data(context, model, limit=limit)
-        rows = _add_progress_bar(rows, model, count, limit)
-        yield from rows
-
-
-def _init_push_state(file: str, models: List[Model]):
-    engine = sa.create_engine(f'sqlite:///{file}')
-    metadata = sa.MetaData(engine)
-    for model in models:
-        table = sa.Table(
-            model.name, metadata,
-            sa.Column('id', sa.String, primary_key=True),
-            sa.Column('rev', sa.String),
-            sa.Column('pushed', sa.DateTime),
-        )
-        table.create(checkfirst=True)
-    return engine, metadata
-
-
-def _add_push_state(
-    rows: Iterable[dict],
-    engine: sa.engine.Engine,
-    metadata: sa.MetaData,
-):
-    with engine.begin() as conn:
-        for model, group in itertools.groupby(rows, key=lambda row: row['_type']):
-            table = metadata.tables[model]
-
-            query = sa.select([table.c.id, table.c.rev])
-            revs = {
-                state[table.c.id]: state[table.c.rev]
-                for state in conn.execute(query)
-            }
-
-            for row in group:
-                _id = row['_id']
-                rev = flatten([take(row)])
-                rev = [[k, v] for x in rev for k, v in sorted(x.items())]
-                rev = msgpack.dumps(rev, strict_types=True)
-                rev = hashlib.sha1(rev).hexdigest()
-
-                if revs.get(_id) == rev:
-                    continue  # Nothing has changed.
-
-                yield row
-
-                conn.execute(table.insert().values(
-                    id=_id,
-                    rev=rev,
-                    pushed=datetime.datetime.now(),
-                ))
-
-
-def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
-    url = urllib.parse.urlparse(url)
-    section = f'{client}@{url.hostname}'
-    if url.port:
-        section += f':{url.port}'
-    creds = configparser.ConfigParser()
-    creds.read(credsfile)
-    auth = (
-        creds.get(section, 'client_id'),
-        creds.get(section, 'client_secret'),
-    )
-    resp = requests.post(f'{url.scheme}://{url.netloc}/auth/token', auth=auth, data={
-        'grant_type': 'client_credentials',
-        'scope': creds.get(section, 'scopes'),
-    })
-    if resp.status_code >= 400:
-        click.echo(resp.text)
-        raise click.Abort("Can't get access token.")
-    return resp.json()['access_token']
+def _count_rows(
+    context: Context,
+    models: List[Model],
+    limit: int,
+) -> Dict[str, int]:
+    counts = {}
+    for model in tqdm.tqdm(models, 'Count rows', ascii=True, leave=False):
+        try:
+            count = _get_row_count(context, model)
+        except Exception:
+            log.exception("Error on _get_row_count({model.name}).")
+        if limit:
+            count = min(count, limit)
+        counts[model.name] = count
+    return counts
 
 
 def _get_row_count(
@@ -514,12 +432,24 @@ def _get_row_count(
         return data['count()']
 
 
+def _iter_model_rows(
+    context: Context,
+    models: List[Model],
+    counts: Dict[str, int],
+    limit: int,
+) -> Iterator[_PushRow]:
+    for model in models:
+        rows = _read_model_data(context, model, limit)
+        count = counts.get(model.name)
+        rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
+        yield from rows
+
+
 def _read_model_data(
     context: components.Context,
     model: components.Model,
-    *,
     limit: int = None,
-) -> Iterable[dict]:
+) -> Iterable[_PushRow]:
 
     if limit is None:
         query = None
@@ -545,13 +475,165 @@ def _read_model_data(
             '_where': spyna.unparse(where),
             **{k: v for k, v in data.items() if not k.startswith('_')}
         }
-        payload = fix_data_for_json(payload)
-        yield payload
+        yield _PushRow(payload)
 
 
-def _to_json(stream):
-    for payload in stream:
-        yield json.dumps(payload).encode('utf-8') + b'\n'
+def _push_to_remote(
+    rows: Iterable[_PushRow],
+    target: str,
+    credentials: str,
+    client: str,
+    chunk_size: int,
+):
+    click.echo(f"Get access token from {target}")
+    token = _get_access_token(credentials, client, target)
+
+    session = requests.Session()
+    session.headers['Content-Type'] = 'application/json'
+    session.headers['Authorization'] = f'Bearer {token}'
+
+    prefix = '{"_data":['
+    suffix = ']}'
+    slen = len(suffix)
+    chunk = prefix
+    ready = []
+
+    for row in rows:
+        data = fix_data_for_json(row.data)
+        data = json.dumps(data, ensure_ascii=False)
+        if ready and len(chunk) + len(data) + slen > chunk_size:
+            yield from _send_and_receive(session, target, ready, chunk + suffix)
+            chunk = prefix
+            ready = []
+        chunk += (',' if ready else '') + data
+        ready.append(row)
+
+    if ready:
+        yield from _send_and_receive(session, target, ready, chunk + suffix)
+
+
+def _send_and_receive(session, target, rows: List[_PushRow], data: str):
+    data = data.encode('utf-8')
+    resp = session.post(target, data=data)
+    resp.raise_for_status()
+    data = resp.json()['_data']
+    assert len(rows) == len(data), (
+        f"len(sent) = {len(rows)}, len(received) = {len(data)}"
+    )
+    for sent, recv in zip(rows, data):
+        assert sent.data['_id'] == recv['_id'], (
+            f"sent._id = {sent.data['_id']}, received._id = {recv['_id']}"
+        )
+        yield sent
+
+
+def _add_stop_time(rows, stop):
+    start = time.time()
+    for row in rows:
+        yield row
+        if time.time() - start > stop:
+            break
+
+
+def _init_push_state(
+    file: str,
+    models: List[Model],
+) -> Tuple[sa.engine.Engine, sa.MetaData]:
+    engine = sa.create_engine(f'sqlite:///{file}')
+    metadata = sa.MetaData(engine)
+    for model in models:
+        table = sa.Table(
+            model.name, metadata,
+            sa.Column('id', sa.Unicode, primary_key=True),
+            sa.Column('rev', sa.Unicode),
+            sa.Column('pushed', sa.DateTime),
+        )
+        table.create(checkfirst=True)
+    return engine, metadata
+
+
+def _check_push_state(
+    context: Context,
+    rows: Iterable[_PushRow],
+    metadata: sa.MetaData,
+):
+    conn = context.get('push.state.conn')
+
+    for model, group in itertools.groupby(rows, key=lambda row: row.data['_type']):
+        table = metadata.tables[model]
+
+        query = sa.select([table.c.id, table.c.rev])
+        saved = {
+            state[table.c.id]: state[table.c.rev]
+            for state in conn.execute(query)
+        }
+
+        for row in group:
+            _id = row.data['_id']
+
+            rev = flatten([take(row.data)])
+            rev = [[k, v] for x in rev for k, v in sorted(x.items())]
+            rev = msgpack.dumps(rev, strict_types=True)
+            rev = hashlib.sha1(rev).hexdigest()
+
+            row.rev = rev
+            row.saved = _id in saved
+
+            if saved.get(_id) == row.rev:
+                continue  # Nothing has changed.
+
+            yield row
+
+
+def _save_push_state(
+    context: Context,
+    rows: Iterable[_PushRow],
+    metadata: sa.MetaData,
+):
+    conn = context.get('push.state.conn')
+    for row in rows:
+        table = metadata.tables[row.data['_type']]
+        if row.saved:
+            conn.execute(
+                table.update().
+                where(table.c.id == row.data['_id']).
+                values(
+                    id=row.data['_id'],
+                    rev=row.rev,
+                    pushed=datetime.datetime.now(),
+                )
+            )
+        else:
+            conn.execute(
+                table.insert().
+                values(
+                    id=row.data['_id'],
+                    rev=row.rev,
+                    pushed=datetime.datetime.now(),
+                )
+            )
+        yield row
+
+
+def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
+    url = urllib.parse.urlparse(url)
+    section = f'{client}@{url.hostname}'
+    if url.port:
+        section += f':{url.port}'
+    creds = configparser.ConfigParser()
+    creds.read(credsfile)
+    auth = (
+        creds.get(section, 'client_id'),
+        creds.get(section, 'client_secret'),
+    )
+    resp = requests.post(f'{url.scheme}://{url.netloc}/auth/token', auth=auth, data={
+        'grant_type': 'client_credentials',
+        'scope': creds.get(section, 'scopes'),
+    })
+    if resp.status_code >= 400:
+        click.echo(resp.text)
+        raise click.Abort("Can't get access token.")
+    return resp.json()['access_token']
 
 
 @main.command('import', help='Import data from a file.')
