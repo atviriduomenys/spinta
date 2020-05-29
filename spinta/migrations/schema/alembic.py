@@ -4,7 +4,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import ARRAY
 
-from spinta.backends.postgresql.components import PostgreSQL
 from spinta.commands import get_primary_key_type
 from spinta.exceptions import UnknownExpr
 from spinta.core.ufuncs import Env, Expr, Bind, ufunc
