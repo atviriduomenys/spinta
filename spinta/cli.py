@@ -47,6 +47,7 @@ from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.itertools import drain
+from spinta.utils.itertools import peek
 from spinta.utils.units import tobytes, toseconds
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten
@@ -458,6 +459,11 @@ def _read_model_data(
 
     stream = commands.getall(context, model, model.backend, query=query)
 
+    try:
+        stream = peek(stream)
+    except Exception:
+        return
+
     for data in stream:
         _id = data['_id']
         _type = data['_type']
@@ -514,8 +520,13 @@ def _push_to_remote(
 
 def _send_and_receive(session, target, rows: List[_PushRow], data: str):
     data = data.encode('utf-8')
-    resp = session.post(target, data=data)
-    resp.raise_for_status()
+
+    try:
+        resp = session.post(target, data=data)
+        resp.raise_for_status()
+    except Exception:
+        return
+
     data = resp.json()['_data']
     assert len(rows) == len(data), (
         f"len(sent) = {len(rows)}, len(received) = {len(data)}"
@@ -571,7 +582,8 @@ def _check_push_state(
         for row in group:
             _id = row.data['_id']
 
-            rev = flatten([take(row.data)])
+            rev = fix_data_for_json(take(row.data))
+            rev = flatten([rev])
             rev = [[k, v] for x in rev for k, v in sorted(x.items())]
             rev = msgpack.dumps(rev, strict_types=True)
             rev = hashlib.sha1(rev).hexdigest()

@@ -1,4 +1,5 @@
 from itertools import islice
+from itertools import chain
 
 
 def consume(generator, n=None):
@@ -28,6 +29,11 @@ def schunks(it, s=100):
         blen += vlen
     if buff:
         yield buff
+
+
+def peek(it):
+    peek = list(islice(it, 1))
+    return chain(peek, it)
 
 
 def recursive_keys(dct, dot_notation=False, prefix=None):
