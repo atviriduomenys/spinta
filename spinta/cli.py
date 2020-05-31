@@ -462,6 +462,7 @@ def _read_model_data(
     try:
         stream = peek(stream)
     except Exception:
+        log.exception(f"Error when reading data from model {model.name}")
         return
 
     for data in stream:
@@ -524,10 +525,11 @@ def _send_and_receive(session, target, rows: List[_PushRow], data: str):
     try:
         resp = session.post(target, data=data)
         resp.raise_for_status()
+        data = resp.json()['_data']
     except Exception:
+        log.exception("Error when sending and receiving data.")
         return
 
-    data = resp.json()['_data']
     assert len(rows) == len(data), (
         f"len(sent) = {len(rows)}, len(received) = {len(data)}"
     )
