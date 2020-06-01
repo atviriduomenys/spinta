@@ -3,6 +3,7 @@ from typing import Optional
 import datetime
 import uuid
 import hashlib
+import decimal
 
 import msgpack
 import sqlalchemy as sa
@@ -84,6 +85,8 @@ class SqlAlchemyKeyMap(KeyMap):
 def _encode_value(value):
     if isinstance(value, (datetime.datetime, datetime.date)):
         return value.isoformat()
+    if isinstance(value, decimal.Decimal):
+        return float(value)
     return value
 
 
