@@ -46,7 +46,6 @@ from spinta.core.context import create_context
 from spinta.core.config import KeyFormat
 from spinta.utils.aiotools import alist
 from spinta.utils.json import fix_data_for_json
-from spinta.utils.itertools import drain
 from spinta.utils.itertools import peek
 from spinta.utils.units import tobytes, toseconds
 from spinta.utils.data import take
@@ -393,7 +392,13 @@ def push(
         if state:
             rows = _save_push_state(context, rows, metadata)
 
-        drain(rows)
+        while True:
+            try:
+                next(rows)
+            except StopIteration:
+                break
+            except Exception:
+                log.exception("Error while reading data.")
 
 
 class _PushRow:
