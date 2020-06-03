@@ -574,3 +574,47 @@ def test_changelog(context, model, app):
         {'_op': 'update', 'image': {'_id': 'myimg.png',
                                     '_content_type': 'image/png'}}
     ]
+
+
+@pytest.mark.models(
+    'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_wipe(tmpdir, model, app):
+    app.authmodel(model, [
+        'insert',
+        'image_update',
+        'getone',
+        'wipe'
+    ])
+    # Create file which should not be deleted after wipe
+    new_file = pathlib.Path(tmpdir) / 'new.file'
+    new_file.write_bytes(b'DATA')
+
+    # Create a new photo resource.
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+    })
+    assert resp.status_code == 201, resp.text
+    data = resp.json()
+    id_ = data['_id']
+    revision = data['_revision']
+
+    # PUT image to just create photo resource.
+    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+        'revision': revision,
+        'content-type': 'image/png',
+        'content-disposition': 'attachment; filename="myimg.png"',
+    })
+    assert resp.status_code == 200, resp.text
+    img = pathlib.Path(tmpdir) / 'myimg.png'
+    assert img.is_file() is True
+
+    resp = app.delete(f'/{model}/:wipe')
+    assert resp.status_code == 200
+    assert img.is_file() is False
+    assert new_file.is_file() is True
+
+    resp = app.get(f'/{model}/{id_}')
+    assert resp.status_code == 404

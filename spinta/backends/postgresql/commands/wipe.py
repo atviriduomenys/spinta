@@ -35,4 +35,7 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
 
 @commands.wipe.register()
 def wipe(context: Context, dtype: DataType, backend: PostgreSQL):
-    pass
+    same_backend = backend.name == dtype.backend.name
+
+    if not same_backend:
+        wipe(context, dtype, dtype.backend)
