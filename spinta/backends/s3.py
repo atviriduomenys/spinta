@@ -11,6 +11,7 @@ from starlette.responses import StreamingResponse
 
 from spinta import commands
 from spinta.backends import Backend, simple_data_check
+from spinta.commands import getall
 from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.components import Action, Context, DataItem, Model, Property, UrlParams
 from spinta.core.config import RawConfig
@@ -19,6 +20,7 @@ from spinta.manifests.components import Manifest
 from spinta.renderer import render
 from spinta.types.datatype import File
 from spinta.utils.aiotools import aiter
+from spinta.utils.data import take
 
 
 class S3(Backend):
@@ -189,15 +191,22 @@ async def getone(
     )
 
 
-@commands.wipe.register()
-def wipe(context: Context, model: Model, backend: S3):
-    s3_client = get_aws_session(backend).client('s3')
-    objs = s3_client.list_objects(Bucket=bucket_name)
-    obj_keys = {'Objects': [
-        {'Key': obj['Key'] for obj in objs['Contents']}
-    ]}
-    bucket = s3.Bucket(bucket_name)
-    bucket.delete_objects(Delete=obj_keys)
+@commands.wipe.register(Context, File, S3)
+def wipe(context: Context, dtype: File, backend: S3):
+    aws = get_aws_session(backend)
+    objs = aws.client('s3').list_objects(Bucket=backend.bucket_name)
+
+    if 'Contents' in objs:
+        obj_keys = {'Objects': []}
+        fnames = [obj['Key'] for obj in objs['Contents']]
+        rows = getall(context, dtype.prop.model, dtype.prop.model.backend)
+        for r in rows:
+            fn = take(dtype.prop.name + '._id', r)
+            if fn and fn in fnames:
+                obj_keys['Objects'].append({'Key': fn})
+        if obj_keys['Objects']:
+            bucket = aws.resource('s3').Bucket(backend.bucket_name)
+            bucket.delete_objects(Delete=obj_keys)
 
 
 def get_aws_session(backend: Backend, **kwargs):
