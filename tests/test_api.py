@@ -567,7 +567,7 @@ def test_count(app):
     assert resp.status_code == 200
 
     resp.context.pop('request')
-    assert resp.context['header'] == ['count']
+    assert resp.context['header'] == ['count()']
     assert resp.context['data'] == [[{'color': None, 'link': None, 'value': 2}]]
 
 

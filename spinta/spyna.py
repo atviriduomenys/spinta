@@ -249,7 +249,7 @@ def unparse(rql, pretty=False):
         return 'true'
     if rql is False:
         return 'false'
-    if not isinstance(rql, dict):
+    if not isinstance(rql, dict) or not set(rql) >= {'name', 'args'}:
         return repr(rql)
 
     ops = {

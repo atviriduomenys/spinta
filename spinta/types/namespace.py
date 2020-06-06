@@ -14,6 +14,7 @@ from spinta.renderer import render
 from spinta.nodes import load_node, load_model_properties
 from spinta import exceptions
 from spinta.auth import authorized
+from spinta.compat import urlparams_to_expr
 
 
 @commands.link.register(Context, Namespace)
@@ -56,16 +57,8 @@ async def getall(
     elif params.all:
         for model in traverse_ns_models(context, ns, action):
             commands.authorize(context, action, model)
-        data = getall(
-            context, ns, None,
-            action=action,
-            select=params.select,
-            sort=params.sort,
-            offset=params.offset,
-            limit=params.limit,
-            count=params.count,
-            query=params.query,
-        )
+        expr = urlparams_to_expr(params)
+        data = getall(context, ns, None, action=action, query=expr)
         return render(context, request, ns, params, data, action=action)
     else:
         return _get_ns_content(context, request, ns, params, action)

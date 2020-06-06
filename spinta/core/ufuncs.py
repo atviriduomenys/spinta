@@ -1,7 +1,7 @@
 from typing import Any, Optional, List
 
 import importlib
-
+import functools
 
 from spinta.dispatcher import Command
 from spinta.components import Context
@@ -64,14 +64,12 @@ class UFuncRegistry:
         names: Optional[List[str]] = None,
     ):
         def decorator(func):
-            names_ = names
-            if names_ is None:
-                if name is None:
-                    names_ = [func.__name__]
-                else:
-                    names_ = [name]
-            for name_ in names_:
-                self._ufuncs.append((name_, func, types))
+            if names is None:
+                self._ufuncs.append((name or func.__name__, func, types))
+            else:
+                for name_ in names:
+                    func_ = _inject_name(func, name_)
+                    self._ufuncs.append((name_, func_, types))
             return func
         return decorator
 
@@ -90,12 +88,22 @@ class UFuncRegistry:
                 ufuncs[name] = Ufunc(name)
             dispatcher = ufuncs[name]
             dispatcher.add(types, func)
-            if len(types) > 1 and issubclass(types[1], Expr):
+            if (
+                len(types) > 1 and
+                not isinstance(types[1], tuple) and
+                issubclass(types[1], Expr)
+            ):
                 # If function is registered with @resolve(Env, Expr), then
                 # disable autoargs. This means, that arguments must be resolved
                 # manually by calling ufunc(env, expr).
                 dispatcher.autoargs = False
         return ufuncs
+
+
+def _inject_name(func, name):
+    def wrapper(env, *args, **kwargs):
+        return func(env, name, *args, **kwargs)
+    return wrapper
 
 
 class ufunc:
@@ -222,3 +230,6 @@ class Negative(Bind):
 
 class Positive(Bind):
     pass
+
+
+bind = functools.partial(Expr, 'bind')

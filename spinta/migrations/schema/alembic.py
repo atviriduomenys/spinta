@@ -109,7 +109,7 @@ def column(env, expr):
 
 
 @ufunc.resolver(Alembic, Expr, names=list(TYPES))
-def type_(env, expr):
+def type_(env, name, expr):
     args, kwargs = expr.resolve(env)
     Type = TYPES[expr.name]
     return Type(*args, **kwargs)

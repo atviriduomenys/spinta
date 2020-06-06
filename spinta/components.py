@@ -479,6 +479,7 @@ class Property(Node):
         'external': {},
     }
 
+    place: str = None  # Dotted property path
     title: str = None
     description: str = None
     link: str = None

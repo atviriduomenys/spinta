@@ -109,6 +109,7 @@ def getall(
     *,
     query: Expr = None,
 ):
+    assert isinstance(query, (Expr, type(None))), query
     connection = context.get('transaction').connection
 
     builder = PgQueryBuilder(context)
