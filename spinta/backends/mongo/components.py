@@ -1,5 +1,9 @@
 import contextlib
 
+import pymongo
+
+from spinta.components import Model
+from spinta.components import Property
 from spinta.backends.components import Backend
 
 
@@ -31,6 +35,22 @@ class Mongo(Backend):
     @contextlib.contextmanager
     def begin(self):
         yield self
+
+    def get_table(
+        self,
+        model: Model,
+        name: str = None,
+    ) -> pymongo.collection.Collection:
+        return self.db[model.model_type()]
+
+    def get_column(
+        self,
+        table: pymongo.collection.Collection,
+        prop: Property,
+        *,
+        select=False,
+    ) -> str:
+        return prop.place
 
 
 class ReadTransaction:

@@ -1,22 +1,15 @@
-from typing import List, Optional, Union
-
-import re
-import typing
-
-import pymongo
-
 from starlette.requests import Request
 
+from spinta.compat import urlparams_to_expr
 from spinta import commands
-from spinta import exceptions
 from spinta.components import Context, Model, Property, Action, UrlParams
 from spinta.renderer import render
+from spinta.core.ufuncs import Expr
 from spinta.types.datatype import DataType, File, Object
-from spinta.utils.schema import is_valid_sort_key
 from spinta.exceptions import ItemDoesNotExist, UnavailableSubresource
-from spinta.hacks.recurse import _replace_recurse
 from spinta.backends import log_getall, log_getone
 from spinta.backends.mongo.components import Mongo
+from spinta.backends.mongo.commands.query import MongoQueryBuilder
 
 
 @commands.getone.register(Context, Request, Model, Mongo)
@@ -169,16 +162,8 @@ async def getall(
     params: UrlParams,
 ):
     commands.authorize(context, action, model)
-    data = commands.getall(
-        context, model, model.backend,
-        action=action,
-        select=params.select,
-        sort=params.sort,
-        offset=params.offset,
-        limit=params.limit,
-        count=params.count,
-        query=params.query,
-    )
+    expr = urlparams_to_expr(params)
+    data = commands.getall(context, model, model.backend, query=expr)
     hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
     data = log_getall(context, data, select=params.select, hidden=hidden_props)
     data = (
@@ -201,20 +186,15 @@ def getall(
     model: Model,
     backend: Mongo,
     *,
-    action: Action = Action.GETALL,
-    select: typing.List[str] = None,
-    sort: typing.Dict[str, dict] = None,
-    offset: int = None,
-    limit: int = None,
-    # XXX: Deprecated, count should be part of `select`.
-    count: bool = False,
-    query: typing.List[typing.Dict[str, str]] = None,
+    query: Expr = None,
 ):
+    builder = MongoQueryBuilder(context)
+    builder.update(model=model)
     table = backend.db[model.model_type()]
-
-    qb = MongoQueryBuilder(context, model, backend, table)
-    cursor = qb.build(select, sort, offset, limit, query)
-
+    env = builder.init(backend, table)
+    expr = env.resolve(query)
+    where = env.execute(expr)
+    cursor = env.build(where)
     for row in cursor:
         if '__id' in row:
             row['_id'] = row.pop('__id')

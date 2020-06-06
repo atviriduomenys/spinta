@@ -252,11 +252,11 @@ def get_data(context: Context, rows, model: Node, params: UrlParams, action: Act
         prop = Property()
         prop.dtype = DataType()
         prop.dtype.name = 'string'
-        prop.name = 'count'
+        prop.name = 'count()'
         prop.ref = None
         prop.model = model
         props = [prop]
-        header = ['count']
+        header = ['count()']
     else:
         if params.select:
             header = params.select
@@ -280,6 +280,7 @@ def get_data(context: Context, rows, model: Node, params: UrlParams, action: Act
     yield header
 
     for data in flatten(rows):
+        pp(data)
         row = []
         for name, prop in zip(header, props):
             row.append(get_cell(context, prop, data.get(name), shorten=True))

@@ -1,209 +1,505 @@
+from __future__ import annotations
 
-class QueryBuilder:
-    compops = (
-        'eq',
-        'ge',
-        'gt',
-        'le',
-        'lt',
-        'ne',
-        'contains',
-        'startswith',
-    )
+from typing import List, Union, Any
 
-    def __init__(
-        self,
-        context: Context,
-        model: Model,
-        backend: Mongo,
-        table,
-    ):
-        self.context = context
-        self.model = model
-        self.backend = backend
-        self.table = table
-        self.select = []
-        self.where = []
+import dataclasses
+import datetime
+import re
 
-    def build(
-        self,
-        select: typing.List[str] = None,
-        sort: typing.Dict[str, dict] = None,
-        offset: int = None,
-        limit: int = None,
-        query: Optional[List[dict]] = None,
-    ) -> dict:
-        keys = select if select and '*' not in select else self.model.flatprops
-        keys = {k: 1 for k in keys}
-        keys['_id'] = 0
-        keys['__id'] = 1
-        keys['_revision'] = 1
-        query = self.op_and(*(query or []))
-        cursor = self.table.find(query, keys)
+import pymongo
 
-        if limit is not None:
-            cursor = cursor.limit(limit)
+from spinta import exceptions
+from spinta.auth import authorized
+from spinta.core.ufuncs import ufunc
+from spinta.core.ufuncs import Env
+from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Bind
+from spinta.core.ufuncs import Positive
+from spinta.core.ufuncs import Negative
+from spinta.utils.data import take
+from spinta.exceptions import UnknownExpr
+from spinta.exceptions import FieldNotInResource
+from spinta.components import Action, Model, Property
+from spinta.types.datatype import DataType
+from spinta.types.datatype import PrimaryKey
+from spinta.types.datatype import String
+from spinta.types.datatype import Number
+from spinta.types.datatype import Integer
+from spinta.types.datatype import DateTime
+from spinta.types.datatype import Date
+from spinta.types.datatype import Array
+from spinta.backends.mongo.components import Mongo
 
-        if offset is not None:
-            cursor = cursor.skip(offset)
 
-        if sort:
-            direction = {
-                'positive': pymongo.ASCENDING,
-                'negative': pymongo.DESCENDING,
-            }
-            nsort = []
-            for k in sort:
-                # Optional sort direction: sort(+key) or sort(key)
-                if isinstance(k, dict) and k['name'] in direction:
-                    d = direction[k['name']]
-                    k = k['args'][0]
-                else:
-                    d = direction['positive']
+class MongoQueryBuilder(Env):
 
-                if not is_valid_sort_key(k, self.model):
-                    raise exceptions.FieldNotInResource(self.model, property=k)
+    def init(self, backend: Mongo, table: pymongo.collection.Collection):
+        return self(
+            backend=backend,
+            table=table,
+            select=None,
+            sort=[],
+            limit=None,
+            offset=None,
+        )
 
-                if k == '_id':
-                    k = '__id'
+    def build(self, where: list):
+        if self.select is None:
+            self.call('select', Expr('select'))
 
-                nsort.append((k, d))
-            cursor = cursor.sort(nsort)
+        select = []
+        for sel in self.select.values():
+            if isinstance(sel.item, list):
+                select += sel.item
+            else:
+                select.append(sel.item)
+        select = {k: 1 for k in select}
+        select['_id'] = 0
+        select['__id'] = 1
+        select['_revision'] = 1
+
+        where = where or {}
+
+        cursor = self.table.find(where, select)
+
+        if self.sort:
+            cursor = cursor.sort(self.sort)
+
+        if self.limit is not None:
+            cursor = cursor.limit(self.limit)
+
+        if self.offset is not None:
+            cursor = cursor.skip(self.offset)
 
         return cursor
 
-    def resolve_recurse(self, arg):
-        name = arg['name']
-        if name in self.compops:
-            return _replace_recurse(self.model, arg, 0)
-        if name == 'any':
-            return _replace_recurse(self.model, arg, 1)
-        return arg
+    def default_resolver(self, expr, *args, **kwargs):
+        raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
 
-    def resolve(self, args: Optional[List[dict]]) -> None:
-        for arg in (args or []):
-            arg = self.resolve_recurse(arg)
-            name = arg['name']
-            opargs = arg.get('args', ())
-            method = getattr(self, f'op_{name}', None)
-            if method is None:
-                raise exceptions.UnknownOperator(self.model, operator=name)
-            if name in self.compops:
-                yield self.comparison(name, method, *opargs)
-            else:
-                yield method(*opargs)
 
-    def resolve_property(self, key: Union[str, tuple]) -> Property:
-        if key not in self.model.flatprops:
-            raise exceptions.FieldNotInResource(self.model, property=key)
-        return self.model.flatprops[key]
+class ForeignProperty:
 
-    def resolve_value(self, op, prop: Property, value: Union[str, dict]) -> object:
-        return commands.load_search_params(self.context, prop.dtype, self.backend, {
-            'name': op,
-            'args': [prop.place, value]
-        })
+    def __init__(self, fpr: ForeignProperty, left: Property, right: Property):
+        if fpr is None:
+            self.name = left.place
+            self.chain = [self]
+        else:
+            self.name += '->' + left.place
+            self.chain = fpr.chain + [self]
 
-    def comparison(self, op, method, key, value):
-        lower = False
-        if isinstance(key, dict) and key['name'] == 'lower':
-            lower = True
-            key = key['args'][0]
+        self.left = left
+        self.right = right
 
-        if isinstance(key, tuple):
-            key = '.'.join(key)
+    def __repr__(self):
+        return f'<{self.name}->{self.right.name}:{self.right.dtype.name}>'
 
-        prop = self.resolve_property(key)
-        value = self.resolve_value(op, prop, value)
 
-        if key == '_id':
-            key = '__id'
-        elif key != '_revision' and key.startswith('_'):
-            raise exceptions.FieldNotInResource(self.model, property=key)
+class Func:
+    pass
 
-        return method(key, value, lower)
 
-    def op_group(self, *args: List[dict]):
-        args = list(self.resolve(args))
-        assert len(args) == 1, "Group with multiple args are not supported here."
+@dataclasses.dataclass
+class Lower(Func):
+    dtype: DataType = None
+
+
+@dataclasses.dataclass
+class Recurse(Func):
+    args: List[Union[DataType, Func]] = None
+
+
+@ufunc.resolver(MongoQueryBuilder, Expr)
+def select(env, expr):
+    keys = [str(k) for k in expr.args]
+    args, kwargs = expr.resolve(env)
+    args = list(zip(keys, args)) + list(kwargs.items())
+
+    env.select = {}
+
+    if args:
+        for key, arg in args:
+            env.select[key] = env.call('select', arg)
+    else:
+        for prop in take(['_id', all], env.model.properties).values():
+            # TODO: if authorized(env.context, prop, (Action.GETALL, Action.SEARCH)):
+            #       This line above should come from a getall(request), becaseu getall
+            #       can be used internally for example for writes.
+            env.select[prop.place] = env.call('select', prop.dtype)
+
+    assert env.select, args
+
+
+@ufunc.resolver(MongoQueryBuilder, Bind)
+def select(env, arg):
+    prop = _get_property_for_select(env, arg.name)
+    return env.call('select', prop.dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, str)
+def select(env, arg):
+    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
+    prop = _get_property_for_select(env, arg)
+    return env.call('select', prop.dtype)
+
+
+def _get_property_for_select(env: MongoQueryBuilder, name: str):
+    prop = env.model.flatprops.get(name)
+    if prop and authorized(env.context, prop, Action.SEARCH):
+        return prop
+    else:
+        raise FieldNotInResource(env.model, property=name)
+
+
+@dataclasses.dataclass
+class Selected:
+    item: Any
+    prop: Property = None
+
+
+@ufunc.resolver(MongoQueryBuilder, DataType)
+def select(env, dtype):
+    table = env.backend.get_table(env.model)
+    column = env.backend.get_column(table, dtype.prop, select=True)
+    return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(MongoQueryBuilder, int)
+def limit(env, n):
+    env.limit = n
+
+
+@ufunc.resolver(MongoQueryBuilder, int)
+def offset(env, n):
+    env.offset = n
+
+
+@ufunc.resolver(MongoQueryBuilder, Expr, name='and')
+def and_(env, expr):
+    args, kwargs = expr.resolve(env)
+    args = [a for a in args if a is not None]
+    if len(args) > 1:
+        return {'$and': args}
+    elif args:
         return args[0]
 
-    def op_and(self, *args: List[dict]):
-        args = list(self.resolve(args))
-        if len(args) > 1:
-            return {'$and': args}
-        if len(args) == 1:
-            return args[0]
-        else:
-            return {}
 
-    def op_or(self, *args: List[dict]):
-        args = list(self.resolve(args))
-        if len(args) > 1:
-            return {'$or': args}
-        if len(args) == 1:
-            return args[0]
-        else:
-            return {}
+@ufunc.resolver(MongoQueryBuilder, Expr, name='or')
+def or_(env, expr):
+    args, kwargs = expr.resolve(env)
+    args = [a for a in args if a is not None]
+    return env.call('or', args)
 
-    def op_eq(self, key, value, lower=False):
-        if lower:
-            # TODO: I don't know how to lower case values in mongo.
-            value = re.compile('^' + value + '$', re.IGNORECASE)
-        return {key: value}
 
-    def op_ge(self, key, value, lower=False):
-        return {key: {'$gte': value}}
+@ufunc.resolver(MongoQueryBuilder, list, name='or')
+def or_(env, args):
+    if len(args) > 1:
+        return {'$or': args}
+    elif args:
+        return args[0]
 
-    def op_gt(self, key, value, lower=False):
-        return {key: {'$gt': value}}
 
-    def op_le(self, key, value, lower=False):
-        return {key: {'$lte': value}}
+COMPARE = [
+    'eq',
+    'ne',
+    'lt',
+    'le',
+    'gt',
+    'ge',
+    'startswith',
+    'contains',
+]
 
-    def op_lt(self, key, value, lower=False):
-        return {key: {'$lt': value}}
 
-    def op_ne(self, key, value, lower=False):
-        # MongoDB's $ne operator does not consume regular expresions for values,
-        # whereas `$not` requires an expression.
-        # Thus if our search value is regular expression - search with $not, if
-        # not - use $ne
-        if lower:
-            # TODO: I don't know how to lower case values in mongo.
-            value = re.escape(value)
-            value = re.compile('^' + value + '$', re.IGNORECASE)
-            return {
-                '$and': [
-                    {key: {'$not': value, '$exists': True}},
-                    {key: {'$ne': None, '$exists': True}},
-                ],
-            }
-        else:
-            return {
-                '$and': [
-                    {key: {'$ne': value, '$exists': True}},
-                    {key: {'$ne': None, '$exists': True}},
-                ]
-            }
+@ufunc.resolver(MongoQueryBuilder, Bind, object, names=list(COMPARE))
+def compare(env, op, field, value):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call(op, prop.dtype, value)
 
-    def op_contains(self, key, value, lower=False):
-        try:
-            value = re.escape(value)
-            value = re.compile(value, re.IGNORECASE)
-        except TypeError:
-            # in case value is not a string - then just search for that value directly
-            # XXX: Let's not guess, but check schema instead.
-            pass
-        return {key: value}
 
-    def op_startswith(self, key, value, lower=False):
-        # https://stackoverflow.com/a/3483399
-        try:
-            value = re.escape(value)
-            value = re.compile('^' + value + '.*', re.IGNORECASE)
-        except TypeError:
-            # in case value is not a string - then just search for that value directly
-            # XXX: Let's not guess, but check schema instead.
-            pass
-        return {key: value}
+@ufunc.resolver(MongoQueryBuilder, str, object, names=list(COMPARE))
+def compare(env, op, field, value):
+    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
+    #      should be Bind.
+    prop = _get_from_flatprops(env.model, field)
+    return env.call(op, prop.dtype, value)
+
+
+def _get_from_flatprops(model: Model, prop: str):
+    if prop in model.flatprops:
+        return model.flatprops[prop]
+    else:
+        raise exceptions.FieldNotInResource(model, property=prop)
+
+
+@ufunc.resolver(MongoQueryBuilder, DataType, object, names=[
+    'eq', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
+])
+def compare(env, op, dtype, value):
+    raise exceptions.InvalidValue(dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, PrimaryKey, (object, type(None)), names=[
+    'eq', 'lt', 'le', 'gt', 'ge',
+])
+def compare(env, op, dtype, value):
+    return _mongo_compare(op, '__id', value)
+
+
+@ufunc.resolver(MongoQueryBuilder, DataType, type(None))
+def eq(env, dtype, value):
+    return {dtype.prop.place: None}
+
+
+@ufunc.resolver(MongoQueryBuilder, String, (str, re.Pattern))
+def eq(env, dtype, value):
+    return _mongo_compare('eq', dtype.prop.place, value)
+
+
+@ufunc.resolver(MongoQueryBuilder, (Integer, Number), (int, float), names=[
+    'eq', 'lt', 'le', 'gt', 'ge',
+])
+def compare(env, op, dtype, value):
+    return _mongo_compare(op, dtype.prop.place, value)
+
+
+@ufunc.resolver(MongoQueryBuilder, DateTime, str, names=[
+    'eq', 'lt', 'le', 'gt', 'ge',
+])
+def compare(env, op, dtype, value):
+    value = datetime.datetime.fromisoformat(value)
+    return _mongo_compare(op, dtype.prop.place, value)
+
+
+@ufunc.resolver(MongoQueryBuilder, Date, str, names=[
+    'eq', 'lt', 'le', 'gt', 'ge',
+])
+def compare(env, op, dtype, value):
+    value = datetime.date.fromisoformat(value)
+    value = datetime.datetime.combine(value, datetime.datetime.min.time())
+    return _mongo_compare(op, dtype.prop.place, value)
+
+
+MONGO_OPERATORS = {
+    'lt': '$lt',
+    'le': '$lte',
+    'gt': '$gt',
+    'ge': '$gte',
+}
+
+
+def _mongo_compare(op, column, value):
+    if op == 'eq':
+        return {column: value}
+    else:
+        return {column: {MONGO_OPERATORS[op]: value}}
+
+
+@ufunc.resolver(MongoQueryBuilder, Lower, str)
+def eq(env, fn, value):
+    value = re.escape(value)
+    value = re.compile(f'^{value}$', re.IGNORECASE)
+    return env.call('eq', fn.dtype, value)
+
+
+@ufunc.resolver(MongoQueryBuilder, DataType, object)
+def ne(env, dtype, value):
+    key = dtype.prop.place
+    return {
+        '$and': [
+            {key: {'$ne': value, '$exists': True}},
+            {key: {'$ne': None, '$exists': True}},
+        ]
+    }
+
+
+@ufunc.resolver(MongoQueryBuilder, Lower, str)
+def ne(env, fn, value):
+    key = fn.dtype.prop.place
+    value = re.escape(value)
+    value = re.compile(f'^{value}$', re.IGNORECASE)
+    return {
+        '$and': [
+            {key: {'$not': value, '$exists': True}},
+            {key: {'$ne': None, '$exists': True}},
+        ]
+    }
+
+
+@ufunc.resolver(MongoQueryBuilder, String, str)
+def contains(env, dtype, value):
+    value = re.escape(value)
+    value = re.compile(value)
+    return {dtype.prop.place: value}
+
+
+@ufunc.resolver(MongoQueryBuilder, Array, (object, type(None)), names=[
+    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
+])
+def compare(env, op, dtype, value):
+    return env.call(op, dtype.items.dtype, value)
+
+
+@ufunc.resolver(MongoQueryBuilder, Lower, str)
+def contains(env, fn, value):
+    value = re.escape(value)
+    value = re.compile(value, re.IGNORECASE)
+    return {fn.dtype.prop.place: value}
+
+
+@ufunc.resolver(MongoQueryBuilder, PrimaryKey, str)
+def contains(env, dtype, value):
+    value = re.escape(value)
+    value = re.compile(value)
+    return {'__id': value}
+
+
+@ufunc.resolver(MongoQueryBuilder, String, str)
+def startswith(env, dtype, value):
+    value = re.escape(value)
+    value = re.compile('^' + value)
+    return {dtype.prop.place: value}
+
+
+@ufunc.resolver(MongoQueryBuilder, Lower, str)
+def startswith(env, fn, value):
+    value = re.escape(value)
+    value = re.compile('^' + value, re.IGNORECASE)
+    return {fn.dtype.prop.place: value}
+
+
+@ufunc.resolver(MongoQueryBuilder, PrimaryKey, str)
+def startswith(env, dtype, value):
+    value = re.escape(value)
+    value = re.compile('^' + value)
+    return {'__id': value}
+
+
+FUNCS = [
+    'lower',
+    'upper',
+    'recurse',
+]
+
+
+@ufunc.resolver(MongoQueryBuilder, Bind, names=FUNCS)
+def func(env, name, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call(name, prop.dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, str, names=FUNCS)
+def func(env, name, field):
+    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
+    #      should be Bind.
+    prop = _get_from_flatprops(env.model, field)
+    return env.call(name, prop.dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, String)
+def lower(env, dtype):
+    return Lower(dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, Recurse)
+def lower(env, recurse):
+    return Recurse([env.call('lower', arg) for arg in recurse.args])
+
+
+@ufunc.resolver(MongoQueryBuilder, Bind)
+def recurse(env, field):
+    return _get_recurse_args(env.model, field.name)
+
+
+@ufunc.resolver(MongoQueryBuilder, str)
+def recurse(env, field):
+    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
+    #      should be Bind.
+    return _get_recurse_args(env.model, field)
+
+
+def _get_recurse_args(model: Model, name: str):
+    if name in model.leafprops:
+        return Recurse([prop.dtype for prop in model.leafprops[name]])
+    else:
+        raise exceptions.FieldNotInResource(model, property=name)
+
+
+@ufunc.resolver(MongoQueryBuilder, Recurse, object, names=[
+    'eq', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
+])
+def recurse(env, op, recurse, value):
+    return env.call('or', [
+        env.call(op, arg, value)
+        for arg in recurse.args
+    ])
+
+
+@ufunc.resolver(MongoQueryBuilder, Expr, name='any')
+def any_(env, expr):
+    args, kwargs = expr.resolve(env)
+    op, field, *args = args
+    if isinstance(op, Bind):
+        op = op.name
+    return env.call('or', [
+        env.call(op, field, arg)
+        for arg in args
+    ])
+
+
+@ufunc.resolver(MongoQueryBuilder, object)
+def group(env, arg):
+    return arg
+
+
+@ufunc.resolver(MongoQueryBuilder, Expr)
+def sort(env, expr):
+    args, kwargs = expr.resolve(env)
+    env.sort = [
+        env.call('sort', arg) for arg in args
+    ]
+
+
+@ufunc.resolver(MongoQueryBuilder, Bind)
+def sort(env, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call('asc', prop.dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, Positive)
+def sort(env, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call('asc', prop.dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, Negative)
+def sort(env, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call('desc', prop.dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, str)
+def sort(env, field):
+    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
+    #      should be Bind.
+    prop = _get_from_flatprops(env.model, field)
+    return env.call('asc', prop.dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, DataType)
+def asc(env, dtype):
+    return dtype.prop.place, pymongo.ASCENDING
+
+
+@ufunc.resolver(MongoQueryBuilder, DataType)
+def desc(env, dtype):
+    return dtype.prop.place, pymongo.DESCENDING
+
+
+@ufunc.resolver(MongoQueryBuilder, PrimaryKey)
+def asc(env, dtype):
+    return '__id', pymongo.ASCENDING
+
+
+@ufunc.resolver(MongoQueryBuilder, PrimaryKey)
+def desc(env, dtype):
+    return '__id', pymongo.DESCENDING

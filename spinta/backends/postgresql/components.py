@@ -104,9 +104,17 @@ class PostgreSQL(Backend):
             return self.tables.get(name)
 
     def get_column(self, table: sa.Table, prop: Property, *, select=False) -> sa.Column:
-        if prop.place not in table.c:
-            raise PropertyNotFound(prop, property=prop.place)
-        return table.c[prop.place]
+        if prop.list is not None:
+            table = self.get_table(prop.list, TableType.LIST)
+            if prop.place == prop.list.place:
+                column = prop.list.name
+            else:
+                column = prop.place[len(prop.list.place) + 1:]
+        else:
+            column = prop.place
+        if column not in table.c:
+            raise PropertyNotFound(prop.dtype)
+        return table.c[column]
 
     def query_nodes(self):
         return []

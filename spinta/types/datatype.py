@@ -353,10 +353,7 @@ def load(context: Context, dtype: Object, value: object) -> dict:
 def load(context: Context, dtype: RQL, value: str) -> dict:
     rql = spyna.parse(value)
     rql = binds_to_strs(rql)
-    if rql['name'] == 'and':
-        return rql['args']
-    else:
-        return [rql]
+    return rql
 
 
 @commands.get_error_context.register(DataType)

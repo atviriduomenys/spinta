@@ -410,7 +410,13 @@ def authorized(
 
     # Build scope names.
     scope_formatter = scope_formatter or config.scope_formatter
-    scopes = [scope_formatter(context, scope, action) for scope in scopes]
+    if not isinstance(action, (list, tuple)):
+        action = [action]
+    scopes = [
+        scope_formatter(context, scope, act)
+        for act in action
+        for scope in scopes
+    ]
 
     # Check if client has at least one of required scopes.
     if throw:

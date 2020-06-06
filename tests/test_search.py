@@ -174,14 +174,7 @@ def test_search_gt(model, context, app):
     # search for string value
     resp = app.get(f'/{model}?status>"ok"')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
-    assert get_error_context(
-        resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
-    ) == {
-        "operator": "gt",
-        "model": model,
-        "property": "status",
-    }
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # multi field search
     # test if operators are joined with AND logic
@@ -232,14 +225,7 @@ def test_search_gte(model, context, app):
     # search for string value
     resp = app.get(f'/{model}?status>="ok"')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
-    assert get_error_context(
-        resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
-    ) == {
-        "operator": "ge",
-        "model": model,
-        "property": "status",
-    }
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # multi field search
     # test if operators are joined with AND logic
@@ -293,14 +279,7 @@ def test_search_lt(model, context, app):
     # search for string value
     resp = app.get(f'/{model}?status<"ok"')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
-    assert get_error_context(
-        resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
-    ) == {
-        "operator": "lt",
-        "model": model,
-        "property": "status",
-    }
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # multi field search
     # test if operators are joined with AND logic
@@ -353,14 +332,7 @@ def test_search_lte(model, context, app):
     # search for string value
     resp = app.get(f'/{model}?status<="ok"')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
-    assert get_error_context(
-        resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
-    ) == {
-        "operator": "le",
-        "model": model,
-        "property": "status",
-    }
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # multi field search
     # test if operators are joined with AND logic
@@ -547,14 +519,7 @@ def test_search_contains_type_check(model, context, app):
     app.authmodel(model, ['search'])
     resp = app.get(f'/{model}?recurse(create_date).contains("2019-04-20")')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
-    assert get_error_context(
-        resp.json(), "InvalidOperandValue", ["operator", "model", "property"]
-    ) == {
-        "operator": "contains",
-        "model": model,
-        "property": "notes.create_date",
-    }
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 @pytest.mark.models(
@@ -660,7 +625,7 @@ def test_search_startswith(model, context, app):
     # `startswith` type check
     resp = app.get(f'/{model}?notes.create_date.startswith("2019-04-20")')
     assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidOperandValue"]
+    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
 
 @pytest.mark.models(
@@ -760,13 +725,13 @@ def ids(resources):
     'backends/postgres/report',
 )
 def test_or(model, context, app):
-    r1, r2, r3, = ids(_push_test_data(app, model))
+    ids = RowIds(_push_test_data(app, model))
     app.authmodel(model, ['search'])
     resp = app.get(f'/{model}?count=42|status.lower()="ok"')
-    assert ids(resp) == [r1, r2]
+    assert ids(resp) == [0, 1]
 
     resp = app.get(f'/{model}?count<=10|count=13')
-    assert ids(resp) == [r1, r3]
+    assert ids(resp) == [0, 2]
 
 
 @pytest.mark.models(
