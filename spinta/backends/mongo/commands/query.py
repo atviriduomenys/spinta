@@ -161,24 +161,12 @@ def select(env, expr):
 
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
-def select(env, arg):
-    prop = _get_property_for_select(env, arg.name)
-    return env.call('select', prop.dtype)
-
-
-@ufunc.resolver(MongoQueryBuilder, str)
-def select(env, arg):
-    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    prop = _get_property_for_select(env, arg)
-    return env.call('select', prop.dtype)
-
-
-def _get_property_for_select(env: MongoQueryBuilder, name: str):
-    prop = env.model.flatprops.get(name)
+def select(env, field):
+    prop = env.model.flatprops.get(field.name)
     if prop and authorized(env.context, prop, Action.SEARCH):
-        return prop
+        return env.call('select', prop.dtype)
     else:
-        raise FieldNotInResource(env.model, property=name)
+        raise FieldNotInResource(env.model, property=field.name)
 
 
 @dataclasses.dataclass
@@ -244,14 +232,6 @@ COMPARE = [
 @ufunc.resolver(MongoQueryBuilder, Bind, object, names=list(COMPARE))
 def compare(env, op, field, value):
     prop = _get_from_flatprops(env.model, field.name)
-    return env.call(op, prop.dtype, value)
-
-
-@ufunc.resolver(MongoQueryBuilder, str, object, names=list(COMPARE))
-def compare(env, op, field, value):
-    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
-    #      should be Bind.
-    prop = _get_from_flatprops(env.model, field)
     return env.call(op, prop.dtype, value)
 
 
@@ -418,14 +398,6 @@ def func(env, name, field):
     return env.call(name, prop.dtype)
 
 
-@ufunc.resolver(MongoQueryBuilder, str, names=FUNCS)
-def func(env, name, field):
-    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
-    #      should be Bind.
-    prop = _get_from_flatprops(env.model, field)
-    return env.call(name, prop.dtype)
-
-
 @ufunc.resolver(MongoQueryBuilder, String)
 def lower(env, dtype):
     return Lower(dtype)
@@ -438,21 +410,10 @@ def lower(env, recurse):
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
 def recurse(env, field):
-    return _get_recurse_args(env.model, field.name)
-
-
-@ufunc.resolver(MongoQueryBuilder, str)
-def recurse(env, field):
-    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
-    #      should be Bind.
-    return _get_recurse_args(env.model, field)
-
-
-def _get_recurse_args(model: Model, name: str):
-    if name in model.leafprops:
-        return Recurse([prop.dtype for prop in model.leafprops[name]])
+    if field.name in env.model.leafprops:
+        return Recurse([prop.dtype for prop in env.model.leafprops[field.name]])
     else:
-        raise exceptions.FieldNotInResource(model, property=name)
+        raise exceptions.FieldNotInResource(env.model, property=field.name)
 
 
 @ufunc.resolver(MongoQueryBuilder, Recurse, object, names=[
@@ -504,14 +465,6 @@ def sort(env, sign):
 @ufunc.resolver(MongoQueryBuilder, Negative)
 def sort(env, sign):
     return env.call('desc', sign.arg)
-
-
-@ufunc.resolver(MongoQueryBuilder, str)
-def sort(env, field):
-    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
-    #      should be Bind.
-    prop = _get_from_flatprops(env.model, field)
-    return env.call('asc', prop.dtype)
 
 
 @ufunc.resolver(MongoQueryBuilder, DataType)
