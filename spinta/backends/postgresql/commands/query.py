@@ -13,8 +13,6 @@ from spinta import exceptions
 from spinta.auth import authorized
 from spinta.core.ufuncs import Env, ufunc
 from spinta.core.ufuncs import Bind
-from spinta.core.ufuncs import Positive
-from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import UnknownExpr
 from spinta.exceptions import FieldNotInResource
@@ -147,8 +145,51 @@ class Lower(Func):
 
 
 @dataclasses.dataclass
+class Negative(Func):
+    arg: Any
+
+
+@dataclasses.dataclass
+class Positive(Func):
+    arg: Any
+
+
+@dataclasses.dataclass
 class Recurse(Func):
     args: List[Union[DataType, Func]] = None
+
+
+@dataclasses.dataclass
+class ReservedProperty(Func):
+    dtype: DataType
+    param: str
+
+
+@ufunc.resolver(PgQueryBuilder, Bind, Bind)
+def getattr(env, field, attr):
+    if field.name in env.model.properties:
+        prop = env.model.properties[field.name]
+    else:
+        raise FieldNotInResource(env.model, property=field.anem)
+    return env.call('getattr', prop.dtype, attr)
+
+
+@ufunc.resolver(PgQueryBuilder, Object, Bind)
+def getattr(env, dtype, attr):
+    if attr.name in dtype.properties:
+        return dtype.properties[attr.name].dtype
+    else:
+        raise FieldNotInResource(dtype, property=attr.name)
+
+
+@ufunc.resolver(PgQueryBuilder, Array, Bind)
+def getattr(env, dtype, attr):
+    return env.call('getattr', dtype.items.dtype, attr)
+
+
+@ufunc.resolver(PgQueryBuilder, File, Bind)
+def getattr(env, dtype, attr):
+    return ReservedProperty(dtype, attr.name)
 
 
 @ufunc.resolver(PgQueryBuilder, Expr)
@@ -258,6 +299,11 @@ def select(env, dtype):
             table.c[dtype.prop.place + '._blocks'],
         ]
     return Selected(columns, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, ReservedProperty)
+def select(env, prop):
+    return env.call('select', prop.dtype, prop.param)
 
 
 @ufunc.resolver(PgQueryBuilder, File, str)
@@ -664,15 +710,13 @@ def sort(env, field):
 
 
 @ufunc.resolver(PgQueryBuilder, Positive)
-def sort(env, field):
-    prop = _get_from_flatprops(env.model, field.name)
-    return env.call('asc', prop.dtype)
+def sort(env, sign):
+    return env.call('asc', sign.arg)
 
 
 @ufunc.resolver(PgQueryBuilder, Negative)
-def sort(env, field):
-    prop = _get_from_flatprops(env.model, field.name)
-    return env.call('desc', prop.dtype)
+def sort(env, sign):
+    return env.call('desc', sign.arg)
 
 
 @ufunc.resolver(PgQueryBuilder, str)
@@ -714,3 +758,31 @@ def _get_sort_column(env: PgQueryBuilder, prop: Property):
         main_table.c._id == subqry.c._rid,
     )
     return subqry.c.value
+
+
+@ufunc.resolver(PgQueryBuilder, Bind)
+def negative(env, field) -> Negative:
+    if field.name in env.model.properties:
+        prop = env.model.properties[field.name]
+    else:
+        raise FieldNotInResource(env.model, property=field.anem)
+    return Negative(prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, Bind)
+def positive(env, field) -> Positive:
+    if field.name in env.model.properties:
+        prop = env.model.properties[field.name]
+    else:
+        raise FieldNotInResource(env.model, property=field.anem)
+    return Positive(prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, DataType)
+def negative(env, dtype) -> Negative:
+    return Negative(dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, DataType)
+def positive(env, dtype) -> Positive:
+    return Positive(dtype)

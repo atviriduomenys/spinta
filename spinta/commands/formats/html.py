@@ -259,7 +259,7 @@ def get_data(context: Context, rows, model: Node, params: UrlParams, action: Act
         header = ['count()']
     else:
         if params.select:
-            header = params.select
+            header = [x['args'][0] for x in params.select]
             props = _get_props_from_select(context, model, params.select)
         else:
             if model.type == 'model:ns':
@@ -280,7 +280,6 @@ def get_data(context: Context, rows, model: Node, params: UrlParams, action: Act
     yield header
 
     for data in flatten(rows):
-        pp(data)
         row = []
         for name, prop in zip(header, props):
             row.append(get_cell(context, prop, data.get(name), shorten=True))
@@ -293,7 +292,8 @@ def _get_props_from_select(
     select: List[str],
 ) -> List[Property]:
     props = []
-    for name in select:
+    for node in select:
+        name = node['args'][0]
         if name in model.flatprops:
             prop = model.flatprops[name]
         else:

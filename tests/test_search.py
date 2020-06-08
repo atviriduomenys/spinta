@@ -3,7 +3,7 @@ import requests
 
 from spinta.utils.data import take
 from spinta.testing.utils import error
-from spinta.testing.utils import get_error_codes, get_error_context, RowIds
+from spinta.testing.utils import get_error_codes, RowIds
 from spinta.testing.context import create_test_context
 from spinta.testing.client import create_test_client
 from spinta.testing.tabular import striptable
@@ -80,7 +80,7 @@ def test_search_exact(model, context, app):
     app.authmodel(model, ['search'])
 
     # single field search
-    resp = app.get(f'/{model}?status=OK')
+    resp = app.get(f'/{model}?status="OK"')
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
@@ -665,14 +665,6 @@ def test_search_nested(model, context, app):
     resp = app.get(f'/{model}?notes.foo.bar="baz"')
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ["FieldNotInResource"]
-    assert get_error_context(
-        resp.json(),
-        "FieldNotInResource",
-        ["property", "model"]
-    ) == {
-        "property": "notes.foo.bar",
-        "model": model,
-    }
 
     # nested `contains` search
     resp = app.get(f'/{model}?notes.note.contains("bar")')

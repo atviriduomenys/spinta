@@ -87,7 +87,7 @@ def upsert(app, model: str, where: str, value: str, *, status: int):
     name = model.split('/')[-1]
     data = nest(model, {
         '_op': 'upsert',
-        '_where': f'%s={where}' % path(model),
+        '_where': f'%s={where!r}' % path(model),
         name: value,
     })
     resp = app.post(f'/{model}', json=data)

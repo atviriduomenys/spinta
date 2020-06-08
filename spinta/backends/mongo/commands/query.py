@@ -14,8 +14,6 @@ from spinta.core.ufuncs import ufunc
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Bind
-from spinta.core.ufuncs import Positive
-from spinta.core.ufuncs import Negative
 from spinta.utils.data import take
 from spinta.exceptions import UnknownExpr
 from spinta.exceptions import FieldNotInResource
@@ -28,6 +26,7 @@ from spinta.types.datatype import Integer
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Date
 from spinta.types.datatype import Array
+from spinta.types.datatype import Object
 from spinta.backends.mongo.components import Mongo
 
 
@@ -104,8 +103,40 @@ class Lower(Func):
 
 
 @dataclasses.dataclass
+class Negative(Func):
+    arg: Any
+
+
+@dataclasses.dataclass
+class Positive(Func):
+    arg: Any
+
+
+@dataclasses.dataclass
 class Recurse(Func):
     args: List[Union[DataType, Func]] = None
+
+
+@ufunc.resolver(MongoQueryBuilder, Bind, Bind)
+def getattr(env, field, attr):
+    if field.name in env.model.properties:
+        prop = env.model.properties[field.name]
+    else:
+        raise FieldNotInResource(env.model, property=field.anem)
+    return env.call('getattr', prop.dtype, attr)
+
+
+@ufunc.resolver(MongoQueryBuilder, Object, Bind)
+def getattr(env, dtype, attr):
+    if attr.name in dtype.properties:
+        return dtype.properties[attr.name].dtype
+    else:
+        raise FieldNotInResource(dtype, property=attr.name)
+
+
+@ufunc.resolver(MongoQueryBuilder, Array, Bind)
+def getattr(env, dtype, attr):
+    return env.call('getattr', dtype.items.dtype, attr)
 
 
 @ufunc.resolver(MongoQueryBuilder, Expr)
@@ -235,7 +266,7 @@ def _get_from_flatprops(model: Model, prop: str):
     'eq', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
 ])
 def compare(env, op, dtype, value):
-    raise exceptions.InvalidValue(dtype)
+    raise exceptions.InvalidValue(dtype, op=op, value=type(value))
 
 
 @ufunc.resolver(MongoQueryBuilder, PrimaryKey, (object, type(None)), names=[
@@ -466,15 +497,13 @@ def sort(env, field):
 
 
 @ufunc.resolver(MongoQueryBuilder, Positive)
-def sort(env, field):
-    prop = _get_from_flatprops(env.model, field.name)
-    return env.call('asc', prop.dtype)
+def sort(env, sign):
+    return env.call('asc', sign.arg)
 
 
 @ufunc.resolver(MongoQueryBuilder, Negative)
-def sort(env, field):
-    prop = _get_from_flatprops(env.model, field.name)
-    return env.call('desc', prop.dtype)
+def sort(env, sign):
+    return env.call('desc', sign.arg)
 
 
 @ufunc.resolver(MongoQueryBuilder, str)
@@ -503,3 +532,31 @@ def asc(env, dtype):
 @ufunc.resolver(MongoQueryBuilder, PrimaryKey)
 def desc(env, dtype):
     return '__id', pymongo.DESCENDING
+
+
+@ufunc.resolver(MongoQueryBuilder, Bind)
+def negative(env, field) -> Negative:
+    if field.name in env.model.properties:
+        prop = env.model.properties[field.name]
+    else:
+        raise FieldNotInResource(env.model, property=field.anem)
+    return Negative(prop.dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, Bind)
+def positive(env, field) -> Positive:
+    if field.name in env.model.properties:
+        prop = env.model.properties[field.name]
+    else:
+        raise FieldNotInResource(env.model, property=field.anem)
+    return Positive(prop.dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, DataType)
+def negative(env, dtype) -> Negative:
+    return Negative(dtype)
+
+
+@ufunc.resolver(MongoQueryBuilder, DataType)
+def positive(env, dtype) -> Positive:
+    return Positive(dtype)
