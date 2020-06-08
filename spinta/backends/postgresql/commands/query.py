@@ -217,38 +217,14 @@ def select(env, expr):
 def select(env, arg):
     if arg.name == '_type':
         return Selected(None, env.model.properties['_type'])
-    prop, leaf = _get_property_for_select(env, arg.name)
-    if leaf:
-        return env.call('select', prop.dtype, leaf)
-    else:
-        return env.call('select', prop.dtype)
-
-
-@ufunc.resolver(PgQueryBuilder, str)
-def select(env, arg):
-    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    if arg.name == '_type':
-        return Selected(None, env.model.properties['_type'])
-    prop, leaf = _get_property_for_select(env, arg)
-    if leaf:
-        return env.call('select', prop.dtype, leaf)
-    else:
-        return env.call('select', prop.dtype)
+    prop = _get_property_for_select(env, arg.name)
+    return env.call('select', prop.dtype)
 
 
 def _get_property_for_select(env: PgQueryBuilder, name: str):
-    if '.' in name:
-        # XXX: This is a workaround for data types like file, ref, who has
-        #      reserved properties. I think these reserved properties should be
-        #      in flatprops. But for now, I'm just adding this quick workaround.
-        stem, leaf = name.rsplit('.', 1)
-        if not leaf.startswith('_'):
-            stem, leaf = name, ''
-    else:
-        stem, leaf = name, ''
-    prop = env.model.flatprops.get(stem)
+    prop = env.model.properties.get(name)
     if prop and authorized(env.context, prop, Action.SEARCH):
-        return prop, leaf
+        return prop
     else:
         raise FieldNotInResource(env.model, property=name)
 
@@ -381,14 +357,6 @@ COMPARE = [
 @ufunc.resolver(PgQueryBuilder, Bind, object, names=COMPARE)
 def compare(env, op, field, value):
     prop = _get_from_flatprops(env.model, field.name)
-    return env.call(op, prop.dtype, value)
-
-
-@ufunc.resolver(PgQueryBuilder, str, object, names=COMPARE)
-def compare(env, op, field, value):
-    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
-    #      should be Bind.
-    prop = _get_from_flatprops(env.model, field)
     return env.call(op, prop.dtype, value)
 
 
@@ -641,31 +609,12 @@ def func(env, name, field):
     return env.call(name, prop.dtype)
 
 
-@ufunc.resolver(PgQueryBuilder, str, names=FUNCS)
-def func(env, name, field):
-    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
-    #      should be Bind.
-    prop = env.model.flatprops[field]
-    return env.call(name, prop.dtype)
-
-
 @ufunc.resolver(PgQueryBuilder, Bind)
 def recurse(env, field):
-    return _get_recurse_args(env.model, field.name)
-
-
-@ufunc.resolver(PgQueryBuilder, str)
-def recurse(env, field):
-    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
-    #      should be Bind.
-    return _get_recurse_args(env.model, field)
-
-
-def _get_recurse_args(model: Model, name: str):
-    if name in model.leafprops:
-        return Recurse([prop.dtype for prop in model.leafprops[name]])
+    if field.name in env.model.leafprops:
+        return Recurse([prop.dtype for prop in env.model.leafprops[field.name]])
     else:
-        raise exceptions.FieldNotInResource(model, property=name)
+        raise exceptions.FieldNotInResource(env.model, property=field.name)
 
 
 @ufunc.resolver(PgQueryBuilder, Recurse, object, names=[
@@ -717,14 +666,6 @@ def sort(env, sign):
 @ufunc.resolver(PgQueryBuilder, Negative)
 def sort(env, sign):
     return env.call('desc', sign.arg)
-
-
-@ufunc.resolver(PgQueryBuilder, str)
-def sort(env, field):
-    # XXX: Backwards compatible resolver, first `str` argument is deprecated,
-    #      should be Bind.
-    prop = _get_from_flatprops(env.model, field)
-    return env.call('asc', prop.dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, DataType)
