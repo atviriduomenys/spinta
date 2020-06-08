@@ -13,7 +13,6 @@ from spinta.commands import load, is_object_id
 from spinta.components import Context, Component, Property
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA, NotAvailable
-from spinta.hacks.spyna import binds_to_strs
 from spinta.core.ufuncs import Expr
 from spinta.types.helpers import check_no_extra_keys
 
@@ -352,7 +351,6 @@ def load(context: Context, dtype: Object, value: object) -> dict:
 @load.register(Context, RQL, str)
 def load(context: Context, dtype: RQL, value: str) -> dict:
     rql = spyna.parse(value)
-    rql = binds_to_strs(rql)
     return rql
 
 
