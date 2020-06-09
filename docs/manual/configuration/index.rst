@@ -144,5 +144,6 @@ More on configuration
 .. toctree::
    :maxdepth: 1
 
+   auth
    backend
    manifest

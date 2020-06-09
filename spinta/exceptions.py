@@ -239,6 +239,12 @@ class InvalidToken(UserError):
     headers = {'WWW-Authenticate': 'Bearer error="invalid_token"'}
 
 
+class BasicAuthRequired(UserError):
+    status_code = 401
+    template = "Unauthorized"
+    headers = {'WWW-Authenticate': 'Basic realm="Authentication required."'}
+
+
 class AuthorizedClientsOnly(UserError):
     status_code = 401
     template = "This resource can only be access by an authorized client."

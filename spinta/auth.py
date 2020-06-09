@@ -8,6 +8,7 @@ import json
 import logging
 import time
 import pathlib
+import base64
 
 import ruamel.yaml
 
@@ -31,6 +32,7 @@ from spinta.core.enums import Access
 from spinta.components import Context, Action, Namespace, Model, Property
 from spinta.exceptions import InvalidToken, NoTokenValidationKey
 from spinta.exceptions import AuthorizedClientsOnly
+from spinta.exceptions import BasicAuthRequired
 from spinta.utils import passwords
 from spinta.utils.scopes import name_to_scope
 
@@ -222,12 +224,48 @@ def get_auth_token(context: Context) -> Token:
         request.headers = request.headers.mutablecopy()
         request.headers['authorization'] = f'Bearer {token}'
 
+    elif config.http_basic_auth:
+        token = get_token_from_http_basic_auth(context, request)
+        if token is not None:
+            request.headers = request.headers.mutablecopy()
+            request.headers['authorization'] = f'Bearer {token}'
+
     resource_protector = context.get('auth.resource_protector')
     try:
         token = resource_protector.validate_request(scope, request)
     except JoseError as e:
         raise HTTPException(status_code=400, detail=e.error)
     return token
+
+
+def get_token_from_http_basic_auth(context: Context, request: OAuth2Request):
+    if 'authorization' not in request.headers:
+        raise BasicAuthRequired()
+
+    auth = request.headers['authorization']
+    if ' ' not in auth:
+        raise BasicAuthRequired()
+
+    method, value = request.headers['authorization'].split(None, 1)
+    method = method.lower()
+    if method != 'basic':
+        # Pass authentication to authlib.
+        return
+
+    value = base64.b64decode(value).decode()
+    client, secret = value.split(':', 1)
+
+    # Get client.
+    try:
+        client = query_client(context, client)
+    except InvalidClientError:
+        raise BasicAuthRequired()
+
+    # Check secret.
+    if not client.check_client_secret(secret):
+        raise BasicAuthRequired()
+
+    return create_client_access_token(context, client)
 
 
 def get_auth_request(request: dict) -> OAuth2Request:
@@ -279,9 +317,10 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True):
     return key
 
 
-def create_client_access_token(context: Context, client: str):
+def create_client_access_token(context: Context, client: Union[str, Client]):
     private_key = load_key(context, KeyType.private)
-    client = query_client(context, client)
+    if isinstance(client, str):
+        client = query_client(context, client)
     expires_in = int(datetime.timedelta(days=10).total_seconds())
     return create_access_token(context, private_key, client.id, expires_in, client.scopes)
 
