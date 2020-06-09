@@ -1,3 +1,5 @@
+import pathlib
+
 import boto3
 import pytest
 
@@ -101,9 +103,7 @@ def test_double_post(model, app):
         #       file name, but that is currently not implemented.
         'content-disposition': f'attachment; filename="my_file"',
     })
-    revision = resp.json()['_revision']
     assert resp.status_code == 200, resp.text
-    return id_, revision
 
     resp = app.get(f'/{model}/{id_}/file')
     assert resp.status_code == 200
@@ -166,3 +166,36 @@ def test_delete(model, app):
     }
     resp = app.get(f'/{model}/{id_}/file')
     assert resp.status_code == 404
+
+
+@pytest.mark.models(
+    'backends/mongo/s3_file',
+    'backends/postgres/s3_file',
+)
+def test_wipe(model, app, rc, tmpdir):
+    app.authmodel(model, ['insert', 'update', 'file_update',
+                          'file_getone', 'wipe'])
+
+    id_, revision = _upload_file(model, app)
+
+    # add file to S3
+    new_file = pathlib.Path(tmpdir) / 'new.file'
+    new_file.write_bytes(b'DATA')
+    bucket_name = rc.get('backends', 's3', 'bucket', required=False)
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(bucket_name)
+    with open(new_file, 'rb') as f:
+        bucket.upload_fileobj(f, 'new.file')
+
+    resp = app.delete(f'/{model}/:wipe')
+    data = resp.json()
+    assert data['wiped'] is True
+
+    resp = app.get(f'/{model}/{id_}/file')
+    assert resp.status_code == 404
+
+    s3_file = pathlib.Path(tmpdir) / 's3.file'
+    bucket.download_file('new.file', str(s3_file))
+
+    with open(s3_file, 'rb') as f:
+        assert f.read() == b'DATA'

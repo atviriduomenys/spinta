@@ -1,5 +1,6 @@
 import json
 import pathlib
+import shutil
 
 import pytest
 import ruamel.yaml
@@ -180,3 +181,69 @@ def test_token_validation_key_config(backends, rc, tmpdir, request):
     client = create_test_client(context)
     resp = client.get('/reports', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
+
+
+@pytest.fixture()
+def basicauth(backends, rc, tmpdir, request):
+    confdir = pathlib.Path(__file__).parent / 'config'
+    shutil.copytree(str(confdir / 'keys'), str(tmpdir / 'keys'))
+
+    (tmpdir / 'clients').mkdir()
+    auth.create_client_file(
+        tmpdir / 'clients',
+        client='default',
+        secret='secret',
+        scopes=['spinta_getall'],
+        add_secret=True,
+    )
+
+    rc = rc.fork({
+        'config_path': str(tmpdir),
+        'default_auth_client': None,
+        'http_basic_auth': True,
+    })
+
+    context = create_test_context(rc).load()
+    request.addfinalizer(context.wipe_all)
+
+    client = create_test_client(context)
+
+    return client
+
+
+def test_http_basic_auth_unauthorized(basicauth):
+    client = basicauth
+    resp = client.get('/reports')
+    assert resp.status_code == 401, resp.json()
+    assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
+    assert resp.json() == {
+        'errors': [
+            {
+                'code': 'BasicAuthRequired',
+                'context': {},
+                'message': 'Unauthorized',
+                'template': 'Unauthorized',
+                'type': 'system',
+            },
+        ],
+    }
+
+
+def test_http_basic_auth_invalid_secret(basicauth):
+    client = basicauth
+    resp = client.get('/reports', auth=('default', 'invalid'))
+    assert resp.status_code == 401, resp.json()
+    assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
+
+
+def test_http_basic_auth_invalid_client(basicauth):
+    client = basicauth
+    resp = client.get('/reports', auth=('invalid', 'secret'))
+    assert resp.status_code == 401, resp.json()
+    assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
+
+
+def test_http_basic_auth(basicauth):
+    client = basicauth
+    resp = client.get('/reports', auth=('default', 'secret'))
+    assert resp.status_code == 200, resp.json()
