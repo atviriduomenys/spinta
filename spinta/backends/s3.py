@@ -10,9 +10,9 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
 from spinta import commands
-from spinta.backends import Backend, simple_data_check
+from spinta.backends import Backend, simple_data_check, log_getone
 from spinta.commands import getall
-from spinta.commands.write import prepare_patch, simple_response, validate_data
+from spinta.commands.write import prepare_patch, simple_response, validate_data, log_write
 from spinta.components import Action, Context, DataItem, Model, Property, UrlParams
 from spinta.core.config import RawConfig
 from spinta.exceptions import ItemDoesNotExist
@@ -114,22 +114,20 @@ async def push(
 
     data.saved = getone(context, prop, dtype, prop.model.backend, id_=params.pk)
 
+    dstream = aiter([data])
+    dstream = validate_data(context, dstream)
+    dstream = prepare_patch(context, dstream)
+    dstream = log_write(context, dstream)
     filename = data.given[prop.name]['_id']
     if action == Action.UPDATE:
         if 'content-length' not in request.headers:
             raise HTTPException(status_code=411)
-        dstream = aiter([data])
-        dstream = validate_data(context, dstream)
-        dstream = prepare_patch(context, dstream)
         dstream = upload_file_to_s3(backend, filename, dstream, request.stream())
         dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
         dstream = commands.create_changelog_entry(
             context, prop.model, prop.model.backend, dstream=dstream,
         )
     elif action == Action.DELETE:
-        dstream = aiter([data])
-        dstream = validate_data(context, dstream)
-        dstream = prepare_patch(context, dstream)
         dstream = commands.delete(context, prop, dtype, prop.model.backend, dstream=dstream)
         dstream = commands.create_changelog_entry(
             context, prop.model, prop.model.backend, dstream=dstream,
@@ -172,6 +170,7 @@ async def getone(
 ):
     commands.authorize(context, action, prop)
     data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
+    log_getone(context, data)
     value = data[prop.name]
     filename = value['_id']
     if filename is None:
