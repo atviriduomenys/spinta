@@ -703,3 +703,50 @@ def test_pdf_delete_accesslog(model, app, context):
             },
         ],
     }
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_pdf_ref_update_accesslog(model, app, context, tmpdir):
+    app.authmodel(model, ['insert', 'update', 'getone', 'pdf_getone', 'pdf_update', 'pdf_delete'])
+    id_, revision, resp = _upload_pdf(model, app)
+
+    image = pathlib.Path(tmpdir) / 'image.png'
+    image.write_bytes(b'IMAGEDATA')
+
+    resp = app.put(f'/{model}/{id_}/pdf:ref', json={
+        '_id': 'image.png',
+        '_revision': revision
+    })
+    assert resp.status_code == 200
+    revision = resp.json()['_revision']
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 3  # 3 accesses overall: POST, PUT, PUT
+    assert accesslog[-1] == {
+        'http_method': 'PUT',
+        'url': f'https://testserver/{model}/{id_}/pdf:ref',
+        'reason': None,
+        'transaction_id': accesslog[-1]['transaction_id'],
+        'timestamp': accesslog[-1]['timestamp'],
+        'accessors': [
+            {
+                'type': 'person',
+                'id': 'test-client',
+            },
+            {
+                'type': 'client',
+                'id': 'test-client',
+            },
+        ],
+        'fields': [],
+        'resources': [
+            {
+                '_type': f'{model}.pdf',
+                '_id': id_,
+                '_revision': revision,
+            },
+        ],
+    }
