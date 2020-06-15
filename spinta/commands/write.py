@@ -178,6 +178,7 @@ async def log_write(context, dstream):
             data.saved,
             {'_type': data.model.name}
         )
+        # make _type as resource.subresource format for /subresource:ref request
         if data.prop and not resource['_type'].endswith(f'.{data.prop.name}'):
             resource['_type'] = data.prop.model_type()
         if data.action == Action.DELETE:
