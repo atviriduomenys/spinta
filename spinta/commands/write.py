@@ -178,9 +178,8 @@ async def log_write(context, dstream):
             data.saved,
             {'_type': data.model.name}
         )
-        if data.prop and data.prop.dtype.name == 'file' and \
-            not resource['_type'].endswith(f'.{data.prop.name}'):
-            resource['_type'] = f'{resource["_type"]}.{data.prop.name}'
+        if data.prop and not resource['_type'].endswith(f'.{data.prop.name}'):
+            resource['_type'] = data.prop.model_type()
         if data.action == Action.DELETE:
             resource['_revision'] = take('_revision', data.saved)
         transaction = context.get("transaction")
