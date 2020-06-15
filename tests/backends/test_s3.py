@@ -172,6 +172,29 @@ def test_delete(model, app):
     'backends/mongo/s3_file',
     'backends/postgres/s3_file',
 )
+def test_delete_accesslog(model, app, context):
+    app.authmodel(model, ['insert', 'update', 'file_update', 'getone', 'file_delete'])
+    id_, revision = _upload_file(model, app)
+
+    resp = app.delete(f'/{model}/{id_}/file')
+    assert resp.status_code == 204, resp.text
+    assert resp.content == b''
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 3
+    assert accesslog[-1]['http_method'] == 'DELETE'
+    assert accesslog[-1]['fields'] == []
+    assert accesslog[-1]['resources'][0] == {
+        '_type': f'{model}.file',
+        '_id': id_,
+        '_revision': revision,
+    }
+
+
+@pytest.mark.models(
+    'backends/mongo/s3_file',
+    'backends/postgres/s3_file',
+)
 def test_wipe(model, app, rc, tmpdir):
     app.authmodel(model, ['insert', 'update', 'file_update',
                           'file_getone', 'wipe'])
