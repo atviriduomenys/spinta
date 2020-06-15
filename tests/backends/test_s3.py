@@ -183,6 +183,7 @@ def test_delete_accesslog(model, app, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 3
     assert accesslog[-1]['http_method'] == 'DELETE'
+    assert accesslog[-1]['fields'] == []
     assert accesslog[-1]['resources'][0] == {
         '_type': f'{model}.file',
         '_id': id_,
