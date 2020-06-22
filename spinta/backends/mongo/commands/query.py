@@ -14,6 +14,7 @@ from spinta.core.ufuncs import ufunc
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Bind
+from spinta.exceptions import EmptyStringSearch
 from spinta.utils.data import take
 from spinta.exceptions import UnknownExpr
 from spinta.exceptions import FieldNotInResource
@@ -112,13 +113,25 @@ class Positive(Func):
     arg: Any
 
 
+class Star:
+    pass
+
+
 @dataclasses.dataclass
 class Recurse(Func):
     args: List[Union[DataType, Func]] = None
 
 
-@ufunc.resolver(MongoQueryBuilder, Bind, Bind)
-def getattr(env, field, attr):
+@ufunc.resolver(MongoQueryBuilder, str)
+def op(env, arg: str):
+    if arg == '*':
+        return Star()
+    else:
+        raise NotImplementedError
+
+
+@ufunc.resolver(MongoQueryBuilder, Bind, Bind, name='getattr')
+def getattr_(env, field, attr):
     if field.name in env.model.properties:
         prop = env.model.properties[field.name]
     else:
@@ -149,15 +162,23 @@ def select(env, expr):
 
     if args:
         for key, arg in args:
-            env.select[key] = env.call('select', arg)
+            selected = env.call('select', arg)
+            if selected is not None:
+                env.select[key] = selected
     else:
-        for prop in take(['_id', all], env.model.properties).values():
-            # TODO: if authorized(env.context, prop, (Action.GETALL, Action.SEARCH)):
-            #       This line above should come from a getall(request), becaseu getall
-            #       can be used internally for example for writes.
-            env.select[prop.place] = env.call('select', prop.dtype)
+        env.call('select', Star())
 
     assert env.select, args
+
+
+@ufunc.resolver(MongoQueryBuilder, Star)
+def select(env, arg: Star) -> None:
+    for prop in take(env.model.properties).values():
+        # if authorized(env.context, prop, (Action.GETALL, Action.SEARCH)):
+        # TODO: This line above should come from a getall(request),
+        #       because getall can be used internally for example for
+        #       writes.
+        env.select[prop.place] = env.call('select', prop.dtype)
 
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
@@ -196,6 +217,11 @@ def offset(env, n):
 def and_(env, expr):
     args, kwargs = expr.resolve(env)
     args = [a for a in args if a is not None]
+    return env.call('and', args)
+
+
+@ufunc.resolver(MongoQueryBuilder, list, name='and')
+def and_(env, args):
     if len(args) > 1:
         return {'$and': args}
     elif args:
@@ -323,6 +349,29 @@ def ne(env, dtype, value):
     }
 
 
+@ufunc.resolver(MongoQueryBuilder, PrimaryKey, object)
+def ne(env, dtype, value):
+    return {
+        '$and': [
+            {'__id': {'$ne': value, '$exists': True}},
+            {'__id': {'$ne': None, '$exists': True}},
+        ]
+    }
+
+
+@ufunc.resolver(MongoQueryBuilder, DateTime, str)
+def ne(env, dtype, value):
+    value = datetime.datetime.fromisoformat(value)
+    return env.call('ne', dtype, value)
+
+
+@ufunc.resolver(MongoQueryBuilder, Date, str)
+def ne(env, dtype, value):
+    value = datetime.date.fromisoformat(value)
+    value = datetime.datetime.combine(value, datetime.datetime.min.time())
+    return env.call('ne', dtype, value)
+
+
 @ufunc.resolver(MongoQueryBuilder, Lower, str)
 def ne(env, fn, value):
     key = fn.dtype.prop.place
@@ -336,8 +385,14 @@ def ne(env, fn, value):
     }
 
 
+def _ensure_non_empty(op, s):
+    if s == '':
+        raise EmptyStringSearch(op=op)
+
+
 @ufunc.resolver(MongoQueryBuilder, String, str)
 def contains(env, dtype, value):
+    _ensure_non_empty('contains', value)
     value = re.escape(value)
     value = re.compile(value)
     return {dtype.prop.place: value}
@@ -352,6 +407,7 @@ def compare(env, op, dtype, value):
 
 @ufunc.resolver(MongoQueryBuilder, Lower, str)
 def contains(env, fn, value):
+    _ensure_non_empty('contains', value)
     value = re.escape(value)
     value = re.compile(value, re.IGNORECASE)
     return {fn.dtype.prop.place: value}
@@ -359,6 +415,7 @@ def contains(env, fn, value):
 
 @ufunc.resolver(MongoQueryBuilder, PrimaryKey, str)
 def contains(env, dtype, value):
+    _ensure_non_empty('contains', value)
     value = re.escape(value)
     value = re.compile(value)
     return {'__id': value}
@@ -366,6 +423,7 @@ def contains(env, dtype, value):
 
 @ufunc.resolver(MongoQueryBuilder, String, str)
 def startswith(env, dtype, value):
+    _ensure_non_empty('startswith', value)
     value = re.escape(value)
     value = re.compile('^' + value)
     return {dtype.prop.place: value}
@@ -373,6 +431,7 @@ def startswith(env, dtype, value):
 
 @ufunc.resolver(MongoQueryBuilder, Lower, str)
 def startswith(env, fn, value):
+    _ensure_non_empty('startswith', value)
     value = re.escape(value)
     value = re.compile('^' + value, re.IGNORECASE)
     return {fn.dtype.prop.place: value}
@@ -380,6 +439,7 @@ def startswith(env, fn, value):
 
 @ufunc.resolver(MongoQueryBuilder, PrimaryKey, str)
 def startswith(env, dtype, value):
+    _ensure_non_empty('startswith', value)
     value = re.escape(value)
     value = re.compile('^' + value)
     return {'__id': value}
@@ -417,7 +477,7 @@ def recurse(env, field):
 
 
 @ufunc.resolver(MongoQueryBuilder, Recurse, object, names=[
-    'eq', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
+    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
 ])
 def recurse(env, op, recurse, value):
     return env.call('or', [
@@ -488,20 +548,20 @@ def desc(env, dtype):
 
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
-def negative(env, field) -> Negative:
+def negative(env, field: Bind) -> Negative:
     if field.name in env.model.properties:
         prop = env.model.properties[field.name]
     else:
-        raise FieldNotInResource(env.model, property=field.anem)
+        raise FieldNotInResource(env.model, property=field.name)
     return Negative(prop.dtype)
 
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
-def positive(env, field) -> Positive:
+def positive(env, field: Bind) -> Positive:
     if field.name in env.model.properties:
         prop = env.model.properties[field.name]
     else:
-        raise FieldNotInResource(env.model, property=field.anem)
+        raise FieldNotInResource(env.model, property=field.name)
     return Positive(prop.dtype)
 
 

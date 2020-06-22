@@ -1051,7 +1051,7 @@ def cast_backend_to_python(
 def log_getall(
     context: Context,
     rows: Generator[dict, None, None],
-    select: List[str] = None,
+    select: List[dict] = None,
     hidden: List[str] = None,
 ):
     accesslog = context.get('accesslog')

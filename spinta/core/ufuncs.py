@@ -20,7 +20,7 @@ class Expr:
         return f'Expr({self})'
 
     def __str__(self):
-        return spyna.unparse({
+        return str(spyna.unparse({
             'name': self.name,
             'args': list(self.args) + [
                 {
@@ -28,7 +28,7 @@ class Expr:
                     'args': [k, v],
                 } for k, v in self.kwargs.items()
             ],
-        })
+        }))
 
     def __call__(self, *args, **kwargs):
         return Expr(self.name, *args, **kwargs)
