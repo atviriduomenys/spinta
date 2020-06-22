@@ -406,7 +406,7 @@ def get_scope_name(context: Context, node: Union[Namespace, Model, Property], ac
 def authorized(
     context: Context,
     node: Union[Namespace, Model, Property],
-    action: Access,
+    action: Action,
     *,
     throw: bool = False,
     scope_formatter: Callable = None,

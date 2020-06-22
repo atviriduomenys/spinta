@@ -14,6 +14,7 @@ from spinta.auth import authorized
 from spinta.core.ufuncs import Env, ufunc
 from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Expr
+from spinta.exceptions import EmptyStringSearch
 from spinta.exceptions import UnknownExpr
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Action, Model, Property
@@ -154,6 +155,10 @@ class Positive(Func):
     arg: Any
 
 
+class Star:
+    pass
+
+
 @dataclasses.dataclass
 class Recurse(Func):
     args: List[Union[DataType, Func]] = None
@@ -165,8 +170,16 @@ class ReservedProperty(Func):
     param: str
 
 
-@ufunc.resolver(PgQueryBuilder, Bind, Bind)
-def getattr(env, field, attr):
+@ufunc.resolver(PgQueryBuilder, str)
+def op(env, arg: str):
+    if arg == '*':
+        return Star()
+    else:
+        raise NotImplementedError
+
+
+@ufunc.resolver(PgQueryBuilder, Bind, Bind, name='getattr')
+def getattr_(env, field, attr):
     if field.name in env.model.properties:
         prop = env.model.properties[field.name]
     else:
@@ -174,21 +187,21 @@ def getattr(env, field, attr):
     return env.call('getattr', prop.dtype, attr)
 
 
-@ufunc.resolver(PgQueryBuilder, Object, Bind)
-def getattr(env, dtype, attr):
+@ufunc.resolver(PgQueryBuilder, Object, Bind, name='getattr')
+def getattr_(env, dtype, attr):
     if attr.name in dtype.properties:
         return dtype.properties[attr.name].dtype
     else:
         raise FieldNotInResource(dtype, property=attr.name)
 
 
-@ufunc.resolver(PgQueryBuilder, Array, Bind)
-def getattr(env, dtype, attr):
+@ufunc.resolver(PgQueryBuilder, Array, Bind, name='getattr')
+def getattr_(env, dtype, attr):
     return env.call('getattr', dtype.items.dtype, attr)
 
 
-@ufunc.resolver(PgQueryBuilder, File, Bind)
-def getattr(env, dtype, attr):
+@ufunc.resolver(PgQueryBuilder, File, Bind, name='getattr')
+def getattr_(env, dtype, attr):
     return ReservedProperty(dtype, attr.name)
 
 
@@ -202,15 +215,23 @@ def select(env, expr):
 
     if args:
         for key, arg in args:
-            env.select[key] = env.call('select', arg)
+            selected = env.call('select', arg)
+            if selected is not None:
+                env.select[key] = selected
     else:
-        for prop in take(env.model.properties).values():
-            # TODO: if authorized(env.context, prop, (Action.GETALL, Action.SEARCH)):
-            #       This line above should come from a getall(request), becaseu getall
-            #       can be used internally for example for writes.
-            env.select[prop.place] = env.call('select', prop.dtype)
+        env.call('select', Star())
 
     assert env.select, args
+
+
+@ufunc.resolver(PgQueryBuilder, Star)
+def select(env, arg: Star) -> None:
+    for prop in take(env.model.properties).values():
+        # if authorized(env.context, prop, (Action.GETALL, Action.SEARCH)):
+        # TODO: This line above should come from a getall(request),
+        #       because getall can be used internally for example for
+        #       writes.
+        env.select[prop.place] = env.call('select', prop.dtype)
 
 
 @ufunc.resolver(PgQueryBuilder, Bind)
@@ -379,10 +400,17 @@ def eq(env, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
+def _ensure_non_empty(op, s):
+    if s == '':
+        raise EmptyStringSearch(op=op)
+
+
 @ufunc.resolver(PgQueryBuilder, String, str, names=[
     'eq', 'startswith', 'contains',
 ])
 def compare(env, op, dtype, value):
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
     column = env.backend.get_column(env.table, dtype.prop)
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, dtype.prop, cond)
@@ -392,6 +420,8 @@ def compare(env, op, dtype, value):
     'eq', 'startswith', 'contains',
 ])
 def compare(env, op, dtype, value):
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
     column = env.backend.get_column(env.table, dtype.prop)
     return _sa_compare(op, column, value)
 
@@ -439,6 +469,8 @@ def lower(env, recurse):
     'eq', 'startswith', 'contains',
 ])
 def compare(env, op, fn, value):
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
     column = env.backend.get_column(env.table, fn.dtype.prop)
     column = sa.func.lower(column)
     cond = _sa_compare(op, column, value)
@@ -501,6 +533,12 @@ def ne(env, dtype, value):
 
 
 @ufunc.resolver(PgQueryBuilder, String, str)
+def ne(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, str)
 def ne(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
     return _ne_compare(env, dtype.prop, column, value)
@@ -618,7 +656,7 @@ def recurse(env, field):
 
 
 @ufunc.resolver(PgQueryBuilder, Recurse, object, names=[
-    'eq', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
+    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
 ])
 def recurse(env, op, recurse, value):
     return env.call('or', [
@@ -706,7 +744,7 @@ def negative(env, field) -> Negative:
     if field.name in env.model.properties:
         prop = env.model.properties[field.name]
     else:
-        raise FieldNotInResource(env.model, property=field.anem)
+        raise FieldNotInResource(env.model, property=field.name)
     return Negative(prop.dtype)
 
 
@@ -715,7 +753,7 @@ def positive(env, field) -> Positive:
     if field.name in env.model.properties:
         prop = env.model.properties[field.name]
     else:
-        raise FieldNotInResource(env.model, property=field.anem)
+        raise FieldNotInResource(env.model, property=field.name)
     return Positive(prop.dtype)
 
 
