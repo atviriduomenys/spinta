@@ -718,6 +718,11 @@ def desc(env, dtype):
     return column.desc()
 
 
+@ufunc.resolver(PgQueryBuilder, Array, names=['asc', 'desc'])
+def sort(env, name, dtype: Array):
+    return env.call(name, dtype.items.dtype)
+
+
 def _get_sort_column(env: PgQueryBuilder, prop: Property):
     column = env.backend.get_column(env.table, prop)
 
