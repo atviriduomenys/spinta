@@ -483,7 +483,8 @@ class Property(Node):
     level: Level
     dtype: DataType = None
     external: Attribute
-    list: Array = None
+    list: Property = None
+    model: Model = None
 
     def __repr__(self):
         pypath = [type(self).__module__, type(self).__name__]
