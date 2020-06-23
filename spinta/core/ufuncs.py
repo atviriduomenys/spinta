@@ -17,10 +17,13 @@ class Expr:
         self.kwargs = kwargs
 
     def __repr__(self):
-        return f'Expr({self})'
+        return str(spyna.unparse(self.todict(), raw=True))
 
     def __str__(self):
-        return str(spyna.unparse({
+        return str(spyna.unparse(self.todict()))
+
+    def todict(self) -> dict:
+        return {
             'name': self.name,
             'args': list(self.args) + [
                 {
@@ -28,7 +31,7 @@ class Expr:
                     'args': [k, v],
                 } for k, v in self.kwargs.items()
             ],
-        }))
+        }
 
     def __call__(self, *args, **kwargs):
         return Expr(self.name, *args, **kwargs)
