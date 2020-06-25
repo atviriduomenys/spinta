@@ -267,7 +267,7 @@ def unparse(rql, *, pretty=False, raw=False):
 
     typ = rql.get('type')
     name = rql['name']
-    _unparse = functools.partial(unparse, pretty=pretty, raw=raw)
+    _unparse = functools.partial(unparse, raw=raw)
 
     if not raw:
         if typ == 'expression':
