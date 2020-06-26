@@ -6,6 +6,7 @@ import uuid
 
 import sqlalchemy as sa
 
+from spinta.backends.postgresql.helpers import get_column_name
 from spinta.utils.schema import NA
 from spinta.components import Model, Property
 from spinta.backends.components import Backend, BackendFeatures
@@ -13,6 +14,7 @@ from spinta.backends.postgresql.sqlalchemy import utcnow
 from spinta.backends.postgresql.constants import TableType
 from spinta.backends.postgresql.helpers import get_table_name
 from spinta.exceptions import MultipleRowsFound, NotFoundError
+from spinta.exceptions import PropertyNotFound
 
 
 class PostgreSQL(Backend):
@@ -101,6 +103,14 @@ class PostgreSQL(Backend):
             return self.tables[name]
         else:
             return self.tables.get(name)
+
+    def get_column(self, table: sa.Table, prop: Property, *, select=False) -> sa.Column:
+        if prop.list is not None:
+            table = self.get_table(prop.list, TableType.LIST)
+        column = get_column_name(prop)
+        if column not in table.c:
+            raise PropertyNotFound(prop.dtype)
+        return table.c[column]
 
     def query_nodes(self):
         return []

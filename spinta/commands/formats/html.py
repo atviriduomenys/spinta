@@ -252,14 +252,14 @@ def get_data(context: Context, rows, model: Node, params: UrlParams, action: Act
         prop = Property()
         prop.dtype = DataType()
         prop.dtype.name = 'string'
-        prop.name = 'count'
+        prop.name = 'count()'
         prop.ref = None
         prop.model = model
         props = [prop]
-        header = ['count']
+        header = ['count()']
     else:
         if params.select:
-            header = params.select
+            header = [x['args'][0] for x in params.select]
             props = _get_props_from_select(context, model, params.select)
         else:
             if model.type == 'model:ns':
@@ -292,7 +292,8 @@ def _get_props_from_select(
     select: List[str],
 ) -> List[Property]:
     props = []
-    for name in select:
+    for node in select:
+        name = node['args'][0]
         if name in model.flatprops:
             prop = model.flatprops[name]
         else:

@@ -26,7 +26,7 @@ from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
-from spinta.hacks.spyna import binds_to_strs
+from spinta.core.ufuncs import asttoexpr
 
 
 STREAMING_CONTENT_TYPES = [
@@ -275,12 +275,17 @@ def _add_where(params: UrlParams, payload: dict):
     if '_where' in payload:
         return {
             **payload,
-            '_where': binds_to_strs(spyna.parse(payload['_where'])),
+            '_where': spyna.parse(payload['_where']),
         }
     elif params.pk:
         return {
             **payload,
-            '_where': {'name': 'eq', 'args': ['_id', params.pk]},
+            '_where': {
+                'name': 'eq', 'args': [
+                    {'name': 'bind', 'args': ['_id']},
+                    params.pk,
+                ],
+            },
         }
     else:
         return payload
@@ -384,7 +389,7 @@ def dataitem_from_payload(
         return DataItem(model, prop, propref, backend, payload=payload, error=action)
 
     if '_where' in payload:
-        payload['_where'] = binds_to_strs(spyna.parse(payload['_where']))
+        payload['_where'] = spyna.parse(payload['_where'])
 
     return DataItem(model, prop, propref, backend, action, payload)
 
@@ -461,12 +466,11 @@ async def read_existing_data(
                 )]
             else:
                 query = data.given['_where']
-                query = query if isinstance(query, list) else [query]
+                query = asttoexpr(query)
                 rows = commands.getall(
                     context,
                     data.model,
                     data.model.backend,
-                    action=Action.SEARCH,
                     query=query,
                 )
         except exceptions.ItemDoesNotExist:
@@ -499,7 +503,7 @@ def _has_id_in_where(given: dict):
     return (
         '_where' in given and
         given['_where']['name'] == 'eq' and
-        given['_where']['args'][0] == '_id'
+        given['_where']['args'][0] == {'name': 'bind', 'args': ['_id']}
     )
 
 

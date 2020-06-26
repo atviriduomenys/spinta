@@ -1,335 +1,772 @@
-from typing import Optional, List, Union, Tuple, Dict
+from __future__ import annotations
+
+from typing import List, Union, Any
+
+import datetime
+import dataclasses
 
 import sqlalchemy as sa
 
 from sqlalchemy.dialects.postgresql import UUID
 
-from spinta import commands
 from spinta import exceptions
-from spinta.components import Context, Model, Property
-from spinta.hacks.recurse import _replace_recurse
-from spinta.utils.schema import is_valid_sort_key
+from spinta.auth import authorized
+from spinta.core.ufuncs import Env, ufunc
+from spinta.core.ufuncs import Bind
+from spinta.core.ufuncs import Expr
+from spinta.exceptions import EmptyStringSearch
+from spinta.exceptions import UnknownExpr
+from spinta.exceptions import FieldNotInResource
+from spinta.components import Action, Model, Property
+from spinta.utils.data import take
+from spinta.types.datatype import DataType
 from spinta.types.datatype import Array
+from spinta.types.datatype import File
+from spinta.types.datatype import Object
+from spinta.types.datatype import Ref
+from spinta.types.datatype import String
+from spinta.types.datatype import Integer
+from spinta.types.datatype import Number
+from spinta.types.datatype import DateTime
+from spinta.types.datatype import Date
+from spinta.types.datatype import PrimaryKey
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.components import BackendFeatures
 from spinta.backends.postgresql.constants import TableType
-from spinta.backends.postgresql.helpers import get_column_name
 
 
-class QueryBuilder:
-    compops = (
-        'eq',
-        'ge',
-        'gt',
-        'le',
-        'lt',
-        'ne',
-        'contains',
-        'startswith',
-    )
+class PgQueryBuilder(Env):
 
-    def __init__(
-        self,
-        context: Context,
-        model: Model,
-        backend: PostgreSQL,
-    ):
-        self.context = context
-        self.model = model
-        self.backend = backend
-        self.select = []
-        self.where = []
-        self.joins = backend.get_table(model)
+    def init(self, backend: PostgreSQL, table: sa.Table):
+        return self(
+            backend=backend,
+            table=table,
+            # TODO: Select list must be taken from params.select.
+            select=None,
+            joins={},
+            from_=table,
+            sort=[],
+            limit=None,
+            offset=None,
+            aggregate=False,
+        )
 
-    def build(
-        self,
-        select: List[str] = None,
-        sort: Dict[str, dict] = None,
-        offset: int = None,
-        limit: int = None,
-        query: Optional[List[dict]] = None,
-    ) -> sa.sql.Select:
-        # TODO: Select list must be taken from params.select.
-        qry = sa.select([self.backend.get_table(self.model)])
+    def build(self, where):
+        if self.select is None:
+            self.call('select', Expr('select'))
 
-        if query:
-            qry = qry.where(self.op_and(*query))
+        if self.aggregate:
+            select = []
+        else:
+            select = [
+                self.table.c['_id'],
+                self.table.c['_revision'],
+            ]
+        for sel in self.select.values():
+            items = sel.item if isinstance(sel.item, list) else [sel.item]
+            for item in items:
+                if item is not None and item not in select:
+                    select.append(item)
+        qry = sa.select(select)
 
-        if sort:
-            qry = self.sort(qry, sort)
+        qry = qry.select_from(self.from_)
 
-        qry = _getall_offset(qry, offset)
-        qry = _getall_limit(qry, limit)
-        qry = qry.select_from(self.joins)
+        if where is not None:
+            qry = qry.where(where)
+
+        if self.sort:
+            qry = qry.order_by(*self.sort)
+
+        if self.limit is not None:
+            qry = qry.limit(self.limit)
+
+        if self.offset is not None:
+            qry = qry.offset(self.offset)
+
         return qry
 
-    def _get_method(self, name):
-        method = getattr(self, f'op_{name}', None)
-        if method is None:
-            raise exceptions.UnknownOperator(self.model, operator=name)
-        return method
+    def default_resolver(self, expr, *args, **kwargs):
+        raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
 
-    def resolve_recurse(self, arg):
-        name = arg['name']
-        if name in self.compops:
-            return _replace_recurse(self.model, arg, 0)
-        if name == 'any':
-            return _replace_recurse(self.model, arg, 1)
-        return arg
+    def get_joined_table(self, prop: ForeignProperty) -> sa.Table:
+        for fpr in prop.chain:
+            if fpr.name in self.joins:
+                continue
 
-    def resolve(self, args: Optional[List[dict]]) -> None:
-        for arg in (args or []):
-            arg = self.resolve_recurse(arg)
-            name = arg['name']
-            opargs = arg.get('args', ())
-            method = self._get_method(name)
-            if name in self.compops:
-                yield self.comparison(name, method, *opargs)
+            ltable = self.backend.get_table(fpr.left.model)
+            lrkeys = [self.backend.get_column(ltable, fpr.left)]
+
+            rmodel = fpr.right.model
+            rtable = self.backend.get_table(rmodel)
+            rpkeys = fpr.left.dtype.refprops or rmodel.external.pkeys
+            rpkeys = [self.backend.get_column(rtable, k) for k in rpkeys]
+
+            assert len(lrkeys) == len(rpkeys), (lrkeys, rpkeys)
+            condition = []
+            for lrk, rpk in zip(lrkeys, rpkeys):
+                condition += [lrk == rpk]
+
+            assert len(condition) > 0
+            if len(condition) == 1:
+                condition = condition[0]
             else:
-                yield method(*opargs)
+                condition = sa.and_(condition)
 
-    def resolve_property(self, key: Union[str, tuple], sort: bool = False) -> Property:
-        if isinstance(key, tuple):
-            key = '.'.join(key)
+            self.from_ = self.joins[fpr.name] = self.from_.join(rtable, condition)
 
-        if sort:
-            if not is_valid_sort_key(key, self.model):
-                raise exceptions.FieldNotInResource(self.model, property=key)
-        elif key not in self.model.flatprops:
-            raise exceptions.FieldNotInResource(self.model, property=key)
+        model = fpr.right.model
+        table = self.backend.get_table(model)
+        return table
 
-        prop = self.model.flatprops[key]
-        if isinstance(prop.dtype, Array):
-            return prop.dtype.items
+
+class ForeignProperty:
+
+    def __init__(self, fpr: ForeignProperty, left: Property, right: Property):
+        if fpr is None:
+            self.name = left.place
+            self.chain = [self]
         else:
-            return prop
+            self.name += '->' + left.place
+            self.chain = fpr.chain + [self]
 
-    def resolve_value(self, op: str, prop: Property, value: Union[str, dict]) -> object:
-        return commands.load_search_params(self.context, prop.dtype, self.backend, {
-            'name': op,
-            'args': [prop.place, value]
-        })
+        self.left = left
+        self.right = right
 
-    def resolve_lower_call(self, key):
-        if isinstance(key, dict) and key['name'] == 'lower':
-            return key['args'][0], True
+    def __repr__(self):
+        return f'<{self.name}->{self.right.name}:{self.right.dtype.name}>'
+
+
+class Func:
+    pass
+
+
+@dataclasses.dataclass
+class Lower(Func):
+    dtype: DataType = None
+
+
+@dataclasses.dataclass
+class Negative(Func):
+    arg: Any
+
+
+@dataclasses.dataclass
+class Positive(Func):
+    arg: Any
+
+
+class Star:
+    pass
+
+
+@dataclasses.dataclass
+class Recurse(Func):
+    args: List[Union[DataType, Func]] = None
+
+
+@dataclasses.dataclass
+class ReservedProperty(Func):
+    dtype: DataType
+    param: str
+
+
+@ufunc.resolver(PgQueryBuilder, str)
+def op(env, arg: str):
+    if arg == '*':
+        return Star()
+    else:
+        raise NotImplementedError
+
+
+@ufunc.resolver(PgQueryBuilder, Bind, Bind, name='getattr')
+def getattr_(env, field, attr):
+    if field.name in env.model.properties:
+        prop = env.model.properties[field.name]
+    else:
+        raise FieldNotInResource(env.model, property=field.anem)
+    return env.call('getattr', prop.dtype, attr)
+
+
+@ufunc.resolver(PgQueryBuilder, Object, Bind, name='getattr')
+def getattr_(env, dtype, attr):
+    if attr.name in dtype.properties:
+        return dtype.properties[attr.name].dtype
+    else:
+        raise FieldNotInResource(dtype, property=attr.name)
+
+
+@ufunc.resolver(PgQueryBuilder, Array, Bind, name='getattr')
+def getattr_(env, dtype, attr):
+    return env.call('getattr', dtype.items.dtype, attr)
+
+
+@ufunc.resolver(PgQueryBuilder, File, Bind, name='getattr')
+def getattr_(env, dtype, attr):
+    return ReservedProperty(dtype, attr.name)
+
+
+@ufunc.resolver(PgQueryBuilder, Expr)
+def select(env, expr):
+    keys = [str(k) for k in expr.args]
+    args, kwargs = expr.resolve(env)
+    args = list(zip(keys, args)) + list(kwargs.items())
+
+    env.select = {}
+
+    if args:
+        for key, arg in args:
+            selected = env.call('select', arg)
+            if selected is not None:
+                env.select[key] = selected
+    else:
+        env.call('select', Star())
+
+    assert env.select, args
+
+
+@ufunc.resolver(PgQueryBuilder, Star)
+def select(env, arg: Star) -> None:
+    for prop in take(env.model.properties).values():
+        # if authorized(env.context, prop, (Action.GETALL, Action.SEARCH)):
+        # TODO: This line above should come from a getall(request),
+        #       because getall can be used internally for example for
+        #       writes.
+        env.select[prop.place] = env.call('select', prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, Bind)
+def select(env, arg):
+    if arg.name == '_type':
+        return Selected(None, env.model.properties['_type'])
+    prop = _get_property_for_select(env, arg.name)
+    return env.call('select', prop.dtype)
+
+
+def _get_property_for_select(env: PgQueryBuilder, name: str):
+    prop = env.model.properties.get(name)
+    if prop and authorized(env.context, prop, Action.SEARCH):
+        return prop
+    else:
+        raise FieldNotInResource(env.model, property=name)
+
+
+@dataclasses.dataclass
+class Selected:
+    item: Any
+    prop: Property = None
+
+
+@ufunc.resolver(PgQueryBuilder, DataType)
+def select(env, dtype):
+    table = env.backend.get_table(env.model)
+    if dtype.prop.list is None:
+        column = env.backend.get_column(table, dtype.prop, select=True)
+    else:
+        # XXX: Probably if dtype.prop is in a nested list, we need to get the
+        #      first list. Because if I remember correctly, only first list is
+        #      stored on the main table.
+        column = env.backend.get_column(table, dtype.prop.list, select=True)
+    return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, Object)
+def select(env, dtype):
+    columns = []
+    for prop in take(dtype.properties).values():
+        sel = env.call('select', prop.dtype)
+        if isinstance(sel.item, list):
+            columns += sel.item
         else:
-            return key, False
+            columns += [sel.item]
+    return Selected(columns, dtype.prop)
 
-    def comparison(self, op, method, key, value):
-        key, lower = self.resolve_lower_call(key)
-        prop = self.resolve_property(key)
-        value = self.resolve_value(op, prop, value)
-        field = self.get_sql_field(prop, lower)
-        value = self.get_sql_value(prop, value)
-        cond = method(prop, field, value)
-        return self.compare(op, prop, cond)
 
-    def compare(self, op, prop, cond):
-        if prop.list is not None and op != 'ne':
-            main_table = self.backend.get_table(self.model)
-            list_table = self.backend.get_table(prop.list, TableType.LIST)
-            subqry = (
-                sa.select(
-                    [list_table.c._rid],
-                    distinct=list_table.c._rid,
-                ).
-                where(cond).
-                alias()
-            )
-            self.joins = self.joins.outerjoin(
-                subqry,
-                main_table.c._id == subqry.c._rid,
-            )
-            return subqry.c._rid.isnot(None)
-        else:
-            return cond
+@ufunc.resolver(PgQueryBuilder, File)
+def select(env, dtype):
+    table = env.backend.get_table(env.model)
+    columns = [
+        table.c[dtype.prop.place + '._id'],
+        table.c[dtype.prop.place + '._content_type'],
+        table.c[dtype.prop.place + '._size'],
+    ]
+    same_backend = dtype.backend.name == dtype.prop.model.backend.name
+    if same_backend or BackendFeatures.FILE_BLOCKS in dtype.backend.features:
+        columns += [
+            table.c[dtype.prop.place + '._bsize'],
+            table.c[dtype.prop.place + '._blocks'],
+        ]
+    return Selected(columns, dtype.prop)
 
-    def get_sql_field(self, prop: Property, lower: bool = False):
-        if prop.list is not None:
-            list_table = self.backend.get_table(prop.list, TableType.LIST)
-            field = list_table.c[get_column_name(prop)]
-        else:
-            main_table = self.backend.get_table(self.model)
-            field = main_table.c[prop.place]
-        if lower:
-            field = sa.func.lower(field)
-        return field
 
-    def get_sql_value(self, prop: Property, value: object):
-        return value
+@ufunc.resolver(PgQueryBuilder, ReservedProperty)
+def select(env, prop):
+    return env.call('select', prop.dtype, prop.param)
 
-    def op_group(self, *args: List[dict]):
-        args = list(self.resolve(args))
-        assert len(args) == 1, "Group with multiple args are not supported here."
+
+@ufunc.resolver(PgQueryBuilder, File, str)
+def select(env, dtype, leaf):
+    table = env.backend.get_table(env.model)
+    if leaf == '_content':
+        return env.call('select', dtype)
+    else:
+        column = table.c[dtype.prop.place + '.' + leaf]
+        return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, Ref)
+def select(env, dtype):
+    table = env.backend.get_table(env.model)
+    column = table.c[dtype.prop.place + '._id']
+    return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, int)
+def limit(env, n):
+    env.limit = n
+
+
+@ufunc.resolver(PgQueryBuilder, int)
+def offset(env, n):
+    env.offset = n
+
+
+@ufunc.resolver(PgQueryBuilder, Expr, name='and')
+def and_(env, expr):
+    args, kwargs = expr.resolve(env)
+    args = [a for a in args if a is not None]
+    if len(args) > 1:
+        return sa.and_(*args)
+    elif args:
         return args[0]
 
-    def op_and(self, *args: List[dict]):
-        return sa.and_(*self.resolve(args))
 
-    def op_or(self, *args: List[dict]):
-        return sa.or_(*self.resolve(args))
-
-    def op_eq(self, prop, field, value):
-        return field == value
-
-    def op_ge(self, prop, field, value):
-        return field >= value
-
-    def op_gt(self, prop, field, value):
-        return field > value
-
-    def op_le(self, prop, field, value):
-        return field <= value
-
-    def op_lt(self, prop, field, value):
-        return field < value
-
-    def op_ne(self, prop, field, value):
-        """Not equal operator is quite complicated thing and need explaining.
-
-        If property is not defined within a list, just do `!=` comparison and be
-        done with it.
-
-        If property is in a list:
-
-        - First check if there is at least one list item where field is not None
-          (existance check).
-
-        - Then check if there is no list items where field equals to given
-          value.
-        """
-
-        if prop.list is None:
-            return field != value
-
-        main_table = self.backend.get_table(self.model)
-        list_table = self.backend.get_table(prop.list, TableType.LIST)
-
-        # Check if at liest one value for field is defined
-        subqry1 = (
-            sa.select(
-                [list_table.c._rid],
-                distinct=list_table.c._rid,
-            ).
-            where(field != None).  # noqa
-            alias()
-        )
-        self.joins = self.joins.outerjoin(
-            subqry1,
-            main_table.c._id == subqry1.c._rid,
-        )
-
-        # Check if given value exists
-        subqry2 = (
-            sa.select(
-                [list_table.c._rid],
-                distinct=list_table.c._rid,
-            ).
-            where(field == value).
-            alias()
-        )
-        self.joins = self.joins.outerjoin(
-            subqry2,
-            main_table.c._id == subqry2.c._rid,
-        )
-
-        # If field exists and given value does not, then field is not equal to
-        # value.
-        return sa.and_(
-            subqry1.c._rid != None,  # noqa
-            subqry2.c._rid == None,
-        )
-
-    def op_contains(self, prop, field, value):
-        if isinstance(field.type, UUID):
-            return field.cast(sa.String).contains(value)
-        return field.contains(value)
-
-    def op_startswith(self, prop, field, value):
-        if isinstance(field.type, UUID):
-            return field.cast(sa.String).startswith(value)
-        return field.startswith(value)
-
-    def op_any(self, op: str, key: str, *value: Tuple[Union[str, int, float]]):
-        if op in ('contains', 'startswith'):
-            return self.op_or(*(
-                {
-                    'name': op,
-                    'args': [key, v],
-                }
-                for v in value
-            ))
-
-        method = self._get_method(op)
-        key, lower = self.resolve_lower_call(key)
-        prop = self.resolve_property(key)
-        field = self.get_sql_field(prop, lower)
-        value = [
-            self.get_sql_value(prop, self.resolve_value(op, prop, v))
-            for v in value
-        ]
-        value = sa.any_(value)
-        cond = method(prop, field, value)
-        return self.compare(op, prop, cond)
-
-    def sort(
-        self,
-        qry: sa.sql.Select,
-        sort: List[Tuple[str, str]],
-    ) -> sa.sql.Select:
-        direction = {
-            'positive': lambda c: c.asc(),
-            'negative': lambda c: c.desc(),
-        }
-        fields = []
-        for key in sort:
-            # Optional sort direction: sort(+key) or sort(key)
-            # XXX: Probably move this to spinta/urlparams.py.
-            if isinstance(key, dict) and key['name'] in direction:
-                d = direction[key['name']]
-                key = key['args'][0]
-            else:
-                d = direction['positive']
-
-            key, lower = self.resolve_lower_call(key)
-            prop = self.resolve_property(key, sort=True)
-            field = self.get_sql_field(prop, lower)
-
-            main_table = self.backend.get_table(self.model)
-            if prop.list is not None:
-                list_table = self.backend.get_table(prop.list, TableType.LIST)
-                subqry = (
-                    sa.select(
-                        [list_table.c._rid, field.label('value')],
-                        distinct=list_table.c._rid,
-                    ).alias()
-                )
-                self.joins = self.joins.outerjoin(
-                    subqry,
-                    main_table.c._id == subqry.c._rid,
-                )
-                field = subqry.c.value
-            else:
-                field = main_table.c[prop.place]
-
-            if lower:
-                field = sa.func.lower(field)
-
-            field = d(field)
-            fields.append(field)
-
-        return qry.order_by(*fields)
+@ufunc.resolver(PgQueryBuilder, Expr, name='or')
+def or_(env, expr):
+    args, kwargs = expr.resolve(env)
+    args = [a for a in args if a is not None]
+    return env.call('or', args)
 
 
-def _getall_offset(qry: sa.sql.Select, offset: Optional[int]) -> sa.sql.Select:
-    if offset:
-        return qry.offset(offset)
+@ufunc.resolver(PgQueryBuilder, list, name='or')
+def or_(env, args):
+    if len(args) > 1:
+        return sa.or_(*args)
+    elif args:
+        return args[0]
+
+
+@ufunc.resolver(PgQueryBuilder)
+def count(env):
+    env.aggregate = True
+    env.select = {
+        'count()': Selected(sa.func.count().label('count()')),
+    }
+
+
+COMPARE = [
+    'eq',
+    'ne',
+    'lt',
+    'le',
+    'gt',
+    'ge',
+    'startswith',
+    'contains',
+]
+
+
+@ufunc.resolver(PgQueryBuilder, Bind, object, names=COMPARE)
+def compare(env, op, field, value):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call(op, prop.dtype, value)
+
+
+def _get_from_flatprops(model: Model, prop: str):
+    if prop in model.flatprops:
+        return model.flatprops[prop]
     else:
-        return qry
+        raise exceptions.FieldNotInResource(model, property=prop)
 
 
-def _getall_limit(qry: sa.sql.Select, limit: Optional[int]) -> sa.sql.Select:
-    if limit:
-        return qry.limit(limit)
+@ufunc.resolver(PgQueryBuilder, DataType, object, names=COMPARE)
+def compare(env, op, dtype, value):
+    raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
+
+
+@ufunc.resolver(PgQueryBuilder, DataType, type(None))
+def eq(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare('eq', column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+def _ensure_non_empty(op, s):
+    if s == '':
+        raise EmptyStringSearch(op=op)
+
+
+@ufunc.resolver(PgQueryBuilder, String, str, names=[
+    'eq', 'startswith', 'contains',
+])
+def compare(env, op, dtype, value):
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, str, names=[
+    'eq', 'startswith', 'contains',
+])
+def compare(env, op, dtype, value):
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
+    column = env.backend.get_column(env.table, dtype.prop)
+    return _sa_compare(op, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, (Integer, Number), (int, float), names=[
+    'eq', 'lt', 'le', 'gt', 'ge',
+])
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, DateTime, str, names=[
+    'eq', 'lt', 'le', 'gt', 'ge',
+])
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.datetime.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, Date, str, names=[
+    'eq', 'lt', 'le', 'gt', 'ge',
+])
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.date.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, String)
+def lower(env, dtype):
+    return Lower(dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, Recurse)
+def lower(env, recurse):
+    return Recurse([env.call('lower', arg) for arg in recurse.args])
+
+
+@ufunc.resolver(PgQueryBuilder, Lower, str, names=[
+    'eq', 'startswith', 'contains',
+])
+def compare(env, op, fn, value):
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
+    column = env.backend.get_column(env.table, fn.dtype.prop)
+    column = sa.func.lower(column)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, fn.dtype.prop, cond)
+
+
+def _sa_compare(op, column, value):
+    if op == 'eq':
+        return column == value
+
+    if op == 'lt':
+        return column < value
+
+    if op == 'le':
+        return column <= value
+
+    if op == 'gt':
+        return column > value
+
+    if op == 'ge':
+        return column >= value
+
+    if op == 'contains':
+        if isinstance(column.type, UUID):
+            column = column.cast(sa.String)
+        return column.contains(value)
+
+    if op == 'startswith':
+        if isinstance(column.type, UUID):
+            column = column.cast(sa.String)
+        return column.startswith(value)
+    raise NotImplementedError
+
+
+def _prepare_condition(env: PgQueryBuilder, prop: Property, cond):
+    if prop.list is None:
+        return cond
+
+    main_table = env.table
+    list_table = env.backend.get_table(prop.list, TableType.LIST)
+    subqry = (
+        sa.select(
+            [list_table.c._rid],
+            distinct=list_table.c._rid,
+        ).
+        where(cond).
+        alias()
+    )
+    env.from_ = env.from_.outerjoin(
+        subqry,
+        main_table.c._id == subqry.c._rid,
+    )
+    return subqry.c._rid.isnot(None)
+
+
+@ufunc.resolver(PgQueryBuilder, DataType, type(None))
+def ne(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, String, str)
+def ne(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, str)
+def ne(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, (Integer, Number), (int, float))
+def ne(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, DateTime, str)
+def ne(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.datetime.fromisoformat(value)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, Date, str)
+def ne(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.date.fromisoformat(value)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, Array, (object, type(None)), names=[
+    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
+])
+def compare(env, op, dtype, value):
+    return env.call(op, dtype.items.dtype, value)
+
+
+@ufunc.resolver(PgQueryBuilder, Lower, str)
+def ne(env, fn, value):
+    column = env.backend.get_column(env.table, fn.dtype.prop)
+    column = sa.func.lower(column)
+    return _ne_compare(env, fn.dtype.prop, column, value)
+
+
+def _ne_compare(env: PgQueryBuilder, prop: Property, column, value):
+    """Not equal operator is quite complicated thing and need explaining.
+
+    If property is not defined within a list, just do `!=` comparison and be
+    done with it.
+
+    If property is in a list:
+
+    - First check if there is at least one list item where field is not None
+        (existance check).
+
+    - Then check if there is no list items where field equals to given
+        value.
+    """
+
+    if prop.list is None:
+        return column != value
+
+    main_table = env.backend.get_table(prop.model)
+    list_table = env.backend.get_table(prop.list, TableType.LIST)
+
+    # Check if at liest one value for field is defined
+    subqry1 = (
+        sa.select(
+            [list_table.c._rid],
+            distinct=list_table.c._rid,
+        ).
+        where(column != None).  # noqa
+        alias()
+    )
+    env.from_ = env.from_.outerjoin(
+        subqry1,
+        main_table.c._id == subqry1.c._rid,
+    )
+
+    # Check if given value exists
+    subqry2 = (
+        sa.select(
+            [list_table.c._rid],
+            distinct=list_table.c._rid,
+        ).
+        where(column == value).
+        alias()
+    )
+    env.from_ = env.from_.outerjoin(
+        subqry2,
+        main_table.c._id == subqry2.c._rid,
+    )
+
+    # If field exists and given value does not, then field is not equal to
+    # value.
+    return sa.and_(
+        subqry1.c._rid != None,  # noqa
+        subqry2.c._rid == None,
+    )
+
+
+FUNCS = [
+    'lower',
+    'upper',
+]
+
+
+@ufunc.resolver(PgQueryBuilder, Bind, names=FUNCS)
+def func(env, name, field):
+    prop = env.model.flatprops[field.name]
+    return env.call(name, prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, Bind)
+def recurse(env, field):
+    if field.name in env.model.leafprops:
+        return Recurse([prop.dtype for prop in env.model.leafprops[field.name]])
     else:
-        return qry
+        raise exceptions.FieldNotInResource(env.model, property=field.name)
+
+
+@ufunc.resolver(PgQueryBuilder, Recurse, object, names=[
+    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
+])
+def recurse(env, op, recurse, value):
+    return env.call('or', [
+        env.call(op, arg, value)
+        for arg in recurse.args
+    ])
+
+
+@ufunc.resolver(PgQueryBuilder, Expr, name='any')
+def any_(env, expr):
+    args, kwargs = expr.resolve(env)
+    op, field, *args = args
+    if isinstance(op, Bind):
+        op = op.name
+    return env.call('or', [
+        env.call(op, field, arg)
+        for arg in args
+    ])
+
+
+@ufunc.resolver(PgQueryBuilder, object)
+def group(env, arg):
+    return arg
+
+
+@ufunc.resolver(PgQueryBuilder, Expr)
+def sort(env, expr):
+    args, kwargs = expr.resolve(env)
+    env.sort = [
+        env.call('sort', arg) for arg in args
+    ]
+
+
+@ufunc.resolver(PgQueryBuilder, Bind)
+def sort(env, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call('asc', prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, Positive)
+def sort(env, sign):
+    return env.call('asc', sign.arg)
+
+
+@ufunc.resolver(PgQueryBuilder, Negative)
+def sort(env, sign):
+    return env.call('desc', sign.arg)
+
+
+@ufunc.resolver(PgQueryBuilder, DataType)
+def asc(env, dtype):
+    column = _get_sort_column(env, dtype.prop)
+    return column.asc()
+
+
+@ufunc.resolver(PgQueryBuilder, DataType)
+def desc(env, dtype):
+    column = _get_sort_column(env, dtype.prop)
+    return column.desc()
+
+
+@ufunc.resolver(PgQueryBuilder, Array, names=['asc', 'desc'])
+def sort(env, name, dtype: Array):
+    return env.call(name, dtype.items.dtype)
+
+
+def _get_sort_column(env: PgQueryBuilder, prop: Property):
+    column = env.backend.get_column(env.table, prop)
+
+    if prop.list is None:
+        return column
+
+    main_table = env.table
+    list_table = env.backend.get_table(prop.list, TableType.LIST)
+    subqry = (
+        sa.select(
+            [list_table.c._rid, column.label('value')],
+            distinct=list_table.c._rid,
+        ).alias()
+    )
+    env.from_ = env.from_.outerjoin(
+        subqry,
+        main_table.c._id == subqry.c._rid,
+    )
+    return subqry.c.value
+
+
+@ufunc.resolver(PgQueryBuilder, Bind)
+def negative(env, field) -> Negative:
+    if field.name in env.model.properties:
+        prop = env.model.properties[field.name]
+    else:
+        raise FieldNotInResource(env.model, property=field.name)
+    return Negative(prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, Bind)
+def positive(env, field) -> Positive:
+    if field.name in env.model.properties:
+        prop = env.model.properties[field.name]
+    else:
+        raise FieldNotInResource(env.model, property=field.name)
+    return Positive(prop.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, DataType)
+def negative(env, dtype) -> Negative:
+    return Negative(dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, DataType)
+def positive(env, dtype) -> Positive:
+    return Positive(dtype)

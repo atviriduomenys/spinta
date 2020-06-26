@@ -14,7 +14,6 @@ from spinta.components import UrlParams, Version
 from spinta.commands import is_object_id
 from spinta import exceptions
 from spinta import spyna
-from spinta.hacks.spyna import binds_to_strs
 from spinta.exceptions import (
     ModelNotFound,
 )
@@ -34,7 +33,6 @@ def parse_url_query(query):
     if not query:
         return []
     rql = spyna.parse(query)
-    rql = binds_to_strs(rql)
     if rql['name'] == 'and':
         return rql['args']
     else:
@@ -111,12 +109,12 @@ def _prepare_urlparams_from_path(params):
             params.changes = True
             params.changes_offset = args[0] if args else None
         elif name == 'format':
-            if isinstance(args[0], str):
-                params.format = args[0]
+            if isinstance(args[0], dict) and args[0]['name'] == 'bind':
+                params.format = _read_format_params(args[0])
                 args = args[1:]
             for arg in args:
                 assert len(arg['args']) == 1, arg
-                params.formatparams[arg['name']] = arg['args'][0]
+                params.formatparams[arg['name']] = _read_format_params(arg['args'][0])
         elif name == 'summary':
             params.summary = True
         elif name == 'fault-tolerant':
@@ -127,6 +125,16 @@ def _prepare_urlparams_from_path(params):
             if params.query is None:
                 params.query = []
             params.query.append(param)
+
+
+def _read_format_params(node):
+    if not isinstance(node, dict):
+        return node
+
+    if node['name'] == 'bind':
+        return node['args'][0]
+
+    raise Exception(f"Unknown node {node!r}.")
 
 
 def _find_model_name_index(

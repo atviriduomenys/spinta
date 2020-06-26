@@ -1,7 +1,7 @@
 from typing import Any, Optional, List
 
 import importlib
-
+import functools
 
 from spinta.dispatcher import Command
 from spinta.components import Context
@@ -17,10 +17,13 @@ class Expr:
         self.kwargs = kwargs
 
     def __repr__(self):
-        return f'Expr({self})'
+        return str(spyna.unparse(self.todict(), raw=True))
 
     def __str__(self):
-        return spyna.unparse({
+        return str(spyna.unparse(self.todict()))
+
+    def todict(self) -> dict:
+        return {
             'name': self.name,
             'args': list(self.args) + [
                 {
@@ -28,7 +31,7 @@ class Expr:
                     'args': [k, v],
                 } for k, v in self.kwargs.items()
             ],
-        })
+        }
 
     def __call__(self, *args, **kwargs):
         return Expr(self.name, *args, **kwargs)
@@ -64,14 +67,12 @@ class UFuncRegistry:
         names: Optional[List[str]] = None,
     ):
         def decorator(func):
-            names_ = names
-            if names_ is None:
-                if name is None:
-                    names_ = [func.__name__]
-                else:
-                    names_ = [name]
-            for name_ in names_:
-                self._ufuncs.append((name_, func, types))
+            if names is None:
+                self._ufuncs.append((name or func.__name__, func, types))
+            else:
+                for name_ in names:
+                    func_ = _inject_name(func, name_)
+                    self._ufuncs.append((name_, func_, types))
             return func
         return decorator
 
@@ -90,12 +91,22 @@ class UFuncRegistry:
                 ufuncs[name] = Ufunc(name)
             dispatcher = ufuncs[name]
             dispatcher.add(types, func)
-            if len(types) > 1 and issubclass(types[1], Expr):
+            if (
+                len(types) > 1 and
+                not isinstance(types[1], tuple) and
+                issubclass(types[1], Expr)
+            ):
                 # If function is registered with @resolve(Env, Expr), then
                 # disable autoargs. This means, that arguments must be resolved
                 # manually by calling ufunc(env, expr).
                 dispatcher.autoargs = False
         return ufuncs
+
+
+def _inject_name(func, name):
+    def wrapper(env, *args, **kwargs):
+        return func(env, name, *args, **kwargs)
+    return wrapper
 
 
 class ufunc:
@@ -222,3 +233,6 @@ class Negative(Bind):
 
 class Positive(Bind):
     pass
+
+
+bind = functools.partial(Expr, 'bind')

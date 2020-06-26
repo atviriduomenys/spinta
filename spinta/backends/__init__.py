@@ -7,6 +7,7 @@ import pathlib
 import uuid
 import typing
 
+from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
@@ -536,6 +537,8 @@ def _flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
 
     res = {}
     for v in select:
+        if isinstance(v, dict):
+            v = spyna.unparse(v)
         names = v.split('.')
         vref = res
         for name in names:
@@ -1048,7 +1051,7 @@ def cast_backend_to_python(
 def log_getall(
     context: Context,
     rows: Generator[dict, None, None],
-    select: List[str] = None,
+    select: List[dict] = None,
     hidden: List[str] = None,
 ):
     accesslog = context.get('accesslog')
@@ -1060,7 +1063,7 @@ def log_getall(
                 '_revision': data.get('_revision')
             } for data in chunk
         ]
-        fields = sorted(select or [])
+        fields = _get_selected_fields(select)
         accesslog.log(resources=resources, fields=fields)
         yield from chunk
 
@@ -1071,7 +1074,7 @@ def log_getone(
     select: List[str] = None,
     hidden: List[str] = None,
 ):
-    fields = sorted(select or [])
+    fields = _get_selected_fields(select)
     # XXX: select queries do not return metadata
     resource = {
         '_id': result.get('_id'),  # XXX: subresource queries do not return id
@@ -1080,3 +1083,15 @@ def log_getone(
     }
     accesslog = context.get('accesslog')
     accesslog.log(resources=[resource], fields=fields)
+
+
+def _get_selected_fields(select):
+    if select:
+        return sorted([
+            x['args'][0]['args'][0]
+            if isinstance(x['args'][0], dict) else
+            x['args'][0]
+            for x in select
+        ])
+    else:
+        return []

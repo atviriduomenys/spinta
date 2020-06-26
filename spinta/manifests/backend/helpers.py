@@ -11,6 +11,8 @@ from spinta.utils.json import fix_data_for_json
 from spinta.utils.aiotools import aiter
 from spinta.utils.aiotools import adrain
 from spinta.utils.itertools import last
+from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import bind
 from spinta.commands.write import push_stream
 from spinta.commands.write import write
 from spinta.components import Context, DataItem, Action
@@ -82,14 +84,13 @@ def read_unapplied_versions(
     manifest: Manifest,
 ):
     model = manifest.objects['model']['_schema/version']
-    query = {
-        'select': ['id', '_id', 'parents'],
-        'query': [
-            {'name': 'ne', 'args': ['applied', None]}
-        ],
-    }
+    query = Expr(
+        'and',
+        Expr('select', bind('id'), bind('_id'), bind('parents')),
+        Expr('ne', bind('applied'), None),
+    )
     versions = {}
-    for row in commands.getall(context, model, model.backend, **query):
+    for row in commands.getall(context, model, model.backend, query=query):
         versions[row['_id']] = set(row['parents'])
     for group in toposort(versions):
         for vid in sorted(group):
@@ -175,14 +176,13 @@ def read_lastest_version_schemas(
     manifest: Manifest,
 ) -> Iterator[Tuple[str, str]]:
     model = manifest.objects['model']['_schema/version']
-    query = {
-        'select': ['id', '_id', 'parents'],
-        'query': [
-            {'name': 'ne', 'args': ['applied', None]}
-        ],
-    }
+    query = Expr(
+        'and',
+        Expr('select', bind('id'), bind('_id'), bind('parents')),
+        Expr('ne', bind('applied'), None),
+    )
     schemas = collections.defaultdict(dict)
-    for row in commands.getall(context, model, model.backend, **query):
+    for row in commands.getall(context, model, model.backend, query=query):
         schemas[row['id']][row['_id']] = set(row['parents'])
 
     for schema_id, versions in schemas.items():
@@ -198,15 +198,14 @@ def get_last_version_eid(
     schema_eid: str,
 ) -> Iterator[Tuple[str, str]]:
     model = manifest.objects['model']['_schema/version']
-    query = {
-        'select': ['_id', 'parents'],
-        'query': [
-            {'name': 'eq', 'args': ['id', schema_eid]},
-            {'name': 'ne', 'args': ['applied', None]},
-        ],
-    }
+    query = Expr(
+        'and',
+        Expr('select', bind('_id'), bind('parents')),
+        Expr('eq', bind('id'), schema_eid),
+        Expr('ne', bind('applied'), None),
+    )
     versions = {}
-    for row in commands.getall(context, model, model.backend, **query):
+    for row in commands.getall(context, model, model.backend, query=query):
         versions[row['_id']] = row['parents']
     last_version = last(toposort(versions))
     assert len(last_version) == 1, last_version

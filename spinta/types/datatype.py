@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Dict
 from typing import TYPE_CHECKING, Any, Union
 
 import base64
@@ -13,7 +14,6 @@ from spinta.commands import load, is_object_id
 from spinta.components import Context, Component, Property
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA, NotAvailable
-from spinta.hacks.spyna import binds_to_strs
 from spinta.core.ufuncs import Expr
 from spinta.types.helpers import check_no_extra_keys
 
@@ -33,6 +33,7 @@ class DataType(Component):
     }
 
     type: str
+    name: str
     unique: bool = False
     nullable: bool = False
     required: bool = False
@@ -40,6 +41,7 @@ class DataType(Component):
     prepare: Expr = None
     choices: dict = None
     backend: Backend = None
+    prop: Property = None
 
     def __repr__(self):
         return f'<{self.prop.name}:{self.name}>'
@@ -179,6 +181,8 @@ class Array(DataType):
         'items': {},
     }
 
+    items: Property = None
+
     def load(self, value: Any):
         if value is None or value is NA:
             return value
@@ -193,6 +197,8 @@ class Object(DataType):
     schema = {
         'properties': {'type': 'object'},
     }
+
+    properties: Dict[str, Property] = None
 
     def load(self, value: Any):
         if value is None or value is NA:
@@ -271,7 +277,7 @@ def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> Dat
         prop.parent = dtype.prop
         prop.model = dtype.prop.model
         prop.list = dtype.prop.list
-        load(context, prop, params, manifest)
+        commands.load(context, prop, params, manifest)
         dtype.prop.model.flatprops[place] = prop
         props[name] = prop
     dtype.properties = props
@@ -283,13 +289,13 @@ def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> Data
     _set_backend(dtype)
     if dtype.items:
         assert isinstance(dtype.items, dict), type(dtype.items)
-        prop = dtype.prop.__class__()
+        prop: Property = dtype.prop.__class__()
         prop.list = dtype.prop
         prop.name = dtype.prop.name
         prop.place = dtype.prop.place
         prop.parent = dtype.prop
         prop.model = dtype.prop.model
-        load(context, prop, dtype.items, manifest)
+        commands.load(context, prop, dtype.items, manifest)
         dtype.items = prop
     else:
         dtype.items = None
@@ -316,7 +322,11 @@ def load(context: Context, dtype: PrimaryKey, value: object) -> object:
 
 
 @load.register(Context, Array, object)
-def load(context: Context, dtype: Array, value: object) -> list:
+def load(
+    context: Context,
+    dtype: Array,
+    value: object,
+) -> Union[None, NotAvailable, list]:
     # loads value into native python list, including all list items
     array_item_type = dtype.items.dtype
     loaded_array = dtype.load(value)
@@ -352,11 +362,7 @@ def load(context: Context, dtype: Object, value: object) -> dict:
 @load.register(Context, RQL, str)
 def load(context: Context, dtype: RQL, value: str) -> dict:
     rql = spyna.parse(value)
-    rql = binds_to_strs(rql)
-    if rql['name'] == 'and':
-        return rql['args']
-    else:
-        return [rql]
+    return rql
 
 
 @commands.get_error_context.register(DataType)

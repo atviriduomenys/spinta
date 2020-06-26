@@ -1,10 +1,8 @@
-from typing import List, Dict
-
-import sqlalchemy as sa
-
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.compat import urlparams_to_expr
+from spinta.core.ufuncs import Expr
 from spinta.renderer import render
 from spinta.components import Context, Model, Property, Action, UrlParams
 from spinta.backends import log_getall, log_getone
@@ -12,7 +10,7 @@ from spinta.types.datatype import DataType
 from spinta.exceptions import NotFoundError, ItemDoesNotExist, UnavailableSubresource
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import flat_dicts_to_nested
-from spinta.backends.postgresql.commands.query import QueryBuilder
+from spinta.backends.postgresql.commands.query import PgQueryBuilder
 
 
 @commands.getone.register(Context, Request, Model, PostgreSQL)
@@ -84,15 +82,8 @@ async def getall(
     params: UrlParams,
 ):
     commands.authorize(context, action, model)
-    rows = getall(
-        context, model, backend,
-        select=params.select,
-        sort=params.sort,
-        offset=params.offset,
-        limit=params.limit,
-        query=params.query,
-        count=params.count,
-    )
+    expr = urlparams_to_expr(params)
+    rows = getall(context, model, backend, query=expr)
     hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
     rows = log_getall(context, rows, select=params.select, hidden=hidden_props)
     if not params.count:
@@ -116,25 +107,18 @@ def getall(
     model: Model,
     backend: PostgreSQL,
     *,
-    action: Action = Action.GETALL,
-    select: List[str] = None,
-    sort: Dict[str, dict] = None,
-    offset: int = None,
-    limit: int = None,
-    query: List[Dict[str, str]] = None,
-    count: bool = False,
+    query: Expr = None,
 ):
+    assert isinstance(query, (Expr, type(None))), query
     connection = context.get('transaction').connection
 
-    if count:
-        table = backend.get_table(model)
-        qry = sa.select([sa.func.count()]).select_from(table)
-        result = connection.execute(qry)
-        yield {'count': result.scalar()}
-        return
-
-    qb = QueryBuilder(context, model, backend)
-    qry = qb.build(select, sort, offset, limit, query)
+    builder = PgQueryBuilder(context)
+    builder.update(model=model)
+    table = backend.get_table(model)
+    env = builder.init(backend, table)
+    expr = env.resolve(query)
+    where = env.execute(expr)
+    qry = env.build(where)
 
     for row in connection.execute(qry):
         row = flat_dicts_to_nested(dict(row))

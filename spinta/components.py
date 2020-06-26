@@ -35,7 +35,7 @@ class Context:
         # Names defined in current context. Names from inherited context are not
         # listed here.
         self._local_names = [set()]
-        self._exitstack = [None]
+        self._exitstack: List[Union[None, contextlib.ExitStack]] = [None]
 
         if parent:
             # cmgrs are copied in __enter__() method.
@@ -299,18 +299,11 @@ class Component:
 class Node(Component):
     schema = {}
 
-    type: str
-    name: str
-    parent: Node
-    manifest: Manifest
-    path: pathlib.Path
-
-    def __init__(self):
-        self.type = None
-        self.name = None
-        self.parent = None
-        self.manifest = None
-        self.path = None
+    type: str = None
+    name: str = None
+    parent: Node = None
+    manifest: Manifest = None
+    path: pathlib.Path = None
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__module__}.{self.__class__.__name__}(name={self.name!r})>'
@@ -439,6 +432,8 @@ class Model(MetaData):
         },
     }
 
+    endpoint: str = None
+
     def __init__(self):
         super().__init__()
         self.unique = []
@@ -479,6 +474,7 @@ class Property(Node):
         'external': {},
     }
 
+    place: str = None  # Dotted property path
     title: str = None
     description: str = None
     link: str = None
@@ -487,7 +483,8 @@ class Property(Node):
     level: Level
     dtype: DataType = None
     external: Attribute
-    list: Array = None
+    list: Property = None
+    model: Model = None
 
     def __repr__(self):
         pypath = [type(self).__module__, type(self).__name__]
@@ -567,16 +564,16 @@ class UrlParams:
     parsetree: List[dict]
 
     path: Optional[str] = None
-    model: Optional[Node] = None
+    model: Optional[Model] = None
     pk: Optional[str] = None
-    prop: Optional[Node] = None
+    prop: Optional[Property] = None
     # Tells if we accessing property content or reference. Applies only for some
     # property types, like references.
     propref: bool = False
 
     # List only models names
     ns: bool = False
-    # Recursively select all models in a givne namespace
+    # Recursively select all models in a given namespace
     all: bool = False
     external: bool = False
 
@@ -586,8 +583,8 @@ class UrlParams:
     format: Optional[str] = None
     formatparams: dict
 
-    select: Optional[List[str]] = None
-    sort: Optional[List[Tuple[str, Node]]] = None
+    select: List[dict] = None
+    sort: List[dict] = None
     limit: Optional[str] = None
     offset: Optional[str] = None
     # Limit can be enforced even it is is not explicitly given in URL.
@@ -601,7 +598,7 @@ class UrlParams:
     # Wipe all data of a model or all models in a namespace.
     wipe: bool = False
 
-    query: Optional[List[dict]] = None
+    query: List[dict] = None
 
     def changed_parsetree(self, change):
         ptree = {x['name']: x['args'] for x in (self.parsetree or [])}

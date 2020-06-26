@@ -94,7 +94,7 @@ def test_create_model(postgresql, rc, cli, tmpdir, request):
     client = create_test_client(context)
     client.authmodel('_schema/version', ['getall', 'search'])
 
-    data = client.get('/_schema/version?select("type", "name")').json()['_data']
+    data = client.get('/_schema/version?select(type, name)').json()['_data']
     data = [d for d in data if not d['name'].startswith('_')]
     assert data == [
         {'type': 'model', 'name': 'country'},

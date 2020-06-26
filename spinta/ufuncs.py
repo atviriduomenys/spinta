@@ -21,3 +21,13 @@ def negative(env, name) -> Negative:
 @ufunc.resolver(Env, str)
 def positive(env, name) -> Positive:
     return Positive(name)
+
+
+@ufunc.resolver(Env, Bind)
+def negative(env, bind) -> Negative:
+    return Negative(bind.name)
+
+
+@ufunc.resolver(Env, Bind)
+def positive(env, bind) -> Positive:
+    return Positive(bind.name)
