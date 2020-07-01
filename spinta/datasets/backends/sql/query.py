@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import dataclasses
+from typing import Optional
 
 import sqlalchemy as sa
 import sqlalchemy.sql.functions
@@ -98,7 +99,8 @@ class SqlQueryBuilder(Env):
             else:
                 condition = sa.and_(condition)
 
-            self.from_ = self.joins[fpr.name] = self.from_.join(rtable, condition)
+            self.from_ = self.joins[fpr.name] = self.from_.join(rtable,
+                                                                condition)
 
         model = fpr.right.model
         table = self.backend.get_table(model)
@@ -107,7 +109,11 @@ class SqlQueryBuilder(Env):
 
 class ForeignProperty:
 
-    def __init__(self, fpr: ForeignProperty, left: Property, right: Property):
+    def __init__(
+        self, fpr: Optional[ForeignProperty],
+        left: Property,
+        right: Property,
+    ):
         if fpr is None:
             self.name = left.place
             self.chain = [self]

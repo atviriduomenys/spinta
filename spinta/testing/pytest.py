@@ -133,6 +133,9 @@ def cli():
 
 
 def pytest_addoption(parser):
+    # TODO: Switch back to backend pytest param.
+    #       We want to tests multiple backends and one backend can use
+    #       multiple models.
     parser.addoption(
         "--model",
         action="append",

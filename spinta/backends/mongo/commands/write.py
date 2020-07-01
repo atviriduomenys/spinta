@@ -133,7 +133,7 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    patch = take(['_id'], data.patch)
+    patch = take(['_id'], data.patch) or None
     if inserting(data):
         return {dtype.prop.name: patch}
     else:

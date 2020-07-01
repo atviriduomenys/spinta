@@ -4,6 +4,7 @@ from typing import List, Union, Any
 
 import datetime
 import dataclasses
+from typing import Optional
 
 import sqlalchemy as sa
 
@@ -86,7 +87,7 @@ class PgQueryBuilder(Env):
         return qry
 
     def default_resolver(self, expr, *args, **kwargs):
-        raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
+        raise UnknownExpr(expr=repr(expr(*args, **kwargs)), name=expr.name)
 
     def get_joined_table(self, prop: ForeignProperty) -> sa.Table:
         for fpr in prop.chain:
@@ -114,26 +115,42 @@ class PgQueryBuilder(Env):
 
             self.from_ = self.joins[fpr.name] = self.from_.join(rtable, condition)
 
-        model = fpr.right.model
+        model = prop.right.model
         table = self.backend.get_table(model)
         return table
 
 
 class ForeignProperty:
 
-    def __init__(self, fpr: ForeignProperty, left: Property, right: Property):
+    def __init__(
+        self,
+        fpr: Optional[ForeignProperty],
+        left: Property,
+        right: Property,
+    ):
         if fpr is None:
             self.name = left.place
             self.chain = [self]
         else:
-            self.name += '->' + left.place
+            self.name = fpr.name + '->' + left.place
             self.chain = fpr.chain + [self]
 
         self.left = left
         self.right = right
 
     def __repr__(self):
-        return f'<{self.name}->{self.right.name}:{self.right.dtype.name}>'
+        return (
+            'ForeignProperty('
+            f'{self.name}->{self.right.name}:{self.right.dtype.name}'
+            ')'
+        )
+
+    @property
+    def place(self):
+        return '.'.join(
+            [fpr.left.place for fpr in self.chain] +
+            [self.right.place]
+        )
 
 
 class Func:
@@ -203,6 +220,18 @@ def getattr_(env, dtype, attr):
 @ufunc.resolver(PgQueryBuilder, File, Bind, name='getattr')
 def getattr_(env, dtype, attr):
     return ReservedProperty(dtype, attr.name)
+
+
+@ufunc.resolver(PgQueryBuilder, Ref, Bind, name='getattr')
+def getattr_(env, dtype, attr):
+    prop = dtype.model.properties[attr.name]
+    return ForeignProperty(None, dtype.prop, prop)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Bind, name='getattr')
+def getattr_(env, fpr, attr):
+    prop = fpr.right.dtype.model.properties[attr.name]
+    return ForeignProperty(fpr, fpr.right, prop)
 
 
 @ufunc.resolver(PgQueryBuilder, Expr)
@@ -318,6 +347,14 @@ def select(env, dtype):
     table = env.backend.get_table(env.model)
     column = table.c[dtype.prop.place + '._id']
     return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty)
+def select(env: PgQueryBuilder, fpr: ForeignProperty):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
+    column = column.label(fpr.place)
+    return Selected(column, fpr.right)
 
 
 @ufunc.resolver(PgQueryBuilder, int)

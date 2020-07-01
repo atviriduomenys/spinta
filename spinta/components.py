@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional, Tuple, AsyncIterator, Union
+from typing import TYPE_CHECKING, List, Optional, AsyncIterator, Union
 
 import enum
 import contextlib
@@ -583,7 +583,7 @@ class UrlParams:
     format: Optional[str] = None
     formatparams: dict
 
-    select: List[dict] = None
+    select: Optional[List[dict]] = None
     sort: List[dict] = None
     limit: Optional[str] = None
     offset: Optional[str] = None

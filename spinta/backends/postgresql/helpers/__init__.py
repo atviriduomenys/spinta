@@ -22,7 +22,7 @@ def get_table_name(
     return name
 
 
-def get_column_name(prop: Property):
+def get_column_name(prop: Property) -> str:
     if prop.list:
         if prop.place == prop.list.place:
             return prop.list.name
