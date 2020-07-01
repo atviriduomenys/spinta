@@ -1,0 +1,10 @@
+---
+type: model
+name: backends/postgres/city
+title: City
+properties:
+  title:
+    type: string
+  country:
+    type: ref
+    model: backends/postgres/country

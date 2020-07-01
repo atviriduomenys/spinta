@@ -27,6 +27,7 @@ def test_schema_loader(model, app):
         '_type': model_country,
         '_revision': country['_revision'],
         'code': 'lt',
+        'continent': None,
         'title': 'Lithuania',
     }
     assert org == {
@@ -58,6 +59,7 @@ def test_schema_loader(model, app):
     assert data == {
         '_id': country['_id'],
         'code': 'lt',
+        'continent': None,
         'title': 'Lithuania',
         '_type': model_country,
         '_revision': revision,

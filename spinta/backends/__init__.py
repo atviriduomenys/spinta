@@ -461,7 +461,7 @@ def _select_prop_props(
 
 def _select_props(
     node: Union[Namespace, Model, Property],
-    keys: List[str],
+    keys: Iterable[str],
     props: Optional[Dict[str, Property]],
     value: dict,
     select: SelectTree,
@@ -689,16 +689,46 @@ def prepare_dtype_for_response(
     *,
     select: dict = None,
 ):
+    if select is None and value == {'_id': None}:
+        return None
     return {
-        key: val
-        for key, val, sel in _select_props(
-            dtype.prop,
-            ['_id'],
-            None,
+        prop.name: commands.prepare_dtype_for_response(
+            context,
+            backend,
+            prop.model,
+            prop.dtype,
+            val,
+            select=sel,
+        )
+        for prop, val, sel in _select_ref_props(
+            dtype,
             value,
             select,
+            ['_id'],
         )
     }
+
+
+def _select_ref_props(
+    dtype: Ref,
+    value: dict,
+    select: SelectTree,
+    reserved: List[str],
+):
+    yield from _select_props(
+        dtype.prop,
+        reserved,
+        dtype.model.properties,
+        value,
+        select,
+    )
+    yield from _select_props(
+        dtype.model,
+        value.keys(),
+        dtype.model.properties,
+        value,
+        select,
+    )
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, Ref, str)
@@ -1085,13 +1115,18 @@ def log_getone(
     accesslog.log(resources=[resource], fields=fields)
 
 
-def _get_selected_fields(select):
+def _get_selected_fields(select: Optional[List[dict]]) -> List[str]:
     if select:
-        return sorted([
-            x['args'][0]['args'][0]
-            if isinstance(x['args'][0], dict) else
-            x['args'][0]
-            for x in select
-        ])
+        return sorted([_get_selected_field(x) for x in select])
     else:
         return []
+
+
+def _get_selected_field(ast: dict):
+    if ast['name'] == 'bind':
+        return ast['args'][0]
+    if ast['name'] == 'getattr':
+        return '.'.join([
+            _get_selected_field(ast['args'][0]),
+            _get_selected_field(ast['args'][1]),
+        ])

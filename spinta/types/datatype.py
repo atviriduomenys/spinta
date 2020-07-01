@@ -12,6 +12,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.commands import load, is_object_id
 from spinta.components import Context, Component, Property
+from spinta.components import Model
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA, NotAvailable
 from spinta.core.ufuncs import Expr
@@ -159,6 +160,8 @@ class Ref(DataType):
         },
         'enum': {'type': 'array'},
     }
+
+    model: Model
 
 
 class BackRef(DataType):

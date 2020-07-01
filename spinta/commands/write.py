@@ -329,7 +329,11 @@ def dataitem_from_payload(
     #               }
     #           })
     if not isinstance(payload, dict):
-        error = exceptions.InvalidValue(scope, transaction=transaction.id)
+        error = exceptions.InvalidValue(
+            scope,
+            transaction=transaction.id,
+            error=f"Expected dict, got {type(payload).__name__}.",
+        )
         report_error(error, stop_on_error)
         return DataItem(error=error)
 
