@@ -1037,7 +1037,7 @@ def test_search_not_null(model, app):
 
 
 @pytest.mark.parametrize('backend', ['default', 'mongo'])
-def test_extra_fields(postgresql, mongo, backend, rc, tmpdir):
+def test_extra_fields(postgresql, mongo, backend, rc, tmpdir, request):
     rc = rc.fork({
         'backends': [backend],
         'manifests.default': {
@@ -1055,6 +1055,7 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmpdir):
       | name     | string
     '''))
     context = create_test_context(rc)
+    request.addfinalizer(context.wipe_all)
     app = create_test_client(context)
     app.authmodel('extrafields', ['insert'])
     resp = app.post('/extrafields', json={'_data': [

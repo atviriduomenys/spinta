@@ -7,6 +7,7 @@ import uuid
 import sqlalchemy as sa
 
 from spinta.backends.postgresql.helpers import get_column_name
+from spinta.types.datatype import Ref
 from spinta.utils.schema import NA
 from spinta.components import Model, Property
 from spinta.backends.components import Backend, BackendFeatures
@@ -108,6 +109,9 @@ class PostgreSQL(Backend):
         if prop.list is not None:
             table = self.get_table(prop.list, TableType.LIST)
         column = get_column_name(prop)
+        if isinstance(prop.dtype, Ref):
+            # TODO: Move this into a command.
+            column += '._id'
         if column not in table.c:
             raise PropertyNotFound(prop.dtype)
         return table.c[column]

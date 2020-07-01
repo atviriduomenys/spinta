@@ -126,4 +126,5 @@ def getall(
             '_type': model.model_type(),
             **row,
         }
-        yield commands.cast_backend_to_python(context, model, backend, row)
+        row = commands.cast_backend_to_python(context, model, backend, row)
+        yield row
