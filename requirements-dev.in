@@ -12,7 +12,7 @@ responses
 snoop
 sphinx
 sphinx-autobuild
-sphinxcontrib.httpdomain
+sphinxcontrib-httpdomain
 sqlalchemy-utils
 sqlparse
 python-dotenv
