@@ -11,7 +11,7 @@ from spinta.utils.nestedstruct import flatten
 
 def listdata(
     resp: requests.Response,
-    *keys: Tuple[str],
+    *keys: str,
     sort: Union[bool, str] = True,
 ) -> List[tuple]:
     if resp.headers['content-type'].startswith('text/html'):

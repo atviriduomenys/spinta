@@ -133,7 +133,7 @@ class Entity(External):
 class Attribute(External):
     property: Property
     name: str
-    prepare: Expr
+    prepare: Expr = None
 
     schema = {
         'property': {'parent': True},

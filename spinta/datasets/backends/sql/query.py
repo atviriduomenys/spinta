@@ -19,6 +19,7 @@ from spinta.types.datatype import DataType
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
+from spinta.utils.schema import NA
 
 
 class SqlQueryBuilder(Env):
@@ -41,6 +42,8 @@ class SqlQueryBuilder(Env):
 
         select = []
         for sel in self.select.values():
+            if sel.item is None:
+                continue
             if isinstance(sel.item, list):
                 select += sel.item
             else:
@@ -132,6 +135,7 @@ class ForeignProperty:
 class Selected:
     item: Any
     prop: Property = None
+    prep: Any = NA
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, Bind)
@@ -299,9 +303,17 @@ def _get_property_for_select(env: SqlQueryBuilder, name: str):
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def select(env, dtype):
-    table = env.backend.get_table(env.model)
-    column = env.backend.get_column(table, dtype.prop, select=True)
-    return Selected(column, dtype.prop)
+    if dtype.prop.external.prepare is not None:
+        return env.call('select', dtype, dtype.prop.external.prepare)
+    else:
+        table = env.backend.get_table(env.model)
+        column = env.backend.get_column(table, dtype.prop, select=True)
+        return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType, object)
+def select(env, dtype, prep):
+    return Selected(None, dtype.prop, prep)
 
 
 @ufunc.resolver(SqlQueryBuilder, PrimaryKey)

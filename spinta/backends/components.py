@@ -13,6 +13,7 @@ class Backend:
         'name': 'backend',
     }
 
+    name: str
     features = set()
 
     def __repr__(self):

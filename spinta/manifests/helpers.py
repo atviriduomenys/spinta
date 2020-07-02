@@ -1,4 +1,5 @@
 from typing import List, Iterable, Optional
+from typing import Tuple
 
 import jsonpatch
 
@@ -76,7 +77,7 @@ def _configure_manifest(
 def load_manifest_nodes(
     context: Context,
     manifest: Manifest,
-    schemas: Iterable[dict],
+    schemas: Iterable[Tuple[int, Optional[dict]]],
     *,
     source: Manifest = None,
 ) -> None:

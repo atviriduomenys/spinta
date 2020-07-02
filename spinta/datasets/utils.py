@@ -1,5 +1,5 @@
-from spinta.datasets.components import Entity
+from spinta.components import Model
 
 
-def iterparams(entity: Entity):
+def iterparams(model: Model):
     yield {}
