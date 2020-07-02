@@ -110,7 +110,10 @@ def getall(
                         val = keymap.encode(sel.prop.dtype.model.model_type(), val)
                         val = {'_id': val}
                     else:
-                        val = row[sel.item]
+                        if sel.prep:
+                            val = sel.prep
+                        else:
+                            val = row[sel.item]
                 else:
                     val = row[sel.item]
                 res[key] = val

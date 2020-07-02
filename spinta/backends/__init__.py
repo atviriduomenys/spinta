@@ -577,7 +577,7 @@ def prepare_dtype_for_response(
     *,
     select: dict = None,
 ):
-    return dtype.prop.default
+    return dtype.default
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, File, NotAvailable)

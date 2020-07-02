@@ -698,3 +698,24 @@ def test_push_state(postgresql, rc, cli, responses, tmpdir, sqlite, request):
 
     resp = remote.app.get('/datasets/gov/example/country')
     assert len(listdata(resp)) == 2
+
+
+def test_prepared_property(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property  | source      | prepare   | type   | ref  | access
+    datasets/gov/example      |             |           |        |      |
+      | data                  |             |           | sql    |      |
+      |   |   | country       | salis       |           |        | code | open
+      |   |   |   | code      | kodas       |           | string |      |
+      |   |   |   | name      | pavadinimas |           | string |      |
+      |   |   |   | continent |             | 'EU'      | string |      |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'continent', 'code', 'name') == [
+        ('EU', 'ee', 'Estija'),
+        ('EU', 'lt', 'Lietuva'),
+        ('EU', 'lv', 'Latvija'),
+    ]

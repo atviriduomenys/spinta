@@ -15,9 +15,9 @@ from spinta.datasets.enums import Level
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
     from spinta.types.datatype import DataType
-    from spinta.types.datatype import Array
     from spinta.manifests.components import Manifest
     from spinta.datasets.components import Attribute
+    from spinta.datasets.components import Entity
     from spinta.datasets.keymaps.components import KeyMap
 
 
@@ -433,6 +433,7 @@ class Model(MetaData):
     }
 
     endpoint: str = None
+    external: Entity = None
 
     def __init__(self):
         super().__init__()
