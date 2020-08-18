@@ -25,7 +25,11 @@ from spinta.auth import create_client_file
 from spinta.testing.config import create_config_path
 
 
-def create_test_client(rc_or_context: Union[RawConfig, Context]):
+def create_test_client(
+    rc_or_context: Union[RawConfig, Context],
+    *,
+    host: str = 'testserver',
+) -> TestClient:
     if isinstance(rc_or_context, RawConfig):
         rc = rc_or_context
         context = create_test_context(rc, name='pytest/client')
@@ -34,7 +38,7 @@ def create_test_client(rc_or_context: Union[RawConfig, Context]):
     if not context.loaded:
         context.load()
     app = api.init(context)
-    return TestClient(context, app, base_url='https://testserver')
+    return TestClient(context, app, base_url=f'https://{host}')
 
 
 def create_remote_server(

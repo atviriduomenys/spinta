@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import collections
@@ -29,7 +31,7 @@ SCHEMA = {
 }
 
 
-def read_config(args=None, envfile=None):
+def read_config(args=None, envfile=None) -> RawConfig:
     rc = RawConfig()
     rc.read([
         Path('spinta', 'spinta.config:CONFIG'),
