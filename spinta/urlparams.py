@@ -112,6 +112,9 @@ def _prepare_urlparams_from_path(params):
             if isinstance(args[0], dict) and args[0]['name'] == 'bind':
                 params.format = _read_format_params(args[0])
                 args = args[1:]
+            elif isinstance(args[0], str):
+                params.format = args[0]
+                args = args[1:]
             for arg in args:
                 assert len(arg['args']) == 1, arg
                 params.formatparams[arg['name']] = _read_format_params(arg['args'][0])
