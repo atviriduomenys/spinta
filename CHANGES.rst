@@ -3,7 +3,7 @@
 Changes
 #######
 
-0.1.6 (unreleased)
+0.1.6 (2020-09-11)
 ==================
 
 Backwards incompatible features:
