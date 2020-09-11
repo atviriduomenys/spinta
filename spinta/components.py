@@ -349,6 +349,10 @@ class Node(Component):
         """
         raise NotImplementedError
 
+    @property
+    def basename(self):
+        return self.name.split('/')[-1]
+
 
 class Namespace(Node):
     access: Access

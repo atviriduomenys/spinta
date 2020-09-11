@@ -1,5 +1,6 @@
 import csv
 import itertools
+from typing import Dict
 
 from typing import Optional
 
@@ -62,8 +63,10 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
-    headers: Optional[dict] = None,
+    headers: Dict[str, str] = None,
 ):
+    headers = headers or {}
+    headers['Content-Disposition'] = f'attachment; filename="{model.basename}.csv"'
     return StreamingResponse(
         aiter(fmt(data)),
         status_code=status_code,

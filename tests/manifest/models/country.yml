@@ -5,6 +5,7 @@ title: "Country"
 version:
   id: 1
   date: 2019-02-06
+access: open
 properties:
   _id: {type: pk}
   title: {type: string}

@@ -1,7 +1,4 @@
-import datetime
-
-
-def test_export_csv(context, app, mocker):
+def test_export_csv(context, app):
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('datasets/csv/country', [
         'insert',
@@ -44,6 +41,7 @@ def test_export_csv(context, app, mocker):
 
     resp = app.get('/datasets/csv/country/:changes/:format/csv')
     assert resp.status_code == 200
+    assert resp.headers['content-disposition'] == 'attachment; filename="country.csv"'
     header, *lines = resp.text.splitlines()
     assert header.split(',') == [
         '_id',
