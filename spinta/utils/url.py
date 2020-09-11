@@ -1,6 +1,7 @@
 import urllib.parse
 
 from spinta import exceptions
+from spinta.spyna import unparse
 
 RULES = {
     'path': {
@@ -82,11 +83,19 @@ def parse_url_path(path):
 
 def build_url_path(query):
     parts = []
+    other = []
     for param in query:
         name = param['name']
         args = param['args']
         if name == 'path':
             parts.extend(args)
-        else:
+        elif name in ('format', 'ns', 'changes'):
             parts.extend([f':{name}'] + args)
-    return '/'.join(map(str, parts))
+        else:
+            other.append(param)
+    path = '/'.join(map(str, parts))
+    if other:
+        other = unparse({'type': 'expression', 'name': 'and', 'args': other})
+        return f'{path}?{other}'
+    else:
+        return path

@@ -1,4 +1,7 @@
-def test_export_csv(context, app):
+from spinta.testing.csv import parse_csv
+
+
+def test_export_csv(app):
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('datasets/csv/country', [
         'insert',
@@ -59,3 +62,20 @@ def test_export_csv(context, app):
         ['lv', 'LATVIA'],
         ['', 'Latvia'],
     ]
+
+
+def test_csv_limit(app):
+    app.authmodel('country', ['insert', 'search', ])
+    resp = app.post('/country', json={'_data': [
+        {'_op': 'insert', '_type': 'country', 'code': 'lt', 'title': 'Lithuania'},
+        {'_op': 'insert', '_type': 'country', 'code': 'lv', 'title': 'Latvia'},
+        {'_op': 'insert', '_type': 'country', 'code': 'ee', 'title': 'Estonia'},
+    ]})
+    assert resp.status_code == 200, resp.json()
+
+    resp = app.get('/country/:format/csv?select(code,title)&sort(code)&limit(1)')
+    assert parse_csv(resp) == [
+        ['code', 'title'],
+        ['ee', 'Estonia'],
+    ]
+

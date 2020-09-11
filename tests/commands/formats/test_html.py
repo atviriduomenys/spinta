@@ -56,3 +56,11 @@ def test_select_with_joins(app):
         ('_id', 'title', 'country.title', 'country.continent.title'),
         (sha1('3')[:8], 'Vilnius', 'Lithuania', 'Europe'),
     ]
+
+
+def test_limit_in_links(app):
+    app.authmodel('country', ['search', ])
+    resp = app.get('/country/:format/html?limit(1)')
+    assert resp.context['formats'][0] == (
+        'CSV', '/country/:format/csv?limit(1)'
+    )

@@ -3,6 +3,12 @@
 Changes
 #######
 
+0.1.7 (unreleased)
+==================
+
+- Fix URL link formatting in HTML output.
+
+
 0.1.6 (2020-09-11)
 ==================
 
