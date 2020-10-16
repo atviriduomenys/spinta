@@ -436,6 +436,7 @@ class Model(MetaData):
         },
     }
 
+    ns: Namespace
     endpoint: str = None
     external: Entity = None
 

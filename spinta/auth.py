@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Set
+from typing import Type
 from typing import Union, Callable, List, Tuple
 
 import datetime
@@ -92,7 +94,11 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
 
 class ResourceProtector(rfc6749.ResourceProtector):
 
-    def __init__(self, context: Context, Validator: type):
+    def __init__(
+        self,
+        context: Context,
+        Validator: Type[rfc6750.BearerTokenValidator],
+    ):
         self.TOKEN_VALIDATORS = {
             Validator.TOKEN_TYPE: Validator(context),
         }
@@ -116,9 +122,12 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
 
 
 class Client(rfc6749.ClientMixin):
+    id: str
+    secret_hash: str
+    scopes: Set[str]
 
-    def __init__(self, *, id: str, secret_hash: str, scopes: list):
-        self.id = id
+    def __init__(self, *, id_: str, secret_hash: str, scopes: List[str]):
+        self.id = id_
         self.secret_hash = secret_hash
         self.scopes = set(scopes)
 
@@ -330,7 +339,7 @@ def create_access_token(
     private_key,
     client: str,
     expires_in: int = None,
-    scopes: list = None,
+    scopes: Set[str] = None,
 ):
     config = context.get('config')
 
@@ -366,11 +375,8 @@ def query_client(context: Context, client: str):
 
     if not isinstance(data['scopes'], list):
         raise Exception(f'Client {client_file} scopes must be list of scopes.')
-    client = Client(
-        id=client,
-        secret_hash=data['client_secret_hash'],
-        scopes=data['scopes'],
-    )
+    client = Client(id_=client, secret_hash=data['client_secret_hash'],
+                    scopes=data['scopes'])
     return client
 
 
