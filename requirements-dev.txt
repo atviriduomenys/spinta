@@ -4,20 +4,19 @@
 #
 #    pip-compile --no-index --output-file=requirements-dev.txt requirements-dev.in requirements.in
 #
-aiofiles==0.4.0           # via -r requirements.in
+aiofiles==0.4.0
 alabaster==0.7.12         # via sphinx
-alembic==1.4.0            # via -r requirements.in
-appnope==0.1.0            # via ipython
+alembic==1.4.0
 argh==0.26.2              # via sphinx-autobuild, watchdog
 asttokens==2.0.2          # via snoop
-asyncpg==0.20.0           # via -r requirements.in
+asyncpg==0.20.0
 attrs==19.3.0             # via jsonschema, pytest
-authlib==0.11             # via -r requirements.in
+authlib==0.11
 aws-sam-translator==1.22.0  # via cfn-lint
 aws-xray-sdk==2.5.0       # via moto
 babel==2.8.0              # via sphinx
 backcall==0.1.0           # via ipython
-boto3==1.12.25            # via -r requirements.in, aws-sam-translator, moto
+boto3==1.12.25
 boto==2.49.0              # via moto
 botocore==1.15.25         # via aws-xray-sdk, boto3, moto, s3transfer
 certifi==2019.11.28       # via requests
@@ -25,8 +24,8 @@ cffi==1.13.2              # via cryptography
 cfn-lint==0.29.5          # via moto
 chardet==3.0.4            # via requests
 cheap-repr==0.4.1         # via snoop
-click==7.0                # via -r requirements.in, uvicorn
-codecov==2.0.15           # via -r requirements-dev.in
+click==7.0
+codecov==2.0.15
 coverage==4.5.4           # via codecov, pytest-cov
 cryptography==2.8         # via authlib, moto, sshpubkeys
 decorator==4.4.1          # via ipython, networkx, traitlets
@@ -34,34 +33,35 @@ docker==4.2.0             # via moto
 docutils==0.15.2          # via botocore, sphinx
 ecdsa==0.15               # via python-jose, sshpubkeys
 executing==0.3.3          # via snoop
+faker==4.14.0
 future==0.18.2            # via aws-xray-sdk
-gunicorn==20.0.4          # via -r requirements.in
+gunicorn==20.0.4
 h11==0.8.1                # via uvicorn
 httptools==0.0.13         # via uvicorn
 idna==2.8                 # via moto, requests
 imagesize==1.2.0          # via sphinx
-importlib-metadata==1.5.0  # via jsonpickle, jsonschema, pluggy, pytest
-ipdb==0.12.3              # via -r requirements-dev.in
+importlib-metadata==1.5.0  # via jsonpickle
+ipdb==0.12.3
 ipython-genutils==0.2.0   # via traitlets
-ipython==7.10.1           # via -r requirements-dev.in, ipdb
+ipython==7.10.1
 jedi==0.15.1              # via ipython
-jinja2==2.10.3            # via -r requirements.in, moto, sphinx
+jinja2==2.10.3
 jmespath==0.9.5           # via boto3, botocore
 jsondiff==1.1.2           # via moto
-jsonpatch==1.24           # via -r requirements.in, cfn-lint
+jsonpatch==1.24
 jsonpickle==1.4           # via aws-xray-sdk
 jsonpointer==2.0          # via jsonpatch
 jsonschema==3.2.0         # via aws-sam-translator, cfn-lint
-lark-parser==0.8.1        # via -r requirements.in
+lark-parser==0.8.1
 livereload==2.6.1         # via sphinx-autobuild
-lxml==4.4.2               # via -r requirements.in
+lxml==4.4.2
 mako==1.1.1               # via alembic
 markupsafe==1.1.1         # via jinja2, mako
 mock==4.0.2               # via moto
 more-itertools==8.0.2     # via pytest
-moto==1.3.14              # via -r requirements-dev.in
-msgpack==0.6.2            # via -r requirements.in
-multipledispatch==0.6.0   # via -r requirements.in
+moto==1.3.14
+msgpack==0.6.2
+multipledispatch==0.6.0
 networkx==2.4             # via cfn-lint
 packaging==19.2           # via pytest, sphinx
 parso==0.5.1              # via jedi
@@ -70,61 +70,62 @@ pexpect==4.7.0            # via ipython
 pickleshare==0.7.5        # via ipython
 pluggy==0.13.1            # via pytest
 port_for==0.3.1           # via sphinx-autobuild
-pp-ez==0.2.0              # via -r requirements-dev.in
-pprintpp==0.4.0           # via -r requirements-dev.in
+pp-ez==0.2.0
+pprintpp==0.4.0
 prompt-toolkit==3.0.2     # via ipython
-psycopg2-binary==2.8.4    # via -r requirements.in
+psycopg2-binary==2.8.4
 ptyprocess==0.6.0         # via pexpect
 py==1.8.0                 # via pytest
 pyasn1==0.4.8             # via python-jose, rsa
 pycparser==2.19           # via cffi
 pygments==2.5.2           # via ipython, snoop, sphinx
-pymongo==3.10.0           # via -r requirements.in
+pymongo==3.10.0
 pyparsing==2.4.5          # via packaging
 pyrsistent==0.16.0        # via jsonschema
-pytest-asyncio==0.10.0    # via -r requirements-dev.in
-pytest-cov==2.8.1         # via -r requirements-dev.in
-pytest-mock==1.13.0       # via -r requirements-dev.in
-pytest==5.3.1             # via -r requirements-dev.in, pytest-asyncio, pytest-cov, pytest-mock
-python-dateutil==2.8.1    # via alembic, botocore, moto
+pytest-asyncio==0.10.0
+pytest-cov==2.8.1
+pytest-mock==1.13.0
+pytest==5.3.1
+python-dateutil==2.8.1    # via alembic, botocore, faker, moto
+python-dotenv==0.14.0
 python-editor==1.0.4      # via alembic
 python-jose==3.1.0        # via moto
-python-multipart==0.0.5   # via -r requirements.in
-pytz==2019.3              # via -r requirements.in, babel, moto
+python-multipart==0.0.5
+pytz==2019.3
 pyyaml==5.3               # via cfn-lint, moto, sphinx-autobuild, watchdog
-requests==2.22.0          # via -r requirements.in, authlib, codecov, docker, moto, responses, sphinx
-responses==0.10.8         # via -r requirements-dev.in, moto
+requests==2.22.0
+responses==0.10.8
 rsa==4.0                  # via python-jose
-ruamel.yaml.clib==0.2.0   # via ruamel.yaml
-ruamel.yaml==0.16.5       # via -r requirements.in
+ruamel.yaml==0.16.5
 s3transfer==0.3.3         # via boto3
-setuptools-scm==3.3.3     # via -r requirements.in
-six==1.13.0               # via asttokens, aws-sam-translator, cfn-lint, cryptography, docker, ecdsa, jsonschema, livereload, moto, multipledispatch, packaging, python-dateutil, python-jose, python-multipart, responses, snoop, sphinxcontrib-httpdomain, sqlalchemy-utils, traitlets, websocket-client
-snoop==0.2.2              # via -r requirements-dev.in
+setuptools-scm==3.3.3
+six==1.13.0               # via asttokens, aws-sam-translator, cfn-lint, cryptography, docker, ecdsa, jsonschema, livereload, moto, multipledispatch, packaging, pyrsistent, python-dateutil, python-jose, python-multipart, responses, snoop, sphinxcontrib-httpdomain, sqlalchemy-utils, traitlets, websocket-client
+snoop==0.2.2
 snowballstemmer==2.0.0    # via sphinx
-sphinx-autobuild==0.7.1   # via -r requirements-dev.in
-sphinx==2.3.1             # via -r requirements-dev.in, sphinxcontrib-httpdomain
+sphinx-autobuild==0.7.1
+sphinx==2.3.1
 sphinxcontrib-applehelp==1.0.1  # via sphinx
 sphinxcontrib-devhelp==1.0.1  # via sphinx
 sphinxcontrib-htmlhelp==1.0.2  # via sphinx
+sphinxcontrib-httpdomain==1.7.0
 sphinxcontrib-jsmath==1.0.1  # via sphinx
 sphinxcontrib-qthelp==1.0.2  # via sphinx
 sphinxcontrib-serializinghtml==1.1.3  # via sphinx
-sphinxcontrib-httpdomain==1.7.0  # via -r requirements-dev.in
-sqlalchemy-utils==0.36.0  # via -r requirements-dev.in
-sqlalchemy==1.3.11        # via -r requirements.in, alembic, sqlalchemy-utils
-sqlparse==0.3.0           # via -r requirements-dev.in
+sqlalchemy-utils==0.36.0
+sqlalchemy==1.3.11
+sqlparse==0.3.0
 sshpubkeys==3.1.0         # via moto
-starlette==0.13.0         # via -r requirements.in
-texttable==1.6.2          # via -r requirements.in
-toposort==1.5             # via -r requirements.in
+starlette==0.13.0
+text-unidecode==1.3       # via faker
+texttable==1.6.2
+toposort==1.5
 tornado==6.0.3            # via livereload, sphinx-autobuild
-tqdm==4.40.2              # via -r requirements.in
+tqdm==4.40.2
 traitlets==4.3.3          # via ipython
-ujson==1.35               # via -r requirements.in
-unidecode==1.1.1          # via -r requirements.in
+ujson==1.35
+unidecode==1.1.1
 urllib3==1.25.7           # via botocore, requests
-uvicorn==0.10.8           # via -r requirements.in
+uvicorn==0.10.8
 uvloop==0.14.0            # via uvicorn
 watchdog==0.9.0           # via sphinx-autobuild
 wcwidth==0.1.7            # via prompt-toolkit, pytest
@@ -132,7 +133,7 @@ websocket-client==0.57.0  # via docker
 websockets==8.1           # via uvicorn
 werkzeug==1.0.1           # via moto
 wrapt==1.12.1             # via aws-xray-sdk
-xlrd==1.2.0               # via -r requirements.in
+xlrd==1.2.0
 xmltodict==0.12.0         # via moto
 zipp==3.1.0               # via importlib-metadata
 

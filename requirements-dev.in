@@ -16,3 +16,4 @@ sphinxcontrib-httpdomain
 sqlalchemy-utils
 sqlparse
 python-dotenv
+faker
