@@ -20,7 +20,7 @@ async def getall(
     params: UrlParams,
 ):
     commands.authorize(context, action, model)
-    expr = urlparams_to_expr(params)
+    expr = urlparams_to_expr(params, add_count=False)
     rows = commands.getall(context, model, backend, query=expr)
     hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
     rows = log_getall(context, rows, select=params.select, hidden=hidden_props)

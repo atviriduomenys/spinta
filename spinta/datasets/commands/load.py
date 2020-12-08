@@ -1,4 +1,6 @@
 from spinta import commands
+from spinta.core.ufuncs import asttoexpr
+from spinta.datasets.components import Attribute
 from spinta.nodes import get_node, load_node
 from spinta.components import Context
 from spinta.manifests.components import Manifest
@@ -59,4 +61,13 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
 
 @commands.load.register(Context, Entity, dict, Manifest)
 def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
+    if entity.prepare:
+        entity.prepare = asttoexpr(entity.prepare)
     return entity
+
+
+@commands.load.register(Context, Attribute, dict, Manifest)
+def load(context: Context, attr: Attribute, data: dict, manifest: Manifest):
+    if attr.prepare:
+        attr.prepare = asttoexpr(attr.prepare)
+    return attr

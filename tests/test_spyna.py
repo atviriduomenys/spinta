@@ -1,9 +1,12 @@
-from spinta.spyna import parse, unparse
+from spinta.core.ufuncs import asttoexpr
+from spinta.core.ufuncs import unparse
+from spinta.spyna import parse
 
 
 def check(rql):
     ast = parse(rql)
-    assert unparse(ast) == rql, ast
+    expr = asttoexpr(ast)
+    assert unparse(expr) == rql, ast
 
 
 def test_eq():

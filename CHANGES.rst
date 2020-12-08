@@ -8,6 +8,21 @@ Changes
 
 - Fix URL link formatting in HTML output.
 
+- `external.prepare` for Model and Property became `Expr` instead of `dict`.
+
+- `Expr` now has it's own `unparse` and preserves exact expression
+  representation.
+
+- `Sql` backend now supports formulas in `select()`. This was only added to
+   support composition keys, but also all kinds of formulas in `select()` are
+   supported, but not yet implemented.
+
+- `count()` now must be inside `select()`, but only for `Sql` backend.
+
+- `Property.external` no longer can be a list, if you need more than one
+  value, use `prepare`. That means, listing multiple items in `source` column
+  is no longer supported.
+
 
 0.1.6 (2020-09-11)
 ==================

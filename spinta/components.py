@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Dict
 from typing import TYPE_CHECKING, List, Optional, AsyncIterator, Union
 
 import enum
@@ -347,7 +348,7 @@ class Node(Component):
         `model:dataset` always has a specifier, that looks like this
         `:dataset/dsname`, also, `ns` models have `:ns` specifier.
         """
-        raise NotImplementedError
+        return ''
 
     @property
     def basename(self):
@@ -414,6 +415,16 @@ class Base(Node):
 
 
 class Model(MetaData):
+    id: str
+    level: Level
+    access: Access
+    title: str
+    description: str
+    ns: Namespace
+    endpoint: str = None
+    external: Entity = None
+    properties: Dict[str, Property]
+
     schema = {
         'keymap': {'type': 'string'},
         'backend': {'type': 'string'},
@@ -436,10 +447,6 @@ class Model(MetaData):
         },
     }
 
-    ns: Namespace
-    endpoint: str = None
-    external: Entity = None
-
     def __init__(self):
         super().__init__()
         self.unique = []
@@ -456,11 +463,20 @@ class Model(MetaData):
     def model_type(self):
         return self.name
 
-    def model_specifier(self):
-        return ''
-
 
 class Property(Node):
+    place: str = None  # Dotted property path
+    title: str = None
+    description: str = None
+    link: str = None
+    hidden: bool = False
+    access: Access
+    level: Level
+    dtype: DataType = None
+    external: Attribute
+    list: Property = None
+    model: Model = None
+
     schema = {
         'title': {},
         'description': {},
@@ -480,18 +496,6 @@ class Property(Node):
         'external': {},
     }
 
-    place: str = None  # Dotted property path
-    title: str = None
-    description: str = None
-    link: str = None
-    hidden: bool = False
-    access: Access
-    level: Level
-    dtype: DataType = None
-    external: Attribute
-    list: Property = None
-    model: Model = None
-
     def __repr__(self):
         pypath = [type(self).__module__, type(self).__name__]
         pypath = '.'.join(pypath)
@@ -506,9 +510,6 @@ class Property(Node):
 
     def model_type(self):
         return f'{self.model.name}.{self.place}'
-
-    def model_specifier(self):
-        return ''
 
 
 class Command:

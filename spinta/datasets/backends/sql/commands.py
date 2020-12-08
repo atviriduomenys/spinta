@@ -1,20 +1,22 @@
 import logging
+from typing import Any
 
 import sqlalchemy as sa
 import sqlalchemy.exc
+from sqlalchemy.engine import RowProxy
 
 from spinta import commands
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import asttoexpr
-from spinta.core.config import RawConfig
 from spinta.components import Context
 from spinta.components import Model
+from spinta.core.config import RawConfig
+from spinta.core.ufuncs import Expr
+from spinta.datasets.backends.sql.components import Sql
+from spinta.datasets.backends.sql.query import Selected
+from spinta.datasets.backends.sql.query import SqlQueryBuilder
+from spinta.datasets.utils import iterparams
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
-from spinta.datasets.utils import iterparams
-from spinta.datasets.backends.sql.query import SqlQueryBuilder
-from spinta.datasets.backends.sql.components import Sql
 
 log = logging.getLogger(__name__)
 
@@ -59,6 +61,28 @@ def bootstrap(context: Context, backend: Sql):
     pass
 
 
+def _get_row_value(row: RowProxy, sel: Any) -> Any:
+    if isinstance(sel, Selected):
+        # TODO: `sel.prep is not na`.
+        if sel.prep is not None:
+            return _get_row_value(row, sel.prep)
+        else:
+            return row[sel.item]
+    if isinstance(sel, tuple):
+        return tuple(_get_row_value(row, v) for v in sel)
+    if isinstance(sel, list):
+        return [_get_row_value(row, v) for v in sel]
+    if isinstance(sel, dict):
+        return {k: _get_row_value(row, v) for k, v in sel.items()}
+    if isinstance(sel, Expr):
+        # Value preparation is not yet implemented.
+        raise NotImplemented
+    from spinta.core.ufuncs import Bind
+    if isinstance(sel, Bind):
+        return sel
+    return sel
+
+
 @commands.getall.register(Context, Model, Sql)
 def getall(
     context: Context,
@@ -72,7 +96,8 @@ def getall(
     builder.update(model=model)
 
     if model.external.prepare:
-        prepare = asttoexpr(model.external.prepare)
+        # Join user passed query with query set in manifest.
+        prepare = model.external.prepare
         if query:
             if query.name == 'and' and prepare.name == 'and':
                 query.args = query.args + prepare.args
@@ -100,22 +125,14 @@ def getall(
             res = {
                 '_type': model.model_type(),
             }
-            for key, sel in env.select.items():
+            for key, sel in env.selected.items():
+                val = _get_row_value(row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = [row[k] for k in sel.item]
                         val = keymap.encode(model.model_type(), val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        val = [row[k] for k in sel.item]
                         val = keymap.encode(sel.prop.dtype.model.model_type(), val)
                         val = {'_id': val}
-                    else:
-                        if sel.prep:
-                            val = sel.prep
-                        else:
-                            val = row[sel.item]
-                else:
-                    val = row[sel.item]
                 res[key] = val
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Dict
+from typing import List
 from typing import TYPE_CHECKING, Any, Union
 
 import base64
@@ -150,6 +151,9 @@ class Spatial(DataType):
 
 
 class Ref(DataType):
+    model: Model
+    refprops: List[Property]
+
     schema = {
         'model': {
             'type': 'string',
@@ -160,8 +164,6 @@ class Ref(DataType):
         },
         'enum': {'type': 'array'},
     }
-
-    model: Model
 
 
 class BackRef(DataType):
