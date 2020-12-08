@@ -87,6 +87,8 @@ def _encode_value(value):
         return value.isoformat()
     if isinstance(value, decimal.Decimal):
         return float(value)
+    if isinstance(value, tuple):
+        return list(value)
     return value
 
 

@@ -793,18 +793,59 @@ def prepare_dtype_for_response(
     value: list,
     *,
     select: dict = None,
-):
-    return [
-        commands.prepare_dtype_for_response(
-            context,
-            backend,
-            model,
-            dtype.items.dtype,
-            v,
-            select=select,
-        )
-        for v in value
-    ]
+) -> list:
+    return _prepare_array_for_response(
+        context,
+        backend,
+        model,
+        dtype,
+        value,
+        select,
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Backend, Model, Array, tuple)
+def prepare_dtype_for_response(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    dtype: Array,
+    value: tuple,
+    *,
+    select: dict = None,
+) -> list:
+    return _prepare_array_for_response(
+        context,
+        backend,
+        model,
+        dtype,
+        value,
+        select,
+    )
+
+
+def _prepare_array_for_response(
+    context: Context,
+    backend: Backend,
+    model: Model,
+    dtype: Array,
+    value: Iterable,
+    select: dict = None,
+) -> list:
+    if dtype.items:
+        return [
+            commands.prepare_dtype_for_response(
+                context,
+                backend,
+                model,
+                dtype.items.dtype,
+                v,
+                select=select,
+            )
+            for v in value
+        ]
+    else:
+        return [v for v in value]
 
 
 @commands.prepare_dtype_for_response.register(Context, Backend, Model, Array, type(None))

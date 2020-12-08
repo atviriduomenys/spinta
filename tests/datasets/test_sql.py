@@ -745,53 +745,79 @@ def test_prepared_property(rc, tmpdir, geodb):
 
 def test_composite_keys(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
-    d | r | m | property | source | prepare | type   | ref     | access
-    datasets/ds          |        |         |        |         |
-      | rs               |        |         | sql    |         |
-      |   | t1           | t1     |         |        | a1      | open
-      |   |   | p1       | p1     |         | string |         |
-      |   |   | p2       | p2     |         | string |         |
-      |   |   | a1       |        | p1, p2  | ref    | t2      |
-      |   | t2           | t2     |         |        | p3, p4  | open
-      |   |   | p3       | p3     |         | string |         |
-      |   |   | p4       | p4     |         | string |         |
+    d | r | m | property     | type   | ref           | source    | prepare                 | access
+    datasets/ds              |        |               |           |                         |
+      | rs                   | sql    |               |           |                         |
+      |   | Country          |        | id            | COUNTRY   |                         | open
+      |   |   | id           | array  |               |           | code, continent         |
+      |   |   | name         | string |               | NAME      |                         |
+      |   |   | code         | string |               | CODE      |                         |
+      |   |   | continent    | string |               | CONTINENT |                         |
+      |   | City             |        | name, country | CITY      |                         | open
+      |   |   | name         | string |               | NAME      |                         |
+      |   |   | country_code | string |               | COUNTRY   |                         |
+      |   |   | continent    | string |               | CONTINENT |                         |
+      |   |   | country      | ref    | Country       |           | country_code, continent |
     '''))
 
     app = create_client(rc, tmpdir, sqlite)
 
     sqlite.init({
-        't1': [
-            sa.Column('p1', sa.Text),
-            sa.Column('p2', sa.Text),
+        'COUNTRY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('CODE', sa.Text),
+            sa.Column('CONTINENT', sa.Text),
         ],
-        't2': [
-            sa.Column('p3', sa.Text),
-            sa.Column('p4', sa.Text),
+        'CITY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('COUNTRY', sa.Text),
+            sa.Column('CONTINENT', sa.Text),
         ],
     })
 
-    sqlite.write('t1', [{'p1': 'a', 'p2': 'b'}])
-    sqlite.write('t2', [{'p3': 'a', 'p4': 'b'}])
+    sqlite.write('COUNTRY', [
+        {'CONTINENT': 'eu', 'CODE': 'lt', 'NAME': 'Lithuania'},
+        {'CONTINENT': 'eu', 'CODE': 'lv', 'NAME': 'Latvia'},
+        {'CONTINENT': 'eu', 'CODE': 'ee', 'NAME': 'Estonia'},
+    ])
+    sqlite.write('CITY', [
+        {'CONTINENT': 'eu', 'COUNTRY': 'lt', 'NAME': 'Vilnius'},
+        {'CONTINENT': 'eu', 'COUNTRY': 'lt', 'NAME': 'Kaunas'},
+        {'CONTINENT': 'eu', 'COUNTRY': 'lv', 'NAME': 'Riga'},
+        {'CONTINENT': 'eu', 'COUNTRY': 'ee', 'NAME': 'Tallinn'},
+    ])
 
-    resp = app.get('/datasets/ds/t2')
-    data = listdata(resp, '_id', 'p3', 'p4', sort='p3')
-    t2pk = {_id: (p3, p4) for _id, p3, p4 in data}
-    data = [(t2pk.get(_id), p3, p4) for _id, p3, p4 in data]
-    assert data == [(('a', 'b'), 'a', 'b')]
-
-    resp = app.get('/datasets/ds/t1')
-    data = listdata(resp, 'p1', 'p2', 'a1', sort='p1')
+    resp = app.get('/datasets/ds/Country')
+    data = listdata(resp, '_id', 'continent', 'code', 'name', sort='name')
+    country_key_map = {
+        _id: (continent, code)
+        for _id, continent, code, name in data
+    }
     data = [
-        (
-            p1,
-            p2,
-            {
-                **a1,
-                '_id': t2pk.get(a1.get('_id')),
-            },
-        )
-        for p1, p2, a1 in data
+        (country_key_map.get(_id), continent, code, name)
+        for _id, continent, code, name in data
     ]
     assert data == [
-        ('a', 'b', {'_id': ('a', 'b')}),
+        (('eu', 'ee'), 'eu', 'ee', 'Estonia'),
+        (('eu', 'lv'), 'eu', 'lv', 'Latvia'),
+        (('eu', 'lt'), 'eu', 'lt', 'Lithuania'),
+    ]
+
+    resp = app.get('/datasets/ds/City')
+    data = listdata(resp, 'country', 'name', sort='name')
+    data = [
+        (
+            {
+                **country,
+                '_id': country_key_map.get(country.get('_id')),
+            },
+            name,
+        )
+        for country, name in data
+    ]
+    assert data == [
+        ({'_id': ('eu', 'lt')}, 'Kaunas'),
+        ({'_id': ('eu', 'lv')}, 'Riga'),
+        ({'_id': ('eu', 'ee')}, 'Tallinn'),
+        ({'_id': ('eu', 'lt')}, 'Vilnius'),
     ]
