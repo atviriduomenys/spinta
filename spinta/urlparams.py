@@ -60,10 +60,17 @@ def _prepare_urlparams_from_path(params):
             params.all = True
         elif name == 'select':
             # TODO: Traverse args and resolve all properties, etc.
+            # XXX: select can be used only once.
             if params.select is None:
                 params.select = args
             else:
                 params.select += args
+            # TODO: This is a temporary hack, there is no need to specifically
+            #       mark count in params.
+            for arg in args:
+                if arg['name'] == 'count':
+                    params.count = True
+                    break
         elif name == 'sort':
             # TODO: Traverse args and resolve all properties, etc.
             if params.sort is None:
@@ -103,6 +110,8 @@ def _prepare_urlparams_from_path(params):
                     operator='offset',
                     message="Too many or too few arguments. One argument is expected.",
                 )
+        # XXX: `count` can't be at the top level, well it can, but at the top
+        #      level it is used as where condition.
         elif name == 'count':
             params.count = True
         elif name == 'changes':

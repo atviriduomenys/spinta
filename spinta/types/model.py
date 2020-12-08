@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from typing import Any
 from typing import Dict
 
 import itertools
+
+import typing
 
 from spinta.auth import authorized
 from spinta.commands import load, check, authorize, prepare
@@ -13,6 +18,9 @@ from spinta import exceptions
 from spinta.nodes import load_namespace, load_model_properties
 from spinta.nodes import get_node
 from spinta.core.access import load_access_param
+
+if typing.TYPE_CHECKING:
+    from spinta.datasets.components import Attribute
 
 
 @load.register(Context, Model, dict, Manifest)
@@ -106,7 +114,10 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
     prop.dtype.type = 'type'
     prop.dtype.prop = prop
     load_node(context, prop.dtype, data)
-    prop.external = _load_property_external(context, manifest, prop, prop.external)
+    if prop.model.external:
+        prop.external = _load_property_external(context, manifest, prop, prop.external)
+    else:
+        prop.external = None
     commands.load(context, prop.dtype, data, manifest)
     return prop
 
@@ -122,22 +133,27 @@ def link(context: Context, prop: Property):
             commands.link(context, prop.external)
 
 
-def _load_property_external(context, manifest, prop, data):
-    if data is None:
-        return None
-
-    if isinstance(data, list):
-        return [
-            _load_property_external(context, manifest, prop, x)
-            for x in data
-        ]
-
-    if isinstance(data, (str, int)):
+def _load_property_external(
+    context: Context,
+    manifest: Manifest,
+    prop: Property,
+    data: Any,
+) -> Attribute:
+    if not isinstance(data, dict):
         return _load_property_external(context, manifest, prop, {'name': data})
 
     config = context.get('config')
-    external = get_node(config, manifest, prop.model.eid, data, group='datasets', ctype='attribute', parent=prop)
+    external = get_node(
+        config,
+        manifest,
+        prop.model.eid,
+        data,
+        group='datasets',
+        ctype='attribute',
+        parent=prop,
+    )
     load_node(context, external, data, parent=prop)
+    commands.load(context, external, data, manifest)
     return external
 
 

@@ -1,11 +1,12 @@
-from typing import List, Tuple, Union
-
 import operator
+from typing import List
+from typing import Union
 
 import requests
+from pprintpp import pformat
 
-from spinta.utils.data import take
 from spinta.testing.client import TestClient
+from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten
 
 
@@ -16,9 +17,9 @@ def listdata(
 ) -> List[tuple]:
     if resp.headers['content-type'].startswith('text/html'):
         data = resp.context
-        assert resp.status_code == 200, data
-        assert 'data' in data, data
-        assert 'header' in data, data
+        assert resp.status_code == 200, pformat(data)
+        assert 'data' in data, pformat(data)
+        assert 'header' in data, pformat(data)
         keys = keys or [k for k in data['header'] if not k.startswith('_')]
         data = [
             {k: v['value'] for k, v in zip(data['header'], row)}
@@ -26,8 +27,8 @@ def listdata(
         ]
     else:
         data = resp.json()
-        assert resp.status_code == 200, data
-        assert '_data' in data, data
+        assert resp.status_code == 200, pformat(data)
+        assert '_data' in data, pformat(data)
         data = data['_data']
         keys = keys or sorted({
             k

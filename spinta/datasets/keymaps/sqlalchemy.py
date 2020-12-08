@@ -45,7 +45,7 @@ class SqlAlchemyKeyMap(KeyMap):
 
     def encode(self, name: str, value: object) -> Optional[str]:
         # Make value msgpack serializable.
-        if isinstance(value, list):
+        if isinstance(value, (list, tuple)):
             value = [_encode_value(k) for k in value if k is not None]
             if len(value) == 0:
                 return None

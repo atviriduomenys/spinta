@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-from typing import List, Dict
+from typing import Dict
+from typing import List
 
 import sqlalchemy as sa
-
 from sqlalchemy.engine.base import Engine
 
-from spinta.core.ufuncs import Expr
-from spinta.components import Node, MetaData, Model, Property
-from spinta.manifests.components import Manifest
 from spinta.backends.components import Backend
+from spinta.components import MetaData
+from spinta.components import Model
+from spinta.components import Node
+from spinta.components import Property
 from spinta.core.enums import Access
+from spinta.core.ufuncs import Expr
 from spinta.datasets.enums import Level
-from spinta.core.enums import Access
+from spinta.manifests.components import Manifest
 from spinta.types.owner import Owner
 from spinta.types.project import Project
-from spinta.datasets.enums import Level
 
 
 class Dataset(MetaData):
@@ -101,12 +102,12 @@ class Resource(External):
 
 
 class Entity(External):
-    model: Model
-    dataset: Dataset
-    resource: Resource
-    source: str
-    prepare: Expr
-    pkeys: List[Property]
+    dataset: Dataset        # dataset
+    resource: Resource      # resource
+    model: Model            # model
+    pkeys: List[Property]   # model.ref
+    source: str             # model.source
+    prepare: Expr           # model.prepare
 
     schema = {
         'model': {'parent': True},
@@ -131,12 +132,12 @@ class Entity(External):
 
 
 class Attribute(External):
-    property: Property
-    name: str
-    prepare: Expr = None
+    prop: Property          # property
+    name: str               # property.source
+    prepare: Expr = None    # property.prepare
 
     schema = {
-        'property': {'parent': True},
-        'name': {'required': True},
+        'prop': {'parent': True},
+        'name': {'default': None},
         'prepare': {'type': 'spyna', 'default': None},
     }

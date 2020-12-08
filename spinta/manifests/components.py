@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Dict
 
 import pathlib
 
+from spinta.components import Model
 from spinta.core.enums import Access
 from spinta.components import Component, Store, MetaData
 
@@ -19,7 +20,7 @@ class Manifest(Component):
     backend: Backend = None
     parent: Component = None
     store: Store = None
-    objects: Dict[str, MetaData] = None
+    objects: Dict[str, Dict[str, MetaData]] = None
     path: pathlib.Path = None
     access: Access = Access.protected
 
@@ -45,5 +46,5 @@ class Manifest(Component):
                 )
 
     @property
-    def models(self):
+    def models(self) -> Dict[str, Model]:
         return self.objects['model']

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Optional, List
 
 import importlib
@@ -7,6 +9,7 @@ from spinta.dispatcher import Command
 from spinta.components import Context
 from spinta import spyna
 from spinta.exceptions import UnknownExpr
+from spinta.utils.schema import NA
 
 
 class Expr:
@@ -23,20 +26,25 @@ class Expr:
         return str(spyna.unparse(self.todict()))
 
     def todict(self) -> dict:
+        args = [
+            v.todict() if isinstance(v, Expr) else v
+            for v in self.args
+        ]
+        kwargs = [
+            {
+                'name': 'bind',
+                'args': [k, v.todict() if isinstance(v, Expr) else v],
+            } for k, v in self.kwargs.items()
+        ]
         return {
             'name': self.name,
-            'args': list(self.args) + [
-                {
-                    'name': 'bind',
-                    'args': [k, v],
-                } for k, v in self.kwargs.items()
-            ],
+            'args': args + kwargs,
         }
 
     def __call__(self, *args, **kwargs):
         return Expr(self.name, *args, **kwargs)
 
-    def resolve(self, env):
+    def resolve(self, env: Env):
         args = []
         kwargs = {}
         for arg in self.args:
@@ -46,6 +54,40 @@ class Expr:
             else:
                 args.append(arg)
         return args, kwargs
+
+
+class ShortExpr(Expr):
+    """Short form of an expression
+
+    For example `a=2` is a short form of `eq(bind('a'),2)`.
+    """
+
+    def todict(self) -> dict:
+        return {
+            **super().todict(),
+            'type': 'expression',
+        }
+
+
+class MethodExpr(Expr):
+    """Method call expression
+
+    For example `a.b()` instead of `b(a)`.
+    """
+
+    def todict(self) -> dict:
+        return {
+            **super().todict(),
+            'type': 'method',
+        }
+
+
+def unparse(expr: Any):
+    if expr is NA:
+        return None
+    if isinstance(expr, Expr):
+        expr = expr.todict()
+    return spyna.unparse(expr)
 
 
 class Ufunc(Command):
@@ -115,6 +157,7 @@ class ufunc:
 
 
 class Env:
+    this: Any
 
     def __init__(
         self,
@@ -203,7 +246,13 @@ class Env:
 def asttoexpr(ast) -> Expr:
     if isinstance(ast, dict):
         args = [asttoexpr(x) for x in ast['args']]
-        return Expr(ast['name'], *args)
+        typ = ast.get('type')
+        if typ == 'expression':
+            return ShortExpr(ast['name'], *args)
+        elif typ == 'method':
+            return MethodExpr(ast['name'], *args)
+        else:
+            return Expr(ast['name'], *args)
     else:
         return ast
 

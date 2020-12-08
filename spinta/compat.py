@@ -9,7 +9,11 @@ if TYPE_CHECKING:
     from spinta.core.ufuncs import Expr
 
 
-def urlparams_to_expr(params: UrlParams) -> Expr:
+def urlparams_to_expr(
+    params: UrlParams,
+    # XXX: `add_count` is a hack, because, not all backends supports it yet.
+    add_count: bool = True,
+) -> Expr:
     """Convert UrlParams to ufunc Expr.
 
     This is compatibility function. Currently all query handling is done using
@@ -41,7 +45,7 @@ def urlparams_to_expr(params: UrlParams) -> Expr:
     if params.offset:
         ast.append({'name': 'offset', 'args': [params.offset]})
 
-    if params.count:
+    if params.count and add_count:
         ast.append({'name': 'count', 'args': []})
 
     if len(ast) == 0:

@@ -6,9 +6,11 @@ import pathlib
 from spinta import spyna
 from spinta.core.enums import Access
 from spinta.components import Model
+from spinta.core.ufuncs import unparse
 from spinta.types.datatype import Ref
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.constants import DATASET
+from spinta.utils.schema import NA
 
 
 def read_tabular_manifest(
@@ -194,7 +196,9 @@ def read_tabular_manifest(
                             'prepare': spyna.parse(row['prepare']),
                         }
                     else:
-                        prop['schema']['external'] = row['source']
+                        prop['schema']['external'] = {
+                            'name': row['source'],
+                        }
                     if row['ref']:
                         ref = spyna.parse(row['ref'])
                         if ref['name'] == 'filter':
@@ -309,7 +313,7 @@ def datasets_to_tabular(
             data.update({
                 'model': to_relative_model_name(model, model),
                 'source': model.external.name,
-                'prepare': spyna.unparse(model.external.prepare) if model.external.prepare else None,
+                'prepare': unparse(model.external.prepare or NA),
                 'ref': ','.join([p.name for p in model.external.pkeys]),
             })
         yield torow(DATASET, data)
@@ -333,13 +337,12 @@ def datasets_to_tabular(
                 if isinstance(prop.external, list):
                     data['source'] = ', '.join(x.name for x in prop.external)
                     data['prepare'] = ', '.join(
-                        spyna.unparse(x.prepare)
+                        unparse(x.prepare or NA)
                         for x in prop.external if x.prepare
                     )
                 elif prop.external:
                     data['source'] = prop.external.name
-                    if prop.external.prepare:
-                        data['prepare'] = spyna.unparse(prop.external.prepare)
+                    data['prepare'] = unparse(prop.external.prepare or NA)
 
                 if isinstance(prop.dtype, Ref):
                     data['ref'] = to_relative_model_name(model, prop.dtype.model)

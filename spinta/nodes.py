@@ -43,7 +43,7 @@ def get_node(
         ctype = data['type']
 
     if parent is None:
-        # If parent is given, that means we are loading a node wose parent is
+        # If parent is given, that means we are loading a node whose parent is
         # not manifest, that means we can't do checks on manifest.objects.
 
         if ctype not in manifest.objects:

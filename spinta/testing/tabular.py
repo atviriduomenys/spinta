@@ -1,18 +1,17 @@
-from typing import List
-
 import csv
 import pathlib
 import textwrap
+from typing import List
 
 from spinta import commands
 from spinta.core.config import RawConfig
+from spinta.core.ufuncs import unparse
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.tabular.helpers import read_tabular_manifest
 from spinta.testing.context import create_test_context
-
 
 SHORT_NAMES = {
     'd': 'dataset',
@@ -91,9 +90,9 @@ def load_tabular_manifest(rc: RawConfig, path: pathlib.Path):
 def render_tabular_manifest(manifest: Manifest, cols: List[str] = None) -> str:
     rows = datasets_to_tabular(manifest)
     cols = cols or DATASET
-    hs = 1 if 'id' in cols else 0  # hierachical cols start
-    he = cols.index('property')    # hierachical cols end
-    hsize = 1                      # hierachical column size
+    hs = 1 if 'id' in cols else 0  # hierarchical cols start
+    he = cols.index('property')    # hierarchical cols end
+    hsize = 1                      # hierarchical column size
     bsize = 3                      # border size
     sizes = dict(
         [(c, len(c)) for c in cols[:hs]] +

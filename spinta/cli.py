@@ -423,9 +423,10 @@ def _count_rows(
             count = _get_row_count(context, model)
         except Exception:
             log.exception("Error on _get_row_count({model.name}).")
-        if limit:
-            count = min(count, limit)
-        counts[model.name] = count
+        else:
+            if limit:
+                count = min(count, limit)
+            counts[model.name] = count
     return counts
 
 
@@ -433,7 +434,8 @@ def _get_row_count(
     context: components.Context,
     model: components.Model,
 ) -> int:
-    stream = commands.getall(context, model, model.backend, query=Expr('count'))
+    query = Expr('select', Expr('count'))
+    stream = commands.getall(context, model, model.backend, query=query)
     for data in stream:
         return data['count()']
 
