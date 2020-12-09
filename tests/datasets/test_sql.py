@@ -900,3 +900,81 @@ def test_composite_non_pk_keys(rc, tmpdir, sqlite):
         ({'_id': ('eu', 'ee')}, 'Tallinn'),
         ({'_id': ('eu', 'lt')}, 'Vilnius'),
     ]
+
+
+def test_composite_non_pk_keys_with_filter(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | m | property     | type   | ref                     | source    | prepare                 | access
+    datasets/ds              |        |                         |           |                         |
+      | rs                   | sql    |                         |           |                         |
+      |   | Country          |        | code                    | COUNTRY   |                         | open
+      |   |   | name         | string |                         | NAME      |                         |
+      |   |   | code         | string |                         | CODE      |                         |
+      |   |   | continent    | string |                         | CONTINENT |                         |
+      |   | City             |        | name, country           | CITY      | country.code='lt'       | open
+      |   |   | name         | string |                         | NAME      |                         |
+      |   |   | country_code | string |                         | COUNTRY   |                         |
+      |   |   | continent    | string |                         | CONTINENT |                         |
+      |   |   | country      | ref    | Country[continent,code] |           | continent, country_code |
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('CODE', sa.Text),
+            sa.Column('CONTINENT', sa.Text),
+        ],
+        'CITY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('COUNTRY', sa.Text),
+            sa.Column('CONTINENT', sa.Text),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {'CONTINENT': 'eu', 'CODE': 'lt', 'NAME': 'Lithuania'},
+        {'CONTINENT': 'eu', 'CODE': 'lv', 'NAME': 'Latvia'},
+        {'CONTINENT': 'eu', 'CODE': 'ee', 'NAME': 'Estonia'},
+    ])
+    sqlite.write('CITY', [
+        {'CONTINENT': 'eu', 'COUNTRY': 'lt', 'NAME': 'Vilnius'},
+        {'CONTINENT': 'eu', 'COUNTRY': 'lt', 'NAME': 'Kaunas'},
+        {'CONTINENT': 'eu', 'COUNTRY': 'lv', 'NAME': 'Riga'},
+        {'CONTINENT': 'eu', 'COUNTRY': 'ee', 'NAME': 'Tallinn'},
+    ])
+
+    resp = app.get('/datasets/ds/Country')
+    data = listdata(resp, '_id', 'continent', 'code', 'name', sort='name')
+    country_key_map = {
+        _id: (continent, code)
+        for _id, continent, code, name in data
+    }
+    data = [
+        (country_key_map.get(_id), continent, code, name)
+        for _id, continent, code, name in data
+    ]
+    assert data == [
+        (('eu', 'ee'), 'eu', 'ee', 'Estonia'),
+        (('eu', 'lv'), 'eu', 'lv', 'Latvia'),
+        (('eu', 'lt'), 'eu', 'lt', 'Lithuania'),
+    ]
+
+    resp = app.get('/datasets/ds/City')
+    data = listdata(resp, 'country', 'name', sort='name')
+    data = [
+        (
+            {
+                **country,
+                '_id': country_key_map.get(country.get('_id')),
+            },
+            name,
+        )
+        for country, name in data
+    ]
+    assert data == [
+        ({'_id': ('eu', 'lt')}, 'Kaunas'),
+        ({'_id': ('eu', 'lt')}, 'Vilnius'),
+    ]
+
