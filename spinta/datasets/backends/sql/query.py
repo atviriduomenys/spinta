@@ -52,25 +52,39 @@ class ForeignProperty:
     left: Ref
     right: DataType
     chain: List[ForeignProperty]
+    name: str
 
     def __init__(
         self,
         fpr: Optional[ForeignProperty],
         left: Ref,
-        right: Ref,
+        right: DataType,
     ):
         if fpr is None:
             self.name = left.prop.place
             self.chain = [self]
         else:
-            self.name += '->' + left.prop.place
+            self.name = self / left.prop
             self.chain = fpr.chain + [self]
 
         self.left = left
         self.right = right
 
     def __repr__(self):
-        return f'<{self.name}->{self.right.prop.name}:{self.right.prop.name}>'
+        place = self / self.right.prop
+        return f'<{place}:{self.right.prop.name}>'
+
+    def __truediv__(self, prop: Property) -> str:
+        return f'{self.name}->{prop.place}'
+
+
+def ensure_list(value: Any) -> List[Any]:
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, list):
+        return value
+    else:
+        return [value]
 
 
 class SqlFrom:
@@ -83,42 +97,47 @@ class SqlFrom:
         self.joins = {}
         self.from_ = table
 
-    def get_table(self, prop: ForeignProperty) -> sa.Table:
+    def get_table(
+        self,
+        env: SqlQueryBuilder,
+        prop: ForeignProperty,
+    ) -> sa.Table:
         fpr: Optional[ForeignProperty] = None
         for fpr in prop.chain:
             if fpr.name in self.joins:
                 continue
 
-            ltable = self.backend.get_table(fpr.left.prop.model)
-            lrkeys = [self.backend.get_column(ltable, fpr.left.prop)]
+            # Left table foreign keys
+            lmodel = fpr.left.prop.model
+            lenv = env(model=lmodel)
+            lfkeys = lenv.call('join_table_on', fpr.left.prop)
+            lfkeys = ensure_list(lfkeys)
 
-            rmodel = fpr.right.prop.model
-            rtable = self.backend.get_table(rmodel)
+            # Right table primary keys
             rpkeys = []
+            rmodel = fpr.right.prop.model
+            renv = env(model=rmodel)
             for rpk in fpr.left.refprops:
-                if isinstance(rpk.dtype, PrimaryKey):
-                    rpkeys += [
-                        self.backend.get_column(rtable, rpk)
-                        for rpk in rmodel.external.pkeys
-                    ]
-                else:
-                    rpkeys += [
-                        self.backend.get_column(rtable, rpk)
-                    ]
+                rpkeys += ensure_list(
+                    renv.call('join_table_on', rpk)
+                )
 
-            assert len(lrkeys) == len(rpkeys), (lrkeys, rpkeys)
+            # Number of keys on both left and right must be equal.
+            assert len(lfkeys) == len(rpkeys), (lfkeys, rpkeys)
             condition = []
-            for lrk, rpk in zip(lrkeys, rpkeys):
-                condition += [lrk == rpk]
+            for lfk, rpk in zip(lfkeys, rpkeys):
+                condition += [lfk == rpk]
 
+            # Build `JOIN rtable ON (condition)`.
             assert len(condition) > 0
             if len(condition) == 1:
                 condition = condition[0]
             else:
-                condition = sa.and_(condition)
+                condition = sa.and_(*condition)
 
-            self.from_ = self.joins[fpr.name] = self.from_.join(rtable,
-                                                                condition)
+            rtable = self.backend.get_table(rmodel)
+            self.joins[fpr.name] = self.from_.join(rtable, condition)
+            self.from_ = self.joins[fpr.name]
 
         model = fpr.right.prop.model
         table = self.backend.get_table(model)
@@ -202,6 +221,35 @@ class Selected:
         self.prop = prop
         self.prep = prep
 
+    def debug(self, indent: str = ''):
+        prop = self.prop.place if self.prop else 'None'
+        if isinstance(self.prep, Selected):
+            return (
+                f'{indent}Selected('
+                f'item={self.item}, '
+                f'prop={prop}, '
+                f'prep=...)\n'
+                   ) + self.prep.debug(indent + '  ')
+        elif isinstance(self.prep, (tuple, list)):
+            return (
+               f'{indent}Selected('
+               f'item={self.item}, '
+               f'prop={prop}, '
+               f'prep={type(self.prep).__name__}...)\n'
+                   ) + ''.join([
+                p.debug(indent + '- ')
+                if isinstance(p, Selected)
+                else str(p)
+                for p in self.prep
+            ])
+        else:
+            return (
+                f'{indent}Selected('
+                f'item={self.item}, '
+                f'prop={prop}, '
+                f'prep={self.prep})\n'
+            )
+
 
 @ufunc.resolver(SqlQueryBuilder, Bind, Bind, name='getattr')
 def getattr_(env: SqlQueryBuilder, field: Bind, attr: Bind):
@@ -232,14 +280,14 @@ def eq(env: SqlQueryBuilder, field: Bind, value: Any):
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, object)
 def eq(env: SqlQueryBuilder, fpr: ForeignProperty, value: Any):
-    table = env.joins.get_table(fpr)
+    table = env.joins.get_table(env, fpr)
     column = env.backend.get_column(table, fpr.right.prop)
     return column == value
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
 def eq(env: SqlQueryBuilder, fpr: ForeignProperty, value: list):
-    table = env.joins.get_table(fpr)
+    table = env.joins.get_table(env, fpr)
     column = env.backend.get_column(table, fpr.right.prop)
     return column.in_(value)
 
@@ -270,7 +318,7 @@ def ne(env: SqlQueryBuilder, field: Bind, value: Any):
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, object)
 def ne(env: SqlQueryBuilder, fpr: ForeignProperty, value: Any):
-    table = env.joins.get_table(fpr)
+    table = env.joins.get_table(env, fpr)
     column = env.backend.get_column(table, fpr.right.prop)
     return column != value
 
@@ -292,7 +340,7 @@ def ne(env: SqlQueryBuilder, field: Bind, value: List[Any]):
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
 def ne(env: SqlQueryBuilder, fpr: ForeignProperty, value: List[Any]):
-    table = env.joins.get_table(fpr)
+    table = env.joins.get_table(env, fpr)
     column = env.backend.get_column(table, fpr.right.prop)
     return ~column.in_(value)
 
@@ -403,14 +451,13 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
         if prop.external.prepare is not None:
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)
-                result = env.call('select', result)
             else:
                 result = prop.external.prepare
-            result = Selected(prop=prop, prep=result)
+            result = env.call('select', prop.dtype, result)
         else:
             # If prepare is not given, then take value from `source`.
             result = env.call('select', prop.dtype)
-            assert isinstance(result, Selected), prop
+        assert isinstance(result, Selected), prop
         env.resolved[prop.place] = result
     return env.resolved[prop.place]
 
@@ -423,6 +470,23 @@ def select(env: SqlQueryBuilder, dtype: DataType) -> Selected:
         item=env.add_column(column),
         prop=dtype.prop,
     )
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType, object)
+def select(env: SqlQueryBuilder, dtype: DataType, prep: Any) -> Selected:
+    result = env.call('select', prep)
+    return Selected(prop=dtype.prop, prep=result)
+
+
+# XXX: Backwards compatibility thing.
+#      str values are interpreted as Bind values and Bind values are assumed to
+#      be properties. So here we skip `env.call('select', prep)` and return
+#      `prep` as is.
+#      This should be eventually removed, once backwards compatibility for
+#      resolving strings as properties is removed.
+@ufunc.resolver(SqlQueryBuilder, DataType, str)
+def select(env: SqlQueryBuilder, dtype: DataType, prep: Any) -> Selected:
+    return Selected(prop=dtype.prop, prep=prep)
 
 
 @ufunc.resolver(SqlQueryBuilder, PrimaryKey)
@@ -449,6 +513,107 @@ def select(
     return Selected(prop=dtype.prop, prep=result)
 
 
+@ufunc.resolver(SqlQueryBuilder, Ref, object)
+def select(env: SqlQueryBuilder, dtype: Ref, prep: Any) -> Selected:
+    fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
+    return Selected(
+        prop=dtype.prop,
+        prep=env.call('select', fpr, fpr.right.prop),
+    )
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, Property)
+def select(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+    prop: Property,
+) -> Selected:
+    resolved_key = fpr / prop
+    if resolved_key not in env.resolved:
+        if isinstance(prop.external, list):
+            raise ValueError("Source can't be a list, use prepare instead.")
+        if prop.external.prepare is not None:
+            if isinstance(prop.external.prepare, Expr):
+                result = env(this=prop).resolve(prop.external.prepare)
+            else:
+                result = prop.external.prepare
+            result = env.call('select', fpr, prop.dtype, result)
+        else:
+            result = env.call('select', fpr, prop.dtype)
+        assert isinstance(result, Selected), prop
+        env.resolved[resolved_key] = result
+    return env.resolved[resolved_key]
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType)
+def select(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: DataType,
+) -> Selected:
+    table = env.joins.get_table(env, fpr)
+    column = env.backend.get_column(table, dtype.prop, select=True)
+    return Selected(
+        item=env.add_column(column),
+        prop=dtype.prop,
+    )
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType, object)
+def select(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: DataType,
+    prep: Any,
+) -> Selected:
+    result = env.call('select', fpr, prep)
+    return Selected(prop=dtype.prop, prep=result)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, tuple)
+def select(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+    prep: Tuple[Any],
+) -> Tuple[Any]:
+    return tuple(env.call('select', fpr, v) for v in prep)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, Bind)
+def select(env: SqlQueryBuilder, fpr: ForeignProperty, item: Bind):
+    model = fpr.right.prop.model
+    prop = model.flatprops.get(item.name)
+    if prop and authorized(env.context, prop, Action.SEARCH):
+        return env.call('select', fpr, prop)
+    else:
+        raise PropertyNotFound(model, property=item.name)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, PrimaryKey)
+def select(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: PrimaryKey,
+) -> Selected:
+    model = dtype.prop.model
+    pkeys = model.external.pkeys
+
+    if not pkeys:
+        raise RuntimeError(
+            f"Can't join {dtype.prop} on right table without primary key."
+        )
+
+    if len(pkeys) == 1:
+        prop = pkeys[0]
+        result = env.call('select', fpr, prop)
+    else:
+        result = [
+            env.call('select', fpr, prop)
+            for prop in pkeys
+        ]
+    return Selected(prop=dtype.prop, prep=result)
+
+
 @ufunc.resolver(SqlQueryBuilder, list)
 def select(
     env: SqlQueryBuilder,
@@ -463,6 +628,62 @@ def select(
     prep: Tuple[Any],
 ) -> Tuple[Any]:
     return tuple(env.call('select', v) for v in prep)
+
+
+@ufunc.resolver(SqlQueryBuilder, Property)
+def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
+    if prop.external.prepare is not None:
+        if isinstance(prop.external.prepare, Expr):
+            result = env.resolve(prop.external.prepare)
+        else:
+            result = prop.external.prepare
+        return env.call('join_table_on', prop.dtype, result)
+    else:
+        return env.call('join_table_on', prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Tuple[Any]:
+    table = env.backend.get_table(dtype.prop.model)
+    column = env.backend.get_column(table, dtype.prop)
+    return column
+
+
+@ufunc.resolver(SqlQueryBuilder, PrimaryKey)
+def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Any:
+    model = dtype.prop.model
+    pkeys = model.external.pkeys
+
+    if not pkeys:
+        raise RuntimeError(
+            f"Can't join {dtype.prop} on right table without primary key."
+        )
+
+    if len(pkeys) == 1:
+        prop = pkeys[0]
+        return env.call('join_table_on', prop)
+    else:
+        return [
+            env.call('join_table_on', prop)
+            for prop in pkeys
+        ]
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType, tuple)
+def join_table_on(
+    env: SqlQueryBuilder,
+    dtype: DataType,
+    prep: tuple,
+) -> Tuple[Any]:
+    return tuple(env.call('join_table_on', v) for v in prep)
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind)
+def join_table_on(env: SqlQueryBuilder, item: Bind):
+    prop = env.model.flatprops.get(item.name)
+    if not prop or not authorized(env.context, prop, Action.SEARCH):
+        raise PropertyNotFound(env.model, property=item.name)
+    return env.call('join_table_on', prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, name='len')

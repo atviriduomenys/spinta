@@ -13,6 +13,7 @@ from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.query import Selected
 from spinta.datasets.backends.sql.query import SqlQueryBuilder
+from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import PrimaryKey
@@ -77,9 +78,6 @@ def _get_row_value(row: RowProxy, sel: Any) -> Any:
     if isinstance(sel, Expr):
         # Value preparation is not yet implemented.
         raise NotImplemented
-    from spinta.core.ufuncs import Bind
-    if isinstance(sel, Bind):
-        return sel
     return sel
 
 
@@ -110,7 +108,7 @@ def getall(
         else:
             query = prepare
 
-    keymap = context.get(f'keymap.{model.keymap.name}')
+    keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
 
     for params in iterparams(model):
         table = model.external.name.format(**params)
@@ -129,7 +127,7 @@ def getall(
                 val = _get_row_value(row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = keymap.encode(model.model_type(), val)
+                        val = keymap.encode(sel.prop.model.model_type(), val)
                     elif isinstance(sel.prop.dtype, Ref):
                         val = keymap.encode(sel.prop.dtype.model.model_type(), val)
                         val = {'_id': val}

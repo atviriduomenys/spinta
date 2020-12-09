@@ -151,7 +151,9 @@ class Spatial(DataType):
 
 
 class Ref(DataType):
+    # Referenced model
     model: Model
+    # Properties from referenced model
     refprops: List[Property]
 
     schema = {
