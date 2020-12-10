@@ -166,7 +166,7 @@ def init(context: Context):
             Mount('/docs', StaticFiles(directory=config.docs_path, html=True)),
         ]
 
-    # This reoute matches everything, so it must be added last.
+    # This route matches everything, so it must be added last.
     routes += [
         Route('/{path:path}', homepage, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
     ]
@@ -195,14 +195,5 @@ def init(context: Context):
 
     context.bind('auth.server', AuthorizationServer, context)
     context.bind('auth.resource_protector', ResourceProtector, context, BearerTokenValidator)
-
-    config.rc.dump(
-        'env',
-        'manifests',
-        'manifest',
-        'accesslog',
-        'default_auth_client',
-        'config_path',
-    )
 
     return app
