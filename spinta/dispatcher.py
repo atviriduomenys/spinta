@@ -1,14 +1,20 @@
+from __future__ import annotations
+
 import collections
 import inspect
 import pathlib
 import typing
+from typing import Callable
 
 from multipledispatch.dispatcher import Dispatcher
 
 _commands = {}
 
 
-def command(name: str = None, schema: dict = None):
+def command(
+    name: str = None,
+    schema: dict = None,
+) -> Callable[[], Command]:
     """Define a new command."""
 
     def _(func):
@@ -24,7 +30,11 @@ def command(name: str = None, schema: dict = None):
 
 class Command(Dispatcher):
 
-    def register(self, *signature_types, schema=None):
+    def register(
+        self,
+        *signature_types,
+        schema=None,
+    ) -> Callable[..., Command]:
         def _(func):
             types = signature_types or tuple(_find_func_types(func))
             self.add(types, func)
@@ -38,22 +48,22 @@ class Command(Dispatcher):
             raise NotImplementedError('Could not find signature for {self.name}: <{str_signature(types)}>')
         return func
 
-    def print_methods(self, *args, **kwargs):
+    def print_methods(self, *args, **kwargs) -> None:
         """Print all commands method in resolution order."""
         if args:
-            # Find mehtod by given args.
+            # Find method by given args.
             args = tuple([type(arg) for arg in args])
             func = self.dispatch(*args)
         else:
             func = None
 
         base = pathlib.Path().resolve()
-        argnames = _extend_duplicate_names(self.ordering)
+        arg_names = _extend_duplicate_names(self.ordering)
         print('---')
         for args in self.ordering:
             func_ = self.funcs[args]
             mark = func_ is func
-            _print_method(base, func_, self.name, argnames, args, mark)
+            _print_method(base, func_, self.name, arg_names, args, mark)
 
 
 def _extend_duplicate_names(
