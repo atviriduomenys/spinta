@@ -592,8 +592,8 @@ class UrlParams:
 
     select: Optional[List[dict]] = None
     sort: List[dict] = None
-    limit: Optional[str] = None
-    offset: Optional[str] = None
+    limit: Optional[int] = None
+    offset: Optional[int] = None
     # Limit can be enforced even it is is not explicitly given in URL.
     limit_enforced: bool = False
     # XXX: Deprecated, count should be part of `select`.
