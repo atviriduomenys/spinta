@@ -172,7 +172,7 @@ def init(context: Context):
     ]
 
     middleware = [
-        Middleware(ContextMiddleware)
+        Middleware(ContextMiddleware, context=context)
     ]
 
     exception_handlers = {
