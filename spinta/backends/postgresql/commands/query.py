@@ -187,8 +187,8 @@ class ReservedProperty(Func):
     param: str
 
 
-@ufunc.resolver(PgQueryBuilder, str)
-def op(env, arg: str):
+@ufunc.resolver(PgQueryBuilder, str, name='op')
+def op_(env, arg: str):
     if arg == '*':
         return Star()
     else:
@@ -430,9 +430,38 @@ def compare(env, op, dtype, value):
     raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType, object, names=COMPARE)
+def compare(
+    env: PgQueryBuilder,
+    op: str,
+    fpr: ForeignProperty,
+    dtype: DataType,
+    value: Any,
+):
+    raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, object, names=COMPARE)
+def compare(env, op: str, fpr: ForeignProperty, value: Any):
+    return env.call(op, fpr, fpr.right.dtype, value)
+
+
 @ufunc.resolver(PgQueryBuilder, DataType, type(None))
 def eq(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare('eq', column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType, type(None))
+def eq(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: DataType,
+    value: type(None),
+):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
     cond = _sa_compare('eq', column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
@@ -449,6 +478,24 @@ def compare(env, op, dtype, value):
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
     column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, String, str, names=[
+    'eq', 'startswith', 'contains',
+])
+def compare(
+    env: PgQueryBuilder,
+    op: str,
+    fpr: ForeignProperty,
+    dtype: String,
+    value: str,
+):
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
@@ -472,6 +519,22 @@ def compare(env, op, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, (Integer, Number), (int, float), names=[
+    'eq', 'lt', 'le', 'gt', 'ge',
+])
+def compare(
+    env: PgQueryBuilder,
+    op: str,
+    fpr: ForeignProperty,
+    dtype: Union[Integer, Number],
+    value: Union[int, float],
+):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
 @ufunc.resolver(PgQueryBuilder, DateTime, str, names=[
     'eq', 'lt', 'le', 'gt', 'ge',
 ])
@@ -482,11 +545,45 @@ def compare(env, op, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, DateTime, str, names=[
+    'eq', 'lt', 'le', 'gt', 'ge',
+])
+def compare(
+    env: PgQueryBuilder,
+    op: str,
+    fpr: ForeignProperty,
+    dtype: DateTime,
+    value: str,
+):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
+    value = datetime.datetime.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
 @ufunc.resolver(PgQueryBuilder, Date, str, names=[
     'eq', 'lt', 'le', 'gt', 'ge',
 ])
 def compare(env, op, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.date.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Date, str, names=[
+    'eq', 'lt', 'le', 'gt', 'ge',
+])
+def compare(
+    env: PgQueryBuilder,
+    op: str,
+    fpr: ForeignProperty,
+    dtype: Date,
+    value: str,
+):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
     value = datetime.date.fromisoformat(value)
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, dtype.prop, cond)
@@ -569,9 +666,33 @@ def ne(env, dtype, value):
     return _ne_compare(env, dtype.prop, column, value)
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType, type(None))
+def ne(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: DataType,
+    value: type(None),
+):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
+    return _ne_compare(env, dtype.prop, column, value)
+
+
 @ufunc.resolver(PgQueryBuilder, String, str)
 def ne(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, String, str)
+def ne(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: DataType,
+    value: str,
+):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
     return _ne_compare(env, dtype.prop, column, value)
 
 
@@ -587,6 +708,18 @@ def ne(env, dtype, value):
     return _ne_compare(env, dtype.prop, column, value)
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, (Integer, Number), (int, float))
+def ne(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Union[Integer, Number],
+    value: Union[int, float],
+):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
+    return _ne_compare(env, dtype.prop, column, value)
+
+
 @ufunc.resolver(PgQueryBuilder, DateTime, str)
 def ne(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
@@ -594,9 +727,35 @@ def ne(env, dtype, value):
     return _ne_compare(env, dtype.prop, column, value)
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, DateTime, str)
+def ne(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: DateTime,
+    value: str,
+):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
+    value = datetime.datetime.fromisoformat(value)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
 @ufunc.resolver(PgQueryBuilder, Date, str)
 def ne(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.date.fromisoformat(value)
+    return _ne_compare(env, dtype.prop, column, value)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Date, str)
+def ne(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Date,
+    value: str,
+):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
     value = datetime.date.fromisoformat(value)
     return _ne_compare(env, dtype.prop, column, value)
 
@@ -733,6 +892,11 @@ def sort(env, field):
     return env.call('asc', prop.dtype)
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty)
+def sort(env: PgQueryBuilder, fpr: ForeignProperty):
+    return env.call('asc', fpr, fpr.right.dtype)
+
+
 @ufunc.resolver(PgQueryBuilder, Positive)
 def sort(env, sign):
     return env.call('asc', sign.arg)
@@ -749,9 +913,33 @@ def asc(env, dtype):
     return column.asc()
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty)
+def asc(env: PgQueryBuilder, fpr: ForeignProperty):
+    return env.call('asc', fpr, fpr.right.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType)
+def asc(env: PgQueryBuilder, fpr: ForeignProperty, dtype: DataType):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
+    return column.asc()
+
+
 @ufunc.resolver(PgQueryBuilder, DataType)
 def desc(env, dtype):
     column = _get_sort_column(env, dtype.prop)
+    return column.desc()
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty)
+def desc(env: PgQueryBuilder, fpr: ForeignProperty):
+    return env.call('desc', fpr, fpr.right.dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType)
+def desc(env: PgQueryBuilder, fpr: ForeignProperty, dtype: DataType):
+    table = env.get_joined_table(fpr)
+    column = table.c[fpr.right.place]
     return column.desc()
 
 
@@ -804,6 +992,16 @@ def negative(env, dtype) -> Negative:
     return Negative(dtype)
 
 
+@ufunc.resolver(PgQueryBuilder, ForeignProperty)
+def negative(env: PgQueryBuilder, fpr: ForeignProperty) -> Negative:
+    return Negative(fpr)
+
+
 @ufunc.resolver(PgQueryBuilder, DataType)
 def positive(env, dtype) -> Positive:
     return Positive(dtype)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty)
+def positive(env: PgQueryBuilder, fpr: ForeignProperty) -> Positive:
+    return Positive(fpr)

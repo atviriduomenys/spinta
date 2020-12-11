@@ -245,7 +245,13 @@ def get_cell(context: Context, prop, value, shorten=False, color=None):
     }
 
 
-def get_data(context: Context, rows, model: Node, params: UrlParams, action: Action):
+def get_data(
+    context: Context,
+    rows,
+    model: Node,
+    params: UrlParams,
+    action: Action,
+):
     # XXX: For things like aggregations, a dynamic model should be created with
     #      all the properties coming from aggregates.
     if params.count:
@@ -259,8 +265,8 @@ def get_data(context: Context, rows, model: Node, params: UrlParams, action: Act
         header = ['count()']
     else:
         if params.select:
-            header = [x['args'][0] for x in params.select]
-            props = _get_props_from_select(context, model, params.select)
+            header = [_expr_to_name(x) for x in params.select]
+            props = _get_props_from_select(context, model, header)
         else:
             if model.type == 'model:ns':
                 include = {'_id', '_type'}
@@ -293,17 +299,33 @@ def _get_props_from_select(
 ) -> List[Property]:
     props = []
     for node in select:
-        name = node['args'][0]
+        name = _expr_to_name(node)
         if name in model.flatprops:
             prop = model.flatprops[name]
         else:
             parts = name.split('.')
-            prop = _find_lined_prop(context, model, parts[0], parts[1:])
+            prop = _find_linked_prop(context, model, parts[0], parts[1:])
         props.append(prop)
     return props
 
 
-def _find_lined_prop(
+def _expr_to_name(node) -> str:
+    if not isinstance(node, dict):
+        return node
+
+    name = node['name']
+
+    if name == 'bind':
+        return node['args'][0]
+
+    if name == 'getattr':
+        obj, key = node['args']
+        return _expr_to_name(obj) + '.' + _expr_to_name(key)
+
+    raise Exception(f"Unknown node {node!r}.")
+
+
+def _find_linked_prop(
     context: Context,
     model: Model,
     name: str,
@@ -314,7 +336,7 @@ def _find_lined_prop(
     prop = model.properties.get(name)
     if parts and prop and isinstance(prop.dtype, Ref):
         model = prop.dtype.model
-        return _find_lined_prop(context, model, parts[0], parts[1:])
+        return _find_linked_prop(context, model, parts[0], parts[1:])
     else:
         return prop
 

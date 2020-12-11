@@ -226,13 +226,13 @@ def test_token_validation_key_config(backends, rc, tmpdir, request):
 
 
 @pytest.fixture()
-def basicauth(backends, rc, tmpdir, request):
+def basic_auth(backends, rc, tmpdir, request):
     confdir = pathlib.Path(__file__).parent / 'config'
     shutil.copytree(str(confdir / 'keys'), str(tmpdir / 'keys'))
 
     (tmpdir / 'clients').mkdir()
     auth.create_client_file(
-        tmpdir / 'clients',
+        pathlib.Path(tmpdir / 'clients'),
         client='default',
         secret='secret',
         scopes=['spinta_getall'],
@@ -253,8 +253,8 @@ def basicauth(backends, rc, tmpdir, request):
     return client
 
 
-def test_http_basic_auth_unauthorized(basicauth):
-    client = basicauth
+def test_http_basic_auth_unauthorized(basic_auth):
+    client = basic_auth
     resp = client.get('/reports')
     assert resp.status_code == 401, resp.json()
     assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
@@ -271,21 +271,21 @@ def test_http_basic_auth_unauthorized(basicauth):
     }
 
 
-def test_http_basic_auth_invalid_secret(basicauth):
-    client = basicauth
+def test_http_basic_auth_invalid_secret(basic_auth):
+    client = basic_auth
     resp = client.get('/reports', auth=('default', 'invalid'))
     assert resp.status_code == 401, resp.json()
     assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
 
 
-def test_http_basic_auth_invalid_client(basicauth):
-    client = basicauth
+def test_http_basic_auth_invalid_client(basic_auth):
+    client = basic_auth
     resp = client.get('/reports', auth=('invalid', 'secret'))
     assert resp.status_code == 401, resp.json()
     assert resp.headers['www-authenticate'] == 'Basic realm="Authentication required."'
 
 
-def test_http_basic_auth(basicauth):
-    client = basicauth
+def test_http_basic_auth(basic_auth):
+    client = basic_auth
     resp = client.get('/reports', auth=('default', 'secret'))
     assert resp.status_code == 200, resp.json()
