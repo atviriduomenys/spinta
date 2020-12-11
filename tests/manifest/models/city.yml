@@ -1,0 +1,14 @@
+---
+type: model
+name: City
+title: "City"
+access: open
+version:
+  id: 1
+  date: 2020-12-11
+properties:
+  title:
+    type: string
+  country:
+    type: ref
+    model: country
