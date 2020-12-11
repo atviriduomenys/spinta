@@ -536,7 +536,11 @@ def create_client_file(
         write = data.copy()
         del write['client_secret']
 
-    yaml.dump(write, client_file)
+    yml = ruamel.yaml.YAML()
+    yml.indent(mapping=2, sequence=4, offset=2)
+    yml.width = 80
+    yml.explicit_start = False
+    yml.dump(write, client_file)
 
     return client_file, data
 

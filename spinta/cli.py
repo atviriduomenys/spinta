@@ -763,9 +763,10 @@ def client(ctx):
 @click.option('--name', '-n', help="client name")
 @click.option('--secret', '-s', help="client secret")
 @click.option('--add-secret', is_flag=True, default=False, help="add client secret in plain text to file")
+@click.option('--scope', help="space separated list of scopes")
 @click.option('--path', '-p', type=click.Path(exists=True, file_okay=False, writable=True))
 @click.pass_context
-def client_add(ctx, name, secret, add_secret, path):
+def client_add(ctx, name, secret, add_secret, scope: str, path):
     context = ctx.obj
     with context:
         _require_auth(context)
@@ -783,14 +784,21 @@ def client_add(ctx, name, secret, add_secret, path):
 
         name = name or str(uuid.uuid4())
 
-        client_file, client = create_client_file(
+        scope = scope or click.get_text_stream('stdin').read()
+        if scope:
+            scope = [s.strip() for s in scope.split()]
+            scope = [s for s in scope if s]
+        scope = scope or None
+
+        client_file, client_ = create_client_file(
             path,
             name,
             secret,
+            scope,
             add_secret=add_secret,
         )
 
-        client_secret = client['client_secret']
+        client_secret = client_['client_secret']
         click.echo(
             f"New client created and saved to:\n\n"
             f"    {client_file}\n\n"

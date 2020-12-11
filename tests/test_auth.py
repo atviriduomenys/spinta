@@ -1,3 +1,4 @@
+import io
 import json
 import pathlib
 import shutil
@@ -70,6 +71,47 @@ def test_client_add(rc, cli, tmpdir):
         'client_id': client['client_id'],
         'client_secret_hash': client['client_secret_hash'],
         'scopes': [],
+    }
+
+
+def test_client_add_with_scope(rc, cli, tmpdir):
+    cli.invoke(rc, client_add, [
+        '--path', str(tmpdir),
+        '--name', 'test',
+        '--scope', 'spinta_getall spinta_getone',
+    ])
+
+    yaml = ruamel.yaml.YAML(typ='safe')
+    client = yaml.load(pathlib.Path(tmpdir) / 'test.yml')
+    assert client == {
+        'client_id': 'test',
+        'client_secret_hash': client['client_secret_hash'],
+        'scopes': [
+            'spinta_getall',
+            'spinta_getone',
+        ],
+    }
+
+
+def test_client_add_with_scope_via_stdin(rc, cli, tmpdir):
+    stdin = io.BytesIO(
+        b'spinta_getall\n'
+        b'spinta_getone\n'
+    )
+    cli.invoke(rc, client_add, [
+        '--path', str(tmpdir),
+        '--name', 'test',
+    ], input=stdin)
+
+    yaml = ruamel.yaml.YAML(typ='safe')
+    client = yaml.load(pathlib.Path(tmpdir) / 'test.yml')
+    assert client == {
+        'client_id': 'test',
+        'client_secret_hash': client['client_secret_hash'],
+        'scopes': [
+            'spinta_getall',
+            'spinta_getone',
+        ],
     }
 
 
