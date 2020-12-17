@@ -474,19 +474,17 @@ def select(env: SqlQueryBuilder, dtype: DataType) -> Selected:
 
 @ufunc.resolver(SqlQueryBuilder, DataType, object)
 def select(env: SqlQueryBuilder, dtype: DataType, prep: Any) -> Selected:
-    result = env.call('select', prep)
-    return Selected(prop=dtype.prop, prep=result)
-
-
-# XXX: Backwards compatibility thing.
-#      str values are interpreted as Bind values and Bind values are assumed to
-#      be properties. So here we skip `env.call('select', prep)` and return
-#      `prep` as is.
-#      This should be eventually removed, once backwards compatibility for
-#      resolving strings as properties is removed.
-@ufunc.resolver(SqlQueryBuilder, DataType, str)
-def select(env: SqlQueryBuilder, dtype: DataType, prep: Any) -> Selected:
-    return Selected(prop=dtype.prop, prep=prep)
+    if isinstance(prep, str):
+        # XXX: Backwards compatibility thing.
+        #      str values are interpreted as Bind values and Bind values are
+        #      assumed to be properties. So here we skip
+        #      `env.call('select', prep)` and return `prep` as is.
+        #      This should be eventually removed, once backwards compatibility
+        #      for resolving strings as properties is removed.
+        return Selected(prop=dtype.prop, prep=prep)
+    else:
+        result = env.call('select', prep)
+        return Selected(prop=dtype.prop, prep=result)
 
 
 @ufunc.resolver(SqlQueryBuilder, PrimaryKey)
