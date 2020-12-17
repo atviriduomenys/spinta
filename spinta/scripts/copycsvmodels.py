@@ -44,7 +44,7 @@ def main(ctx, option, external, access, files):
 
 def _read_csv_files(
     context: Context,
-    files: List[str],
+    files: List[pathlib.Path],
     *,
     external: bool = True,
     access: Access = Access.private,

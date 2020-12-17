@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Dict
+from typing import TypedDict
 
 import pathlib
 
@@ -10,7 +11,13 @@ from spinta.components import Component, Store, MetaData
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
+    from spinta.datasets.components import Dataset
     from spinta.datasets.keymaps.components import KeyMap
+
+
+class MetaDataContainer(TypedDict):
+    dataset: Dict[str, Dataset]
+    model: Dict[str, Model]
 
 
 class Manifest(Component):
@@ -20,7 +27,7 @@ class Manifest(Component):
     backend: Backend = None
     parent: Component = None
     store: Store = None
-    objects: Dict[str, Dict[str, MetaData]] = None
+    objects: MetaDataContainer = None
     path: pathlib.Path = None
     access: Access = Access.protected
 

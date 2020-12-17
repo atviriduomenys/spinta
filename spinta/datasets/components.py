@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
@@ -25,6 +26,7 @@ class Dataset(MetaData):
     DCAT (Data Catalog Vocabulary) - https://w3c.github.io/dxwg/dcat/
     """
 
+    id: str
     manifest: Manifest
     owner: Owner = None
     level: Level = 3
@@ -32,6 +34,8 @@ class Dataset(MetaData):
     website: str = None
     projects: List[Project] = None
     resources: Dict[str, Resource] = None
+    title: str
+    description: str
 
     schema = {
         'type': {'type': 'string', 'required': True},
@@ -83,6 +87,10 @@ class Resource(External):
     description: str
     dataset: Dataset
     backend: ExternalBackend = None
+    level: Level
+    access: Access
+    external: str
+    models: Dict[str, Model]
 
     schema = {
         'type': {'type': 'string'},
@@ -102,12 +110,17 @@ class Resource(External):
 
 
 class Entity(External):
-    dataset: Dataset        # dataset
-    resource: Resource      # resource
-    model: Model            # model
-    pkeys: List[Property]   # model.ref
-    source: str             # model.source
-    prepare: Expr           # model.prepare
+    # XXX: Here `dataset` and `resource` first are resolved as `str` and then
+    #      linked with `Dataset` and `Resource` instances. That is not a good
+    #      thing and should be refactored into a `RawEntity` with `str` types
+    #      which then is converted into `Entity` with `Dataset` and `Resource`
+    #      types.
+    dataset: Dataset                # dataset
+    resource: Optional[Resource]    # resource
+    model: Model                    # model
+    pkeys: List[Property]           # model.ref
+    source: str                     # model.source
+    prepare: Expr                   # model.prepare
 
     schema = {
         'model': {'parent': True},

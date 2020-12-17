@@ -18,19 +18,37 @@ def link(context: Context, resource: Resource):
 @commands.link.register(Context, Entity)
 def link(context: Context, entity: Entity):
     datasets = entity.model.manifest.objects['dataset']
-    if entity.dataset not in datasets:
-        raise MissingReferrence(entity, param='dataset', ref=entity.dataset)
-    entity.dataset = datasets[entity.dataset]
+    if entity.dataset:
+        if entity.dataset not in datasets:
+            raise MissingReferrence(
+                entity,
+                param='dataset',
+                ref=entity.dataset,
+            )
+        # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
+        dataset: str = entity.dataset
+        entity.dataset = datasets[dataset]
 
-    resources = entity.dataset.resources
-    if entity.resource not in resources:
-        raise MissingReferrence(entity, param='resource', ref=entity.resource)
-    entity.resource = resources[entity.resource]
+        resources = entity.dataset.resources
+        if entity.resource:
+            if entity.resource not in resources:
+                raise MissingReferrence(
+                    entity,
+                    param='resource',
+                    ref=entity.resource,
+                )
+            # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
+            resource: str = entity.resource
+            entity.resource = resources[resource]
+
+            assert entity.model.name not in entity.resource.models
+            entity.resource.models[entity.model.name] = entity.model
+        else:
+            entity.resource = None
+    else:
+        entity.dataset = None
 
     entity.pkeys = [entity.model.properties[p] for p in (entity.pkeys or [])]
-
-    assert entity.model.name not in entity.resource.models
-    entity.resource.models[entity.model.name] = entity.model
 
 
 @commands.link.register(Context, Attribute)

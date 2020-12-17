@@ -7,6 +7,7 @@ from spinta import spyna
 from spinta.core.enums import Access
 from spinta.components import Model
 from spinta.core.ufuncs import unparse
+from spinta.datasets.components import Dataset
 from spinta.types.datatype import Ref
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.constants import DATASET
@@ -121,10 +122,6 @@ def read_tabular_manifest(
             elif row['model']:
                 if model:
                     yield model['eid'], model['schema']
-                if dataset is not None and resource is None:
-                    raise Exception(
-                        f"Row {i}: resource must be defined before model."
-                    )
                 if row['model'] in models:
                     eid = models[row['model']]
                     raise Exception(
@@ -144,22 +141,20 @@ def read_tabular_manifest(
                         'title': row['title'],
                         'description': row['description'],
                         'properties': {},
-                    },
-                }
-                if resource is not None:
-                    model['schema'].update({
                         'external': {
-                            'dataset': dataset['schema']['name'],
-                            'resource': resource['name'],
+                            'dataset': dataset['schema']['name'] if dataset else '',
+                            'resource': resource['name'] if resource else '',
                             'name': row['source'],
                         },
-                    })
-                    if row['prepare']:
-                        model['schema']['external']['prepare'] = spyna.parse(row['prepare'])
-                    if row['ref']:
-                        model['schema']['external']['pk'] = [
-                            x.strip() for x in row['ref'].split(',')
-                        ]
+                    },
+                }
+
+                if row['prepare']:
+                    model['schema']['external']['prepare'] = spyna.parse(row['prepare'])
+                if row['ref']:
+                    model['schema']['external']['pk'] = [
+                        x.strip() for x in row['ref'].split(',')
+                    ]
                 else:
                     if row['prepare']:
                         model['schema']['prepare'] = spyna.parse(row['prepare'])
@@ -189,7 +184,7 @@ def read_tabular_manifest(
                         'external': row['source'],
                     },
                 }
-                if resource is not None:
+                if dataset is not None:
                     if row['prepare']:
                         prop['schema']['external'] = {
                             'name': row['source'],
@@ -200,25 +195,20 @@ def read_tabular_manifest(
                             'name': row['source'],
                         }
                     if row['ref']:
-                        ref = spyna.parse(row['ref'])
-                        if ref['name'] == 'filter':
-                            fmodel, group = ref['args']
+                        ref = row['ref']
+                        if '[' in ref:
+                            ref = ref.rstrip(']')
+                            fmodel, group = ref.split('[', 1)
+                            group = [g.strip() for g in group.split(',')]
                         else:
                             fmodel = ref
                             group = []
-                        assert fmodel['name'] == 'bind', ref
-                        assert len(fmodel['args']) == 1, ref
-                        fmodel = fmodel['args'][0]
                         prop['schema']['model'] = get_relative_model_name(
                             dataset,
                             fmodel,
                         )
                         if group:
-                            prop['schema']['refprops'] = []
-                            for p in group:
-                                assert p['name'] == 'bind', ref
-                                assert len(p['args']) == 1, ref
-                                prop['schema']['refprops'].append(p['args'][0])
+                            prop['schema']['refprops'] = group
                 else:
                     if row['prepare']:
                         prop['schema']['prepare'] = spyna.parse(row['prepare'])
@@ -245,12 +235,12 @@ def get_relative_model_name(dataset: dict, name: str) -> str:
         ])
 
 
-def to_relative_model_name(base: Model, model: Model) -> str:
+def to_relative_model_name(model: Model, dataset: Dataset = None) -> str:
     """Convert absolute model `name` to relative."""
-    if model.external is None:
+    if dataset is None:
         return model.name
-    if base.external.dataset.name == model.external.dataset.name:
-        prefix = base.external.dataset.name
+    if model.name.startswith(dataset.name):
+        prefix = dataset.name
         return model.name[len(prefix) + 1:]
     else:
         return '/' + model.name
@@ -275,7 +265,7 @@ def datasets_to_tabular(
         if model.access < access:
             continue
 
-        if external and model.external:
+        if model.external:
             if dataset is None or dataset.name != model.external.dataset.name:
                 dataset = model.external.dataset
                 yield torow(DATASET, {
@@ -287,7 +277,10 @@ def datasets_to_tabular(
                     'description': dataset.description,
                 })
 
-            if resource is None or resource.name != model.external.resource.name:
+            if external and model.external.resource and (
+                resource is None or
+                resource.name != model.external.resource.name
+            ):
                 resource = model.external.resource
                 yield torow(DATASET, {
                     'resource': resource.name,
@@ -309,9 +302,13 @@ def datasets_to_tabular(
             'title': model.title,
             'description': model.description,
         }
+        if model.external and model.external.dataset:
+            data['model'] = to_relative_model_name(
+                model,
+                model.external.dataset,
+            )
         if external and model.external:
             data.update({
-                'model': to_relative_model_name(model, model),
                 'source': model.external.name,
                 'prepare': unparse(model.external.prepare or NA),
                 'ref': ','.join([p.name for p in model.external.pkeys]),
@@ -333,22 +330,30 @@ def datasets_to_tabular(
                 'title': prop.title,
                 'description': prop.description,
             }
+
             if external and prop.external:
                 if isinstance(prop.external, list):
-                    data['source'] = ', '.join(x.name for x in prop.external)
-                    data['prepare'] = ', '.join(
-                        unparse(x.prepare or NA)
-                        for x in prop.external if x.prepare
+                    # data['source'] = ', '.join(x.name for x in prop.external)
+                    # data['prepare'] = ', '.join(
+                    #     unparse(x.prepare or NA)
+                    #     for x in prop.external if x.prepare
+                    # )
+                    raise DeprecationWarning(
+                        "Source can't be a list, use prepare instead."
                     )
                 elif prop.external:
                     data['source'] = prop.external.name
                     data['prepare'] = unparse(prop.external.prepare or NA)
 
-                if isinstance(prop.dtype, Ref):
-                    data['ref'] = to_relative_model_name(model, prop.dtype.model)
-            else:
-                if isinstance(prop.dtype, Ref):
+            if isinstance(prop.dtype, Ref):
+                if model.external and model.external.dataset:
+                    data['ref'] = to_relative_model_name(
+                        prop.dtype.model,
+                        model.external.dataset,
+                    )
+                else:
                     data['ref'] = prop.dtype.model.name
+
             yield torow(DATASET, data)
 
 

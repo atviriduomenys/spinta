@@ -31,14 +31,18 @@ def test_copycsvmodels(rc, cli, tmpdir):
     ])
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
-    cols = ['dataset', 'resource', 'base', 'model', 'property', 'source', 'ref', 'access']
+    cols = [
+        'dataset', 'resource', 'base', 'model', 'property',
+        'type', 'ref', 'source', 'level', 'access',
+    ]
     assert render_tabular_manifest(manifest, cols) == striptable('''
-    d | r | b | m | property                 | source | ref                          | access
-      |   |                                  |        |                              |
-      |   |   | datasets/gov/example/country |        |                              | open
-      |   |   |   | name                     |        |                              | open
-      |   |                                  |        |                              |
-      |   |   | datasets/gov/example/city    |        |                              | open
-      |   |   |   | name                     |        |                              | open
-      |   |   |   | country                  |        | datasets/gov/example/country | open
+    d | r | b | m | property | type   | ref     | source | level | access
+    datasets/gov/example     |        |         |        |       | protected
+      |   |                  |        |         |        |       |
+      |   |   | country      |        |         |        |       | open
+      |   |   |   | name     | string |         |        |       | open
+      |   |                  |        |         |        |       |
+      |   |   | city         |        |         |        |       | open
+      |   |   |   | name     | string |         |        |       | open
+      |   |   |   | country  | ref    | country |        |       | open
     ''')
