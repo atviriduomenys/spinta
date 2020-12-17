@@ -1,4 +1,4 @@
-image: python:3.7
+image: python:3.8
 
 services:
   - postgres:11.2-alpine
