@@ -19,7 +19,7 @@ from spinta.testing.tabular import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
 from spinta.testing.client import create_remote_server
-
+from spinta.utils.schema import NA
 
 Schema = Dict[str, List[sa.Column]]
 
@@ -976,5 +976,78 @@ def test_composite_non_pk_keys_with_filter(rc, tmpdir, sqlite):
     assert data == [
         ({'_id': ('eu', 'lt')}, 'Kaunas'),
         ({'_id': ('eu', 'lt')}, 'Vilnius'),
+    ]
+
+
+def test_access_private_primary_key(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | m | property     | type   | ref     | source  | access
+    datasets/ds              |        |         |         |
+      | rs                   | sql    |         |         |
+      |   | Country          |        | code    | COUNTRY |     
+      |   |   | name         | string |         | NAME    | open
+      |   |   | code         | string |         | CODE    | private
+      |   | City             |        | country | CITY    |     
+      |   |   | name         | string |         | NAME    | open
+      |   |   | country      | ref    | Country | COUNTRY | open
+    '''))
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('CODE', sa.Text),
+            sa.Column('CONTINENT', sa.Text),
+        ],
+        'CITY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('COUNTRY', sa.Text),
+            sa.Column('CONTINENT', sa.Text),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {'CODE': 'lt', 'NAME': 'Lithuania'},
+        {'CODE': 'lv', 'NAME': 'Latvia'},
+        {'CODE': 'ee', 'NAME': 'Estonia'},
+    ])
+    sqlite.write('CITY', [
+        {'COUNTRY': 'lt', 'NAME': 'Vilnius'},
+        {'COUNTRY': 'lt', 'NAME': 'Kaunas'},
+        {'COUNTRY': 'lv', 'NAME': 'Riga'},
+        {'COUNTRY': 'ee', 'NAME': 'Tallinn'},
+    ])
+
+    resp = app.get('/datasets/ds/Country')
+    data = listdata(resp, '_id', 'code', 'name', sort='name')
+    country_key_map = {_id: name for _id, code, name in data}
+    data = [
+        (country_key_map.get(_id), code, name)
+        for _id, code, name in data
+    ]
+    assert data == [
+        ('Estonia', NA, 'Estonia'),
+        ('Latvia', NA, 'Latvia'),
+        ('Lithuania', NA, 'Lithuania'),
+    ]
+
+    resp = app.get('/datasets/ds/City')
+    data = listdata(resp, 'country', 'name', sort='name')
+    data = [
+        (
+            {
+                **country,
+                '_id': country_key_map.get(country.get('_id')),
+            },
+            name,
+        )
+        for country, name in data
+    ]
+    assert data == [
+        ({'_id': 'Lithuania'}, 'Kaunas'),
+        ({'_id': 'Latvia'}, 'Riga'),
+        ({'_id': 'Estonia'}, 'Tallinn'),
+        ({'_id': 'Lithuania'}, 'Vilnius'),
     ]
 
