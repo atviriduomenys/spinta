@@ -155,9 +155,6 @@ def read_tabular_manifest(
                     model['schema']['external']['pk'] = [
                         x.strip() for x in row['ref'].split(',')
                     ]
-                else:
-                    if row['prepare']:
-                        model['schema']['prepare'] = spyna.parse(row['prepare'])
                 if base:
                     model['base'] = base
                     base = None
@@ -311,8 +308,13 @@ def datasets_to_tabular(
             data.update({
                 'source': model.external.name,
                 'prepare': unparse(model.external.prepare or NA),
-                'ref': ','.join([p.name for p in model.external.pkeys]),
             })
+            if all(p.access >= access for p in model.external.pkeys):
+                # Add `ref` only if all properties are available in the
+                # resulting manifest.
+                data['ref'] = ', '.join([
+                    p.name for p in model.external.pkeys
+                ])
         yield torow(DATASET, data)
 
         for prop in model.properties.values():

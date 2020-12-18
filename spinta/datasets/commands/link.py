@@ -1,3 +1,5 @@
+from typing import List
+
 from spinta import commands
 from spinta.components import Context
 from spinta.datasets.components import Dataset, Resource, Entity, Attribute
@@ -48,7 +50,9 @@ def link(context: Context, entity: Entity):
     else:
         entity.dataset = None
 
-    entity.pkeys = [entity.model.properties[p] for p in (entity.pkeys or [])]
+    # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
+    pkeys: List[str] = entity.pkeys or []
+    entity.pkeys = [entity.model.properties[k] for k in pkeys]
 
 
 @commands.link.register(Context, Attribute)
