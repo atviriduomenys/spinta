@@ -176,6 +176,7 @@ def read_tabular_manifest(
                         'type': row['type'],
                         'level': row['level'],
                         'access': row['access'],
+                        'uri': row['uri'],
                         'title': row['title'],
                         'description': row['description'],
                         'external': row['source'],
@@ -329,6 +330,7 @@ def datasets_to_tabular(
                 'type': prop.dtype.name,
                 'level': prop.level,
                 'access': prop.access.name,
+                'uri': prop.uri,
                 'title': prop.title,
                 'description': prop.description,
             }

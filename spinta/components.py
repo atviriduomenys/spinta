@@ -476,6 +476,7 @@ class Property(Node):
     external: Attribute
     list: Property = None
     model: Model = None
+    uri: str = None
 
     schema = {
         'title': {},
@@ -494,6 +495,7 @@ class Property(Node):
             'default': 'protected',
         },
         'external': {},
+        'uri': {'type': 'string'},
     }
 
     def __repr__(self):

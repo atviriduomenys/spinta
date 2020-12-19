@@ -5,7 +5,6 @@ from typing import List
 
 from spinta import commands
 from spinta.core.config import RawConfig
-from spinta.core.ufuncs import unparse
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.constants import DATASET

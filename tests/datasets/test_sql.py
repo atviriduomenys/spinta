@@ -998,12 +998,10 @@ def test_access_private_primary_key(rc, tmpdir, sqlite):
         'COUNTRY': [
             sa.Column('NAME', sa.Text),
             sa.Column('CODE', sa.Text),
-            sa.Column('CONTINENT', sa.Text),
         ],
         'CITY': [
             sa.Column('NAME', sa.Text),
             sa.Column('COUNTRY', sa.Text),
-            sa.Column('CONTINENT', sa.Text),
         ],
     })
 
