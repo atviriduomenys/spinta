@@ -1,5 +1,3 @@
-import pytest
-
 from spinta.testing.tabular import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.tabular import load_tabular_manifest
@@ -12,7 +10,7 @@ def test_copycsvmodels(rc, cli, tmpdir):
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
-      |   |                  |             |        |         |
+                             |             |        |         |
       |   |   | country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | public
       |   |   |   | name     | pavadinimas | string |         | open
@@ -20,7 +18,7 @@ def test_copycsvmodels(rc, cli, tmpdir):
       |   |   | city         | miestas     |        | name    |
       |   |   |   | name     | pavadinimas | string |         | open
       |   |   |   | country  | salis       | ref    | country | open
-      |   |                  |             |        |         |
+                             |             |        |         |
       |   |   | capital      | miestas     |        | name    |
       |   |   |   | name     | pavadinimas | string |         |
       |   |   |   | country  | salis       | ref    | country |
@@ -40,10 +38,10 @@ def test_copycsvmodels(rc, cli, tmpdir):
     assert render_tabular_manifest(manifest, cols) == striptable('''
     d | r | b | m | property | type   | ref     | source | level | access
     datasets/gov/example     |        |         |        |       | protected
-      |   |                  |        |         |        |       |
+                             |        |         |        |       |
       |   |   | country      |        |         |        |       | open
       |   |   |   | name     | string |         |        |       | open
-      |   |                  |        |         |        |       |
+                             |        |         |        |       |
       |   |   | city         |        |         |        |       | open
       |   |   |   | name     | string |         |        |       | open
       |   |   |   | country  | ref    | country |        |       | open
@@ -55,15 +53,15 @@ def test_copycsvmodels_with_filters_and_externals(rc, cli, tmpdir):
     d | r | b | m | property | type   | ref     | source      | prepare   | access
     datasets/gov/example     |        |         |             |           |
       | data                 | sql    |         |             |           |
-      |   |                  |        |         |             |           |
+                             |        |         |             |           |
       |   |   | country      |        | code    | salis       | code='lt' |
       |   |   |   | code     | string |         | kodas       |           | private
       |   |   |   | name     | string |         | pavadinimas |           | open
-      |   |                  |        |         |             |           |
+                             |        |         |             |           |
       |   |   | city         |        | name    | miestas     |           |
       |   |   |   | name     | string |         | pavadinimas |           | open
       |   |   |   | country  | ref    | country | salis       |           | open
-      |   |                  |        |         |             |           |
+                             |        |         |             |           |
       |   |   | capital      |        | name    | miestas     |           |
       |   |   |   | name     | string |         | pavadinimas |           |
       |   |   |   | country  | ref    | country | salis       |           |
@@ -84,14 +82,11 @@ def test_copycsvmodels_with_filters_and_externals(rc, cli, tmpdir):
     d | r | b | m | property | type   | ref     | source      | prepare   | level | access
     datasets/gov/example     |        |         |             |           |       | protected
       | data                 |        | default |             |           |       | protected
-      |   |                  |        |         |             |           |       |
+                             |        |         |             |           |       |
       |   |   | country      |        |         | salis       | code='lt' |       | open
       |   |   |   | name     | string |         | pavadinimas |           |       | open
-      |   |                  |        |         |             |           |       |
+                             |        |         |             |           |       |
       |   |   | city         |        | name    | miestas     |           |       | open
       |   |   |   | name     | string |         | pavadinimas |           |       | open
       |   |   |   | country  | ref    | country | salis       |           |       | open
     ''')
-
-
-

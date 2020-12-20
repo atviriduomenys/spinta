@@ -131,15 +131,7 @@ def render_tabular_manifest(manifest: Manifest, cols: List[str] = None) -> str:
                 break
         else:
             val = ''
-            if 'base' in cols:
-                if 'id' in cols:
-                    depth = cols.index('base') - 1
-                else:
-                    depth = cols.index('base')
-            elif depth < he - hs:
-                depth += 1
-            else:
-                depth = 0
+            depth = 0
 
         line += [' ' * hsize] * depth
         size = (hsize + bsize) * (he - hs - depth) + sizes['property']
