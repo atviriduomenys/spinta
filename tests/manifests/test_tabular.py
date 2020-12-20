@@ -1,3 +1,5 @@
+import pytest
+
 from spinta.testing.tabular import SHORT_NAMES
 from spinta.testing.tabular import striptable
 from spinta.testing.tabular import create_tabular_manifest
@@ -33,9 +35,11 @@ def test_loading(tmpdir, rc):
     ''')
 
 
+@pytest.mark.skip()
 def test_uri(tmpdir, rc):
     check(tmpdir, rc, '''
     d | r | b | m | property | type   | ref     | uri
+      |   |   |   |          | prefix | locn    | http://www.w3.org/ns/locn#
     datasets/gov/example     |        |         |
       | data                 |        | default |
       |   |                  |        |         |

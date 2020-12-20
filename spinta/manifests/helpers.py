@@ -104,7 +104,11 @@ def _load_manifest_node(
     return node
 
 
-def get_current_schema_changes(context: Context, manifest: Manifest, eid: EntryId) -> dict:
+def get_current_schema_changes(
+    context: Context,
+    manifest: Manifest,
+    eid: EntryId,
+) -> List[dict]:
     freezed = commands.manifest_read_freezed(context, manifest, eid=eid)
     current = commands.manifest_read_current(context, manifest, eid=eid)
     patch = jsonpatch.make_patch(freezed, current)

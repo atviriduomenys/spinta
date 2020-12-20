@@ -1,7 +1,13 @@
+from __future__ import annotations
+
+from typing import Any
+from typing import Dict
 from typing import Iterator, Optional, Tuple, Iterable
 
 import csv
 import pathlib
+from typing import List
+from typing import Set
 
 from spinta import spyna
 from spinta.core.enums import Access
@@ -14,211 +20,451 @@ from spinta.manifests.tabular.constants import DATASET
 from spinta.utils.schema import NA
 
 
-def read_tabular_manifest(
+ParsedRow = Tuple[int, Dict[str, Any]]
+
+
+MAIN_DIMENSIONS = [
+    'dataset',
+    'resource',
+    'base',
+    'model',
+    'property',
+]
+EXTRA_DIMENSIONS = [
+    'prefix',
+    'choice',
+    'param',
+    'comment',
+    '',
+]
+
+
+class TabularManifestError(Exception):
+    pass
+
+
+def _detect_header(
+    path: pathlib.Path,
+    line: int,  # Line number
+    row: Dict[str, str],
+) -> List[str]:
+    header = [h.strip().lower() for h in row]
+    unknown_columns = set(header[:len(DATASET)]) - set(DATASET)
+    if unknown_columns:
+        unknown_columns = ', '.join(sorted(unknown_columns, key=header.index))
+        raise TabularManifestError(
+            f"{path}:{line}: Unknown columns: {unknown_columns}."
+        )
+    return header
+
+
+def _detect_dimension(
+    path: pathlib.Path,
+    line: int,  # Line number
+    row: Dict[str, str],
+) -> Optional[str]:
+    dimensions = [k for k in MAIN_DIMENSIONS if row[k]]
+
+    if len(dimensions) == 1:
+        return dimensions[0]
+
+    if len(dimensions) > 1:
+        dimensions = ', '.join(dimensions)
+        raise TabularManifestError(
+            f"{path}:{line}: In one row only single dimension can be used, "
+            f"but found more than one: {dimensions}"
+        )
+
+    if row['type']:
+        if row['type'] not in EXTRA_DIMENSIONS:
+            raise TabularManifestError(
+                f"{path}:{line}:type: Unknown additional dimension name "
+                f"{row['type']}."
+            )
+        return row['type']
+
+    return ''
+
+
+class TabularReader:
+    state: State
     path: pathlib.Path
-) -> Iterator[Tuple[int, Optional[dict]]]:
-    with path.open() as f:
-        reader = csv.reader(f)
-        header = next(reader, None)
-        if header is None:
-            return
+    line: int
+    type: str
+    name: str
+    data: Dict[str, Any]
 
-        header = [h.strip().lower() for h in header]
+    def __init__(
+        self,
+        state: State,
+        path: pathlib.Path,
+        line: int,
+        row: Dict[str, str],
+    ):
+        self.state = state
+        self.path = path
+        self.line = line
+        self.data = {}
+        self.read(row)
 
-        unknown_columns = set(header[:len(DATASET)]) - set(DATASET)
-        if unknown_columns:
-            unknown_columns = ', '.join(sorted(unknown_columns, key=header.index))
-            raise Exception(f"Unknown columns: {unknown_columns}.")
+    def __str__(self):
+        return f"<{type(self).__name__} name={self.name!r}>"
 
-        dataset = None
-        resource = None
-        base = None
-        model = {}
-        models = {}
-        datasets = {}
-        category = ['dataset', 'resource', 'base', 'model']
-        defaults = {k: '' for k in DATASET}
-        for i, row in enumerate(reader, 1):
-            row = dict(zip(header, row))
-            row = {**defaults, **row}
+    def read(self, row: Dict[str, str]) -> None:
+        raise NotImplementedError
 
-            if all(row[k] == '' for k in category + ['property']):
-                continue
+    def release(self, reader: TabularReader = None) -> bool:
+        raise NotImplementedError
 
-            if row['dataset']:
-                if model:
-                    yield model['eid'], model['schema']
-                    model = None
-                if dataset:
-                    yield dataset['eid'], dataset['schema']
-                if row['dataset'] in datasets:
-                    eid = datasets[row['dataset']]
-                    raise Exception(
-                        f"Row {i}: dataset {row['dataset']} is already "
-                        f"defined in {eid}."
-                    )
-                datasets[row['dataset']] = i
-                dataset = {
-                    'eid': i,
-                    'resources': {},
-                    'schema': {
-                        'type': 'dataset',
-                        'name': row['dataset'],
-                        'id': row['id'],
-                        'level': row['level'],
-                        'access': row['access'],
-                        'title': row['title'],
-                        'description': row['description'],
-                        'resources': {}
-                    },
-                }
-                resource = None
-                base = None
+    def enter(self) -> None:
+        raise NotImplementedError
 
-            elif row['resource']:
-                if model:
-                    yield model['eid'], model['schema']
-                    model = None
-                if dataset is None:
-                    raise Exception(
-                        f"Row {i}: dataset must be defined before resource."
-                    )
-                if row['resource'] in dataset['resources']:
-                    eid = dataset['resources'][row['resource']]
-                    raise Exception(
-                        f"Row {i}: resource {row['resource']} is already "
-                        f"defined in {eid}."
-                    )
-                resource = {
-                    'eid': i,
-                    'name': row['resource'],
-                    'schema': {
-                        'type': row['type'],
-                        'backend': row['ref'],
-                        'external': row['source'],
-                        'level': row['level'],
-                        'access': row['access'],
-                        'title': row['title'],
-                        'description': row['description'],
-                    }
-                }
-                dataset['resources'][row['resource']] = i
-                dataset['schema']['resources'][row['resource']] = resource['schema']
-                base = None
+    def leave(self) -> None:
+        raise NotImplementedError
 
-            elif row['base']:
-                if model:
-                    yield model['eid'], model['schema']
-                    model = None
-                if resource is None:
-                    raise Exception(
-                        f"Row {i}: resource must be defined before base."
-                    )
-                base = {
-                    'model': get_relative_model_name(dataset, row['base']),
-                    'pk': row['ref'],
-                }
+    def error(self, message: str) -> None:
+        raise TabularManifestError(f"{self.path}:{self.line}: {message}")
 
-            elif row['model']:
-                if model:
-                    yield model['eid'], model['schema']
-                if row['model'] in models:
-                    eid = models[row['model']]
-                    raise Exception(
-                        f"Row {i}: model {row['model']} is already "
-                        f"defined in {eid}."
-                    )
-                models[row['model']] = i
-                model = {
-                    'eid': i,
-                    'properties': {},
-                    'schema': {
-                        'type': 'model',
-                        'name': get_relative_model_name(dataset, row['model']),
-                        'id': row['id'],
-                        'level': row['level'],
-                        'access': row['access'],
-                        'title': row['title'],
-                        'description': row['description'],
-                        'properties': {},
-                        'external': {
-                            'dataset': dataset['schema']['name'] if dataset else '',
-                            'resource': resource['name'] if resource else '',
-                            'name': row['source'],
-                        },
-                    },
-                }
 
-                if row['prepare']:
-                    model['schema']['external']['prepare'] = spyna.parse(row['prepare'])
-                if row['ref']:
-                    model['schema']['external']['pk'] = [
-                        x.strip() for x in row['ref'].split(',')
-                    ]
-                if base:
-                    model['base'] = base
-                    base = None
+class ManifestReader(TabularReader):
+    type: str = 'manifest'
+    datasets: Set[str]
 
-            elif row['property']:
-                if model is None:
-                    raise Exception(
-                        f"Row {i}: model must be defined before property."
-                    )
-                if row['property'] in model['properties']:
-                    eid = model['properties'][row['properties']]
-                    raise Exception(
-                        f"Row {i}: property {row['property']} is already "
-                        f"defined in {eid}."
-                    )
-                prop = {
-                    'eid': i,
-                    'schema': {
-                        'type': row['type'],
-                        'level': row['level'],
-                        'access': row['access'],
-                        'uri': row['uri'],
-                        'title': row['title'],
-                        'description': row['description'],
-                        'external': row['source'],
-                    },
-                }
-                if dataset is not None:
-                    if row['prepare']:
-                        prop['schema']['external'] = {
-                            'name': row['source'],
-                            'prepare': spyna.parse(row['prepare']),
-                        }
-                    else:
-                        prop['schema']['external'] = {
-                            'name': row['source'],
-                        }
-                    if row['ref']:
-                        ref = row['ref']
-                        if '[' in ref:
-                            ref = ref.rstrip(']')
-                            fmodel, group = ref.split('[', 1)
-                            group = [g.strip() for g in group.split(',')]
-                        else:
-                            fmodel = ref
-                            group = []
-                        prop['schema']['model'] = get_relative_model_name(
-                            dataset,
-                            fmodel,
-                        )
-                        if group:
-                            prop['schema']['refprops'] = group
-                else:
-                    if row['prepare']:
-                        prop['schema']['prepare'] = spyna.parse(row['prepare'])
-                    if row['ref']:
-                        prop['schema']['model'] = row['ref']
-                model['properties'][row['property']] = i
-                model['schema']['properties'][row['property']] = prop['schema']
+    def read(self, row: Dict[str, str]) -> None:
+        self.name = str(self.path)
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return reader is None
+
+    def enter(self) -> None:
+        self.datasets = set()
+        self.state.manifest = self
+
+    def leave(self) -> None:
+        self.state.manifest = None
+
+
+class DatasetReader(TabularReader):
+    type: str = 'dataset'
+
+    def read(self, row: Dict[str, str]) -> None:
+        self.name = row['dataset']
+
+        if row['dataset'] in self.state.manifest.datasets:
+            self.error("Dataset already defined.")
+
+        self.data = {
+            'type': 'dataset',
+            'id': row['id'],
+            'name': row['dataset'],
+            'level': row['level'],
+            'access': row['access'],
+            'title': row['title'],
+            'description': row['description'],
+            'resources': {},
+        }
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return reader is None or isinstance(reader, (
+            ManifestReader,
+            DatasetReader,
+        ))
+
+    def enter(self) -> None:
+        self.state.dataset = self
+
+    def leave(self) -> None:
+        self.state.dataset = None
+
+
+class ResourceReader(TabularReader):
+    type: str = 'resource'
+
+    def read(self, row: Dict[str, str]) -> None:
+        self.name = row['resource']
+
+        if self.state.dataset is None:
+            self.error("Resource must be defined in a dataset context.")
+
+        dataset = self.state.dataset.data
+
+        if row['resource'] in dataset['resources']:
+            resource = dataset['resources'][row['resource']]
+            self.error(
+                "Resource with the same name already defined in "
+                f"{resource.line}."
+            )
+
+        self.data = {
+            'type': row['type'],
+            'backend': row['ref'],
+            'external': row['source'],
+            'level': row['level'],
+            'access': row['access'],
+            'title': row['title'],
+            'description': row['description'],
+        }
+
+        dataset['resources'][self.name] = self.data
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return reader is None or isinstance(reader, (
+            ManifestReader,
+            DatasetReader,
+            ResourceReader,
+        ))
+
+    def enter(self) -> None:
+        self.state.resource = self
+
+    def leave(self) -> None:
+        self.state.resource = None
+
+
+class BaseReader(TabularReader):
+    type: str = 'base'
+
+    def read(self, row: Dict[str, str]) -> None:
+        self.name = row['base']
+
+        dataset = self.state.dataset.data if self.state.dataset else None
+        self.data = {
+            'model': get_relative_model_name(dataset, row['base']),
+            'pk': row['ref'],
+        }
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return reader is None or isinstance(reader, (
+            ManifestReader,
+            DatasetReader,
+            ResourceReader,
+            BaseReader,
+        ))
+
+    def enter(self) -> None:
+        self.state.base = self
+
+    def leave(self) -> None:
+        self.state.base = None
+
+
+class ModelReader(TabularReader):
+    type: str = 'model'
+
+    def read(self, row: Dict[str, str]) -> None:
+        dataset = self.state.dataset
+        resource = self.state.resource
+        base = self.state.base
+        name = get_relative_model_name(
+            dataset.data if dataset else None,
+            row['model'],
+        )
+
+        self.name = name
+
+        if name in self.state.models:
+            self.error("Model with the same name is already defined.")
+
+        self.data = {
+            'type': 'model',
+            'id': row['id'],
+            'name': name,
+            'base': base.name if base else None,
+            'level': row['level'],
+            'access': row['access'],
+            'title': row['title'],
+            'description': row['description'],
+            'properties': {},
+            'external': {
+                'dataset': dataset.name if dataset else '',
+                'resource': resource.name if resource else '',
+                'pk': (
+                    [x.strip() for x in row['ref'].split(',')]
+                    if row['ref'] else []
+                ),
+                'name': row['source'],
+                'prepare': (
+                    spyna.parse(row['prepare'])
+                    if row['prepare'] else None
+                ),
+            },
+        }
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return reader is None or isinstance(reader, (
+            ManifestReader,
+            DatasetReader,
+            ResourceReader,
+            BaseReader,
+            ModelReader,
+        ))
+
+    def enter(self) -> None:
+        self.state.model = self
+        self.state.models.add(self.name)
+
+    def leave(self) -> None:
+        self.state.model = None
+
+
+def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
+    if '[' in ref:
+        ref = ref.rstrip(']')
+        ref_model, ref_props = ref.split('[', 1)
+        ref_props = [p.strip() for p in ref_props.split(',')]
+    else:
+        ref_model = ref
+        ref_props = []
+    return ref_model, ref_props
+
+
+class PropertyReader(TabularReader):
+    type: str = 'property'
+
+    def read(self, row: Dict[str, str]) -> None:
+        self.name = row['property']
+
+        if self.state.model is None:
+            context = self.state.stack[-1]
+            self.error(
+                f"Property {self.name!r} must be defined in a model context. "
+                f"Now it is defined in {context.name!r} {context.type} context."
+            )
+
+        if row['property'] in self.state.model.data['properties']:
+            self.error(
+                f"Property {self.name!r} with the same name is already "
+                f"defined for this {self.state.model.name!r} model."
+            )
+
+        self.data = {
+            'type': row['type'],
+            'prepare': (
+                spyna.parse(row['prepare'])
+                if row['prepare'] else None
+            ),
+            'level': row['level'],
+            'access': row['access'],
+            'uri': row['uri'],
+            'title': row['title'],
+            'description': row['description'],
+        }
+
+        dataset = self.state.dataset.data if self.state.dataset else None
+
+        if row['type'] == 'ref':
+            ref_model, ref_props = _parse_property_ref(row['ref'])
+            self.data['model'] = get_relative_model_name(dataset, ref_model)
+            self.data['refprops'] = ref_props
 
         if dataset:
-            yield dataset['eid'], dataset['schema']
-        if model:
-            yield model['eid'], model['schema']
+            self.data['external'] = {
+                'name': row['source'],
+                'prepare': self.data.pop('prepare'),
+            }
+
+        self.state.model.data['properties'][row['property']] = self.data
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return reader is None or isinstance(reader, (
+            ManifestReader,
+            DatasetReader,
+            ResourceReader,
+            BaseReader,
+            ModelReader,
+            PropertyReader,
+        ))
+
+    def enter(self) -> None:
+        self.state.prop = self
+
+    def leave(self) -> None:
+        self.state.prop = None
+
+
+class AppendReader(TabularReader):
+    type: str = 'append'
+
+    def read(self, row: Dict[str, str]) -> None:
+        self.name = row['ref']
+        self.data = {}
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return True
+
+    def enter(self) -> None:
+        pass
+
+    def leave(self) -> None:
+        pass
+
+
+READERS = {
+    'dataset': DatasetReader,
+    'resource': ResourceReader,
+    'base': BaseReader,
+    'model': ModelReader,
+    'property': PropertyReader,
+    '': AppendReader,
+}
+
+
+class State:
+    stack: List[TabularReader]
+
+    models: Set[str]
+
+    manifest: ManifestReader = None
+    dataset: DatasetReader = None
+    resource: ResourceReader = None
+    base: BaseReader = None
+    model: ModelReader = None
+    prop: PropertyReader = None
+
+    def __init__(self):
+        self.stack = []
+        self.models = set()
+
+    def release(self, reader: TabularReader = None) -> Iterator[ParsedRow]:
+        for item in list(reversed(self.stack)):
+            if item.release(reader):
+                if isinstance(item, (DatasetReader, ModelReader)):
+                    yield item.line, item.data
+                item.leave()
+                self.stack.pop()
+            else:
+                break
+
+        if reader:
+            reader.enter()
+            self.stack.append(reader)
+
+
+def read_tabular_manifest(path: pathlib.Path) -> Iterator[ParsedRow]:
+    with path.open() as f:
+        csv_reader = csv.reader(f)
+
+        header = next(csv_reader, None)
+        if header is None:
+            # Looks like an empty file.
+            return
+        header = _detect_header(path, 1, header)
+
+        defaults = {k: '' for k in DATASET}
+
+        state = State()
+        reader = ManifestReader(state, path, 1, {})
+        yield from state.release(reader)
+
+        for i, row in enumerate(csv_reader, 2):
+            row = dict(zip(header, row))
+            row = {**defaults, **row}
+            dimension = _detect_dimension(path, i, row)
+            Reader = READERS[dimension]
+            reader = Reader(state, path, i, row)
+            yield from state.release(reader)
+
+        yield from state.release()
 
 
 def get_relative_model_name(dataset: dict, name: str) -> str:
@@ -228,7 +474,7 @@ def get_relative_model_name(dataset: dict, name: str) -> str:
         return name
     else:
         return '/'.join([
-            dataset['schema']['name'],
+            dataset['name'],
             name,
         ])
 
