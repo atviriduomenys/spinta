@@ -1,9 +1,12 @@
+from typing import Any
+from typing import Dict
 from typing import List, Iterable, Optional
 from typing import Tuple
 
 import jsonpatch
 
 from spinta import commands
+from spinta.dimensions.prefix.helpers import load_prefixes
 from spinta.nodes import get_node
 from spinta.core.config import RawConfig
 from spinta.components import Context, Config, Store, MetaData, EntryId
@@ -65,6 +68,7 @@ def _configure_manifest(
     manifest.endpoints = {}
     manifest.objects = {name: {} for name in config.components['nodes']}
     manifest.sync = []
+    manifest.prefixes = {}
     for source in rc.get('manifests', name, 'sync', default=[], cast=list):
         if source in seen:
             raise Exception("Manifest sync cycle: " + ' -> '.join(seen + [source]))
@@ -83,8 +87,22 @@ def load_manifest_nodes(
 ) -> None:
     config = context.get('config')
     for eid, schema in schemas:
-        node = _load_manifest_node(context, config, manifest, source, eid, schema)
-        manifest.objects[node.type][node.name] = node
+        if schema.get('type') == 'manifest':
+            _load_manifest(context, manifest, schema, eid)
+        else:
+            node = _load_manifest_node(context, config, manifest, source, eid, schema)
+            manifest.objects[node.type][node.name] = node
+
+
+def _load_manifest(
+    context: Context,
+    manifest: Manifest,
+    data: Dict[str, Any],
+    eid: EntryId,
+) -> None:
+    if 'prefixes' in data:
+        prefixes = load_prefixes(context, manifest, manifest, data['prefixes'])
+        manifest.prefixes.update(prefixes)
 
 
 def _load_manifest_node(

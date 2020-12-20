@@ -15,6 +15,7 @@ CONFIG = {
             'spinta.urlparams',
             'spinta.manifests',
             'spinta.datasets',
+            'spinta.dimensions',
         ],
         'service': {
             'range': 'spinta.commands.helpers:range_',
@@ -97,6 +98,9 @@ CONFIG = {
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
         },
+        'dimensions': {
+            'prefix': 'spinta.dimensions.prefix.components:UriPrefix',
+        }
     },
     'exporters': {
         'ascii': 'spinta.commands.formats.ascii:Ascii',

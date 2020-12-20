@@ -8,12 +8,14 @@ import csv
 import pathlib
 from typing import List
 from typing import Set
+from typing import TypedDict
 
 from spinta import spyna
 from spinta.core.enums import Access
 from spinta.components import Model
 from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
+from spinta.dimensions.prefix.components import UriPrefix
 from spinta.types.datatype import Ref
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.constants import DATASET
@@ -132,6 +134,9 @@ class ManifestReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = str(self.path)
+        self.data = {
+            'type': 'manifest',
+        }
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None
@@ -399,6 +404,54 @@ class AppendReader(TabularReader):
         pass
 
 
+class PrefixReader(TabularReader):
+    type: str = 'prefix'
+
+    def read(self, row: Dict[str, str]) -> None:
+        self.name = row['ref']
+
+        node = (
+            self.state.prop or
+            self.state.model or
+            self.state.base or
+            self.state.resource or
+            self.state.dataset or
+            self.state.manifest
+        )
+
+        if 'prefixes' not in node.data:
+            node.data['prefixes'] = {}
+
+        prefixes = node.data['prefixes']
+
+        if self.name in prefixes:
+            self.error(
+                f"Prefix {self.name!r} with the same name is already "
+                f"defined for this {node.name!r} {node.type}."
+            )
+
+        self.data = {
+            'id': row['id'],
+            'eid': f'{self.path}:{self.line}',
+            'type': self.type,
+            'name': self.name,
+            'uri': row['uri'],
+            'title': row['title'],
+            'description': row['description'],
+        }
+
+        prefixes[self.name] = self.data
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return True
+
+    def enter(self) -> None:
+        pass
+
+    def leave(self) -> None:
+        pass
+
+
 READERS = {
     'dataset': DatasetReader,
     'resource': ResourceReader,
@@ -406,6 +459,7 @@ READERS = {
     'model': ModelReader,
     'property': PropertyReader,
     '': AppendReader,
+    'prefix': PrefixReader,
 }
 
 
@@ -428,7 +482,11 @@ class State:
     def release(self, reader: TabularReader = None) -> Iterator[ParsedRow]:
         for item in list(reversed(self.stack)):
             if item.release(reader):
-                if isinstance(item, (DatasetReader, ModelReader)):
+                if isinstance(item, (
+                    ManifestReader,
+                    DatasetReader,
+                    ModelReader,
+                )):
                     yield item.line, item.data
                 item.leave()
                 self.stack.pop()
@@ -497,12 +555,29 @@ def tabular_eid(model: Model):
         return 0
 
 
+def _prefixes_to_tabular(
+    prefixes: Dict[str, UriPrefix],
+) -> Iterator[ManifestRow]:
+    first = True
+    for name, prefix in prefixes.items():
+        yield torow(DATASET, {
+            'id': prefix.id,
+            'type': prefix.type if first else '',
+            'ref': name,
+            'uri': prefix.uri,
+            'title': prefix.title,
+            'description': prefix.description,
+        })
+        first = False
+
+
 def datasets_to_tabular(
     manifest: Manifest,
     *,
     external: bool = True,
     access: Access = Access.private,
 ):
+    yield from _prefixes_to_tabular(manifest.prefixes)
     dataset = None
     resource = None
     for model in sorted(manifest.models.values(), key=tabular_eid):
@@ -607,7 +682,25 @@ def datasets_to_tabular(
             yield torow(DATASET, data)
 
 
-def torow(keys, values):
+class ManifestRow(TypedDict):
+    id: str
+    dataset: str
+    resource: str
+    base: str
+    model: str
+    property: str
+    type: str
+    ref: str
+    source: str
+    prepare: str
+    level: str
+    access: str
+    uri: str
+    title: str
+    description: str
+
+
+def torow(keys, values) -> ManifestRow:
     return {k: values.get(k) for k in keys}
 
 

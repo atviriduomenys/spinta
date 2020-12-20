@@ -7,7 +7,8 @@ import pathlib
 
 from spinta.components import Model
 from spinta.core.enums import Access
-from spinta.components import Component, Store, MetaData
+from spinta.components import Component, Store
+from spinta.dimensions.prefix.components import UriPrefix
 
 if TYPE_CHECKING:
     from spinta.backends.components import Backend
@@ -30,6 +31,7 @@ class Manifest(Component):
     objects: MetaDataContainer = None
     path: pathlib.Path = None
     access: Access = Access.protected
+    prefixes: Dict[str, UriPrefix]
 
     # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
     # name and endpoint for all of them should match.

@@ -20,7 +20,7 @@ def get_node(
     # If None component name will be taken from data['type'].
     ctype: str = None,
     # If parent is None, then parent is assumed to be manifest.
-    parent: Node = None,
+    parent: Component = None,
     check: bool = True,
 ):
     if data is not None and not isinstance(data, dict):
@@ -55,7 +55,11 @@ def get_node(
 
         if check:
             if 'name' not in data:
-                raise exceptions.MissingRequiredProperty(manifest, schema=data['path'], prop='name')
+                raise exceptions.MissingRequiredProperty(
+                    manifest,
+                    schema=data['path'],
+                    prop='name',
+                )
 
             if data['name'] in manifest.objects[ctype]:
                 name = data['name']
@@ -63,7 +67,10 @@ def get_node(
                 raise exceptions.InvalidManifestFile(
                     manifest=manifest.name,
                     eid=eid,
-                    error=f"{ctype!r} with name {name!r} already defined in {other}.",
+                    error=(
+                        f"{ctype!r} with name {name!r} already defined in "
+                        f"{other}."
+                    ),
                 )
 
     if ctype not in config.components[group]:

@@ -35,7 +35,6 @@ def test_loading(tmpdir, rc):
     ''')
 
 
-@pytest.mark.skip()
 def test_uri(tmpdir, rc):
     check(tmpdir, rc, '''
     d | r | b | m | property | type   | ref     | uri
