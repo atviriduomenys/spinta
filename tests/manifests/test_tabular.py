@@ -39,6 +39,7 @@ def test_uri(tmpdir, rc):
     check(tmpdir, rc, '''
     d | r | b | m | property | type   | ref     | uri
                              | prefix | locn    | http://www.w3.org/ns/locn#
+                             |        | ogc     | http://www.opengis.net/rdf#
     datasets/gov/example     |        |         |
       | data                 |        | default |
                              |        |         |

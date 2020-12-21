@@ -115,6 +115,10 @@ class TabularReader:
     def read(self, row: Dict[str, str]) -> None:
         raise NotImplementedError
 
+    def update(self, row: Dict[str, str]) -> None:
+        if any(row.values()):
+            self.error("Updates are not supported in this context.")
+
     def release(self, reader: TabularReader = None) -> bool:
         raise NotImplementedError
 
@@ -393,6 +397,7 @@ class AppendReader(TabularReader):
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['ref']
         self.data = {}
+        self.state.stack[-1].update(row)
 
     def release(self, reader: TabularReader = None) -> bool:
         return True
@@ -441,6 +446,9 @@ class PrefixReader(TabularReader):
         }
 
         prefixes[self.name] = self.data
+
+    def update(self, row: Dict[str, str]) -> None:
+        self.read(row)
 
     def release(self, reader: TabularReader = None) -> bool:
         return True
