@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import collections
@@ -209,7 +211,7 @@ class RawConfig:
         self.read([PyDict(name, params)])
         return self
 
-    def fork(self, sources=None, after=None):
+    def fork(self, sources=None, after=None) -> RawConfig:
         rc = RawConfig(list(self._sources))
         if sources:
             if isinstance(sources, dict):

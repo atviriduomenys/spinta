@@ -1,7 +1,7 @@
 import pytest
 
 from spinta.exceptions import MultipleParentsError
-from spinta.cli import freeze
+from spinta.cli.migrate import freeze
 from spinta.testing.utils import create_manifest_files, read_manifest_files
 from spinta.testing.utils import update_manifest_files
 from spinta import spyna

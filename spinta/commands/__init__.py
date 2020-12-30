@@ -1,4 +1,6 @@
+from spinta.components import Context
 from spinta.dispatcher import command
+from spinta.manifests.components import Manifest
 
 
 @command()
@@ -42,7 +44,13 @@ def configure():
 
 
 @command()
-def load():
+def load(
+    context: Context,
+    manifest: Manifest,
+    *,
+    into: Manifest = None,
+    freezed: bool = True,
+) -> None:
     """Load primitive data structures to python-native objects.
 
     Currently used for:

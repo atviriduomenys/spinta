@@ -10,8 +10,8 @@ from authlib.jose import jwk
 from authlib.jose import jwt
 
 from spinta import auth
-from spinta.cli import genkeys
-from spinta.cli import client_add
+from spinta.cli.server import genkeys
+from spinta.cli.client import client_add
 from spinta.components import Action
 from spinta.testing.utils import get_error_codes
 from spinta.testing.client import create_test_client

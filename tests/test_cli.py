@@ -1,15 +1,10 @@
-import pathlib
-
 import pytest
 
 from responses import GET
 
-from spinta.cli import pull, push
-from spinta.testing.client import create_remote_server
-from spinta.testing.client import create_client_creentials_file
+from spinta.cli.pull import pull
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.utils import update_manifest_files
-from spinta.testing.data import pushdata
 
 
 @pytest.mark.skip('datasets')

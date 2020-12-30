@@ -5,7 +5,8 @@ from spinta.testing.utils import (
     update_manifest_files,
     read_manifest_files,
 )
-from spinta.cli import freeze, migrate
+from spinta.cli.migrate import freeze
+from spinta.cli.migrate import migrate
 
 
 def configure(rc, path):

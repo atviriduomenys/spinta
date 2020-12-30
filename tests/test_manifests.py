@@ -3,8 +3,8 @@ from spinta.testing.utils import create_manifest_files
 from spinta.testing.context import create_test_context
 from spinta.components import Model
 from spinta.manifests.components import Manifest
-from spinta.cli import freeze
-from spinta.cli import migrate
+from spinta.cli.migrate import freeze
+from spinta.cli.migrate import migrate
 
 
 def show(c: Manifest):

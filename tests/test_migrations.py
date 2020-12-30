@@ -1,7 +1,9 @@
 from spinta.testing.utils import create_manifest_files, read_manifest_files, readable_manifest_files
 from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
-from spinta.cli import bootstrap, freeze, migrate
+from spinta.cli.migrate import freeze
+from spinta.cli.migrate import migrate
+from spinta.cli.migrate import bootstrap
 
 
 def _summarize_ast(ast):

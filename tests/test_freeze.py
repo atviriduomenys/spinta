@@ -6,7 +6,7 @@ from spinta.testing.utils import create_manifest_files
 from spinta.testing.utils import update_manifest_files
 from spinta.testing.utils import read_manifest_files
 from spinta.testing.utils import readable_manifest_files
-from spinta.cli import freeze
+from spinta.cli.migrate import freeze
 
 
 @pytest.fixture()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Dict
+from typing import Set
 from typing import TYPE_CHECKING, List, Optional, AsyncIterator, Union
 
 import enum
@@ -17,14 +18,19 @@ if TYPE_CHECKING:
     from spinta.backends.components import Backend
     from spinta.types.datatype import DataType
     from spinta.manifests.components import Manifest
+    from spinta.manifests.internal.components import InternalManifest
     from spinta.datasets.components import Attribute
     from spinta.datasets.components import Entity
     from spinta.datasets.keymaps.components import KeyMap
 
 
 class Context:
+    _name: str
+    _parent: Optional[Context]
+    _exitstack: List[Optional[contextlib.ExitStack]]
+    _local_names: List[Set[str]]
 
-    def __init__(self, name, parent=None):
+    def __init__(self, name: str, parent: Context = None):
         self._name = name
         self._parent = parent
 
@@ -36,7 +42,7 @@ class Context:
         # Names defined in current context. Names from inherited context are not
         # listed here.
         self._local_names = [set()]
-        self._exitstack: List[Union[None, contextlib.ExitStack]] = [None]
+        self._exitstack = [None]
 
         if parent:
             # cmgrs are copied in __enter__() method.
@@ -64,7 +70,10 @@ class Context:
             name.append(f'{parent._name}:{len(parent._context) - 1}')
             parent = parent._parent
         name = ' < '.join(reversed(name))
-        return f'<{self.__class__.__module__}.{self.__class__.__name__}({name}) at 0x{id(self):02x}>'
+        return (
+            f'<{self.__class__.__module__}.{self.__class__.__name__}({name}) '
+            f'at 0x{id(self):02x}>'
+        )
 
     def __enter__(self):
         self._context.append(self._context[-1].copy())
@@ -285,12 +294,13 @@ class Config:
 
 
 class Store:
+    manifest: Manifest = None
+    internal: InternalManifest = None
 
     def __init__(self):
         self.config = None
         self.keymaps = {}
         self.backends = {}
-        self.manifest = None
 
 
 class Component:

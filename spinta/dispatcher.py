@@ -3,21 +3,29 @@ from __future__ import annotations
 import collections
 import inspect
 import pathlib
-import typing
+from typing import Any
 from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Tuple
+from typing import TypeVar
+from typing import cast
 
 from multipledispatch.dispatcher import Dispatcher
+from multipledispatch.dispatcher import str_signature
 
-_commands = {}
+F = TypeVar('F', bound=Callable[[], Any])
+
+_commands: Dict[str, Command] = {}
 
 
 def command(
     name: str = None,
     schema: dict = None,
-) -> Callable[[], Command]:
+) -> Callable[[F], Command]:
     """Define a new command."""
 
-    def _(func):
+    def _(func: F) -> Command:
         _name = func.__name__ if name is None else name
         if _name in _commands:
             raise Exception(f"{_name!r} is already defined.")
@@ -25,27 +33,31 @@ def command(
         _commands[_name].schema = schema or {}
         return _commands[_name]
 
-    return _
+    return cast(Command, _)
 
 
 class Command(Dispatcher):
+    schema: dict
 
     def register(
         self,
         *signature_types,
         schema=None,
-    ) -> Callable[..., Command]:
-        def _(func):
+    ) -> Callable[[F], Command]:
+        def _(func: F) -> Command:
             types = signature_types or tuple(_find_func_types(func))
             self.add(types, func)
             return self
-        return _
+        return cast(Command, _)
 
     def __getitem__(self, types):
         types = types if isinstance(types, tuple) else (types,)
         func = self.dispatch(*types)
         if not func:
-            raise NotImplementedError('Could not find signature for {self.name}: <{str_signature(types)}>')
+            raise NotImplementedError(
+                f"Could not find signature for {self.name}: "
+                f"<{str_signature(types)}>"
+            )
         return func
 
     def print_methods(self, *args, **kwargs) -> None:
@@ -67,8 +79,8 @@ class Command(Dispatcher):
 
 
 def _extend_duplicate_names(
-    argslist: typing.List[typing.Tuple[type]]
-) -> typing.Dict[type, str]:
+    argslist: List[Tuple[type]]
+) -> Dict[type, str]:
 
     argnames = collections.defaultdict(set)
     for args in argslist:
