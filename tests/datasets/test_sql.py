@@ -9,7 +9,7 @@ import pytest
 
 import sqlalchemy as sa
 
-from spinta.cli import push
+from spinta.cli.push import push
 from spinta.scripts import copycsvmodels
 from spinta.core.config import RawConfig
 from spinta.testing.data import listdata

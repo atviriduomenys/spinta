@@ -1,3 +1,4 @@
+from typing import List
 from typing import Optional, Iterable, Iterator
 
 import collections
@@ -58,8 +59,19 @@ async def getall(
         for model in traverse_ns_models(context, ns, action):
             commands.authorize(context, action, model)
         expr = urlparams_to_expr(params)
-        data = getall(context, ns, None, action=action, query=expr)
-        return render(context, request, ns, params, data, action=action)
+        rows = getall(context, ns, backend, action=action, query=expr)
+        rows = (
+            commands.prepare_data_for_response(
+                context,
+                action,
+                ns.manifest.models[row['_type']],
+                ns.manifest.models[row['_type']].backend,
+                row,
+                select=params.select,
+            )
+            for row in rows
+        )
+        return render(context, request, ns, params, rows, action=action)
     else:
         return _get_ns_content(context, request, ns, params, action)
 
