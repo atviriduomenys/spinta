@@ -5,7 +5,7 @@ from spinta.backends.postgresql.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 
 
-@commands.wipe.register()
+@commands.wipe.register(Context, Array, PostgreSQL)
 def wipe(context: Context, dtype: Array, backend: PostgreSQL):
     wipe(context, dtype.items.dtype, backend)
     table = backend.get_table(dtype.prop, TableType.LIST)

@@ -16,6 +16,7 @@ from spinta.nodes import load_node, load_model_properties
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.compat import urlparams_to_expr
+from spinta.utils.data import take
 
 
 @commands.link.register(Context, Namespace)
@@ -45,7 +46,7 @@ async def getall(
 ) -> Response:
     commands.authorize(context, action, ns)
     if params.all and params.ns:
-        for model in traverse_ns_models(context, ns, action):
+        for model in traverse_ns_models(context, ns, action, internal=True):
             commands.authorize(context, action, model)
         return _get_ns_content(
             context,
@@ -56,7 +57,7 @@ async def getall(
             recursive=True,
         )
     elif params.all:
-        for model in traverse_ns_models(context, ns, action):
+        for model in traverse_ns_models(context, ns, action, internal=True):
             commands.authorize(context, action, model)
         expr = urlparams_to_expr(params)
         rows = getall(context, ns, backend, action=action, query=expr)
@@ -98,7 +99,15 @@ def _query_data(
     resource: Optional[str] = None,
     **kwargs,
 ):
-    for model in traverse_ns_models(context, ns, action, dataset_, resource):
+    models = traverse_ns_models(
+        context,
+        ns,
+        action,
+        dataset_,
+        resource,
+        internal=True,
+    )
+    for model in models:
         yield from commands.getall(context, model, model.backend, **kwargs)
 
 
@@ -108,12 +117,25 @@ def traverse_ns_models(
     action: Action,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
+    *,
+    internal: bool = False,
 ):
-    for model in (ns.models or {}).values():
+    models = (ns.models or {})
+    models = models if internal else take(models)
+    for model in models.values():
         if _model_matches_params(context, model, action, dataset_, resource):
             yield model
-    for name in ns.names.values():
-        yield from traverse_ns_models(context, name, action, dataset_, resource)
+    for ns_ in ns.names.values():
+        if not internal and ns_.name.startswith('_'):
+            continue
+        yield from traverse_ns_models(
+            context,
+            ns_,
+            action,
+            dataset_,
+            resource,
+            internal=internal,
+        )
 
 
 def _model_matches_params(
@@ -264,7 +286,7 @@ def in_namespace(node: Node, parent: Node) -> bool:  # noqa
 @commands.wipe.register(Context, Namespace, type(None))
 def wipe(context: Context, ns: Namespace, backend: type(None)):
     commands.authorize(context, Action.WIPE, ns)
-    models = traverse_ns_models(context, ns, Action.WIPE)
+    models = traverse_ns_models(context, ns, Action.WIPE, internal=True)
     models = sort_models_by_refs(models)
     for model in models:
         commands.wipe(context, model, model.backend)

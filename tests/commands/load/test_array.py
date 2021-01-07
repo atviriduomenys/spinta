@@ -1,6 +1,7 @@
-from spinta.commands import load
+from spinta import commands
 from spinta.components import Model
-from spinta.types.datatype import Object, Array
+from spinta.types.datatype import Array
+from spinta.types.datatype import Object
 
 
 # TODO: There are at least 3 exaclty the same functions, move it to
@@ -14,7 +15,9 @@ def create_model(context, schema):
     }
     model = Model()
     model.eid = '9244f3a6-a672-4aac-bb1c-831646264a51'
-    return load(context, model, data, manifest)
+    commands.load(context, model, data, manifest)
+    commands.link(context, model)
+    return model
 
 
 def show_lists(dtype, parent=()):

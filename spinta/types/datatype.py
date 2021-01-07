@@ -15,6 +15,7 @@ from spinta.commands import load, is_object_id
 from spinta.components import Context, Component, Property
 from spinta.components import Model
 from spinta.manifests.components import Manifest
+from spinta.types.helpers import set_dtype_backend
 from spinta.utils.schema import NA, NotAvailable
 from spinta.core.ufuncs import Expr
 from spinta.types.helpers import check_no_extra_keys
@@ -239,21 +240,13 @@ class JSON(DataType):
 
 @load.register(Context, DataType, dict, Manifest)
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
-    _set_backend(dtype)
     _add_leaf_props(dtype.prop)
     return dtype
 
 
-def _set_backend(dtype: DataType):
-    if dtype.backend:
-        dtype.backend = dtype.prop.model.manifest.store.backends[dtype.backend]
-    else:
-        dtype.backend = dtype.prop.model.backend
-
-
 @commands.link.register(Context, DataType)
 def link(context: Context, dtype: DataType) -> None:
-    pass
+    set_dtype_backend(dtype)
 
 
 @load.register(Context, PrimaryKey, dict, Manifest)
@@ -261,7 +254,6 @@ def load(context: Context, dtype: PrimaryKey, data: dict, manifest: Manifest) ->
     dtype.unique = True
     if dtype.prop.name != '_id':
         raise exceptions.InvalidManagedPropertyName(dtype, name='_id')
-    _set_backend(dtype)
     _add_leaf_props(dtype.prop)
     return dtype
 
@@ -274,7 +266,6 @@ def _add_leaf_props(prop: Property) -> None:
 
 @load.register(Context, Object, dict, Manifest)
 def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
-    _set_backend(dtype)
     props = {}
     for name, params in (dtype.properties or {}).items():
         place = dtype.prop.place + '.' + name
@@ -293,7 +284,6 @@ def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> Dat
 
 @load.register(Context, Array, dict, Manifest)
 def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> DataType:
-    _set_backend(dtype)
     if dtype.items:
         assert isinstance(dtype.items, dict), type(dtype.items)
         prop: Property = dtype.prop.__class__()

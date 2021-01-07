@@ -30,9 +30,10 @@ def load(context: Context, store: Store) -> Store:
     # Load backends
     store.backends = {}
     for name in rc.keys('backends'):
-        btype = rc.get('backends', name, 'type', required=True)
-        Backend = config.components['backends'][btype]
+        backend_type = rc.get('backends', name, 'type', required=True)
+        Backend = config.components['backends'][backend_type]
         backend = store.backends[name] = Backend()
+        backend.type = backend_type
         backend.name = name
         commands.load(context, backend, rc)
 

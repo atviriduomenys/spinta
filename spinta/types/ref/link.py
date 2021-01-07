@@ -5,10 +5,13 @@ from spinta.components import Context
 from spinta.types.datatype import Ref
 from spinta.exceptions import ModelReferenceNotFound
 from spinta.exceptions import ModelReferenceKeyNotFound
+from spinta.types.helpers import set_dtype_backend
 
 
 @commands.link.register(Context, Ref)
 def link(context: Context, dtype: Ref) -> None:
+    set_dtype_backend(dtype)
+
     if dtype.model not in dtype.prop.model.manifest.models:
         raise ModelReferenceNotFound(dtype, ref=dtype.model)
     # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44

@@ -21,33 +21,33 @@ def check(tmpdir, rc, table):
 
 def test_loading(tmpdir, rc):
     check(tmpdir, rc, '''
-    id | d | r | b | m | property | source      | prepare   | type   | ref     | level | access | uri | title   | description
-       | datasets/gov/example     |             |           |        |         |       | open   |     | Example |
-       |   | data                 |             |           |        | default |       | open   |     | Data    |
-       |                          |             |           |        |         |       |        |     |         |
-       |   |   |   | country      |             | code='lt' |        | code    |       | open   |     | Country |
-       |   |   |   |   | code     | kodas       | lower()   | string |         | 3     | open   |     | Code    |
-       |   |   |   |   | name     | pavadinimas |           | string |         | 3     | open   |     | Name    |
-       |                          |             |           |        |         |       |        |     |         |
-       |   |   |   | city         |             |           |        | name    |       | open   |     | City    |
-       |   |   |   |   | name     | pavadinimas |           | string |         | 3     | open   |     | Name    |
-       |   |   |   |   | country  | šalis       |           | ref    | country | 4     | open   |     | Country |
+    id | d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
+       | datasets/gov/example     |             |           |            |         |       | open   |     | Example |
+       |   | data                 |             |           | postgresql | default |       | open   |     | Data    |
+       |                          |             |           |            |         |       |        |     |         |
+       |   |   |   | country      |             | code='lt' |            | code    |       | open   |     | Country |
+       |   |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
+       |                          |             |           |            |         |       |        |     |         |
+       |   |   |   | city         |             |           |            | name    |       | open   |     | City    |
+       |   |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
+       |   |   |   |   | country  | šalis       |           | ref        | country | 4     | open   |     | Country |
     ''')
 
 
 def test_uri(tmpdir, rc):
     check(tmpdir, rc, '''
-    d | r | b | m | property | type   | ref     | uri
-                             | prefix | locn    | http://www.w3.org/ns/locn#
-                             |        | ogc     | http://www.opengis.net/rdf#
-    datasets/gov/example     |        |         |
-      | data                 |        | default |
-                             |        |         |
-      |   |   | country      |        | code    |
-      |   |   |   | code     | string |         |
-      |   |   |   | name     | string |         | locn:geographicName
-                             |        |         |
-      |   |   | city         |        | name    |
-      |   |   |   | name     | string |         | locn:geographicName
-      |   |   |   | country  | ref    | country |
+    d | r | b | m | property | type       | ref     | uri
+                             | prefix     | locn    | http://www.w3.org/ns/locn#
+                             |            | ogc     | http://www.opengis.net/rdf#
+    datasets/gov/example     |            |         |
+      | data                 | postgresql | default |
+                             |            |         |
+      |   |   | country      |            | code    |
+      |   |   |   | code     | string     |         |
+      |   |   |   | name     | string     |         | locn:geographicName
+                             |            |         |
+      |   |   | city         |            | name    |
+      |   |   |   | name     | string     |         | locn:geographicName
+      |   |   |   | country  | ref        | country |
     ''')

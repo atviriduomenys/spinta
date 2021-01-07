@@ -39,7 +39,8 @@ def main(ctx, option, external, access, files):
     access = get_enum_by_name(Access, access)
 
     rows = _read_csv_files(context, files, external=external, access=access)
-    write_tabular_manifest(dest, rows)
+    with dest.open('w') as f:
+        write_tabular_manifest(f, rows)
 
 
 def _read_csv_files(

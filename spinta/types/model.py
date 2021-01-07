@@ -43,13 +43,6 @@ def load(
     if model.external and model.keymap is None:
         raise exceptions.NoKeyMap(model)
 
-    if model.backend:
-        model.backend = manifest.store.backends[model.backend]
-    elif source and source.backend:
-        model.backend = source.backend
-    else:
-        model.backend = manifest.backend
-
     manifest.add_model_endpoint(model)
     load_namespace(context, manifest, model)
     model.access = load_access_param(model, model.access)
@@ -68,7 +61,7 @@ def load(
         commands.load(context, model.base, base, manifest)
 
     if model.external:
-        external = model.external
+        external: dict = model.external
         model.external = get_node(config, manifest, model.eid, external, group='datasets', ctype='entity', parent=model)
         model.external.model = model
         load_node(context, model.external, external, parent=model)
@@ -86,10 +79,25 @@ def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
 
 @commands.link.register(Context, Model)
 def link(context: Context, model: Model):
-    for prop in model.properties.values():
-        commands.link(context, prop)
+    # Link external source.
     if model.external:
         commands.link(context, model.external)
+
+    # Link model backend.
+    if model.backend:
+        model.backend = model.manifest.store.backends[model.backend]
+    elif (
+        model.external and
+        model.external.resource and
+        model.external.resource.backend
+    ):
+        model.backend = model.external.resource.backend
+    else:
+        model.backend = model.manifest.backend
+
+    # Link model properties.
+    for prop in model.properties.values():
+        commands.link(context, prop)
 
 
 @commands.link.register(Context, Base)

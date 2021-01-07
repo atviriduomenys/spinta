@@ -39,12 +39,14 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_node(context, resource, data, parent=resource.dataset)
     resource.access = load_access_param(resource, resource.access)
 
+    # TODO: Add new backend if data['external'] is given.
+
     store = resource.dataset.manifest.store
     possible_backends = [
         resource.backend,
         f'{resource.dataset.name}/{resource.name}',
-        f'{resource.dataset.name}',
-        f'{resource.type}',
+        resource.dataset.name,
+        resource.type,
     ]
     possible_backends = [pb.replace('/', '_') for pb in possible_backends if pb]
     for backend in possible_backends:

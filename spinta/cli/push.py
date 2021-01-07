@@ -6,6 +6,8 @@ import json
 import pathlib
 import time
 import urllib.parse
+from typing import Any
+from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
@@ -18,7 +20,6 @@ import requests
 import sqlalchemy as sa
 import tqdm
 
-from spinta import commands
 from spinta import exceptions
 from spinta import spyna
 from spinta.cli.helpers.auth import require_auth
@@ -132,18 +133,20 @@ def push(
 
 
 class _PushRow:
+    model: Model
     data: dict
     rev: Optional[str]
     saved: bool = False
 
-    def __init__(self, data: dict):
+    def __init__(self, model: Model, data: Dict[str, Any]):
+        self.model = model
         self.data = data
         self.rev = None
         self.saved = False
 
 
 def _prepare_rows_for_push(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
-    for row in rows:
+    for model, row in rows:
         _id = row['_id']
         _type = row['_type']
         where = {
@@ -160,11 +163,11 @@ def _prepare_rows_for_push(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
             '_where': spyna.unparse(where),
             **{k: v for k, v in row.items() if not k.startswith('_')}
         }
-        yield _PushRow(payload)
+        yield _PushRow(model, payload)
 
 
 def _push_to_remote(
-    rows: Iterable[ModelRow],
+    rows: Iterable[_PushRow],
     target: str,
     credentials: pathlib.Path,
     client: str,
@@ -197,7 +200,7 @@ def _push_to_remote(
         yield from _send_and_receive(session, target, ready, chunk + suffix)
 
 
-def _send_and_receive(session, target, rows: List[ModelRow], data: str):
+def _send_and_receive(session, target, rows: List[_PushRow], data: str):
     data = data.encode('utf-8')
 
     try:
@@ -243,15 +246,19 @@ def _init_push_state(
     return engine, metadata
 
 
+def _get_model_type(row: _PushRow) -> str:
+    return row.data['_type']
+
+
 def _check_push_state(
     context: Context,
-    rows: Iterable[ModelRow],
+    rows: Iterable[_PushRow],
     metadata: sa.MetaData,
 ):
     conn = context.get('push.state.conn')
 
-    for model, group in itertools.groupby(rows, key=lambda row: row.data['_type']):
-        table = metadata.tables[model]
+    for model_type, group in itertools.groupby(rows, key=_get_model_type):
+        table = metadata.tables[model_type]
 
         query = sa.select([table.c.id, table.c.rev])
         saved = {
@@ -279,7 +286,7 @@ def _check_push_state(
 
 def _save_push_state(
     context: Context,
-    rows: Iterable[ModelRow],
+    rows: Iterable[_PushRow],
     metadata: sa.MetaData,
 ):
     conn = context.get('push.state.conn')

@@ -52,6 +52,8 @@ async def run_migrations(context: Context, manifest: BackendManifest):
             backend = store.backends[name]
             context.attach(f'transaction.{backend.name}', backend.begin)
             backends[backend] = commands.migrate(context, manifest, backend)
+        else:
+            backend = None
         execute = backends[backend]
         async for version in execute(group):
             schema = version['schema']

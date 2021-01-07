@@ -8,6 +8,7 @@ import csv
 import pathlib
 from typing import List
 from typing import Set
+from typing import TextIO
 from typing import TypedDict
 
 from spinta import spyna
@@ -19,6 +20,7 @@ from spinta.dimensions.prefix.components import UriPrefix
 from spinta.types.datatype import Ref
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.constants import DATASET
+from spinta.utils.data import take
 from spinta.utils.schema import NA
 
 
@@ -584,40 +586,45 @@ def datasets_to_tabular(
     *,
     external: bool = True,
     access: Access = Access.private,
+    internal: bool = False,
 ):
     yield from _prefixes_to_tabular(manifest.prefixes)
     dataset = None
     resource = None
-    for model in sorted(manifest.models.values(), key=tabular_eid):
+    models = manifest.models if internal else take(manifest.models)
+    for model in sorted(models.values(), key=tabular_eid):
         if model.access < access:
             continue
 
         if model.external:
             if dataset is None or dataset.name != model.external.dataset.name:
                 dataset = model.external.dataset
-                yield torow(DATASET, {
-                    'id': dataset.id,
-                    'dataset': dataset.name,
-                    'level': dataset.level,
-                    'access': dataset.access.name,
-                    'title': dataset.title,
-                    'description': dataset.description,
-                })
+                if dataset:
+                    yield torow(DATASET, {
+                        'id': dataset.id,
+                        'dataset': dataset.name,
+                        'level': dataset.level,
+                        'access': dataset.access.name,
+                        'title': dataset.title,
+                        'description': dataset.description,
+                    })
 
             if external and model.external.resource and (
                 resource is None or
                 resource.name != model.external.resource.name
             ):
                 resource = model.external.resource
-                yield torow(DATASET, {
-                    'resource': resource.name,
-                    'source': resource.external,
-                    'ref': resource.backend.name if resource.backend else '',
-                    'level': resource.level,
-                    'access': resource.access.name,
-                    'title': resource.title,
-                    'description': resource.description,
-                })
+                if resource:
+                    yield torow(DATASET, {
+                        'resource': resource.name,
+                        'source': resource.external,
+                        'type': resource.backend.type if resource.backend else '',
+                        'ref': resource.backend.name if resource.backend else '',
+                        'level': resource.level,
+                        'access': resource.access.name,
+                        'title': resource.title,
+                        'description': resource.description,
+                    })
 
         yield torow(DATASET, {})
 
@@ -712,8 +719,7 @@ def torow(keys, values) -> ManifestRow:
     return {k: values.get(k) for k in keys}
 
 
-def write_tabular_manifest(file: pathlib.Path, rows: Iterable[dict]):
-    with file.open('w') as f:
-        writer = csv.DictWriter(f, fieldnames=DATASET)
-        writer.writeheader()
-        writer.writerows(rows)
+def write_tabular_manifest(file: TextIO, rows: Iterable[dict]):
+    writer = csv.DictWriter(file, fieldnames=DATASET)
+    writer.writeheader()
+    writer.writerows(rows)

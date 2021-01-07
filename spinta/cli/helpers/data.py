@@ -3,6 +3,7 @@ from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
+from typing import Tuple
 
 import tqdm
 
@@ -14,7 +15,7 @@ from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.utils.itertools import peek
 
-ModelRow = Dict[str, Any]
+ModelRow = Tuple[Model, Dict[str, Any]]
 
 
 def _get_row_count(
@@ -49,7 +50,8 @@ def _read_model_data(
     context: components.Context,
     model: components.Model,
     limit: int = None,
-) -> Iterable[ModelRow]:
+    stop_on_error: bool = False,
+) -> Iterable[Dict[str, Any]]:
 
     if limit is None:
         query = None
@@ -58,11 +60,14 @@ def _read_model_data(
 
     stream = commands.getall(context, model, model.backend, query=query)
 
-    try:
+    if stop_on_error:
         stream = peek(stream)
-    except Exception:
-        log.exception(f"Error when reading data from model {model.name}")
-        return
+    else:
+        try:
+            stream = peek(stream)
+        except Exception:
+            log.exception(f"Error when reading data from model {model.name}")
+            return
 
     yield from stream
 
@@ -72,9 +77,12 @@ def iter_model_rows(
     models: List[Model],
     counts: Dict[str, int],
     limit: int = None,
+    *,
+    stop_on_error: bool = False,
 ) -> Iterator[ModelRow]:
     for model in models:
-        rows = _read_model_data(context, model, limit)
+        rows = _read_model_data(context, model, limit, stop_on_error)
         count = counts.get(model.name)
         rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
-        yield from rows
+        for row in rows:
+            yield model, row

@@ -18,3 +18,10 @@ def check_no_extra_keys(dtype: DataType, schema: Iterable, data: Iterable):
             )
             for prop in sorted(unknown)
         )
+
+
+def set_dtype_backend(dtype: DataType):
+    if dtype.backend:
+        dtype.backend = dtype.prop.model.manifest.store.backends[dtype.backend]
+    else:
+        dtype.backend = dtype.prop.model.backend

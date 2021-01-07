@@ -6,6 +6,7 @@ from typing import TypedDict
 import pathlib
 
 from spinta.components import Model
+from spinta.components import Namespace
 from spinta.core.enums import Access
 from spinta.components import Component, Store
 from spinta.dimensions.prefix.components import UriPrefix
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
 
 
 class MetaDataContainer(TypedDict):
+    ns: Dict[str, Namespace]
     dataset: Dict[str, Dataset]
     model: Dict[str, Model]
 

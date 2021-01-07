@@ -13,6 +13,7 @@ class Backend:
         'name': 'backend',
     }
 
+    type: str
     name: str
     features = set()
 

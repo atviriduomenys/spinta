@@ -1,9 +1,4 @@
-import contextlib
 import pathlib
-import os
-import tempfile
-from typing import Dict
-from typing import List
 
 import pytest
 
@@ -15,48 +10,13 @@ from spinta.core.config import RawConfig
 from spinta.testing.data import listdata
 from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
+from spinta.testing.datasets import Sqlite
+from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
 from spinta.testing.client import create_remote_server
 from spinta.utils.schema import NA
-
-Schema = Dict[str, List[sa.Column]]
-
-
-class Sqlite:
-
-    def __init__(self, dsn: str):
-        self.dsn = dsn
-        self.engine = sa.create_engine(dsn)
-        self.schema = sa.MetaData(self.engine)
-        self.tables = {}
-
-    def init(self, tables: Schema):
-        self.tables = {
-            k: sa.Table(k, self.schema, *v)
-            for k, v in tables.items()
-        }
-        self.schema.create_all()
-
-    def write(self, table, data):
-        table = self.tables[table]
-        with self.engine.begin() as conn:
-            conn.execute(table.insert(), data)
-
-
-@contextlib.contextmanager
-def create_sqlite_db(tables: Schema):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db = Sqlite('sqlite:///' + os.path.join(tmpdir, 'db.sqlite'))
-        db.init(tables)
-        yield db
-
-
-@pytest.fixture()
-def sqlite():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Sqlite('sqlite:///' + os.path.join(tmpdir, 'db.sqlite'))
 
 
 @pytest.fixture(scope='module')

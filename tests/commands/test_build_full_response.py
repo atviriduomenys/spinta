@@ -1,4 +1,4 @@
-from spinta.commands import load
+from spinta import commands
 from spinta.commands import build_full_response
 from spinta.components import Model
 
@@ -12,7 +12,9 @@ def create_model(context, schema):
     }
     model = Model()
     model.eid = '9244f3a6-a672-4aac-bb1c-831646264a51'
-    return load(context, model, data, manifest)
+    commands.load(context, model, data, manifest)
+    commands.link(context, model)
+    return model
 
 
 def test_scalar_with_empty_saved(context):

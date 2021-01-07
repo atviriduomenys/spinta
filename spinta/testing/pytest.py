@@ -8,10 +8,11 @@ import pytest
 import sqlalchemy_utils as su
 from responses import RequestsMock
 
-from spinta.testing.context import create_test_context
-from spinta.testing.client import create_test_client
-from spinta.testing.cli import SpintaCliRunner
 from spinta.core.config import read_config
+from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.client import create_test_client
+from spinta.testing.context import create_test_context
+from spinta.testing.datasets import Sqlite
 
 
 @pytest.fixture(scope='session')
@@ -27,6 +28,12 @@ def rc():
         })
         rc.lock()
         yield rc
+
+
+@pytest.fixture()
+def sqlite():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield Sqlite('sqlite:///' + os.path.join(tmpdir, 'db.sqlite'))
 
 
 @pytest.fixture(scope='session')

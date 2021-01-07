@@ -4,7 +4,7 @@ from spinta.backends.mongo.components import Mongo
 from spinta.types.datatype import DataType
 
 
-@commands.wipe.register()
+@commands.wipe.register(Context, Model, Mongo)
 def wipe(context: Context, model: Model, backend: Mongo):
     for prop in model.properties.values():
         wipe(context, prop.dtype, backend)
@@ -15,7 +15,7 @@ def wipe(context: Context, model: Model, backend: Mongo):
     table_changelog.delete_many({})
 
 
-@commands.wipe.register()
+@commands.wipe.register(Context, DataType, Mongo)
 def wipe(context: Context, dtype: DataType, backend: Mongo):
     same_backend = backend.name == dtype.backend.name
 

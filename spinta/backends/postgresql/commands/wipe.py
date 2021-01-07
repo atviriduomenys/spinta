@@ -9,7 +9,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 log = logging.getLogger(__name__)
 
 
-@commands.wipe.register()
+@commands.wipe.register(Context, Model, PostgreSQL)
 def wipe(context: Context, model: Model, backend: PostgreSQL):
     table = backend.get_table(model, fail=False)
     if table is None:
@@ -33,7 +33,7 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
     connection.execute(table.delete())
 
 
-@commands.wipe.register()
+@commands.wipe.register(Context, DataType, PostgreSQL)
 def wipe(context: Context, dtype: DataType, backend: PostgreSQL):
     same_backend = backend.name == dtype.backend.name
 

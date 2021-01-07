@@ -6,6 +6,7 @@ class Dimension(Node):
 
 
 class UriPrefix(Dimension):
+    type: str = 'prefix'
     id: str = None
     eid: str = None
     name: str = None

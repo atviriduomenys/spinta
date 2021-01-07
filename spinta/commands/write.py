@@ -1089,7 +1089,7 @@ async def patch(
         yield data
 
 
-@commands.wipe.register()
+@commands.wipe.register(Context, Request, Model, Backend)
 async def wipe(
     context: Context,
     request: Request,
@@ -1105,7 +1105,7 @@ async def wipe(
     return render(context, request, model, params, response, status_code=200)
 
 
-@commands.wipe.register()  # noqa
+@commands.wipe.register(Context, Request, Namespace, type(None))  # noqa
 async def wipe(  # noqa
     context: Context,
     request: Request,
@@ -1115,7 +1115,7 @@ async def wipe(  # noqa
     action: Action,
     params: UrlParams,
 ):
-    for model in traverse_ns_models(context, ns, action):
+    for model in traverse_ns_models(context, ns, action, internal=True):
         commands.authorize(context, Action.WIPE, model)
     commands.wipe(context, ns, backend)
     response = {'wiped': True}

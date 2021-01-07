@@ -95,17 +95,34 @@ class Resource(External):
     schema = {
         'type': {'type': 'string'},
         'dataset': {'parent': True},
-        'external': {'type': 'string'},
         'prepare': {'type': 'spyna'},
+
+        # Backend name specified in `ref` column, points to previously defined
+        # backend or to a configured stored backend.
+        'backend': {
+            'type': 'ref',
+            'ref': 'context.store.backends',
+        },
+
+        # If `backend` is not given via `ref` column, then in `source` column,
+        # explicit backend dsn can be given. Only one `ref` or `source` can be
+        # given.
+        'external': {
+            'type': 'string'
+        },
+
         'level': {
             'type': 'integer',
             'choices': Level,
             'inherit': 'dataset.level',
         },
-        'access': {'type': 'string', 'choices': Access, 'inherit': 'dataset.access'},
+        'access': {
+            'type': 'string',
+            'choices': Access,
+            'inherit': 'dataset.access',
+        },
         'title': {'type': 'string'},
         'description': {'type': 'string'},
-        'backend': {'type': 'ref', 'ref': 'context.store.backends'},
     }
 
 

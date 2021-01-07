@@ -79,14 +79,14 @@ def test_copycsvmodels_with_filters_and_externals(rc, cli, tmpdir):
         'type', 'ref', 'source', 'prepare', 'level', 'access',
     ]
     assert render_tabular_manifest(manifest, cols) == striptable('''
-    d | r | b | m | property | type   | ref     | source      | prepare   | level | access
-    datasets/gov/example     |        |         |             |           |       | protected
-      | data                 |        | default |             |           |       | protected
-                             |        |         |             |           |       |
-      |   |   | country      |        |         | salis       | code='lt' |       | open
-      |   |   |   | name     | string |         | pavadinimas |           |       | open
-                             |        |         |             |           |       |
-      |   |   | city         |        | name    | miestas     |           |       | open
-      |   |   |   | name     | string |         | pavadinimas |           |       | open
-      |   |   |   | country  | ref    | country | salis       |           |       | open
+    d | r | b | m | property | type       | ref     | source      | prepare   | level | access
+    datasets/gov/example     |            |         |             |           |       | protected
+      | data                 | postgresql | default |             |           |       | protected
+                             |            |         |             |           |       |
+      |   |   | country      |            |         | salis       | code='lt' |       | open
+      |   |   |   | name     | string     |         | pavadinimas |           |       | open
+                             |            |         |             |           |       |
+      |   |   | city         |            | name    | miestas     |           |       | open
+      |   |   |   | name     | string     |         | pavadinimas |           |       | open
+      |   |   |   | country  | ref        | country | salis       |           |       | open
     ''')
