@@ -11,8 +11,8 @@ from spinta.components import Model
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.sql.components import Sql
-from spinta.datasets.backends.sql.query import Selected
-from spinta.datasets.backends.sql.query import SqlQueryBuilder
+from spinta.datasets.backends.sql.commands.query import Selected
+from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.manifests.components import Manifest

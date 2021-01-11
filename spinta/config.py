@@ -23,7 +23,7 @@ CONFIG = {
     },
     'ufuncs': [
         'spinta.ufuncs',
-        'spinta.datasets.backends.sql.query',
+        'spinta.datasets.backends.sql.commands.query',
     ],
     'components': {
         'core': {
