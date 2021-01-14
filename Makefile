@@ -17,14 +17,13 @@ env/bin/pip-compile: env/bin/pip
 	env/bin/pip install pip-tools
 
 requirements-dev.txt: env/bin/pip-compile requirements.in requirements-dev.in
-	env/bin/pip-compile --emit-index-url requirements.in requirements-dev.in -o
-	requirements-dev.txt
+	env/bin/pip-compile --no-emit-index-url requirements.in requirements-dev.in -o requirements-dev.txt
 
 requirements.txt: env/bin/pip-compile requirements.in
-	env/bin/pip-compile --emit-index-url requirements.in -o requirements.txt
+	env/bin/pip-compile --no-emit-index-url requirements.in -o requirements.txt
 
 docs/requirements.txt: env/bin/pip-compile docs/requirements.in
-	env/bin/pip-compile --emit-index-url docs/requirements.in -o docs/requirements.txt
+	env/bin/pip-compile --no-emit-index-url docs/requirements.in -o docs/requirements.txt
 
 .env: .env.example
 	cp -n .env.example .env | true
@@ -32,8 +31,8 @@ docs/requirements.txt: env/bin/pip-compile docs/requirements.in
 
 .PHONY: upgrade
 upgrade: env/bin/pip-compile
-	env/bin/pip-compile --upgrade --emit-index-url requirements.in requirements-dev.in -o requirements-dev.txt
-	env/bin/pip-compile --upgrade --emit-index-url requirements.in -o requirements.txt
+	env/bin/pip-compile --upgrade --no-emit-index-url requirements.in requirements-dev.in -o requirements-dev.txt
+	env/bin/pip-compile --upgrade --no-emit-index-url requirements.in -o requirements.txt
 
 .PHONY: test
 test: env

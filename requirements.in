@@ -29,3 +29,4 @@ ujson
 unidecode
 uvicorn
 xlrd
+phonenumbers

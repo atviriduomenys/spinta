@@ -74,6 +74,7 @@ def test_detect_pii(rc, cli, tmpdir, sqlite):
       |   | Person           |        |         | PERSON  | open
       |   |   | name         | string |         | NAME    |
       |   |   | email        | string |         | EMAIL   |
+      |   |   | phone        | string |         | PHONE   |
     ''')
 
     # Detect person identifying information.
@@ -91,12 +92,13 @@ def test_detect_pii(rc, cli, tmpdir, sqlite):
     ]
     assert render_tabular_manifest(manifest, cols) == striptable('''
     d | r | m | property | type   | ref | source | access    | uri
-                         | prefix | ppi |        |           | https://data.gov.lt/ppi/
+                         | prefix | pii |        |           | https://data.gov.lt/pii/
     datasets/ds          |        |     |        | protected |
       | rs               | sql    | sql |        | protected |
                          |        |     |        |           |
       |   | Person       |        |     | PERSON | open      |
       |   |   | name     | string |     | NAME   | open      |
-      |   |   | email    | string |     | EMAIL  | open      | ppi:email
+      |   |   | email    | string |     | EMAIL  | open      | pii:email
+      |   |   | phone    | string |     | PHONE  | open      | pii:phone
     ''')
 
