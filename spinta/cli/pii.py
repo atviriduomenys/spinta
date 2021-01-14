@@ -31,6 +31,7 @@ from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
+from spinta.utils.nin import is_nin_lt
 
 
 @main.group()
@@ -110,7 +111,11 @@ email_re = re.compile(r'(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)')
 
 
 def _detect_email(value: Any) -> bool:
-    return isinstance(value, str) and email_re.match(value)
+    if not isinstance(value, str):
+        return False
+    if '@' not in value:
+        return False
+    return email_re.match(value) is not None
 
 
 def _detect_phone(value: Any) -> bool:
@@ -124,8 +129,18 @@ def _detect_phone(value: Any) -> bool:
     return False
 
 
+def _detect_nin_lt(value: Any):
+    return is_nin_lt(str(value))
+
+
 def _detect_pii(manifest: Manifest, rows: Iterable[ModelRow]) -> None:
     """Detects PII and modifies given manifest in place"""
+
+    detectors = [
+        (_detect_nin_lt, 'pii:id'),
+        (_detect_email, 'pii:email'),
+        (_detect_phone, 'pii:phone'),
+    ]
 
     # Detect PII properties.
     result: PiiMatches = {}
@@ -133,12 +148,15 @@ def _detect_pii(manifest: Manifest, rows: Iterable[ModelRow]) -> None:
         for prop in take(model.properties).values():
             if prop.name in row:
                 value = row[prop.name]
-                _add_pii_match(
-                    result, model, prop, 'pii:email', _detect_email(value),
-                )
-                _add_pii_match(
-                    result, model, prop, 'pii:phone', _detect_phone(value),
-                )
+                for detector, uri in detectors:
+                    if _add_pii_match(
+                        result,
+                        model,
+                        prop,
+                        uri,
+                        detector(value),
+                    ):
+                        break
 
     # Update manifest.
     for model_name, props in result.items():

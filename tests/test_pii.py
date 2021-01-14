@@ -45,6 +45,7 @@ def test_detect_pii(rc, cli, tmpdir, sqlite):
             sa.Column('NAME', sa.Text),
             sa.Column('EMAIL', sa.Text),
             sa.Column('PHONE', sa.Text),
+            sa.Column('CODE', sa.Text),
         ],
     })
 
@@ -53,16 +54,19 @@ def test_detect_pii(rc, cli, tmpdir, sqlite):
             'NAME': "Amelija Kazlauskė",
             'EMAIL': 'amelija@example.com',
             'PHONE': '+370 675 36104',
+            'CODE': '43109127482',
         },
         {
             'NAME': "Lukas Stankevičius",
             'EMAIL': 'lukas.stankevicius@example.com',
             'PHONE': '8 636 60400',
+            'CODE': '32701264423',
         },
         {
             'NAME': "Emilija Petrauskaitė",
             'EMAIL': 'emilija@example.com',
             'PHONE': '0370 633 46560',
+            'CODE': '46002270784',
         },
     ])
 
@@ -75,6 +79,7 @@ def test_detect_pii(rc, cli, tmpdir, sqlite):
       |   |   | name         | string |         | NAME    |
       |   |   | email        | string |         | EMAIL   |
       |   |   | phone        | string |         | PHONE   |
+      |   |   | nin          | string |         | CODE    |
     ''')
 
     # Detect person identifying information.
@@ -100,5 +105,6 @@ def test_detect_pii(rc, cli, tmpdir, sqlite):
       |   |   | name     | string |     | NAME   | open      |
       |   |   | email    | string |     | EMAIL  | open      | pii:email
       |   |   | phone    | string |     | PHONE  | open      | pii:phone
+      |   |   | nin      | string |     | CODE   | open      | pii:id
     ''')
 
