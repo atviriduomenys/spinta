@@ -15,12 +15,19 @@ cache:
 
 before_script:
   - python --version
-  - python -m venv ci/env
-  - ci/env/bin/pip install -r requirements-dev.txt -e .
+  - pip install poetry
+  - poetry --version
+  - poetry config virtualenvs.in-project true
+  - poetry install -vv
 
 test:
   variables:
     SPINTA_BACKENDS__DEFAULT__DSN: postgresql://ci:secret@postgres:5432/spinta
     SPINTA_BACKENDS__MONGO__DSN: mongodb://mongo/
   script:
-    - ci/env/bin/py.test -vvxra --tb=native --log-level=debug --cov=spinta --cov-report=term-missing tests
+    - >-
+      poetry run py.test -vvxra --tb=native \
+        --log-level=debug \
+        --cov=spinta \
+        --cov-report=term-missing \
+        tests

@@ -1,0 +1,134 @@
+[tool.poetry]
+name = "spinta"
+version = "0.1.6"
+description = """\
+A platform for describing, extracting, transforming and serving open data.
+"""
+authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
+license = "MIT"
+readme = "README.rst"
+homepage = "https://gitlab.com/atviriduomenys/spinta"
+repository = "https://gitlab.com/atviriduomenys/spinta"
+documentation = "https://spinta.readthedocs.io/"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Database",
+    "Topic :: Database :: Database Engines/Servers",
+    "Topic :: Database :: Front-Ends",
+]
+packages = [
+    { include = "spinta" },
+]
+
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://gitlab.com/atviriduomenys/spinta/-/issues"
+
+
+[tool.poetry.scripts]
+spinta = "spinta.cli:main"
+
+
+[tool.poetry.dependencies]
+python = "^3.8"
+aiofiles = "*"
+authlib = "~0.11"
+click = "*"
+jinja2 = "*"
+jsonpatch = "*"
+lark-parser = "*"
+msgpack = "*"
+multipledispatch = "*"
+python-multipart = "*"
+pytz = "*"
+requests = "*"
+"ruamel.yaml" = "*"
+setuptools = "*"
+setuptools-scm = "*"
+starlette = "*"
+texttable = "*"
+toposort = "*"
+tqdm = "*"
+ujson = "*"
+unidecode = "*"
+
+# PostgreSQL backend dependencies
+alembic = { version = "*", optional = false }
+asyncpg = { version = "*", optional = false }
+psycopg2-binary = { version = "*", optional = false }
+sqlalchemy = { version = "*", optional = false }
+
+# Mongo backend dependendencies
+pymongo = { version = "*", optional = false }
+
+# S3 backend dependencies
+boto3 = { version = "*", optional = false }
+
+# Excel dependencies
+xlrd = { version = "*", optional = false }
+
+# XML format dependencies
+lxml = { version = "*", optional = false }
+
+# PII (Person Identifiable Information) dependencies
+phonenumbers = { version = "*", optional = false }
+
+# API server dependencies
+gunicorn = { version = "*", optional = false }
+uvicorn = { version = "*", optional = false }
+
+
+[_tool.poetry.extras]
+# Backends
+postgresql = [
+    "alembic",
+    "asyncpg",
+    "psycopg2-binary",
+    "sqlalchemy",
+    "sqlalchemy-utils",
+]
+mongo = ["pymongo"]
+s3 = ["boto3"]
+
+# Formats
+excel = ["xlrd"]
+xml = ["lxml"]
+
+# Other
+pii = ["phonenumbers"]
+server = ["gunicorn", "uvicorn"]
+
+
+[tool.poetry.dev-dependencies]
+codecov = "*"
+ipdb = "*"
+ipython = "*"
+moto = "*"
+pp-ez = "*"
+pprintpp = "*"
+pytest = "*"
+pytest-asyncio = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+responses = "*"
+snoop = "*"
+# https://github.com/kvesteri/sqlalchemy-utils/issues/472
+sqlalchemy-utils = { version = "0.36.7", optional = false }
+sqlparse = "*"
+python-dotenv = "*"
+
+# Docs
+sphinx = "*"
+sphinx-autobuild = "*"
+sphinxcontrib-httpdomain = "*"
+
+
+[build-system]
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

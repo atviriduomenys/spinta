@@ -1,29 +1,16 @@
 .PHONY: env
-env: .env env/.done var/.done requirements.txt docs/requirements.txt
+env: .env .venv/pyvenv.cfg var/.done requirements.txt
 
-env/bin/pip:
-	python3.9 -m venv env
-	env/bin/pip install --upgrade pip wheel setuptools
-
-env/.done: env/bin/pip setup.py requirements-dev.txt
-	env/bin/pip install -r requirements-dev.txt -e .
-	touch env/.done
+.venv/pyvenv.cfg: pyproject.toml
+	poetry install
+	touch --no-create .venv/pyvenv.cfg
 
 var/.done: Makefile
 	mkdir -p var/files
 	touch var/.done
 
-env/bin/pip-compile: env/bin/pip
-	env/bin/pip install pip-tools
-
-requirements-dev.txt: env/bin/pip-compile requirements.in requirements-dev.in
-	env/bin/pip-compile --no-emit-index-url requirements.in requirements-dev.in -o requirements-dev.txt
-
-requirements.txt: env/bin/pip-compile requirements.in
-	env/bin/pip-compile --no-emit-index-url requirements.in -o requirements.txt
-
-docs/requirements.txt: env/bin/pip-compile docs/requirements.in
-	env/bin/pip-compile --no-emit-index-url docs/requirements.in -o docs/requirements.txt
+requirements.txt: poetry.lock
+	poetry export -f requirements.txt -o requirements.txt
 
 .env: .env.example
 	cp -n .env.example .env | true
@@ -31,8 +18,8 @@ docs/requirements.txt: env/bin/pip-compile docs/requirements.in
 
 .PHONY: upgrade
 upgrade: env/bin/pip-compile
-	env/bin/pip-compile --upgrade --no-emit-index-url requirements.in requirements-dev.in -o requirements-dev.txt
-	env/bin/pip-compile --upgrade --no-emit-index-url requirements.in -o requirements.txt
+	poetry update
+	poetry export -o requirements.txt
 
 .PHONY: test
 test: env
@@ -42,20 +29,20 @@ test: env
 	@#      Could not found reason why this happens, bet if I remove `spinta`
 	@#      from test paths, then tests pass. Maybe this has something to do
 	@#      with py.test?
-	env/bin/py.test -s --full-trace -vvxra --tb=native --log-level=debug --disable-warnings --doctest-modules spinta
-	env/bin/py.test -vvxra --tb=native --log-level=debug --disable-warnings --cov=spinta --cov-report=term-missing tests
+	poetry run py.test -s --full-trace -vvxra --tb=native --log-level=debug --disable-warnings --doctest-modules spinta
+	poetry run py.test -vvxra --tb=native --log-level=debug --disable-warnings --cov=spinta --cov-report=term-missing tests
 
 .PHONY: dist
 dist: env/bin/pip
-	env/bin/python setup.py sdist bdist_wheel
+	poetry build
 
 .PHONY: publish
 publish:
-	twine upload dist/*
+	poetry publish
 
 .PHONY: run
 run: env
-	AUTHLIB_INSECURE_TRANSPORT=1 env/bin/uvicorn spinta.asgi:app --debug
+	AUTHLIB_INSECURE_TRANSPORT=1 poetry run uvicorn spinta.asgi:app --debug
 
 .PHONY: psql
 psql:

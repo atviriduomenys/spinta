@@ -1,5 +1,8 @@
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
+try:
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+except ImportError:
+    pass
 
 from spinta import commands
 from spinta.core.ufuncs import asttoexpr, ufunc
