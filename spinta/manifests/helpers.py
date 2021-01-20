@@ -6,6 +6,7 @@ from typing import Tuple
 import jsonpatch
 
 from spinta import commands
+from spinta.backends.helpers import load_backend
 from spinta.dimensions.prefix.helpers import load_prefixes
 from spinta.nodes import get_node
 from spinta.core.config import RawConfig
@@ -66,6 +67,7 @@ def _configure_manifest(
     manifest.backend = rc.get('manifests', name, 'backend', default=backend)
     manifest.backend = store.backends[manifest.backend]
     manifest.endpoints = {}
+    manifest.backends = {}
     manifest.objects = {name: {} for name in config.components['nodes']}
     manifest.sync = []
     manifest.prefixes = {}
@@ -94,12 +96,24 @@ def load_manifest_nodes(
             manifest.objects[node.type][node.name] = node
 
 
+def _load_manifest_backends(
+    context: Context,
+    manifest: Manifest,
+    backends: Dict[str, Dict[str, str]],
+) -> None:
+    manifest.backends = {}
+    for name, data in backends.items():
+        manifest.backends[name] = load_backend(context, name, data)
+
+
 def _load_manifest(
     context: Context,
     manifest: Manifest,
     data: Dict[str, Any],
     eid: EntryId,
 ) -> None:
+    if 'backends' in data:
+        _load_manifest_backends(context, manifest, data['backends'])
     if 'prefixes' in data:
         prefixes = load_prefixes(context, manifest, manifest, data['prefixes'])
         manifest.prefixes.update(prefixes)

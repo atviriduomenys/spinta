@@ -57,6 +57,7 @@ toposort = "*"
 tqdm = "*"
 ujson = "*"
 unidecode = "*"
+frictionless = {extras = ["sql"], version = "^3.48.0"}
 
 # PostgreSQL backend dependencies
 alembic = { version = "*", optional = false }

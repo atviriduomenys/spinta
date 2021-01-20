@@ -1,6 +1,8 @@
 import cgi
 import tempfile
-import typing
+from typing import AsyncGenerator
+from typing import AsyncIterator
+from typing import Dict, Any
 
 import boto3
 import botocore
@@ -13,8 +15,7 @@ from spinta import commands
 from spinta.backends import Backend, simple_data_check, log_getone
 from spinta.commands import getall
 from spinta.commands.write import prepare_patch, simple_response, validate_data, log_write
-from spinta.components import Action, Context, DataItem, Model, Property, UrlParams
-from spinta.core.config import RawConfig
+from spinta.components import Action, Context, DataItem, Property, UrlParams
 from spinta.exceptions import ItemDoesNotExist
 from spinta.manifests.components import Manifest
 from spinta.renderer import render
@@ -27,16 +28,13 @@ class S3(Backend):
     pass
 
 
-@commands.load.register()
-def load(context: Context, backend: S3, config: RawConfig):
-    backend.bucket_name = config.get('backends', backend.name, 'bucket', required=True)
-    backend.region = config.get('backends', backend.name, 'region', required=True)
-
-    access_key = config.get('backends', backend.name, 'access_key_id')
-    secret_key = config.get('backends', backend.name, 'secret_access_key')
+@commands.load.register(Context, S3, dict)
+def load(context: Context, backend: S3, config: Dict[str, Any]):
+    backend.bucket_name = config['bucket']
+    backend.region = config['region']
     backend.credentials = {
-        'aws_access_key_id': access_key,
-        'aws_secret_access_key': secret_key,
+        'aws_access_key_id': config.get('access_key_id'),
+        'aws_secret_access_key': config.get('secret_access_key'),
     }
 
 
@@ -142,9 +140,9 @@ async def push(
 async def upload_file_to_s3(
     backend: S3,
     filename: str,
-    dstream: typing.AsyncIterator[DataItem],
-    fstream: typing.AsyncIterator[bytes]
-) -> typing.AsyncGenerator[DataItem, None]:
+    dstream: AsyncIterator[DataItem],
+    fstream: AsyncIterator[bytes]
+) -> AsyncGenerator[DataItem, None]:
     aws_session = get_aws_session(backend)
     s3_bucket = aws_session.resource('s3').Bucket(backend.bucket_name)
 

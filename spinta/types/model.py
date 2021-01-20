@@ -55,14 +55,30 @@ def load(
 
     if model.base:
         base = model.base
-        model.base = get_node(config, manifest, model.eid, base, group='bases', ctype='model', parent=model)
+        model.base = get_node(
+            config,
+            manifest,
+            model.eid,
+            base,
+            group='bases',
+            ctype='model',
+            parent=model,
+        )
         model.base.parent = model
         load_node(context, model.base, base, parent=model)
         commands.load(context, model.base, base, manifest)
 
     if model.external:
         external: dict = model.external
-        model.external = get_node(config, manifest, model.eid, external, group='datasets', ctype='entity', parent=model)
+        model.external = get_node(
+            config,
+            manifest,
+            model.eid,
+            external,
+            group='datasets',
+            ctype='entity',
+            parent=model,
+        )
         model.external.model = model
         load_node(context, model.external, external, parent=model)
         commands.load(context, model.external, external, manifest)
@@ -85,7 +101,10 @@ def link(context: Context, model: Model):
 
     # Link model backend.
     if model.backend:
-        model.backend = model.manifest.store.backends[model.backend]
+        if model.backend in model.manifest.backends:
+            model.backend = model.manifest.backends[model.backend]
+        else:
+            model.backend = model.manifest.store.backends[model.backend]
     elif (
         model.external and
         model.external.resource and

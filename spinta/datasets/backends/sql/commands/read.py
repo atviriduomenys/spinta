@@ -1,65 +1,21 @@
 import logging
 from typing import Any
 
-import sqlalchemy as sa
-import sqlalchemy.exc
 from sqlalchemy.engine import RowProxy
 
 from spinta import commands
 from spinta.components import Context
 from spinta.components import Model
-from spinta.core.config import RawConfig
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
-from spinta.manifests.components import Manifest
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 
 log = logging.getLogger(__name__)
-
-
-@commands.load.register(Context, Sql, RawConfig)
-def load(context: Context, backend: Sql, rc: RawConfig):
-    dsn = rc.get('backends', backend.name, 'dsn', required=True)
-    schema = rc.get('backends', backend.name, 'schema')
-    backend.engine = sa.create_engine(dsn, echo=False)
-    backend.schema = sa.MetaData(backend.engine, schema=schema)
-    backend.dbschema = schema
-
-
-@commands.wait.register(Context, Sql)
-def wait(context: Context, backend: Sql, *, fail: bool = False) -> bool:
-    rc = context.get('rc')
-    dsn = rc.get('backends', backend.name, 'dsn', required=True)
-    engine = sa.create_engine(dsn)
-    try:
-        conn = engine.connect()
-    except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.DBAPIError):
-        if fail:
-            raise
-        else:
-            return False
-    else:
-        conn.close()
-        engine.dispose()
-        return True
-
-
-@commands.prepare.register(Context, Sql, Manifest)
-def prepare(context: Context, backend: Sql, manifest: Manifest):
-    # XXX: Moved reflection to spinta/datasets/backends/sql/components:Sql.get_table
-    # log.info(f"Reflecting database for {backend.name!r} backend, this might take time...")
-    # backend.schema.reflect()
-    pass
-
-
-@commands.bootstrap.register(Context, Sql)
-def bootstrap(context: Context, backend: Sql):
-    pass
 
 
 def _get_row_value(row: RowProxy, sel: Any) -> Any:

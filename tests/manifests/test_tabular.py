@@ -51,3 +51,21 @@ def test_uri(tmpdir, rc):
       |   |   |   | name     | string     |         | locn:geographicName
       |   |   |   | country  | ref        | country |
     ''')
+
+
+def test_backends(tmpdir, rc):
+    check(tmpdir, rc, f'''
+    d | r | b | m | property | type | ref | source
+      | default              | sql  |     | sqlite:///{tmpdir}/db
+    ''')
+
+
+def test_backends_with_models(tmpdir, rc):
+    check(tmpdir, rc, f'''
+    d | r | b | m | property | type   | ref | source
+      | default              | sql    |     | sqlite:///{tmpdir}/db
+                             |        |     |
+      |   |   | country      |        |     | code
+      |   |   |   | code     | string |     |
+      |   |   |   | name     | string |     |
+    ''')

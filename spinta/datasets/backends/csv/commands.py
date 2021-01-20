@@ -1,11 +1,11 @@
 import uuid
 import csv
 import urllib.parse
+from typing import Dict, Any
 
 from spinta import commands
 from spinta.fetcher import fetch
 from spinta.core.ufuncs import Expr
-from spinta.core.config import RawConfig
 from spinta.components import Context
 from spinta.manifests.components import Manifest
 from spinta.datasets.components import Entity
@@ -13,8 +13,8 @@ from spinta.datasets.utils import iterparams
 from spinta.datasets.backends.csv.components import Csv
 
 
-@commands.load.register(Context, Csv, RawConfig)
-def load(context: Context, backend: Csv, rc: RawConfig):
+@commands.load.register(Context, Csv, dict)
+def load(context: Context, backend: Csv, config: Dict[str, Any]):
     pass
 
 

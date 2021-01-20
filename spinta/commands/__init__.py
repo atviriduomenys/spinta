@@ -1,6 +1,14 @@
-from spinta.components import Context
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from typing import overload
+
 from spinta.dispatcher import command
-from spinta.manifests.components import Manifest
+
+if TYPE_CHECKING:
+    from spinta.backends import Backend
+    from spinta.components import Context
+    from spinta.manifests.components import Manifest
 
 
 @command()
@@ -523,3 +531,28 @@ def get_model_scopes():
 @command()
 def cast_backend_to_python():
     """Convert backend native types to python native types."""
+
+
+@overload
+def inspect(context: Context, manifest: Manifest):
+    """Inspect whole manifest."""
+
+
+@overload
+def inspect(context: Context, manifest: Manifest, backend: Backend):
+    """Inspect a backend defined on a manifest."""
+
+
+@command()
+def inspect(*args):
+    """Inspect backend schemas and update manifest.
+
+    Usually manifest is loaded from a manifest backend, but inspect reads
+    manifest metadata directly from storage backend. This way, one can generate
+    manifest from an existing data source.
+
+    Which data sources must be read will be discovered in the manifest. Inspect
+    will read given manifest and the, will rewrite schemas from backend.
+
+    This is used in inspect command.
+    """

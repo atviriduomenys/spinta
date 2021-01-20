@@ -1,28 +1,30 @@
 from __future__ import annotations
 
-from typing import Any
-from typing import Dict
-from typing import Iterator, Optional, Tuple, Iterable
-
 import csv
 import pathlib
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import Iterator
 from typing import List
+from typing import Optional
 from typing import Set
 from typing import TextIO
+from typing import Tuple
 from typing import TypedDict
 
 from spinta import spyna
-from spinta.core.enums import Access
+from spinta.backends import Backend
 from spinta.components import Model
+from spinta.core.enums import Access
 from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
 from spinta.dimensions.prefix.components import UriPrefix
-from spinta.types.datatype import Ref
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.constants import DATASET
+from spinta.types.datatype import Ref
 from spinta.utils.data import take
 from spinta.utils.schema import NA
-
 
 ParsedRow = Tuple[int, Dict[str, Any]]
 
@@ -195,16 +197,38 @@ class ResourceReader(TabularReader):
         self.name = row['resource']
 
         if self.state.dataset is None:
-            self.error("Resource must be defined in a dataset context.")
+            self.read_backend(row)
+        else:
+            self.read_resource(row)
 
+    def read_backend(self, row: Dict[str, str]) -> None:
+        # Backends will be loaded using
+        # `spinta.manifests.helpers._load_manifest_backends`.
+
+        if 'backends' not in self.state.manifest.data:
+            self.state.manifest.data['backends'] = {}
+        backends = self.state.manifest.data['backends']
+
+        if self.name in backends:
+            self.error(
+                f"Backend {self.name!r} with the same name already defined."
+            )
+
+        self.data = {
+            'type': row['type'],
+            'name': self.name,
+            'dsn': row['source'],
+            'title': row['title'],
+            'description': row['description'],
+        }
+
+        backends[self.name] = self.data
+
+    def read_resource(self, row: Dict[str, str]) -> None:
         dataset = self.state.dataset.data
 
-        if row['resource'] in dataset['resources']:
-            resource = dataset['resources'][row['resource']]
-            self.error(
-                "Resource with the same name already defined in "
-                f"{resource.line}."
-            )
+        if self.name in dataset['resources']:
+            self.error("Resource with the same name already defined in ")
 
         self.data = {
             'type': row['type'],
@@ -288,7 +312,7 @@ class ModelReader(TabularReader):
             'properties': {},
             'external': {
                 'dataset': dataset.name if dataset else '',
-                'resource': resource.name if resource else '',
+                'resource': resource.name if dataset and resource else '',
                 'pk': (
                     [x.strip() for x in row['ref'].split(',')]
                     if row['ref'] else []
@@ -300,6 +324,9 @@ class ModelReader(TabularReader):
                 ),
             },
         }
+
+        if resource and not dataset:
+            self.data['backend'] = resource.name
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
@@ -368,7 +395,7 @@ class PropertyReader(TabularReader):
             self.data['model'] = get_relative_model_name(dataset, ref_model)
             self.data['refprops'] = ref_props
 
-        if dataset:
+        if dataset or row['source']:
             self.data['external'] = {
                 'name': row['source'],
                 'prepare': self.data.pop('prepare'),
@@ -476,6 +503,8 @@ READERS = {
 class State:
     stack: List[TabularReader]
 
+    backends: Dict[str, Dict[str, str]] = None
+
     models: Set[str]
 
     manifest: ManifestReader = None
@@ -581,6 +610,17 @@ def _prefixes_to_tabular(
         first = False
 
 
+def _backends_to_tabular(
+    backends: Dict[str, Backend],
+) -> Iterator[ManifestRow]:
+    for name, backend in backends.items():
+        yield torow(DATASET, {
+            'type': backend.type,
+            'resource': name,
+            'source': backend.config.get('dsn'),
+        })
+
+
 def datasets_to_tabular(
     manifest: Manifest,
     *,
@@ -589,6 +629,7 @@ def datasets_to_tabular(
     internal: bool = False,
 ):
     yield from _prefixes_to_tabular(manifest.prefixes)
+    yield from _backends_to_tabular(manifest.backends)
     dataset = None
     resource = None
     models = manifest.models if internal else take(manifest.models)

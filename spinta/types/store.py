@@ -5,6 +5,7 @@ import time
 import types
 
 from spinta import commands
+from spinta.backends.helpers import load_backend
 from spinta.components import Context, Store
 from spinta.urlparams import get_model_by_name
 from spinta.manifests.helpers import create_manifest
@@ -28,14 +29,12 @@ def load(context: Context, store: Store) -> Store:
         commands.configure(context, keymap)
 
     # Load backends
+    # Backends can also be loaded from manifests, see:
+    # `spinta.manifests.helpers._load_manifest_backends`.
     store.backends = {}
     for name in rc.keys('backends'):
-        backend_type = rc.get('backends', name, 'type', required=True)
-        Backend = config.components['backends'][backend_type]
-        backend = store.backends[name] = Backend()
-        backend.type = backend_type
-        backend.name = name
-        commands.load(context, backend, rc)
+        data = rc.to_dict('backends', name)
+        store.backends[name] = load_backend(context, name, data)
 
     # Create default manifest instance
     manifest = rc.get('manifest', required=True)

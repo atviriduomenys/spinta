@@ -1,14 +1,15 @@
+from typing import Dict, Any
+
 import sqlalchemy as sa
 
 from spinta import commands
-from spinta.core.config import RawConfig
 from spinta.components import Context
 from spinta.backends.postgresql.components import PostgreSQL
 
 
-@commands.load.register(Context, PostgreSQL, RawConfig)
-def load(context: Context, backend: PostgreSQL, config: RawConfig):
-    backend.dsn = config.get('backends', backend.name, 'dsn', required=True)
+@commands.load.register(Context, PostgreSQL, dict)
+def load(context: Context, backend: PostgreSQL, config: Dict[str, Any]):
+    backend.dsn = config['dsn']
     backend.engine = sa.create_engine(backend.dsn, echo=False)
     backend.schema = sa.MetaData(backend.engine)
     backend.tables = {}

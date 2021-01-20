@@ -1,5 +1,7 @@
 import enum
 import contextlib
+from typing import Any
+from typing import Dict
 
 
 class BackendFeatures(enum.Enum):
@@ -16,6 +18,10 @@ class Backend:
     type: str
     name: str
     features = set()
+
+    # Original configuration values given in manifest, this is used to restore
+    # manifest back to its original form.
+    config: Dict[str, Any]
 
     def __repr__(self):
         return (

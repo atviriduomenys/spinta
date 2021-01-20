@@ -39,6 +39,9 @@ class Manifest(Component):
     # name and endpoint for all of them should match.
     endpoints: Dict[str, str] = None
 
+    # Backends defined in the manifest.
+    backends: Dict[str, Backend] = None
+
     def __repr__(self):
         return (
             f'<{type(self).__module__}.{type(self).__name__}'

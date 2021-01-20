@@ -565,3 +565,26 @@ def test_schema_default_value():
     rc = RawConfig()
     rc.add('defaults', {'accesslog.type': 'file'})
     assert rc.get('accesslog', 'buffer_size') == 300
+
+
+def test_to_dict():
+    rc = RawConfig()
+    rc.read([
+        PyDict('defaults', {
+            'manifests': {
+                'default': {
+                    'type': 'internal',
+                    'backend': 'default',
+                },
+                'yaml': {
+                    'type': 'yaml',
+                    'backend': 'default',
+                    'path': 'manifest',
+                },
+            },
+        }),
+    ])
+    assert rc.to_dict('manifests', 'default') == {
+        'type': 'internal',
+        'backend': 'default',
+    }

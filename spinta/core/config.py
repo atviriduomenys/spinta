@@ -309,6 +309,13 @@ class RawConfig:
         else:
             return table
 
+    def to_dict(self, *names) -> Dict[str, Any]:
+        result = {}
+        for key, val in self.getall(*names):
+            key = '.'.join(key[len(names):])
+            result[key] = val
+        return result
+
     def _update_keys(self) -> Dict[Key, List[str]]:
         """Update inner keys respecting already set values."""
         keys = {}
