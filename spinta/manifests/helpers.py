@@ -6,6 +6,7 @@ from typing import Tuple
 import jsonpatch
 
 from spinta import commands
+from spinta.components import Mode
 from spinta.backends.helpers import load_backend
 from spinta.dimensions.prefix.helpers import load_prefixes
 from spinta.nodes import get_node
@@ -71,6 +72,9 @@ def _configure_manifest(
     manifest.objects = {name: {} for name in config.components['nodes']}
     manifest.sync = []
     manifest.prefixes = {}
+    manifest.mode = enum_by_name(manifest, 'mode', Mode, (
+        rc.get('manifests', name, 'mode') or 'internal'
+    ))
     for source in rc.get('manifests', name, 'sync', default=[], cast=list):
         if source in seen:
             raise Exception("Manifest sync cycle: " + ' -> '.join(seen + [source]))
@@ -86,14 +90,19 @@ def load_manifest_nodes(
     schemas: Iterable[Tuple[int, Optional[dict]]],
     *,
     source: Manifest = None,
+    link: bool = False,
 ) -> None:
     config = context.get('config')
     for eid, schema in schemas:
         if schema.get('type') == 'manifest':
             _load_manifest(context, manifest, schema, eid)
+            if link:
+                commands.link(context, manifest)
         else:
             node = _load_manifest_node(context, config, manifest, source, eid, schema)
             manifest.objects[node.type][node.name] = node
+            if link:
+                commands.link(context, node)
 
 
 def _load_manifest_backends(
@@ -103,7 +112,7 @@ def _load_manifest_backends(
 ) -> None:
     manifest.backends = {}
     for name, data in backends.items():
-        manifest.backends[name] = load_backend(context, name, data)
+        manifest.backends[name] = load_backend(context, manifest, name, data)
 
 
 def _load_manifest(

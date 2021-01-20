@@ -28,6 +28,7 @@ class PostgreSQL(Backend):
 
     features = {
         BackendFeatures.FILE_BLOCKS,
+        BackendFeatures.WRITE,
     }
 
     engine = None

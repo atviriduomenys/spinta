@@ -5,5 +5,5 @@ from spinta.manifests.components import Manifest
 
 @commands.inspect.register(Context, Manifest)
 def inspect(context: Context, manifest: Manifest):
-    for backend in manifest.backends.values():
-        commands.inspect(context, manifest, backend)
+    for dataset in manifest.objects['dataset'].values():
+        commands.inspect(context, dataset)

@@ -9,6 +9,9 @@ class BackendFeatures(enum.Enum):
     # _blocks properties.
     FILE_BLOCKS = 'FILE_BLOCKS'
 
+    # Backend supports write operations.
+    WRITE = 'WRITE'
+
 
 class Backend:
     metadata = {

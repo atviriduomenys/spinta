@@ -8,6 +8,7 @@ import itertools
 import typing
 
 from spinta.auth import authorized
+from spinta.components import Mode
 from spinta.commands import load, check, authorize, prepare
 from spinta.components import Context, Base, Model, Property, Action
 from spinta.manifests.components import Manifest
@@ -34,6 +35,7 @@ def load(
 ) -> Model:
     model.parent = manifest
     model.manifest = manifest
+    model.mode = manifest.mode  # TODO: mode should be inherited from namespace.
     load_node(context, model, data)
 
     if model.keymap:
@@ -106,6 +108,7 @@ def link(context: Context, model: Model):
         else:
             model.backend = model.manifest.store.backends[model.backend]
     elif (
+        model.mode == Mode.external and
         model.external and
         model.external.resource and
         model.external.resource.backend

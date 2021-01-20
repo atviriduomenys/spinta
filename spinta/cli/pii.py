@@ -203,6 +203,7 @@ def detect(
             'path': manifest,
             'keymap': 'default',
             'backend': 'cli',
+            'mode': 'external',
         },
         'manifest': 'cli',
     }

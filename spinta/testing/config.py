@@ -52,6 +52,7 @@ def configure(
                     'path': str(path),
                     'backend': 'sql',
                     'keymap': 'default',
+                    'mode': 'external',
                 },
             },
             'backends': {
@@ -71,6 +72,7 @@ def configure(
                     'path': str(path),
                     'backend': 'default',
                     'keymap': 'default',
+                    'mode': 'external',
                 },
             },
             'backends': {

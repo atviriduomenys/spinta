@@ -34,7 +34,7 @@ def load(context: Context, store: Store) -> Store:
     store.backends = {}
     for name in rc.keys('backends'):
         data = rc.to_dict('backends', name)
-        store.backends[name] = load_backend(context, name, data)
+        store.backends[name] = load_backend(context, config, name, data)
 
     # Create default manifest instance
     manifest = rc.get('manifest', required=True)

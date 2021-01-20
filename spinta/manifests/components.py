@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict
+import pathlib
+from typing import Dict
+from typing import TYPE_CHECKING
 from typing import TypedDict
 
-import pathlib
-
+from spinta.components import Component
+from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Namespace
+from spinta.components import Store
 from spinta.core.enums import Access
-from spinta.components import Component, Store
 from spinta.dimensions.prefix.components import UriPrefix
 
 if TYPE_CHECKING:
@@ -41,6 +43,8 @@ class Manifest(Component):
 
     # Backends defined in the manifest.
     backends: Dict[str, Backend] = None
+
+    mode: Mode = Mode.internal
 
     def __repr__(self):
         return (

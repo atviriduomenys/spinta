@@ -18,6 +18,10 @@ def to_model_name(name: str) -> str:
 
 
 def to_property_name(name: str) -> str:
+    return to_code_name(name)
+
+
+def to_code_name(name: str) -> str:
     name = unidecode(name)
     name = camel_cased_words.sub(r' \1', name).strip()
     words = split_words_re.split(name)

@@ -13,6 +13,7 @@ from starlette.responses import StreamingResponse
 
 from spinta import commands
 from spinta.backends import Backend, simple_data_check, log_getone
+from spinta.backends.components import BackendFeatures
 from spinta.commands import getall
 from spinta.commands.write import prepare_patch, simple_response, validate_data, log_write
 from spinta.components import Action, Context, DataItem, Property, UrlParams
@@ -25,7 +26,10 @@ from spinta.utils.data import take
 
 
 class S3(Backend):
-    pass
+
+    features = {
+        BackendFeatures.WRITE,
+    }
 
 
 @commands.load.register(Context, S3, dict)

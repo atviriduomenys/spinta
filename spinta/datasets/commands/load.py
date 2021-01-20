@@ -1,6 +1,7 @@
 from spinta import commands
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.components import Attribute
+from spinta.datasets.helpers import load_resource_backend
 from spinta.nodes import get_node, load_node
 from spinta.components import Context
 from spinta.manifests.components import Manifest
@@ -38,23 +39,12 @@ def load(
 def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_node(context, resource, data, parent=resource.dataset)
     resource.access = load_access_param(resource, resource.access)
-
-    # TODO: Add new backend if data['external'] is given.
-
-    store = resource.dataset.manifest.store
-    possible_backends = [
+    resource.backend = load_resource_backend(
+        context,
+        resource,
+        # First backend is loaded as string and later becomes Backend.
         resource.backend,
-        f'{resource.dataset.name}/{resource.name}',
-        resource.dataset.name,
-        resource.type,
-    ]
-    possible_backends = [pb.replace('/', '_') for pb in possible_backends if pb]
-    for backend in possible_backends:
-        if backend in store.backends:
-            resource.backend = store.backends[backend]
-            break
-    else:
-        resource.backend = manifest.backend
+    )
 
     # Models will be added on `link` command.
     resource.models = {}

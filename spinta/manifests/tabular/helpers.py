@@ -660,7 +660,7 @@ def datasets_to_tabular(
                         'resource': resource.name,
                         'source': resource.external,
                         'type': resource.backend.type if resource.backend else '',
-                        'ref': resource.backend.name if resource.backend else '',
+                        'ref': '' if resource.external else resource.backend.name,
                         'level': resource.level,
                         'access': resource.access.name,
                         'title': resource.title,

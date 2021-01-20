@@ -10,7 +10,9 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from spinta import commands
+from spinta.backends.components import BackendFeatures
 from spinta.components import Context, UrlParams, Namespace, Action, Model, Property, Node
+from spinta.datasets.components import ExternalBackend
 from spinta.renderer import render
 from spinta.nodes import load_node, load_model_properties
 from spinta import exceptions
@@ -289,7 +291,8 @@ def wipe(context: Context, ns: Namespace, backend: type(None)):
     models = traverse_ns_models(context, ns, Action.WIPE, internal=True)
     models = sort_models_by_refs(models)
     for model in models:
-        commands.wipe(context, model, model.backend)
+        if BackendFeatures.WRITE in model.backend.features:
+            commands.wipe(context, model, model.backend)
 
 
 def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:

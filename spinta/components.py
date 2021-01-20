@@ -434,6 +434,7 @@ class Model(MetaData):
     endpoint: str = None
     external: Entity = None
     properties: Dict[str, Property]
+    mode: Mode = None
 
     schema = {
         'keymap': {'type': 'string'},
@@ -737,3 +738,13 @@ class DataSubItem:
 
 
 DataStream = AsyncIterator[DataItem]
+
+
+class Mode(enum.Enum):
+    # Internal mode always use internal backend set on manifest, namespace or
+    # model.
+    internal = 'internal'
+
+    # External model always sue external backend set on dataset or model's
+    # source entity.
+    external = 'external'

@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from spinta.backends import Backend
     from spinta.components import Context
     from spinta.manifests.components import Manifest
+    from spinta.datasets.components import Dataset
+    from spinta.datasets.components import Resource
 
 
 @command()
@@ -541,6 +543,16 @@ def inspect(context: Context, manifest: Manifest):
 @overload
 def inspect(context: Context, manifest: Manifest, backend: Backend):
     """Inspect a backend defined on a manifest."""
+
+
+@overload
+def inspect(context: Context, dataset: Dataset):
+    """Inspect dataset resources."""
+
+
+@overload
+def inspect(context: Context, resource: Resource, backend: Backend):
+    """Inspect dataset resource."""
 
 
 @command()

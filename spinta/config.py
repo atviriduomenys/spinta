@@ -52,7 +52,10 @@ CONFIG = {
 
             # External backends
             'sql': 'spinta.datasets.backends.sql.components:Sql',
-            'csv': 'spinta.datasets.backends.csv.components:Csv',
+            'csv': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',
+            'xml': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',
+            'xlsx': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',
+            'json': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',
         },
         'migrations': {
             'alembic': 'spinta.migrations.schema.alembic:Alembic',
@@ -126,6 +129,7 @@ CONFIG = {
             'type': 'backend',
             'backend': 'default',
             'sync': 'yaml',
+            'mode': 'internal',
         },
         'yaml': {
             'type': 'yaml',

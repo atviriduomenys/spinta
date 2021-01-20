@@ -11,6 +11,7 @@ def test_inspect(rc, cli, tmpdir, sqlite):
     # Prepare source data.
     sqlite.init({
         'COUNTRY': [
+            sa.Column('ID', sa.Integer, primary_key=True),
             sa.Column('CODE', sa.Text),
             sa.Column('NAME', sa.Text),
         ],
@@ -19,6 +20,7 @@ def test_inspect(rc, cli, tmpdir, sqlite):
     # Configure Spinta.
     rc = configure(rc, None, tmpdir / 'manifest.csv', f'''
     d | r | m | property     | type   | ref | source       | access
+    dataset                  |        |     |              |
       | rs                   | sql    |     | {sqlite.dsn} |
     ''')
 
@@ -26,12 +28,14 @@ def test_inspect(rc, cli, tmpdir, sqlite):
 
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
-    manifest.backends['rs'].config['dsn'] = 'sqlite'
+    manifest.objects['dataset']['dataset'].resources['rs'].external = 'sqlite'
     assert render_tabular_manifest(manifest) == striptable(f'''
-    id | d | r | b | m | property | source  | prepare | type   | ref | level | access    | uri | title | description
-       |   | rs                   | sqlite  |         | sql    |     |       |           |     |       |
-       |                          |         |         |        |     |       |           |     |       |
-       |   |   |   | Country      | COUNTRY |         |        |     |       | protected |     |       |
-       |   |   |   |   | code     | CODE    |         | string |     |       | protected |     |       |
-       |   |   |   |   | name     | NAME    |         | string |     |       | protected |     |       |
+    id | d | r | b | m | property | source  | prepare | type    | ref | level | access    | uri | title | description
+       | dataset                  |         |         |         |     |       | protected |     |       |
+       |   | rs                   | sqlite  |         | sql     |     |       | protected |     |       |
+       |                          |         |         |         |     |       |           |     |       |
+       |   |   |   | Country      | COUNTRY |         |         | id  |       | protected |     |       |
+       |   |   |   |   | id       | ID      |         | integer |     |       | protected |     |       |
+       |   |   |   |   | code     | CODE    |         | string  |     |       | protected |     |       |
+       |   |   |   |   | name     | NAME    |         | string  |     |       | protected |     |       |
     ''')

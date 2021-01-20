@@ -2,6 +2,7 @@ import contextlib
 
 import pymongo
 
+from spinta.backends.components import BackendFeatures
 from spinta.components import Model
 from spinta.components import Property
 from spinta.backends.components import Backend
@@ -20,6 +21,10 @@ class Mongo(Backend):
             'dsn': {'type': 'string', 'required': True},
             'db': {'type': 'string', 'required': True},
         },
+    }
+
+    features = {
+        BackendFeatures.WRITE,
     }
 
     @contextlib.contextmanager

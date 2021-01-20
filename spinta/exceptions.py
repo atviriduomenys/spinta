@@ -443,3 +443,7 @@ class NoExternalName(UserError):
 
 class NoKeyMap(UserError):
     template = "Key map is not configured."
+
+
+class BackendNotFound(UserError):
+    template = "Can't find backend {name!r}."

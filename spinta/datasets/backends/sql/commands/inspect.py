@@ -1,24 +1,24 @@
 from typing import Any
 from typing import Dict
 from typing import Iterator
+from typing import Optional
 from typing import Tuple
 
+import frictionless
 import sqlalchemy as sa
-from frictionless import Field
-from frictionless import Package
-from frictionless import Resource
 
 from spinta import commands
 from spinta.backends import Backend
 from spinta.components import Context
 from spinta.datasets.backends.sql.components import Sql
+from spinta.datasets.components import Resource
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
 from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
 
 
-def _read_frictionless_field(field: Field):
+def _read_frictionless_field(field: frictionless.Field):
     return {
         'type': field.type,
         'external': {
@@ -27,38 +27,71 @@ def _read_frictionless_field(field: Field):
     }
 
 
+def _ensure_list(value: Optional[Any]):
+    if value is None:
+        return value
+    elif isinstance(value, list):
+        return value
+    else:
+        return [value]
+
+
 def _read_frictionless_resource(
+    resource: Optional[Resource],
     backend: Backend,
-    resource: Resource,
+    frictionless_resource: frictionless.Resource,
 ) -> Dict[str, Any]:
+    name = to_model_name(frictionless_resource.name)
+    if resource:
+        name = f'{resource.dataset.name}/{name}'
     return {
         'type': 'model',
-        'name': to_model_name(resource.name),
-        'backend': backend.name,
+        'name': name,
         'external': {
-            'dataset': None,
-            'resource': None,
-            'name': resource.name,
-            'pk': [],
+            'dataset': resource.dataset.name if resource else None,
+            'resource': resource.name if resource else None,
+            'name': frictionless_resource.name,
+            'pk': [
+                to_property_name(p)
+                for p in _ensure_list(frictionless_resource.schema.primary_key)
+            ],
         },
         'properties': {
             to_property_name(field.name): _read_frictionless_field(field)
-            for field in resource.schema.fields
+            for field in frictionless_resource.schema.fields
         },
     }
 
 
 def _read_frictionless_package(
+    resource: Optional[Resource],
     backend: Backend,
-    package: Package,
+    package: frictionless.Package,
 ) -> Iterator[Tuple[int, Dict[str, Any]]]:
-    for i, resource in enumerate(package.resources):
-        yield i, _read_frictionless_resource(backend, resource)
+    for i, frictionless_resource in enumerate(package.resources):
+        yield i, _read_frictionless_resource(
+            resource,
+            backend,
+            frictionless_resource,
+        )
 
 
 @commands.inspect.register(Context, Manifest, Sql)
 def inspect(context: Context, manifest: Manifest, backend: Sql):
     engine = sa.create_engine(backend.config['dsn'])
-    package = Package.from_sql(engine=engine)
-    schemas = _read_frictionless_package(backend, package)
+    package = frictionless.Package.from_sql(engine=engine)
+    schemas = _read_frictionless_package(None, backend, package)
     load_manifest_nodes(context, manifest, schemas)
+
+
+@commands.inspect.register(Context, Resource, Sql)
+def inspect(context: Context, resource: Resource, backend: Sql):
+    engine = sa.create_engine(backend.config['dsn'])
+    package = frictionless.Package.from_sql(engine=engine)
+    schemas = _read_frictionless_package(resource, backend, package)
+    load_manifest_nodes(
+        context,
+        resource.dataset.manifest,
+        schemas,
+        link=True,
+    )
