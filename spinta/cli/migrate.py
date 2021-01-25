@@ -1,17 +1,19 @@
 import asyncio
 
 import click
+from typer import Context as TyperContext
 
 from spinta import commands
-from spinta.cli import main
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
 
 
-@main.command()
-@click.pass_context
-def bootstrap(ctx):
+def bootstrap(ctx: TyperContext):
+    """Initialize backends
+
+    This will create tables and sync manifest to backends.
+    """
     context = ctx.obj
     store = prepare_manifest(context)
     with context:
@@ -19,9 +21,11 @@ def bootstrap(ctx):
         commands.bootstrap(context, store.manifest)
 
 
-@main.command()
-@click.pass_context
-def sync(ctx):
+def sync(ctx: TyperContext):
+    """Sync source manifests into main manifest
+
+    Single main manifest can be populated from multiple different backends.
+    """
     context = ctx.obj
     store = load_store(context)
     commands.load(context, store.internal, into=store.manifest)
@@ -32,9 +36,8 @@ def sync(ctx):
     click.echo("Done.")
 
 
-@main.command()
-@click.pass_context
-def migrate(ctx):
+def migrate(ctx: TyperContext):
+    """Migrate schema change to backends"""
     context = ctx.obj
     store = prepare_manifest(context)
     with context:
@@ -43,9 +46,13 @@ def migrate(ctx):
         loop.run_until_complete(commands.migrate(context, store.manifest))
 
 
-@main.command()
-@click.pass_context
-def freeze(ctx):
+def freeze(ctx: TyperContext):
+    """Detect schema changes and create new version
+
+    This will read current manifest structure, compare it with a previous
+    freezed version and will generate new migration version if current and last
+    versions do not match.
+    """
     context = ctx.obj
     # Load just store, manifests will be loaded by freeze command.
     store = load_store(context)

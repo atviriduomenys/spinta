@@ -58,7 +58,7 @@ def _read_tabular_manifest(header, lines):
         yield row
 
 
-def load_tabular_manifest(rc: RawConfig, path: pathlib.Path):
+def load_tabular_manifest(rc: RawConfig, path: pathlib.Path) -> Manifest:
     rc = rc.fork({
         'manifest': 'default',
         'manifests': {

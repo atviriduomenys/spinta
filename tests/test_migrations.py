@@ -1,9 +1,7 @@
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import create_manifest_files, read_manifest_files, readable_manifest_files
 from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
-from spinta.cli.migrate import freeze
-from spinta.cli.migrate import migrate
-from spinta.cli.migrate import bootstrap
 
 
 def _summarize_ast(ast):
@@ -36,10 +34,10 @@ def configure(rc, path):
     })
 
 
-def test_create_model(postgresql, rc, cli, tmpdir, request):
+def test_create_model(postgresql, rc, cli: SpintaCliRunner, tmpdir, request):
     rc = configure(rc, tmpdir)
 
-    cli.invoke(rc, bootstrap)
+    cli.invoke(rc, ['bootstrap'])
 
     create_manifest_files(tmpdir, {
         'country.yml': {
@@ -51,7 +49,7 @@ def test_create_model(postgresql, rc, cli, tmpdir, request):
         },
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest) == {
@@ -88,7 +86,7 @@ def test_create_model(postgresql, rc, cli, tmpdir, request):
         ],
     }
 
-    cli.invoke(rc, migrate)
+    cli.invoke(rc, ['migrate'])
 
     context = create_test_context(rc, name='pytest/client')
     request.addfinalizer(context.wipe_all)

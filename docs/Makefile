@@ -3,8 +3,9 @@
 
 # You can set these variables from the command line, and also
 # from the environment for the first two.
+VENVDIR       = ../.venv
 SPHINXOPTS    ?=
-SPHINXBUILD   ?= ../env/bin/sphinx-build
+SPHINXBUILD   ?= $(VENVDIR)/bin/sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = _build
 
@@ -15,7 +16,7 @@ help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 auto:
-		../env/bin/sphinx-autobuild -p 8080 -b html $(SOURCEDIR) $(BUILDDIR)/html
+		$(VENVDIR)/bin/sphinx-autobuild --port 8080 -b html $(SOURCEDIR) $(BUILDDIR)/html
 
 open:
 		xdg-open http://127.0.0.1:8000

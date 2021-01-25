@@ -3,6 +3,7 @@ import datetime
 import hashlib
 import itertools
 import json
+import logging
 import pathlib
 import time
 import urllib.parse
@@ -14,17 +15,18 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-import click
 import msgpack
 import requests
 import sqlalchemy as sa
 import tqdm
+from typer import Context as TyperContext
+from typer import Option
+from typer import Exit
+from typer import echo
 
 from spinta import exceptions
 from spinta import spyna
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli import log
-from spinta.cli import main
 from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.data import count_rows
 from spinta.cli.helpers.data import iter_model_rows
@@ -39,32 +41,35 @@ from spinta.utils.nestedstruct import flatten
 from spinta.utils.units import tobytes
 from spinta.utils.units import toseconds
 
+log = logging.getLogger(__name__)
 
-@main.command(help='Push data to external data store.')
-@click.argument('target')
-@click.option('--dataset', '-d', help="Push only specified dataset.")
-@click.option('--credentials', '-r', help="Credentials file.")
-@click.option('--client', '-c', help="Client name from credentials file.")
-@click.option('--auth', '-a', help="Authorize as client.")
-@click.option('--limit', type=int, help="Limit number of rows read from each model.")
-@click.option('--chunk-size', default='1m', help="Push data in chunks (1b, 1k, 2m, ...), default: 1m.")
-@click.option('--stop-time', help="Stop pushing after given time (1s, 1m, 2h, ...).")
-@click.option('--stop-row', type=int, help="Stop after pushing n rows.")
-@click.option('--state', help="Save push state into a file.")
-@click.pass_context
+
 def push(
-    ctx,
+    ctx: TyperContext,
     target: str,
-    dataset: str,
-    credentials: str,
-    client: str,
-    auth: str,
-    limit: int,
-    chunk_size: str,
-    stop_time: str,
-    stop_row: int,
-    state: str,
+    dataset: str = Option(None, '-d', '--dataset', help=(
+        "Push only specified dataset"
+    )),
+    credentials: str = Option(None, '-r', '--credentials', help=(
+        "Credentials file"
+    )),
+    client: str = Option(None, '-c', '--client', help=(
+        "Client name from credentials file"
+    )),
+    auth: str = Option(None, '-a', '--auth', help="Authorize as a client"),
+    limit: int = Option(None, help=(
+        "Limit number of rows read from each model"
+    )),
+    chunk_size: str = Option('1m', help=(
+        "Push data in chunks (1b, 1k, 2m, ...), default: 1m"
+    )),
+    stop_time: str = Option(None, help=(
+        "Stop pushing after given time (1s, 1m, 2h, ...)"
+    )),
+    stop_row: int = Option(None, help="Stop after pushing n rows."),
+    state: pathlib.Path = Option(None, help="Save push state into a file."),
 ):
+    """Push data to external data store"""
     if chunk_size:
         chunk_size = tobytes(chunk_size)
 
@@ -77,11 +82,13 @@ def push(
     if credentials:
         credentials = pathlib.Path(credentials)
         if not credentials.exists():
-            raise click.Abort(f"Credentials file {credentials} does not exit.")
+            echo(f"Credentials file {credentials} does not exit.")
+            raise Exit(code=1)
 
     manifest = store.manifest
     if dataset and dataset not in manifest.objects['dataset']:
-        raise click.ClickException(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
+        echo(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
+        raise Exit(code=1)
 
     ns = manifest.objects['ns']['']
 
@@ -173,7 +180,7 @@ def _push_to_remote(
     client: str,
     chunk_size: int,
 ):
-    click.echo(f"Get access token from {target}")
+    echo(f"Get access token from {target}")
     token = _get_access_token(credentials, client, target)
 
     session = requests.Session()
@@ -230,7 +237,7 @@ def _add_stop_time(rows, stop):
 
 
 def _init_push_state(
-    file: str,
+    file: pathlib.Path,
     models: List[Model],
 ) -> Tuple[sa.engine.Engine, sa.MetaData]:
     engine = sa.create_engine(f'sqlite:///{file}')
@@ -330,6 +337,7 @@ def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
         'scope': creds.get(section, 'scopes'),
     })
     if resp.status_code >= 400:
-        click.echo(resp.text)
-        raise click.Abort("Can't get access token.")
+        echo(resp.text)
+        echo("Can't get access token.")
+        raise Exit(code=1)
     return resp.json()['access_token']

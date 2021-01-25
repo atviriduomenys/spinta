@@ -114,6 +114,9 @@ manifests:
       sync:
         type: ref
         ref: manifests
+      mode:
+        type: string
+        default: internal
     switch: type
     case:
       yaml:

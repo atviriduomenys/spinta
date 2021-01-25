@@ -1754,7 +1754,7 @@ testing = ["pytest (>=3.5,<3.7.3 || >3.7.3)", "pytest-checkdocs (>=1.2.3)", "pyt
 [metadata]
 lock-version = "1.0"
 python-versions = "^3.8"
-content-hash = "e10c7d075ef2990983363da82c707fd10ee142274471372220611f2537c196b0"
+content-hash = "e70864227b5f45e7ceb9a3b675be8e6d9b4774a779c89cb6d7f34b2dc7b71727"
 
 [metadata.files]
 aiofiles = [

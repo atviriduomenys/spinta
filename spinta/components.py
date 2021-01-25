@@ -97,7 +97,7 @@ class Context:
         self._factory.pop()
         self._cmgrs.pop()
 
-    def fork(self, name):
+    def fork(self, name) -> Context:
         """Fork this context manager by creating new state.
 
         This will create new Context class instance based on current state.

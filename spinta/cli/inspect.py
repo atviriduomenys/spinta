@@ -1,7 +1,9 @@
 import pathlib
+from typing import Optional
 from typing import TextIO
 
-import click
+from typer import Context as TyperContext
+from typer import Option
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
@@ -19,24 +21,22 @@ def _save_manifest(manifest: Manifest, dest: TextIO):
     write_tabular_manifest(dest, rows)
 
 
-@click.command(help='Update manifest from data source schema.')
-@click.option('--auth', '-a', help="Authorize as client.")
-@click.pass_context
 def inspect(
-    ctx: click.Context,
-    auth: str,
+    ctx: TyperContext,
+    auth: Optional[str] = Option(None, '-a', '--auth', help=(
+        "Authorize as a client"
+    )),
 ):
+    """Update manifest schema from an external data source"""
     context: Context = ctx.obj
-    context: Context = context.fork('inspect')
+    context = context.fork('inspect')
 
     # Load manifest
     store = prepare_manifest(context)
     manifest = store.manifest
     with context:
         require_auth(context, auth)
-
         commands.inspect(context, manifest)
-
         output = manifest.path
         with pathlib.Path(output).open('w') as f:
             _save_manifest(manifest, f)

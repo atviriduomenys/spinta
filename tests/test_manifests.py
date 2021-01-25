@@ -1,10 +1,9 @@
 from spinta import commands
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.context import create_test_context
 from spinta.components import Model
 from spinta.manifests.components import Manifest
-from spinta.cli.migrate import freeze
-from spinta.cli.migrate import migrate
 
 
 def show(c: Manifest):
@@ -26,7 +25,7 @@ def show(c: Manifest):
         }
 
 
-def test_manifest_loading(postgresql, rc, cli, tmpdir, request):
+def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmpdir, request):
     rc = rc.fork({
         'manifest': 'default',
         'manifests': {
@@ -52,8 +51,8 @@ def test_manifest_loading(postgresql, rc, cli, tmpdir, request):
         },
     })
 
-    cli.invoke(rc, freeze)
-    cli.invoke(rc, migrate)
+    cli.invoke(rc, ['freeze'])
+    cli.invoke(rc, ['migrate'])
 
     context = create_test_context(rc)
 

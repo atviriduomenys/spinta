@@ -1,13 +1,13 @@
 import sqlalchemy as sa
 
-from spinta.cli.pii import detect
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.tabular import load_tabular_manifest
 from spinta.testing.tabular import render_tabular_manifest
 from spinta.testing.tabular import striptable
 
 
-def test_detect_pii(rc, cli, tmpdir, sqlite):
+def test_detect_pii(rc, cli: SpintaCliRunner, tmpdir, sqlite):
     # Prepare source data.
     sqlite.init({
         'PERSON': [
@@ -52,9 +52,9 @@ def test_detect_pii(rc, cli, tmpdir, sqlite):
     ''')
 
     # Detect person identifying information.
-    cli.invoke(rc, detect, [
-        str(tmpdir / 'manifest.csv'),
-        '-o', str(tmpdir / 'pii.csv'),
+    cli.invoke(rc, [
+        'pii', 'detect', tmpdir / 'manifest.csv',
+        '-o', tmpdir / 'pii.csv',
         '--stop-on-error',
     ])
 

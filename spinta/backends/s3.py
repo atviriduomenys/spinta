@@ -42,7 +42,7 @@ def load(context: Context, backend: S3, config: Dict[str, Any]):
     }
 
 
-@commands.wait.register()
+@commands.wait.register(Context, S3)
 def wait(context: Context, backend: S3, *, fail: bool = False):
     try:
         # create s3 client and check if we can list our buckets (a way to

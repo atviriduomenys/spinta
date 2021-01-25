@@ -2,11 +2,11 @@ import pathlib
 
 import pytest
 
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.utils import update_manifest_files
 from spinta.testing.utils import read_manifest_files
 from spinta.testing.utils import readable_manifest_files
-from spinta.cli.migrate import freeze
 
 
 @pytest.fixture()
@@ -21,7 +21,7 @@ def rc(rc, tmpdir):
     })
 
 
-def test_create_model(rc, cli):
+def test_create_model(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -34,7 +34,7 @@ def test_create_model(rc, cli):
         },
     })
 
-    assert cli.invoke(rc, freeze).exit_code == 0
+    assert cli.invoke(rc, ['freeze']).exit_code == 0
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest) == {
@@ -72,7 +72,7 @@ def test_create_model(rc, cli):
     }
 
 
-def test_add_column(rc, cli):
+def test_add_column(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -85,7 +85,7 @@ def test_add_column(rc, cli):
         },
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'country.yml': [
@@ -95,7 +95,7 @@ def test_add_column(rc, cli):
         ],
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest) == {
@@ -129,7 +129,7 @@ def test_add_column(rc, cli):
     }
 
 
-def test_freeze_no_changes(rc, cli):
+def test_freeze_no_changes(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -142,8 +142,8 @@ def test_freeze_no_changes(rc, cli):
         },
     })
 
-    cli.invoke(rc, freeze)
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest) == {
@@ -181,7 +181,7 @@ def test_freeze_no_changes(rc, cli):
     }
 
 
-def test_freeze_array(rc, cli):
+def test_freeze_array(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -199,7 +199,7 @@ def test_freeze_array(rc, cli):
         },
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
@@ -234,7 +234,7 @@ def test_freeze_array(rc, cli):
     ]
 
 
-def test_freeze_array_with_object(rc, cli):
+def test_freeze_array_with_object(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -255,7 +255,7 @@ def test_freeze_array_with_object(rc, cli):
         },
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
@@ -288,7 +288,7 @@ def test_freeze_array_with_object(rc, cli):
     ]
 
 
-def test_freeze_object(rc, cli):
+def test_freeze_object(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -314,7 +314,7 @@ def test_freeze_object(rc, cli):
         },
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['report.yml'][-1]['migrate'] == [
@@ -350,7 +350,7 @@ def test_freeze_object(rc, cli):
     ]
 
 
-def test_freeze_file(rc, cli):
+def test_freeze_file(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -367,7 +367,7 @@ def test_freeze_file(rc, cli):
         },
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
@@ -406,7 +406,7 @@ def test_freeze_file(rc, cli):
     ]
 
 
-def test_freeze_list_of_files(rc, cli):
+def test_freeze_list_of_files(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -424,7 +424,7 @@ def test_freeze_list_of_files(rc, cli):
         },
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
@@ -472,7 +472,7 @@ def test_freeze_list_of_files(rc, cli):
     ]
 
 
-def test_freeze_ref(rc, cli):
+def test_freeze_ref(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -496,7 +496,7 @@ def test_freeze_ref(rc, cli):
         }
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     manifest_files = readable_manifest_files(manifest)
@@ -531,7 +531,7 @@ def test_freeze_ref(rc, cli):
     ]
 
 
-def test_add_reference_column(rc, cli):
+def test_add_reference_column(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -550,7 +550,7 @@ def test_add_reference_column(rc, cli):
             },
         },
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'country.yml': [
@@ -564,7 +564,7 @@ def test_add_reference_column(rc, cli):
             }
         ]
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     manifest_files = readable_manifest_files(manifest)
@@ -584,7 +584,7 @@ def test_add_reference_column(rc, cli):
     ]
 
 
-def test_change_ref_model(rc, cli):
+def test_change_ref_model(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -614,7 +614,7 @@ def test_change_ref_model(rc, cli):
             }
         }
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'city.yml': [
@@ -627,10 +627,10 @@ def test_change_ref_model(rc, cli):
     })
 
     with pytest.raises(NotImplementedError) as e:
-        cli.invoke(rc, freeze, catch_exceptions=False)
+        cli.invoke(rc, ['freeze'], catch_exceptions=False)
 
 
-def test_freeze_ref_in_array(rc, cli):
+def test_freeze_ref_in_array(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -656,7 +656,7 @@ def test_freeze_ref_in_array(rc, cli):
         }
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     manifest_files = readable_manifest_files(manifest)
@@ -702,7 +702,7 @@ def test_freeze_ref_in_array(rc, cli):
     ]
 
 
-def test_change_field_type_in_object(rc, cli):
+def test_change_field_type_in_object(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -720,7 +720,7 @@ def test_change_field_type_in_object(rc, cli):
         }
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     update_manifest_files(tmpdir, {
         'country.yml': [
             {
@@ -731,7 +731,7 @@ def test_change_field_type_in_object(rc, cli):
         ]
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
@@ -754,7 +754,7 @@ def test_change_field_type_in_object(rc, cli):
     ]
 
 
-def test_change_field_type_in_list(rc, cli):
+def test_change_field_type_in_list(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -770,7 +770,7 @@ def test_change_field_type_in_list(rc, cli):
         }
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     update_manifest_files(tmpdir, {
         'country.yml': [
             {
@@ -781,7 +781,7 @@ def test_change_field_type_in_list(rc, cli):
         ]
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
@@ -804,7 +804,7 @@ def test_change_field_type_in_list(rc, cli):
     ]
 
 
-def test_add_field_to_object(rc, cli):
+def test_add_field_to_object(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -822,7 +822,7 @@ def test_add_field_to_object(rc, cli):
         }
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     update_manifest_files(tmpdir, {
         'country.yml': [
             {
@@ -833,7 +833,7 @@ def test_add_field_to_object(rc, cli):
         ]
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
@@ -848,7 +848,7 @@ def test_add_field_to_object(rc, cli):
     ]
 
 
-def test_add_field(rc, cli):
+def test_add_field(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -861,7 +861,7 @@ def test_add_field(rc, cli):
         }
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     update_manifest_files(tmpdir, {
         'country.yml': [
             {
@@ -877,7 +877,7 @@ def test_add_field(rc, cli):
         ]
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
         {
@@ -888,7 +888,7 @@ def test_add_field(rc, cli):
     ]
 
 
-def test_freeze_nullable(rc, cli):
+def test_freeze_nullable(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -903,7 +903,7 @@ def test_freeze_nullable(rc, cli):
             }
         }
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
@@ -920,7 +920,7 @@ def test_freeze_nullable(rc, cli):
     ]
 
 
-def test_change_nullable(rc, cli):
+def test_change_nullable(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -935,7 +935,7 @@ def test_change_nullable(rc, cli):
             }
         }
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'country.yml': [
@@ -946,7 +946,7 @@ def test_change_nullable(rc, cli):
             }
         ]
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert readable_manifest_files(manifest)['country.yml'][-1]['migrate'] == [
@@ -958,7 +958,7 @@ def test_change_nullable(rc, cli):
     ]
 
 
-def test_add_nullable_column(rc, cli):
+def test_add_nullable_column(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -970,7 +970,7 @@ def test_add_nullable_column(rc, cli):
             },
         },
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'country.yml': [
@@ -984,7 +984,7 @@ def test_add_nullable_column(rc, cli):
             }
         ]
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     manifest_files = readable_manifest_files(manifest)
@@ -1004,7 +1004,7 @@ def test_add_nullable_column(rc, cli):
     ]
 
 
-def test_delete_property(rc, cli):
+def test_delete_property(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -1017,7 +1017,7 @@ def test_delete_property(rc, cli):
             },
         },
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'country.yml': [
@@ -1027,14 +1027,14 @@ def test_delete_property(rc, cli):
             }
         ]
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     manifest_files = readable_manifest_files(manifest)
     assert manifest_files['country.yml'][-1]['migrate'] == []
 
 
-def test_delete_property_from_object(rc, cli):
+def test_delete_property_from_object(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -1053,7 +1053,7 @@ def test_delete_property_from_object(rc, cli):
             },
         },
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'country.yml': [
@@ -1063,14 +1063,14 @@ def test_delete_property_from_object(rc, cli):
             }
         ]
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     manifest_files = readable_manifest_files(manifest)
     assert manifest_files['country.yml'][-1]['migrate'] == []
 
 
-def test_replace_all_properties(rc, cli):
+def test_replace_all_properties(rc, cli: SpintaCliRunner):
     tmpdir = rc.get('manifests', 'yaml', 'path', cast=pathlib.Path)
 
     create_manifest_files(tmpdir, {
@@ -1083,7 +1083,7 @@ def test_replace_all_properties(rc, cli):
             },
         },
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'country.yml': [
@@ -1094,7 +1094,7 @@ def test_replace_all_properties(rc, cli):
             }
         ]
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     manifest_files = readable_manifest_files(manifest)

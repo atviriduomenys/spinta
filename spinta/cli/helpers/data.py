@@ -1,21 +1,29 @@
+import logging
+import pathlib
+import types
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
+from typing import Optional
 from typing import Tuple
 
 import tqdm
 
 from spinta import commands
 from spinta import components
-from spinta.cli import log
+from spinta.commands.formats import Format
 from spinta.components import Context
+from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek
 
 ModelRow = Tuple[Model, Dict[str, Any]]
+
+log = logging.getLogger(__name__)
 
 
 def _get_row_count(
@@ -86,3 +94,27 @@ def iter_model_rows(
         rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
         for row in rows:
             yield model, row
+
+
+async def process_stream(
+    source: str,
+    stream: DataStream,
+    exporter: Optional[Format] = None,
+    path: Optional[pathlib.Path] = None,
+) -> None:
+    if exporter:
+        # TODO: Probably exporters should support async generators.
+        if isinstance(stream, types.AsyncGeneratorType):
+            stream = await alist(stream)
+        chunks = exporter(stream)
+        if path is None:
+            for chunk in chunks:
+                print(chunk, end='')
+        else:
+            with path.open('wb') as f:
+                for chunk in chunks:
+                    f.write(chunk)
+    else:
+        with tqdm.tqdm(desc=source, ascii=True) as pbar:
+            async for _ in stream:
+                pbar.update(1)

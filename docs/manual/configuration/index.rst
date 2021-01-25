@@ -23,6 +23,17 @@ There is an additional configuration source `config_path`. `config_path` is a
 directory where additional configuration files are looked for.
 
 
+More on configuration
+=====================
+
+.. toctree::
+   :maxdepth: 1
+
+   auth
+   backend
+   manifest
+
+
 Inspecting configuration
 ========================
 
@@ -137,13 +148,3 @@ And use it to configure Spinta::
 This way of configuring Spinta is ment for extensions to provide custom default
 values, overriding defaults coming from `spinta.config:CONFIG`.
 
-
-More on configuration
-=====================
-
-.. toctree::
-   :maxdepth: 1
-
-   auth
-   backend
-   manifest

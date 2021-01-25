@@ -222,6 +222,7 @@ CONFIG = {
                     'path': pathlib.Path() / 'tests/manifest',
                     'sync': None,
                     'keymap': 'default',
+                    'mode': 'internal',
                 },
                 'yaml': {
                     'path': pathlib.Path() / 'tests/manifest',
@@ -262,6 +263,7 @@ CONFIG = {
                     'path': pathlib.Path() / 'tests/manifest',
                     'sync': None,
                     'keymap': 'default',
+                    'mode': 'internal',
                 },
             },
             'config_path': pathlib.Path('tests/config'),

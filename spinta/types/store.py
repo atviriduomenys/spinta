@@ -4,6 +4,8 @@ import pathlib
 import time
 import types
 
+import itertools
+
 from spinta import commands
 from spinta.backends.helpers import load_backend
 from spinta.components import Context, Store
@@ -51,21 +53,48 @@ def load(context: Context, store: Store) -> Store:
 
 
 @commands.wait.register(Context, Store)
-def wait(context: Context, store: Store, *, seconds: int = None):
+def wait(context: Context, store: Store, *, seconds: int = None) -> bool:
     rc = context.get('rc')
 
     if seconds is None:
         seconds = rc.get('wait', cast=int, required=True)
 
+    # Collect all backends
+    backends = set(itertools.chain(
+        store.backends.values(),
+        store.manifest.backends.values(),
+        (
+            resource.backend
+            for dataset in store.manifest.datasets.values()
+            for resource in dataset.resources.values()
+            if resource.backend
+        )
+    ))
+
+    # XXX: Probably whole this has to be moved to cli
     # Wait while all backends are up.
-    for backend in store.backends.values():
-        for i in range(1, seconds + 1):
-            if wait(context, backend):
-                break
-            time.sleep(1)
-            print(f"Waiting for {backend.name!r} backend {i}...")
+    i = 0
+    fail = False
+    start = time.time()
+    while backends:
+        i += 1
+        fail = time.time() - start > seconds
+        print(f"Waiting for backends, attempt #{i}:")
+        for backend in sorted(backends, key=lambda b: b.name):
+            print(f"  {backend.name}...")
+            if commands.wait(context, backend, fail=fail):
+                backends.remove(backend)
+        if fail:
+            break
         else:
-            wait(context, backend, fail=True)
+            time.sleep(1)
+
+    if fail:
+        print("Timeout. Not all backends are ready in given time.")
+    else:
+        print("All backends are up.")
+
+    return True
 
 
 @commands.push.register(Context, Store, types.GeneratorType)

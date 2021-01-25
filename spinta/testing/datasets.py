@@ -1,5 +1,4 @@
 import contextlib
-import itertools
 import json
 import os
 import tempfile
@@ -8,20 +7,18 @@ from typing import List
 
 import sqlalchemy as sa
 
-from spinta.cli.pull import pull as pull_
+from spinta.testing.cli import SpintaCliRunner
 
 Schema = Dict[str, List[sa.Column]]
 
 
-def pull(cli, rc, dataset, model=None, *, push=True):
-    cmd = [
-        [dataset],
+def pull(cli: SpintaCliRunner, rc, dataset, model=None, *, push=True):
+    result = cli.invoke(rc, [
+        'pull', dataset,
         ['--push'] if push else [],
         ['--model', model] if model else [],
-        ['-e', 'stdout:jsonl'],
-    ]
-    cmd = list(itertools.chain(*cmd))
-    result = cli.invoke(rc, pull_, cmd)
+        '-e', 'stdout:jsonl',
+    ])
     data = []
     for line in result.stdout.splitlines():
         try:

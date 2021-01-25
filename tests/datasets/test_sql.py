@@ -4,9 +4,8 @@ import pytest
 
 import sqlalchemy as sa
 
-from spinta.cli.push import push
-from spinta.scripts import copycsvmodels
 from spinta.core.config import RawConfig
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
 from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
@@ -68,10 +67,12 @@ def create_rc(rc: RawConfig, tmpdir: pathlib.Path, geodb: Sqlite):
 
 
 def configure_remote_server(cli, rc: RawConfig, tmpdir: pathlib.Path, responses):
-    cli.invoke(rc, copycsvmodels.main, [
-        '--no-external', '--access', 'open',
-        str(tmpdir / 'manifest.csv'),
-        str(tmpdir / 'remote.csv'),
+    cli.invoke(rc, [
+        'manifest', 'copy',
+        '--no-external',
+        '--access', 'open',
+        tmpdir / 'manifest.csv',
+        tmpdir / 'remote.csv',
     ])
 
     # Create remote server with PostgreSQL backend
@@ -478,7 +479,7 @@ def test_ns_getall(rc, tmpdir, geodb):
     ]
 
 
-def test_push(postgresql, rc, cli, responses, tmpdir, geodb, request):
+def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
@@ -501,9 +502,9 @@ def test_push(postgresql, rc, cli, responses, tmpdir, geodb, request):
     localrc = create_rc(rc, tmpdir, geodb)
 
     # Push data from local to remote.
-    cli.invoke(localrc, push, [
-        remote.url,
-        '-r', str(remote.credsfile),
+    cli.invoke(localrc, [
+        'push', remote.url,
+        '-r', remote.credsfile,
         '-c', remote.client,
         '-d', 'datasets/gov/example',
     ])
@@ -533,9 +534,9 @@ def test_push(postgresql, rc, cli, responses, tmpdir, geodb, request):
     ])
 
     # Push data from local to remote.
-    cli.invoke(localrc, push, [
-        remote.url,
-        '-r', str(remote.credsfile),
+    cli.invoke(localrc, [
+        'push', remote.url,
+        '-r', remote.credsfile,
         '-c', remote.client,
         '-d', 'datasets/gov/example',
     ])
@@ -599,7 +600,7 @@ def test_count(rc, tmpdir, geodb):
     assert listdata(resp) == [3]
 
 
-def test_push_chunks(postgresql, rc, cli, responses, tmpdir, geodb, request):
+def test_push_chunks(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
@@ -618,9 +619,9 @@ def test_push_chunks(postgresql, rc, cli, responses, tmpdir, geodb, request):
     localrc = create_rc(rc, tmpdir, geodb)
 
     # Push data from local to remote.
-    cli.invoke(localrc, push, [
-        remote.url,
-        '-r', str(remote.credsfile),
+    cli.invoke(localrc, [
+        'push', remote.url,
+        '-r', remote.credsfile,
         '-c', remote.client,
         '-d', 'datasets/gov/example',
         '--chunk-size=1',
@@ -635,7 +636,7 @@ def test_push_chunks(postgresql, rc, cli, responses, tmpdir, geodb, request):
     ]
 
 
-def test_push_state(postgresql, rc, cli, responses, tmpdir, geodb, request):
+def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
@@ -654,28 +655,28 @@ def test_push_state(postgresql, rc, cli, responses, tmpdir, geodb, request):
     localrc = create_rc(rc, tmpdir, geodb)
 
     # Push one row, save state and stop.
-    cli.invoke(localrc, push, [
-        remote.url,
-        '-r', str(remote.credsfile),
+    cli.invoke(localrc, [
+        'push', remote.url,
+        '-r', remote.credsfile,
         '-c', remote.client,
         '-d', 'datasets/gov/example',
         '--chunk-size', '1k',
         '--stop-time', '1h',
         '--stop-row', '1',
-        '--state', str(tmpdir / 'state.db'),
+        '--state', tmpdir / 'state.db',
     ])
 
     remote.app.authmodel('datasets/gov/example/country', ['getall'])
     resp = remote.app.get('/datasets/gov/example/country')
     assert len(listdata(resp)) == 1
 
-    cli.invoke(localrc, push, [
-        remote.url,
-        '-r', str(remote.credsfile),
+    cli.invoke(localrc, [
+        'push', remote.url,
+        '-r', remote.credsfile,
         '-c', remote.client,
         '-d', 'datasets/gov/example',
         '--stop-row', '1',
-        '--state', str(tmpdir / 'state.db'),
+        '--state', tmpdir / 'state.db',
     ])
 
     resp = remote.app.get('/datasets/gov/example/country')

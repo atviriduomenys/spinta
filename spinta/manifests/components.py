@@ -66,3 +66,7 @@ class Manifest(Component):
     @property
     def models(self) -> Dict[str, Model]:
         return self.objects['model']
+
+    @property
+    def datasets(self) -> Dict[str, Dataset]:
+        return self.objects['dataset']

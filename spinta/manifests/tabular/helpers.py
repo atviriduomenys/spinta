@@ -650,7 +650,7 @@ def datasets_to_tabular(
                         'description': dataset.description,
                     })
 
-            if external and model.external.resource and (
+            if model.external and model.external.resource and (
                 resource is None or
                 resource.name != model.external.resource.name
             ):

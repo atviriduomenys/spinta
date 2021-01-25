@@ -1,13 +1,13 @@
 import sqlalchemy as sa
 
-from spinta.cli.inspect import inspect
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.tabular import load_tabular_manifest
 from spinta.testing.tabular import render_tabular_manifest
 from spinta.testing.tabular import striptable
 
 
-def test_inspect(rc, cli, tmpdir, sqlite):
+def test_inspect(rc, cli: SpintaCliRunner, tmpdir, sqlite):
     # Prepare source data.
     sqlite.init({
         'COUNTRY': [
@@ -24,11 +24,11 @@ def test_inspect(rc, cli, tmpdir, sqlite):
       | rs                   | sql    |     | {sqlite.dsn} |
     ''')
 
-    cli.invoke(rc, inspect)
+    cli.invoke(rc, ['inspect'])
 
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
-    manifest.objects['dataset']['dataset'].resources['rs'].external = 'sqlite'
+    manifest.datasets['dataset'].resources['rs'].external = 'sqlite'
     assert render_tabular_manifest(manifest) == striptable(f'''
     id | d | r | b | m | property | source  | prepare | type    | ref | level | access    | uri | title | description
        | dataset                  |         |         |         |     |       | protected |     |       |

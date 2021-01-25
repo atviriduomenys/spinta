@@ -2,13 +2,13 @@ import pytest
 
 from responses import GET
 
-from spinta.cli.pull import pull
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.utils import update_manifest_files
 
 
 @pytest.mark.skip('datasets')
-def test_pull(responses, rc, cli, app, tmpdir):
+def test_pull(responses, rc, cli: SpintaCliRunner, app, tmpdir):
     responses.add(
         GET, 'http://example.com/countries.csv',
         status=200, content_type='text/plain; charset=utf-8',
@@ -39,7 +39,7 @@ def test_pull(responses, rc, cli, app, tmpdir):
         },
     })
 
-    result = cli.invoke(rc, pull, ['datasets/csv'])
+    result = cli.invoke(rc, ['pull', 'datasets/csv'])
     assert result.output == (
         '\n'
         '\n'
@@ -57,7 +57,7 @@ def test_pull(responses, rc, cli, app, tmpdir):
         '_data': [],
     }
 
-    result = cli.invoke(rc, pull, ['csv', '--push'])
+    result = cli.invoke(rc, ['pull', 'csv', '--push'])
     assert 'csv:' in result.output
 
     rows = sorted(

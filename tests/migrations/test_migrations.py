@@ -1,12 +1,11 @@
 import pytest
 
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import (
     create_manifest_files,
     update_manifest_files,
     read_manifest_files,
 )
-from spinta.cli.migrate import freeze
-from spinta.cli.migrate import migrate
 
 
 def configure(rc, path):
@@ -20,7 +19,7 @@ def configure(rc, path):
     })
 
 
-def test_create_table(rc, cli, tmpdir):
+def test_create_table(rc, cli: SpintaCliRunner, tmpdir):
     rc = configure(rc, tmpdir)
 
     create_manifest_files(tmpdir, {
@@ -33,7 +32,7 @@ def test_create_table(rc, cli, tmpdir):
         },
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     freezed = manifest['country.yml'][-1]
@@ -59,7 +58,7 @@ def test_create_table(rc, cli, tmpdir):
 
 
 @pytest.mark.skip('TODO')
-def test_add_column(rc, cli, tmpdir):
+def test_add_column(rc, cli: SpintaCliRunner, tmpdir):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
@@ -70,7 +69,7 @@ def test_add_column(rc, cli, tmpdir):
         },
     })
     rc = configure(rc, tmpdir)
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'country.yml': [
@@ -79,7 +78,7 @@ def test_add_column(rc, cli, tmpdir):
             }},
         ],
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     freezed = manifest['country.yml'][-1]
@@ -105,7 +104,7 @@ def test_add_column(rc, cli, tmpdir):
 
 
 @pytest.mark.skip('TODO')
-def test_alter_column(rc, cli, tmpdir):
+def test_alter_column(rc, cli: SpintaCliRunner, tmpdir):
     create_manifest_files(tmpdir, {
         'country.yml': {
             'type': 'model',
@@ -117,14 +116,14 @@ def test_alter_column(rc, cli, tmpdir):
         },
     })
     rc = configure(rc, tmpdir)
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'country.yml': [
             {'op': 'replace', 'path': '/properties/area/type', 'value': 'number'},
         ],
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert manifest['country.yml'][-1] == {
@@ -132,7 +131,7 @@ def test_alter_column(rc, cli, tmpdir):
 
 
 @pytest.mark.skip('TODO')
-def test_schema_with_multiple_head_nodes(rc, cli, tmpdir):
+def test_schema_with_multiple_head_nodes(rc, cli: SpintaCliRunner, tmpdir):
     # test schema creator when resource has a diverging scheme version history
     # i.e. 1st (root) schema migration has 2 diverging branches
     #
@@ -150,7 +149,7 @@ def test_schema_with_multiple_head_nodes(rc, cli, tmpdir):
         },
     })
     rc = configure(rc, tmpdir)
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     manifest = read_manifest_files(tmpdir)
     version = manifest['country.yml'][-1]['version']['id']
 
@@ -162,7 +161,7 @@ def test_schema_with_multiple_head_nodes(rc, cli, tmpdir):
             }},
         ],
     })
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     # 3rd version (parent 1st): alter column - area: number
     update_manifest_files(tmpdir, {
@@ -170,15 +169,15 @@ def test_schema_with_multiple_head_nodes(rc, cli, tmpdir):
             {'op': 'replace', 'path': '/properties/area/type', 'value': 'number'},
         ],
     })
-    cli.invoke(rc, freeze, ['-p', version])
+    cli.invoke(rc, ['freeze', '-p', version])
     manifest = read_manifest_files(tmpdir)
     assert manifest['country.yml'][-1]['version']['id'] == version
 
-    cli.invoke(rc, migrate)
+    cli.invoke(rc, ['migrate'])
 
 
 @pytest.mark.skip('TODO')
-def test_build_schema_relation_graph(rc, cli, tmpdir):
+def test_build_schema_relation_graph(rc, cli: SpintaCliRunner, tmpdir):
     # test new schema version, when multiple models have no foreign keys
     create_manifest_files(tmpdir, {
         'country.yml': {
@@ -206,7 +205,7 @@ def test_build_schema_relation_graph(rc, cli, tmpdir):
         }
     })
     rc = configure(rc, tmpdir)
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     version = {

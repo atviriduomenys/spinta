@@ -1,11 +1,11 @@
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.tabular import load_tabular_manifest
 from spinta.testing.tabular import render_tabular_manifest
-from spinta.scripts.copycsvmodels import main
 
 
-def test_copycsvmodels(rc, cli, tmpdir):
+def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
@@ -24,10 +24,11 @@ def test_copycsvmodels(rc, cli, tmpdir):
       |   |   |   | country  | salis       | ref    | country |
     '''))
 
-    cli.invoke(rc, main, [
+    cli.invoke(rc, [
+        'manifest', 'copy',
         '--no-external', '--access', 'open',
-        str(tmpdir / 'manifest.csv'),
-        str(tmpdir / 'result.csv'),
+        tmpdir / 'manifest.csv',
+        tmpdir / 'result.csv',
     ])
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
@@ -36,19 +37,20 @@ def test_copycsvmodels(rc, cli, tmpdir):
         'type', 'ref', 'source', 'level', 'access',
     ]
     assert render_tabular_manifest(manifest, cols) == striptable('''
-    d | r | b | m | property | type   | ref     | source | level | access
-    datasets/gov/example     |        |         |        |       | protected
-                             |        |         |        |       |
-      |   |   | country      |        |         |        |       | open
-      |   |   |   | name     | string |         |        |       | open
-                             |        |         |        |       |
-      |   |   | city         |        |         |        |       | open
-      |   |   |   | name     | string |         |        |       | open
-      |   |   |   | country  | ref    | country |        |       | open
+    d | r | b | m | property | type       | ref     | source | level | access
+    datasets/gov/example     |            |         |        |       | protected
+      | data                 | postgresql | default |        |       | protected
+                             |            |         |        |       |
+      |   |   | country      |            |         |        |       | open
+      |   |   |   | name     | string     |         |        |       | open
+                             |            |         |        |       |
+      |   |   | city         |            |         |        |       | open
+      |   |   |   | name     | string     |         |        |       | open
+      |   |   |   | country  | ref        | country |        |       | open
     ''')
 
 
-def test_copycsvmodels_with_filters_and_externals(rc, cli, tmpdir):
+def test_copy_with_filters_and_externals(rc, cli, tmpdir):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | type   | ref     | source      | prepare   | access
     datasets/gov/example     |        |         |             |           |
@@ -67,10 +69,11 @@ def test_copycsvmodels_with_filters_and_externals(rc, cli, tmpdir):
       |   |   |   | country  | ref    | country | salis       |           |
     '''))
 
-    cli.invoke(rc, main, [
+    cli.invoke(rc, [
+        'manifest', 'copy',
         '--access', 'open',
-        str(tmpdir / 'manifest.csv'),
-        str(tmpdir / 'result.csv'),
+        tmpdir / 'manifest.csv',
+        tmpdir / 'result.csv',
     ])
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')

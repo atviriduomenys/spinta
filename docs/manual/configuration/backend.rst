@@ -5,7 +5,13 @@
 Configuring backends
 ####################
 
-Spinta supports multiple backends and multiple backends instances. All
+Operation mode
+==============
+
+How backends are configured depends on manifest operation mode.
+
+
+Spinta supports multiple backends and multiple backend instances. All
 supported backends are defined in `components.backends`. You can look it up::
 
   > spinta config components.backends

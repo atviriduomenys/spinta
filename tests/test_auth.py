@@ -10,9 +10,8 @@ from authlib.jose import jwk
 from authlib.jose import jwt
 
 from spinta import auth
-from spinta.cli.server import genkeys
-from spinta.cli.client import client_add
 from spinta.components import Action
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import get_error_codes
 from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
@@ -49,8 +48,8 @@ def test_app(context, app):
     }
 
 
-def test_genkeys(rc, cli, tmpdir):
-    result = cli.invoke(rc, genkeys, ['-p', str(tmpdir)])
+def test_genkeys(rc, cli: SpintaCliRunner, tmpdir):
+    result = cli.invoke(rc, ['genkeys', '-p', tmpdir])
     assert result.output == (
         f'Private key saved to {tmpdir}/keys/private.json.\n'
         f'Public key saved to {tmpdir}/keys/public.json.\n'
@@ -59,8 +58,8 @@ def test_genkeys(rc, cli, tmpdir):
     jwk.loads(json.loads(tmpdir.join('keys/public.json').read()))
 
 
-def test_client_add(rc, cli, tmpdir):
-    result = cli.invoke(rc, client_add, ['-p', str(tmpdir)])
+def test_client_add(rc, cli: SpintaCliRunner, tmpdir):
+    result = cli.invoke(rc, ['client', 'add', '-p', tmpdir])
 
     client_file = pathlib.Path(str(tmpdir.listdir()[0]))
     assert f'client created and saved to:\n\n    {client_file}' in result.output
@@ -74,9 +73,10 @@ def test_client_add(rc, cli, tmpdir):
     }
 
 
-def test_client_add_with_scope(rc, cli, tmpdir):
-    cli.invoke(rc, client_add, [
-        '--path', str(tmpdir),
+def test_client_add_with_scope(rc, cli: SpintaCliRunner, tmpdir):
+    cli.invoke(rc, [
+        'client', 'add',
+        '--path', tmpdir,
         '--name', 'test',
         '--scope', 'spinta_getall spinta_getone',
     ])
@@ -93,14 +93,16 @@ def test_client_add_with_scope(rc, cli, tmpdir):
     }
 
 
-def test_client_add_with_scope_via_stdin(rc, cli, tmpdir):
+def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmpdir):
     stdin = io.BytesIO(
         b'spinta_getall\n'
         b'spinta_getone\n'
     )
-    cli.invoke(rc, client_add, [
-        '--path', str(tmpdir),
+    cli.invoke(rc, [
+        'client', 'add',
+        '--path', tmpdir,
         '--name', 'test',
+        '--scope', '-',
     ], input=stdin)
 
     yaml = ruamel.yaml.YAML(typ='safe')

@@ -3,7 +3,7 @@ import enum
 
 class Access(enum.IntEnum):
     # Private properties can be accesses only if an explicit property scope is
-    # given. I client doens not have required scope, then private properties
+    # given. I client does not have required scope, then private properties
     # can't bet selected, but can be used in query conditions, in sorting.
     private = 0
 

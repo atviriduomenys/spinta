@@ -48,10 +48,10 @@ def read_config(args=None, envfile=None):
     return rc
 
 
-class KeyFormat(enum.Enum):
-    CFG = 'cfg'
-    CLI = 'cli'
-    ENV = 'env'
+class KeyFormat(str, enum.Enum):
+    cfg = 'cfg'
+    cli = 'cli'
+    env = 'env'
 
 
 class ConfigSource:
@@ -271,7 +271,7 @@ class RawConfig:
             res = res if origin else (res,)
             yield (key,) + res
 
-    def dump(self, *names, fmt: KeyFormat = KeyFormat.CFG, file=sys.stdout):
+    def dump(self, *names, fmt: KeyFormat = KeyFormat.cfg, file=sys.stdout):
         table = [('Origin', 'Name', 'Value')]
         sizes = [len(x) for x in table[0]]
         for key, val, origin in self.getall(origin=True):
@@ -283,7 +283,7 @@ class RawConfig:
                 else:
                     continue
 
-            if fmt == KeyFormat.ENV:
+            if fmt == KeyFormat.env:
                 key = 'SPINTA_' + '__'.join(key).upper()
             else:
                 key = '.'.join(key)

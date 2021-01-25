@@ -1,25 +1,29 @@
-import click
+from typing import List
+from typing import Optional
 
-from spinta.cli import main
+from typer import Argument
+from typer import Context as TyperContext
+from typer import echo
+
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.core.config import KeyFormat
 
 
-@main.command()
-@click.pass_context
-@click.argument('name', nargs=-1, required=False)
-@click.option('-f', '--format', 'fmt', default='cfg', help=(
-    'Configuration option name format, possible values: cfg, cli, env.'
-))
-def config(ctx, name=None, fmt='cfg'):
+def config(
+    ctx: TyperContext,
+    name: Optional[List[str]] = Argument(None),
+    fmt: KeyFormat = KeyFormat.cfg,
+):
+    """Show current configuration values"""
     context = ctx.obj
     rc = context.get('rc')
-    rc.dump(*name, fmt=KeyFormat[fmt.upper()])
+    rc.dump(*name, fmt=fmt)
 
 
-@main.command()
-@click.pass_context
-def check(ctx):
+def check(
+    ctx: TyperContext,
+):
+    """Check configuration and manifests"""
     context = ctx.obj
     prepare_manifest(context)
-    click.echo("OK")
+    echo("OK")

@@ -6,6 +6,7 @@ from typing import overload
 from spinta.dispatcher import command
 
 if TYPE_CHECKING:
+    from spinta.components import Store
     from spinta.backends import Backend
     from spinta.components import Context
     from spinta.manifests.components import Manifest
@@ -124,8 +125,25 @@ def load_operator_value():
     """
 
 
+@overload
+def wait(context: Context, store: Store, *, seconds: int = None) -> bool:
+    """Wait for all backends given amount of seconds"""
+
+
+@overload
+def wait(context: Context, backend: Backend, *, fail: bool = False) -> bool:
+    """Check if backend is available and operational
+
+    This usually attempts to connect to backend with a very small timeout and
+    return True if connection is successful or False if not.
+
+    If `fail` is False, catch all connection related errors and return False,
+    if True, raise exception as is.
+    """
+
+
 @command()
-def wait():
+def wait(*args):
     """Wait while all database backends are up.
 
     Database backends are a separate services and once you start multiple

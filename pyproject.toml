@@ -32,7 +32,7 @@ packages = [
 
 
 [tool.poetry.scripts]
-spinta = "spinta.cli:main"
+spinta = "spinta.cli.main:app"
 
 
 [tool.poetry.dependencies]
@@ -83,6 +83,7 @@ phonenumbers = { version = "*", optional = false }
 # API server dependencies
 gunicorn = { version = "*", optional = false }
 uvicorn = { version = "*", optional = false }
+typer = {extras = ["all"], version = "^0.3.2"}
 
 
 [_tool.poetry.extras]

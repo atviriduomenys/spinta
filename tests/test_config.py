@@ -467,7 +467,7 @@ def test_dump():
 def test_dump_env():
     rc = RawConfig()
     rc.add('defaults', {'backends.default.type': 'mongo'})
-    assert rc.dump(fmt=KeyFormat.ENV, file=None) == [
+    assert rc.dump(fmt=KeyFormat.env, file=None) == [
         ('Origin', 'Name', 'Value'),
         ('--------', '------------------------------', '-----'),
         ('defaults', 'SPINTA_BACKENDS__DEFAULT__TYPE', 'mongo'),

@@ -5,15 +5,17 @@ import uuid
 from typing import Any
 from typing import Dict
 from typing import Iterable
+from typing import Optional
 from typing import TextIO
 from typing import TypedDict
 
-import click
 import phonenumbers
 import tqdm
 from phonenumbers import NumberParseException
+from typer import Context as TyperContext
+from typer import Option
+from typer import Typer
 
-from spinta.cli import main
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.data import count_rows
@@ -34,10 +36,7 @@ from spinta.utils.data import take
 from spinta.utils.nin import is_nin_lt
 
 
-@main.group()
-@click.pass_context
-def pii(ctx: click.Context):
-    pass
+app = Typer()
 
 
 def _get_new_metadata_row_id():
@@ -177,22 +176,20 @@ def _save_manifest(manifest: Manifest, dest: TextIO):
     write_tabular_manifest(dest, rows)
 
 
-@pii.command(help='Push data to external data store.')
-@click.argument('manifest')
-@click.option('--output', '-o', help="Path to manifest with detected PII.")
-@click.option('--auth', '-a', help="Authorize as client.")
-@click.option('--stop-on-error', is_flag=True, default=False, help=(
-    "Stop on first error."
-))
-@click.pass_context
+@app.command()
 def detect(
-    ctx: click.Context,
+    ctx: TyperContext,
     manifest: str,
-    output: str,
-    auth: str,
-    stop_on_error: bool,
+    output: Optional[str] = Option(None, '-o', '--output', help=(
+        "Path to manifest with detected PII."
+    )),
+    auth: Optional[str] = Option(None, '-a', '--auth', help=(
+        "Authorize as a client"
+    )),
+    stop_on_error: bool = Option(False, help="Stop on first error"),
 ):
-    context = ctx.obj
+    """Push data to external data store."""
+    context: Context = ctx.obj
 
     config = {
         'backends.cli': {

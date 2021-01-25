@@ -1,7 +1,7 @@
 import pytest
 
 from spinta.exceptions import MultipleParentsError
-from spinta.cli.migrate import freeze
+from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import create_manifest_files, read_manifest_files
 from spinta.testing.utils import update_manifest_files
 from spinta import spyna
@@ -36,7 +36,7 @@ def configure(rc, path):
     })
 
 
-def test_new_version_new_manifest(rc, cli, tmpdir):
+def test_new_version_new_manifest(rc, cli: SpintaCliRunner, tmpdir):
     create_manifest_files(tmpdir, {
         'models/report.yml': {
             'type': 'model',
@@ -51,7 +51,7 @@ def test_new_version_new_manifest(rc, cli, tmpdir):
         },
     })
     rc = configure(rc, tmpdir)
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert len(manifest['models/report.yml']) == 2
@@ -60,7 +60,7 @@ def test_new_version_new_manifest(rc, cli, tmpdir):
     assert current['version'] == freezed['id']
 
 
-def test_new_version_no_changes(rc, cli, tmpdir):
+def test_new_version_no_changes(rc, cli: SpintaCliRunner, tmpdir):
     rc = configure(rc, tmpdir)
 
     create_manifest_files(tmpdir, {
@@ -73,12 +73,12 @@ def test_new_version_no_changes(rc, cli, tmpdir):
         },
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     manifest = read_manifest_files(tmpdir)
     assert len(manifest['models/report.yml']) == 2
     current = manifest['models/report.yml'][0]
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     manifest = read_manifest_files(tmpdir)
     assert len(manifest['models/report.yml']) == 2
     freezed = manifest['models/report.yml'][1]
@@ -87,7 +87,7 @@ def test_new_version_no_changes(rc, cli, tmpdir):
     assert current['version'] == freezed['id']
 
 
-def test_new_version_with_changes(rc, cli, tmpdir):
+def test_new_version_with_changes(rc, cli: SpintaCliRunner, tmpdir):
     rc = configure(rc, tmpdir)
 
     create_manifest_files(tmpdir, {
@@ -100,7 +100,7 @@ def test_new_version_with_changes(rc, cli, tmpdir):
         },
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     update_manifest_files(tmpdir, {
         'models/report.yml': [
@@ -110,7 +110,7 @@ def test_new_version_with_changes(rc, cli, tmpdir):
         ],
     })
 
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
 
     manifest = read_manifest_files(tmpdir)
     assert len(manifest['models/report.yml']) == 3
@@ -132,7 +132,7 @@ def test_new_version_with_changes(rc, cli, tmpdir):
 
 
 @pytest.mark.skip('TODO')
-def test_new_version_branching_versions(rc, cli, tmpdir):
+def test_new_version_branching_versions(rc, cli: SpintaCliRunner, tmpdir):
     # tests manifest with 3 versions, where 2 versions branch from the first
     # one.
     schema = [
@@ -247,11 +247,11 @@ def test_new_version_branching_versions(rc, cli, tmpdir):
     })
     rc = configure(rc, tmpdir)
     with pytest.raises(MultipleParentsError):
-        cli.invoke(rc, freeze)
+        cli.invoke(rc, ['freeze'])
 
 
 @pytest.mark.skip('TODO')
-def test_new_version_w_foreign_key(rc, cli, tmpdir):
+def test_new_version_w_foreign_key(rc, cli: SpintaCliRunner, tmpdir):
     # test new schema version, when model has foreign keys
     create_manifest_files(tmpdir, {
         'models/org.yml': [
@@ -283,7 +283,7 @@ def test_new_version_w_foreign_key(rc, cli, tmpdir):
         ],
     })
     rc = configure(rc, tmpdir)
-    cli.invoke(rc, freeze)
+    cli.invoke(rc, ['freeze'])
     manifest = read_manifest_files(tmpdir)
     freezed = manifest['models/org.yml'][-1]
     assert freezed['version']['parents'] == [
