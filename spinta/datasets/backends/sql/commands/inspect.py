@@ -1,6 +1,7 @@
 from typing import Any
 from typing import Dict
 from typing import Iterator
+from typing import List
 from typing import Optional
 from typing import Tuple
 
@@ -18,15 +19,6 @@ from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
 
 
-def _read_frictionless_field(field: frictionless.Field):
-    return {
-        'type': field.type,
-        'external': {
-            'name': field.name,
-        }
-    }
-
-
 def _ensure_list(value: Optional[Any]):
     if value is None:
         return value
@@ -36,11 +28,51 @@ def _ensure_list(value: Optional[Any]):
         return [value]
 
 
+def _read_foreign_keys(
+    resource: Optional[Resource],
+    foreign_keys: List[Dict[str, Any]],
+    properties: Dict[str, dict],
+) -> Dict[str, Any]:
+    for fk in foreign_keys:
+        if len(fk['fields']) == 1:
+            name = to_property_name(fk['fields'][0])
+            prop = properties[name]
+        else:
+            name = to_property_name('_'.join(fk['fields']))
+            prop = properties[name] = {}
+            prop['prepare'] = ', '.join([
+                to_property_name(f) for f in fk['fields']
+            ])
+
+        model_name = to_model_name(fk['reference']['resource'])
+        if resource:
+            model_name = f'{resource.dataset.name}/{model_name}'
+
+        prop['type'] = 'ref'
+        prop['model'] = model_name
+        prop['refprops'] = [
+            to_property_name(f)
+            for f in fk['reference']['fields']
+        ]
+
+    return properties
+
+
+def _read_frictionless_field(field: frictionless.Field) -> Dict[str, Any]:
+    return {
+        'type': field.type,
+        'external': {
+            'name': field.name,
+        }
+    }
+
+
 def _read_frictionless_resource(
     resource: Optional[Resource],
     backend: Backend,
     frictionless_resource: frictionless.Resource,
 ) -> Dict[str, Any]:
+    schema = frictionless_resource.schema
     name = to_model_name(frictionless_resource.name)
     if resource:
         name = f'{resource.dataset.name}/{name}'
@@ -53,13 +85,13 @@ def _read_frictionless_resource(
             'name': frictionless_resource.name,
             'pk': [
                 to_property_name(p)
-                for p in _ensure_list(frictionless_resource.schema.primary_key)
+                for p in _ensure_list(schema.primary_key)
             ],
         },
-        'properties': {
+        'properties': _read_foreign_keys(resource, schema.foreign_keys, {
             to_property_name(field.name): _read_frictionless_field(field)
-            for field in frictionless_resource.schema.fields
-        },
+            for field in schema.fields
+        }),
     }
 
 
