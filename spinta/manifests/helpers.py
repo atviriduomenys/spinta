@@ -92,17 +92,19 @@ def load_manifest_nodes(
     source: Manifest = None,
     link: bool = False,
 ) -> None:
+    to_link = []
     config = context.get('config')
     for eid, schema in schemas:
         if schema.get('type') == 'manifest':
             _load_manifest(context, manifest, schema, eid)
-            if link:
-                commands.link(context, manifest)
         else:
             node = _load_manifest_node(context, config, manifest, source, eid, schema)
             manifest.objects[node.type][node.name] = node
             if link:
-                commands.link(context, node)
+                to_link.append(node)
+    if to_link:
+        for node in to_link:
+            commands.link(context, node)
 
 
 def _load_manifest_backends(
