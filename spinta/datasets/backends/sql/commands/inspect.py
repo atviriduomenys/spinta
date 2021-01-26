@@ -29,6 +29,7 @@ def _ensure_list(value: Optional[Any]):
 
 
 def _read_foreign_keys(
+    model_name: str,
     resource: Optional[Resource],
     foreign_keys: List[Dict[str, Any]],
     properties: Dict[str, dict],
@@ -44,12 +45,17 @@ def _read_foreign_keys(
                 to_property_name(f) for f in fk['fields']
             ])
 
-        model_name = to_model_name(fk['reference']['resource'])
-        if resource:
-            model_name = f'{resource.dataset.name}/{model_name}'
+        ref_model_name = to_model_name(fk['reference']['resource'])
+        if ref_model_name:
+            if resource:
+                ref_model_name = f'{resource.dataset.name}/{ref_model_name}'
+        else:
+            # If ref_model_name is empty string, it means, this is a self
+            # refrence.
+            ref_model_name = model_name
 
         prop['type'] = 'ref'
-        prop['model'] = model_name
+        prop['model'] = ref_model_name
         prop['refprops'] = [
             to_property_name(f)
             for f in fk['reference']['fields']
@@ -88,10 +94,15 @@ def _read_frictionless_resource(
                 for p in _ensure_list(schema.primary_key)
             ],
         },
-        'properties': _read_foreign_keys(resource, schema.foreign_keys, {
-            to_property_name(field.name): _read_frictionless_field(field)
-            for field in schema.fields
-        }),
+        'properties': _read_foreign_keys(
+            name,
+            resource,
+            schema.foreign_keys,
+            {
+                to_property_name(field.name): _read_frictionless_field(field)
+                for field in schema.fields
+            },
+        ),
     }
 
 

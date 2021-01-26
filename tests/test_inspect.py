@@ -162,3 +162,41 @@ def test_inspect_cyclic_refs(
        |   |   |   |   | capital    | CAPITAL    |         | ref     | City    |       | protected |     |       |
        |   |   |   |   | name       | NAME       |         | string  |         |       | protected |     |       |
     ''')
+
+
+def test_inspect_self_refs(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmpdir: Path,
+    sqlite: Sqlite,
+):
+    # Prepare source data.
+    sqlite.init({
+        'CATEGORY': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+            sa.Column('PARENT_ID', sa.Integer, sa.ForeignKey("CATEGORY.ID")),
+        ],
+    })
+
+    rc = _fix_s3_backend_issue(rc)
+
+    cli.invoke(rc, [
+        'inspect',
+        '-r', 'sql', sqlite.dsn,
+        '-o', tmpdir / 'manifest.csv',
+              ])
+
+    # Check what was detected.
+    manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
+    manifest.datasets['dataset'].resources['sql'].external = 'sqlite'
+    assert render_tabular_manifest(manifest) == striptable(f'''
+    id | d | r | b | m | property  | source    | prepare | type    | ref      | level | access    | uri | title | description
+       | dataset                   |           |         |         |          |       | protected |     |       |
+       |   | sql                   | sqlite    |         | sql     |          |       | protected |     |       |
+       |                           |           |         |         |          |       |           |     |       |
+       |   |   |   | Category      | CATEGORY  |         |         | id       |       | protected |     |       |
+       |   |   |   |   | id        | ID        |         | integer |          |       | protected |     |       |
+       |   |   |   |   | name      | NAME      |         | string  |          |       | protected |     |       |
+       |   |   |   |   | parent_id | PARENT_ID |         | ref     | Category |       | protected |     |       |
+    ''')

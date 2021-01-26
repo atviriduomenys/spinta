@@ -12,11 +12,16 @@ from spinta.types.helpers import set_dtype_backend
 def link(context: Context, dtype: Ref) -> None:
     set_dtype_backend(dtype)
 
-    if dtype.model not in dtype.prop.model.manifest.models:
-        raise ModelReferenceNotFound(dtype, ref=dtype.model)
     # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
-    model: str = dtype.model
-    dtype.model = dtype.prop.model.manifest.models[model]
+    referenced_model: str = dtype.model
+
+    if referenced_model == dtype.prop.model.name:
+        # Self reference.
+        dtype.model = dtype.prop.model
+    else:
+        if referenced_model not in dtype.prop.model.manifest.models:
+            raise ModelReferenceNotFound(dtype, ref=referenced_model)
+        dtype.model = dtype.prop.model.manifest.models[referenced_model]
 
     if dtype.refprops:
         refprops = []
