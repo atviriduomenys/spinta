@@ -27,6 +27,9 @@ from spinta.utils.data import take
 
 class S3(Backend):
 
+    bucket_name: str = None
+    region: str = None
+
     features = {
         BackendFeatures.WRITE,
     }

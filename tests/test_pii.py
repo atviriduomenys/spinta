@@ -4,7 +4,7 @@ from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.tabular import load_tabular_manifest
 from spinta.testing.tabular import render_tabular_manifest
-from spinta.testing.tabular import striptable
+from spinta.manifests.tabular.helpers import striptable
 
 
 def test_detect_pii(rc, cli: SpintaCliRunner, tmpdir, sqlite):

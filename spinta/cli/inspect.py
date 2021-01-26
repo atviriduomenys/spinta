@@ -1,16 +1,20 @@
 import pathlib
 from typing import Optional
 from typing import TextIO
+from typing import Tuple
 
 from typer import Context as TyperContext
 from typer import Option
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
+from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Context
+from spinta.core.config import RawConfig
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.helpers import datasets_to_tabular
+from spinta.manifests.tabular.helpers import load_ascii_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 
 
@@ -23,6 +27,12 @@ def _save_manifest(manifest: Manifest, dest: TextIO):
 
 def inspect(
     ctx: TyperContext,
+    resource: Optional[Tuple[str, str]] = Option((None, None), '-r', '--resource', help=(
+        "Resource type and source URI (-f sql sqlite:////tmp/db.sqlite)"
+    )),
+    output: Optional[pathlib.Path] = Option(None, '-o', '--output', help=(
+        "Output tabular manifest in a specified file"
+    )),
     auth: Optional[str] = Option(None, '-a', '--auth', help=(
         "Authorize as a client"
     )),
@@ -31,12 +41,44 @@ def inspect(
     context: Context = ctx.obj
     context = context.fork('inspect')
 
-    # Load manifest
-    store = prepare_manifest(context)
+    if any(resource):
+        config = {
+            'backends.null': {
+                'type': 'memory',
+            },
+            'manifests.inspect': {
+                'type': 'tabular',
+                'backend': 'null',
+                'keymap': 'default',
+                'mode': 'external',
+                'path': None,
+            },
+            'manifest': 'inspect',
+        }
+
+        # Add given manifest file to configuration
+        rc: RawConfig = context.get('rc')
+        context.set('rc', rc.fork(config))
+        store = load_store(context)
+        resource_type, resource_source = resource
+        load_ascii_tabular_manifest(context, store.manifest, f'''
+        d | r               | type            | source
+        dataset             |                 |
+          | {resource_type} | {resource_type} | {resource_source}
+        ''', strip=True)
+        commands.check(context, store.manifest)
+        commands.prepare(context, store.manifest)
+
+    else:
+        # Load manifest
+        store = prepare_manifest(context)
+
     manifest = store.manifest
+
     with context:
         require_auth(context, auth)
         commands.inspect(context, manifest)
-        output = manifest.path
+        if output is None:
+            output = manifest.path
         with pathlib.Path(output).open('w') as f:
             _save_manifest(manifest, f)

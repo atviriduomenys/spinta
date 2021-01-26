@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import pathlib
+import textwrap
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -13,14 +14,17 @@ from typing import TextIO
 from typing import Tuple
 from typing import TypedDict
 
+from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
+from spinta.components import Context
 from spinta.components import Model
 from spinta.core.enums import Access
 from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
+from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.constants import DATASET
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
@@ -50,9 +54,9 @@ class TabularManifestError(Exception):
 
 
 def _detect_header(
-    path: pathlib.Path,
+    path: Optional[pathlib.Path],
     line: int,  # Line number
-    row: Dict[str, str],
+    row: Iterable[str],
 ) -> List[str]:
     header = [h.strip().lower() for h in row]
     unknown_columns = set(header[:len(DATASET)]) - set(DATASET)
@@ -65,7 +69,7 @@ def _detect_header(
 
 
 def _detect_dimension(
-    path: pathlib.Path,
+    path: Optional[pathlib.Path],
     line: int,  # Line number
     row: Dict[str, str],
 ) -> Optional[str]:
@@ -537,31 +541,93 @@ class State:
             self.stack.append(reader)
 
 
+def _read_tabular_manifest_rows(
+    path: Optional[pathlib.Path],
+    rows: Iterator[List[str]],
+) -> Iterator[ParsedRow]:
+    header = next(rows, None)
+    if header is None:
+        # Looks like an empty file.
+        return
+    header = _detect_header(path, 1, header)
+
+    defaults = {k: '' for k in DATASET}
+
+    state = State()
+    reader = ManifestReader(state, path, 1, {})
+    yield from state.release(reader)
+
+    for i, row in enumerate(rows, 2):
+        row = dict(zip(header, row))
+        row = {**defaults, **row}
+        dimension = _detect_dimension(path, i, row)
+        Reader = READERS[dimension]
+        reader = Reader(state, path, i, row)
+        yield from state.release(reader)
+
+    yield from state.release()
+
+
 def read_tabular_manifest(path: pathlib.Path) -> Iterator[ParsedRow]:
     with path.open() as f:
         csv_reader = csv.reader(f)
+        yield from _read_tabular_manifest_rows(path, csv_reader)
 
-        header = next(csv_reader, None)
-        if header is None:
-            # Looks like an empty file.
-            return
-        header = _detect_header(path, 1, header)
 
-        defaults = {k: '' for k in DATASET}
+def striptable(table):
+    return textwrap.dedent(table).strip()
 
-        state = State()
-        reader = ManifestReader(state, path, 1, {})
-        yield from state.release(reader)
 
-        for i, row in enumerate(csv_reader, 2):
-            row = dict(zip(header, row))
-            row = {**defaults, **row}
-            dimension = _detect_dimension(path, i, row)
-            Reader = READERS[dimension]
-            reader = Reader(state, path, i, row)
-            yield from state.release(reader)
+def read_ascii_tabular_rows(
+    manifest: str,
+    *,
+    strip: bool = False,
+) -> Iterator[List[str]]:
+    if strip:
+        manifest = striptable(manifest)
 
-        yield from state.release()
+    lines = (line.strip() for line in manifest.splitlines())
+    lines = filter(None, lines)
+
+    # Read header
+    header = next(lines, None)
+    if header is None:
+        return
+    header = header.split('|')
+    header = [h.strip().lower() for h in header]
+    header = [SHORT_NAMES.get(h, h) for h in header]
+
+    # Find index where dimension columns end.
+    dim = sum(1 for h in header if h in DATASET[:6])
+    yield header
+    for line in lines:
+        row = line.split('|')
+        row = [x.strip() for x in row]
+        rem = len(header) - len(row)
+        row = row[:dim - rem] + [''] * rem + row[dim - rem:]
+        assert len(header) == len(row), line
+        yield row
+
+
+def read_ascii_tabular_manifest(
+    manifest: str,
+    *,
+    strip: bool = False,
+) -> Iterator[ParsedRow]:
+    rows = read_ascii_tabular_rows(manifest, strip=strip)
+    yield from _read_tabular_manifest_rows(None, rows)
+
+
+def load_ascii_tabular_manifest(
+    context: Context,
+    manifest: Manifest,
+    manifest_ascii_table: str,
+    *,
+    strip: bool = False,
+):
+    schemas = read_ascii_tabular_manifest(manifest_ascii_table)
+    load_manifest_nodes(context, manifest, schemas)
+    commands.link(context, manifest)
 
 
 def get_relative_model_name(dataset: dict, name: str) -> str:
@@ -764,3 +830,11 @@ def write_tabular_manifest(file: TextIO, rows: Iterable[dict]):
     writer = csv.DictWriter(file, fieldnames=DATASET)
     writer.writeheader()
     writer.writerows(rows)
+
+
+SHORT_NAMES = {
+    'd': 'dataset',
+    'r': 'resource',
+    'b': 'base',
+    'm': 'model',
+}

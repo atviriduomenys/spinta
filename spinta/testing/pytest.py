@@ -8,9 +8,11 @@ import pytest
 import sqlalchemy_utils as su
 from responses import RequestsMock
 
+from spinta.core.config import RawConfig
 from spinta.core.config import read_config
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_test_client
+from spinta.testing.context import ContextForTests
 from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
 
@@ -90,8 +92,8 @@ def backends(postgresql, mongo, s3):
 
 
 @pytest.fixture(scope='session')
-def _context(rc, postgresql, mongo, s3):
-    context = create_test_context(rc)
+def _context(rc: RawConfig, postgresql, mongo, s3):
+    context: ContextForTests = create_test_context(rc)
     context.load()
     yield context
 

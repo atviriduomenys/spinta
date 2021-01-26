@@ -291,6 +291,10 @@ class InvalidManifestFile(BaseError):
     template = "Error while parsing {eid!r} manifest entry: {error}"
 
 
+class ManifestFileDoesNotExist(BaseError):
+    template = "Manifest file {path} does not exist."
+
+
 class UnknownProjectOwner(BaseError):
     template = "Unknown owner {owner}."
     context = {

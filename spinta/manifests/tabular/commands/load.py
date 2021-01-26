@@ -27,6 +27,12 @@ def load(
         store = context.get('store')
         commands.load(context, store.internal, into=target)
 
+    if manifest.path is None:
+        # There are cases, when we don't want to load any manifest.
+        # For example, we want to start with an empty manifest, and then
+        # generate it from external resources.
+        return
+
     if into:
         log.info(
             'Loading freezed manifest %r into %r from %s.',

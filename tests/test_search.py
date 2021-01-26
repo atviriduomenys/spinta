@@ -6,7 +6,7 @@ from spinta.testing.utils import error
 from spinta.testing.utils import get_error_codes, RowIds
 from spinta.testing.context import create_test_context
 from spinta.testing.client import create_test_client
-from spinta.testing.tabular import striptable
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.data import listdata
 

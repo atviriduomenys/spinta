@@ -5,7 +5,7 @@ from spinta.auth import gen_auth_server_keys
 from spinta.core.config import RawConfig
 from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.tabular import striptable
+from spinta.manifests.tabular.helpers import striptable
 
 CONFIG = {
     'environments': {

@@ -1,6 +1,5 @@
 import csv
 import pathlib
-import textwrap
 from typing import List
 
 from spinta import commands
@@ -9,53 +8,17 @@ from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.helpers import datasets_to_tabular
+from spinta.manifests.tabular.helpers import read_ascii_tabular_rows
 from spinta.manifests.tabular.helpers import read_tabular_manifest
 from spinta.testing.context import create_test_context
 
-SHORT_NAMES = {
-    'd': 'dataset',
-    'r': 'resource',
-    'b': 'base',
-    'm': 'model',
-}
-
-
-def striptable(table):
-    return textwrap.dedent(table).strip()
-
 
 def create_tabular_manifest(path: pathlib.Path, manifest: str):
-    header = None
-    manifest = striptable(manifest)
-    lines = iter(manifest.splitlines())
-    for line in lines:
-        line = line.strip()
-        if line == '':
-            continue
-        header = line.split('|')
-        header = [h.strip().lower() for h in header]
-        header = [SHORT_NAMES.get(h, h) for h in header]
-        break
     with path.open('w') as f:
         writer = csv.writer(f)
-        for row in _read_tabular_manifest(header, lines):
+        rows = read_ascii_tabular_rows(manifest, strip=True)
+        for row in rows:
             writer.writerow(row)
-
-
-def _read_tabular_manifest(header, lines):
-    # Find index where dimension columns end.
-    dim = sum(1 for h in header if h in DATASET[:6])
-    yield header
-    for line in lines:
-        line = line.strip()
-        if line == '':
-            continue
-        row = line.split('|')
-        row = [x.strip() for x in row]
-        rem = len(header) - len(row)
-        row = row[:dim - rem] + [''] * rem + row[dim - rem:]
-        assert len(header) == len(row), line
-        yield row
 
 
 def load_tabular_manifest(rc: RawConfig, path: pathlib.Path) -> Manifest:
