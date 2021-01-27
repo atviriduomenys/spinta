@@ -52,6 +52,7 @@ CONFIG = {
 
             # External backends
             'sql': 'spinta.datasets.backends.sql.components:Sql',
+            'sqldump': 'spinta.datasets.backends.sqldump.components:SqlDump',
             'csv': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',
             'xml': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',
             'xlsx': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',

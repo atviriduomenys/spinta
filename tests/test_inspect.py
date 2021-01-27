@@ -3,12 +3,12 @@ from pathlib import Path
 import sqlalchemy as sa
 
 from spinta.core.config import RawConfig
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import load_tabular_manifest
 from spinta.testing.tabular import render_tabular_manifest
-from spinta.manifests.tabular.helpers import striptable
 
 
 def test_inspect(
@@ -199,4 +199,64 @@ def test_inspect_self_refs(
        |   |   |   |   | id        | ID        |         | integer |          |       | protected |     |       |
        |   |   |   |   | name      | NAME      |         | string  |          |       | protected |     |       |
        |   |   |   |   | parent_id | PARENT_ID |         | ref     | Category |       | protected |     |       |
+    ''')
+
+
+def test_inspect_oracle_sqldump_stdin(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmpdir: Path,
+):
+    rc = _fix_s3_backend_issue(rc)
+    cli.invoke(rc, [
+        'inspect',
+        '-r', 'sqldump', '-',
+        '-o', tmpdir / 'manifest.csv',
+    ], input='''
+    --------------------------------------------------------
+    --  DDL for Table COUNTRY
+    --------------------------------------------------------
+
+    CREATE TABLE "GEO"."COUNTRY" (
+      "ID" NUMBER(19,0), 
+      "NAME" VARCHAR2(255 CHAR)
+    ) SEGMENT CREATION IMMEDIATE 
+    PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+    NOCOMPRESS LOGGING
+    STORAGE(
+      INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+      PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+      BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT
+    )
+    TABLESPACE "GEO_PORTAL_V2" ;
+    
+    --------------------------------------------------------
+    --  DDL for Table COUNTRY
+    --------------------------------------------------------
+    
+    CREATE TABLE "GEO"."CITY" (
+      "ID" NUMBER(19,0), 
+      "NAME" VARCHAR2(255 CHAR)
+    ) SEGMENT CREATION IMMEDIATE 
+    PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 
+    NOCOMPRESS LOGGING
+    STORAGE(
+      INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+      PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1
+      BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT
+    )
+    TABLESPACE "GEO_PORTAL_V2" ;
+    
+    ''')
+
+    # Check what was detected.
+    manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
+    assert render_tabular_manifest(manifest) == striptable(f'''
+    id | d | r | b | m | property | source  | prepare | type    | ref | level | access    | uri | title | description
+       | dataset                  |         |         |         |     |       | protected |     |       |
+       |   | sqldump              | -       |         | sqldump |     |       | protected |     |       |
+       |                          |         |         |         |     |       |           |     |       |
+       |   |   |   | Country      | COUNTRY |         |         |     |       | protected |     |       |
+       |                          |         |         |         |     |       |           |     |       |
+       |   |   |   | City         | CITY    |         |         |     |       | protected |     |       |
     ''')

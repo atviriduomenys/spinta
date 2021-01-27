@@ -138,7 +138,7 @@ def app(context):
 
 @pytest.fixture
 def cli():
-    return SpintaCliRunner()
+    return SpintaCliRunner(mix_stderr=False)
 
 
 def pytest_addoption(parser):

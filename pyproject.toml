@@ -58,6 +58,7 @@ tqdm = "*"
 ujson = "*"
 unidecode = "*"
 frictionless = {extras = ["sql"], version = "^3.48.0"}
+sqlparse = "*"
 
 # PostgreSQL backend dependencies
 alembic = { version = "*", optional = false }
@@ -122,7 +123,6 @@ responses = "*"
 snoop = "*"
 # https://github.com/kvesteri/sqlalchemy-utils/issues/472
 sqlalchemy-utils = { version = "0.36.7", optional = false }
-sqlparse = "*"
 python-dotenv = "*"
 
 # Docs
