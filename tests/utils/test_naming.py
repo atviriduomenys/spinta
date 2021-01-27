@@ -14,6 +14,8 @@ from spinta.utils.naming import to_property_name
     ('CountryCode', 'CountryCode'),
     ('EUCountryCodes', 'EUCountryCodes'),
     ('ŠaliųŽemės', 'SaliuZemes'),
+    ('COUNTRY_CODE_2', 'CountryCode2'),
+    ('2COUNTRY_CODE', 'N2CountryCode'),
 ])
 def test_to_model_name(source: str, target: str):
     assert to_model_name(source) == target
@@ -22,6 +24,8 @@ def test_to_model_name(source: str, target: str):
 @pytest.mark.parametrize('source,target', [
     ('COUNTRY', 'country'),
     ('COUNTRY_CODE', 'country_code'),
+    ('COUNTRY_CODE2', 'country_code2'),
+    ('2COUNTRY_CODE', 'n2country_code2'),
     ('country_code', 'country_code'),
     ('country_CODE', 'country_code'),
     ('countryCode', 'country_code'),
