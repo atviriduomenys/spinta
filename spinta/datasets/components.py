@@ -90,6 +90,7 @@ class Resource(External):
     level: Level
     access: Access
     external: str
+    prepare: str
     models: Dict[str, Model]
 
     schema = {

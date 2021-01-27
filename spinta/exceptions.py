@@ -451,3 +451,18 @@ class NoKeyMap(UserError):
 
 class BackendNotFound(UserError):
     template = "Can't find backend {name!r}."
+
+
+class UnexpectedFormulaResult(UserError):
+    template = (
+        "Unexpected formula {formula} result. "
+        "Expected {expected}, instead got a {received}."
+    )
+
+
+class FormulaError(UserError):
+    template = "Error while interpreting formula {formula}: {error}."
+
+
+class UnknownBind(FormulaError):
+    template = "Unknown bind {name!r}."

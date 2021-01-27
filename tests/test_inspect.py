@@ -260,3 +260,35 @@ def test_inspect_oracle_sqldump_stdin(
        |                          |         |         |         |     |       |           |     |       |
        |   |   |   | City         | CITY    |         |         |     |       | protected |     |       |
     ''')
+
+
+def test_inspect_oracle_sqldump_file_with_formula(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmpdir: Path,
+):
+    rc = _fix_s3_backend_issue(rc)
+    (tmpdir / 'dump.sql').write_text('''
+    -- Šalys
+    CREATE TABLE "GEO"."COUNTRY" (
+      "ID" NUMBER(19,0), 
+      "NAME" VARCHAR2(255 CHAR)
+    );
+    ''', encoding='iso-8859-4')
+    cli.invoke(rc, [
+        'inspect',
+        '-r', 'sqldump', tmpdir / 'dump.sql',
+        '-f', 'file(self, encoding: "iso-8859-4")',
+        '-o', tmpdir / 'manifest.csv',
+    ])
+
+    # Check what was detected.
+    manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
+    manifest.datasets['dataset'].resources['sqldump'].external = 'dump.sql'
+    assert render_tabular_manifest(manifest) == striptable(f'''
+    id | d | r | b | m | property | source   | prepare                            | type    | ref | level | access    | uri | title | description
+       | dataset                  |          |                                    |         |     |       | protected |     |       |
+       |   | sqldump              | dump.sql | file(self, encoding: 'iso-8859-4') | sqldump |     |       | protected |     |       |
+       |                          |          |                                    |         |     |       |           |     |       |
+       |   |   |   | Country      | COUNTRY  |                                    |         |     |       | protected |     |       |
+    ''')

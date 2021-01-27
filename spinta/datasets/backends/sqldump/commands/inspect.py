@@ -1,3 +1,5 @@
+import sys
+from io import TextIOBase
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -14,9 +16,14 @@ from sqlparse.tokens import DDL
 from sqlparse.tokens import Keyword
 
 from spinta import commands
+from spinta import spyna
 from spinta.components import Context
 from spinta.datasets.backends.sqldump.components import SqlDump
+from spinta.datasets.backends.sqldump.ufuncs.components import File
+from spinta.datasets.backends.sqldump.ufuncs.components import \
+    PrepareFileResource
 from spinta.datasets.components import Resource
+from spinta.exceptions import UnexpectedFormulaResult
 from spinta.manifests.helpers import load_manifest_nodes
 from spinta.utils.naming import to_model_name
 
@@ -70,11 +77,28 @@ def _read_sql_ast(
 
 @commands.inspect.register(Context, Resource, SqlDump)
 def inspect(context: Context, resource: Resource, backend: SqlDump):
-    ast = sqlparse.parsestream(backend.stream)
-    schemas = _read_sql_ast(resource, ast)
-    load_manifest_nodes(
-        context,
-        resource.dataset.manifest,
-        schemas,
-        link=True,
-    )
+
+    if resource.prepare:
+        env = PrepareFileResource(context).init(backend.path)
+        file = env.resolve(resource.prepare)
+        file: File = env.execute(file)
+        f = file.open()
+        if not isinstance(f, TextIOBase):
+            raise UnexpectedFormulaResult(
+                resource,
+                formula=spyna.unparse(resource.prepare),
+                expected='TextIO',
+                received=type(f).__name__,
+            )
+    else:
+        f = backend.stream or backend.path.open()
+
+    with f:
+        ast = sqlparse.parsestream(f)
+        schemas = _read_sql_ast(resource, ast)
+        load_manifest_nodes(
+            context,
+            resource.dataset.manifest,
+            schemas,
+            link=True,
+        )

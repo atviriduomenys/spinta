@@ -28,7 +28,10 @@ def _save_manifest(manifest: Manifest, dest: TextIO):
 def inspect(
     ctx: TyperContext,
     resource: Optional[Tuple[str, str]] = Option((None, None), '-r', '--resource', help=(
-        "Resource type and source URI (-f sql sqlite:////tmp/db.sqlite)"
+        "Resource type and source URI (-r sql sqlite:////tmp/db.sqlite)"
+    )),
+    formula: str = Option('', '-f', '--formula', help=(
+        "Formula if needed, to prepare resource for reading"
     )),
     output: Optional[pathlib.Path] = Option(None, '-o', '--output', help=(
         "Output tabular manifest in a specified file"
@@ -62,9 +65,9 @@ def inspect(
         store = load_store(context)
         resource_type, resource_source = resource
         load_ascii_tabular_manifest(context, store.manifest, f'''
-        d | r               | type            | source
-        dataset             |                 |
-          | {resource_type} | {resource_type} | {resource_source}
+        d | r               | type            | source            | prepare
+        dataset             |                 |                   |
+          | {resource_type} | {resource_type} | {resource_source} | {formula}
         ''', strip=True)
         commands.check(context, store.manifest)
         commands.prepare(context, store.manifest)

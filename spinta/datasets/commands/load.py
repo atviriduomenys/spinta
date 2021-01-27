@@ -38,6 +38,8 @@ def load(
 @commands.load.register(Context, Resource, dict, Manifest)
 def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_node(context, resource, data, parent=resource.dataset)
+    if resource.prepare:
+        resource.prepare = asttoexpr(resource.prepare)
     resource.access = load_access_param(resource, resource.access)
     resource.backend = load_resource_backend(
         context,

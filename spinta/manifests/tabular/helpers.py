@@ -238,6 +238,10 @@ class ResourceReader(TabularReader):
             'type': row['type'],
             'backend': row['ref'],
             'external': row['source'],
+            'prepare': (
+                spyna.parse(row['prepare'])
+                if row['prepare'] else None
+            ),
             'level': row['level'],
             'access': row['access'],
             'title': row['title'],
@@ -725,6 +729,7 @@ def datasets_to_tabular(
                     yield torow(DATASET, {
                         'resource': resource.name,
                         'source': resource.external,
+                        'prepare': unparse(resource.prepare or NA),
                         'type': resource.backend.type if resource.backend else '',
                         'ref': '' if resource.external else resource.backend.name,
                         'level': resource.level,
