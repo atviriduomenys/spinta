@@ -31,5 +31,4 @@ def to_code_name(name: str) -> str:
     name = unidecode(name)
     name = camel_cased_words.sub(r' \1', name).strip()
     words = split_words_re.split(name)
-    words = [w.lower() for w in words if w]
-    return _cleanup('_'.join(words))
+    return _cleanup('_'.join(words)).lower()

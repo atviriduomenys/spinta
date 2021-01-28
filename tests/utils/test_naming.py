@@ -25,7 +25,7 @@ def test_to_model_name(source: str, target: str):
     ('COUNTRY', 'country'),
     ('COUNTRY_CODE', 'country_code'),
     ('COUNTRY_CODE2', 'country_code2'),
-    ('2COUNTRY_CODE', 'n2country_code2'),
+    ('2COUNTRY_CODE', 'n2country_code'),
     ('country_code', 'country_code'),
     ('country_CODE', 'country_code'),
     ('countryCode', 'country_code'),
