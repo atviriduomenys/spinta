@@ -8,7 +8,9 @@ from typing import Optional
 from typer import Context as TyperContext
 from typer import Option
 from typer import Typer
+from typer import echo
 
+import spinta
 from spinta.cli import auth
 from spinta.cli import config
 from spinta.cli import data
@@ -55,7 +57,7 @@ add(app, 'run', server.run, help="Run development server")
 add(app, 'wait', server.wait, help="Wait while all backends are up")
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
     ctx: TyperContext,
     option: Optional[List[str]] = Option(None, '-o', '--option', help=(
@@ -64,7 +66,10 @@ def main(
     env_file: Optional[pathlib.Path] = Option(None, '--env-file', help=(
         "Load configuration from a given .env file."
     )),
+    version: bool = Option(False, help="Show version number.")
 ):
     ctx.obj = ctx.obj or create_context('cli', args=option, envfile=env_file)
+    if version:
+        echo(spinta.__version__)
 
 

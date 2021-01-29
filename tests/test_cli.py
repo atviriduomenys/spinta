@@ -1,10 +1,20 @@
+import re
+
 import pytest
 
 from responses import GET
 
+from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import create_manifest_files
 from spinta.testing.utils import update_manifest_files
+
+
+def test_version(rc: RawConfig, cli: SpintaCliRunner):
+    result = cli.invoke(rc, ['--version'])
+    version = result.stdout.strip()
+    version = re.sub(r'\d+', 'x', version)
+    assert version == 'x.x.x'
 
 
 @pytest.mark.skip('datasets')

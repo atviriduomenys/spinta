@@ -3,7 +3,13 @@
 Changes
 #######
 
-0.1.7 (unreleased)
+0.1.9 (unreleased)
+==================
+
+- Add `spinta --version`.
+
+
+0.1.7 (2021-01-28)
 ==================
 
 - Fix URL link formatting in HTML output.
