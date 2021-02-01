@@ -23,7 +23,7 @@ app = Typer()
 @app.command(short_help="Copy manifest optionally transforming final copy")
 def copy(
     ctx: TyperContext,
-    external: bool = Option(True, help=(
+    source: bool = Option(True, help=(
         "Do not copy external data source metadata"
     )),
     # TODO: Change `str` to `Access`
@@ -41,7 +41,7 @@ def copy(
     """Copy models from CSV manifest files into another CSV manifest file"""
     context: Context = ctx.obj
     access = get_enum_by_name(Access, access)
-    rows = _read_csv_files(context, files, external=external, access=access)
+    rows = _read_csv_files(context, files, external=source, access=access)
     with dest.open('w') as f:
         write_tabular_manifest(f, rows)
 

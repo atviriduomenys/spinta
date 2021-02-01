@@ -25,8 +25,7 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     '''))
 
     cli.invoke(rc, [
-        'manifest', 'copy',
-        '--no-external', '--access', 'open',
+        'copy', '--no-source', '--access', 'open',
         tmpdir / 'manifest.csv',
         tmpdir / 'result.csv',
     ])
@@ -70,8 +69,7 @@ def test_copy_with_filters_and_externals(rc, cli, tmpdir):
     '''))
 
     cli.invoke(rc, [
-        'manifest', 'copy',
-        '--access', 'open',
+        'copy', '--access', 'open',
         tmpdir / 'manifest.csv',
         tmpdir / 'result.csv',
     ])

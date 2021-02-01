@@ -68,9 +68,7 @@ def create_rc(rc: RawConfig, tmpdir: pathlib.Path, geodb: Sqlite):
 
 def configure_remote_server(cli, rc: RawConfig, tmpdir: pathlib.Path, responses):
     cli.invoke(rc, [
-        'manifest', 'copy',
-        '--no-external',
-        '--access', 'open',
+        'copy', '--no-source', '--access', 'open',
         tmpdir / 'manifest.csv',
         tmpdir / 'remote.csv',
     ])

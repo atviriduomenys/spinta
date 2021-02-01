@@ -43,7 +43,7 @@ add(app, 'inspect', inspect.inspect, help=(
 ))
 add(app, 'pii', pii.app, help="Manage Person Identifying Information")
 
-add(app, 'manifest', manifest.app, help="Manage manifests")
+add(app, 'copy', manifest.copy, help="Copy only specified metadata from a manifest")
 add(app, 'show', show, help="Show manifest as ascii table")
 
 add(app, 'bootstrap', migrate.bootstrap, help="Initialize backends")
