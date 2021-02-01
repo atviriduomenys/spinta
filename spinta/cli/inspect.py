@@ -3,8 +3,10 @@ from typing import Optional
 from typing import TextIO
 from typing import Tuple
 
+from typer import Argument
 from typer import Context as TyperContext
 from typer import Option
+from typer import echo
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
@@ -15,6 +17,7 @@ from spinta.core.config import RawConfig
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.tabular.helpers import load_ascii_tabular_manifest
+from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 
 
@@ -27,6 +30,7 @@ def _save_manifest(manifest: Manifest, dest: TextIO):
 
 def inspect(
     ctx: TyperContext,
+    manifest: Optional[pathlib.Path] = Argument(None, help="Path to manifest."),
     resource: Optional[Tuple[str, str]] = Option((None, None), '-r', '--resource', help=(
         "Resource type and source URI (-r sql sqlite:////tmp/db.sqlite)"
     )),
@@ -52,7 +56,7 @@ def inspect(
             'manifests.inspect': {
                 'type': 'tabular',
                 'backend': 'null',
-                'keymap': 'default',
+                'keymap': '',
                 'mode': 'external',
                 'path': None,
             },
@@ -72,6 +76,26 @@ def inspect(
         commands.check(context, store.manifest)
         commands.prepare(context, store.manifest)
 
+    elif manifest:
+        config = {
+            'backends': [],
+            'manifest': 'inspect',
+            'manifests.inspect': {
+                'type': 'tabular',
+                'backend': '',
+                'keymap': '',
+                'mode': 'internal',
+                'path': manifest,
+            },
+        }
+
+        # Add given manifest file to configuration
+        rc: RawConfig = context.get('rc')
+        context.set('rc', rc.fork(config))
+
+        # Load manifest
+        store = prepare_manifest(context)
+
     else:
         # Load manifest
         store = prepare_manifest(context)
@@ -81,7 +105,9 @@ def inspect(
     with context:
         require_auth(context, auth)
         commands.inspect(context, manifest)
-        if output is None:
-            output = manifest.path
+
+    if output:
         with pathlib.Path(output).open('w') as f:
             _save_manifest(manifest, f)
+    else:
+        echo(render_tabular_manifest(manifest))

@@ -22,9 +22,10 @@ def prepare_store(context: Context) -> Store:
     return store
 
 
-def prepare_manifest(context: Context) -> Store:
+def prepare_manifest(context: Context, *, verbose: bool = True) -> Store:
     store = load_store(context)
-    click.echo(f"Loading manifest {store.manifest.name}...")
+    if verbose:
+        click.echo(f"Loading manifest {store.manifest.name}...")
     commands.load(context, store.manifest)
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)

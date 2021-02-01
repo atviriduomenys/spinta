@@ -18,7 +18,7 @@ from spinta.backends.postgresql.helpers.changes import get_changes_table
 def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
     # Prepare backend for models.
     for model in manifest.models.values():
-        if model.backend.name == backend.name:
+        if model.backend and model.backend.name == backend.name:
             commands.prepare(context, backend, model)
 
 

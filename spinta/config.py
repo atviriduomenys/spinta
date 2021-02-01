@@ -118,24 +118,12 @@ CONFIG = {
         'file': 'stdout',
         'buffer_size': 300,
     },
-    'backends': {
-        'default': {
-            'type': 'postgresql',
-            'dsn': 'postgresql://admin:admin123@localhost:54321/spinta',
-            'migrate': 'alembic',
-        },
-    },
     'manifests': {
         'default': {
-            'type': 'backend',
-            'backend': 'default',
-            'sync': 'yaml',
+            'type': 'memory',
+            'backend': '',
             'mode': 'internal',
-        },
-        'yaml': {
-            'type': 'yaml',
-            'backend': 'default',
-            'path': pathlib.Path(),
+            'keymap': '',
         },
     },
 
@@ -162,7 +150,7 @@ CONFIG = {
     'wait': 30,
 
     # Configuration path, where clients, keys and other things are stored.
-    'config_path': pathlib.Path('tests/config'),
+    'config_path': '',
 
     # Path to documentation folder. If set will serve the folder at `/docs`.
     'docs_path': None,
@@ -187,7 +175,7 @@ CONFIG = {
     # Public JWK key for validating auth bearer tokens.
     'token_validation_key': None,
 
-    'env': 'dev',
+    'env': 'prod',
 
     'environments': {
         'dev': {
@@ -226,10 +214,13 @@ CONFIG = {
                     'mode': 'internal',
                 },
                 'yaml': {
+                    'type': 'yaml',
+                    'backend': 'default',
                     'path': pathlib.Path() / 'tests/manifest',
                 },
             },
             'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
+            'config_path': pathlib.Path('tests/config'),
         },
         'test': {
             'accesslog': {
@@ -263,8 +254,14 @@ CONFIG = {
                     'type': 'yaml',
                     'path': pathlib.Path() / 'tests/manifest',
                     'sync': None,
+                    'backend': 'default',
                     'keymap': 'default',
                     'mode': 'internal',
+                },
+                'yaml': {
+                    'type': 'yaml',
+                    'backend': 'default',
+                    'path': pathlib.Path() / 'tests/manifest',
                 },
             },
             'config_path': pathlib.Path('tests/config'),

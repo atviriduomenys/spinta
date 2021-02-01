@@ -453,6 +453,10 @@ class BackendNotFound(UserError):
     template = "Can't find backend {name!r}."
 
 
+class NoBackendConfigured(UserError):
+    template = "Backend is not configured, can't proceed the request."
+
+
 class UnexpectedFormulaResult(UserError):
     template = (
         "Unexpected formula {formula} result. "

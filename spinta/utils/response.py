@@ -7,7 +7,7 @@ from spinta import commands
 from spinta.commands.formats import Format
 from spinta.components import Context, Action, UrlParams, Node
 from spinta import exceptions
-
+from spinta.exceptions import NoBackendConfigured
 
 METHOD_TO_ACTION = {
     'POST': Action.INSERT,
@@ -20,6 +20,9 @@ METHOD_TO_ACTION = {
 async def create_http_response(context: Context, params: UrlParams, request: Request):
     store = context.get('store')
     manifest = store.manifest
+
+    if manifest.backend is None:
+        raise NoBackendConfigured(manifest)
 
     if request.method == 'GET':
         context.attach('transaction', manifest.backend.transaction)

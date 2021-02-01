@@ -3,7 +3,7 @@ import sqlalchemy as sa
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.tabular import load_tabular_manifest
-from spinta.testing.tabular import render_tabular_manifest
+from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import striptable
 
 

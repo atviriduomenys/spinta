@@ -24,7 +24,7 @@ def create_manifest(
     name: str,
     seen: List[str] = None,
 ) -> Manifest:
-    rc = context.get('rc')
+    rc: RawConfig = context.get('rc')
     config = context.get('config')
     mtype = rc.get('manifests', name, 'type', required=True)
     Manifest = config.components['manifests'][mtype]
@@ -41,7 +41,7 @@ def create_internal_manifest(context: Context, store: Store) -> InternalManifest
     manifest.type = 'yaml'
     _configure_manifest(
         context, rc, config, store, manifest, 'internal',
-        backend=store.manifest.backend.name,
+        backend=store.manifest.backend.name if store.manifest.backend else None,
     )
     return manifest
 
@@ -66,7 +66,7 @@ def _configure_manifest(
     manifest.keymap = rc.get('manifests', name, 'keymap', default=None)
     manifest.keymap = store.keymaps[manifest.keymap] if manifest.keymap else None
     manifest.backend = rc.get('manifests', name, 'backend', default=backend)
-    manifest.backend = store.backends[manifest.backend]
+    manifest.backend = store.backends[manifest.backend] if manifest.backend else None
     manifest.endpoints = {}
     manifest.backends = {}
     manifest.objects = {name: {} for name in config.components['nodes']}

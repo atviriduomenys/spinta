@@ -8,6 +8,25 @@ Changes
 
 - Add `spinta --version`.
 
+- Add `spinta init` command, to initialize empty manifest table.
+
+- Add `spinta show` command, to print manifest table to stdout.
+
+- Backend now became optional and by default manifest is configured without
+  manifest.
+
+- `spinta inspect` no longer overwrites existing manifest. By default, manifest
+  is printed to stdout. Only if `-o` flag is given, then manifest is written
+  into a csv file.
+
+
+0.1.8 (2021-01-29)
+==================
+
+- Fix incorrectly built python packages (`python-poetry/poetry/issues/3610`__).
+
+__ https://github.com/python-poetry/poetry/issues/3610
+
 
 0.1.7 (2021-01-28)
 ==================

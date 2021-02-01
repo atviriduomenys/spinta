@@ -21,6 +21,8 @@ from spinta.cli import pii
 from spinta.cli import pull
 from spinta.cli import push
 from spinta.cli import server
+from spinta.cli.init import init
+from spinta.cli.show import show
 from spinta.cli.helpers.typer import add
 from spinta.core.context import create_context
 
@@ -35,12 +37,14 @@ add(app, 'genkeys', auth.genkeys, help="Generate client token validation keys")
 add(app, 'token', auth.token, help="Tools for encoding/decode auth tokens")
 add(app, 'client', auth.client, help="Manage auth clients")
 
+add(app, 'init', init, help="Initialize new manifest table")
 add(app, 'inspect', inspect.inspect, help=(
     "Update manifest schema from an external data source"
 ))
 add(app, 'pii', pii.app, help="Manage Person Identifying Information")
 
 add(app, 'manifest', manifest.app, help="Manage manifests")
+add(app, 'show', show, help="Show manifest as ascii table")
 
 add(app, 'bootstrap', migrate.bootstrap, help="Initialize backends")
 add(app, 'sync', migrate.sync, help="Sync source manifests into main manifest")

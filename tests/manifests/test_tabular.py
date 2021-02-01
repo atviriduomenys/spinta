@@ -4,7 +4,7 @@ from spinta.manifests.tabular.helpers import SHORT_NAMES
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.tabular import load_tabular_manifest
-from spinta.testing.tabular import render_tabular_manifest
+from spinta.manifests.tabular.helpers import render_tabular_manifest
 
 
 def _get_cols(table):

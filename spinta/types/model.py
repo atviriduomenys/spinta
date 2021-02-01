@@ -42,8 +42,6 @@ def load(
         model.keymap = manifest.store.keymaps[model.keymap]
     else:
         model.keymap = manifest.keymap
-    if model.external and model.keymap is None:
-        raise exceptions.NoKeyMap(model)
 
     manifest.add_model_endpoint(model)
     load_namespace(context, manifest, model)

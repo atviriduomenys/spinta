@@ -8,6 +8,7 @@ from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
+from typing import List
 from typing import Optional
 from typing import Set
 from typing import TextIO
@@ -24,7 +25,9 @@ from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
+from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.constants import DATASET
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
@@ -843,3 +846,65 @@ SHORT_NAMES = {
     'b': 'base',
     'm': 'model',
 }
+
+
+def render_tabular_manifest(manifest: Manifest, cols: List[str] = None) -> str:
+    rows = datasets_to_tabular(manifest)
+    cols = cols or DATASET
+    hs = 1 if 'id' in cols else 0  # hierarchical cols start
+    he = cols.index('property')    # hierarchical cols end
+    hsize = 1                      # hierarchical column size
+    bsize = 3                      # border size
+    sizes = dict(
+        [(c, len(c)) for c in cols[:hs]] +
+        [(c, 1) for c in cols[hs:he]] +
+        [(c, len(c)) for c in cols[he:]]
+    )
+    rows = list(rows)
+    for row in rows:
+        for i, col in enumerate(cols):
+            val = '' if row[col] is None else str(row[col])
+            if col == 'id':
+                sizes[col] = 2
+            elif i < he:
+                size = (hsize + bsize) * (he - hs - i) + sizes['property']
+                if size < len(val):
+                    sizes['property'] += len(val) - size
+            elif sizes[col] < len(val):
+                sizes[col] = len(val)
+
+    line = []
+    for col in cols:
+        size = sizes[col]
+        line.append(col[:size].ljust(size))
+    lines = [line]
+
+    for row in rows:
+        if 'id' in cols:
+            line = [row['id'][:2] if row['id'] else '  ']
+        else:
+            line = []
+
+        for i, col in enumerate(cols[hs:he + 1]):
+            val = row[col] or ''
+            if val:
+                depth = i
+                break
+        else:
+            val = ''
+            depth = 0
+
+        line += [' ' * hsize] * depth
+        size = (hsize + bsize) * (he - hs - depth) + sizes['property']
+        line += [val.ljust(size)]
+
+        for col in cols[he + 1:]:
+            val = '' if row[col] is None else str(row[col])
+            size = sizes[col]
+            line.append(val.ljust(size))
+
+        lines.append(line)
+
+    lines = [' | '.join(line) for line in lines]
+    lines = [l.rstrip() for l in lines]
+    return '\n'.join(lines)

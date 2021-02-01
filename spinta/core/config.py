@@ -309,7 +309,7 @@ class RawConfig:
         else:
             return table
 
-    def to_dict(self, *names) -> Dict[str, Any]:
+    def to_dict(self, *names: str) -> Dict[str, Any]:
         result = {}
         for key, val in self.getall(*names):
             key = '.'.join(key[len(names):])

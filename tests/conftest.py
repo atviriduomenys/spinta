@@ -1,9 +1,12 @@
 import builtins
 import inspect
+import re
 import sys
 from itertools import chain
 from itertools import islice
+from typing import Any
 from typing import Iterator
+from typing import Type
 
 import pprintpp
 import sqlparse
@@ -24,7 +27,25 @@ def ppsql(qry):
     print(sql)
 
 
-def pp(obj):
+na = object()
+arg_re = re.compile(r'pp\(([^,)]+)')
+
+
+def pp(
+    obj: Any,
+    v: Any = na,
+    t: Type = na,
+    on: bool = True,
+    throw: bool = False,
+    prefix: str = '',
+    suffix: str = '',
+):
+    if not on:
+        return obj
+    if v is not na and obj is not v:
+        return obj
+    if t is not na and not isinstance(obj, t):
+        return obj
     if isinstance(obj, Iterator):
         out = list(islice(obj, 10))
         out = '<generator> ' + pprintpp.pformat(out)
@@ -38,7 +59,13 @@ def pp(obj):
         arg = line[line.find('(') + 1:-1]
         out = f'{arg} = {out}'
     out = highlight(out, Python3Lexer(), formatter())
+    if prefix:
+        print(prefix, end='')
     print(out, file=sys.__stderr__)
+    if suffix:
+        print(suffix, end='')
+    if throw:
+        raise RuntimeError('pp')
     return obj
 
 

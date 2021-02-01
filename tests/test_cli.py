@@ -17,6 +17,13 @@ def test_version(rc: RawConfig, cli: SpintaCliRunner):
     assert version == 'x.x.x'
 
 
+def test_empty_config_path(rc: RawConfig, cli: SpintaCliRunner):
+    result = cli.invoke(rc, ['-o', 'config_path=', '--version'])
+    version = result.stdout.strip()
+    version = re.sub(r'\d+', 'x', version)
+    assert version == 'x.x.x'
+
+
 @pytest.mark.skip('datasets')
 def test_pull(responses, rc, cli: SpintaCliRunner, app, tmpdir):
     responses.add(
