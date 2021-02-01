@@ -14,7 +14,7 @@ Purpose
 =======
 
 - **Describe your data**: You can automatically generate data structure
-  description table (**Manifest**) from many different data sources.
+  description table (*Manifest*) from many different data sources.
 
 - **Extract your data**: Once you have your data structure in *Manifest* tables,
   you can extract data from multiple external data sources. Extracted data are
@@ -24,7 +24,7 @@ Purpose
 
 - **Publish your data**: Once you have your data loaded into internal
   database, you can publish data using API. API is generated automatically using
-  Manifest* tables and provides extracted data in many different formats. For
+  *Manifest* tables and provides extracted data in many different formats. For
   example if original data source was a CSV file, now you have a flexible API,
   that can talk JSON, RDF, SQL, CSV and other formats.
 
@@ -142,6 +142,8 @@ Once internal database is initialized, you can push external data into it:
 
 And now you can publish data via full featured API with a web based data
 browser:
+
+.. code-block:: json
 
     $ spinta run
 
