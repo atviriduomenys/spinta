@@ -4,15 +4,15 @@ from typing import List
 from typing import Optional
 
 from typer import Context as TyperContext
-from typer import Option
 from typer import Exit
+from typer import Option
 from typer import echo
 
 from spinta import commands
 from spinta import exceptions
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import process_stream
-from spinta.cli.helpers.store import prepare_store
+from spinta.cli.helpers.store import prepare_manifest
 from spinta.commands.write import write
 from spinta.components import Context
 from spinta.components import Model
@@ -48,7 +48,7 @@ def pull(
 ):
     """Pull data from an external data source."""
     context = ctx.obj
-    store = prepare_store(context)
+    store = prepare_manifest(context)
     manifest = store.manifest
     if dataset in manifest.objects['dataset']:
         dataset = manifest.objects['dataset'][dataset]

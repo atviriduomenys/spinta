@@ -18,6 +18,7 @@ from typing import TypedDict
 from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
+from spinta.backends.components import BackendOrigin
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.enums import Access
@@ -714,6 +715,7 @@ def datasets_to_tabular(
             if dataset is None or dataset.name != model.external.dataset.name:
                 dataset = model.external.dataset
                 if dataset:
+                    resource = None
                     yield torow(DATASET, {
                         'id': dataset.id,
                         'dataset': dataset.name,
@@ -729,12 +731,20 @@ def datasets_to_tabular(
             ):
                 resource = model.external.resource
                 if resource:
+                    backend = resource.backend
                     yield torow(DATASET, {
                         'resource': resource.name,
                         'source': resource.external,
                         'prepare': unparse(resource.prepare or NA),
-                        'type': resource.backend.type if resource.backend else '',
-                        'ref': '' if resource.external else resource.backend.name,
+                        'type': resource.type,
+                        'ref': (
+                            backend.name
+                            if (
+                                backend and
+                                backend.origin != BackendOrigin.resource
+                            )
+                            else ''
+                        ),
                         'level': resource.level,
                         'access': resource.access.name,
                         'title': resource.title,

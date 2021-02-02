@@ -212,6 +212,7 @@ CONFIG = {
                     'sync': None,
                     'keymap': 'default',
                     'mode': 'internal',
+                    'backend': 'default',
                 },
                 'yaml': {
                     'type': 'yaml',

@@ -7,6 +7,7 @@ import types
 import itertools
 
 from spinta import commands
+from spinta.backends.components import BackendOrigin
 from spinta.backends.helpers import load_backend
 from spinta.components import Context, Store
 from spinta.urlparams import get_model_by_name
@@ -36,7 +37,13 @@ def load(context: Context, store: Store) -> Store:
     store.backends = {}
     for name in rc.keys('backends'):
         data = rc.to_dict('backends', name)
-        store.backends[name] = load_backend(context, config, name, data)
+        store.backends[name] = load_backend(
+            context,
+            config,
+            name,
+            BackendOrigin.config,
+            data,
+        )
 
     # Create default manifest instance
     manifest = rc.get('manifest', required=True)

@@ -1,8 +1,13 @@
+from pathlib import Path
+from typing import List
+
 import click
 
 from spinta import commands
 from spinta.components import Context
+from spinta.components import Mode
 from spinta.components import Store
+from spinta.core.config import RawConfig
 
 
 def load_store(context: Context) -> Store:
@@ -11,14 +16,6 @@ def load_store(context: Context) -> Store:
     commands.check(context, config)
     store = context.get('store')
     commands.load(context, store)
-    return store
-
-
-def prepare_store(context: Context) -> Store:
-    store = load_store(context)
-    commands.link(context, store)
-    commands.check(context, store)
-    commands.prepare(context, store)
     return store
 
 
@@ -31,3 +28,40 @@ def prepare_manifest(context: Context, *, verbose: bool = True) -> Store:
     commands.check(context, store.manifest)
     commands.prepare(context, store.manifest)
     return store
+
+
+def configure(
+    context: Context,
+    manifests: List[Path],
+    *,
+    mode: Mode = Mode.internal,
+) -> Context:
+    context = context.fork('cli')
+
+    if manifests:
+        config = {
+            'backends.run': {'type': 'memory'},
+            'manifests': {
+                'run': {
+                    'type': 'backend',
+                    'backend': 'run',
+                    'mode': mode.value,
+                    'sync': [],
+                },
+            },
+            'manifest': 'run',
+        }
+
+        for i, manifest_path in enumerate(manifests):
+            manifest_name = f'run{i}'
+            config['manifests'][manifest_name] = {
+                'type': 'tabular',
+                'path': manifest_path,
+            }
+            config['manifests']['run']['sync'].append(manifest_name)
+
+        # Add given manifest file to configuration
+        rc: RawConfig = context.get('rc')
+        context.set('rc', rc.fork(config))
+
+    return context

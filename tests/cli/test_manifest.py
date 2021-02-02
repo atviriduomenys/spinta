@@ -7,21 +7,21 @@ from spinta.manifests.tabular.helpers import render_tabular_manifest
 
 def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
-    d | r | b | m | property | source      | type   | ref     | access
-    datasets/gov/example     |             |        |         |
-      | data                 |             | sql    |         |
-                             |             |        |         |
-      |   |   | country      | salis       |        | code    |
-      |   |   |   | code     | kodas       | string |         | public
-      |   |   |   | name     | pavadinimas | string |         | open
-      |   |                  |             |        |         |
-      |   |   | city         | miestas     |        | name    |
-      |   |   |   | name     | pavadinimas | string |         | open
-      |   |   |   | country  | salis       | ref    | country | open
-                             |             |        |         |
-      |   |   | capital      | miestas     |        | name    |
-      |   |   |   | name     | pavadinimas | string |         |
-      |   |   |   | country  | salis       | ref    | country |
+    d | r | b | m | property | type   | ref     | source      | access
+    datasets/gov/example     |        |         |             |
+      | data                 | sql    |         |             |
+                             |        |         |             |
+      |   |   | country      |        | code    | salis       |
+      |   |   |   | code     | string |         | kodas       | public
+      |   |   |   | name     | string |         | pavadinimas | open
+      |   |                  |        |         |             |
+      |   |   | city         |        | name    | miestas     |
+      |   |   |   | name     | string |         | pavadinimas | open
+      |   |   |   | country  | ref    | country | salis       | open
+                             |        |         |             |
+      |   |   | capital      |        | name    | miestas     |
+      |   |   |   | name     | string |         | pavadinimas |
+      |   |   |   | country  | ref    | country | salis       |
     '''))
 
     cli.invoke(rc, [
@@ -36,16 +36,16 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
         'type', 'ref', 'source', 'level', 'access',
     ]
     assert render_tabular_manifest(manifest, cols) == striptable('''
-    d | r | b | m | property | type       | ref     | source | level | access
-    datasets/gov/example     |            |         |        |       | protected
-      | data                 | postgresql | default |        |       | protected
-                             |            |         |        |       |
-      |   |   | country      |            |         |        |       | open
-      |   |   |   | name     | string     |         |        |       | open
-                             |            |         |        |       |
-      |   |   | city         |            |         |        |       | open
-      |   |   |   | name     | string     |         |        |       | open
-      |   |   |   | country  | ref        | country |        |       | open
+    d | r | b | m | property | type   | ref     | source | level | access
+    datasets/gov/example     |        |         |        |       | protected
+      | data                 | sql    |         |        |       | protected
+                             |        |         |        |       |
+      |   |   | country      |        |         |        |       | open
+      |   |   |   | name     | string |         |        |       | open
+                             |        |         |        |       |
+      |   |   | city         |        |         |        |       | open
+      |   |   |   | name     | string |         |        |       | open
+      |   |   |   | country  | ref    | country |        |       | open
     ''')
 
 
@@ -80,14 +80,14 @@ def test_copy_with_filters_and_externals(rc, cli, tmpdir):
         'type', 'ref', 'source', 'prepare', 'level', 'access',
     ]
     assert render_tabular_manifest(manifest, cols) == striptable('''
-    d | r | b | m | property | type       | ref     | source      | prepare   | level | access
-    datasets/gov/example     |            |         |             |           |       | protected
-      | data                 | postgresql | default |             |           |       | protected
-                             |            |         |             |           |       |
-      |   |   | country      |            |         | salis       | code='lt' |       | open
-      |   |   |   | name     | string     |         | pavadinimas |           |       | open
-                             |            |         |             |           |       |
-      |   |   | city         |            | name    | miestas     |           |       | open
-      |   |   |   | name     | string     |         | pavadinimas |           |       | open
-      |   |   |   | country  | ref        | country | salis       |           |       | open
+    d | r | b | m | property | type   | ref     | source      | prepare   | level | access
+    datasets/gov/example     |        |         |             |           |       | protected
+      | data                 | sql    |         |             |           |       | protected
+                             |        |         |             |           |       |
+      |   |   | country      |        |         | salis       | code='lt' |       | open
+      |   |   |   | name     | string |         | pavadinimas |           |       | open
+                             |        |         |             |           |       |
+      |   |   | city         |        | name    | miestas     |           |       | open
+      |   |   |   | name     | string |         | pavadinimas |           |       | open
+      |   |   |   | country  | ref    | country | salis       |           |       | open
     ''')

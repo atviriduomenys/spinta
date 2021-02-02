@@ -1,30 +1,38 @@
 import logging
+from pathlib import Path
+from typing import List
 from typing import Optional
 
 from typer import Argument
 from typer import Context as TyperContext
 from typer import Exit
+from typer import Option
 from typer import echo
 
 from spinta import commands
+from spinta.cli.helpers.store import configure
 from spinta.cli.helpers.store import load_store
-from spinta.cli.helpers.store import prepare_store
-from spinta.components import Context
+from spinta.cli.helpers.store import prepare_manifest
+from spinta.components import Mode
 
 log = logging.getLogger(__name__)
 
 
 def run(
     ctx: TyperContext,
-    host: str = '127.0.0.1',
-    port: int = 8000,
+    manifests: Optional[List[Path]] = Argument(None, help=(
+        "Manifest files to load"
+    )),
+    mode: Mode = Option(Mode.internal, help="Mode of backend operation"),
+    host: str = Option('127.0.0.1', help="Run server on given host"),
+    port: int = Option(8000, help="Run server on given port"),
 ):
     """Run development server"""
     import uvicorn
     import spinta.api
 
-    context: Context = ctx.obj
-    prepare_store(context)
+    context = configure(ctx.obj, manifests, mode=mode)
+    prepare_manifest(context)
     app = spinta.api.init(context)
 
     echo("Spinta has started!")

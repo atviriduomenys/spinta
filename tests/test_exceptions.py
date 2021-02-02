@@ -171,7 +171,7 @@ def test_this_model_property_dtype(context):
 
 
 def test_this_dataset_model(context):
-    model = context.get('store').manifest.objects['model']['datasets/backends/postgres/dataset/report']
+    model = context.get('store').manifest.models['datasets/backends/postgres/dataset/report']
     model.path = 'manifest/backends/postgres/dataset/report.yml'
     error = Error(model)
     assert str(error) == (
@@ -184,12 +184,12 @@ def test_this_dataset_model(context):
         '    resource: sql\n'
         '    model: datasets/backends/postgres/dataset/report\n'
         '    entity: reports\n'
-        '    resource.backend: default\n'
+        '    resource.backend: datasets/backends/postgres/dataset/sql\n'
     )
 
 
 def test_this_dataset_model_property(context):
-    prop = context.get('store').manifest.objects['model']['datasets/backends/postgres/dataset/report'].properties['status']
+    prop = context.get('store').manifest.models['datasets/backends/postgres/dataset/report'].properties['status']
     prop.model.path = 'manifest/backends/postgres/dataset/report.yml'
     error = Error(prop)
     assert str(error) == (
@@ -204,5 +204,5 @@ def test_this_dataset_model_property(context):
         '    entity: reports\n'
         '    property: status\n'
         '    attribute: None\n'
-        '    resource.backend: default\n'
+        '    resource.backend: datasets/backends/postgres/dataset/sql\n'
     )

@@ -6,6 +6,7 @@ from typing import Tuple
 import jsonpatch
 
 from spinta import commands
+from spinta.backends.components import BackendOrigin
 from spinta.components import Mode
 from spinta.backends.helpers import load_backend
 from spinta.dimensions.prefix.helpers import load_prefixes
@@ -114,7 +115,13 @@ def _load_manifest_backends(
 ) -> None:
     manifest.backends = {}
     for name, data in backends.items():
-        manifest.backends[name] = load_backend(context, manifest, name, data)
+        manifest.backends[name] = load_backend(
+            context,
+            manifest,
+            name,
+            BackendOrigin.manifest,
+            data,
+        )
 
 
 def _load_manifest(

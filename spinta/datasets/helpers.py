@@ -2,6 +2,7 @@ from typing import Optional
 
 from spinta import exceptions
 from spinta.backends import Backend
+from spinta.backends.components import BackendOrigin
 from spinta.backends.helpers import load_backend
 from spinta.components import Context
 from spinta.datasets.components import Resource
@@ -27,10 +28,10 @@ def load_resource_backend(
                 return backends[name]
         raise exceptions.BackendNotFound(resource, name=name)
 
-    elif resource.external:
+    elif resource.type or resource.external:
         # If backend is defined inline on resource itself, try to load it.
         name = f'{resource.dataset.name}/{resource.name}'
-        return load_backend(context, resource, name, {
+        return load_backend(context, resource, name, BackendOrigin.resource, {
             'type': resource.type,
             'name': name,
             'dsn': resource.external,
