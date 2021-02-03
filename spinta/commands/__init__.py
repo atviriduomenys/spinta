@@ -126,7 +126,13 @@ def load_operator_value():
 
 
 @overload
-def wait(context: Context, store: Store, *, seconds: int = None) -> bool:
+def wait(
+    context: Context,
+    store: Store,
+    *,
+    seconds: int = None,
+    verbose: bool = False,
+) -> bool:
     """Wait for all backends given amount of seconds"""
 
 

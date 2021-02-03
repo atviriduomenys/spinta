@@ -60,7 +60,13 @@ def load(context: Context, store: Store) -> Store:
 
 
 @commands.wait.register(Context, Store)
-def wait(context: Context, store: Store, *, seconds: int = None) -> bool:
+def wait(
+    context: Context,
+    store: Store,
+    *,
+    seconds: int = None,
+    verbose: bool = False,
+) -> bool:
     rc = context.get('rc')
 
     if seconds is None:
@@ -86,9 +92,11 @@ def wait(context: Context, store: Store, *, seconds: int = None) -> bool:
     while backends:
         i += 1
         fail = time.time() - start > seconds
-        print(f"Waiting for backends, attempt #{i}:")
+        if verbose:
+            print(f"Waiting for backends, attempt #{i}:")
         for backend in sorted(backends, key=lambda b: b.name):
-            print(f"  {backend.name}...")
+            if verbose:
+                print(f"  {backend.name}...")
             if commands.wait(context, backend, fail=fail):
                 backends.remove(backend)
         if fail:
@@ -96,10 +104,11 @@ def wait(context: Context, store: Store, *, seconds: int = None) -> bool:
         else:
             time.sleep(1)
 
-    if fail:
-        print("Timeout. Not all backends are ready in given time.")
-    else:
-        print("All backends are up.")
+    if verbose:
+        if fail:
+            print("Timeout. Not all backends are ready in given time.")
+        else:
+            print("All backends are up.")
 
     return True
 

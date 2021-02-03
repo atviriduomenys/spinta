@@ -46,5 +46,5 @@ def wait(
     """Wait while all backends are up"""
     context = ctx.obj
     store = load_store(context)
-    if not commands.wait(context, store, seconds=seconds):
+    if not commands.wait(context, store, seconds=seconds, verbose=True):
         raise Exit(code=1)
