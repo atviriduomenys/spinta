@@ -282,6 +282,8 @@ class _CommandsConfig:
 
 
 class Config:
+    # Limit access to specified namespace root.
+    root: str = None
 
     def __init__(self):
         self.commands = _CommandsConfig()
@@ -368,6 +370,9 @@ class Node(Component):
 class Namespace(Node):
     access: Access
     keymap: KeyMap = None
+    names: Dict[str, Namespace]
+    models: Dict[str, Model]
+    backend: Backend = None
 
     def model_specifier(self):
         return ':ns'
@@ -377,6 +382,11 @@ class Namespace(Node):
         while isinstance(ns, Namespace):
             yield ns
             ns = ns.parent
+
+    def is_root(self) -> bool:
+        # TODO: Move Namespace component to spinta.namespaces
+        from spinta.manifests.components import Manifest
+        return isinstance(self.parent, Manifest)
 
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,

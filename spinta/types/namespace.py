@@ -1,24 +1,29 @@
-from typing import List
-from typing import Optional, Iterable, Iterator
-
 import collections
 import itertools
-
-from toposort import toposort
+from typing import Iterable
+from typing import Iterator
+from typing import Optional
 
 from starlette.requests import Request
 from starlette.responses import Response
+from toposort import toposort
 
 from spinta import commands
-from spinta.backends.components import BackendFeatures
-from spinta.components import Context, UrlParams, Namespace, Action, Model, Property, Node
-from spinta.datasets.components import ExternalBackend
-from spinta.renderer import render
-from spinta.nodes import load_node, load_model_properties
 from spinta import exceptions
 from spinta.auth import authorized
+from spinta.backends.components import BackendFeatures
 from spinta.compat import urlparams_to_expr
-from spinta.utils.data import take
+from spinta.components import Action
+from spinta.components import Config
+from spinta.components import Context
+from spinta.components import Model
+from spinta.components import Namespace
+from spinta.components import Node
+from spinta.components import Property
+from spinta.components import UrlParams
+from spinta.nodes import load_model_properties
+from spinta.nodes import load_node
+from spinta.renderer import render
 
 
 @commands.link.register(Context, Namespace)
@@ -46,6 +51,10 @@ async def getall(
     action: Action,
     params: UrlParams,
 ) -> Response:
+    config: Config = context.get('config')
+    if config.root and ns.is_root():
+        ns = ns.manifest.namespaces[config.root]
+
     commands.authorize(context, action, ns)
     if params.all and params.ns:
         for model in traverse_ns_models(context, ns, action, internal=True):
@@ -123,9 +132,8 @@ def traverse_ns_models(
     internal: bool = False,
 ):
     models = (ns.models or {})
-    models = models if internal else take(models)
     for model in models.values():
-        if _model_matches_params(context, model, action, dataset_, resource):
+        if _model_matches_params(context, model, action, dataset_, resource, internal):
             yield model
     for ns_ in ns.names.values():
         if not internal and ns_.name.startswith('_'):
@@ -146,7 +154,11 @@ def _model_matches_params(
     action: Action,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
+    internal: bool = False,
 ):
+    if not internal and model.name.startswith('_'):
+        return False
+
     if not authorized(context, model, action):
         return False
 

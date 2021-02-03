@@ -1,4 +1,5 @@
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.data import listdata
 from spinta.testing.utils import create_manifest_files, read_manifest_files, readable_manifest_files
 from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
@@ -86,6 +87,20 @@ def test_create_model(postgresql, rc, cli: SpintaCliRunner, tmpdir, request):
         ],
     }
 
+    # When tests fail with
+    #     File "spinta/backends/postgresql/commands/migrate.py", in execute
+    #       for action in version['actions']:
+    #   KeyError: 'actions'
+    # Check if database is cleaned properly.
+    #   import sqlalchemy as sa
+    #   query = 'select "type", "name", "id" from "_schema/version"'
+    #   engine = sa.create_engine(postgresql)
+    #   result = engine.execute(query)
+    #   pp(result)
+    # To fix that, check context.wipe_all method.
+    # And probably delete everything manually:
+    #   engine.execute('delete from "_schema/version"')
+
     cli.invoke(rc, ['migrate'])
 
     context = create_test_context(rc, name='pytest/client')
@@ -94,8 +109,8 @@ def test_create_model(postgresql, rc, cli: SpintaCliRunner, tmpdir, request):
     client = create_test_client(context)
     client.authmodel('_schema/version', ['getall', 'search'])
 
-    data = client.get('/_schema/version?select(type, name)').json()['_data']
-    data = [d for d in data if not d['name'].startswith('_')]
+    resp = client.get('/_schema/version?select(type, name)')
+    data = [(t, n) for t, n in listdata(resp) if not t.startswith('_')]
     assert data == [
-        {'type': 'model', 'name': 'country'},
+        ('country', 'model'),
     ]

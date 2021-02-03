@@ -26,6 +26,7 @@ def prepare_manifest(context: Context, *, verbose: bool = True) -> Store:
     commands.load(context, store.manifest)
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)
+    commands.wait(context, store)
     commands.prepare(context, store.manifest)
     return store
 

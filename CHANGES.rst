@@ -6,6 +6,9 @@ Changes
 0.1.10 (unreleased)
 ===================
 
+- Add `root` config option, to set namespaces, which will be shown on `/`.
+  Also this option restricts access only to specified namespace.
+
 
 0.1.9 (2021-02-01)
 ==================

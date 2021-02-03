@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pathlib
 from typing import Dict
+from typing import List
 from typing import TYPE_CHECKING
 from typing import TypedDict
 
@@ -44,6 +45,10 @@ class Manifest(Component):
     # Backends defined in the manifest.
     backends: Dict[str, Backend] = None
 
+    # List of other source manifests used to populate nodes into the main
+    # manifest.
+    sync: List[Manifest]
+
     mode: Mode = Mode.internal
 
     def __repr__(self):
@@ -70,3 +75,7 @@ class Manifest(Component):
     @property
     def datasets(self) -> Dict[str, Dataset]:
         return self.objects['dataset']
+
+    @property
+    def namespaces(self) -> Dict[str, Namespace]:
+        return self.objects['ns']

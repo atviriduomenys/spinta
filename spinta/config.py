@@ -175,6 +175,9 @@ CONFIG = {
     # Public JWK key for validating auth bearer tokens.
     'token_validation_key': None,
 
+    # Limit access to specified namespace root.
+    'root': None,
+
     'env': 'prod',
 
     'environments': {

@@ -75,7 +75,7 @@ def bootstrap(context: Context, backend: S3):
     pass
 
 
-@commands.migrate.register()
+@commands.migrate.register(Context, S3)
 def migrate(context: Context, backend: S3):
     pass
 

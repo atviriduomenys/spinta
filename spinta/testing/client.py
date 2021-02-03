@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+from typing import Dict
 from typing import Optional, List, Union
 
 import dataclasses
@@ -18,20 +20,30 @@ from responses import POST
 from spinta import auth
 from spinta import commands
 from spinta import api
-from spinta.components import Context
 from spinta.core.config import RawConfig
+from spinta.testing.context import TestContext
 from spinta.testing.context import create_test_context
 from spinta.auth import create_client_file
 from spinta.testing.config import create_config_path
 
 
-def create_test_client(rc_or_context: Union[RawConfig, Context]):
+def create_test_client(
+    rc_or_context: Union[RawConfig, TestContext],
+    config: Dict[str, Any] = None,
+) -> TestClient:
     if isinstance(rc_or_context, RawConfig):
         rc = rc_or_context
+        if config:
+            rc = rc.fork(config)
         context = create_test_context(rc, name='pytest/client')
     else:
+        if config is not None:
+            raise NotImplementedError()
         context = rc_or_context
-    if not context.loaded:
+    if context.loaded:
+        if config is not None:
+            raise RuntimeError("Context already loaded, can't override config.")
+    else:
         context.load()
     app = api.init(context)
     return TestClient(context, app, base_url='https://testserver')

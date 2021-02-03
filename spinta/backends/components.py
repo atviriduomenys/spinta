@@ -48,3 +48,6 @@ class Backend:
     @contextlib.contextmanager
     def transaction(self):
         raise NotImplementedError
+
+    def bootstrapped(self):
+        raise NotImplementedError

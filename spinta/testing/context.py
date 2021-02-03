@@ -1,31 +1,47 @@
+from __future__ import annotations
+
+from typing import Any
+from typing import Dict
+from typing import Optional
 from typing import Union
 
 import contextlib
 
 from spinta import commands
+from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Node
+from spinta.components import Context
 from spinta.auth import AdminToken
 from spinta.utils.imports import importstr
 from spinta.core.context import create_context
 from spinta.core.config import RawConfig
 
 
-def create_test_context(rc: RawConfig, *, name: str = 'pytest'):
+def create_test_context(
+    rc: RawConfig,
+    *,
+    name: str = 'pytest',
+) -> TestContext:
     rc = rc.fork()
-    Context = rc.get('components', 'core', 'context', cast=importstr)
-    Context = type('ContextForTests', (ContextForTests, Context), {})
-    context = Context(name)
+    Context_ = rc.get('components', 'core', 'context', cast=importstr)
+    Context_ = type('ContextForTests', (ContextForTests, Context_), {})
+    context = Context_(name)
     return create_context(name, rc, context)
 
 
 class ContextForTests:
+    loaded: bool = False
 
-    def __init__(self, name, parent=None):
+    def __init__(
+        self: TestContext,
+        name: str,
+        parent: TestContext = None,
+    ):
         super().__init__(name, parent)
         self.loaded = parent.loaded if parent else False
 
     @contextlib.contextmanager
-    def transaction(self, *, write=False):
+    def transaction(self: TestContext, *, write=False):
         if self.has('transaction'):
             yield self
         else:
@@ -36,18 +52,21 @@ class ContextForTests:
                 self.attach('transaction', backend.transaction, write=write)
                 yield self
 
-    def wipe(self, model: Union[str, Node]):
+    def wipe(self: TestContext, model: Union[str, Node]):
         if isinstance(model, str):
             store = self.get('store')
             model = store.manifest.models[model]
         with self.transaction() as context:
             commands.wipe(context, model, model.backend)
 
-    def wipe_all(self):
+    def wipe_all(self: TestContext):
         store = self.get('store')
         self.wipe(store.manifest.objects['ns'][''])
 
-    def load(self, overrides=None):
+    def load(
+        self: TestContext,
+        overrides: Optional[Dict[str, Any]] = None,
+    ) -> TestContext:
         # We pass context to tests unloaded, by doing this, we give test
         # functions opportunity to call `context.load` manually and provide
         # `overrides` for config, this way each test can configure context in
@@ -68,19 +87,12 @@ class ContextForTests:
                 }
             })
 
-        config = self.get('config')
-        commands.load(self, config)
-        commands.check(self, config)
-
-        store = self.get('store')
-        commands.load(self, store)
-        commands.load(self, store.manifest)
-        commands.link(self, store.manifest)
-        commands.check(self, store.manifest)
-        commands.wait(self, store)
-        commands.prepare(self, store.manifest)
+        store = prepare_manifest(self)
         commands.bootstrap(self, store.manifest)
 
         self.loaded = True
 
         return self
+
+
+TestContext = Union[Context, ContextForTests]

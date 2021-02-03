@@ -1,23 +1,28 @@
-from typing import AsyncIterator, Iterator, Tuple, Iterable
-
 import collections
 import datetime
 import itertools
+from typing import AsyncIterator
+from typing import Iterable
+from typing import Iterator
+from typing import Tuple
+from typing import cast
 
 from toposort import toposort
 
 from spinta import commands
-from spinta.utils.json import fix_data_for_json
-from spinta.utils.aiotools import aiter
-from spinta.utils.aiotools import adrain
-from spinta.utils.itertools import last
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import bind
 from spinta.commands.write import push_stream
 from spinta.commands.write import write
-from spinta.components import Context, DataItem, Action
-from spinta.manifests.components import Manifest
+from spinta.components import Action
+from spinta.components import Context
+from spinta.components import DataItem
+from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import bind
 from spinta.manifests.backend.components import BackendManifest
+from spinta.manifests.components import Manifest
+from spinta.utils.aiotools import adrain
+from spinta.utils.aiotools import aiter
+from spinta.utils.itertools import last
+from spinta.utils.json import fix_data_for_json
 
 
 async def run_bootstrap(context: Context, manifest: BackendManifest):
@@ -100,7 +105,7 @@ def read_unapplied_versions(
 
 
 def read_sync_versions(context: Context, manifest: Manifest):
-    sources = [manifest.store.internal] + manifest.sync
+    sources = [cast(Manifest, manifest.store.internal)] + manifest.sync
     for source in sources:
         for eid in commands.manifest_list_schemas(context, source):
             for version in commands.manifest_read_versions(context, source, eid=eid):

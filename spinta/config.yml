@@ -167,6 +167,9 @@ always_show_id:
 default_auth_client:
   type: string
 
+root:
+  type: string
+
 env:
   type: ref
   ref: environments

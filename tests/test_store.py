@@ -1,4 +1,15 @@
+from pathlib import Path
+
 import pytest
+
+from spinta.components import Context
+from spinta.core.config import RawConfig
+from spinta.testing.client import TestClient
+from spinta.testing.client import create_test_client
+from spinta.testing.config import configure
+from spinta.testing.context import ContextForTests
+from spinta.testing.context import create_test_context
+from spinta.testing.data import listdata
 
 
 @pytest.mark.models(
@@ -91,3 +102,23 @@ def test_nested(model, app):
         'note_type': None,
         'create_date': None
     }]
+
+
+def test_root(rc: RawConfig, tmpdir: Path):
+    rc = configure(rc, None, tmpdir / 'manifest.csv', '''
+    d | r | b | m | property | type   | title
+    datasets/gov/vpt/old     |        | Old data
+      | sql                  | sql    |
+      |   |   | Country      |        |
+      |   |   |   | name     | string |
+    datasets/gov/vpt/new     |        | New data
+      | sql                  | sql    |
+      |   |   | Country      |        |
+      |   |   |   | name     | string |
+    ''')
+    app = create_test_client(rc, {
+        'root': 'datasets/gov/vpt',
+    })
+    app.authorize(['spinta_getall'])
+    assert listdata(app.get('/')) == ['new', 'old']
+
