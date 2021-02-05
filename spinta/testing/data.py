@@ -1,4 +1,8 @@
 import operator
+from textwrap import indent
+from typing import Any
+from typing import Callable
+from typing import Dict
 from typing import List
 from typing import Union
 
@@ -11,11 +15,57 @@ from spinta.utils.nestedstruct import flatten
 
 
 def listdata(
-    resp: requests.Response,
-    *keys: str,
+    resp: Union[requests.Response, List[Dict[str, Any]]],
+    *keys: Union[str, Callable[[], bool]],
     sort: Union[bool, str] = True,
+    full: bool = False,
 ) -> List[tuple]:
-    if resp.headers['content-type'].startswith('text/html'):
+    """Return data from a given requests.Response object.
+
+    Only non reserved fields are returned.
+
+    By default data are converted to List[Tuple[Any]], but if `full` is True,
+    then List[Dict[str, Any] is returned.
+
+    Usage:
+
+        >>> data = [
+        ...     {'_id': 1, 'odd': 1, 'even': 2},
+        ...     {'_id': 2, 'odd': 3, 'even': 4},
+        ...     {'_id': 3, 'odd': 5, 'even': 6},
+        ... }
+
+        >>> listdata(data)
+        [
+            (1, 2),
+            (3, 4),
+            (5, 6),
+        ]
+
+        >>> listdata(data, 'even')
+        [2, 4, 6]
+
+        >>> listdata(data, 'odd', 'even')
+        [
+            (1, 2),
+            (3, 4),
+            (5, 6),
+        ]
+
+        >>> listdata(data, full=True)
+        data = [
+            {'odd': 1, 'even': 2},
+            {'odd': 3, 'even': 4},
+            {'odd': 5, 'even': 6},
+        }
+
+    """
+
+    # Prepare data
+    if isinstance(resp, list):
+        data = resp
+
+    elif resp.headers['content-type'].startswith('text/html'):
         data = resp.context
         assert resp.status_code == 200, pformat(data)
         assert 'data' in data, pformat(data)
@@ -25,6 +75,7 @@ def listdata(
             {k: v['value'] for k, v in zip(data['header'], row)}
             for row in data['data']
         ]
+
     else:
         data = resp.json()
         assert resp.status_code == 200, pformat(data)
@@ -36,15 +87,22 @@ def listdata(
             for k in d
             if not k.startswith('_')
         })
-    if len(keys) == 1:
+
+    # Clean data
+    if full:
+        data = [take(keys, row) for row in data]
+    elif len(keys) == 1:
         k = keys[0]
         data = [take(k, row) for row in data]
     else:
         data = [tuple(take(k, row) for k in keys) for row in data]
+
+    # Sort
     if sort is True:
-        data = sorted(data)
+        data = sorted(data, key=str)
     elif sort:
         data = sorted(data, key=operator.itemgetter(keys.index(sort)))
+
     return data
 
 
@@ -65,8 +123,12 @@ def pushdata(app: TestClient, *args) -> Union[dict, list]:
     try:
         resp.raise_for_status()
     except requests.HTTPError as e:
+        dump = indent(pformat(data), '  ').strip()
         raise Exception(
-            f"pushdata error: model={model}, error={e}, data: {data!r}"
+            f"pushdata error:\n"
+            f"  model={model},\n"
+            f"  error={e},\n  "
+            f"data: {dump}"
         )
     data = resp.json()
     if multiple:

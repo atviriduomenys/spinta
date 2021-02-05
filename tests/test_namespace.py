@@ -1,148 +1,70 @@
 import json
-import operator
 import hashlib
+from typing import Tuple
 
 import pytest
 
+from spinta.testing.client import TestClient
+from spinta.testing.data import listdata
+from spinta.testing.data import pushdata
+from spinta.utils.data import take
 
-@pytest.mark.skip('todo')
-@pytest.mark.models(
-    'backends/postgres/%s/:dataset/test',
-)
-def test_getall(model, app):
-    continent = model % 'continent'
-    country = model % 'country'
-    capital = model % 'capital'
 
-    app.authorize([
-        'spinta_set_meta_fields',
-        'spinta_getall',
-    ])
+def _create_data(app: TestClient, ns: str) -> Tuple[str, str]:
+    continent = ns + '/continent'
+    country = ns + '/country'
+    capital = ns + '/capital'
+
     app.authmodel(continent, ['insert'])
     app.authmodel(country, ['insert'])
     app.authmodel(capital, ['insert'])
 
-    data = [
-        {
-            '_op': 'insert',
-            '_type': continent,
-            '_id': '356a192b7913b04c54574d18c28d46e6395428ab',
-            'title': 'Europe',
-        },
-        {
-            '_op': 'insert',
-            '_type': country,
-            '_id': 'da4b9237bacccdf19c0760cab7aec4a8359010b0',
-            'continent': '356a192b7913b04c54574d18c28d46e6395428ab',
-            'code': 'lt',
-            'title': 'Lithuania',
-        },
-        {
-            '_op': 'insert',
-            '_type': capital,
-            '_id': '77de68daecd823babbb58edb1c8e14d7106e83bb',
-            'country': 'da4b9237bacccdf19c0760cab7aec4a8359010b0',
-            'title': 'Vilnius',
-        },
-    ]
-    headers = {'content-type': 'application/x-ndjson'}
-    payload = (json.dumps(d) + '\n' for d in data)
-    resp = app.post('/', headers=headers, data=payload)
-    assert resp.status_code == 200
-    data = {d['_id']: d for d in resp.json()['_data']}
+    eu = take('_id', pushdata(app, continent, {
+        'title': 'Europe',
+    }))
+    lt = take('_id', pushdata(app, country, {
+        'code': 'lt',
+        'title': 'Lithuania',
+        'continent': {'_id': eu},
+    }))
+    pushdata(app, capital, {
+        'title': 'Vilnius',
+        'country': {'_id': lt},
+    })
 
-    resp = app.get('/:all/:dataset/test')
-    assert resp.status_code == 200
-    assert sorted(resp.json()['_data'], key=operator.itemgetter('_id')) == [
-        {
-            '_id': '356a192b7913b04c54574d18c28d46e6395428ab',
-            '_revision': data['356a192b7913b04c54574d18c28d46e6395428ab']['_revision'],
-            '_type': 'backends/postgres/continent/:dataset/test',
-            'title': 'Europe',
-        },
-        {
-            '_id': '77de68daecd823babbb58edb1c8e14d7106e83bb',
-            '_revision': data['77de68daecd823babbb58edb1c8e14d7106e83bb']['_revision'],
-            '_type': 'backends/postgres/capital/:dataset/test',
-            'country': 'da4b9237bacccdf19c0760cab7aec4a8359010b0',
-            'title': 'Vilnius',
-        },
-        {
-            '_id': 'da4b9237bacccdf19c0760cab7aec4a8359010b0',
-            '_revision': data['da4b9237bacccdf19c0760cab7aec4a8359010b0']['_revision'],
-            '_type': 'backends/postgres/country/:dataset/test',
-            'code': 'lt',
-            'continent': '356a192b7913b04c54574d18c28d46e6395428ab',
-            'title': 'Lithuania',
-        },
+    return eu, lt
+
+
+@pytest.mark.models('datasets/backends/postgres/dataset')
+def test_getall(model: str, app: TestClient):
+    eu, lt = _create_data(app, model)
+    app.authorize(['spinta_getall'])
+
+    resp = app.get('/datasets/backends/postgres/dataset/:all')
+    assert listdata(resp, full=True) == [
+        {'code': 'lt', 'continent._id': eu, 'title': 'Lithuania'},
+        {'country._id': lt, 'title': 'Vilnius'},
+        {'title': 'Europe'},
     ]
 
-    resp = app.get('/:all/:dataset/csv')
-    assert resp.status_code == 200
-    assert resp.json()['_data'] == []
+    resp = app.get('/datasets/csv/:all')
+    assert listdata(resp) == []
 
 
 def sha1(s):
     return hashlib.sha1(s.encode()).hexdigest()
 
 
-@pytest.mark.skip('todo')
-@pytest.mark.models(
-    'backends/postgres/%s/:dataset/test',
-)
+@pytest.mark.models('datasets/backends/postgres/dataset')
 def test_getall_ns(model, app):
-    continent = model % 'continent'
-    country = model % 'country'
-    capital = model % 'capital'
+    _create_data(app, model)
+    app.authorize(['spinta_getall'])
 
-    app.authorize([
-        'spinta_set_meta_fields',
-        'spinta_getall',
-    ])
-    app.authmodel(continent, ['insert'])
-    app.authmodel(country, ['insert'])
-    app.authmodel(capital, ['insert'])
-
-    data = [
-        {
-            '_op': 'insert',
-            '_type': continent,
-            '_id': sha1('1'),
-            'title': 'Europe',
-        },
-        {
-            '_op': 'insert',
-            '_type': country,
-            '_id': sha1('2'),
-            'continent': sha1('1'),
-            'code': 'lt',
-            'title': 'Lithuania',
-        },
-        {
-            '_op': 'insert',
-            '_type': capital,
-            '_id': sha1('3'),
-            'country': sha1('2'),
-            'title': 'Vilnius',
-        },
-    ]
-    headers = {'content-type': 'application/x-ndjson'}
-    payload = (json.dumps(d) + '\n' for d in data)
-    resp = app.post('/', headers=headers, data=payload)
-    assert resp.status_code == 200
-    data = {d['_id']: d for d in resp.json()['_data']}
-
-    resp = app.get('/:ns/:all/:dataset/test')
-    assert resp.status_code == 200
-    assert [d['_id'] for d in resp.json()['_data']] == [
-        'backends/postgres/capital/:dataset/test',
-        'backends/postgres/capital/:dataset/test',
-        'backends/postgres/continent/:dataset/test',
-        'backends/postgres/continent/:dataset/test',
-        'backends/postgres/country/:dataset/test',
-        'backends/postgres/country/:dataset/test',
-        'backends/postgres/org/:dataset/test',
-        'backends/postgres/org/:dataset/test',
-        'backends/postgres/report/:dataset/test',
-        'backends/postgres/report/:dataset/test',
+    resp = app.get('/datasets/backends/postgres/dataset/:ns/:all')
+    assert listdata(resp, '_id') == [
+        'datasets/backends/postgres/dataset/capital',
+        'datasets/backends/postgres/dataset/continent',
+        'datasets/backends/postgres/dataset/country',
+        'datasets/backends/postgres/dataset/org',
+        'datasets/backends/postgres/dataset/report',
     ]

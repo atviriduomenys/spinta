@@ -124,6 +124,7 @@ def test_key_reserved():
         'd_': 4,
     }
     assert take('_b', data) == 2
+    assert take(['_b'], data) == {'_b': 2}
 
 
 def test_key_na():
@@ -148,6 +149,7 @@ def test_key_first():
     d4 = {'a': 1}
     d5 = {'a': 2}
     assert take('a', d1, d2, d3, d4, d5) == 1
+    assert take(['a'], d1, d2, d3, d4, d5) == {'a': 1}
 
 
 def test_nested():

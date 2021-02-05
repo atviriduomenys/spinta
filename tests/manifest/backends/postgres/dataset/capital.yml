@@ -8,4 +8,4 @@ properties:
     type: string
   country:
     type: ref
-    model: backends/postgres/country
+    model: datasets/backends/postgres/dataset/country
