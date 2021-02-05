@@ -7,6 +7,7 @@ from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.datasets import Sqlite
+from spinta.testing.manifest import compare_manifest
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.tabular import load_tabular_manifest
 from spinta.manifests.tabular.helpers import render_tabular_manifest
@@ -321,3 +322,41 @@ def test_inspect_oracle_sqldump_file_with_formula(
        |                          |         |     |          |                                    |       |           |     |       |
        |   |   |   | Country      |         |     | COUNTRY  |                                    |       | protected |     |       |
     ''')
+
+
+def test_inspect_with_schema(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmpdir: Path,
+    sqlite: Sqlite,
+):
+    # Prepare source data.
+    sqlite.init({
+        'CITY': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+        ],
+    })
+
+    # Configure Spinta.
+    rc = configure(rc, None, tmpdir / 'manifest.csv', f'''
+    d | r | m | property | type | source       | prepare
+    dataset              |      |              |
+      | schema           | sql  | {sqlite.dsn} | connect(self, encoding: 'utf-8')
+    ''')
+
+    cli.invoke(rc, ['inspect', '-o', tmpdir / 'result.csv'])
+
+    # Check what was detected.
+    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest.datasets['dataset'].resources['schema'].external = 'sqlite'
+    a, b = compare_manifest(manifest, '''
+    d | r | b | m | property | type    | ref | source | prepare
+    dataset                  |         |     |        |
+      | schema               | sql     |     | sqlite | connect(self, encoding: 'utf-8')
+                             |         |     |        |
+      |   |   | City         |         | id  | CITY   |
+      |   |   |   | id       | integer |     | ID     |
+      |   |   |   | name     | string  |     | NAME   |
+    ''')
+    assert a == b

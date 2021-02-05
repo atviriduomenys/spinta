@@ -7,14 +7,20 @@ from typing import Tuple
 
 import frictionless
 import sqlalchemy as sa
+from sqlalchemy.engine.base import Engine as SaEngine
 
 from spinta import commands
+from spinta import spyna
 from spinta.backends import Backend
 from spinta.components import Context
 from spinta.datasets.backends.sql.components import Sql
+from spinta.datasets.backends.sql.ufuncs.components import Engine
+from spinta.datasets.backends.sql.ufuncs.components import SqlResource
 from spinta.datasets.components import Resource
+from spinta.exceptions import UnexpectedFormulaResult
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
+from spinta.utils.imports import full_class_name
 from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
 
@@ -129,7 +135,21 @@ def inspect(context: Context, manifest: Manifest, backend: Sql):
 
 @commands.inspect.register(Context, Resource, Sql)
 def inspect(context: Context, resource: Resource, backend: Sql):
-    engine = sa.create_engine(backend.config['dsn'])
+    if resource.prepare:
+        env = SqlResource(context).init(backend.config['dsn'])
+        engine = env.resolve(resource.prepare)
+        engine: Engine = env.execute(engine)
+        if not isinstance(engine, Engine):
+            raise UnexpectedFormulaResult(
+                resource,
+                formula=spyna.unparse(resource.prepare),
+                expected=full_class_name(SaEngine),
+                received=full_class_name(engine),
+            )
+        engine: SaEngine = engine.create()
+    else:
+        engine = sa.create_engine(backend.config['dsn'])
+
     package = frictionless.Package.from_sql(engine=engine)
     schemas = _read_frictionless_package(resource, backend, package)
     load_manifest_nodes(

@@ -1,4 +1,7 @@
 import importlib
+import inspect
+from typing import Any
+from typing import Type
 
 
 def importstr(path):
@@ -11,3 +14,12 @@ def importstr(path):
     module = importlib.import_module(module)
     obj = getattr(module, obj)
     return obj
+
+
+def full_class_name(obj: Any) -> str:
+    klass: Type
+    if not inspect.isclass(obj):
+        klass = type(obj)
+    else:
+        klass = obj
+    return f'{klass.__module__}.{klass.__name__}'
