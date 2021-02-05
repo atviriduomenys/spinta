@@ -342,7 +342,7 @@ def test_inspect_with_schema(
     rc = configure(rc, None, tmpdir / 'manifest.csv', f'''
     d | r | m | property | type | source       | prepare
     dataset              |      |              |
-      | schema           | sql  | {sqlite.dsn} | connect(self, encoding: 'utf-8')
+      | schema           | sql  | {sqlite.dsn} | connect(self, schema: null)
     ''')
 
     cli.invoke(rc, ['inspect', '-o', tmpdir / 'result.csv'])
@@ -353,7 +353,7 @@ def test_inspect_with_schema(
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref | source | prepare
     dataset                  |         |     |        |
-      | schema               | sql     |     | sqlite | connect(self, encoding: 'utf-8')
+      | schema               | sql     |     | sqlite | connect(self, schema: null)
                              |         |     |        |
       |   |   | City         |         | id  | CITY   |
       |   |   |   | id       | integer |     | ID     |

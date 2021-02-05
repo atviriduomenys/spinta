@@ -146,11 +146,13 @@ def inspect(context: Context, resource: Resource, backend: Sql):
                 expected=full_class_name(SaEngine),
                 received=full_class_name(engine),
             )
-        engine: SaEngine = engine.create()
     else:
-        engine = sa.create_engine(backend.config['dsn'])
+        engine = Engine(backend.config['dsn'])
 
-    package = frictionless.Package.from_sql(engine=engine)
+    package = frictionless.Package.from_sql(
+        engine=engine.create(),
+        namespace=engine.schema,
+    )
     schemas = _read_frictionless_package(resource, backend, package)
     load_manifest_nodes(
         context,

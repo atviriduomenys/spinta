@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import sqlalchemy as sa
+from sqlalchemy.engine.base import Engine as SaEngine
 
 from spinta.core.ufuncs import Env
 from spinta.utils.data import take
@@ -13,9 +14,8 @@ class Engine:
     schema: str = NA
     encoding: str = NA
 
-    def create(self):
+    def create(self) -> SaEngine:
         return sa.create_engine(self.dsn, **take({
-            'schema': self.schema,
             'encoding': self.encoding,
         }))
 
