@@ -11,7 +11,7 @@ from spinta.utils.schema import NA
 @dataclass
 class Engine:
     dsn: str  # sqlalchemy engine dsn
-    schema: str = NA
+    schema: str = None
     encoding: str = NA
 
     def create(self) -> SaEngine:
