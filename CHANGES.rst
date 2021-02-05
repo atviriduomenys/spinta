@@ -9,6 +9,8 @@ Changes
 - Add `root` config option, to set namespaces, which will be shown on `/`.
   Also this option restricts access only to specified namespace.
 
+- Change ufunc `schema(name)` to `connect(self, schema: name)`.
+
 
 0.1.9 (2021-02-01)
 ==================
