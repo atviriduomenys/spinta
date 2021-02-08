@@ -1,28 +1,39 @@
 from __future__ import annotations
 
+import itertools
+import typing
 from typing import Any
 from typing import Dict
 
-import itertools
-
-import typing
-
-from spinta.auth import authorized
-from spinta.components import Mode
-from spinta.commands import load, check, authorize, prepare
-from spinta.components import Context, Base, Model, Property, Action
-from spinta.manifests.components import Manifest
-from spinta.nodes import load_node
-from spinta.utils.schema import NA
 from spinta import commands
 from spinta import exceptions
-from spinta.nodes import load_model_properties
-from spinta.types.namespace import load_namespace_from_model
-from spinta.nodes import get_node
+from spinta.auth import authorized
+from spinta.commands import authorize
+from spinta.commands import check
+from spinta.commands import load
+from spinta.commands import prepare
+from spinta.components import Action
+from spinta.components import Base
+from spinta.components import Context
+from spinta.components import Mode
+from spinta.components import Model
+from spinta.components import Property
 from spinta.core.access import load_access_param
+from spinta.manifests.components import Manifest
+from spinta.nodes import get_node
+from spinta.nodes import load_model_properties
+from spinta.nodes import load_node
+from spinta.types.namespace import load_namespace_from_name
+from spinta.utils.schema import NA
 
 if typing.TYPE_CHECKING:
     from spinta.datasets.components import Attribute
+
+
+def _load_namespace_from_model(context: Context, manifest: Manifest, model: Model):
+    ns = load_namespace_from_name(context, manifest, model.name)
+    ns.models[model.model_type()] = model
+    model.ns = ns
 
 
 @load.register(Context, Model, dict, Manifest)
@@ -45,7 +56,7 @@ def load(
         model.keymap = manifest.keymap
 
     manifest.add_model_endpoint(model)
-    load_namespace_from_model(context, manifest, model)
+    _load_namespace_from_model(context, manifest, model)
     model.access = load_access_param(model, model.access)
     load_model_properties(context, model, Property, data.get('properties'))
 

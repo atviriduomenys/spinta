@@ -7,6 +7,7 @@ from spinta.components import Context
 from spinta.manifests.components import Manifest
 from spinta.datasets.components import Dataset, Resource, Entity
 from spinta.core.access import load_access_param
+from spinta.types.namespace import load_namespace_from_name
 
 
 @commands.load.register(Context, Dataset, dict, Manifest)
@@ -22,6 +23,11 @@ def load(
 
     load_node(context, dataset, data, parent=manifest)
     dataset.access = load_access_param(dataset, dataset.access)
+
+    ns = load_namespace_from_name(context, manifest, dataset.name, drop=False)
+    if ns.generated:
+        ns.title = dataset.title
+        ns.description = dataset.description
 
     # Load resources
     dataset.resources = {}

@@ -4,7 +4,9 @@ from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Iterator
+from typing import List
 from typing import Optional
+from typing import TypedDict
 
 from starlette.requests import Request
 from starlette.responses import Response
@@ -29,11 +31,25 @@ from spinta.nodes import load_node
 from spinta.renderer import render
 
 
-def load_namespace_from_model(context: Context, manifest: Manifest, model: Model):
-    ns = None
-    parts = []
-    parent = manifest
-    for part in [''] + model.name.split('/')[:-1]:
+class NamespaceData(TypedDict):
+    title: str
+    description: str
+
+
+def load_namespace_from_name(
+    context: Context,
+    manifest: Manifest,
+    path: str,
+    *,
+    drop: bool = True,
+) -> Namespace:
+    ns: Optional[Namespace] = None
+    parent: Optional[Namespace] = None
+    parts: List[str] = []
+    parts_ = path.split('/')
+    if drop:
+        parts_ = parts_[:-1]
+    for part in [''] + parts_:
         parts.append(part)
         name = '/'.join(parts[1:])
         if name not in manifest.namespaces:
@@ -45,16 +61,19 @@ def load_namespace_from_model(context: Context, manifest: Manifest, model: Model
                 'description': '',
             }
             commands.load(context, ns, data, manifest)
-            ns.parent = parent
             ns.generated = True
         else:
             ns = manifest.namespaces[name]
-            ns.parent = parent
-        if part and part not in parent.names:
+            pass
+
+        ns.parent = parent or manifest
+
+        if parent and part and part not in parent.names:
             parent.names[part] = ns
+
         parent = ns
-    parent.models[model.model_type()] = model
-    model.ns = ns
+
+    return ns
 
 
 @commands.load.register(Context, Namespace, dict, Manifest)

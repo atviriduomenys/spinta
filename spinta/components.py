@@ -407,6 +407,7 @@ class Namespace(MetaData):
     names: Dict[str, Namespace]
     models: Dict[str, Model]
     backend: Backend = None
+    parent: Union[Namespace, Manifest]
     title: str
     description: str
     # Namespaces generated from model name.

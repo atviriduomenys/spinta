@@ -92,7 +92,7 @@ def test_ns_titles(
         ('datasets/:ns', 'All datasets'),
         ('datasets/gov/:ns', 'Government datasets'),
         ('datasets/gov/vpt/:ns', 'vpt'),
-        ('datasets/gov/vpt/new/:ns', 'new'),
+        ('datasets/gov/vpt/new/:ns', 'New data'),
         ('datasets/gov/vpt/new/City', 'Cities'),
         ('datasets/gov/vpt/new/Country', 'Countries'),
     ]
