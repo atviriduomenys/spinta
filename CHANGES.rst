@@ -11,6 +11,15 @@ Changes
 
 - Change ufunc `schema(name)` to `connect(self, schema: name)`.
 
+- Possibility to provide title and description metadata for namespaces
+  (`#56`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/56
+
+- Fixed duplicate items in `/:ns/:all` query results (`#23`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/23
+
 
 0.1.9 (2021-02-01)
 ==================

@@ -30,6 +30,8 @@ from spinta.testing.config import create_config_path
 def create_test_client(
     rc_or_context: Union[RawConfig, TestContext],
     config: Dict[str, Any] = None,
+    *,
+    scope: List[str] = None,
 ) -> TestClient:
     if isinstance(rc_or_context, RawConfig):
         rc = rc_or_context
@@ -46,7 +48,10 @@ def create_test_client(
     else:
         context.load()
     app = api.init(context)
-    return TestClient(context, app, base_url='https://testserver')
+    client = TestClient(context, app, base_url='https://testserver')
+    if scope:
+        client.authorize(scope)
+    return client
 
 
 def create_remote_server(

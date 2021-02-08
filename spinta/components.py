@@ -367,28 +367,6 @@ class Node(Component):
         return self.name.split('/')[-1]
 
 
-class Namespace(Node):
-    access: Access
-    keymap: KeyMap = None
-    names: Dict[str, Namespace]
-    models: Dict[str, Model]
-    backend: Backend = None
-
-    def model_specifier(self):
-        return ':ns'
-
-    def parents(self):
-        ns = self.parent
-        while isinstance(ns, Namespace):
-            yield ns
-            ns = ns.parent
-
-    def is_root(self) -> bool:
-        # TODO: Move Namespace component to spinta.namespaces
-        from spinta.manifests.components import Manifest
-        return isinstance(self.parent, Manifest)
-
-
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
 # etc, depends on manifest type.
 EntryId = Union[int, str, pathlib.Path]
@@ -421,6 +399,32 @@ class MetaData(Node):
             return str(self.eid.relative_to(self.manifest.path))
         else:
             return str(self.eid)
+
+
+class Namespace(MetaData):
+    access: Access
+    keymap: KeyMap = None
+    names: Dict[str, Namespace]
+    models: Dict[str, Model]
+    backend: Backend = None
+    title: str
+    description: str
+    # Namespaces generated from model name.
+    generated: bool = False
+
+    def model_specifier(self):
+        return ':ns'
+
+    def parents(self):
+        ns = self.parent
+        while isinstance(ns, Namespace):
+            yield ns
+            ns = ns.parent
+
+    def is_root(self) -> bool:
+        # TODO: Move Namespace component to spinta.namespaces
+        from spinta.manifests.components import Manifest
+        return isinstance(self.parent, Manifest)
 
 
 class Base(Node):

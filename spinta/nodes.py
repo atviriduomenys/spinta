@@ -1,6 +1,6 @@
 from typing import Optional, Type
 
-from spinta.components import Context, Component, Config, Node, Namespace, EntryId
+from spinta.components import Context, Component, Config, Node, EntryId
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA, resolve_schema
 from spinta import exceptions
@@ -122,34 +122,6 @@ def load_node(context: Context, node: Node, data: dict, *, mixed=False, parent=N
         return node, remainder
     else:
         return node
-
-
-def load_namespace(context: Context, manifest: Manifest, node: Node):
-    parts = []
-    parent = manifest
-    for part in [''] + node.name.split('/')[:-1]:
-        parts.append(part)
-        name = '/'.join(parts[1:])
-        if name not in manifest.objects['ns']:
-            ns = Namespace()
-            ns.type = 'ns'
-            ns.name = name
-            ns.title = part
-            ns.path = manifest.path
-            ns.parent = parent
-            ns.manifest = manifest
-            ns.access = manifest.access
-            ns.names = {}
-            ns.models = {}
-            ns.backend = None
-            manifest.objects['ns'][name] = ns
-        else:
-            ns = manifest.objects['ns'][name]
-        if part and part not in parent.names:
-            parent.names[part] = ns
-        parent = ns
-    parent.models[node.model_type()] = node
-    node.ns = ns
 
 
 def load_model_properties(context: Context, model: Node, Prop: Type[Node], data: Optional[dict]) -> None:

@@ -16,7 +16,8 @@ from spinta.nodes import load_node
 from spinta.utils.schema import NA
 from spinta import commands
 from spinta import exceptions
-from spinta.nodes import load_namespace, load_model_properties
+from spinta.nodes import load_model_properties
+from spinta.types.namespace import load_namespace_from_model
 from spinta.nodes import get_node
 from spinta.core.access import load_access_param
 
@@ -44,7 +45,7 @@ def load(
         model.keymap = manifest.keymap
 
     manifest.add_model_endpoint(model)
-    load_namespace(context, manifest, model)
+    load_namespace_from_model(context, manifest, model)
     model.access = load_access_param(model, model.access)
     load_model_properties(context, model, Property, data.get('properties'))
 

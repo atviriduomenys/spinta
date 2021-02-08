@@ -1,5 +1,7 @@
 import collections
 import itertools
+from typing import Any
+from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import Optional
@@ -21,9 +23,57 @@ from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
 from spinta.components import UrlParams
+from spinta.manifests.components import Manifest
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
 from spinta.renderer import render
+
+
+def load_namespace_from_model(context: Context, manifest: Manifest, model: Model):
+    ns = None
+    parts = []
+    parent = manifest
+    for part in [''] + model.name.split('/')[:-1]:
+        parts.append(part)
+        name = '/'.join(parts[1:])
+        if name not in manifest.namespaces:
+            ns = Namespace()
+            data = {
+                'type': 'ns',
+                'name': name,
+                'title': part,
+                'description': '',
+            }
+            commands.load(context, ns, data, manifest)
+            ns.parent = parent
+            ns.generated = True
+        else:
+            ns = manifest.namespaces[name]
+            ns.parent = parent
+        if part and part not in parent.names:
+            parent.names[part] = ns
+        parent = ns
+    parent.models[model.model_type()] = model
+    model.ns = ns
+
+
+@commands.load.register(Context, Namespace, dict, Manifest)
+def load(
+    context: Context,
+    ns: Namespace,
+    data: Dict[str, Any],
+    manifest: Manifest,
+    *,
+    source: Manifest = None,
+):
+    load_node(context, ns, data)
+    ns.path = manifest.path
+    ns.manifest = manifest
+    ns.access = manifest.access
+    ns.backend = None
+    ns.names = {}
+    ns.models = {}
+    manifest.namespaces[ns.name] = ns
 
 
 @commands.link.register(Context, Namespace)
@@ -247,7 +297,6 @@ def _get_ns_content_data_recursive(
     yield from _get_ns_content_data(context, ns, action, dataset_, resource)
     for name in ns.names.values():
         yield from _get_ns_content_data_recursive(context, name, action, dataset_, resource)
-        yield from _get_ns_content_data(context, name, action, dataset_, resource)
 
 
 def _get_ns_content_data(

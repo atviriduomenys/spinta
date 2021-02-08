@@ -8,7 +8,6 @@ from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
-from typing import List
 from typing import Optional
 from typing import Set
 from typing import TextIO
@@ -21,14 +20,13 @@ from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
 from spinta.components import Context
 from spinta.components import Model
+from spinta.components import Namespace
 from spinta.core.enums import Access
 from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
-from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.constants import DATASET
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
@@ -45,11 +43,12 @@ MAIN_DIMENSIONS = [
     'property',
 ]
 EXTRA_DIMENSIONS = [
+    '',
     'prefix',
     'choice',
     'param',
     'comment',
-    '',
+    'ns',
 ]
 
 
@@ -106,7 +105,9 @@ class TabularReader:
     line: int
     type: str
     name: str
-    data: Dict[str, Any]
+    data: Dict[str, Any]            # Used when `appendable` is False
+    rows: List[Dict[str, Any]]      # Used when `appendable` is True
+    appendable: bool = False        # Tells if reader is appendable.
 
     def __init__(
         self,
@@ -119,7 +120,7 @@ class TabularReader:
         self.path = path
         self.line = line
         self.data = {}
-        self.read(row)
+        self.rows = []
 
     def __str__(self):
         return f"<{type(self).__name__} name={self.name!r}>"
@@ -127,12 +128,21 @@ class TabularReader:
     def read(self, row: Dict[str, str]) -> None:
         raise NotImplementedError
 
-    def update(self, row: Dict[str, str]) -> None:
+    def append(self, row: Dict[str, str]) -> None:
         if any(row.values()):
-            self.error("Updates are not supported in this context.")
+            self.error(
+                f"Updates are not supported in context of {self.type!r}."
+            )
 
     def release(self, reader: TabularReader = None) -> bool:
         raise NotImplementedError
+
+    def items(self) -> Iterator[ParsedRow]:
+        if self.appendable:
+            for data in self.rows:
+                yield self.line, data
+        else:
+            yield self.line, self.data
 
     def enter(self) -> None:
         raise NotImplementedError
@@ -147,6 +157,7 @@ class TabularReader:
 class ManifestReader(TabularReader):
     type: str = 'manifest'
     datasets: Set[str]
+    namespaces: Set[str]
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = str(self.path)
@@ -159,6 +170,7 @@ class ManifestReader(TabularReader):
 
     def enter(self) -> None:
         self.datasets = set()
+        self.namespaces = set()
         self.state.manifest = self
 
     def leave(self) -> None:
@@ -437,8 +449,7 @@ class AppendReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['ref']
-        self.data = {}
-        self.state.stack[-1].update(row)
+        self.data = row
 
     def release(self, reader: TabularReader = None) -> bool:
         return True
@@ -447,7 +458,7 @@ class AppendReader(TabularReader):
         pass
 
     def leave(self) -> None:
-        pass
+        self.state.stack[-1].append(self.data)
 
 
 class PrefixReader(TabularReader):
@@ -488,11 +499,49 @@ class PrefixReader(TabularReader):
 
         prefixes[self.name] = self.data
 
-    def update(self, row: Dict[str, str]) -> None:
+    def append(self, row: Dict[str, str]) -> None:
         self.read(row)
 
     def release(self, reader: TabularReader = None) -> bool:
-        return True
+        return not isinstance(reader, AppendReader)
+
+    def enter(self) -> None:
+        pass
+
+    def leave(self) -> None:
+        pass
+
+
+class NamespaceReader(TabularReader):
+    type: str = 'ns'
+    appendable: bool = True
+
+    def read(self, row: Dict[str, str]) -> None:
+        self.name = row['ref']
+
+        manifest = self.state.manifest
+
+        if self.name in manifest.namespaces:
+            self.error(
+                f"Namespace {self.name!r} with the same name is already "
+                f"defined."
+            )
+
+        manifest.namespaces.add(self.name)
+
+        self.rows.append({
+            'id': row['id'],
+            'type': self.type,
+            'name': self.name,
+            'title': row['title'],
+            'description': row['description'],
+        })
+
+    def append(self, row: Dict[str, str]) -> None:
+        self.read(row)
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return not isinstance(reader, AppendReader)
 
     def enter(self) -> None:
         pass
@@ -502,13 +551,17 @@ class PrefixReader(TabularReader):
 
 
 READERS = {
+    # Main dimensions
     'dataset': DatasetReader,
     'resource': ResourceReader,
     'base': BaseReader,
     'model': ModelReader,
     'property': PropertyReader,
+
+    # Extra dimensions
     '': AppendReader,
     'prefix': PrefixReader,
+    'ns': NamespaceReader,
 }
 
 
@@ -531,16 +584,17 @@ class State:
         self.models = set()
 
     def release(self, reader: TabularReader = None) -> Iterator[ParsedRow]:
-        for item in list(reversed(self.stack)):
-            if item.release(reader):
-                if isinstance(item, (
+        for parent in list(reversed(self.stack)):
+            if parent.release(reader):
+                if isinstance(parent, (
                     ManifestReader,
+                    NamespaceReader,
                     DatasetReader,
                     ModelReader,
                 )):
-                    yield item.line, item.data
-                item.leave()
+                    yield from parent.items()
                 self.stack.pop()
+                parent.leave()
             else:
                 break
 
@@ -563,6 +617,7 @@ def _read_tabular_manifest_rows(
 
     state = State()
     reader = ManifestReader(state, path, 1, {})
+    reader.read({})
     yield from state.release(reader)
 
     for i, row in enumerate(rows, 2):
@@ -571,6 +626,7 @@ def _read_tabular_manifest_rows(
         dimension = _detect_dimension(path, i, row)
         Reader = READERS[dimension]
         reader = Reader(state, path, i, row)
+        reader.read(row)
         yield from state.release(reader)
 
     yield from state.release()
@@ -632,7 +688,7 @@ def load_ascii_tabular_manifest(
     manifest_ascii_table: str,
     *,
     strip: bool = False,
-):
+) -> None:
     schemas = read_ascii_tabular_manifest(manifest_ascii_table)
     load_manifest_nodes(context, manifest, schemas)
     commands.link(context, manifest)
@@ -695,6 +751,24 @@ def _backends_to_tabular(
         })
 
 
+def _namespaces_to_tabular(
+    namespaces: Dict[str, Namespace],
+) -> Iterator[ManifestRow]:
+    namespaces = {
+        k: ns
+        for k, ns in namespaces.items() if not ns.generated
+    }
+    first = True
+    for name, ns in namespaces.items():
+        yield torow(DATASET, {
+            'type': ns.type if first else '',
+            'ref': name,
+            'title': ns.title,
+            'description': ns.description,
+        })
+        first = False
+
+
 def datasets_to_tabular(
     manifest: Manifest,
     *,
@@ -704,6 +778,7 @@ def datasets_to_tabular(
 ):
     yield from _prefixes_to_tabular(manifest.prefixes)
     yield from _backends_to_tabular(manifest.backends)
+    yield from _namespaces_to_tabular(manifest.namespaces)
     dataset = None
     resource = None
     models = manifest.models if internal else take(manifest.models)

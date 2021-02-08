@@ -1,12 +1,14 @@
-import json
 import hashlib
 from typing import Tuple
 
 import pytest
 
+from spinta.core.config import RawConfig
 from spinta.testing.client import TestClient
+from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.data import pushdata
+from spinta.testing.manifest import configure_manifest
 from spinta.utils.data import take
 
 
@@ -67,4 +69,30 @@ def test_getall_ns(model, app):
         'datasets/backends/postgres/dataset/country',
         'datasets/backends/postgres/dataset/org',
         'datasets/backends/postgres/dataset/report',
+    ]
+
+
+def test_ns_titles(
+    rc: RawConfig,
+):
+    context = configure_manifest(rc, '''
+    d | r | b | m | property | type   | ref          | title               | description
+                             | ns     | datasets     | All datasets        | All external datasets.
+                             | ns     | datasets/gov | Government datasets | All external government datasets.
+    datasets/gov/vpt/new     |        |              | New data            | Data from a new database.
+      | resource             |        |              |                     |
+      |   |   | Country      |        |              | Countries           | All countries.
+      |   |   |   | name     | string |              | Country name        | Name of a country.
+      |   |   | City         |        |              | Cities              | All cities.
+      |   |   |   | name     | string |              | City name           | Name of a city.
+    ''')
+    app = create_test_client(context, scope=['spinta_getall'])
+    assert listdata(app.get('/:ns')) == ["All datasets"]
+    assert listdata(app.get('/:ns/:all'), '_id', 'title') == [
+        ('datasets/:ns', 'All datasets'),
+        ('datasets/gov/:ns', 'Government datasets'),
+        ('datasets/gov/vpt/:ns', 'vpt'),
+        ('datasets/gov/vpt/new/:ns', 'new'),
+        ('datasets/gov/vpt/new/City', 'Cities'),
+        ('datasets/gov/vpt/new/Country', 'Countries'),
     ]

@@ -73,15 +73,15 @@ def pp(
         out = ''
     elif isinstance(obj, Iterator):
         out = list(islice(obj, 10))
-        out = '<generator> ' + pprintpp.pformat(out)
         ret = chain(out, obj)
+        out = '<generator> ' + pprintpp.pformat(out)
     else:
         out = pprintpp.pformat(obj)
     if obj is not na:
         frame = inspect.currentframe()
         frame = inspect.getouterframes(frame)[1]
         line = inspect.getframeinfo(frame[0]).code_context[0].strip()
-        _, line = line.split('pp(')
+        _, line = line.split('pp(', 1)
         arg = []
         stack = []
         term = {

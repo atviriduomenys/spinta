@@ -1,5 +1,3 @@
-import pytest
-
 from spinta.manifests.tabular.helpers import SHORT_NAMES
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
@@ -68,4 +66,27 @@ def test_backends_with_models(tmpdir, rc):
       |   |   | country      |        |     | code
       |   |   |   | code     | string |     |
       |   |   |   | name     | string |     |
+    ''')
+
+
+def test_ns(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property | type | ref                  | title               | description
+                             | ns   | datasets             | All datasets        | All external datasets.
+                             |      | datasets/gov         | Government datasets | All government datasets.
+                             |      | datasets/gov/example | Example             |
+    ''')
+
+
+def test_ns_with_models(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property | type   | ref                  | title               | description
+                             | ns     | datasets             | All datasets        | All external datasets.
+                             |        | datasets/gov         | Government datasets | All government datasets.
+                             |        | datasets/gov/example | Example             |
+    datasets/gov/example     |        |                      |                     |
+      | data                 |        | default              |                     |
+                             |        |                      |                     |
+      |   |   | Country      |        |                      |                     |
+      |   |   |   | name     | string |                      |                     |
     ''')
