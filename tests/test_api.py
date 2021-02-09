@@ -119,8 +119,8 @@ def test_model(model, context, app):
             ('🏠', '/'),
             ('backends', '/backends'),
             (backend, f'/backends/{backend}'),
-            ('report', None),
-            (':changes', f"/{model}/:changes"),
+            ('Report', None),
+            ('Changes', f"/{model}/:changes"),
         ],
         'header': [
             '_id',
@@ -177,9 +177,9 @@ def test_model_get(model, app):
             ('🏠', '/'),
             ('backends', '/backends'),
             (backend, f'/backends/{backend}'),
-            ('report', f'/{model}'),
+            ('Report', f'/{model}'),
             (row['_id'][:8], None),
-            (':changes', f'/{model}/%s/:changes' % row['_id']),
+            ('Changes', f'/{model}/%s/:changes' % row['_id']),
         ],
         'header': [],
         'data': [],
@@ -223,7 +223,7 @@ def test_dataset(app):
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
             ('rinkimai', None),
-            (':changes', '/datasets/json/rinkimai/:changes'),
+            ('Changes', '/datasets/json/rinkimai/:changes'),
         ],
         'header': ['_id', 'id', 'pavadinimas'],
         'data': [
@@ -306,7 +306,7 @@ def test_nested_dataset(app):
             ('dataset', '/datasets/nested/dataset'),
             ('name', '/datasets/nested/dataset/name'),
             ('model', None),
-            (':changes', '/datasets/nested/dataset/name/model/:changes'),
+            ('Changes', '/datasets/nested/dataset/name/model/:changes'),
         ],
         'header': ['_id', 'name'],
         'data': [
@@ -348,7 +348,7 @@ def test_dataset_key(app):
             ('json', '/datasets/json'),
             ('rinkimai', '/datasets/json/rinkimai'),
             (pk[:8], None),
-            (':changes', f'/datasets/json/rinkimai/{pk}/:changes'),
+            ('Changes', f'/datasets/json/rinkimai/{pk}/:changes'),
         ],
         'formats': [
             ('CSV', f'/datasets/json/rinkimai/{pk}/:format/csv'),
@@ -416,7 +416,7 @@ def test_changes_single_object(app, mocker):
             ('json', '/datasets/json'),
             ('rinkimai', '/datasets/json/rinkimai'),
             (pk[:8], f'/datasets/json/rinkimai/{pk}'),
-            (':changes', None),
+            ('Changes', None),
         ],
         'formats': [
             ('CSV', f'/datasets/json/rinkimai/{pk}/:changes/:format/csv'),
@@ -502,7 +502,7 @@ def test_changes_object_list(app, mocker):
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
             ('rinkimai', '/datasets/json/rinkimai'),
-            (':changes', None),
+            ('Changes', None),
         ],
         'formats': [
             ('CSV', '/datasets/json/rinkimai/:changes/:format/csv'),

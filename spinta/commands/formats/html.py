@@ -1,8 +1,10 @@
 from typing import Any
 from typing import Dict
+from typing import NamedTuple
 from typing import Optional, Union, List
 
 import datetime
+from typing import Tuple
 
 import pkg_resources as pres
 
@@ -10,6 +12,7 @@ from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 
+from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, Ref
 from spinta.commands.formats import Format
 from spinta.components import Context, Action, UrlParams, Node, Property
@@ -123,34 +126,80 @@ def get_template_context(context: Context, model, params):
     }
 
 
-def get_current_location(model, params: UrlParams):
-    parts = params.path.split('/') if params.path else []
-    loc = [('🏠', '/')]
-    if params.pk:
-        pk = params.pk
-        pks = params.pk[:8]
+CurrentLocation = List[Tuple[
+    str,            # Link title
+    Optional[str],  # Link URL
+]]
+
+
+class PathInfo(NamedTuple):
+    path: str = ''
+    name: str = ''
+    link: str = ''
+    title: str = ''
+
+
+def _split_path(manifest: Manifest, orig_path: str) -> List[PathInfo]:
+    parts = orig_path.split('/') if orig_path else []
+    result: List[PathInfo] = []
+    last = len(parts)
+    for i, part in enumerate(parts, 1):
+        path = '/'.join(parts[:i])
+        if i == last and path in manifest.models:
+            title = manifest.models[path].title
+        elif path in manifest.namespaces:
+            title = manifest.namespaces[path].title
+        else:
+            title = ''
+        title = title or part
+        result.append(PathInfo(
+            path=path,
+            name=part,
+            link=f'/{path}',
+            title=title,
+        ))
+    return result
+
+
+def get_current_location(
+    model: Model,
+    params: UrlParams,
+) -> CurrentLocation:
+    parts = _split_path(model.manifest, params.path)
+    if len(parts) > 0:
+        parts, last = parts[:-1], parts[-1]
+    else:
+        parts, last = [], None
+
+    loc: CurrentLocation = [('🏠', '/')]
+    loc += [(p.title, p.link) for p in parts]
+
     if model.type == 'model:ns':
-        loc += (
-            [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)] +
-            [(p, None) for p in parts[-1:]]
-        )
+        if last is not None:
+            loc += [(last.title, None)]
+
     else:
         pk = params.pk
         changes = params.changes
-        loc += [(p, '/' + '/'.join(parts[:i])) for i, p in enumerate(parts[:-1], 1)]
-        if pk or changes:
-            loc += [(parts[-1], get_model_link(model))]
-        else:
-            loc += [(parts[-1], None)]
+
+        if last is not None:
+            if pk or changes:
+                loc += [(last.title, get_model_link(model))]
+            else:
+                loc += [(last.title, None)]
+
         if pk:
+            pks = params.pk[:8]  # short version of primary key
             if changes:
                 loc += [(pks, get_model_link(model, pk=pk))]
             else:
                 loc += [(pks, None)]
+
         if changes:
-            loc += [(':changes', None)]
+            loc += [('Changes', None)]
         else:
-            loc += [(':changes', get_model_link(model, pk=pk, changes=[]))]
+            loc += [('Changes', get_model_link(model, pk=pk, changes=[]))]
+
     return loc
 
 

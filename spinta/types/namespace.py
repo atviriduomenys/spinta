@@ -270,13 +270,16 @@ def _get_ns_content(
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
 ) -> Response:
-
     if recursive:
         data = _get_ns_content_data_recursive(context, ns, action, dataset_, resource)
     else:
         data = _get_ns_content_data(context, ns, action, dataset_, resource)
     data = sorted(data, key=lambda x: (x['_type'] != 'ns', x['_id']))
+    model = get_ns_model(context, ns)
+    return render(context, request, model, params, data, action=action)
 
+
+def get_ns_model(context: Context, ns: Namespace) -> Model:
     schema = {
         'type': 'model:ns',
         'name': ns.model_type(),
@@ -306,8 +309,7 @@ def _get_ns_content(
     model.manifest = ns.manifest
     load_node(context, model, schema)
     load_model_properties(context, model, Property, schema['properties'])
-
-    return render(context, request, model, params, data, action=action)
+    return model
 
 
 def _get_ns_content_data_recursive(
