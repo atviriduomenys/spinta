@@ -293,6 +293,10 @@ def _get_ns_content(
                 'type': 'string',
                 'access': ns.access.value,
             },
+            'description': {
+                'type': 'string',
+                'access': ns.access.value,
+            },
         }
     }
     model = Model()
@@ -336,6 +340,7 @@ def _get_ns_content_data(
                 '_type': model.node_type(),
                 '_id': model.model_type(),
                 'title': model.title,
+                'description': model.description,
             }
 
 

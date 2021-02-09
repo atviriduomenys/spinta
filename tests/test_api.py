@@ -44,7 +44,7 @@ def test_app(app):
         'location': [
             ('🏠', '/'),
         ],
-        'header': ['title'],
+        'header': ['title', 'description'],
         'data': data['data'],
         'row': [],
         'formats': [
@@ -57,6 +57,7 @@ def test_app(app):
     }
     assert next(d for d in data['data'] if d['title'] == '📄 Country') == {
         'title': '📄 Country',
+        'description': None,
     }
 
 
@@ -73,12 +74,12 @@ def test_directory(app):
             ('xlsx', '/datasets/xlsx'),
             ('rinkimai', None),
         ],
-        'header': ['title'],
+        'header': ['title', 'description'],
         'data': [
-            {'title': '📄 apygarda'},
-            {'title': '📄 apylinke'},
-            {'title': '📄 kandidatas'},
-            {'title': '📄 turas'},
+            {'title': '📄 apygarda', 'description': None},
+            {'title': '📄 apylinke', 'description': None},
+            {'title': '📄 kandidatas', 'description': None},
+            {'title': '📄 turas', 'description': None},
         ],
         'row': [],
         'formats': [

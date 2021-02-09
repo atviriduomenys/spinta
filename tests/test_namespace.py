@@ -87,12 +87,14 @@ def test_ns_titles(
       |   |   |   | name     | string |              | City name           | Name of a city.
     ''')
     app = create_test_client(context, scope=['spinta_getall'])
-    assert listdata(app.get('/:ns')) == ["All datasets"]
-    assert listdata(app.get('/:ns/:all'), '_id', 'title') == [
-        ('datasets/:ns', 'All datasets'),
-        ('datasets/gov/:ns', 'Government datasets'),
-        ('datasets/gov/vpt/:ns', 'vpt'),
-        ('datasets/gov/vpt/new/:ns', 'New data'),
-        ('datasets/gov/vpt/new/City', 'Cities'),
-        ('datasets/gov/vpt/new/Country', 'Countries'),
+    assert listdata(app.get('/:ns'), 'title', 'description') == [
+        ("All datasets", "All external datasets."),
+    ]
+    assert listdata(app.get('/:ns/:all'), '_id', 'title', 'description') == [
+        ('datasets/:ns', "All datasets", "All external datasets."),
+        ('datasets/gov/:ns', "Government datasets", "All external government datasets."),
+        ('datasets/gov/vpt/:ns', "vpt", ""),
+        ('datasets/gov/vpt/new/:ns', "New data", "Data from a new database."),
+        ('datasets/gov/vpt/new/City', "Cities", "All cities."),
+        ('datasets/gov/vpt/new/Country', "Countries", "All countries."),
     ]

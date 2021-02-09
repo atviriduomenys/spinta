@@ -264,7 +264,7 @@ def get_cell(
 
 
 def get_ns_data(rows):
-    yield ['title']
+    yield ['title', 'description']
     for row in rows:
         if row['title']:
             title = row['title']
@@ -286,6 +286,11 @@ def get_ns_data(rows):
             {
                 'value': f'{icon} {title}{suffix}',
                 'link': '/' + row['_id'],
+                'color': None,
+            },
+            {
+                'value': row['description'],
+                'link': None,
                 'color': None,
             },
         ]
