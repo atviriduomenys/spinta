@@ -1,4 +1,6 @@
 import uuid
+from typing import Any
+from typing import Dict
 
 import pytest
 
@@ -6,13 +8,18 @@ from spinta.testing.utils import get_error_codes, get_error_context
 from spinta.utils.nestedstruct import flatten
 
 
-def _cleaned_context(resp):
-    data = resp.context.copy()
-    data['data'] = [
-        {k: v['value'] for k, v in zip(resp.context['header'], d)}
-        for d in resp.context['data']
-    ]
-    return data
+def _cleaned_context(resp, *, data: bool = True) -> Dict[str, Any]:
+    context = resp.context.copy()
+    if data:
+        context['data'] = [
+            {
+                k: v['value']
+                for k, v in zip(resp.context['header'], d)
+            }
+            for d in resp.context['data']
+        ]
+    del context['params']
+    return context
 
 
 def test_version(app):
@@ -35,9 +42,9 @@ def test_app(app):
     data = _cleaned_context(resp)
     assert data == {
         'location': [
-            ('root', '/'),
+            ('🏠', '/'),
         ],
-        'header': ['_type', '_id', 'title'],
+        'header': ['title'],
         'data': data['data'],
         'row': [],
         'formats': [
@@ -48,10 +55,8 @@ def test_app(app):
         ],
         'limit_enforced': True,
     }
-    assert next(d for d in data['data'] if d['_id'] == 'report') == {
-        '_type': 'model',
-        '_id': 'report',
-        'title': 'Report',
+    assert next(d for d in data['data'] if d['title'] == '📄 Country') == {
+        'title': '📄 Country',
     }
 
 
@@ -63,17 +68,17 @@ def test_directory(app):
     resp.context.pop('request')
     assert _cleaned_context(resp) == {
         'location': [
-            ('root', '/'),
+            ('🏠', '/'),
             ('datasets', '/datasets'),
             ('xlsx', '/datasets/xlsx'),
             ('rinkimai', None),
         ],
-        'header': ['_type', '_id', 'title'],
+        'header': ['title'],
         'data': [
-            {'_type': 'model', '_id': 'datasets/xlsx/rinkimai/apygarda', 'title': ''},
-            {'_type': 'model', '_id': 'datasets/xlsx/rinkimai/apylinke', 'title': ''},
-            {'_type': 'model', '_id': 'datasets/xlsx/rinkimai/kandidatas', 'title': ''},
-            {'_type': 'model', '_id': 'datasets/xlsx/rinkimai/turas', 'title': ''},
+            {'title': '📄 apygarda'},
+            {'title': '📄 apylinke'},
+            {'title': '📄 kandidatas'},
+            {'title': '📄 turas'},
         ],
         'row': [],
         'formats': [
@@ -108,9 +113,9 @@ def test_model(model, context, app):
     resp.context.pop('request')
 
     backend = model[len('backends/'):len(model) - len('/report')]
-    assert resp.context == {
+    assert _cleaned_context(resp, data=False) == {
         'location': [
-            ('root', '/'),
+            ('🏠', '/'),
             ('backends', '/backends'),
             (backend, f'/backends/{backend}'),
             ('report', None),
@@ -166,9 +171,9 @@ def test_model_get(model, app):
 
     resp.context.pop('request')
     backend = model[len('backends/'):len(model) - len('/report')]
-    assert resp.context == {
+    assert _cleaned_context(resp, data=True) == {
         'location': [
-            ('root', '/'),
+            ('🏠', '/'),
             ('backends', '/backends'),
             (backend, f'/backends/{backend}'),
             ('report', f'/{model}'),
@@ -211,9 +216,9 @@ def test_dataset(app):
 
     pk = data['_id']
     resp.context.pop('request')
-    assert resp.context == {
+    assert _cleaned_context(resp, data=False) == {
         'location': [
-            ('root', '/'),
+            ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
             ('rinkimai', None),
@@ -292,9 +297,9 @@ def test_nested_dataset(app):
     assert resp.status_code == 200
 
     resp.context.pop('request')
-    assert resp.context == {
+    assert _cleaned_context(resp, data=False) == {
         'location': [
-            ('root', '/'),
+            ('🏠', '/'),
             ('datasets', '/datasets'),
             ('nested', '/datasets/nested'),
             ('dataset', '/datasets/nested/dataset'),
@@ -335,9 +340,9 @@ def test_dataset_key(app):
     assert resp.status_code == 200
 
     resp.context.pop('request')
-    assert resp.context == {
+    assert _cleaned_context(resp, data=False) == {
         'location': [
-            ('root', '/'),
+            ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
             ('rinkimai', '/datasets/json/rinkimai'),
@@ -403,9 +408,9 @@ def test_changes_single_object(app, mocker):
         }
         for d in resp.context['data']
     ]
-    assert resp.context == {
+    assert _cleaned_context(resp, data=False) == {
         'location': [
-            ('root', '/'),
+            ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
             ('rinkimai', '/datasets/json/rinkimai'),
@@ -490,9 +495,9 @@ def test_changes_object_list(app, mocker):
         }
         for d in resp.context['data']
     ]
-    assert resp.context == {
+    assert _cleaned_context(resp, data=False) == {
         'location': [
-            ('root', '/'),
+            ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
             ('rinkimai', '/datasets/json/rinkimai'),

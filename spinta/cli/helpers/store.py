@@ -58,6 +58,7 @@ def configure(
             config['manifests'][manifest_name] = {
                 'type': 'tabular',
                 'path': manifest_path,
+                'backend': '',
             }
             config['manifests']['run']['sync'].append(manifest_name)
 

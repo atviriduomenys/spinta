@@ -472,8 +472,8 @@ def test_ns_getall(rc, tmpdir, geodb):
     ]
 
     resp = app.get('/datasets/gov/example', headers={'Accept': 'text/html'})
-    assert listdata(resp, '_id', 'title') == [
-        ('datasets/gov/example/country', 'Country'),
+    assert listdata(resp, 'title') == [
+        '📄 Country',
     ]
 
 

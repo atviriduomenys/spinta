@@ -11,8 +11,13 @@
             text-align: left;
             border-collapse: collapse;
         }
+        table.table td {
+            border-bottom: 1px solid #b8b8b8;
+        }
+        table.table th {
+            border-bottom: 3px solid #b8b8b8;
+        }
         table.table td, table.table th {
-            border: 1px solid #000000;
             padding: 5px 4px;
         }
         table.table tbody td {
@@ -20,7 +25,6 @@
         }
         table.table thead {
             background: #E8E8E8;
-            border-bottom: 3px solid #000000;
         }
         table.table thead th {
             font-size: 15px;
@@ -31,9 +35,22 @@
         table.table tfoot td {
             font-size: 14px;
         }
+        div.formats {
+            text-align: right;
+        }
         </style>
     </head>
     <body>
+        <div class="formats">
+            <p>
+                Get this data as:
+                <strong>HTML</strong>,
+                {% for fmt, link in formats %}
+                    <a href="{{ link }}">{{ fmt }}</a>{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+        </div>
+
         <p>
         {% for name, link in location %}
             {% if link %}
@@ -46,71 +63,55 @@
         </p>
 
         {% if data %}
-        <p>
-            Formats:
-            <strong>HTML</strong>,
-            {% for fmt, link in formats %}
-            <a href="{{ link }}">{{ fmt }}</a>{% if not loop.last %}, {% endif %}
-            {% endfor %}
-        </p>
-
-        <table class="table">
-            <thead>
-                <tr>
-                    {% for column in header %}
-                    <th>{{ column }}</th>
+            <table class="table">
+                <thead>
+                    <tr>
+                        {% for column in header %}
+                        <th>{{ column }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in data %}
+                    <tr>
+                        {% for cell in row %}
+                        <td{% if cell.color %} style="background-color: {{ cell.color }}"{% endif %}>
+                            {% if cell.link %}
+                            <a href="{{ cell.link }}">{{ cell.value }}</a>
+                            {% else %}
+                            {{ cell.value }}
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
                     {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in data %}
-                <tr>
-                    {% for cell in row %}
-                    <td{% if cell.color %} style="background-color: {{ cell.color }}"{% endif %}>
-                        {% if cell.link %}
-                        <a href="{{ cell.link }}">{{ cell.value }}</a>
-                        {% else %}
-                        {{ cell.value }}
-                        {% endif %}
-                    </td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </tbody>
+            </table>
 
-        {% if limit_enforced and data|length >= 100 %}
-        <p>Number of rows is limited up to 100 rows.</p>
-        {% endif %}
+            {% if limit_enforced and data|length >= 100 %}
+            <p>Number of rows is limited up to 100 rows.</p>
+            {% endif %}
         {% endif %}
 
         {% if row %}
-        <p>
-            Formats:
-            <strong>HTML</strong>,
-            {% for fmt, link in formats %}
-            <a href="{{ link }}">{{ fmt }}</a>{% if not loop.last %}, {% endif %}
-            {% endfor %}
-        </p>
-
-        <table class="table">
-            <tbody>
-                {% for column, cell in row %}
-                <tr>
-                    <th>{{ column }}</th>
-                    <td{% if cell.color %} style="background-color: {{ cell.color }}"{% endif %}>
-                        {% if column in ('id', 'type') %}
-                        <strong>{{ cell.value }}</strong>
-                        {% elif cell.link %}
-                        <a href="{{ cell.link }}">{{ cell.value }}</a>
-                        {% else %}
-                        {{ cell.value }}
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            <table class="table">
+                <tbody>
+                    {% for column, cell in row %}
+                    <tr>
+                        <th>{{ column }}</th>
+                        <td{% if cell.color %} style="background-color: {{ cell.color }}"{% endif %}>
+                            {% if column in ('id', 'type') %}
+                            <strong>{{ cell.value }}</strong>
+                            {% elif cell.link %}
+                            <a href="{{ cell.link }}">{{ cell.value }}</a>
+                            {% else %}
+                            {{ cell.value }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         {% endif %}
     </body>
 </html>

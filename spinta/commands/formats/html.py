@@ -1,3 +1,5 @@
+from typing import Any
+from typing import Dict
 from typing import Optional, Union, List
 
 import datetime
@@ -62,7 +64,7 @@ def render(
 def _render_model(
     context: Context,
     request: Request,
-    model: Model,
+    model: Union[Model, Namespace],
     action: Action,
     params: UrlParams,
     data,
@@ -71,7 +73,11 @@ def _render_model(
     header = []
     row = []
 
-    if action == Action.CHANGES:
+    if model.type == 'model:ns' or params.ns:
+        data = get_ns_data(data)
+        header = next(data)
+        data = list(data)
+    elif action == Action.CHANGES:
         data = get_changes(context, data, model, params)
         header = next(data)
         data = list(reversed(list(data)))
@@ -94,6 +100,7 @@ def _render_model(
             'row': row,
             'formats': get_output_formats(params),
             'limit_enforced': params.limit_enforced,
+            'params': params,
         },
         headers=http_headers
     )
@@ -118,7 +125,7 @@ def get_template_context(context: Context, model, params):
 
 def get_current_location(model, params: UrlParams):
     parts = params.path.split('/') if params.path else []
-    loc = [('root', '/')]
+    loc = [('🏠', '/')]
     if params.pk:
         pk = params.pk
         pks = params.pk[:8]
@@ -174,7 +181,7 @@ def get_changes(context: Context, rows, model, params: UrlParams):
             {'color': None, 'value': data['_txn'], 'link': None},
             {'color': None, 'value': data['_created'], 'link': None},
             {'color': None, 'value': data['_op'], 'link': None},
-            get_cell(context, model.properties['_id'], id_, shorten=True),
+            get_cell(context, model.properties['_id'], data, '_rid', shorten=True),
         ]
         for prop in props:
             if prop.name in data:
@@ -183,8 +190,14 @@ def get_changes(context: Context, rows, model, params: UrlParams):
                 color = 'null'
             else:
                 color = None
-            value = current[id_].get(prop.name)
-            cell = get_cell(context, prop, value, shorten=True, color=color)
+            cell = get_cell(
+                context,
+                prop,
+                current[id_],
+                prop.name,
+                shorten=True,
+                color=color,
+            )
             row.append(cell)
         yield row
 
@@ -200,10 +213,17 @@ def get_row(context: Context, row, model: Node):
             prop.dtype.name not in ('object', 'array') and
             (prop.name in include or not prop.name.startswith('_'))
         ):
-            yield prop.name, get_cell(context, prop, row.get(prop.name))
+            yield prop.name, get_cell(context, prop, row, prop.name)
 
 
-def get_cell(context: Context, prop, value, shorten=False, color=None):
+def get_cell(
+    context: Context,
+    prop: Property,
+    row: Dict[str, Any],
+    name: Any,
+    shorten=False,
+    color=None,
+):
     COLORS = {
         'change': '#B2E2AD',
         'null': '#C1C1C1',
@@ -211,11 +231,9 @@ def get_cell(context: Context, prop, value, shorten=False, color=None):
 
     link = None
     model = None
+    value = row.get(name)
 
-    if prop.model.type == 'model:ns' and prop.name == '_id':
-        shorten = False
-        link = '/' + value
-    elif prop.name == '_id' and value:
+    if prop.name == '_id' and value:
         model = prop.model
     elif prop.dtype.name == 'ref' and prop.dtype.model and value:
         model = prop.dtype.model
@@ -245,10 +263,38 @@ def get_cell(context: Context, prop, value, shorten=False, color=None):
     }
 
 
+def get_ns_data(rows):
+    yield ['title']
+    for row in rows:
+        if row['title']:
+            title = row['title']
+        else:
+            parts = row['_id'].split('/')
+            if row['_type'] == 'ns':
+                title = parts[-2]
+            else:
+                title = parts[-1]
+
+        if row['_type'] == 'ns':
+            icon = '📁'
+            suffix = '/'
+        else:
+            icon = '📄'
+            suffix = ''
+
+        yield [
+            {
+                'value': f'{icon} {title}{suffix}',
+                'link': '/' + row['_id'],
+                'color': None,
+            },
+        ]
+
+
 def get_data(
     context: Context,
     rows,
-    model: Node,
+    model: Model,
     params: UrlParams,
     action: Action,
 ):
@@ -268,10 +314,7 @@ def get_data(
             header = [_expr_to_name(x) for x in params.select]
             props = _get_props_from_select(context, model, header)
         else:
-            if model.type == 'model:ns':
-                include = {'_id', '_type'}
-            else:
-                include = {'_id'}
+            include = {'_id'}
             props = [
                 p for p in model.properties.values() if (
                     authorized(context, p, action) and
@@ -288,7 +331,7 @@ def get_data(
     for data in flatten(rows):
         row = []
         for name, prop in zip(header, props):
-            row.append(get_cell(context, prop, data.get(name), shorten=True))
+            row.append(get_cell(context, prop, data, name, shorten=True))
         yield row
 
 

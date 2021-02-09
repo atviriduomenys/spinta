@@ -23,7 +23,7 @@ def run(
     manifests: Optional[List[Path]] = Argument(None, help=(
         "Manifest files to load"
     )),
-    mode: Mode = Option(Mode.internal, help="Mode of backend operation"),
+    mode: Mode = Option('internal', help="Mode of backend operation"),
     host: str = Option('127.0.0.1', help="Run server on given host"),
     port: int = Option(8000, help="Run server on given port"),
 ):
