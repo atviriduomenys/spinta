@@ -12,6 +12,7 @@ from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 
+from spinta.components import Config
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, Ref
 from spinta.commands.formats import Format
@@ -121,8 +122,9 @@ def get_output_formats(params: UrlParams):
 
 
 def get_template_context(context: Context, model, params):
+    config: Config = context.get('config')
     return {
-        'location': get_current_location(model, params),
+        'location': get_current_location(config, model, params),
     }
 
 
@@ -139,12 +141,16 @@ class PathInfo(NamedTuple):
     title: str = ''
 
 
-def _split_path(manifest: Manifest, orig_path: str) -> List[PathInfo]:
+def _split_path(
+    manifest: Manifest,
+    base: str,
+    orig_path: str,
+) -> List[PathInfo]:
     parts = orig_path.split('/') if orig_path else []
     result: List[PathInfo] = []
     last = len(parts)
     for i, part in enumerate(parts, 1):
-        path = '/'.join(parts[:i])
+        path = '/'.join([base] + parts[:i])
         if i == last and path in manifest.models:
             title = manifest.models[path].title
         elif path in manifest.namespaces:
@@ -162,10 +168,19 @@ def _split_path(manifest: Manifest, orig_path: str) -> List[PathInfo]:
 
 
 def get_current_location(
+    config: Config,
     model: Model,
     params: UrlParams,
 ) -> CurrentLocation:
-    parts = _split_path(model.manifest, params.path)
+    # Remove config root
+    path = params.path
+    if config.root:
+        if path.startswith(config.root):
+            path = path[len(config.root) + 1:]
+        elif config.root.startswith(path):
+            path = ''
+
+    parts = _split_path(model.manifest, config.root, path)
     if len(parts) > 0:
         parts, last = parts[:-1], parts[-1]
     else:

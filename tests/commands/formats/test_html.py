@@ -1,18 +1,17 @@
 import hashlib
-from typing import List
-from typing import Tuple
 
 import pytest
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.commands.formats.html import CurrentLocation
 from spinta.commands.formats.html import get_current_location
+from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Namespace
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.core.config import RawConfig
-from spinta.manifests.components import Manifest
 from spinta.testing.manifest import configure_manifest
 from spinta.types.namespace import get_ns_model
 
@@ -80,21 +79,7 @@ def test_limit_in_links(app):
     )
 
 
-@pytest.fixture(scope='module')
-def context_city(rc: RawConfig) -> Context:
-    return configure_manifest(rc, '''
-    d | r | b | m | property | type   | ref          | title               | description
-                             | ns     | datasets     | All datasets        | All external datasets.
-                             | ns     | datasets/gov | Government datasets | All external government datasets.
-    datasets/gov/vpt/new     |        |              | New data            | Data from a new database.
-      | resource             |        |              |                     |
-      |   |   | City         |        |              | Cities              | All cities.
-      |   |   |   | name     | string |              | City name           | Name of a city.
-    ''')
-
-
 def _get_current_loc(context: Context, path: str):
-    manifest: Manifest = context.get('store').manifest
     request = Request({
         'type': 'http',
         'method': 'GET',
@@ -107,7 +92,21 @@ def _get_current_loc(context: Context, path: str):
         model = get_ns_model(context, params.model)
     else:
         model = params.model
-    return get_current_location(model, params)
+    config: Config = context.get('config')
+    return get_current_location(config, model, params)
+
+
+@pytest.fixture(scope='module')
+def context_current_location(rc: RawConfig) -> Context:
+    return configure_manifest(rc, '''
+    d | r | b | m | property | type   | ref          | title               | description
+                             | ns     | datasets     | All datasets        | All external datasets.
+                             | ns     | datasets/gov | Government datasets | All external government datasets.
+    datasets/gov/vpt/new     |        |              | New data            | Data from a new database.
+      | resource             |        |              |                     |
+      |   |   | City         |        |              | Cities              | All cities.
+      |   |   |   | name     | string |              | City name           | Name of a city.
+    ''')
 
 
 @pytest.mark.parametrize('path,result', [
@@ -157,11 +156,69 @@ def _get_current_loc(context: Context, path: str):
     ]),
 ])
 def test_current_location(
-    context_city: Context,
+    context_current_location: Context,
     path: str,
-    result: List[Tuple[
-        str,    # Link title
-        str,    # Link
-    ]],
+    result: CurrentLocation,
 ):
-    assert _get_current_loc(context_city, path) == result
+    context = context_current_location
+    assert _get_current_loc(context, path) == result
+
+
+@pytest.fixture(scope='module')
+def context_current_location_with_root(rc: RawConfig):
+    rc = rc.fork({
+        'root': 'datasets/gov/vpt',
+    })
+    return configure_manifest(rc, '''
+    d | r | b | m | property | type   | ref          | title               | description
+                             | ns     | datasets     | All datasets        | All external datasets.
+                             | ns     | datasets/gov | Government datasets | All external government datasets.
+    datasets/gov/vpt/new     |        |              | New data            | Data from a new database.
+      | resource             |        |              |                     |
+      |   |   | City         |        |              | Cities              | All cities.
+      |   |   |   | name     | string |              | City name           | Name of a city.
+    datasets/gov/vpt/old     |        |              | New data            | Data from a new database.
+      | resource             |        |              |                     |
+      |   |   | Country      |        |              | Countries           | All countries.
+      |   |   |   | name     | string |              | Country name        | Name of a country.
+    ''')
+
+
+@pytest.mark.parametrize('path,result', [
+    ('/', [
+        ('🏠', '/'),
+    ]),
+    ('/datasets', [
+        ('🏠', '/'),
+    ]),
+    ('/datasets/gov', [
+        ('🏠', '/'),
+    ]),
+    ('/datasets/gov/vpt', [
+        ('🏠', '/'),
+    ]),
+    ('/datasets/gov/vpt/new', [
+        ('🏠', '/'),
+        ('New data', None),
+    ]),
+    ('/datasets/gov/vpt/new/City', [
+        ('🏠', '/'),
+        ('New data', '/datasets/gov/vpt/new'),
+        ('Cities', None),
+        ('Changes', '/datasets/gov/vpt/new/City/:changes'),
+    ]),
+    ('/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08', [
+        ('🏠', '/'),
+        ('New data', '/datasets/gov/vpt/new'),
+        ('Cities', '/datasets/gov/vpt/new/City'),
+        ('0edc2281', None),
+        ('Changes', '/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08/:changes'),
+    ]),
+])
+def test_current_location_with_root(
+    context_current_location_with_root: Context,
+    path: str,
+    result: CurrentLocation,
+):
+    context = context_current_location_with_root
+    assert _get_current_loc(context, path) == result
