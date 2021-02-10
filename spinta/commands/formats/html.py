@@ -149,8 +149,9 @@ def _split_path(
     parts = orig_path.split('/') if orig_path else []
     result: List[PathInfo] = []
     last = len(parts)
+    base = [base] if base else []
     for i, part in enumerate(parts, 1):
-        path = '/'.join([base] + parts[:i])
+        path = '/'.join(base + parts[:i])
         if i == last and path in manifest.models:
             title = manifest.models[path].title
         elif path in manifest.namespaces:
