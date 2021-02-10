@@ -517,6 +517,10 @@ class NamespaceReader(TabularReader):
     appendable: bool = True
 
     def read(self, row: Dict[str, str]) -> None:
+        if not row['ref']:
+            # `ref` is a required parameter.
+            return
+
         self.name = row['ref']
 
         manifest = self.state.manifest

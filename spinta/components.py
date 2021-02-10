@@ -384,6 +384,9 @@ class MetaData(Node):
         'type': {'type': 'string', 'required': True},
         'name': {'type': 'string', 'required': True},
         'id': {'type': 'string'},
+        # FIXME: `eid` should be here, but currently it overrides eid, coming
+        #        from somewhere else, this has to be fixed.
+        # 'eid': {'type': 'string'},
         'version': {'type': 'string'},
         'title': {'type': 'string'},
         'description': {},
