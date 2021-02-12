@@ -42,10 +42,15 @@ def configure(
     if manifests:
         config = {
             'backends.run': {'type': 'memory'},
+            'keymaps.default': {
+                'type': 'sqlalchemy',
+                'dsn': 'sqlite:///keymaps.db',
+            },
             'manifests': {
                 'run': {
                     'type': 'backend',
                     'backend': 'run',
+                    'keymap': 'default',
                     'mode': mode.value,
                     'sync': [],
                 },

@@ -1,6 +1,5 @@
 import pathlib
 import re
-import sys
 import uuid
 from typing import Any
 from typing import Dict
@@ -15,6 +14,7 @@ from phonenumbers import NumberParseException
 from typer import Context as TyperContext
 from typer import Option
 from typer import Typer
+from typer import echo
 
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow
@@ -30,6 +30,7 @@ from spinta.core.config import RawConfig
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.helpers import datasets_to_tabular
+from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
@@ -195,11 +196,15 @@ def detect(
         'backends.cli': {
             'type': 'memory',
         },
+        'keymaps.default': {
+            'type': 'sqlalchemy',
+            'dsn': 'sqlite:///keymaps.db',
+        },
         'manifests.cli': {
             'type': 'tabular',
             'path': manifest,
-            'keymap': 'default',
             'backend': 'cli',
+            'keymap': 'default',
             'mode': 'external',
         },
         'manifest': 'cli',
@@ -211,13 +216,23 @@ def detect(
     context.set('rc', rc.fork(config))
 
     # Load manifest
-    store = prepare_manifest(context)
+    store = prepare_manifest(context, verbose=False)
     manifest = store.manifest
     with context:
         require_auth(context, auth)
         context.attach('transaction', manifest.backend.transaction)
+        backends = set()
         for backend in store.backends.values():
+            backends.add(backend.name)
             context.attach(f'transaction.{backend.name}', backend.begin)
+        for backend in manifest.backends.values():
+            backends.add(backend.name)
+            context.attach(f'transaction.{backend.name}', backend.begin)
+        for dataset in manifest.datasets.values():
+            for resource in dataset.resources.values():
+                if resource.backend and resource.backend.name not in backends:
+                    backends.add(resource.backend.name)
+                    context.attach(f'transaction.{resource.backend.name}', resource.backend.begin)
         for keymap in store.keymaps.values():
             context.attach(f'keymap.{keymap.name}', lambda: keymap)
 
@@ -241,4 +256,4 @@ def detect(
             with pathlib.Path(output).open('w') as f:
                 _save_manifest(manifest, f)
         else:
-            _save_manifest(manifest, sys.stdout)
+            echo(render_tabular_manifest(manifest))

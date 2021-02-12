@@ -77,11 +77,11 @@ CONFIG = {
             'sqlalchemy': 'spinta.datasets.keymaps.sqlalchemy:SqlAlchemyKeyMap',
         },
         'types': {
-            'integer': 'spinta.types.datatype:Integer',
             'any': 'spinta.types.datatype:DataType',
             'pk': 'spinta.types.datatype:PrimaryKey',
             'date': 'spinta.types.datatype:Date',
             'datetime': 'spinta.types.datatype:DateTime',
+            'temporal': 'spinta.types.datatype:DateTime',
             'string': 'spinta.types.datatype:String',
             'binary': 'spinta.types.datatype:Binary',
             'integer': 'spinta.types.datatype:Integer',
