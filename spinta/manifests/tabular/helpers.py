@@ -554,6 +554,26 @@ class NamespaceReader(TabularReader):
         pass
 
 
+class ChoiceReader(TabularReader):
+    type: str = 'choice'
+    appendable: bool = True
+
+    def read(self, row: Dict[str, str]) -> None:
+        pass
+
+    def append(self, row: Dict[str, str]) -> None:
+        pass
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return not isinstance(reader, AppendReader)
+
+    def enter(self) -> None:
+        pass
+
+    def leave(self) -> None:
+        pass
+
+
 READERS = {
     # Main dimensions
     'dataset': DatasetReader,
@@ -566,6 +586,7 @@ READERS = {
     '': AppendReader,
     'prefix': PrefixReader,
     'ns': NamespaceReader,
+    'choice': ChoiceReader,
 }
 
 
