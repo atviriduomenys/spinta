@@ -23,8 +23,11 @@ def to_model_name(name: str) -> str:
     return _cleanup(''.join(words))
 
 
-def to_property_name(name: str) -> str:
-    return to_code_name(name)
+def to_property_name(name: str, is_ref: bool = False) -> str:
+    name = to_code_name(name)
+    if is_ref and name.endswith('_id'):
+        name = name[:-3]
+    return name
 
 
 def to_code_name(name: str) -> str:

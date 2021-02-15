@@ -16,6 +16,8 @@ CONFIG = {
             'spinta.manifests',
             'spinta.datasets',
             'spinta.dimensions',
+            'spinta.naming',
+            'spinta.ufuncs',
         ],
         'service': {
             'range': 'spinta.commands.helpers:range_',

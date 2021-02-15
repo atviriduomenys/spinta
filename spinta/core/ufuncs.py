@@ -47,7 +47,7 @@ class Expr:
         }
 
     def __call__(self, *args, **kwargs):
-        return Expr(self.name, *args, **kwargs)
+        return type(self)(self.name, *args, **kwargs)
 
     def resolve(self, env: Env):
         args = []
@@ -194,7 +194,7 @@ class Env:
     def update(self, **scope):
         self._scope.update(scope)
 
-    def default_resolver(self, expr, *args, **kwargs):
+    def default_resolver(self, expr: Expr, *args, **kwargs):
         return expr(*args, **kwargs)
 
     def call(self, name, *args, **kwargs):

@@ -11,7 +11,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.core.enums import Access
 from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.helpers import reformat_names
+from spinta.naming.helpers import reformat_names
 from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.tabular.helpers import read_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
@@ -101,7 +101,7 @@ def _read_csv_files(
             commands.check(context, store.manifest)
 
             if format_names:
-                reformat_names(store.manifest)
+                reformat_names(context, store.manifest)
 
             yield from datasets_to_tabular(
                 store.manifest,

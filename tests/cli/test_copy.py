@@ -1,8 +1,5 @@
-import pytest
-
 from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
-from spinta.testing.manifest import compare_manifest
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.tabular import load_tabular_manifest
 from spinta.manifests.tabular.helpers import render_tabular_manifest
@@ -138,4 +135,47 @@ def test_copy_and_format_names(rc, cli, tmpdir):
       |   |   |   | country_name | string  |                             | Šalis       |                            | 4      | protected |
       |   |   |   | country_code | string  |                             | Kodas       |                            | 4      | protected |
       |   |   |   | country      | ref     | Country[country_code, name] |             | country_code, country_name | 4      | protected |
+    '''
+
+
+def test_copy_and_format_names_for_ref(rc, cli, tmpdir):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property     | type   | ref       | prepare
+    datasets/gov/example         |        |           |
+      | data                     | sql    |           |
+                                 |        |           |
+      |   |   | CONTINENT        |        |           | name_id='eu'
+      |   |   |   | name_id      | string |           |
+                                 |        |           |
+      |   |   | COUNTRY          |        |           | continent_id.name_id='eu'
+      |   |   |   | name_id      | string |           |
+      |   |   |   | continent_id | ref    | CONTINENT |
+                                 |        |           |
+      |   |   | CITY             |        |           | country_id.continent_id.name_id='eu'
+      |   |   |   | name_id      | string |           |
+      |   |   |   | country_id   | ref    | COUNTRY   |
+    '''))
+
+    cli.invoke(rc, [
+        'copy', '--format-names',
+        tmpdir / 'manifest.csv',
+        tmpdir / 'result.csv',
+        ])
+
+    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property     | type   | ref       | prepare
+    datasets/gov/example         |        |           |
+      | data                     | sql    |           |
+                                 |        |           |
+      |   |   | Continent        |        |           | name_id='eu'
+      |   |   |   | name_id      | string |           |
+                                 |        |           |
+      |   |   | Country          |        |           | continent.name_id='eu'
+      |   |   |   | name_id      | string |           |
+      |   |   |   | continent    | ref    | Continent |
+                                 |        |           |
+      |   |   | City             |        |           | country.continent.name_id='eu'
+      |   |   |   | name_id      | string |           |
+      |   |   |   | country      | ref    | Country   |
     '''
