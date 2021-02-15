@@ -1,6 +1,7 @@
 import os
 import pathlib
 import tempfile
+from typing import Any
 
 import boto3
 import moto
@@ -10,11 +11,13 @@ from responses import RequestsMock
 
 from spinta.core.config import RawConfig
 from spinta.core.config import read_config
+from spinta.manifests.components import Manifest
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_test_client
 from spinta.testing.context import ContextForTests
 from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
+from spinta.testing.manifest import compare_manifest
 
 
 @pytest.fixture(scope='session')
@@ -179,3 +182,10 @@ def pytest_generate_tests(metafunc):
     # If we pass to CLI model option, which does not have a test marker,
     # then pytest will skip the test all together.
     metafunc.parametrize('model', models)
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_assertrepr_compare(op: str, left: Any, right: Any):
+    if op == '==' and isinstance(left, Manifest) and isinstance(right, str):
+        left, right = compare_manifest(left, right)
+        return [f'{left!r} {op} {right!r}']

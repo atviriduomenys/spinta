@@ -5,6 +5,7 @@ from typing import Dict
 from typing import List
 from typing import TYPE_CHECKING
 from typing import TypedDict
+from typing import Union
 
 from spinta.components import Component
 from spinta.components import Mode
@@ -56,6 +57,18 @@ class Manifest(Component):
             f'<{type(self).__module__}.{type(self).__name__}'
             f'(name={self.name!r})>'
         )
+
+    def __eq__(self, other: Union[Manifest, str]):
+        if isinstance(other, str):
+            # A hack for tests, to make possible things like:
+            #     assert manifest == """d | r | m | ..."""
+            # This uses pytest_assertrepr_compare hook and compare_manifest to
+            # eventually compare manifests in ascii table form.
+            from spinta.testing.manifest import compare_manifest
+            left, right = compare_manifest(self, other)
+            return left == right
+        else:
+            super().__eq__(other)
 
     def add_model_endpoint(self, model):
         endpoint = model.endpoint

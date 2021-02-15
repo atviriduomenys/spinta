@@ -4,6 +4,8 @@ from typing import Any, Optional, List
 
 import importlib
 import functools
+from typing import Dict
+from typing import Tuple
 
 from spinta.dispatcher import Command
 from spinta.components import Context
@@ -13,6 +15,9 @@ from spinta.utils.schema import NA
 
 
 class Expr:
+    name: str
+    args: Tuple[Any]
+    kwargs: Dict[str, Any]
 
     def __init__(self, name, *args, **kwargs):
         self.name = name

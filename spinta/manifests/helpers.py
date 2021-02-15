@@ -1,4 +1,6 @@
+from itertools import chain
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List, Iterable, Optional
 from typing import Tuple
@@ -9,14 +11,20 @@ from spinta import commands
 from spinta.backends.components import BackendOrigin
 from spinta.components import Mode
 from spinta.backends.helpers import load_backend
+from spinta.components import Model
+from spinta.components import Property
+from spinta.core.ufuncs import Expr
 from spinta.dimensions.prefix.helpers import load_prefixes
 from spinta.nodes import get_node
 from spinta.core.config import RawConfig
 from spinta.components import Context, Config, Store, MetaData, EntryId
 from spinta.manifests.components import Manifest
 from spinta.manifests.internal.components import InternalManifest
+from spinta.types.datatype import Ref
 from spinta.utils.enums import enum_by_name
 from spinta.core.enums import Access
+from spinta.utils.naming import to_model_name
+from spinta.utils.naming import to_property_name
 
 
 def create_manifest(
@@ -163,3 +171,47 @@ def get_current_schema_changes(
     current = commands.manifest_read_current(context, manifest, eid=eid)
     patch = jsonpatch.make_patch(freezed, current)
     return list(patch)
+
+
+def _format_expr(expr: Expr, formatter: Callable[[str], str]):
+    if expr.name == 'bind':
+        if len(expr.args) == 1:
+            expr.args = (formatter(expr.args[0]),)
+    else:
+        for arg in chain(expr.args, expr.kwargs.values()):
+            if isinstance(arg, Expr):
+                _format_expr(arg, formatter)
+
+
+def _format_model_name(name: str) -> str:
+    if '/' in name:
+        ns, name = name.rsplit('/', 1)
+        return '/'.join([ns.lower(), to_model_name(name)])
+    else:
+        return to_model_name(name)
+
+
+def _format_property(prop: Property) -> Property:
+    prop.name = to_property_name(prop.name)
+    prop.place = '.'.join([to_property_name(n) for n in prop.place.split('.')])
+    if prop.external and prop.external.prepare:
+        _format_expr(prop.external.prepare, to_property_name)
+    return prop
+
+
+def _format_model(model: Model) -> Model:
+    model.name = _format_model_name(model.name)
+    model.properties = {
+        prop.name: prop
+        for prop in map(_format_property, model.properties.values())
+    }
+    if model.external and model.external.prepare:
+        _format_expr(model.external.prepare, to_property_name)
+    return model
+
+
+def reformat_names(manifest: Manifest):
+    manifest.objects['model'] = {
+        model.name: model
+        for model in map(_format_model, manifest.models.values())
+    }

@@ -14,9 +14,11 @@ from spinta.testing.context import create_test_context
 
 def compare_manifest(manifest: Manifest, expected: str) -> Tuple[str, str]:
     expected = striptable(expected)
-    cols = [c.strip() for c in expected.splitlines()[0].split('|')]
+    header = expected.splitlines()[0]
+    cols = [c.strip() for c in header.split('|')]
     cols = [SHORT_NAMES.get(c, c) for c in cols]
-    actual = render_tabular_manifest(manifest, cols)
+    sizes = {c: len(x) - 2 for c, x in zip(cols, f' {header} '.split('|'))}
+    actual = render_tabular_manifest(manifest, cols, sizes=sizes)
     return actual, expected
 
 

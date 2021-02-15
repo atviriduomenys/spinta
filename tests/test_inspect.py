@@ -45,7 +45,7 @@ def test_inspect(
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
     manifest.datasets['dataset'].resources['rs'].external = 'sqlite'
-    assert render_tabular_manifest(manifest) == striptable(f'''
+    assert manifest == '''
     id | d | r | b | m | property   | type    | ref     | source     | prepare | level | access    | uri | title | description
        | dataset                    |         |         |            |         |       | protected |     |       |
        |   | rs                     | sql     |         | sqlite     |         |       | protected |     |       |
@@ -58,7 +58,7 @@ def test_inspect(
        |   |   |   | City           |         |         | CITY       |         |       | protected |     |       |
        |   |   |   |   | name       | string  |         | NAME       |         |       | protected |     |       |
        |   |   |   |   | country_id | ref     | Country | COUNTRY_ID |         |       | protected |     |       |
-    ''')
+    '''
 
 
 def test_inspect_from_manifest_table(

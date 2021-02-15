@@ -14,6 +14,7 @@ from typing import TextIO
 from typing import Type
 
 import pprintpp
+import pytest
 import sqlparse
 from pygments import highlight
 from pygments.formatters.terminal256 import Terminal256Formatter

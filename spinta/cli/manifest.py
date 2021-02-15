@@ -11,6 +11,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.core.enums import Access
 from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.helpers import reformat_names
 from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.tabular.helpers import read_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
@@ -31,6 +32,9 @@ def copy(
     access: str = Option('private', help=(
         "Copy properties with at least specified access"
     )),
+    format_names: bool = Option(False, help=(
+        "Reformat model and property names."
+    )),
     files: List[pathlib.Path] = Argument(None, help=(
         "Source manifest files to copy from"
     )),
@@ -41,7 +45,13 @@ def copy(
     """Copy models from CSV manifest files into another CSV manifest file"""
     context: Context = ctx.obj
     access = get_enum_by_name(Access, access)
-    rows = _read_csv_files(context, files, external=source, access=access)
+    rows = _read_csv_files(
+        context,
+        files,
+        external=source,
+        access=access,
+        format_names=format_names,
+    )
     with dest.open('w') as f:
         write_tabular_manifest(f, rows)
 
@@ -52,6 +62,7 @@ def _read_csv_files(
     *,
     external: bool = True,
     access: Access = Access.private,
+    format_names: bool = False,
 ) -> Iterator[dict]:
     rc = context.get('rc')
     for path in files:
@@ -63,6 +74,7 @@ def _read_csv_files(
                         'type': 'tabular',
                         'path': path,
                         'keymap': 'default',
+                        'backend': None,
                     },
                 },
                 'keymaps': {
@@ -88,4 +100,12 @@ def _read_csv_files(
             commands.link(context, store.manifest)
             commands.check(context, store.manifest)
 
-            yield from datasets_to_tabular(store.manifest, external=external, access=access)
+            if format_names:
+                reformat_names(store.manifest)
+
+            yield from datasets_to_tabular(
+                store.manifest,
+                external=external,
+                access=access,
+            )
+

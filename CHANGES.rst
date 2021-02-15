@@ -16,9 +16,13 @@ Changes
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/56
 
-- Fixed duplicate items in `/:ns/:all` query results (`#23`__).
+- Fix duplicate items in `/:ns/:all` query results (`#23`__).
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/23
+
+- Add `spinta copy --format-name` option, to reformat names on copy (`#53`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/53
 
 
 0.1.9 (2021-02-01)

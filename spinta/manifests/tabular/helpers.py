@@ -871,7 +871,10 @@ def datasets_to_tabular(
                 'source': model.external.name,
                 'prepare': unparse(model.external.prepare or NA),
             })
-            if all(p.access >= access for p in model.external.pkeys):
+            if (
+                not model.external.unknown_primary_key and
+                all(p.access >= access for p in model.external.pkeys)
+            ):
                 # Add `ref` only if all properties are available in the
                 # resulting manifest.
                 data['ref'] = ', '.join([
@@ -916,6 +919,11 @@ def datasets_to_tabular(
                         prop.dtype.model,
                         model.external.dataset,
                     )
+                    pkeys = prop.dtype.model.external.pkeys
+                    rkeys = prop.dtype.refprops
+                    if rkeys and pkeys != rkeys:
+                        rkeys = ', '.join([p.place for p in rkeys])
+                        data['ref'] += f'[{rkeys}]'
                 else:
                     data['ref'] = prop.dtype.model.name
 
@@ -958,30 +966,36 @@ SHORT_NAMES = {
 }
 
 
-def render_tabular_manifest(manifest: Manifest, cols: List[str] = None) -> str:
+def render_tabular_manifest(
+    manifest: Manifest,
+    cols: List[str] = None,
+    *,
+    sizes: Dict[str, int] = None,
+) -> str:
     rows = datasets_to_tabular(manifest)
     cols = cols or DATASET
     hs = 1 if 'id' in cols else 0  # hierarchical cols start
     he = cols.index('property')    # hierarchical cols end
     hsize = 1                      # hierarchical column size
     bsize = 3                      # border size
-    sizes = dict(
-        [(c, len(c)) for c in cols[:hs]] +
-        [(c, 1) for c in cols[hs:he]] +
-        [(c, len(c)) for c in cols[he:]]
-    )
-    rows = list(rows)
-    for row in rows:
-        for i, col in enumerate(cols):
-            val = '' if row[col] is None else str(row[col])
-            if col == 'id':
-                sizes[col] = 2
-            elif i < he:
-                size = (hsize + bsize) * (he - hs - i) + sizes['property']
-                if size < len(val):
-                    sizes['property'] += len(val) - size
-            elif sizes[col] < len(val):
-                sizes[col] = len(val)
+    if sizes is None:
+        sizes = dict(
+            [(c, len(c)) for c in cols[:hs]] +
+            [(c, 1) for c in cols[hs:he]] +
+            [(c, len(c)) for c in cols[he:]]
+        )
+        rows = list(rows)
+        for row in rows:
+            for i, col in enumerate(cols):
+                val = '' if row[col] is None else str(row[col])
+                if col == 'id':
+                    sizes[col] = 2
+                elif i < he:
+                    size = (hsize + bsize) * (he - hs - i) + sizes['property']
+                    if size < len(val):
+                        sizes['property'] += len(val) - size
+                elif sizes[col] < len(val):
+                    sizes[col] = len(val)
 
     line = []
     for col in cols:

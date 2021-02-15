@@ -1,3 +1,5 @@
+from typing import List
+
 from spinta import commands
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.components import Attribute
@@ -8,6 +10,7 @@ from spinta.manifests.components import Manifest
 from spinta.datasets.components import Dataset, Resource, Entity
 from spinta.core.access import load_access_param
 from spinta.types.namespace import load_namespace_from_name
+from spinta.utils.data import take
 
 
 @commands.load.register(Context, Dataset, dict, Manifest)
@@ -61,6 +64,17 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
 
 @commands.load.register(Context, Entity, dict, Manifest)
 def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
+    # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
+    pkeys: List[str] = entity.pkeys or []
+    if pkeys:
+        entity.pkeys = [entity.model.properties[k] for k in pkeys]
+    else:
+        entity.unknown_primary_key = True
+        entity.pkeys = sorted(
+            take(entity.model.properties).values(),
+            key=lambda p: p.place,
+        )
+
     if entity.prepare:
         entity.prepare = asttoexpr(entity.prepare)
     return entity
