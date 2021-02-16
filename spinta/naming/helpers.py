@@ -6,6 +6,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Expr
+from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.naming.components import NameFormatter
 from spinta.types.datatype import Ref
@@ -30,6 +31,8 @@ def _re_format_expr(env: NameFormatter, expr: Any) -> Any:
         return {k: _re_format_expr(env, v) for k, v in expr}
 
     if isinstance(expr, Bind):
+        if expr.name not in env.model.properties:
+            raise PropertyNotFound(env.model, property=expr.name)
         prop = env.model.properties[expr.name]
         return Expr('bind', _format_property_place(prop))
 
