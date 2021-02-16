@@ -12,7 +12,8 @@ from typing import Optional
 from typing import Set
 from typing import TextIO
 from typing import Tuple
-from typing import TypedDict
+from typing import Union
+from typing import cast
 
 from spinta import commands
 from spinta import spyna
@@ -25,8 +26,23 @@ from spinta.core.enums import Access
 from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
 from spinta.dimensions.prefix.components import UriPrefix
+from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.tabular.components import BackendRow
+from spinta.manifests.tabular.components import BaseRow
+from spinta.manifests.tabular.components import DatasetRow
+from spinta.manifests.tabular.components import ID
+from spinta.manifests.tabular.components import MANIFEST_COLUMNS
+from spinta.manifests.tabular.components import ManifestColumn
+from spinta.manifests.tabular.components import ManifestRow
+from spinta.manifests.tabular.components import ManifestTableRow
+from spinta.manifests.tabular.components import ModelRow
+from spinta.manifests.tabular.components import PROPERTY
+from spinta.manifests.tabular.components import PrefixRow
+from spinta.manifests.tabular.components import PropertyRow
+from spinta.manifests.tabular.components import REF
+from spinta.manifests.tabular.components import ResourceRow
 from spinta.manifests.tabular.constants import DATASET
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
@@ -105,7 +121,7 @@ class TabularReader:
     line: int
     type: str
     name: str
-    data: Dict[str, Any]            # Used when `appendable` is False
+    data: ManifestRow               # Used when `appendable` is False
     rows: List[Dict[str, Any]]      # Used when `appendable` is True
     appendable: bool = False        # Tells if reader is appendable.
 
@@ -114,7 +130,6 @@ class TabularReader:
         state: State,
         path: pathlib.Path,
         line: int,
-        row: Dict[str, str],
     ):
         self.state = state
         self.path = path
@@ -158,8 +173,9 @@ class ManifestReader(TabularReader):
     type: str = 'manifest'
     datasets: Set[str]
     namespaces: Set[str]
+    data: ManifestTableRow
 
-    def read(self, row: Dict[str, str]) -> None:
+    def read(self, row: ManifestRow) -> None:
         self.name = str(self.path)
         self.data = {
             'type': 'manifest',
@@ -179,6 +195,7 @@ class ManifestReader(TabularReader):
 
 class DatasetReader(TabularReader):
     type: str = 'dataset'
+    data: DatasetRow
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['dataset']
@@ -212,6 +229,7 @@ class DatasetReader(TabularReader):
 
 class ResourceReader(TabularReader):
     type: str = 'resource'
+    data: Union[BackendRow, ResourceRow]
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['resource']
@@ -282,6 +300,7 @@ class ResourceReader(TabularReader):
 
 class BaseReader(TabularReader):
     type: str = 'base'
+    data: BaseRow
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['base']
@@ -309,6 +328,7 @@ class BaseReader(TabularReader):
 
 class ModelReader(TabularReader):
     type: str = 'model'
+    data: ModelRow
 
     def read(self, row: Dict[str, str]) -> None:
         dataset = self.state.dataset
@@ -382,6 +402,7 @@ def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
 
 class PropertyReader(TabularReader):
     type: str = 'property'
+    data: PropertyRow
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['property']
@@ -446,9 +467,10 @@ class PropertyReader(TabularReader):
 
 class AppendReader(TabularReader):
     type: str = 'append'
+    data: ManifestRow
 
-    def read(self, row: Dict[str, str]) -> None:
-        self.name = row['ref']
+    def read(self, row: ManifestRow) -> None:
+        self.name = row[REF]
         self.data = row
 
     def release(self, reader: TabularReader = None) -> bool:
@@ -463,6 +485,7 @@ class AppendReader(TabularReader):
 
 class PrefixReader(TabularReader):
     type: str = 'prefix'
+    data: PrefixRow
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['ref']
@@ -638,10 +661,10 @@ def _read_tabular_manifest_rows(
         return
     header = _detect_header(path, 1, header)
 
-    defaults = {k: '' for k in DATASET}
+    defaults = {k: '' for k in MANIFEST_COLUMNS}
 
     state = State()
-    reader = ManifestReader(state, path, 1, {})
+    reader = ManifestReader(state, path, 1)
     reader.read({})
     yield from state.release(reader)
 
@@ -650,7 +673,7 @@ def _read_tabular_manifest_rows(
         row = {**defaults, **row}
         dimension = _detect_dimension(path, i, row)
         Reader = READERS[dimension]
-        reader = Reader(state, path, i, row)
+        reader = Reader(state, path, i)
         reader.read(row)
         yield from state.release(reader)
 
@@ -682,9 +705,7 @@ def read_ascii_tabular_rows(
     header = next(lines, None)
     if header is None:
         return
-    header = header.split('|')
-    header = [h.strip().lower() for h in header]
-    header = [SHORT_NAMES.get(h, h) for h in header]
+    header = normalizes_columns(header.split('|'))
 
     # Find index where dimension columns end.
     dim = sum(1 for h in header if h in DATASET[:6])
@@ -714,7 +735,7 @@ def load_ascii_tabular_manifest(
     *,
     strip: bool = False,
 ) -> None:
-    schemas = read_ascii_tabular_manifest(manifest_ascii_table)
+    schemas = read_ascii_tabular_manifest(manifest_ascii_table, strip=strip)
     load_manifest_nodes(context, manifest, schemas)
     commands.link(context, manifest)
 
@@ -800,7 +821,7 @@ def datasets_to_tabular(
     external: bool = True,
     access: Access = Access.private,
     internal: bool = False,
-):
+) -> Iterator[ManifestRow]:
     yield from _prefixes_to_tabular(manifest.prefixes)
     yield from _backends_to_tabular(manifest.backends)
     yield from _namespaces_to_tabular(manifest.namespaces)
@@ -930,52 +951,35 @@ def datasets_to_tabular(
             yield torow(DATASET, data)
 
 
-class ManifestRow(TypedDict):
-    id: str
-    dataset: str
-    resource: str
-    base: str
-    model: str
-    property: str
-    type: str
-    ref: str
-    source: str
-    prepare: str
-    level: str
-    access: str
-    uri: str
-    title: str
-    description: str
-
-
 def torow(keys, values) -> ManifestRow:
     return {k: values.get(k) for k in keys}
 
 
-def write_tabular_manifest(file: TextIO, rows: Iterable[dict]):
+def write_tabular_manifest(file: TextIO, rows: Iterable[ManifestRow]):
     writer = csv.DictWriter(file, fieldnames=DATASET)
     writer.writeheader()
     writer.writerows(rows)
 
 
-SHORT_NAMES = {
-    'd': 'dataset',
-    'r': 'resource',
-    'b': 'base',
-    'm': 'model',
-}
-
-
 def render_tabular_manifest(
     manifest: Manifest,
-    cols: List[str] = None,
+    cols: List[ManifestColumn] = None,
     *,
-    sizes: Dict[str, int] = None,
+    sizes: Dict[ManifestColumn, int] = None,
 ) -> str:
     rows = datasets_to_tabular(manifest)
-    cols = cols or DATASET
-    hs = 1 if 'id' in cols else 0  # hierarchical cols start
-    he = cols.index('property')    # hierarchical cols end
+    return render_tabular_manifest_rows(rows, cols, sizes=sizes)
+
+
+def render_tabular_manifest_rows(
+    rows: Iterable[ManifestRow],
+    cols: List[ManifestColumn] = None,
+    *,
+    sizes: Dict[ManifestColumn, int] = None,
+) -> str:
+    cols = cols or MANIFEST_COLUMNS
+    hs = 1 if ID in cols else 0  # hierarchical cols start
+    he = cols.index(PROPERTY)    # hierarchical cols end
     hsize = 1                      # hierarchical column size
     bsize = 3                      # border size
     if sizes is None:
@@ -988,12 +992,12 @@ def render_tabular_manifest(
         for row in rows:
             for i, col in enumerate(cols):
                 val = '' if row[col] is None else str(row[col])
-                if col == 'id':
+                if col == ID:
                     sizes[col] = 2
                 elif i < he:
-                    size = (hsize + bsize) * (he - hs - i) + sizes['property']
+                    size = (hsize + bsize) * (he - hs - i) + sizes[PROPERTY]
                     if size < len(val):
-                        sizes['property'] += len(val) - size
+                        sizes[PROPERTY] += len(val) - size
                 elif sizes[col] < len(val):
                     sizes[col] = len(val)
 
@@ -1004,8 +1008,8 @@ def render_tabular_manifest(
     lines = [line]
 
     for row in rows:
-        if 'id' in cols:
-            line = [row['id'][:2] if row['id'] else '  ']
+        if ID in cols:
+            line = [row[ID][:2] if row[ID] else '  ']
         else:
             line = []
 
@@ -1019,7 +1023,7 @@ def render_tabular_manifest(
             depth = 0
 
         line += [' ' * hsize] * depth
-        size = (hsize + bsize) * (he - hs - depth) + sizes['property']
+        size = (hsize + bsize) * (he - hs - depth) + sizes[PROPERTY]
         line += [val.ljust(size)]
 
         for col in cols[he + 1:]:
@@ -1032,3 +1036,26 @@ def render_tabular_manifest(
     lines = [' | '.join(line) for line in lines]
     lines = [l.rstrip() for l in lines]
     return '\n'.join(lines)
+
+
+SHORT_NAMES = {
+    'd': 'dataset',
+    'r': 'resource',
+    'b': 'base',
+    'm': 'model',
+    'p': 'property',
+    't': 'type',
+}
+
+
+def normalizes_columns(cols: List[str]) -> List[ManifestColumn]:
+    result: List[ManifestColumn] = []
+    for col in cols:
+        col = col.strip().lower()
+        col = SHORT_NAMES.get(col, col)
+        col = cast(ManifestColumn, col)
+        if col in MANIFEST_COLUMNS:
+            result.append(col)
+        else:
+            raise PropertyNotFound(property=col)
+    return result

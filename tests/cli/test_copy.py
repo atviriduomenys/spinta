@@ -25,9 +25,11 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     '''))
 
     cli.invoke(rc, [
-        'copy', '--no-source', '--access', 'open',
+        'copy',
+        '--no-source',
+        '--access', 'open',
+        '-o', tmpdir / 'result.csv',
         tmpdir / 'manifest.csv',
-        tmpdir / 'result.csv',
     ])
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
@@ -69,9 +71,10 @@ def test_copy_with_filters_and_externals(rc, cli, tmpdir):
     '''))
 
     cli.invoke(rc, [
-        'copy', '--access', 'open',
+        'copy',
+        '--access', 'open',
+        '-o', tmpdir / 'result.csv',
         tmpdir / 'manifest.csv',
-        tmpdir / 'result.csv',
     ])
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
@@ -113,10 +116,11 @@ def test_copy_and_format_names(rc, cli, tmpdir):
     '''))
 
     cli.invoke(rc, [
-        'copy', '--format-names',
+        'copy',
+        '--format-names',
+        '-o', tmpdir / 'result.csv',
         tmpdir / 'manifest.csv',
-        tmpdir / 'result.csv',
-        ])
+    ])
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
@@ -157,10 +161,11 @@ def test_copy_and_format_names_for_ref(rc, cli, tmpdir):
     '''))
 
     cli.invoke(rc, [
-        'copy', '--format-names',
+        'copy',
+        '--format-names',
+        '-o', tmpdir / 'result.csv',
         tmpdir / 'manifest.csv',
-        tmpdir / 'result.csv',
-        ])
+    ])
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
@@ -179,3 +184,23 @@ def test_copy_and_format_names_for_ref(rc, cli, tmpdir):
       |   |   |   | name_id      | string |           |
       |   |   |   | country      | ref    | Country   |
     '''
+
+
+def test_copy_to_stdout(rc, cli, tmpdir):
+    manifest = striptable('''
+    d | r | b | m | property | type
+    datasets/gov/example     |
+      | data                 | sql
+                             |
+      |   |   | City         |
+      |   |   |   | name     | string
+    ''')
+    create_tabular_manifest(tmpdir / 'manifest.csv', manifest)
+
+    result = cli.invoke(rc, [
+        'copy',
+        '-c', 'd,r,b,m,p,type',
+        tmpdir / 'manifest.csv',
+    ])
+
+    assert result.stdout.strip() == manifest

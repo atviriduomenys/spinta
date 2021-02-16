@@ -24,6 +24,12 @@ Changes
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/53
 
+- Add `spinta copy --output --columns` flags. Now by default `spinta copy`
+  writes to stdout instead of a file (`#76`__). `--columns` is only available
+  when writing to stdout.
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/76
+
 
 0.1.9 (2021-02-01)
 ==================

@@ -68,9 +68,11 @@ def create_rc(rc: RawConfig, tmpdir: pathlib.Path, geodb: Sqlite):
 
 def configure_remote_server(cli, rc: RawConfig, tmpdir: pathlib.Path, responses):
     cli.invoke(rc, [
-        'copy', '--no-source', '--access', 'open',
+        'copy',
+        '--no-source',
+        '--access', 'open',
+        '-o', tmpdir / 'remote.csv',
         tmpdir / 'manifest.csv',
-        tmpdir / 'remote.csv',
     ])
 
     # Create remote server with PostgreSQL backend
