@@ -1,5 +1,6 @@
 from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import ShortExpr
 from spinta.core.ufuncs import ufunc
 from spinta.naming.components import NameFormatter
 from spinta.types.datatype import DataType
@@ -19,7 +20,14 @@ def getattr_(env: NameFormatter, dtype: Ref, attr: Bind) -> ForeignProperty:
     return ForeignProperty(None, dtype, prop.dtype)
 
 
-@ufunc.resolver(NameFormatter, Expr)
-def testlist(env: NameFormatter, expr: Expr) -> Expr:
+@ufunc.resolver(NameFormatter, Expr, names=['testlist', 'list'])
+def containers(env: NameFormatter, op: str, expr: Expr) -> Expr:
     args, kwargs = expr.resolve(env)
-    return Expr('testlist', *args)
+    return Expr(op, *args)
+
+
+@ufunc.resolver(NameFormatter, Expr, names=['or', 'and'])
+def containers2(env: NameFormatter, op: str, expr: Expr) -> Expr:
+    args, kwargs = expr.resolve(env)
+    return ShortExpr(op, *args)
+

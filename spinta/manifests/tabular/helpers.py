@@ -690,6 +690,16 @@ def striptable(table):
     return textwrap.dedent(table).strip()
 
 
+def _join_escapes(row: List[str]) -> List[str]:
+    res = []
+    for v in row:
+        if res and res[-1] and res[-1].endswith('\\'):
+            res[-1] = res[-1][:-1] + '|' + v
+        else:
+            res.append(v)
+    return res
+
+
 def read_ascii_tabular_rows(
     manifest: str,
     *,
@@ -711,7 +721,7 @@ def read_ascii_tabular_rows(
     dim = sum(1 for h in header if h in DATASET[:6])
     yield header
     for line in lines:
-        row = line.split('|')
+        row = _join_escapes(line.split('|'))
         row = [x.strip() for x in row]
         rem = len(header) - len(row)
         row = row[:dim - rem] + [''] * rem + row[dim - rem:]
@@ -1028,6 +1038,7 @@ def render_tabular_manifest_rows(
 
         for col in cols[he + 1:]:
             val = '' if row[col] is None else str(row[col])
+            val = val.replace('|', '\\|')
             size = sizes[col]
             line.append(val.ljust(size))
 

@@ -186,6 +186,34 @@ def test_copy_and_format_names_for_ref(rc, cli, tmpdir):
     '''
 
 
+def test_copy_and_format_names_with_formulas(rc, cli, tmpdir):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | type   | prepare
+    datasets/gov/example     |        |
+      | data                 | sql    |
+                             |        |
+      |   |   | City         |        | NAME!=['a', 'b']\\|NAME='c'
+      |   |   |   | NAME     | string |
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '--format-names',
+        '-o', tmpdir / 'result.csv',
+        tmpdir / 'manifest.csv',
+  ])
+
+    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type   | prepare
+    datasets/gov/example     |        |
+      | data                 | sql    |
+                             |        |
+      |   |   | City         |        | name!=['a', 'b']\\|name='c'
+      |   |   |   | name     | string |
+    '''
+
+
 def test_copy_to_stdout(rc, cli, tmpdir):
     manifest = striptable('''
     d | r | b | m | property | type
