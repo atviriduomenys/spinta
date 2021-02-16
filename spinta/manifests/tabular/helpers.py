@@ -4,10 +4,12 @@ import csv
 import pathlib
 import textwrap
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
+from typing import NamedTuple
 from typing import Optional
 from typing import Set
 from typing import TextIO
@@ -22,6 +24,7 @@ from spinta.backends.components import BackendOrigin
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
+from spinta.components import Property
 from spinta.core.enums import Access
 from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
@@ -825,20 +828,66 @@ def _namespaces_to_tabular(
         first = False
 
 
+def _order_models_by_access(model: Model):
+    return model.access or Access.private
+
+
+class OrderBy(NamedTuple):
+    func: Callable[[Union[Model, Property]], Any]
+    reverse: bool = False
+
+
+MODELS_ORDER_BY = {
+    'access': OrderBy(_order_models_by_access, reverse=True),
+    'default': OrderBy(tabular_eid),
+}
+
+
+def _order_properties_by_access(prop: Property):
+    return prop.access or Access.private
+
+
+PROPERTIES_ORDER_BY = {
+    'access': OrderBy(_order_properties_by_access, reverse=True),
+}
+
+
+def sort(
+    ordering: Dict[str, OrderBy],
+    items: Iterable[Union[Model, Property]],
+    order_by: Optional[str],
+) -> Iterable[Union[Model, Property]]:
+    order: Optional[OrderBy] = None
+
+    if order_by:
+        order = ordering[order_by]
+    elif 'default' in ordering:
+        order = ordering['default']
+
+    if order:
+        return sorted(items, key=order.func, reverse=order.reverse)
+    else:
+        return items
+
+
 def datasets_to_tabular(
     manifest: Manifest,
     *,
     external: bool = True,
     access: Access = Access.private,
     internal: bool = False,
+    order_by: ManifestColumn = None,
 ) -> Iterator[ManifestRow]:
     yield from _prefixes_to_tabular(manifest.prefixes)
     yield from _backends_to_tabular(manifest.backends)
     yield from _namespaces_to_tabular(manifest.namespaces)
     dataset = None
     resource = None
+
     models = manifest.models if internal else take(manifest.models)
-    for model in sorted(models.values(), key=tabular_eid):
+    models = sort(MODELS_ORDER_BY, models.values(), order_by)
+
+    for model in models:
         if model.access < access:
             continue
 
@@ -851,7 +900,7 @@ def datasets_to_tabular(
                         'id': dataset.id,
                         'dataset': dataset.name,
                         'level': dataset.level,
-                        'access': dataset.access.name,
+                        'access': dataset.given.access,
                         'title': dataset.title,
                         'description': dataset.description,
                     })
@@ -877,7 +926,7 @@ def datasets_to_tabular(
                             else ''
                         ),
                         'level': resource.level,
-                        'access': resource.access.name,
+                        'access': resource.given.access,
                         'title': resource.title,
                         'description': resource.description,
                     })
@@ -888,7 +937,7 @@ def datasets_to_tabular(
             'id': model.id,
             'model': model.name,
             'level': model.level,
-            'access': model.access.name,
+            'access': model.given.access,
             'title': model.title,
             'description': model.description,
         }
@@ -913,7 +962,8 @@ def datasets_to_tabular(
                 ])
         yield torow(DATASET, data)
 
-        for prop in model.properties.values():
+        props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)
+        for prop in props:
             if prop.name.startswith('_'):
                 continue
 
@@ -924,7 +974,7 @@ def datasets_to_tabular(
                 'property': prop.place,
                 'type': prop.dtype.name,
                 'level': prop.level,
-                'access': prop.access.name,
+                'access': prop.given.access,
                 'uri': prop.uri,
                 'title': prop.title,
                 'description': prop.description,

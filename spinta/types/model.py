@@ -18,6 +18,7 @@ from spinta.components import Context
 from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Property
+from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
 from spinta.manifests.components import Manifest
 from spinta.nodes import get_node
@@ -57,7 +58,7 @@ def load(
 
     manifest.add_model_endpoint(model)
     _load_namespace_from_model(context, manifest, model)
-    model.access = load_access_param(model, model.access)
+    load_access_param(model, data.get('access'))
     load_model_properties(context, model, Property, data.get('properties'))
 
     # XXX: Maybe it is worth to leave possibility to override _id access?
@@ -127,6 +128,18 @@ def link(context: Context, model: Model):
     else:
         model.backend = model.manifest.backend
 
+    if model.external and model.external.dataset:
+        link_access_param(model, itertools.chain(
+            [model.external.dataset],
+            [model.ns],
+            model.ns.parents(),
+        ))
+    else:
+        link_access_param(model, itertools.chain(
+            [model.ns],
+            model.ns.parents(),
+        ))
+
     # Link model properties.
     for prop in model.properties.values():
         commands.link(context, prop)
@@ -146,7 +159,7 @@ def load(context: Context, prop: Property, data: dict, manifest: Manifest) -> Pr
     config = context.get('config')
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
-    prop.access = load_access_param(prop, prop.access, itertools.chain(
+    load_access_param(prop, prop.access, itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
     ))
@@ -171,6 +184,22 @@ def link(context: Context, prop: Property):
                 commands.link(context, external)
         else:
             commands.link(context, prop.external)
+
+    model = prop.model
+
+    if prop.model.external and prop.model.external.dataset:
+        link_access_param(prop, itertools.chain(
+            [model],
+            [model.external.dataset],
+            [model.ns],
+            model.ns.parents(),
+        ))
+    else:
+        link_access_param(prop, itertools.chain(
+            [model],
+            [model.ns],
+            model.ns.parents(),
+        ))
 
 
 def _load_property_external(

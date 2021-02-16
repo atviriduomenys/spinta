@@ -20,6 +20,10 @@ from spinta.types.owner import Owner
 from spinta.types.project import Project
 
 
+class DatasetGiven:
+    access: str = None
+
+
 class Dataset(MetaData):
     """DCAT compatible metadata about an external dataset.
 
@@ -36,6 +40,7 @@ class Dataset(MetaData):
     resources: Dict[str, Resource] = None
     title: str
     description: str
+    given: DatasetGiven
 
     schema = {
         'type': {'type': 'string', 'required': True},
@@ -72,6 +77,10 @@ class Dataset(MetaData):
         },
     }
 
+    def __init__(self):
+        self.given = DatasetGiven()
+
+
 
 class ExternalBackend(Backend):
     engine: Engine = None
@@ -80,6 +89,10 @@ class ExternalBackend(Backend):
 
 class External(Node):
     pass
+
+
+class ResourceGiven:
+    access: Access = None
 
 
 class Resource(External):
@@ -92,6 +105,7 @@ class Resource(External):
     external: str
     prepare: str
     models: Dict[str, Model]
+    given: ResourceGiven
 
     schema = {
         'type': {'type': 'string'},
@@ -125,6 +139,9 @@ class Resource(External):
         'title': {'type': 'string'},
         'description': {'type': 'string'},
     }
+
+    def __init__(self):
+        self.given = ResourceGiven()
 
 
 class Entity(External):

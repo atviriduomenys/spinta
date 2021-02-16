@@ -27,6 +27,10 @@ class MetaDataContainer(TypedDict):
     model: Dict[str, Model]
 
 
+class ManifestGiven:
+    access: str = None
+
+
 class Manifest(Component):
     type: str = None
     name: str = None
@@ -51,6 +55,11 @@ class Manifest(Component):
     sync: List[Manifest]
 
     mode: Mode = Mode.internal
+
+    given: ManifestGiven
+
+    def __init__(self):
+        self.given = ManifestGiven()
 
     def __repr__(self):
         return (

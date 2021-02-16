@@ -25,7 +25,7 @@ def load(
     config = context.get('config')
 
     load_node(context, dataset, data, parent=manifest)
-    dataset.access = load_access_param(dataset, dataset.access, (manifest,))
+    load_access_param(dataset, data.get('access'), (manifest,))
 
     ns = load_namespace_from_name(context, manifest, dataset.name, drop=False)
     if ns.generated:
@@ -49,7 +49,7 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_node(context, resource, data, parent=resource.dataset)
     if resource.prepare:
         resource.prepare = asttoexpr(resource.prepare)
-    resource.access = load_access_param(resource, resource.access, (resource.dataset,))
+    load_access_param(resource, data.get('access'), (resource.dataset,))
     resource.backend = load_resource_backend(
         context,
         resource,

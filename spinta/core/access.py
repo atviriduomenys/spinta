@@ -1,29 +1,41 @@
-from spinta import exceptions
+from typing import Iterable
+from typing import Union
+
+from spinta.components import Model
+from spinta.components import Namespace
+from spinta.components import Property
 from spinta.core.enums import Access
+from spinta.datasets.components import Dataset
+from spinta.datasets.components import Resource
+from spinta.manifests.components import Manifest
+from spinta.utils.enums import enum_by_name
 
 
-def load_access_param(component, access, parents=()):
-    if not access:
-        for parent in parents:
-            if parent.access:
-                access = parent.access
-                break
-        else:
-            access = Access.protected
-    elif access == 'private' or access == Access.private:
-        access = Access.private
-    elif access == 'protected' or access == Access.protected:
-        access = Access.protected
-    elif access == 'public' or access == Access.public:
-        access = Access.public
-    elif access == 'open' or access == Access.open:
-        access = Access.open
-    else:
-        raise exceptions.InvalidValue(component, param='access', given=access)
+def load_access_param(
+    component: Union[Dataset, Resource, Namespace, Model, Property],
+    given_access: str,
+    parents: Iterable[Union[Manifest, Dataset, Namespace, Model]] = (),
+) -> None:
+    access = enum_by_name(component, 'access', Access, given_access)
 
     # If child has higher access than parent, increase parent access.
-    for parent in parents:
-        if not parent.access or access > parent.access:
-            parent.access = access
+    if access is not None:
+        for parent in parents:
+            if parent.access is None or access > parent.access:
+                parent.access = access
 
-    return access
+    component.access = access
+    component.given.access = given_access
+
+
+def link_access_param(
+    component: Union[Dataset, Resource, Namespace, Model, Property],
+    parents: Iterable[Union[Manifest, Dataset, Namespace, Model]] = (),
+) -> None:
+    if component.access is None:
+        for parent in parents:
+            if parent.access and parent.given.access:
+                component.access = parent.access
+                break
+        else:
+            component.access = Access.protected

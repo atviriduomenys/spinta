@@ -404,6 +404,10 @@ class MetaData(Node):
             return str(self.eid)
 
 
+class NamespaceGiven:
+    access: str = None
+
+
 class Namespace(MetaData):
     access: Access
     keymap: KeyMap = None
@@ -415,6 +419,10 @@ class Namespace(MetaData):
     description: str
     # Namespaces generated from model name.
     generated: bool = False
+    given: NamespaceGiven
+
+    def __init__(self):
+        self.given = NamespaceGiven()
 
     def model_specifier(self):
         return ':ns'
@@ -442,6 +450,10 @@ class Base(Node):
     }
 
 
+class ModelGiven:
+    access: str = None
+
+
 class Model(MetaData):
     id: str
     level: Level
@@ -453,6 +465,7 @@ class Model(MetaData):
     external: Entity = None
     properties: Dict[str, Property]
     mode: Mode = None
+    given: ModelGiven
 
     schema = {
         'keymap': {'type': 'string'},
@@ -488,9 +501,14 @@ class Model(MetaData):
         self.properties = {}
         self.flatprops = {}
         self.leafprops = {}
+        self.given = ModelGiven()
 
     def model_type(self):
         return self.name
+
+
+class PropertyGiven:
+    access: str = None
 
 
 class Property(Node):
@@ -506,6 +524,7 @@ class Property(Node):
     list: Property = None
     model: Model = None
     uri: str = None
+    given: PropertyGiven
 
     schema = {
         'title': {},
@@ -526,6 +545,9 @@ class Property(Node):
         'external': {},
         'uri': {'type': 'string'},
     }
+
+    def __init__(self):
+        self.given = PropertyGiven()
 
     def __repr__(self):
         pypath = [type(self).__module__, type(self).__name__]

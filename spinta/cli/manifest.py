@@ -13,6 +13,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.core.enums import Access
 from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.tabular.components import ManifestColumn
 from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.tabular.helpers import normalizes_columns
@@ -46,6 +47,9 @@ def copy(
     columns: Optional[str] = Option(None, '-c', '--columns', help=(
         "Comma separated list of columns"
     )),
+    order_by: Optional[str] = Option(None, help=(
+        "Order by a specified column (currently only access column is supported)"
+    )),
     files: List[pathlib.Path] = Argument(None, help=(
         "Source manifest files to copy from"
     )),
@@ -61,6 +65,7 @@ def copy(
         external=source,
         access=access,
         format_names=format_names,
+        order_by=order_by,
     )
 
     if output:
@@ -77,6 +82,7 @@ def _read_csv_files(
     external: bool = True,
     access: Access = Access.private,
     format_names: bool = False,
+    order_by: ManifestColumn = None,
 ) -> Iterator[ManifestRow]:
     rc = context.get('rc')
     for path in files:
@@ -121,5 +127,6 @@ def _read_csv_files(
                 store.manifest,
                 external=external,
                 access=access,
+                order_by=order_by,
             )
 

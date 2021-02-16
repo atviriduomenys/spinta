@@ -286,19 +286,19 @@ def get_ns_model(context: Context, ns: Namespace) -> Model:
         'properties': {
             '_type': {
                 'type': 'string',
-                'access': ns.access.value,
+                'access': ns.access.name,
             },
             '_id': {
                 'type': 'pk',
-                'access': ns.access.value,
+                'access': ns.access.name,
             },
             'title': {
                 'type': 'string',
-                'access': ns.access.value,
+                'access': ns.access.name,
             },
             'description': {
                 'type': 'string',
-                'access': ns.access.value,
+                'access': ns.access.name,
             },
         }
     }

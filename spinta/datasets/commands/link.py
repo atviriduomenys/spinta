@@ -2,19 +2,21 @@ from typing import List
 
 from spinta import commands
 from spinta.components import Context
+from spinta.core.access import link_access_param
 from spinta.datasets.components import Dataset, Resource, Entity, Attribute
 from spinta.exceptions import MissingReferrence
 
 
 @commands.link.register(Context, Dataset)
 def link(context: Context, dataset: Dataset):
+    link_access_param(dataset, (dataset.manifest,))
     for resource in dataset.resources.values():
         commands.link(context, resource)
 
 
 @commands.link.register(Context, Resource)
 def link(context: Context, resource: Resource):
-    pass
+    link_access_param(resource, (resource.dataset,))
 
 
 @commands.link.register(Context, Entity)

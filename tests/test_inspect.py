@@ -46,18 +46,18 @@ def test_inspect(
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
     manifest.datasets['dataset'].resources['rs'].external = 'sqlite'
     assert manifest == '''
-    id | d | r | b | m | property   | type    | ref     | source     | prepare | level | access    | uri | title | description
-       | dataset                    |         |         |            |         |       | protected |     |       |
-       |   | rs                     | sql     |         | sqlite     |         |       | protected |     |       |
-       |                            |         |         |            |         |       |           |     |       |
-       |   |   |   | Country        |         | id      | COUNTRY    |         |       | protected |     |       |
-       |   |   |   |   | id         | integer |         | ID         |         |       | protected |     |       |
-       |   |   |   |   | code       | string  |         | CODE       |         |       | protected |     |       |
-       |   |   |   |   | name       | string  |         | NAME       |         |       | protected |     |       |
-       |                            |         |         |            |         |       |           |     |       |
-       |   |   |   | City           |         |         | CITY       |         |       | protected |     |       |
-       |   |   |   |   | name       | string  |         | NAME       |         |       | protected |     |       |
-       |   |   |   |   | country_id | ref     | Country | COUNTRY_ID |         |       | protected |     |       |
+    id | d | r | b | m | property   | type    | ref     | source     | prepare | level | access | uri | title | description
+       | dataset                    |         |         |            |         |       |        |     |       |
+       |   | rs                     | sql     |         | sqlite     |         |       |        |     |       |
+       |                            |         |         |            |         |       |        |     |       |
+       |   |   |   | Country        |         | id      | COUNTRY    |         |       |        |     |       |
+       |   |   |   |   | id         | integer |         | ID         |         |       |        |     |       |
+       |   |   |   |   | code       | string  |         | CODE       |         |       |        |     |       |
+       |   |   |   |   | name       | string  |         | NAME       |         |       |        |     |       |
+       |                            |         |         |            |         |       |        |     |       |
+       |   |   |   | City           |         |         | CITY       |         |       |        |     |       |
+       |   |   |   |   | name       | string  |         | NAME       |         |       |        |     |       |
+       |   |   |   |   | country_id | ref     | Country | COUNTRY_ID |         |       |        |     |       |
     '''
 
 
@@ -89,15 +89,15 @@ def test_inspect_from_manifest_table(
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
     manifest.datasets['dataset'].resources['rs'].external = 'sqlite'
-    assert render_tabular_manifest(manifest) == striptable(f'''
-    id | d | r | b | m | property | type    | ref | source  | prepare | level | access    | uri | title | description
-       | dataset                  |         |     |         |         |       | protected |     |       |
-       |   | rs                   | sql     |     | sqlite  |         |       | protected |     |       |
-       |                          |         |     |         |         |       |           |     |       |
-       |   |   |   | Country      |         | id  | COUNTRY |         |       | protected |     |       |
-       |   |   |   |   | id       | integer |     | ID      |         |       | protected |     |       |
-       |   |   |   |   | name     | string  |     | NAME    |         |       | protected |     |       |
-    ''')
+    assert manifest == '''
+    id | d | r | b | m | property | type    | ref | source  | prepare | level | access | uri | title | description
+       | dataset                  |         |     |         |         |       |        |     |       |
+       |   | rs                   | sql     |     | sqlite  |         |       |        |     |       |
+       |                          |         |     |         |         |       |        |     |       |
+       |   |   |   | Country      |         | id  | COUNTRY |         |       |        |     |       |
+       |   |   |   |   | id       | integer |     | ID      |         |       |        |     |       |
+       |   |   |   |   | name     | string  |     | NAME    |         |       |        |     |       |
+    '''
 
 
 def test_inspect_format(
@@ -130,20 +130,20 @@ def test_inspect_format(
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
     manifest.datasets['dataset'].resources['sql'].external = 'sqlite'
-    assert render_tabular_manifest(manifest) == striptable(f'''
-    id | d | r | b | m | property   | type    | ref     | source     | prepare | level | access    | uri | title | description
-       | dataset                    |         |         |            |         |       | protected |     |       |
-       |   | sql                    | sql     |         | sqlite     |         |       | protected |     |       |
-       |                            |         |         |            |         |       |           |     |       |
-       |   |   |   | Country        |         | id      | COUNTRY    |         |       | protected |     |       |
-       |   |   |   |   | id         | integer |         | ID         |         |       | protected |     |       |
-       |   |   |   |   | code       | string  |         | CODE       |         |       | protected |     |       |
-       |   |   |   |   | name       | string  |         | NAME       |         |       | protected |     |       |
-       |                            |         |         |            |         |       |           |     |       |
-       |   |   |   | City           |         |         | CITY       |         |       | protected |     |       |
-       |   |   |   |   | name       | string  |         | NAME       |         |       | protected |     |       |
-       |   |   |   |   | country_id | ref     | Country | COUNTRY_ID |         |       | protected |     |       |
-    ''')
+    assert manifest == '''
+    id | d | r | b | m | property   | type    | ref     | source     | prepare | level | access | uri | title | description
+       | dataset                    |         |         |            |         |       |        |     |       |
+       |   | sql                    | sql     |         | sqlite     |         |       |        |     |       |
+       |                            |         |         |            |         |       |        |     |       |
+       |   |   |   | Country        |         | id      | COUNTRY    |         |       |        |     |       |
+       |   |   |   |   | id         | integer |         | ID         |         |       |        |     |       |
+       |   |   |   |   | code       | string  |         | CODE       |         |       |        |     |       |
+       |   |   |   |   | name       | string  |         | NAME       |         |       |        |     |       |
+       |                            |         |         |            |         |       |        |     |       |
+       |   |   |   | City           |         |         | CITY       |         |       |        |     |       |
+       |   |   |   |   | name       | string  |         | NAME       |         |       |        |     |       |
+       |   |   |   |   | country_id | ref     | Country | COUNTRY_ID |         |       |        |     |       |
+    '''
 
 
 def test_inspect_cyclic_refs(
@@ -177,21 +177,21 @@ def test_inspect_cyclic_refs(
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
     manifest.datasets['dataset'].resources['sql'].external = 'sqlite'
-    assert render_tabular_manifest(manifest) == striptable(f'''
-    id | d | r | b | m | property   | type    | ref     | source     | prepare | level | access    | uri | title | description
-       | dataset                    |         |         |            |         |       | protected |     |       |
-       |   | sql                    | sql     |         | sqlite     |         |       | protected |     |       |
-       |                            |         |         |            |         |       |           |     |       |
-       |   |   |   | City           |         | id      | CITY       |         |       | protected |     |       |
-       |   |   |   |   | id         | integer |         | ID         |         |       | protected |     |       |
-       |   |   |   |   | name       | string  |         | NAME       |         |       | protected |     |       |
-       |   |   |   |   | country_id | ref     | Country | COUNTRY_ID |         |       | protected |     |       |
-       |                            |         |         |            |         |       |           |     |       |
-       |   |   |   | Country        |         | id      | COUNTRY    |         |       | protected |     |       |
-       |   |   |   |   | id         | integer |         | ID         |         |       | protected |     |       |
-       |   |   |   |   | capital    | ref     | City    | CAPITAL    |         |       | protected |     |       |
-       |   |   |   |   | name       | string  |         | NAME       |         |       | protected |     |       |
-    ''')
+    assert manifest == '''
+    id | d | r | b | m | property   | type    | ref     | source     | prepare | level | access | uri | title | description
+       | dataset                    |         |         |            |         |       |        |     |       |
+       |   | sql                    | sql     |         | sqlite     |         |       |        |     |       |
+       |                            |         |         |            |         |       |        |     |       |
+       |   |   |   | City           |         | id      | CITY       |         |       |        |     |       |
+       |   |   |   |   | id         | integer |         | ID         |         |       |        |     |       |
+       |   |   |   |   | name       | string  |         | NAME       |         |       |        |     |       |
+       |   |   |   |   | country_id | ref     | Country | COUNTRY_ID |         |       |        |     |       |
+       |                            |         |         |            |         |       |        |     |       |
+       |   |   |   | Country        |         | id      | COUNTRY    |         |       |        |     |       |
+       |   |   |   |   | id         | integer |         | ID         |         |       |        |     |       |
+       |   |   |   |   | capital    | ref     | City    | CAPITAL    |         |       |        |     |       |
+       |   |   |   |   | name       | string  |         | NAME       |         |       |        |     |       |
+    '''
 
 
 def test_inspect_self_refs(
@@ -220,16 +220,16 @@ def test_inspect_self_refs(
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
     manifest.datasets['dataset'].resources['sql'].external = 'sqlite'
-    assert render_tabular_manifest(manifest) == striptable(f'''
-    id | d | r | b | m | property  | type    | ref      | source    | prepare | level | access    | uri | title | description
-       | dataset                   |         |          |           |         |       | protected |     |       |
-       |   | sql                   | sql     |          | sqlite    |         |       | protected |     |       |
-       |                           |         |          |           |         |       |           |     |       |
-       |   |   |   | Category      |         | id       | CATEGORY  |         |       | protected |     |       |
-       |   |   |   |   | id        | integer |          | ID        |         |       | protected |     |       |
-       |   |   |   |   | name      | string  |          | NAME      |         |       | protected |     |       |
-       |   |   |   |   | parent_id | ref     | Category | PARENT_ID |         |       | protected |     |       |
-    ''')
+    assert manifest == '''
+    id | d | r | b | m | property  | type    | ref      | source    | prepare | level | access | uri | title | description
+       | dataset                   |         |          |           |         |       |        |     |       |
+       |   | sql                   | sql     |          | sqlite    |         |       |        |     |       |
+       |                           |         |          |           |         |       |        |     |       |
+       |   |   |   | Category      |         | id       | CATEGORY  |         |       |        |     |       |
+       |   |   |   |   | id        | integer |          | ID        |         |       |        |     |       |
+       |   |   |   |   | name      | string  |          | NAME      |         |       |        |     |       |
+       |   |   |   |   | parent_id | ref     | Category | PARENT_ID |         |       |        |     |       |
+    '''
 
 
 def test_inspect_oracle_sqldump_stdin(
@@ -281,15 +281,15 @@ def test_inspect_oracle_sqldump_stdin(
 
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
-    assert render_tabular_manifest(manifest) == striptable(f'''
-    id | d | r | b | m | property | type    | ref | source  | prepare | level | access    | uri | title | description
-       | dataset                  |         |     |         |         |       | protected |     |       |
-       |   | sqldump              | sqldump |     | -       |         |       | protected |     |       |
-       |                          |         |     |         |         |       |           |     |       |
-       |   |   |   | Country      |         |     | COUNTRY |         |       | protected |     |       |
-       |                          |         |     |         |         |       |           |     |       |
-       |   |   |   | City         |         |     | CITY    |         |       | protected |     |       |
-    ''')
+    assert manifest == '''
+    id | d | r | b | m | property | type    | ref | source  | prepare | level | access | uri | title | description
+       | dataset                  |         |     |         |         |       |        |     |       |
+       |   | sqldump              | sqldump |     | -       |         |       |        |     |       |
+       |                          |         |     |         |         |       |        |     |       |
+       |   |   |   | Country      |         |     | COUNTRY |         |       |        |     |       |
+       |                          |         |     |         |         |       |        |     |       |
+       |   |   |   | City         |         |     | CITY    |         |       |        |     |       |
+    '''
 
 
 def test_inspect_oracle_sqldump_file_with_formula(
@@ -315,13 +315,13 @@ def test_inspect_oracle_sqldump_file_with_formula(
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
     manifest.datasets['dataset'].resources['sqldump'].external = 'dump.sql'
-    assert render_tabular_manifest(manifest) == striptable(f'''
+    assert manifest == '''
     id | d | r | b | m | property | type    | ref | source   | prepare                            | level | access    | uri | title | description
-       | dataset                  |         |     |          |                                    |       | protected |     |       |
-       |   | sqldump              | sqldump |     | dump.sql | file(self, encoding: 'iso-8859-4') |       | protected |     |       |
+       | dataset                  |         |     |          |                                    |       |           |     |       |
+       |   | sqldump              | sqldump |     | dump.sql | file(self, encoding: 'iso-8859-4') |       |           |     |       |
        |                          |         |     |          |                                    |       |           |     |       |
-       |   |   |   | Country      |         |     | COUNTRY  |                                    |       | protected |     |       |
-    ''')
+       |   |   |   | Country      |         |     | COUNTRY  |                                    |       |           |     |       |
+    '''
 
 
 def test_inspect_with_schema(

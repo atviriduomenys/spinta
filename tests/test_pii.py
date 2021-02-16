@@ -60,20 +60,16 @@ def test_detect_pii(rc, cli: SpintaCliRunner, tmpdir, sqlite):
 
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'pii.csv')
-    cols = [
-        'dataset', 'resource', 'model', 'property', 'type', 'ref', 'source',
-        'access', 'uri',
-    ]
-    assert render_tabular_manifest(manifest, cols) == striptable('''
-    d | r | m | property | type   | ref | source | access    | uri
-                         | prefix | pii |        |           | https://data.gov.lt/pii/
-    datasets/ds          |        |     |        | protected |
-      | rs               | sql    | sql |        | protected |
-                         |        |     |        |           |
-      |   | Person       |        |     | PERSON | open      |
-      |   |   | name     | string |     | NAME   | open      |
-      |   |   | email    | string |     | EMAIL  | open      | pii:email
-      |   |   | phone    | string |     | PHONE  | open      | pii:phone
-      |   |   | nin      | string |     | CODE   | open      | pii:id
-    ''')
+    assert manifest == '''
+    d | r | m | property | type   | ref | source | access | uri
+                         | prefix | pii |        |        | https://data.gov.lt/pii/
+    datasets/ds          |        |     |        |        |
+      | rs               | sql    | sql |        |        |
+                         |        |     |        |        |
+      |   | Person       |        |     | PERSON | open   |
+      |   |   | name     | string |     | NAME   |        |
+      |   |   | email    | string |     | EMAIL  |        | pii:email
+      |   |   | phone    | string |     | PHONE  |        | pii:phone
+      |   |   | nin      | string |     | CODE   |        | pii:id
+    '''
 

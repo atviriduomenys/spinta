@@ -33,22 +33,18 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     ])
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
-    cols = [
-        'dataset', 'resource', 'base', 'model', 'property',
-        'type', 'ref', 'source', 'level', 'access',
-    ]
-    assert render_tabular_manifest(manifest, cols) == striptable('''
+    assert manifest == '''
     d | r | b | m | property | type   | ref     | source | level | access
-    datasets/gov/example     |        |         |        |       | protected
-      | data                 | sql    |         |        |       | protected
+    datasets/gov/example     |        |         |        |       |
+      | data                 | sql    |         |        |       |
                              |        |         |        |       |
-      |   |   | country      |        |         |        |       | open
+      |   |   | country      |        |         |        |       |
       |   |   |   | name     | string |         |        |       | open
                              |        |         |        |       |
-      |   |   | city         |        |         |        |       | open
+      |   |   | city         |        |         |        |       |
       |   |   |   | name     | string |         |        |       | open
       |   |   |   | country  | ref    | country |        |       | open
-    ''')
+    '''
 
 
 def test_copy_with_filters_and_externals(rc, cli, tmpdir):
@@ -78,22 +74,18 @@ def test_copy_with_filters_and_externals(rc, cli, tmpdir):
     ])
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
-    cols = [
-        'dataset', 'resource', 'base', 'model', 'property',
-        'type', 'ref', 'source', 'prepare', 'level', 'access',
-    ]
-    assert render_tabular_manifest(manifest, cols) == striptable('''
+    assert manifest == '''
     d | r | b | m | property | type   | ref     | source      | prepare   | level | access
-    datasets/gov/example     |        |         |             |           |       | protected
-      | data                 | sql    |         |             |           |       | protected
+    datasets/gov/example     |        |         |             |           |       |
+      | data                 | sql    |         |             |           |       |
                              |        |         |             |           |       |
-      |   |   | country      |        |         | salis       | code='lt' |       | open
+      |   |   | country      |        |         | salis       | code='lt' |       |
       |   |   |   | name     | string |         | pavadinimas |           |       | open
                              |        |         |             |           |       |
-      |   |   | city         |        | name    | miestas     |           |       | open
+      |   |   | city         |        | name    | miestas     |           |       |
       |   |   |   | name     | string |         | pavadinimas |           |       | open
       |   |   |   | country  | ref    | country | salis       |           |       | open
-    ''')
+    '''
 
 
 def test_copy_and_format_names(rc, cli, tmpdir):
@@ -125,20 +117,20 @@ def test_copy_and_format_names(rc, cli, tmpdir):
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property     | type    | ref                         | source      | prepare                    | level  | access    | title
-    datasets/gov/example         |         |                             |             |                            |        | protected | Example dataset
-      | data                     | sql     |                             |             |                            |        | protected |
+    datasets/gov/example         |         |                             |             |                            |        |           | Example dataset
+      | data                     | sql     |                             |             |                            |        |           |
                                  |         |                             |             |                            |        |           |
-      |   |   | Country          |         | country_code                | Šalis       | country_code='lt'          |        | open      | Countries
+      |   |   | Country          |         | country_code                | Šalis       | country_code='lt'          |        |           | Countries
       |   |   |   | country_code | string  |                             | Kodas       | lower()                    | 3      | private   | Country code
       |   |   |   | name         | string  |                             | Pavadinimas |                            | 3      | open      |
       |   |   |   | population   | integer |                             | Populiacija |                            | 4      | protected |
       |   |   |   | id           | integer |                             |             | country_code, name         | 2      | public    |
                                  |         |                             |             |                            |        |           |
-      |   |   | City             |         | name                        | Miestas     |                            |        | protected | Cities
-      |   |   |   | name         | string  |                             | Pavadinimas |                            | 1      | protected |
-      |   |   |   | country_name | string  |                             | Šalis       |                            | 4      | protected |
-      |   |   |   | country_code | string  |                             | Kodas       |                            | 4      | protected |
-      |   |   |   | country      | ref     | Country[country_code, name] |             | country_code, country_name | 4      | protected |
+      |   |   | City             |         | name                        | Miestas     |                            |        |           | Cities
+      |   |   |   | name         | string  |                             | Pavadinimas |                            | 1      |           |
+      |   |   |   | country_name | string  |                             | Šalis       |                            | 4      |           |
+      |   |   |   | country_code | string  |                             | Kodas       |                            | 4      |           |
+      |   |   |   | country      | ref     | Country[country_code, name] |             | country_code, country_name | 4      |           |
     '''
 
 
@@ -232,3 +224,53 @@ def test_copy_to_stdout(rc, cli, tmpdir):
     ])
 
     assert result.stdout.strip() == manifest
+
+
+def test_copy_order_by_access(rc, cli, tmpdir):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property   | type    | ref        | access
+    datasets/gov/example       |         |            |
+      | data                   | sql     |            |
+                               |         |            |
+      |   |   | Continent      |         |            |
+      |   |   |   | name       | string  |            | private
+      |   |   |   | population | string  |            | private
+                               |         |            |
+      |   |   | Country        |         |            |
+      |   |   |   | name       | string  |            | protected
+      |   |   |   | continent  | ref     | Continent  | protected
+      |   |   |   | population | string  |            | protected
+                               |         |            |
+      |   |   | City           |         |            |
+      |   |   |   | name       | string  |            | open
+      |   |   |   | country    | ref     | Country    | public
+      |   |   |   | population | string  |            | open
+    '''))
+
+    result = cli.invoke(rc, [
+        'copy',
+        '-o', tmpdir / 'result.csv',
+        '--order-by', 'access',
+        tmpdir / 'manifest.csv',
+    ])
+
+    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property   | type    | ref        | access
+    datasets/gov/example       |         |            |
+      | data                   | sql     |            |
+                               |         |            |
+      |   |   | City           |         |            |
+      |   |   |   | name       | string  |            | open
+      |   |   |   | population | string  |            | open
+      |   |   |   | country    | ref     | Country    | public
+                               |         |            |
+      |   |   | Country        |         |            |
+      |   |   |   | name       | string  |            | protected
+      |   |   |   | continent  | ref     | Continent  | protected
+      |   |   |   | population | string  |            | protected
+                               |         |            |
+      |   |   | Continent      |         |            |
+      |   |   |   | name       | string  |            | private
+      |   |   |   | population | string  |            | private
+    '''

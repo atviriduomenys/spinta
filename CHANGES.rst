@@ -30,6 +30,10 @@ Changes
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/76
 
+- Add `spinta copy --order-by access` flag (`#53`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/53
+
 
 0.1.9 (2021-02-01)
 ==================
