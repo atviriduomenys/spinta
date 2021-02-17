@@ -342,10 +342,17 @@ class ModelReader(TabularReader):
             row['model'],
         )
 
-        self.name = name
+        if self.state.rename_duplicates:
+            dup = 1
+            _name = name
+            while _name in self.state.models:
+                _name = f'{name}_{dup}'
+                dup += 1
+            name = _name
+        elif name in self.state.models:
+            self.error(f"Model {name!r} with the same name is already defined.")
 
-        if name in self.state.models:
-            self.error("Model with the same name is already defined.")
+        self.name = name
 
         self.data = {
             'type': 'model',
@@ -630,6 +637,8 @@ class State:
     model: ModelReader = None
     prop: PropertyReader = None
 
+    rename_duplicates: bool = False
+
     def __init__(self):
         self.stack = []
         self.models = set()
@@ -657,6 +666,8 @@ class State:
 def _read_tabular_manifest_rows(
     path: Optional[pathlib.Path],
     rows: Iterator[List[str]],
+    *,
+    rename_duplicates: bool = True,
 ) -> Iterator[ParsedRow]:
     header = next(rows, None)
     if header is None:
@@ -667,6 +678,7 @@ def _read_tabular_manifest_rows(
     defaults = {k: '' for k in MANIFEST_COLUMNS}
 
     state = State()
+    state.rename_duplicates = rename_duplicates
     reader = ManifestReader(state, path, 1)
     reader.read({})
     yield from state.release(reader)
@@ -683,10 +695,18 @@ def _read_tabular_manifest_rows(
     yield from state.release()
 
 
-def read_tabular_manifest(path: pathlib.Path) -> Iterator[ParsedRow]:
+def read_tabular_manifest(
+    path: pathlib.Path,
+    *,
+    rename_duplicates: bool = False,
+) -> Iterator[ParsedRow]:
     with path.open() as f:
         csv_reader = csv.reader(f)
-        yield from _read_tabular_manifest_rows(path, csv_reader)
+        yield from _read_tabular_manifest_rows(
+            path,
+            csv_reader,
+            rename_duplicates=rename_duplicates,
+        )
 
 
 def striptable(table):
@@ -736,9 +756,14 @@ def read_ascii_tabular_manifest(
     manifest: str,
     *,
     strip: bool = False,
+    rename_duplicates: bool = False,
 ) -> Iterator[ParsedRow]:
     rows = read_ascii_tabular_rows(manifest, strip=strip)
-    yield from _read_tabular_manifest_rows(None, rows)
+    yield from _read_tabular_manifest_rows(
+        None,
+        rows,
+        rename_duplicates=rename_duplicates,
+    )
 
 
 def load_ascii_tabular_manifest(

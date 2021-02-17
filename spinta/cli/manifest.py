@@ -50,6 +50,9 @@ def copy(
     order_by: Optional[str] = Option(None, help=(
         "Order by a specified column (currently only access column is supported)"
     )),
+    rename_duplicates: bool = Option(False, help=(
+        "Rename duplicate model names by adding number suffix"
+    )),
     files: List[pathlib.Path] = Argument(None, help=(
         "Source manifest files to copy from"
     )),
@@ -66,6 +69,7 @@ def copy(
         access=access,
         format_names=format_names,
         order_by=order_by,
+        rename_duplicates=rename_duplicates,
     )
 
     if output:
@@ -83,6 +87,7 @@ def _read_csv_files(
     access: Access = Access.private,
     format_names: bool = False,
     order_by: ManifestColumn = None,
+    rename_duplicates: bool = False,
 ) -> Iterator[ManifestRow]:
     rc = context.get('rc')
     for path in files:
@@ -114,7 +119,10 @@ def _read_csv_files(
             context.set('store', store)
             commands.load(context, store)
 
-            schemas = read_tabular_manifest(path)
+            schemas = read_tabular_manifest(
+                path,
+                rename_duplicates=rename_duplicates,
+            )
             load_manifest_nodes(context, store.manifest, schemas)
 
             commands.link(context, store.manifest)

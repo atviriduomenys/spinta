@@ -274,3 +274,43 @@ def test_copy_order_by_access(rc, cli, tmpdir):
       |   |   |   | name       | string  |            | private
       |   |   |   | population | string  |            | private
     '''
+
+
+def test_copy_rename_duplicates(rc, cli, tmpdir):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property   | type
+    datasets/gov/example       |
+      | data                   | sql
+                               |
+      |   |   | City           |
+      |   |   |   | name       | string
+                               |
+      |   |   | City           |
+      |   |   |   | name       | string
+                               |
+      |   |   | City           |
+      |   |   |   | name       | string
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '--rename-duplicates',
+        tmpdir / 'manifest.csv',
+        '-o', tmpdir / 'result.csv',
+    ])
+
+    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property   | type
+    datasets/gov/example       |
+      | data                   | sql
+                               |
+      |   |   | City           |
+      |   |   |   | name       | string
+                               |
+      |   |   | City_1         |
+      |   |   |   | name       | string
+                               |
+      |   |   | City_2         |
+      |   |   |   | name       | string
+    '''
