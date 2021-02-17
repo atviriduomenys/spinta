@@ -3,15 +3,11 @@ from __future__ import annotations
 import itertools
 from typing import Any
 from typing import Dict
-from typing import List
-from typing import Optional
 from typing import TYPE_CHECKING
-from typing import Union
 from typing import cast
 
 from spinta import commands
 from spinta import exceptions
-from spinta import spyna
 from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
@@ -20,19 +16,13 @@ from spinta.commands import prepare
 from spinta.components import Action
 from spinta.components import Base
 from spinta.components import Context
-from spinta.components import EnumItem
 from spinta.components import Mode
 from spinta.components import Model
-from spinta.components import Namespace
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.core.ufuncs import Env
-from spinta.core.ufuncs import Expr
-from spinta.core.ufuncs import asttoexpr
-from spinta.exceptions import FormulaError
+from spinta.dimensions.enum.helpers import load_enums
 from spinta.manifests.components import Manifest
-from spinta.manifests.tabular.components import EnumRow
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
@@ -167,44 +157,6 @@ def link(context: Context, base: Base):
     ]
 
 
-def _load_enum_item(
-    context: Context,
-    parents: List[Union[Property, Model, Namespace]],
-    data: EnumRow,
-) -> EnumItem:
-    item = EnumItem()
-    item = load_node(context, item, data, parent=parents[0])
-    item = cast(EnumItem, item)
-    if item.prepare:
-        ast = item.prepare
-        expr = asttoexpr(ast)
-        env = Env(context, scope={'this': item.source})
-        item.prepare = env.resolve(expr)
-        if isinstance(item.prepare, Expr):
-            raise FormulaError(item, formula=spyna.unparse(ast), error=(
-                "Formula must resolve to a literal value."
-            ))
-
-    load_access_param(item, data.get('access'), parents)
-    return item
-
-
-def _load_enums(
-    context: Context,
-    parents: List[Union[Property, Model, Namespace]],
-    enums: Optional[Dict[str, Dict[str, EnumRow]]],
-) -> Optional[Dict[str, Dict[str, EnumItem]]]:
-    if enums is None:
-        return None
-    return {
-        name: {
-            source: _load_enum_item(context, parents, item)
-            for source, item in enum.items()
-        }
-        for name, enum in enums.items()
-    }
-
-
 @load.register(Context, Property, dict, Manifest)
 def load(context: Context, prop: Property, data: PropertyRow, manifest: Manifest) -> Property:
     config = context.get('config')
@@ -216,7 +168,7 @@ def load(context: Context, prop: Property, data: PropertyRow, manifest: Manifest
         prop.model.ns.parents(),
     ))
     load_access_param(prop, prop.access, parents)
-    prop.enums = _load_enums(context, parents, prop.enums)
+    prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.dtype = get_node(config, manifest, prop.model.eid, data, group='types', parent=prop)
     prop.dtype.type = 'type'
     prop.dtype.prop = prop

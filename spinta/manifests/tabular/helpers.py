@@ -22,7 +22,7 @@ from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
 from spinta.components import Context
-from spinta.components import EnumItem
+from spinta.dimensions.enum.components import EnumItem
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
@@ -600,7 +600,7 @@ def _read_enum_row(name: str, row: ManifestRow) -> Dict[str, Any]:
         'source': row[SOURCE],
         'prepare': (
             spyna.parse(row[PREPARE])
-            if row[PREPARE] else None
+            if row[PREPARE] else NA
         ),
         'access': row[ACCESS],
         'title': row[TITLE],
@@ -613,16 +613,12 @@ class EnumReader(TabularReader):
     appendable: bool = True
 
     def read(self, row: ManifestRow) -> None:
-        if not row[PREPARE]:
-            # `ref` is a required parameter.
-            return
-
         prop = self.state.prop
 
         if row[REF]:
             self.name = row[REF]
         else:
-            self.name = prop.name
+            self.name = ''
 
         if 'enums' not in prop.data:
             prop.data['enums'] = {}

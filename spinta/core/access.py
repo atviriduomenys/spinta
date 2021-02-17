@@ -1,15 +1,18 @@
 from typing import Iterable
+from typing import TYPE_CHECKING
 from typing import Union
 
-from spinta.components import EnumItem
-from spinta.components import Model
-from spinta.components import Namespace
-from spinta.components import Property
 from spinta.core.enums import Access
-from spinta.datasets.components import Dataset
-from spinta.datasets.components import Resource
-from spinta.manifests.components import Manifest
 from spinta.utils.enums import enum_by_name
+
+if TYPE_CHECKING:
+    from spinta.dimensions.enum.components import EnumItem
+    from spinta.components import Model
+    from spinta.components import Namespace
+    from spinta.components import Property
+    from spinta.datasets.components import Dataset
+    from spinta.datasets.components import Resource
+    from spinta.manifests.components import Manifest
 
 
 def load_access_param(

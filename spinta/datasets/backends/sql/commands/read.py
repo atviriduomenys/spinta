@@ -12,8 +12,10 @@ from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
+from spinta.exceptions import ValueNotInEnum
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
+from spinta.utils.schema import NA
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +25,16 @@ def _get_row_value(row: RowProxy, sel: Any) -> Any:
         # TODO: `sel.prep is not na`.
         if sel.prep is not None:
             return _get_row_value(row, sel.prep)
+        elif sel.prop and sel.prop.enums and '' in sel.prop.enums:
+            val = row[sel.item]
+            enum = sel.prop.enums['']
+            if str(val) in enum:
+                item = enum[str(val)]
+                if item.prepare is not NA:
+                    val = item.prepare
+            else:
+                raise ValueNotInEnum(sel.prop, value=val)
+            return val
         else:
             return row[sel.item]
     if isinstance(sel, tuple):

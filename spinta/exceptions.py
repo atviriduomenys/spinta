@@ -227,6 +227,10 @@ class InvalidValue(UserError):
     template = "Invalid value."
 
 
+class ValueNotInEnum(UserError):
+    template = "Given value {value} is not defined in enum."
+
+
 class EmptyStringSearch(UserError):
     template = \
         "Empty string can't be used with `{op}`. " \

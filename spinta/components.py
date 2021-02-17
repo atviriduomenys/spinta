@@ -11,7 +11,6 @@ import dataclasses
 import pathlib
 
 from spinta import exceptions
-from spinta.core.ufuncs import Expr
 from spinta.utils.schema import NA
 from spinta.core.enums import Access
 from spinta.datasets.enums import Level
@@ -24,6 +23,7 @@ if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
     from spinta.datasets.components import Entity
     from spinta.datasets.keymaps.components import KeyMap
+    from spinta.dimensions.enum.components import Enums
 
 
 class Context:
@@ -507,39 +507,6 @@ class Model(MetaData):
 
     def model_type(self):
         return self.name
-
-
-class EnumValueGiven:
-    access: str = None
-
-
-class EnumItem(Node):
-    source: str
-    prepare: Expr
-    access: Access
-    title: str
-    description: str
-    given: EnumValueGiven
-
-    schema = {
-        'name': {'type': 'string'},
-        'source': {'type': 'string'},
-        'prepare': {'type': 'spyna', 'default': None},
-        'access': {
-            'type': 'string',
-            'choices': Access,
-            'inherit': 'model.access',
-            'default': 'protected',
-        },
-        'title': {'type': 'string'},
-        'description': {'type': 'string'},
-    }
-
-    def __init__(self):
-        self.given = EnumValueGiven()
-
-
-Enums = Dict[str, Dict[str, EnumItem]]
 
 
 class PropertyGiven:
