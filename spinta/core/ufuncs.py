@@ -5,13 +5,16 @@ from typing import Any, Optional, List
 import importlib
 import functools
 from typing import Dict
+from typing import TYPE_CHECKING
 from typing import Tuple
 
 from spinta.dispatcher import Command
-from spinta.components import Context
 from spinta import spyna
 from spinta.exceptions import UnknownExpr
 from spinta.utils.schema import NA
+
+if TYPE_CHECKING:
+    from spinta.components import Context
 
 
 class Expr:

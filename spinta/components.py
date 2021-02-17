@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Dict
+from typing import Iterator
 from typing import Set
 from typing import TYPE_CHECKING, List, Optional, AsyncIterator, Union
 
@@ -10,6 +11,7 @@ import dataclasses
 import pathlib
 
 from spinta import exceptions
+from spinta.core.ufuncs import Expr
 from spinta.utils.schema import NA
 from spinta.core.enums import Access
 from spinta.datasets.enums import Level
@@ -427,7 +429,7 @@ class Namespace(MetaData):
     def model_specifier(self):
         return ':ns'
 
-    def parents(self):
+    def parents(self) -> Iterator[Namespace]:
         ns = self.parent
         while isinstance(ns, Namespace):
             yield ns
@@ -507,6 +509,39 @@ class Model(MetaData):
         return self.name
 
 
+class EnumValueGiven:
+    access: str = None
+
+
+class EnumItem(Node):
+    source: str
+    prepare: Expr
+    access: Access
+    title: str
+    description: str
+    given: EnumValueGiven
+
+    schema = {
+        'name': {'type': 'string'},
+        'source': {'type': 'string'},
+        'prepare': {'type': 'spyna', 'default': None},
+        'access': {
+            'type': 'string',
+            'choices': Access,
+            'inherit': 'model.access',
+            'default': 'protected',
+        },
+        'title': {'type': 'string'},
+        'description': {'type': 'string'},
+    }
+
+    def __init__(self):
+        self.given = EnumValueGiven()
+
+
+Enums = Dict[str, Dict[str, EnumItem]]
+
+
 class PropertyGiven:
     access: str = None
 
@@ -525,6 +560,7 @@ class Property(Node):
     model: Model = None
     uri: str = None
     given: PropertyGiven
+    enums: Enums
 
     schema = {
         'title': {},
@@ -544,6 +580,7 @@ class Property(Node):
         },
         'external': {},
         'uri': {'type': 'string'},
+        'enums': {},
     }
 
     def __init__(self):

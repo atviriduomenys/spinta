@@ -1,10 +1,22 @@
-from typing import Optional, Type
+from typing import Any
+from typing import Dict
+from typing import Literal
+from typing import Optional
+from typing import Tuple
+from typing import Type
+from typing import Union
+from typing import overload
 
-from spinta.components import Context, Component, Config, Node, EntryId
-from spinta.manifests.components import Manifest
-from spinta.utils.schema import NA, resolve_schema
-from spinta import exceptions
 from spinta import commands
+from spinta import exceptions
+from spinta.components import Component
+from spinta.components import Config
+from spinta.components import Context
+from spinta.components import EntryId
+from spinta.components import Node
+from spinta.manifests.components import Manifest
+from spinta.utils.schema import NA
+from spinta.utils.schema import resolve_schema
 
 
 def get_node(
@@ -80,11 +92,45 @@ def get_node(
             error=f"Unknown component {ctype!r} in {group!r}.",
         )
 
-    Node = config.components[group][ctype]
-    return Node()
+    Node_ = config.components[group][ctype]
+    return Node_()
 
 
-def load_node(context: Context, node: Node, data: dict, *, mixed=False, parent=None) -> Node:
+@overload
+def load_node(
+    context: Context,
+    node: Union[Node, Component],
+    data: dict,
+    *,
+    mixed: Literal[True] = False,
+    parent: Node = None,
+) -> Tuple[Node, dict]:
+    ...
+
+
+@overload
+def load_node(
+    context: Context,
+    node: Union[Node, Component],
+    data: dict,
+    *,
+    mixed: Literal[False] = False,
+    parent: Node = None,
+) -> Node:
+    ...
+
+
+def load_node(
+    context: Context,
+    node: Union[Node, Component],
+    data: dict,
+    *,
+    mixed: bool = False,
+    parent: Node = None,
+) -> Union[
+    Node,
+    Tuple[Node, Dict[str, Any]]
+]:
     remainder = {}
     node_schema = resolve_schema(node, Component)
     for name in set(node_schema) | set(data):

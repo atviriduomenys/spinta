@@ -6,6 +6,12 @@ Changes
 0.1.10 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- `choice` type was changed to `enum`.
+
+New features:
+
 - Add `root` config option, to set namespaces, which will be shown on `/`.
   Also this option restricts access only to specified namespace.
 
@@ -33,6 +39,11 @@ Changes
 - Add `spinta copy --order-by access` flag (`#53`__).
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/53
+
+- Add `enum` type dimension for properties. This allows to list possible values
+  of a property (`#72`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/72
 
 
 0.1.9 (2021-02-01)

@@ -1,20 +1,11 @@
-from spinta.manifests.tabular.helpers import SHORT_NAMES
-from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.tabular import load_tabular_manifest
-from spinta.manifests.tabular.helpers import render_tabular_manifest
-
-
-def _get_cols(table):
-    cols = [c.strip() for c in table.splitlines()[0].split('|')]
-    return [SHORT_NAMES.get(c, c) for c in cols]
 
 
 def check(tmpdir, rc, table):
-    table = striptable(table)
     create_tabular_manifest(tmpdir / 'manifest.csv', table)
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
-    assert render_tabular_manifest(manifest, _get_cols(table)) == table
+    assert manifest == table
 
 
 def test_loading(tmpdir, rc):
@@ -89,4 +80,18 @@ def test_ns_with_models(tmpdir, rc):
                              |        |                      |                     |
       |   |   | Country      |        |                      |                     |
       |   |   |   | name     | string |                      |                     |
+    ''')
+
+
+def test_enum(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property     | type   | source | prepare | access  | title | description
+    datasets/gov/example         |        |        |         |         |       |
+      | data                     |        |        |         |         |       |
+                                 |        |        |         |         |       |
+      |   |   | Country          |        |        |         |         |       |
+      |   |   |   | name         | string |        |         |         |       |
+      |   |   |   | driving_side | string |        |         |         |       |
+                                 | enum   | l      | 'left'  | open    | Left  | Left side.
+                                 |        | r      | 'right' | private | Right | Right side.
     ''')

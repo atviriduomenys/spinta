@@ -1,6 +1,7 @@
 from typing import Iterable
 from typing import Union
 
+from spinta.components import EnumItem
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
@@ -12,9 +13,22 @@ from spinta.utils.enums import enum_by_name
 
 
 def load_access_param(
-    component: Union[Dataset, Resource, Namespace, Model, Property],
+    component: Union[
+        Dataset,
+        Resource,
+        Namespace,
+        Model,
+        Property,
+        EnumItem,
+    ],
     given_access: str,
-    parents: Iterable[Union[Manifest, Dataset, Namespace, Model]] = (),
+    parents: Iterable[Union[
+        Manifest,
+        Dataset,
+        Namespace,
+        Model,
+        Property,
+    ]] = (),
 ) -> None:
     access = enum_by_name(component, 'access', Access, given_access)
 

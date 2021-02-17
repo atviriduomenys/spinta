@@ -22,6 +22,7 @@ from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
 from spinta.components import Context
+from spinta.components import EnumItem
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
@@ -32,8 +33,10 @@ from spinta.dimensions.prefix.components import UriPrefix
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.tabular.components import ACCESS
 from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
+from spinta.manifests.tabular.components import DESCRIPTION
 from spinta.manifests.tabular.components import DatasetRow
 from spinta.manifests.tabular.components import ID
 from spinta.manifests.tabular.components import MANIFEST_COLUMNS
@@ -41,11 +44,14 @@ from spinta.manifests.tabular.components import ManifestColumn
 from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.components import ManifestTableRow
 from spinta.manifests.tabular.components import ModelRow
+from spinta.manifests.tabular.components import PREPARE
 from spinta.manifests.tabular.components import PROPERTY
 from spinta.manifests.tabular.components import PrefixRow
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.manifests.tabular.components import REF
 from spinta.manifests.tabular.components import ResourceRow
+from spinta.manifests.tabular.components import SOURCE
+from spinta.manifests.tabular.components import TITLE
 from spinta.manifests.tabular.constants import DATASET
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
@@ -64,7 +70,7 @@ MAIN_DIMENSIONS = [
 EXTRA_DIMENSIONS = [
     '',
     'prefix',
-    'choice',
+    'enum',
     'param',
     'comment',
     'ns',
@@ -413,6 +419,7 @@ def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
 class PropertyReader(TabularReader):
     type: str = 'property'
     data: PropertyRow
+    enums: Set[str]
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['property']
@@ -587,15 +594,61 @@ class NamespaceReader(TabularReader):
         pass
 
 
-class ChoiceReader(TabularReader):
-    type: str = 'choice'
+def _read_enum_row(name: str, row: ManifestRow) -> Dict[str, Any]:
+    return {
+        'name': name,
+        'source': row[SOURCE],
+        'prepare': (
+            spyna.parse(row[PREPARE])
+            if row[PREPARE] else None
+        ),
+        'access': row[ACCESS],
+        'title': row[TITLE],
+        'description': row[DESCRIPTION],
+    }
+
+
+class EnumReader(TabularReader):
+    type: str = 'enum'
     appendable: bool = True
 
-    def read(self, row: Dict[str, str]) -> None:
-        pass
+    def read(self, row: ManifestRow) -> None:
+        if not row[PREPARE]:
+            # `ref` is a required parameter.
+            return
 
-    def append(self, row: Dict[str, str]) -> None:
-        pass
+        prop = self.state.prop
+
+        if row[REF]:
+            self.name = row[REF]
+        else:
+            self.name = prop.name
+
+        if 'enums' not in prop.data:
+            prop.data['enums'] = {}
+
+        if self.name in prop.data['enums']:
+            self.error(
+                f"Enum {self.name!r} with the same name is already "
+                f"defined."
+            )
+
+        prop.data['enums'][self.name] = {
+            row[SOURCE]: _read_enum_row(self.name, row)
+        }
+
+    def append(self, row: ManifestRow) -> None:
+        enum = cast(EnumReader, self.state.stack[-1])
+        prop = self.state.prop
+        source = row[SOURCE]
+
+        if source in prop.data['enums'][enum.name]:
+            self.error(
+                f"Enum {self.name!r} item {source!r} with the same value is "
+                f"already defined."
+            )
+
+        prop.data['enums'][enum.name][source] = _read_enum_row(enum.name, row)
 
     def release(self, reader: TabularReader = None) -> bool:
         return not isinstance(reader, AppendReader)
@@ -619,7 +672,7 @@ READERS = {
     '': AppendReader,
     'prefix': PrefixReader,
     'ns': NamespaceReader,
-    'choice': ChoiceReader,
+    'enum': EnumReader,
 }
 
 
@@ -853,6 +906,26 @@ def _namespaces_to_tabular(
         first = False
 
 
+def _enums_to_tabular(
+    enums: Optional[Dict[str, Dict[str, EnumItem]]]
+) -> Iterator[ManifestRow]:
+    if enums is None:
+        return
+    for name, enum in enums.items():
+        first = True
+        for source, item in enum.items():
+            yield torow(DATASET, {
+                'type': 'enum' if first else '',
+                'ref': name if first else '',
+                'source': item.source,
+                'prepare': spyna.unparse(item.prepare),
+                'access': item.given.access,
+                'title': item.title,
+                'description': item.description,
+            })
+            first = False
+
+
 def _order_models_by_access(model: Model):
     return model.access or Access.private
 
@@ -1034,6 +1107,7 @@ def datasets_to_tabular(
                     data['ref'] = prop.dtype.model.name
 
             yield torow(DATASET, data)
+            yield from _enums_to_tabular(prop.enums)
 
 
 def torow(keys, values) -> ManifestRow:

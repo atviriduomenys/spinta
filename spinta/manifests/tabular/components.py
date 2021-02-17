@@ -124,6 +124,15 @@ class ModelExternalRow(TypedDict, total=False):
     prepare: Dict[str, Any]
 
 
+class EnumRow(TypedDict, total=False):
+    name: str
+    source: str
+    prepare: Optional[Dict[str, Any]]
+    access: str
+    title: str
+    description: str
+
+
 class PropertyRow(TypedDict, total=False):
     type: str
     prepare: Optional[Dict[str, Any]]
@@ -135,6 +144,7 @@ class PropertyRow(TypedDict, total=False):
     model: str
     refprops: List[str]
     external: PropertyExternalRow
+    enums: Dict[str, Dict[str, EnumRow]]
 
 
 class PropertyExternalRow(TypedDict, total=False):
