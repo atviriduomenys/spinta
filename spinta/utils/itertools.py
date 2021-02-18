@@ -1,5 +1,10 @@
 from itertools import islice
 from itertools import chain
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import TypeVar
+from typing import Union
 
 
 def consume(generator, n=None):
@@ -73,3 +78,14 @@ def last(it, default=None):
     for res in it:
         pass
     return res
+
+
+T = TypeVar('T')
+
+
+def flatten(it: Iterable[Union[T, List[T]]]) -> Iterator[T]:
+    for x in it:
+        if isinstance(x, list):
+            yield from x
+        else:
+            yield x

@@ -44,4 +44,5 @@ class EnumItem(Node):
         self.given = EnumValueGiven()
 
 
-Enums = Dict[str, Dict[str, EnumItem]]
+EnumValue = Dict[str, EnumItem]
+Enums = Dict[str, EnumValue]

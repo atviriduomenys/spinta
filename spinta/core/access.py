@@ -48,8 +48,21 @@ def load_access_param(
 
 
 def link_access_param(
-    component: Union[Dataset, Resource, Namespace, Model, Property],
-    parents: Iterable[Union[Manifest, Dataset, Namespace, Model]] = (),
+    component: Union[
+        Dataset,
+        Resource,
+        Namespace,
+        Model,
+        Property,
+        EnumItem,
+    ],
+    parents: Iterable[Union[
+        Manifest,
+        Dataset,
+        Namespace,
+        Model,
+        Property,
+    ]] = (),
 ) -> None:
     if component.access is None:
         for parent in parents:

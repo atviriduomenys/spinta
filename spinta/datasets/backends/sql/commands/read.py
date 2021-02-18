@@ -15,6 +15,7 @@ from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
+from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.exceptions import ValueNotInEnum
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
@@ -30,9 +31,8 @@ def _get_row_value(row: RowProxy, sel: Any) -> Any:
         # TODO: `sel.prep is not na`.
         if sel.prep is not None:
             return _get_row_value(row, sel.prep)
-        elif sel.prop and sel.prop.enums and '' in sel.prop.enums:
+        elif enum := get_prop_enum(sel.prop):
             val = row[sel.item]
-            enum = sel.prop.enums['']
             if str(val) in enum:
                 item = enum[str(val)]
                 if item.prepare is not NA:
@@ -58,16 +58,14 @@ def _get_enum_filters(context: Context, model: Model) -> Optional[Expr]:
     args = []
     for prop in take(['_id', all], model.properties).values():
         if (
-            prop.enums and
-            '' in prop.enums and
+            (enum := get_prop_enum(prop)) and
             authorized(context, prop, Action.GETALL)
         ):
-            enum = prop.enums['']
             if not all(item.access >= prop.access for item in enum.values()):
                 values = []
                 for item in enum.values():
                     if item.access >= prop.access:
-                        values.append(item.source)
+                        values.append(item.prepare)
                 args.append(Expr('eq', Expr('bind', prop.name), values))
 
     if len(args) == 1:

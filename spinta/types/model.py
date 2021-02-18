@@ -21,6 +21,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
@@ -194,18 +195,20 @@ def link(context: Context, prop: Property):
     model = prop.model
 
     if prop.model.external and prop.model.external.dataset:
-        link_access_param(prop, itertools.chain(
+        parents = list(itertools.chain(
             [model],
             [model.external.dataset],
             [model.ns],
             model.ns.parents(),
         ))
     else:
-        link_access_param(prop, itertools.chain(
+        parents = list(itertools.chain(
             [model],
             [model.ns],
             model.ns.parents(),
         ))
+    link_access_param(prop, parents)
+    link_enums([prop] + parents, prop.enums)
 
 
 def _load_property_external(

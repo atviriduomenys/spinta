@@ -5,9 +5,11 @@ from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import TypeVar
+from typing import Union
 
 import sqlalchemy as sa
-import sqlalchemy.sql.functions
+from sqlalchemy.sql.functions import Function
 
 from spinta.auth import authorized
 from spinta.components import Action
@@ -18,6 +20,7 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.backends.sql.components import Sql
+from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UnknownExpr
 from spinta.types.datatype import DataType
@@ -25,6 +28,7 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
+from spinta.utils.itertools import flatten
 
 
 def ensure_list(value: Any) -> List[Any]:
@@ -212,83 +216,130 @@ def getattr_(env: SqlQueryBuilder, dtype: Ref, attr: Bind) -> ForeignProperty:
     return ForeignProperty(None, dtype, prop.dtype)
 
 
-@ufunc.resolver(SqlQueryBuilder, str, object)
-def eq(env: SqlQueryBuilder, field: str, value: Any):
+@ufunc.resolver(SqlQueryBuilder, str, object, names=['eq', 'ne'])
+def eq(env: SqlQueryBuilder, op: str, field: str, value: Any):
     # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    return env.call('eq', Bind(field), value)
+    return env.call(op, Bind(field), value)
 
 
-@ufunc.resolver(SqlQueryBuilder, Bind, object)
-def eq(env: SqlQueryBuilder, field: Bind, value: Any):
+def _sa_compare(op: str, column: sa.Column, value: Any):
+    if op == 'eq':
+        return column == value
+
+    if op == 'ne':
+        return column != value
+
+    if op == 'lt':
+        return column < value
+
+    if op == 'le':
+        return column <= value
+
+    if op == 'gt':
+        return column > value
+
+    if op == 'ge':
+        return column >= value
+
+    if op == 'contains':
+        return column.contains(value)
+
+    if op == 'startswith':
+        return column.startswith(value)
+
+    raise NotImplementedError
+
+
+COMPARE = [
+    'eq',
+    'ne',
+    'lt',
+    'le',
+    'gt',
+    'ge',
+    'startswith',
+    'contains',
+]
+
+
+T = TypeVar('T')
+
+
+def _prepare_value(prop: Property, value: T) -> Union[T, List[T]]:
+    return prepare_enum_value(prop, value)
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind, object, names=COMPARE)
+def compare(env: SqlQueryBuilder, op: str, field: Bind, value: Any):
     prop = env.model.properties[field.name]
-    column = env.backend.get_column(env.table, prop)
-    return column == value
+    value = _prepare_value(prop, value)
+    return env.call(op, prop.dtype, value)
 
 
-@ufunc.resolver(SqlQueryBuilder, Bind, list)
-def eq(env: SqlQueryBuilder, field: Bind, value: List[Any]):
+@ufunc.resolver(SqlQueryBuilder, Bind, list, names=COMPARE)
+def compare(env: SqlQueryBuilder, op: str, field: Bind, value: List[Any]):
     prop = env.model.properties[field.name]
-    column = env.backend.get_column(env.table, prop)
-    return column.in_(value)
+    value = list(flatten(_prepare_value(prop, v) for v in value))
+    return env.call(op, prop.dtype, value)
 
 
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, object)
-def eq(env: SqlQueryBuilder, fpr: ForeignProperty, value: Any):
-    table = env.joins.get_table(env, fpr)
-    column = env.backend.get_column(table, fpr.right.prop)
-    return column == value
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, object, names=COMPARE)
+def compare(env: SqlQueryBuilder, op: str, fpr: ForeignProperty, value: Any):
+    value = _prepare_value(fpr.right.prop, value)
+    return env.call(op, fpr, fpr.right, value)
 
 
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
-def eq(env: SqlQueryBuilder, fpr: ForeignProperty, value: list):
-    table = env.joins.get_table(env, fpr)
-    column = env.backend.get_column(table, fpr.right.prop)
-    return column.in_(value)
-
-
-@ufunc.resolver(SqlQueryBuilder, sqlalchemy.sql.functions.Function, object)
-def eq(
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, list, names=COMPARE)
+def compare(
     env: SqlQueryBuilder,
-    func: sqlalchemy.sql.functions.Function,
+    op: str,
+    fpr: ForeignProperty,
+    value: List[Any],
+):
+    value = list(flatten(_prepare_value(fpr.right.prop, v) for v in value))
+    return env.call(op, fpr, fpr.right, value)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType, object, names=COMPARE)
+def compare(env: SqlQueryBuilder, op: str, dtype: DataType, value: Any):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return _sa_compare(op, column, value)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType, object, names=COMPARE)
+def compare(
+    env: SqlQueryBuilder,
+    op: str,
+    fpr: ForeignProperty,
+    dtype: DataType,
     value: Any,
 ):
-    return func == value
-
-
-@ufunc.resolver(SqlQueryBuilder, str, object)
-def ne(env: SqlQueryBuilder, field: str, value: Any):
-    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    prop = env.model.properties[field]
-    column = env.backend.get_column(env.table, prop)
-    return column != value
-
-
-@ufunc.resolver(SqlQueryBuilder, Bind, object)
-def ne(env: SqlQueryBuilder, field: Bind, value: Any):
-    prop = env.model.properties[field.name]
-    column = env.backend.get_column(env.table, prop)
-    return column != value
-
-
-@ufunc.resolver(SqlQueryBuilder, ForeignProperty, object)
-def ne(env: SqlQueryBuilder, fpr: ForeignProperty, value: Any):
     table = env.joins.get_table(env, fpr)
-    column = env.backend.get_column(table, fpr.right.prop)
-    return column != value
+    column = env.backend.get_column(table, dtype.prop)
+    return _sa_compare(op, column, value)
 
 
-@ufunc.resolver(SqlQueryBuilder, str, list)
-def ne(env: SqlQueryBuilder, field: str, value: List[Any]):
-    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    prop = env.model.properties[field]
-    column = env.backend.get_column(env.table, prop)
-    return ~column.in_(value)
+@ufunc.resolver(SqlQueryBuilder, Function, object, names=COMPARE)
+def compare(env: SqlQueryBuilder, op: str, func: Function, value: Any):
+    return _sa_compare(op, func, value)
 
 
-@ufunc.resolver(SqlQueryBuilder, Bind, list)
-def ne(env: SqlQueryBuilder, field: Bind, value: List[Any]):
-    prop = env.model.properties[field.name]
-    column = env.backend.get_column(env.table, prop)
+@ufunc.resolver(SqlQueryBuilder, DataType, list)
+def eq(env: SqlQueryBuilder, dtype: DataType, value: List[Any]):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return column.in_(value)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType, list)
+def eq(env: SqlQueryBuilder, fpr: ForeignProperty, dtype: DataType, value: list):
+    table = env.joins.get_table(env, fpr)
+    column = env.backend.get_column(table, dtype.prop)
+    return column.in_(value)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType, list)
+def ne(env: SqlQueryBuilder, dtype: DataType, value: List[Any]):
+    column = env.backend.get_column(env.table, dtype.prop)
     return ~column.in_(value)
 
 
