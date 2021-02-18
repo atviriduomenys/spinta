@@ -1081,15 +1081,15 @@ def test_enum_no_prepare(rc, tmpdir, sqlite):
 
 def test_enum_empty_source(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
-    d | r | m | property     | type   | ref     | source  | prepare | access
-    datasets/gov/example     |        |         |         |         |
-      | resource             | sql    |         |         |         |
-      |   | Country          |        | name    | COUNTRY |         |     
-      |   |   | name         | string |         | NAME    |         | open
-      |   |   | driving      | string |         | DRIVING |         | open
-                             | enum   |         | l       |         | open
-                             |        |         | r       |         | open
-                             |        |         |         | null    | open
+    d | r | m | property     | type   | ref     | source  | prepare       | access
+    datasets/gov/example     |        |         |         |               |
+      | resource             | sql    |         |         |               |
+      |   | Country          |        | name    | COUNTRY |               |     
+      |   |   | name         | string |         | NAME    |               | open
+      |   |   | driving      | string |         | DRIVING | swap('', '-') | open
+                             | enum   |         | l       |               | open
+                             |        |         | r       |               | open
+                             |        |         | -       | null          | open
     '''))
 
     sqlite.init({

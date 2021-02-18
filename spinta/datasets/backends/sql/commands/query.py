@@ -449,10 +449,10 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise ValueError("Source can't be a list, use prepare instead.")
-        # TODO: Probably here we should check if `prepare is not NA`. Because
-        #       prepare could be set to None by user.
         if prop.external is None:
             pass
+        # TODO: Probably here we should check if `prepare is not NA`. Because
+        #       prepare could be set to None by user.
         if prop.external.prepare is not None:
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)
@@ -487,6 +487,11 @@ def select(env: SqlQueryBuilder, dtype: DataType, prep: Any) -> Selected:
         #      This should be eventually removed, once backwards compatibility
         #      for resolving strings as properties is removed.
         return Selected(prop=dtype.prop, prep=prep)
+    elif isinstance(prep, Expr):
+        # If `prepare` expression returns another expression, then this means,
+        # ite must be processed on values returned be query.
+        sel = env.call('select', dtype)
+        return Selected(item=sel.item, prop=sel.prop, prep=prep)
     else:
         result = env.call('select', prep)
         return Selected(prop=dtype.prop, prep=result)
@@ -730,3 +735,8 @@ def limit(env: SqlQueryBuilder, n: int):
 @ufunc.resolver(SqlQueryBuilder, int)
 def offset(env: SqlQueryBuilder, n: int):
     env.offset = n
+
+
+@ufunc.resolver(SqlQueryBuilder, Property, object, object)
+def swap(env: SqlQueryBuilder, prop: Property, old: Any, new: Any) -> Any:
+    return Expr('swap', old, new)

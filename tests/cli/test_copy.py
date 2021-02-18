@@ -1,12 +1,9 @@
-import pytest
-
 from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.tabular import load_tabular_manifest
 
 
-@pytest.mark.skip('TODO')
 def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | type   | ref     | source      | prepare | access
@@ -39,7 +36,7 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
-    d | r | b | m | property | type   | ref     | source | level   | access
+    d | r | b | m | property | type   | ref     | source | prepare | access
     datasets/gov/example     |        |         |        |         |
       | data                 | sql    |         |        |         |
                              |        |         |        |         |

@@ -631,8 +631,9 @@ class EnumReader(TabularReader):
                 f"defined."
             )
 
+        source = row[SOURCE] or row[PREPARE]
         prop.data['enums'][self.name] = {
-            row[SOURCE]: _read_enum_row(self.name, row)
+            source: _read_enum_row(self.name, row)
         }
 
     def append(self, row: ManifestRow) -> None:
@@ -642,7 +643,7 @@ class EnumReader(TabularReader):
 
         enum = cast(EnumReader, self.state.stack[-1])
         prop = self.state.prop
-        source = row[SOURCE]
+        source = row[SOURCE] or row[PREPARE]
 
         if source in prop.data['enums'][enum.name]:
             self.error(
