@@ -181,11 +181,11 @@ class Selected:
                    ) + self.prep.debug(indent + '  ')
         elif isinstance(self.prep, (tuple, list)):
             return (
-               f'{indent}Selected('
-               f'item={self.item}, '
-               f'prop={prop}, '
-               f'prep={type(self.prep).__name__}...)\n'
-                   ) + ''.join([
+                f'{indent}Selected('
+                f'item={self.item}, '
+                f'prop={prop}, '
+                f'prep={type(self.prep).__name__}...)\n'
+            ) + ''.join([
                 p.debug(indent + '- ')
                 if isinstance(p, Selected)
                 else str(p)
@@ -215,9 +215,7 @@ def getattr_(env: SqlQueryBuilder, dtype: Ref, attr: Bind) -> ForeignProperty:
 @ufunc.resolver(SqlQueryBuilder, str, object)
 def eq(env: SqlQueryBuilder, field: str, value: Any):
     # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    prop = env.model.properties[field]
-    column = env.backend.get_column(env.table, prop)
-    return column == value
+    return env.call('eq', Bind(field), value)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, object)
@@ -225,6 +223,13 @@ def eq(env: SqlQueryBuilder, field: Bind, value: Any):
     prop = env.model.properties[field.name]
     column = env.backend.get_column(env.table, prop)
     return column == value
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind, list)
+def eq(env: SqlQueryBuilder, field: Bind, value: List[Any]):
+    prop = env.model.properties[field.name]
+    column = env.backend.get_column(env.table, prop)
+    return column.in_(value)
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, object)

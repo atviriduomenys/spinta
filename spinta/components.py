@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Callable
 from typing import Dict
 from typing import Iterator
 from typing import Set
@@ -281,20 +282,6 @@ class _CommandsConfig:
     def __init__(self):
         self.modules = []
         self.pull = {}
-
-
-class Config:
-    # Limit access to specified namespace root.
-    root: str = None
-
-    def __init__(self):
-        self.commands = _CommandsConfig()
-        self.components = {}
-        self.exporters = {}
-        self.backends = {}
-        self.manifests = {}
-        self.ignore = []
-        self.debug = False
 
 
 class Store:
@@ -792,3 +779,39 @@ class Mode(enum.Enum):
     # External model always sue external backend set on dataset or model's
     # source entity.
     external = 'external'
+
+
+ScopeFormatterFunc = Callable[[
+    Context,
+    Union[Namespace, Model, Property],
+    Action,
+], str]
+
+
+class Config:
+    debug: bool = False
+    config_path: pathlib.Path
+    server_url: str
+    scope_prefix: str
+    scope_formatter: ScopeFormatterFunc
+    scope_max_length: int
+    default_auth_client: str
+    http_basic_auth: bool
+    token_validation_key: dict = None
+    datasets: dict
+    env: str
+    docs_path: pathlib.Path
+    always_show_id: bool = False
+    # Limit access to specified namespace root.
+    root: str = None
+
+    def __init__(self):
+        self.commands = _CommandsConfig()
+        self.components = {}
+        self.exporters = {}
+        self.backends = {}
+        self.manifests = {}
+        self.ignore = []
+        self.debug = False
+
+

@@ -1,9 +1,12 @@
 import logging
 from typing import Any
+from typing import Optional
 
 from sqlalchemy.engine import RowProxy
 
 from spinta import commands
+from spinta.auth import authorized
+from spinta.components import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -15,6 +18,8 @@ from spinta.datasets.utils import iterparams
 from spinta.exceptions import ValueNotInEnum
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
+from spinta.ufuncs.helpers import merge_formulas
+from spinta.utils.data import take
 from spinta.utils.schema import NA
 
 log = logging.getLogger(__name__)
@@ -49,6 +54,30 @@ def _get_row_value(row: RowProxy, sel: Any) -> Any:
     return sel
 
 
+def _get_enum_filters(context: Context, model: Model) -> Optional[Expr]:
+    args = []
+    for prop in take(['_id', all], model.properties).values():
+        if (
+            prop.enums and
+            '' in prop.enums and
+            authorized(context, prop, Action.GETALL)
+        ):
+            enum = prop.enums['']
+            if not all(item.access >= prop.access for item in enum.values()):
+                values = []
+                for item in enum.values():
+                    if item.access >= prop.access:
+                        values.append(item.source)
+                args.append(Expr('eq', Expr('bind', prop.name), values))
+
+    if len(args) == 1:
+        return args[0]
+    elif len(args) > 1:
+        return Expr('and', *args)
+    else:
+        return None
+
+
 @commands.getall.register(Context, Model, Sql)
 def getall(
     context: Context,
@@ -61,20 +90,9 @@ def getall(
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
 
-    if model.external.prepare:
-        # Join user passed query with query set in manifest.
-        prepare = model.external.prepare
-        if query:
-            if query.name == 'and' and prepare.name == 'and':
-                query.args = query.args + prepare.args
-            elif query.name == 'and':
-                query.args = query.args + (prepare,)
-            elif prepare.name == 'and':
-                query = Expr('and', query, *prepare.args)
-            else:
-                query = Expr('and', query, prepare)
-        else:
-            query = prepare
+    # Merge user passed query with query set in manifest.
+    query = merge_formulas(model.external.prepare, query)
+    query = merge_formulas(query, _get_enum_filters(context, model))
 
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
 

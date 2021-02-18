@@ -30,6 +30,8 @@ from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 from authlib.oauth2 import OAuth2Error
 
+from spinta.components import Config
+from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access
 from spinta.components import Context, Action, Namespace, Model, Property
 from spinta.exceptions import InvalidToken, NoTokenValidationKey
@@ -386,7 +388,11 @@ def check_scope(context: Context, scope: str):
     token.check_scope(f'{config.scope_prefix}{scope}')
 
 
-def get_scope_name(context: Context, node: Union[Namespace, Model, Property], action: Action):
+def get_scope_name(
+    context: Context,
+    node: Union[Namespace, Model, Property],
+    action: Action,
+) -> str:
     config = context.get('config')
 
     if isinstance(node, Namespace):
@@ -415,9 +421,9 @@ def authorized(
     action: Action,
     *,
     throw: bool = False,
-    scope_formatter: Callable = None,
+    scope_formatter: ScopeFormatterFunc = None,
 ):
-    config = context.get('config')
+    config: Config = context.get('config')
     token = context.get('auth.token')
 
     # Unauthorized clients can only access open nodes.

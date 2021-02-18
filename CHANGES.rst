@@ -45,6 +45,10 @@ New features:
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/72
 
+- Filter data automatically by `enum.access` (`#73`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/73
+
 
 0.1.9 (2021-02-01)
 ==================

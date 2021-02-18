@@ -4,7 +4,13 @@ import re
 scope_re = re.compile(r'[^a-z0-9]+', flags=re.IGNORECASE)
 
 
-def name_to_scope(template: str, name: str, *, maxlen: int = None, params: dict = None):
+def name_to_scope(
+    template: str,
+    name: str,
+    *,
+    maxlen: int = None,
+    params: dict = None,
+) -> str:
     """Return scope by given template possibly shortened on name part.
     """
     scope = template.format(name=name, **params)
