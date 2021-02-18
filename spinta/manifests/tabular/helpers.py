@@ -14,6 +14,7 @@ from typing import Optional
 from typing import Set
 from typing import TextIO
 from typing import Tuple
+from typing import TypeVar
 from typing import Union
 from typing import cast
 
@@ -29,6 +30,7 @@ from spinta.components import Property
 from spinta.core.enums import Access
 from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
+from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
@@ -634,6 +636,10 @@ class EnumReader(TabularReader):
         }
 
     def append(self, row: ManifestRow) -> None:
+        if not row[SOURCE] and not row[PREPARE]:
+            # At least source or prepare must be defined.
+            return
+
         enum = cast(EnumReader, self.state.stack[-1])
         prop = self.state.prop
         source = row[SOURCE]
@@ -857,6 +863,51 @@ def tabular_eid(model: Model):
         return 0
 
 
+def _order_models_by_access(model: Model):
+    return model.access or Access.private
+
+
+class OrderBy(NamedTuple):
+    func: Callable[[Union[Model, Property, EnumItem]], Any]
+    reverse: bool = False
+
+
+MODELS_ORDER_BY = {
+    'access': OrderBy(_order_models_by_access, reverse=True),
+    'default': OrderBy(tabular_eid),
+}
+
+
+def _order_properties_by_access(prop: Property):
+    return prop.access or Access.private
+
+
+PROPERTIES_ORDER_BY = {
+    'access': OrderBy(_order_properties_by_access, reverse=True),
+}
+
+
+T = TypeVar('T', Model, Property, EnumItem)
+
+
+def sort(
+    ordering: Dict[str, OrderBy],
+    items: Iterable[T],
+    order_by: Optional[str],
+) -> Iterable[T]:
+    order: Optional[OrderBy] = None
+
+    if order_by:
+        order = ordering[order_by]
+    elif 'default' in ordering:
+        order = ordering['default']
+
+    if order:
+        return sorted(items, key=order.func, reverse=order.reverse)
+    else:
+        return items
+
+
 def _prefixes_to_tabular(
     prefixes: Dict[str, UriPrefix],
 ) -> Iterator[ManifestRow]:
@@ -902,66 +953,40 @@ def _namespaces_to_tabular(
         first = False
 
 
+def _order_enums_by_access(item: EnumItem):
+    return item.access or Access.private
+
+
+ENUMS_ORDER_BY = {
+    'access': OrderBy(_order_enums_by_access, reverse=True),
+}
+
+
 def _enums_to_tabular(
-    enums: Optional[Dict[str, Dict[str, EnumItem]]]
+    enums: Optional[Enums],
+    *,
+    external: bool = True,
+    access: Access = Access.private,
+    order_by: ManifestColumn = None,
 ) -> Iterator[ManifestRow]:
     if enums is None:
         return
     for name, enum in enums.items():
         first = True
-        for source, item in enum.items():
+        items = sort(ENUMS_ORDER_BY, enum.values(), order_by)
+        for item in items:
+            if item.access < access:
+                continue
             yield torow(DATASET, {
                 'type': 'enum' if first else '',
                 'ref': name if first else '',
-                'source': item.source,
-                'prepare': spyna.unparse(item.prepare),
+                'source': item.source if external else '',
+                'prepare': spyna.unparse(item.prepare or NA),
                 'access': item.given.access,
                 'title': item.title,
                 'description': item.description,
             })
             first = False
-
-
-def _order_models_by_access(model: Model):
-    return model.access or Access.private
-
-
-class OrderBy(NamedTuple):
-    func: Callable[[Union[Model, Property]], Any]
-    reverse: bool = False
-
-
-MODELS_ORDER_BY = {
-    'access': OrderBy(_order_models_by_access, reverse=True),
-    'default': OrderBy(tabular_eid),
-}
-
-
-def _order_properties_by_access(prop: Property):
-    return prop.access or Access.private
-
-
-PROPERTIES_ORDER_BY = {
-    'access': OrderBy(_order_properties_by_access, reverse=True),
-}
-
-
-def sort(
-    ordering: Dict[str, OrderBy],
-    items: Iterable[Union[Model, Property]],
-    order_by: Optional[str],
-) -> Iterable[Union[Model, Property]]:
-    order: Optional[OrderBy] = None
-
-    if order_by:
-        order = ordering[order_by]
-    elif 'default' in ordering:
-        order = ordering['default']
-
-    if order:
-        return sorted(items, key=order.func, reverse=order.reverse)
-    else:
-        return items
 
 
 def datasets_to_tabular(
@@ -1103,7 +1128,12 @@ def datasets_to_tabular(
                     data['ref'] = prop.dtype.model.name
 
             yield torow(DATASET, data)
-            yield from _enums_to_tabular(prop.enums)
+            yield from _enums_to_tabular(
+                prop.enums,
+                external=external,
+                access=access,
+                order_by=order_by,
+            )
 
 
 def torow(keys, values) -> ManifestRow:

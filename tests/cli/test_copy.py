@@ -1,26 +1,32 @@
+import pytest
+
 from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.tabular import load_tabular_manifest
 
 
+@pytest.mark.skip('TODO')
 def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
-    d | r | b | m | property | type   | ref     | source      | access
-    datasets/gov/example     |        |         |             |
-      | data                 | sql    |         |             |
-                             |        |         |             |
-      |   |   | country      |        | code    | salis       |
-      |   |   |   | code     | string |         | kodas       | public
-      |   |   |   | name     | string |         | pavadinimas | open
-      |   |                  |        |         |             |
-      |   |   | city         |        | name    | miestas     |
-      |   |   |   | name     | string |         | pavadinimas | open
-      |   |   |   | country  | ref    | country | salis       | open
-                             |        |         |             |
-      |   |   | capital      |        | name    | miestas     |
-      |   |   |   | name     | string |         | pavadinimas |
-      |   |   |   | country  | ref    | country | salis       |
+    d | r | b | m | property | type   | ref     | source      | prepare | access
+    datasets/gov/example     |        |         |             |         |
+      | data                 | sql    |         |             |         |
+                             |        |         |             |         |
+      |   |   | country      |        | code    | salis       |         |
+      |   |   |   | code     | string |         | kodas       |         | public
+      |   |   |   | name     | string |         | pavadinimas |         | open
+      |   |   |   | driving  | string |         | vairavimas  |         | open
+                             | enum   |         | l           | 'left'  | open
+                             |        |         | r           | 'right' | open
+                             |        |         |             |         |
+      |   |   | city         |        | name    | miestas     |         |
+      |   |   |   | name     | string |         | pavadinimas |         | open
+      |   |   |   | country  | ref    | country | salis       |         | open
+                             |        |         |             |         |
+      |   |   | capital      |        | name    | miestas     |         |
+      |   |   |   | name     | string |         | pavadinimas |         |
+      |   |   |   | country  | ref    | country | salis       |         |
     '''))
 
     cli.invoke(rc, [
@@ -33,16 +39,19 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
-    d | r | b | m | property | type   | ref     | source | level | access
-    datasets/gov/example     |        |         |        |       |
-      | data                 | sql    |         |        |       |
-                             |        |         |        |       |
-      |   |   | country      |        |         |        |       |
-      |   |   |   | name     | string |         |        |       | open
-                             |        |         |        |       |
-      |   |   | city         |        |         |        |       |
-      |   |   |   | name     | string |         |        |       | open
-      |   |   |   | country  | ref    | country |        |       | open
+    d | r | b | m | property | type   | ref     | source | level   | access
+    datasets/gov/example     |        |         |        |         |
+      | data                 | sql    |         |        |         |
+                             |        |         |        |         |
+      |   |   | country      |        |         |        |         |
+      |   |   |   | name     | string |         |        |         | open
+      |   |   |   | driving  | string |         |        |         | open
+                             | enum   |         |        | 'left'  | open
+                             |        |         |        | 'right' | open
+                             |        |         |        |         |
+      |   |   | city         |        |         |        |         |
+      |   |   |   | name     | string |         |        |         | open
+      |   |   |   | country  | ref    | country |        |         | open
     '''
 
 
@@ -55,6 +64,9 @@ def test_copy_with_filters_and_externals(rc, cli, tmpdir):
       |   |   | country      |        | code    | salis       | code='lt' |
       |   |   |   | code     | string |         | kodas       |           | private
       |   |   |   | name     | string |         | pavadinimas |           | open
+      |   |   |   | driving  | string |         | vairavimas  |           | open
+      |   |   |   |          | enum   |         | l           | 'left'    | private
+      |   |   |   |          |        |         | r           | 'right'   | open
                              |        |         |             |           |
       |   |   | city         |        | name    | miestas     |           |
       |   |   |   | name     | string |         | pavadinimas |           | open
@@ -80,6 +92,8 @@ def test_copy_with_filters_and_externals(rc, cli, tmpdir):
                              |        |         |             |           |       |
       |   |   | country      |        |         | salis       | code='lt' |       |
       |   |   |   | name     | string |         | pavadinimas |           |       | open
+      |   |   |   | driving  | string |         | vairavimas  |           |       | open
+                             | enum   |         | r           | 'right'   |       | open
                              |        |         |             |           |       |
       |   |   | city         |        | name    | miestas     |           |       |
       |   |   |   | name     | string |         | pavadinimas |           |       | open
@@ -227,23 +241,27 @@ def test_copy_to_stdout(rc, cli, tmpdir):
 
 def test_copy_order_by_access(rc, cli, tmpdir):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
-    d | r | b | m | property   | type    | ref        | access
-    datasets/gov/example       |         |            |
-      | data                   | sql     |            |
-                               |         |            |
-      |   |   | Continent      |         |            |
-      |   |   |   | name       | string  |            | private
-      |   |   |   | population | string  |            | private
-                               |         |            |
-      |   |   | Country        |         |            |
-      |   |   |   | name       | string  |            | protected
-      |   |   |   | continent  | ref     | Continent  | protected
-      |   |   |   | population | string  |            | protected
-                               |         |            |
-      |   |   | City           |         |            |
-      |   |   |   | name       | string  |            | open
-      |   |   |   | country    | ref     | Country    | public
-      |   |   |   | population | string  |            | open
+    d | r | b | m | property   | type    | ref        | source | prepare  | access
+    datasets/gov/example       |         |            |        |          |
+      | data                   | sql     |            |        |          |
+                               |         |            |        |          |
+      |   |   | Continent      |         |            |        |          |
+      |   |   |   | name       | string  |            |        |          | private
+      |   |   |   | population | string  |            |        |          | private
+                               |         |            |        |          |
+      |   |   | Country        |         |            |        |          |
+      |   |   |   | name       | string  |            |        |          | protected
+      |   |   |   | continent  | ref     | Continent  |        |          | protected
+      |   |   |   | population | string  |            |        |          | protected
+      |   |   |   | driving    | string  |            |        |          | open
+                               | enum    |            | l      | 'left'   | private
+                               |         |            | r      | 'right'  | open
+                               |         |            | c      | 'center' | public
+                               |         |            |        |          |
+      |   |   | City           |         |            |        |          |
+      |   |   |   | name       | string  |            |        |          | open
+      |   |   |   | country    | ref     | Country    |        |          | public
+      |   |   |   | population | string  |            |        |          | open
     '''))
 
     result = cli.invoke(rc, [
@@ -255,23 +273,27 @@ def test_copy_order_by_access(rc, cli, tmpdir):
 
     manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
-    d | r | b | m | property   | type    | ref        | access
-    datasets/gov/example       |         |            |
-      | data                   | sql     |            |
-                               |         |            |
-      |   |   | City           |         |            |
-      |   |   |   | name       | string  |            | open
-      |   |   |   | population | string  |            | open
-      |   |   |   | country    | ref     | Country    | public
-                               |         |            |
-      |   |   | Country        |         |            |
-      |   |   |   | name       | string  |            | protected
-      |   |   |   | continent  | ref     | Continent  | protected
-      |   |   |   | population | string  |            | protected
-                               |         |            |
-      |   |   | Continent      |         |            |
-      |   |   |   | name       | string  |            | private
-      |   |   |   | population | string  |            | private
+    d | r | b | m | property   | type    | ref        | source | prepare  | access
+    datasets/gov/example       |         |            |        |          |
+      | data                   | sql     |            |        |          |
+                               |         |            |        |          |
+      |   |   | Country        |         |            |        |          |
+      |   |   |   | driving    | string  |            |        |          | open
+                               | enum    |            | r      | 'right'  | open
+                               |         |            | c      | 'center' | public
+                               |         |            | l      | 'left'   | private
+      |   |   |   | name       | string  |            |        |          | protected
+      |   |   |   | continent  | ref     | Continent  |        |          | protected
+      |   |   |   | population | string  |            |        |          | protected
+                               |         |            |        |          |
+      |   |   | City           |         |            |        |          |
+      |   |   |   | name       | string  |            |        |          | open
+      |   |   |   | population | string  |            |        |          | open
+      |   |   |   | country    | ref     | Country    |        |          | public
+                               |         |            |        |          |
+      |   |   | Continent      |         |            |        |          |
+      |   |   |   | name       | string  |            |        |          | private
+      |   |   |   | population | string  |            |        |          | private
     '''
 
 

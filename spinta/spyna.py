@@ -2,6 +2,7 @@ import functools
 
 import lark
 
+from spinta.utils.schema import NA
 
 GRAMMAR = r'''
 ?start: testlist
@@ -245,6 +246,8 @@ class Visitor:
 
 
 def unparse(rql, *, pretty=False, raw=False):
+    if rql is NA:
+        return ''
     if rql is None:
         return 'null'
     if rql is True:
