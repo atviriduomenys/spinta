@@ -227,7 +227,7 @@ class AdminToken(rfc6749.TokenMixin):
 
 def get_auth_token(context: Context) -> Token:
     scope = None  # Scopes will be validated later using Token.check_scope
-    request = context.get('auth.request')
+    request: OAuth2Request = context.get('auth.request')
 
     config = context.get('config')
     if config.default_auth_client and 'authorization' not in request.headers:

@@ -169,7 +169,7 @@ CONFIG = {
     'scope_max_length': 60,
 
     # If True, then 'id' property is always included into Action.SEARCH result,
-    # even if not explicitly askend.
+    # even if not explicitly asked.
     'always_show_id': False,
 
     'default_auth_client': None,

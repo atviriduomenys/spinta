@@ -40,7 +40,7 @@ def read_config(args=None, envfile=None):
         CliArgs('cliargs', args or []),
     ])
 
-    # Inject extenstion provided defaults
+    # Inject extension provided defaults
     configs = rc.get('config', cast=list, default=[])
     if configs:
         rc.read([Path(c, c) for c in configs], after='spinta')
@@ -55,6 +55,7 @@ class KeyFormat(str, enum.Enum):
 
 
 class ConfigSource:
+    name: str
 
     def __init__(self, name=None, config=None):
         self.name = self.getname(name)
@@ -173,17 +174,18 @@ class EnvFile(EnvVars):
 
 
 class RawConfig:
+    sources: List[ConfigSource]
 
     def __init__(self, sources=None):
         self._locked = False
-        self._sources = sources or []
+        self.sources = sources or []
         self._keys: Dict[Tuple[str], Tuple[int, List[str]]] = {}
         self._schema = SCHEMA
 
     def read(
         self,
         sources: List[ConfigSource],
-        after: Optional[int] = None,
+        after: Optional[str] = None,
     ):
         if self._locked:
             raise Exception(
@@ -196,14 +198,14 @@ class RawConfig:
             config.read(self._schema)
 
         if after is not None:
-            pos = (i for i, s in enumerate(self._sources) if s.name == after)
+            pos = (i for i, s in enumerate(self.sources) if s.name == after)
             pos = next(pos, None)
             if pos is None:
                 raise Exception(f"Given after value {after!r} does not exist.")
             pos += 1
-            self._sources[pos:pos] = sources
+            self.sources[pos:pos] = sources
         else:
-            self._sources.extend(sources)
+            self.sources.extend(sources)
 
         self._keys = self._update_keys()
 
@@ -212,7 +214,7 @@ class RawConfig:
         return self
 
     def fork(self, sources=None, after=None) -> RawConfig:
-        rc = RawConfig(list(self._sources))
+        rc = RawConfig(list(self.sources))
         if sources:
             if isinstance(sources, dict):
                 rc.add('fork', sources)
@@ -320,7 +322,7 @@ class RawConfig:
         """Update inner keys respecting already set values."""
         keys = {}
         env, _ = self._get_config_value(('env',), default=None)
-        for config in self._sources:
+        for config in self.sources:
             self._update_config_keys(keys, config, config.keys())
             if env:
                 self._update_config_keys(keys, config, config.keys(env), env)
@@ -370,7 +372,7 @@ class RawConfig:
 
     def _get_config_value(self, key: Key, default: Any = NA, env: str = None):
         assert isinstance(key, tuple)
-        for config in reversed(self._sources):
+        for config in reversed(self.sources):
             val = NA
             if env:
                 val = config.get(key, env)
@@ -389,6 +391,9 @@ class RawConfig:
             if default is NA:
                 default = None
         return default, None
+
+    def get_source_names(self) -> List[str]:
+        return [source.name for source in self.sources]
 
 
 def _traverse(value, path=()):

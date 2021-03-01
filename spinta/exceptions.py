@@ -138,7 +138,7 @@ class BaseError(Exception):
             this = None
             log.error("Only one positional argument is alowed, but %d was given.", len(args), stack_info=True)
 
-        self.type = this.type if this else 'system'
+        self.type = this.type if this and hasattr(this, 'type') else 'system'
 
         self.context = resolve_context_vars(self.context, this, kwargs)
 
@@ -474,3 +474,9 @@ class FormulaError(UserError):
 
 class UnknownBind(FormulaError):
     template = "Unknown bind {name!r}."
+
+
+class RequiredConfigParam(UserError):
+    template = "Configuration parameter {name!r} is required."
+
+

@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from spinta.datasets.components import Entity
     from spinta.datasets.keymaps.components import KeyMap
     from spinta.dimensions.enum.components import Enums
+    from spinta.core.config import RawConfig
 
 
 class Context:
@@ -789,6 +790,7 @@ ScopeFormatterFunc = Callable[[
 
 
 class Config:
+    rc: RawConfig
     debug: bool = False
     config_path: pathlib.Path
     server_url: str

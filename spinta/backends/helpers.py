@@ -16,7 +16,12 @@ def load_backend(
     data: Dict[str, str]
 ) -> Backend:
     config = context.get('config')
-    type_ = data['type']
+    type_ = data.get('type')
+    if not type_:
+        raise exceptions.RequiredConfigParam(
+            component,
+            name=f'backends.{name}.type',
+        )
     if type_ not in config.components['backends']:
         raise exceptions.BackendNotFound(component, name=type_)
     Backend_ = config.components['backends'][type_]

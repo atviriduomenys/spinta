@@ -1,8 +1,16 @@
 from typing import Dict
 
 from spinta import commands
+from spinta.components import Config
 from spinta.components import Node
 from spinta.manifests.components import Manifest
+
+
+@commands.get_error_context.register(Config)
+def get_error_context(config: Config, *, prefix='this') -> Dict[str, str]:
+    return {
+        'config': f'{prefix}.rc.get_source_names()',
+    }
 
 
 @commands.get_error_context.register(Manifest)
