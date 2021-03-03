@@ -52,6 +52,9 @@ class DataType(Component):
     def load(self, value: Any):
         return value
 
+    def get_bind_expr(self):
+        return Expr('bind', self.prop.name)
+
 
 class PrimaryKey(DataType):
     pass

@@ -6,6 +6,14 @@ Changes
 0.1.11 (unreleased)
 ===================
 
+New features:
+
+- Add implicit filters for external sql backend. With implicit filters, now
+  you can specify filter on models once and they will be used automatically on
+  related models (`#74`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/74
+
 
 0.1.10 (2021-03-01)
 ===================

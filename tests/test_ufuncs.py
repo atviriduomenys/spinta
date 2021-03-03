@@ -1,7 +1,17 @@
+from typing import cast
+
 import pytest
 
-from spinta.core.ufuncs import Env, Expr, Bind, Pair, UFuncRegistry
+from spinta.core.config import RawConfig
+from spinta.core.ufuncs import Bind
+from spinta.core.ufuncs import Env
+from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Pair
+from spinta.core.ufuncs import UFuncRegistry
+from spinta.testing.tabular import load_tabular_manifest
 from spinta.testing.ufuncs import UFuncTester
+from spinta.types.datatype import Ref
+from spinta.ufuncs.components import ForeignProperty
 
 
 @pytest.fixture()
@@ -136,3 +146,49 @@ def test_execute_attrs(ufunc):
         }
     }
     assert ufunc('a.b.c + a.b.d', this=data) == 8
+
+
+def test_fpr_get_bind_expr(rc: RawConfig):
+    manifest = load_tabular_manifest(rc, '''
+    d | r | m | property  | type   | ref
+    datasets/gov/example  |        |
+      | resource          | sql    |
+      |   | Planet        |        | name
+      |   |   | name      | string |
+      
+      |   | Continent     |        | name
+      |   |   | name      | string |
+      |   |   | planet    | ref    | Planet
+      
+      |   | Country       |        | name
+      |   |   | name      | string |
+      |   |   | continent | ref    | Continent
+                          |        |
+      |   | City          |        | name
+      |   |   | name      | string |
+      |   |   | country   | ref    | Country
+    ''')
+
+    planet = manifest.models['datasets/gov/example/Planet']
+    continent = manifest.models['datasets/gov/example/Continent']
+    country = manifest.models['datasets/gov/example/Country']
+    city = manifest.models['datasets/gov/example/City']
+
+    fpr = ForeignProperty(
+        None,
+        cast(Ref, city.properties['country'].dtype),
+        country.properties['name'].dtype,
+    )
+    assert str(fpr.get_bind_expr()) == 'country.name'
+
+    fpr = fpr.swap(country.properties['continent'])
+    assert str(fpr.get_bind_expr()) == 'country.continent'
+
+    fpr = fpr.push(continent.properties['name'])
+    assert str(fpr.get_bind_expr()) == 'country.continent.name'
+
+    fpr = fpr.swap(continent.properties['planet'])
+    assert str(fpr.get_bind_expr()) == 'country.continent.planet'
+
+    fpr = fpr.push(planet.properties['name'])
+    assert str(fpr.get_bind_expr()) == 'country.continent.planet.name'
