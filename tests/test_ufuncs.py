@@ -12,6 +12,7 @@ from spinta.testing.tabular import load_tabular_manifest
 from spinta.testing.ufuncs import UFuncTester
 from spinta.types.datatype import Ref
 from spinta.ufuncs.components import ForeignProperty
+from spinta.ufuncs.helpers import change_base_model
 
 
 @pytest.fixture()
@@ -192,3 +193,29 @@ def test_fpr_get_bind_expr(rc: RawConfig):
 
     fpr = fpr.push(planet.properties['name'])
     assert str(fpr.get_bind_expr()) == 'country.continent.planet.name'
+
+
+def test_change_base_model(rc: RawConfig):
+    manifest = load_tabular_manifest(rc, '''
+    d | r | m | property  | type   | ref       | prepare
+    datasets/gov/example  |        |           |
+      | resource          | sql    |           |
+      |   | Continent     |        | name      |
+      |   |   | name      | string |           |
+                          |        |           |
+      |   | Country       |        | name      | continent.name = 'Europe'
+      |   |   | name      | string |           |
+      |   |   | continent | ref    | Continent |
+                          |        |           |
+      |   | City          |        | name      |
+      |   |   | name      | string |           |
+      |   |   | country   | ref    | Country   |
+    ''')
+
+    country = manifest.models['datasets/gov/example/Country']
+    city = manifest.models['datasets/gov/example/City']
+
+    assert str(change_base_model(city, country.external.prepare)) == (
+        "city.country.continent.name = 'Europe'"
+    )
+
