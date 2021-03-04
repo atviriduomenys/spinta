@@ -296,7 +296,10 @@ def get_cell(
 
     link = None
     model = None
-    value = row.get(name)
+    if prop.dtype.name == 'ref':
+        value = row.get(f'{name}._id')
+    else:
+        value = row.get(name)
 
     if prop.name == '_id' and value:
         model = prop.model
