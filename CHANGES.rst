@@ -6,6 +6,10 @@ Changes
 0.1.12 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fix a bug in `spinta push`. It failed when resource was defined on a dataset.
+
 
 0.1.11 (2021-03-04)
 ===================

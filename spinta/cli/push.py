@@ -86,17 +86,28 @@ def push(
             raise Exit(code=1)
 
     manifest = store.manifest
-    if dataset and dataset not in manifest.objects['dataset']:
+    if dataset and dataset not in manifest.datasets:
         echo(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
         raise Exit(code=1)
 
-    ns = manifest.objects['ns']['']
+    ns = manifest.namespaces['']
 
     with context:
         require_auth(context, auth)
         context.attach('transaction', manifest.backend.transaction)
+
+        backends = set()
         for backend in store.backends.values():
+            backends.add(backend.name)
             context.attach(f'transaction.{backend.name}', backend.begin)
+        for backend in manifest.backends.values():
+            backends.add(backend.name)
+            context.attach(f'transaction.{backend.name}', backend.begin)
+        for dataset_ in manifest.datasets.values():
+            for resource in dataset_.resources.values():
+                if resource.backend and resource.backend.name not in backends:
+                    backends.add(resource.backend.name)
+                    context.attach(f'transaction.{resource.backend.name}', resource.backend.begin)
         for keymap in store.keymaps.values():
             context.attach(f'keymap.{keymap.name}', lambda: keymap)
 
