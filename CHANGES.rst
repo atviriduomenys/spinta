@@ -3,7 +3,7 @@
 Changes
 #######
 
-0.1.11 (unreleased)
+0.1.11 (2021-03-04)
 ===================
 
 New features:
@@ -13,6 +13,10 @@ New features:
   related models (`#74`__).
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/74
+
+Bug fixes:
+
+- Fix ref data type in HTML export.
 
 
 0.1.10 (2021-03-01)
