@@ -20,6 +20,8 @@ from pygments.formatters.terminal256 import Terminal256Formatter
 from pygments.lexers.python import Python3Lexer
 from pygments.lexers.python import Python3TracebackLexer
 from pygments.lexers.sql import PostgresLexer
+from sqlalchemy.engine.default import StrCompileDialect
+from sqlalchemy.sql import ClauseElement
 
 
 def formatter():
@@ -71,12 +73,20 @@ def pp(
         return ret
     if obj is na:
         out = ''
+        lexer = None
     elif isinstance(obj, Iterator):
         out = list(islice(obj, 10))
         ret = chain(out, obj)
         out = '<generator> ' + pprintpp.pformat(out)
+        lexer = Python3Lexer()
+    elif isinstance(obj, ClauseElement):
+        out = str(obj.compile(compile_kwargs={"literal_binds": True}))
+        out = sqlparse.format(out, reindent=True, keyword_case='upper')
+        out = '\n' + out
+        lexer = PostgresLexer()
     else:
         out = pprintpp.pformat(obj)
+        lexer = Python3Lexer()
     if obj is not na:
         frame = inspect.currentframe()
         frame = inspect.getouterframes(frame)[1]
@@ -102,7 +112,8 @@ def pp(
             arg.append(c)
         arg = ''.join(arg)
         out = f'{arg} = {out}'
-        out = highlight(out, Python3Lexer(), formatter())
+    if lexer:
+        out = highlight(out, lexer, formatter())
     if prefix:
         print(prefix, end='', file=file)
     if st:
@@ -130,7 +141,6 @@ def pp(
     return ret
 
 
-pp.sql = ppsql
 builtins.pp = pp
 
 pytest_plugins = ['spinta.testing.pytest']

@@ -5,6 +5,7 @@ from typing import Optional
 
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
+from spinta.exceptions import IncompatibleForeignProperties
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Ref
 
@@ -16,7 +17,7 @@ class ForeignProperty:
     `right` points to `code`. `chain` will be:
 
         [
-            ForeignProperty(country:Ref, code:String),
+            ForeignProperty(City, country:Country -> code:String),
         ]
 
     Multiple references can be joined like this:
@@ -26,8 +27,24 @@ class ForeignProperty:
     `chain` will look like this:
 
         [
-            ForeignProperty(country:Ref, continent:Ref),
-            ForeignProperty(continent:Ref, name:String),
+            ForeignProperty(
+                City,
+                country:Country ->
+                continent:ref
+            ),
+            ForeignProperty(
+                City,
+                country:Country ->
+                continent:Continent ->
+                planet:ref
+            ),
+            ForeignProperty(
+                City,
+                country:Country ->
+                continent:Continent ->
+                planet:Planet ->
+                name:string
+            ),
         ]
 
     """
@@ -58,14 +75,53 @@ class ForeignProperty:
         self.right = right
 
     def __repr__(self):
+        name = type(self).__name__
+        model = self.chain[0].left.prop.model.name
+        place = self / (self.right.prop if self.right else None)
         if self.right:
-            place = self / self.right.prop
-            return f'<{place}:{self.right.prop.name}>'
+            return f'{name}({model}, {place}:{self.right.name})'
         else:
-            return f'<{self.name}:None>'
+            return f'{name}({model}, {place})'
 
-    def __truediv__(self, prop: Property) -> str:
-        return f'{self.name}->{prop.place}'
+    def __truediv__(self, prop: Optional[Property]) -> str:
+        if prop:
+            return f'{self.name} -> {prop.place}'
+        else:
+            return f'{self.name} -> None'
+
+    def join(self, fpr: ForeignProperty) -> ForeignProperty:
+        """Join two ForeignProperty instances into one
+
+        For example these two instances:
+
+            ForeignProperty(City, country:Country -> None)
+            ForeignProperty(Country, continent:Continent -> name:string)
+
+        Would return:
+
+            ForeignProperty(City, country:Country -> continent:Continent -> name:string)
+
+        """
+        tail = self
+        head = fpr.chain[0]
+
+        if tail.right is None:
+            if tail.left.model.name != head.left.prop.model.name:
+                raise IncompatibleForeignProperties(tail.left, right=head.left)
+            tail = tail.push(head.left.prop)
+        else:
+            if tail.right != head.left:
+                raise IncompatibleForeignProperties(tail.right, right=head.left)
+
+        chain = list(tail.chain + head.chain[:-1])
+
+        return ForeignProperty(
+            None,
+            fpr.left,
+            fpr.right,
+            _name=self / fpr.left.prop,
+            _chain=chain,
+        )
 
     def push(self, right: Optional[Property] = None):
         """Push another property to the chain
@@ -99,7 +155,16 @@ class ForeignProperty:
         )
 
     def get_bind_expr(self) -> Expr:
-        expr = self.right.get_bind_expr()
+        if self.right:
+            expr = self.right.get_bind_expr()
+        else:
+            expr = None
         for fpr in reversed(self.chain[:-1]):
-            expr = Expr('getattr', fpr.right.get_bind_expr(), expr)
-        return Expr('getattr', self.chain[0].left.get_bind_expr(), expr)
+            if expr:
+                expr = Expr('getattr', fpr.right.get_bind_expr(), expr)
+            else:
+                fpr.right.get_bind_expr()
+        if expr:
+            return Expr('getattr', self.chain[0].left.get_bind_expr(), expr)
+        else:
+            return self.chain[0].left.get_bind_expr()

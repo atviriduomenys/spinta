@@ -1,4 +1,3 @@
-from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import ShortExpr
 
@@ -18,9 +17,3 @@ def merge_formulas(a: Expr, b: Expr) -> Expr:
         return a
     elif b:
         return b
-
-
-def change_base_model(model: Model, expr: Expr) -> Expr:
-    """Rewrite given expr by changing all binds to a new base model.
-
-    """
