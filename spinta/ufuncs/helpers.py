@@ -17,9 +17,3 @@ def merge_formulas(a: Expr, b: Expr) -> Expr:
         return a
     elif b:
         return b
-
-
-def change_base_model(expr: Expr) -> Expr:
-    """Rewrite given expr by changing all bind to a new model.
-
-    """

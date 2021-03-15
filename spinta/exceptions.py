@@ -480,3 +480,8 @@ class RequiredConfigParam(UserError):
     template = "Configuration parameter {name!r} is required."
 
 
+class IncompatibleForeignProperties(UserError):
+    template = (
+        "Can't join {this} and {right}, these two properties does not have "
+        "direct connection with one another."
+    )

@@ -14,6 +14,7 @@ from spinta.core.ufuncs import ShortExpr
 from spinta.datasets.components import Resource
 from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.types.datatype import Ref
+from spinta.ufuncs.changebase.helpers import change_base_model
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.data import take
@@ -116,8 +117,10 @@ def get_ref_filters(
 ) -> Optional[Expr]:
     query: Optional[Expr] = None
     if fpr:
-        # TODO: Rewrite properties in formula relative to base model.
-        # query = merge_formulas(query, change_base_model(model.external.prepare))
+        query = merge_formulas(
+            query,
+            change_base_model(context, model, fpr),
+        )
         query = merge_formulas(
             query,
             get_enum_filters(context, model, fpr),

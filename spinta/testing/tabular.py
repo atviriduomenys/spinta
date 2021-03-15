@@ -1,8 +1,11 @@
 import csv
 import pathlib
+from typing import Literal
 from typing import Union
+from typing import overload
 
 from spinta import commands
+from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
@@ -20,10 +23,32 @@ def create_tabular_manifest(path: pathlib.Path, manifest: str):
             writer.writerow(row)
 
 
+@overload
 def load_tabular_manifest(
     rc: RawConfig,
     manifest: Union[pathlib.Path, str],
+    *,
+    return_context: Literal[True],
+) -> Context:
+    ...
+
+
+@overload
+def load_tabular_manifest(
+    rc: RawConfig,
+    manifest: Union[pathlib.Path, str],
+    *,
+    return_context: Literal[False],
 ) -> Manifest:
+    ...
+
+
+def load_tabular_manifest(
+    rc: RawConfig,
+    manifest: Union[pathlib.Path, str],
+    *,
+    return_context: bool = False,
+) -> Union[Manifest, Context]:
     if isinstance(manifest, str) and '|' in manifest:
         path = ''
     else:
@@ -57,4 +82,7 @@ def load_tabular_manifest(
 
     commands.link(context, store.manifest)
 
-    return store.manifest
+    if return_context:
+        return context
+    else:
+        return store.manifest

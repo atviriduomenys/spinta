@@ -1282,6 +1282,54 @@ def test_filter_by_enum_list_value(rc, tmpdir, sqlite):
     ]
 
 
+def test_implicit_filter(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | m | property     | type   | ref     | source    | prepare          | access
+    datasets/gov/example     |        |         |           |                  |
+      | resource             | sql    |         |           |                  |
+      |   | Country          |        | code    | COUNTRY   | continent = 'eu' |     
+      |   |   | code         | string |         | CODE      |                  | open
+      |   |   | continent    | string |         | CONTINENT |                  | open
+      |   |   | name         | string |         | NAME      |                  | open
+                             |        |         |           |                  |
+      |   | City             |        | name    | CITY      |                  |     
+      |   |   | name         | string |         | NAME      |                  | open
+      |   |   | country      | ref    | Country | COUNTRY   |                  | open
+    '''))
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('CODE', sa.String),
+            sa.Column('CONTINENT', sa.String),
+            sa.Column('NAME', sa.Text),
+        ],
+        'CITY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('COUNTRY', sa.String),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {'CODE': 'in', 'CONTINENT': 'as', 'NAME': 'India'},
+        {'CODE': 'lt', 'CONTINENT': 'eu', 'NAME': 'Lithuania'},
+        {'CODE': 'lv', 'CONTINENT': 'eu', 'NAME': 'Latvia'},
+    ])
+
+    sqlite.write('CITY', [
+        {'COUNTRY': 'in', 'NAME': 'Mumbai'},
+        {'COUNTRY': 'in', 'NAME': 'Delhi'},
+        {'COUNTRY': 'lt', 'NAME': 'Vilnius'},
+        {'COUNTRY': 'lv', 'NAME': 'Ryga'},
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    resp = app.get('/datasets/gov/example/City')
+    assert listdata(resp, 'name') == [
+        'Ryga',
+        'Vilnius',
+    ]
+
+
 def test_implicit_filter_by_enum(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
