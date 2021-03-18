@@ -3,14 +3,12 @@ from pathlib import Path
 import sqlalchemy as sa
 
 from spinta.core.config import RawConfig
-from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.tabular import load_tabular_manifest
-from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.testing.workarounds import fix_s3_backend_issue
 
 

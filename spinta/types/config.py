@@ -9,6 +9,7 @@ from spinta.commands import load, check
 from spinta.components import Context, Config
 from spinta import components
 from spinta.core.ufuncs import ufunc
+from spinta.utils.schema import NA
 
 yaml = YAML(typ='safe')
 
@@ -69,6 +70,15 @@ def load(context: Context, config: Config) -> Config:
     config.root = rc.get('root', default=None)
     if config.root is not None:
         config.root = config.root.strip().strip('/')
+
+    # XXX: A check to make sure, that I don't add mode to the config root, which
+    #      already happened several times. Remove this, when configuration
+    #      ensures that there are no unknown configuration options added.
+    if rc.get('mode') is not None:
+        raise RuntimeError(
+            "Configuration option `mode` must be added to a manifest, now it "
+            "is added to the config root."
+        )
 
     return config
 

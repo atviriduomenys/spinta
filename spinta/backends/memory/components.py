@@ -14,3 +14,6 @@ class Memory(Backend):
     @contextlib.contextmanager
     def begin(self):
         yield self
+
+    def bootstrapped(self):
+        return True

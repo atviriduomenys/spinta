@@ -227,7 +227,15 @@ class RawConfig:
     def lock(self):
         self._locked = True
 
-    def get(self, *key, default=NA, cast=None, required=False, exists=False, origin=False):
+    def get(
+        self,
+        *key: str,
+        default=NA,
+        cast=None,
+        required=False,
+        exists=False,
+        origin=False,
+    ):
         env, _ = self._get_config_value(('env',), default=None)
         value, config = self._get_config_value(key, default, env)
 

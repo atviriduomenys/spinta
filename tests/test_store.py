@@ -1,15 +1,15 @@
 from pathlib import Path
 
 import pytest
+import sqlalchemy as sa
 
-from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.testing.client import TestClient
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.client import create_test_client
 from spinta.testing.config import configure
-from spinta.testing.context import ContextForTests
-from spinta.testing.context import create_test_context
 from spinta.testing.data import listdata
+from spinta.testing.datasets import Sqlite
+from spinta.testing.tabular import create_tabular_manifest
 
 
 @pytest.mark.models(
@@ -125,3 +125,87 @@ def test_root(rc: RawConfig, tmpdir: Path):
         'datasets/gov/vpt/old/:ns',
     ]
 
+
+def test_resource_backends(
+    rc: RawConfig,
+    tmpdir: Path,
+    sqlite: Sqlite,
+):
+
+    # Prepare source data.
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {'ID': 1, 'NAME': 'Lithuania'},
+        {'ID': 2, 'NAME': 'Latvia'},
+    ])
+
+    create_tabular_manifest(tmpdir / 'old.csv', striptable('''
+    d | r | b | m | property | type    | ref | source  | access | title
+    datasets/gov/vpt/old     |         |     |         |        | Old data
+      | sql                  |         | old |         |        |
+      |   |   | Country      |         | id  | COUNTRY |        |
+      |   |   |   | id       | integer |     | ID      | open   |
+      |   |   |   | name     | string  |     | NAME    | open   |
+    '''))
+
+    create_tabular_manifest(tmpdir / 'new.csv', striptable('''
+    d | r | b | m | property | type    | ref  | source  | access | title
+    datasets/gov/vpt/new     |         |      |         |        | New data
+      | sql                  |         | new  |         |        |
+      |   |   | Country      |         | id   | COUNTRY |        |
+      |   |   |   | id       | integer |      | ID      | open   |
+      |   |   |   | name     | string  |      | NAME    | open   |
+    '''))
+
+    app = create_test_client(rc, {
+        'backends': {
+            'default': {
+                'type': 'memory',
+            },
+            'old': {
+                'type': 'sql',
+                'dsn': sqlite.dsn,
+            },
+            'new': {
+                'type': 'sql',
+                'dsn': sqlite.dsn,
+            },
+        },
+        'manifests': {
+            'default': {
+                'type': 'backend',
+                'backend': 'default',
+                'sync': ['old', 'new'],
+                'mode': 'external',
+            },
+            'old': {
+                'type': 'tabular',
+                'path': str(tmpdir / 'old.csv'),
+                'backend': 'old',
+            },
+            'new': {
+                'type': 'tabular',
+                'path': str(tmpdir / 'new.csv'),
+                'backend': 'new',
+            },
+        },
+        'manifest': 'default',
+    })
+
+    app.authorize(['spinta_getall'])
+
+    assert listdata(app.get('/datasets/gov/vpt/old/Country')) == [
+        (1, 'Lithuania'),
+        (2, 'Latvia'),
+    ]
+
+    assert listdata(app.get('/datasets/gov/vpt/new/Country')) == [
+        (1, 'Lithuania'),
+        (2, 'Latvia'),
+    ]
