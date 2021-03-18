@@ -53,10 +53,14 @@ def inspect(
             'backends.null': {
                 'type': 'memory',
             },
+            'keymaps.inspect': {
+                'type': 'sqlalchemy',
+                'dsn': 'sqlite:///keymaps.db',
+            },
             'manifests.inspect': {
                 'type': 'tabular',
                 'backend': 'null',
-                'keymap': '',
+                'keymap': 'inspect',
                 'mode': 'external',
                 'path': None,
             },
@@ -83,9 +87,13 @@ def inspect(
             'manifests.inspect': {
                 'type': 'tabular',
                 'backend': '',
-                'keymap': '',
+                'keymap': 'inspect',
                 'mode': 'internal',
                 'path': manifest,
+            },
+            'keymaps.inspect': {
+                'type': 'sqlalchemy',
+                'dsn': 'sqlite:///keymaps.db',
             },
         }
 
