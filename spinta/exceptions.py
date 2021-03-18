@@ -485,3 +485,10 @@ class IncompatibleForeignProperties(UserError):
         "Can't join {this} and {right}, these two properties does not have "
         "direct connection with one another."
     )
+
+
+class KeymapNotSet(UserError):
+    template = (
+        "Keymap is required for {this}, but is not configured. Please make "
+        "sure a key map is configured."
+    )

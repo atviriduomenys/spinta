@@ -23,6 +23,7 @@ from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
 from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
+from spinta.exceptions import KeymapNotSet
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
@@ -115,6 +116,9 @@ def link(context: Context, model: Model):
     # Link external source.
     if model.external:
         commands.link(context, model.external)
+
+        if model.keymap is None:
+            raise KeymapNotSet(model)
 
     # Link model backend.
     if model.backend:
