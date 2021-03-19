@@ -23,6 +23,10 @@ def compare_manifest(manifest: Manifest, expected: str) -> Tuple[str, str]:
 
 def configure_manifest(rc: RawConfig, manifest: str) -> Context:
     rc = rc.fork({
+        'keymaps.test': {
+            'type': 'sqlalchemy',
+            'dsn': 'sqlite://',
+        },
         'backends': {
             'memory': {
                 'type': 'memory',
@@ -31,7 +35,7 @@ def configure_manifest(rc: RawConfig, manifest: str) -> Context:
         'manifests.test': {
             'type': 'tabular',
             'backend': 'memory',
-            'keymap': '',
+            'keymap': 'test',
             'mode': 'external',
             'path': None,
         },

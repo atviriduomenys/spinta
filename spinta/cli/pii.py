@@ -12,6 +12,7 @@ import phonenumbers
 import tqdm
 from phonenumbers import NumberParseException
 from typer import Context as TyperContext
+from typer import Argument
 from typer import Option
 from typer import Typer
 from typer import echo
@@ -180,7 +181,7 @@ def _save_manifest(manifest: Manifest, dest: TextIO):
 @app.command()
 def detect(
     ctx: TyperContext,
-    manifest: str,
+    manifest: Optional[pathlib.Path] = Argument(None, help="Path to manifest."),
     output: Optional[str] = Option(None, '-o', '--output', help=(
         "Path to manifest with detected PII."
     )),
@@ -192,28 +193,29 @@ def detect(
     """Push data to external data store."""
     context: Context = ctx.obj
 
-    config = {
-        'backends.cli': {
-            'type': 'memory',
-        },
-        'keymaps.default': {
-            'type': 'sqlalchemy',
-            'dsn': 'sqlite:///keymaps.db',
-        },
-        'manifests.cli': {
-            'type': 'tabular',
-            'path': manifest,
-            'backend': 'cli',
-            'keymap': 'default',
-            'mode': 'external',
-        },
-        'manifest': 'cli',
-    }
+    if manifest:
+        config = {
+            'backends.cli': {
+                'type': 'memory',
+            },
+            'keymaps.default': {
+                'type': 'sqlalchemy',
+                'dsn': 'sqlite:///keymaps.db',
+            },
+            'manifests.cli': {
+                'type': 'tabular',
+                'path': str(manifest),
+                'backend': 'cli',
+                'keymap': 'default',
+                'mode': 'external',
+            },
+            'manifest': 'cli',
+        }
 
-    # Add given manifest file to configuration
-    rc: RawConfig = context.get('rc')
-    context: Context = context.fork('detect')
-    context.set('rc', rc.fork(config))
+        # Add given manifest file to configuration
+        rc: RawConfig = context.get('rc')
+        context: Context = context.fork('detect')
+        context.set('rc', rc.fork(config))
 
     # Load manifest
     store = prepare_manifest(context, verbose=False)

@@ -22,13 +22,17 @@ def show(
 
     if manifest is not None:
         config = {
+            'keymaps.show': {
+                'type': 'sqlalchemy',
+                'dsn': 'sqlite://',
+            },
             'backends.null': {
                 'type': 'memory',
             },
             'manifests.show': {
                 'type': 'tabular',
                 'backend': 'null',
-                'keymap': '',
+                'keymap': 'show',
                 'mode': 'internal',
                 'path': manifest,
             },
