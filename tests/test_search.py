@@ -1005,6 +1005,7 @@ def test_search_lower_contains(model, app):
     app.authmodel(model, ['search', 'getone'])
     ids = RowIds(_push_test_data(app, model))
     resp = app.get(f'/{model}?report_type.lower().contains("st")')
+    # XXX: Flaky test, some times it gives [2, 0], don't know why.
     assert ids(resp) == [0, 2]
 
 
