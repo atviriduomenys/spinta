@@ -1462,6 +1462,7 @@ def _write_xlsx(
         }),
         'uri': workbook.add_format({
             'valign': 'top',
+            'font_color': '#284f80',
         }),
         'title': workbook.add_format({
             'valign': 'top',
