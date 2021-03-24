@@ -30,35 +30,35 @@ log = logging.getLogger(__name__)
 
 app = Typer()
 
-add(app, 'config', config.config, help="Show current configuration values")
-add(app, 'check', config.check, help="Check configuration and manifests")
+add(app, 'config', config.config, short_help="Show current configuration values")
+add(app, 'check', config.check, short_help="Check configuration and manifests")
 
-add(app, 'genkeys', auth.genkeys, help="Generate client token validation keys")
-add(app, 'token', auth.token, help="Tools for encoding/decode auth tokens")
-add(app, 'client', auth.client, help="Manage auth clients")
+add(app, 'genkeys', auth.genkeys, short_help="Generate client token validation keys")
+add(app, 'token', auth.token, short_help="Tools for encoding/decode auth tokens")
+add(app, 'client', auth.client, short_help="Manage auth clients")
 
-add(app, 'init', init, help="Initialize new manifest table")
-add(app, 'inspect', inspect.inspect, help=(
+add(app, 'init', init, short_help="Initialize a new manifest table")
+add(app, 'inspect', inspect.inspect, short_help=(
     "Update manifest schema from an external data source"
 ))
-add(app, 'pii', pii.app, help="Manage Person Identifying Information")
+add(app, 'pii', pii.app, short_help="Manage Person Identifying Information")
 
-add(app, 'copy', manifest.copy, help="Copy only specified metadata from a manifest")
-add(app, 'show', show, help="Show manifest as ascii table")
+add(app, 'copy', manifest.copy, short_help="Copy only specified metadata from a manifest")
+add(app, 'show', show, short_help="Show manifest as ascii table")
 
-add(app, 'bootstrap', migrate.bootstrap, help="Initialize backends")
-add(app, 'sync', migrate.sync, help="Sync source manifests into main manifest")
-add(app, 'migrate', migrate.migrate, help="Migrate schema changes to backends")
-add(app, 'freeze', migrate.freeze, help=(
+add(app, 'bootstrap', migrate.bootstrap, short_help="Initialize backends")
+add(app, 'sync', migrate.sync, short_help="Sync source manifests into main manifest")
+add(app, 'migrate', migrate.migrate, short_help="Migrate schema changes to backends")
+add(app, 'freeze', migrate.freeze, short_help=(
     "Detect schema changes and create new schema version"
 ))
 
-add(app, 'import', data.import_, help="Import data from a file")
-add(app, 'pull', pull.pull, help="Pull data from an external data source")
-add(app, 'push', push.push, help="Push data into an external data store")
+add(app, 'import', data.import_, short_help="Import data from a file")
+add(app, 'pull', pull.pull, short_help="Pull data from an external data source")
+add(app, 'push', push.push, short_help="Push data into an external data store")
 
-add(app, 'run', server.run, help="Run development server")
-add(app, 'wait', server.wait, help="Wait while all backends are up")
+add(app, 'run', server.run, short_help="Run development server")
+add(app, 'wait', server.wait, short_help="Wait while all backends are up")
 
 
 @app.callback(invoke_without_command=True)

@@ -23,6 +23,7 @@ from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
 from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
+from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.exceptions import KeymapNotSet
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
@@ -55,6 +56,7 @@ def load(
     model.manifest = manifest
     model.mode = manifest.mode  # TODO: mode should be inherited from namespace.
     load_node(context, model, data)
+    model.lang = load_lang_data(context, model.lang)
 
     if model.keymap:
         model.keymap = manifest.store.keymaps[model.keymap]
@@ -174,6 +176,7 @@ def load(context: Context, prop: Property, data: PropertyRow, manifest: Manifest
     ))
     load_access_param(prop, prop.access, parents)
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
+    prop.lang = load_lang_data(context, prop.lang)
     prop.dtype = get_node(config, manifest, prop.model.eid, data, group='types', parent=prop)
     prop.dtype.type = 'type'
     prop.dtype.prop = prop

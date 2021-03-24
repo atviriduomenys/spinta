@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import pathlib
 import textwrap
+from operator import itemgetter
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -12,11 +13,13 @@ from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Set
-from typing import TextIO
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
 from typing import cast
+
+import openpyxl
+import xlsxwriter
 
 from spinta import commands
 from spinta import spyna
@@ -31,6 +34,7 @@ from spinta.core.enums import Access
 from spinta.core.ufuncs import unparse
 from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
+from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
@@ -40,6 +44,7 @@ from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
 from spinta.manifests.tabular.components import DESCRIPTION
 from spinta.manifests.tabular.components import DatasetRow
+from spinta.manifests.tabular.components import EnumRow
 from spinta.manifests.tabular.components import ID
 from spinta.manifests.tabular.components import MANIFEST_COLUMNS
 from spinta.manifests.tabular.components import ManifestColumn
@@ -76,6 +81,7 @@ EXTRA_DIMENSIONS = [
     'param',
     'comment',
     'ns',
+    'lang',
 ]
 
 
@@ -612,46 +618,111 @@ def _read_enum_row(name: str, row: ManifestRow) -> Dict[str, Any]:
 
 class EnumReader(TabularReader):
     type: str = 'enum'
-    appendable: bool = True
+    data: EnumRow
 
     def read(self, row: ManifestRow) -> None:
-        prop = self.state.prop
-
         if row[REF]:
             self.name = row[REF]
         else:
             self.name = ''
 
+        if not any([
+            row[SOURCE],
+            row[PREPARE],
+            row[ACCESS],
+            row[TITLE],
+            row[DESCRIPTION],
+        ]):
+            return
+
+        source = row[SOURCE] or row[PREPARE]
+        if not source:
+            self.error(
+                "At least source or prepare must be specified for an enum."
+            )
+
+        self.data = {
+            'name': self.name,
+            'source': row[SOURCE],
+            'prepare': (
+                spyna.parse(row[PREPARE])
+                if row[PREPARE] else NA
+            ),
+            'access': row[ACCESS],
+            'title': row[TITLE],
+            'description': row[DESCRIPTION],
+        }
+
+        prop = self.state.prop
+
         if 'enums' not in prop.data:
             prop.data['enums'] = {}
 
-        if self.name in prop.data['enums']:
-            self.error(
-                f"Enum {self.name!r} with the same name is already "
-                f"defined."
-            )
+        if self.name not in prop.data['enums']:
+            prop.data['enums'][self.name] = {}
 
-        source = row[SOURCE] or row[PREPARE]
-        prop.data['enums'][self.name] = {
-            source: _read_enum_row(self.name, row)
-        }
+        enum = prop.data['enums'][self.name]
 
-    def append(self, row: ManifestRow) -> None:
-        if not row[SOURCE] and not row[PREPARE]:
-            # At least source or prepare must be defined.
-            return
-
-        enum = cast(EnumReader, self.state.stack[-1])
-        prop = self.state.prop
-        source = row[SOURCE] or row[PREPARE]
-
-        if source in prop.data['enums'][enum.name]:
+        if source in enum:
             self.error(
                 f"Enum {self.name!r} item {source!r} with the same value is "
                 f"already defined."
             )
+        enum[source] = self.data
 
-        prop.data['enums'][enum.name][source] = _read_enum_row(enum.name, row)
+    def append(self, row: ManifestRow) -> None:
+        self.read(row)
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return not isinstance(reader, (AppendReader, LangReader))
+
+    def enter(self) -> None:
+        pass
+
+    def leave(self) -> None:
+        pass
+
+
+class LangReader(TabularReader):
+    type: str = 'lang'
+
+    def read(self, row: ManifestRow) -> None:
+        reader = self.state.stack[-1]
+        if not isinstance(reader, (
+            DatasetReader,
+            ResourceReader,
+            BaseReader,
+            ModelReader,
+            PropertyReader,
+            EnumReader,
+        )):
+            self.error(f'Language metadata is not supported on {reader.type}.')
+            return
+
+        if 'lang' not in reader.data:
+            reader.data['lang'] = {}
+
+        lang = reader.data['lang']
+
+        self.name = row[REF]
+
+        if self.name in lang:
+            self.error(
+                f"Language {self.name!r} with the same name is already "
+                f"defined for this {reader.name!r} {reader.type}."
+            )
+
+        lang[self.name] = {
+            'id': row[ID],
+            'eid': f'{self.path}:{self.line}',
+            'type': self.type,
+            'ref': self.name,
+            'title': row[TITLE],
+            'description': row[DESCRIPTION],
+        }
+
+    def append(self, row: ManifestRow) -> None:
+        self.read(row)
 
     def release(self, reader: TabularReader = None) -> bool:
         return not isinstance(reader, AppendReader)
@@ -676,6 +747,7 @@ READERS = {
     'prefix': PrefixReader,
     'ns': NamespaceReader,
     'enum': EnumReader,
+    'lang': LangReader,
 }
 
 
@@ -756,13 +828,40 @@ def read_tabular_manifest(
     *,
     rename_duplicates: bool = False,
 ) -> Iterator[ParsedRow]:
+    if path.suffix == '.csv':
+        rows = _read_csv_manifest(path)
+    elif path.suffix == '.xlsx':
+        rows = _read_xlsx_manifest(path)
+    else:
+        raise ValueError(f"Unknown tabular manifest format {path.suffix!r}.")
+
+    yield from _read_tabular_manifest_rows(
+        path,
+        rows,
+        rename_duplicates=rename_duplicates,
+    )
+
+
+def _read_csv_manifest(path: pathlib.Path) -> Iterator[List[str]]:
     with path.open() as f:
-        csv_reader = csv.reader(f)
-        yield from _read_tabular_manifest_rows(
-            path,
-            csv_reader,
-            rename_duplicates=rename_duplicates,
-        )
+        yield from csv.reader(f)
+
+
+def _read_xlsx_manifest(path: pathlib.Path) -> Iterator[List[str]]:
+    wb = openpyxl.load_workbook(path)
+
+    yield DATASET
+
+    for sheet in wb:
+        rows = sheet.iter_rows(values_only=True)
+        cols = next(rows, None)
+        if cols is None:
+            continue
+        cols = normalizes_columns(cols)
+        cols = [cols.index(c) if c in cols else None for c in DATASET]
+
+        for row in rows:
+            yield [row[c] for c in cols]
 
 
 def striptable(table):
@@ -795,10 +894,10 @@ def read_ascii_tabular_rows(
     if header is None:
         return
     header = normalizes_columns(header.split('|'))
+    yield header
 
     # Find index where dimension columns end.
     dim = sum(1 for h in header if h in DATASET[:6])
-    yield header
     for line in lines:
         row = _join_escapes(line.split('|'))
         row = [x.strip() for x in row]
@@ -987,7 +1086,27 @@ def _enums_to_tabular(
                 'title': item.title,
                 'description': item.description,
             })
-            first = False
+            if lang := list(_lang_to_tabular(item.lang)):
+                first = True
+                yield from lang
+            else:
+                first = False
+
+
+def _lang_to_tabular(
+    lang: Optional[LangData],
+) -> Iterator[ManifestRow]:
+    if lang is None:
+        return
+    first = True
+    for name, data in sorted(lang.items(), key=itemgetter(0)):
+        yield torow(DATASET, {
+            'type': 'lang' if first else '',
+            'ref': name if first else '',
+            'title': data['title'],
+            'description': data['description'],
+        })
+        first = False
 
 
 def datasets_to_tabular(
@@ -1024,6 +1143,7 @@ def datasets_to_tabular(
                         'title': dataset.title,
                         'description': dataset.description,
                     })
+                    yield from _lang_to_tabular(dataset.lang)
 
             if model.external and model.external.resource and (
                 resource is None or
@@ -1050,6 +1170,7 @@ def datasets_to_tabular(
                         'title': resource.title,
                         'description': resource.description,
                     })
+                    yield from _lang_to_tabular(resource.lang)
 
         yield torow(DATASET, {})
 
@@ -1081,6 +1202,7 @@ def datasets_to_tabular(
                     p.name for p in model.external.pkeys
                 ])
         yield torow(DATASET, data)
+        yield from _lang_to_tabular(model.lang)
 
         props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)
         for prop in props:
@@ -1129,6 +1251,7 @@ def datasets_to_tabular(
                     data['ref'] = prop.dtype.model.name
 
             yield torow(DATASET, data)
+            yield from _lang_to_tabular(prop.lang)
             yield from _enums_to_tabular(
                 prop.enums,
                 external=external,
@@ -1139,12 +1262,6 @@ def datasets_to_tabular(
 
 def torow(keys, values) -> ManifestRow:
     return {k: values.get(k) for k in keys}
-
-
-def write_tabular_manifest(file: TextIO, rows: Iterable[ManifestRow]):
-    writer = csv.DictWriter(file, fieldnames=DATASET)
-    writer.writeheader()
-    writer.writerows(rows)
 
 
 def render_tabular_manifest(
@@ -1246,3 +1363,132 @@ def normalizes_columns(cols: List[str]) -> List[ManifestColumn]:
         else:
             raise PropertyNotFound(property=col)
     return result
+
+
+def write_tabular_manifest(
+    path: pathlib.Path,
+    rows: Union[
+        Manifest,
+        Iterable[ManifestRow],
+        None,
+    ] = None,
+    cols: List[ManifestColumn] = None,
+) -> None:
+    cols = cols or DATASET
+
+    if rows is None:
+        rows = []
+    elif isinstance(rows, Manifest):
+        rows = datasets_to_tabular(rows)
+
+    rows = ({c: row[c] for c in cols} for row in rows)
+
+    if path.suffix == '.csv':
+        _write_csv(path, rows, cols)
+    elif path.suffix == '.xlsx':
+        _write_xlsx(path, rows, cols)
+    else:
+        raise ValueError(f"Unknown tabular manifest format {path.suffix!r}.")
+
+
+def _write_csv(
+    path: pathlib.Path,
+    rows: Iterator[ManifestRow],
+    cols: List[ManifestColumn],
+) -> None:
+    with path.open('w') as f:
+        writer = csv.DictWriter(f, fieldnames=cols)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_xlsx(
+    path: pathlib.Path,
+    rows: Iterator[ManifestRow],
+    cols: List[ManifestColumn],
+) -> None:
+    workbook = xlsxwriter.Workbook(path, {
+        'strings_to_formulas': False,
+        'strings_to_urls': False,
+    })
+
+    bold = workbook.add_format({'bold': True})
+
+    formats = {
+        'id': workbook.add_format({
+            'align': 'right',
+            'valign': 'top',
+        }),
+        'dataset': workbook.add_format({
+            'bold': True,
+            'valign': 'top',
+            'font_color': '#127622',
+        }),
+        'resource': workbook.add_format({
+            'valign': 'top',
+        }),
+        'base': workbook.add_format({
+            'valign': 'top',
+        }),
+        'model': workbook.add_format({
+            'bold': True,
+            'valign': 'top',
+            'font_color': '#127622',
+        }),
+        'property': workbook.add_format({
+            'valign': 'top',
+            'font_color': '#127622',
+        }),
+        'type': workbook.add_format({
+            'valign': 'top',
+        }),
+        'ref': workbook.add_format({
+            'valign': 'top',
+            'font_color': '#127622',
+        }),
+        'source': workbook.add_format({
+            'valign': 'top',
+            'font_color': '#c9211e',
+        }),
+        'prepare': workbook.add_format({
+            'valign': 'top',
+            'font_color': '#c9211e',
+        }),
+        'level': workbook.add_format({
+            'valign': 'top',
+        }),
+        'access': workbook.add_format({
+            'valign': 'top',
+        }),
+        'uri': workbook.add_format({
+            'valign': 'top',
+        }),
+        'title': workbook.add_format({
+            'valign': 'top',
+            'text_wrap': True,
+        }),
+        'description': workbook.add_format({
+            'valign': 'top',
+            'text_wrap': True,
+        }),
+    }
+
+    sheet = workbook.add_worksheet()
+    sheet.freeze_panes(1, 0)  # Freeze the first row.
+
+    sheet.set_column('A:E', 2)   # id, d, r, b, m
+    sheet.set_column('F:F', 20)  # property
+    sheet.set_column('I:J', 20)  # source, prepare
+    sheet.set_column('N:N', 20)  # title
+    sheet.set_column('O:O', 30)  # description
+
+    for j, col in enumerate(cols):
+        sheet.write(0, j, col, bold)
+
+    for i, row in enumerate(rows, 1):
+        for j, col in enumerate(cols):
+            val = row[col]
+            fmt = formats.get(col)
+            sheet.write(i, j, val, fmt)
+
+    workbook.close()

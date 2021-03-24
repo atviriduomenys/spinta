@@ -12,6 +12,7 @@ import dataclasses
 import pathlib
 
 from spinta import exceptions
+from spinta.dimensions.lang.components import LangData
 from spinta.utils.schema import NA
 from spinta.core.enums import Access
 from spinta.datasets.enums import Level
@@ -380,6 +381,7 @@ class MetaData(Node):
         'version': {'type': 'string'},
         'title': {'type': 'string'},
         'description': {},
+        'lang': {'type': 'object'},
     }
 
     def get_eid_for_error_context(self):
@@ -410,6 +412,7 @@ class Namespace(MetaData):
     # Namespaces generated from model name.
     generated: bool = False
     given: NamespaceGiven
+    lang: LangData = None
 
     def __init__(self):
         self.given = NamespaceGiven()
@@ -433,10 +436,12 @@ class Base(Node):
     model: Model        # a.base.b - here `model` is `b`
     parent: Model       # a.base.b - here `parent` is `a`
     pk: List[Property]  # a.base.b - list of properties of `a` model
+    lang: LangData = None
 
     schema = {
         'model': {'type': 'string'},
         'pk': {'type': 'string'},
+        'lang': {'type': 'object'},
     }
 
 
@@ -456,6 +461,7 @@ class Model(MetaData):
     properties: Dict[str, Property]
     mode: Mode = None
     given: ModelGiven
+    lang: LangData = None
 
     schema = {
         'keymap': {'type': 'string'},
@@ -477,6 +483,7 @@ class Model(MetaData):
             'inherit': 'external.resource.access',
             'default': 'protected',
         },
+        'lang': {'type': 'object'},
     }
 
     def __init__(self):
@@ -516,6 +523,7 @@ class Property(Node):
     uri: str = None
     given: PropertyGiven
     enums: Enums
+    lang: LangData = None
 
     schema = {
         'title': {},
@@ -536,6 +544,7 @@ class Property(Node):
         'external': {},
         'uri': {'type': 'string'},
         'enums': {},
+        'lang': {'type': 'object'},
     }
 
     def __init__(self):

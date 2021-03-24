@@ -73,8 +73,7 @@ def copy(
     )
 
     if output:
-        with output.open('w') as f:
-            write_tabular_manifest(f, rows)
+        write_tabular_manifest(output, rows)
     else:
         echo(render_tabular_manifest_rows(rows, cols))
 

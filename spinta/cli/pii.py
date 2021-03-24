@@ -171,13 +171,6 @@ def _detect_pii(manifest: Manifest, rows: Iterable[ModelRow]) -> None:
                     prop.uri = uri
 
 
-def _save_manifest(manifest: Manifest, dest: TextIO):
-    # TODO: Currently saving is hardcoded to tabular manifest type, but it
-    #       should be possible to save or probably freeze to any manifest type.
-    rows = datasets_to_tabular(manifest)
-    write_tabular_manifest(dest, rows)
-
-
 @app.command()
 def detect(
     ctx: TyperContext,
@@ -255,7 +248,6 @@ def detect(
         rows = tqdm.tqdm(rows, 'PII DETECT', ascii=True, total=total)
         _detect_pii(manifest, rows)
         if output:
-            with pathlib.Path(output).open('w') as f:
-                _save_manifest(manifest, f)
+            write_tabular_manifest(pathlib.Path(output), manifest)
         else:
             echo(render_tabular_manifest(manifest))

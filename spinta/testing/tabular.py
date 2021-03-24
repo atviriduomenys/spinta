@@ -1,5 +1,5 @@
-import csv
 import pathlib
+from typing import List
 from typing import Literal
 from typing import Union
 from typing import overload
@@ -9,18 +9,26 @@ from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.tabular.components import ManifestColumn
+from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.helpers import read_ascii_tabular_manifest
 from spinta.manifests.tabular.helpers import read_ascii_tabular_rows
 from spinta.manifests.tabular.helpers import read_tabular_manifest
+from spinta.manifests.tabular.helpers import torow
+from spinta.manifests.tabular.helpers import write_tabular_manifest
 from spinta.testing.context import create_test_context
 
 
-def create_tabular_manifest(path: pathlib.Path, manifest: str):
-    with path.open('w') as f:
-        writer = csv.writer(f)
-        rows = read_ascii_tabular_rows(manifest, strip=True)
-        for row in rows:
-            writer.writerow(row)
+def create_tabular_manifest(
+    path: pathlib.Path,
+    manifest: str,
+):
+    path = pathlib.Path(path)
+    rows = read_ascii_tabular_rows(manifest, strip=True)
+    cols: List[ManifestColumn] = next(rows, [])
+    if cols:
+        rows = (torow(DATASET, dict(zip(cols, row))) for row in rows)
+        write_tabular_manifest(path, rows)
 
 
 @overload
@@ -52,7 +60,7 @@ def load_tabular_manifest(
     if isinstance(manifest, str) and '|' in manifest:
         path = ''
     else:
-        path = manifest
+        path = pathlib.Path(manifest)
         manifest = None
 
     rc = rc.fork({

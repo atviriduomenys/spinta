@@ -4,6 +4,7 @@ from spinta import commands
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.components import Attribute
 from spinta.datasets.helpers import load_resource_backend
+from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.nodes import get_node, load_node
 from spinta.components import Context
 from spinta.manifests.components import Manifest
@@ -32,6 +33,8 @@ def load(
         ns.title = dataset.title
         ns.description = dataset.description
 
+    dataset.lang = load_lang_data(context, dataset.lang)
+
     # Load resources
     dataset.resources = {}
     for name, params in (data.get('resources') or {}).items():
@@ -50,6 +53,7 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     if resource.prepare:
         resource.prepare = asttoexpr(resource.prepare)
     load_access_param(resource, data.get('access'), (resource.dataset,))
+    resource.lang = load_lang_data(context, resource.lang)
     resource.backend = load_resource_backend(
         context,
         resource,

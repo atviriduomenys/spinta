@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
 from spinta.backends.components import Backend
+from spinta.dimensions.lang.components import LangData
 from spinta.components import MetaData
 from spinta.components import Model
 from spinta.components import Node
@@ -41,6 +42,7 @@ class Dataset(MetaData):
     title: str
     description: str
     given: DatasetGiven
+    lang: LangData = None
 
     schema = {
         'type': {'type': 'string', 'required': True},
@@ -81,7 +83,6 @@ class Dataset(MetaData):
         self.given = DatasetGiven()
 
 
-
 class ExternalBackend(Backend):
     engine: Engine = None
     schema: sa.MetaData = None
@@ -106,6 +107,7 @@ class Resource(External):
     prepare: str
     models: Dict[str, Model]
     given: ResourceGiven
+    lang: LangData = None
 
     schema = {
         'type': {'type': 'string'},

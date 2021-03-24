@@ -95,3 +95,23 @@ def test_enum(tmpdir, rc):
                                  | enum   | l      | 'left'  | open    | Left  | Left side.
                                  |        | r      | 'right' | private | Right | Right side.
     ''')
+
+
+def test_lang(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property | type   | ref     | prepare | title       | description
+    datasets/gov/example     |        |         |         | Example     | Example dataset.
+                             | lang   | lt      |         | Pavyzdys    | Pavyzdinis duomenų rinkinys.
+      | data                 |        | default |         |             |
+                             |        |         |         |             |
+      |   |   | Country      |        |         |         | Country     | Country data model.
+                             | lang   | lt      |         | Šalis       | Šalies duomenų modelis.
+      |   |   |   | name     | string |         |         | Name        | Country name.
+                             | lang   | lt      |         | Pavadinimas | Šalies pavadinimas.
+      |   |   |   | driving  | string |         |         | Driving     | Driving side.
+                             | lang   | lt      |         | Vairavimas  | Eismo pusė kelyje.
+                             | enum   |         | 'left'  | Left        | Left side.
+                             | lang   | lt      |         | Kairė       | Kairė pusė.
+                             | enum   |         | 'right' | Right       | Right side.
+                             | lang   | lt      |         | Dešinė      | Dešinė pusė.
+    ''')

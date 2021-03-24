@@ -6,6 +6,17 @@ Changes
 0.1.13 (unreleased)
 ===================
 
+New features:
+
+- Add support for XLSX format for manifest tables (`#79`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/79
+
+- Add `lang` support in manifest files, now it is possible to describe data
+  structures in multiple languages (`#85`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/85
+
 
 0.1.12 (2021-03-04)
 ===================

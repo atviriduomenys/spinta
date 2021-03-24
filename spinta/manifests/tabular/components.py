@@ -8,6 +8,7 @@ from typing import Literal
 from typing import Optional
 from typing import TypedDict
 
+from spinta.dimensions.lang.components import LangData
 from spinta.manifests.components import Manifest
 
 
@@ -82,11 +83,13 @@ class DatasetRow(TypedDict, total=False):
     title: str
     description: str
     resources: Dict[str, ResourceRow]
+    lang: LangData
 
 
 class ResourceRow(ManifestRow):
     backend: str
     external: str
+    lang: LangData
 
 
 class BackendRow(TypedDict, total=False):
@@ -100,6 +103,7 @@ class BackendRow(TypedDict, total=False):
 class BaseRow(TypedDict, total=False):
     model: str
     pk: str
+    lang: LangData
 
 
 class ModelRow(TypedDict, total=False):
@@ -114,6 +118,7 @@ class ModelRow(TypedDict, total=False):
     properties: Dict[str, PropertyRow]
     external: ModelExternalRow
     backend: str
+    lang: LangData
 
 
 class ModelExternalRow(TypedDict, total=False):
@@ -131,6 +136,7 @@ class EnumRow(TypedDict, total=False):
     access: str
     title: str
     description: str
+    lang: LangData
 
 
 class PropertyRow(TypedDict, total=False):
@@ -145,6 +151,7 @@ class PropertyRow(TypedDict, total=False):
     refprops: List[str]
     external: PropertyExternalRow
     enums: Dict[str, Dict[str, EnumRow]]
+    lang: LangData
 
 
 class PropertyExternalRow(TypedDict, total=False):

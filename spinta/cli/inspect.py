@@ -21,13 +21,6 @@ from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 
 
-def _save_manifest(manifest: Manifest, dest: TextIO):
-    # TODO: Currently saving is hardcoded to tabular manifest type, but it
-    #       should be possible to save or probably freeze to any manifest type.
-    rows = datasets_to_tabular(manifest)
-    write_tabular_manifest(dest, rows)
-
-
 def inspect(
     ctx: TyperContext,
     manifest: Optional[pathlib.Path] = Argument(None, help="Path to manifest."),
@@ -115,7 +108,6 @@ def inspect(
         commands.inspect(context, manifest)
 
     if output:
-        with pathlib.Path(output).open('w') as f:
-            _save_manifest(manifest, f)
+        write_tabular_manifest(pathlib.Path(output), manifest)
     else:
         echo(render_tabular_manifest(manifest))

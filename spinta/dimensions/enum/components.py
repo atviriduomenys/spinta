@@ -7,6 +7,7 @@ from spinta.components import Node
 from spinta.core.enums import Access
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import Expr
+from spinta.dimensions.lang.components import LangData
 from spinta.utils.schema import NA
 
 
@@ -25,6 +26,7 @@ class EnumItem(Node):
     title: str
     description: str
     given: EnumValueGiven
+    lang: LangData
 
     schema = {
         'name': {'type': 'string'},
@@ -38,6 +40,7 @@ class EnumItem(Node):
         },
         'title': {'type': 'string'},
         'description': {'type': 'string'},
+        'lang': {'type': 'object'},
     }
 
     def __init__(self):
