@@ -182,8 +182,14 @@ def detect(
         "Authorize as a client"
     )),
     stop_on_error: bool = Option(False, help="Stop on first error"),
+    limit: Optional[int] = Option(1000, help="Limit number of rows to check"),
 ):
-    """Push data to external data store."""
+    """Detect Person Identifying Information
+
+    This will inspect row values and checks if any of value detection functions
+    returns true. For those columns having more than 50% of values matching the
+    checks a uri value is set.
+    """
     context: Context = ctx.obj
 
     if manifest:
@@ -237,12 +243,12 @@ def detect(
         models = traverse_ns_models(context, ns, Action.SEARCH)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
-        counts = count_rows(context, models)
+        counts = count_rows(context, models, limit=limit)
 
         rows = iter_model_rows(
             context, models, counts,
             stop_on_error=stop_on_error,
-            limit=1000,
+            limit=limit,
         )
         total = sum(counts.values())
         rows = tqdm.tqdm(rows, 'PII DETECT', ascii=True, total=total)

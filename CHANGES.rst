@@ -17,6 +17,8 @@ New features:
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/85
 
+- Add `spinta pii detect --limit` which is set to 1000 by default.
+
 
 0.1.12 (2021-03-04)
 ===================
