@@ -1,6 +1,10 @@
 import importlib
 import pathlib
 
+from spinta.components import Context
+from spinta.core.config import RawConfig
+from spinta.core.config import configure_rc
+
 from spinta.core.config import read_config
 from spinta.utils.imports import importstr
 
@@ -47,3 +51,10 @@ def load_commands(modules):
                 module_path = path.relative_to(base).with_suffix('')
             module_path = '.'.join(module_path.parts)
             module = importlib.import_module(module_path)
+
+
+def configure_context(context: Context, *args, **kwargs) -> Context:
+    rc: RawConfig = context.get('rc')
+    context = context.fork('configure')
+    context.set('rc', configure_rc(rc, *args, **kwargs))
+    return context

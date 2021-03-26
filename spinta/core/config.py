@@ -12,6 +12,7 @@ import sys
 from ruamel.yaml import YAML
 import pkg_resources as pres
 
+from spinta.components import Mode
 from spinta.utils.imports import importstr
 from spinta.utils.schema import NA
 
@@ -226,6 +227,9 @@ class RawConfig:
 
     def lock(self):
         self._locked = True
+
+    def has(self, *key: str) -> bool:
+        return self.get(*key, default=NA) is not NA
 
     def get(
         self,
@@ -483,3 +487,50 @@ def _get_from_prefix(config: dict, prefix: tuple):
     for k, v in config.items():
         if k[:len(prefix)] == prefix:
             yield k[len(prefix):], v
+
+
+def configure_rc(
+    rc: RawConfig,
+    manifests: List[Path],
+    *,
+    mode: Mode = Mode.internal,
+) -> RawConfig:
+
+    config = {}
+
+    if not rc.has('backends', 'default'):
+        config['backends.default'] = {
+            'type': 'memory',
+        }
+
+    if not rc.has('keymaps', 'default'):
+        config['keymaps.default'] = {
+            'type': 'sqlalchemy',
+            'dsn': 'sqlite:///keymaps.db',
+        }
+
+    if manifests:
+        config = {
+            'manifests.default': {
+                'type': 'backend',
+                'backend': 'default',
+                'keymap': 'default',
+                'mode': mode.value,
+                'sync': [],
+            },
+            'manifest': 'default',
+        }
+
+        for i, manifest_path in enumerate(manifests):
+            manifest_name = f'run{i}'
+            config[f'manifests.{manifest_name}'] = {
+                'type': 'tabular',
+                'path': manifest_path,
+                'backend': '',
+            }
+            config['manifests.default']['sync'].append(manifest_name)
+
+    if config:
+        rc = rc.fork(config)
+
+    return rc

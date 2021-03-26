@@ -19,8 +19,9 @@ from spinta.core.config import RawConfig
 
 def create_test_context(
     rc: RawConfig,
-    *,
+    *args,
     name: str = 'pytest',
+    **kwargs,
 ) -> TestContext:
     rc = rc.fork()
     Context_ = rc.get('components', 'core', 'context', cast=importstr)

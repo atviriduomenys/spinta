@@ -10,10 +10,10 @@ from typer import Option
 from typer import echo
 
 from spinta import commands
-from spinta.cli.helpers.store import configure
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Mode
+from spinta.core.context import configure_context
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def run(
     import uvicorn
     import spinta.api
 
-    context = configure(ctx.obj, manifests, mode=mode)
+    context = configure_context(ctx.obj, manifests, mode=mode)
     prepare_manifest(context)
     app = spinta.api.init(context)
 

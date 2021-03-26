@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from spinta.cli.helpers.store import configure
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Context
 from spinta.core.config import RawConfig
+from spinta.core.context import configure_context
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.context import create_test_context
 from spinta.testing.manifest import compare_manifest
@@ -32,7 +32,7 @@ def test_configure(tmpdir: Path, rc: RawConfig):
 
     rc = fix_s3_backend_issue(rc)
     context: Context = create_test_context(rc)
-    context = configure(context, [tmpdir / 'm1.csv', tmpdir / 'm2.csv'])
+    context = configure_context(context, [tmpdir / 'm1.csv', tmpdir / 'm2.csv'])
     store = prepare_manifest(context, verbose=False)
     a, b = compare_manifest(store.manifest, '''
     d | r | b | m | property | type   | source
