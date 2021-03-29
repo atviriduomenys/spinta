@@ -491,35 +491,33 @@ def _get_from_prefix(config: dict, prefix: tuple):
 
 def configure_rc(
     rc: RawConfig,
-    manifests: List[Path],
+    manifests: List[Path] = None,
     *,
     mode: Mode = Mode.internal,
 ) -> RawConfig:
 
     config = {}
 
-    if not rc.has('backends', 'default'):
+    if not rc.get('backends', 'default'):
         config['backends.default'] = {
             'type': 'memory',
         }
 
-    if not rc.has('keymaps', 'default'):
+    if not rc.get('keymaps', 'default'):
         config['keymaps.default'] = {
             'type': 'sqlalchemy',
             'dsn': 'sqlite:///keymaps.db',
         }
 
     if manifests:
-        config = {
-            'manifests.default': {
+        config['manifests.default'] = {
                 'type': 'backend',
                 'backend': 'default',
                 'keymap': 'default',
                 'mode': mode.value,
                 'sync': [],
-            },
-            'manifest': 'default',
         }
+        config['manifest'] = 'default'
 
         for i, manifest_path in enumerate(manifests):
             manifest_name = f'run{i}'

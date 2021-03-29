@@ -10,6 +10,7 @@ from spinta.backends.components import BackendOrigin
 from spinta.components import Mode
 from spinta.backends.helpers import load_backend
 from spinta.dimensions.prefix.helpers import load_prefixes
+from spinta.exceptions import UnknownKeyMap
 from spinta.nodes import get_node
 from spinta.core.config import RawConfig
 from spinta.components import Context, Config, Store, MetaData, EntryId
@@ -65,7 +66,12 @@ def _configure_manifest(
     manifest.access = rc.get('manifests', name, 'access') or 'protected'
     manifest.access = enum_by_name(manifest, 'access', Access, manifest.access)
     manifest.keymap = rc.get('manifests', name, 'keymap', default=None)
-    manifest.keymap = store.keymaps[manifest.keymap] if manifest.keymap else None
+    if manifest.keymap:
+        if manifest.keymap not in store.keymaps:
+            raise UnknownKeyMap(manifest, keymap=manifest.keymap)
+        manifest.keymap = store.keymaps[manifest.keymap]
+    else:
+        manifest.keymap = None
     manifest.backend = rc.get('manifests', name, 'backend', default=backend)
     manifest.backend = store.backends[manifest.backend] if manifest.backend else None
     manifest.endpoints = {}

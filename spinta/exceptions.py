@@ -453,6 +453,10 @@ class NoKeyMap(UserError):
     template = "Key map is not configured."
 
 
+class UnknownKeyMap(UserError):
+    template = "Keymap {keymap!r} is not found."
+
+
 class BackendNotFound(UserError):
     template = "Can't find backend {name!r}."
 

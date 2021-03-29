@@ -19,7 +19,7 @@ def config(
     fmt: KeyFormat = KeyFormat.cfg,
 ):
     """Show current configuration values"""
-    context = ctx.obj
+    context = configure_context(ctx.obj)
     rc = context.get('rc')
     rc.dump(*name, fmt=fmt)
 
