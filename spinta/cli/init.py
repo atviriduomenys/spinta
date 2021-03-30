@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Optional
 
 from typer import Argument
@@ -7,7 +6,7 @@ from spinta.manifests.tabular.helpers import write_tabular_manifest
 
 
 def init(
-    manifest: Optional[Path] = Argument(None, help="path to a manifest"),
+    manifest: Optional[str] = Argument(None, help="path to a manifest"),
 ):
     """Initialize a new manifest table
 

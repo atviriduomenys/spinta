@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pathlib
 from typing import Dict
 from typing import List
 from typing import TYPE_CHECKING
@@ -39,7 +38,7 @@ class Manifest(Component):
     parent: Component = None
     store: Store = None
     objects: MetaDataContainer = None
-    path: pathlib.Path = None
+    path: str = None
     access: Access = Access.protected
     prefixes: Dict[str, UriPrefix]
 

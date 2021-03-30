@@ -38,7 +38,7 @@ def load(
             'Loading freezed manifest %r into %r from %s.',
             manifest.name,
             into.name,
-            manifest.path.resolve(),
+            manifest.path,
         )
         schemas = read_tabular_manifest(manifest.path)
         load_manifest_nodes(context, into, schemas, source=manifest)
@@ -46,7 +46,7 @@ def load(
         log.info(
             'Loading freezed manifest %r from %s.',
             manifest.name,
-            manifest.path.resolve(),
+            manifest.path,
         )
         schemas = read_tabular_manifest(manifest.path)
         load_manifest_nodes(context, manifest, schemas)

@@ -25,13 +25,13 @@ def load(
                 'Loading freezed manifest %r into %r from %s.',
                 manifest.name,
                 into.name,
-                manifest.path.resolve(),
+                manifest.path,
             )
         else:
             log.info(
                 'Loading freezed manifest %r from %s.',
                 manifest.name,
-                manifest.path.resolve(),
+                manifest.path,
             )
         schemas = read_freezed_manifest_schemas(manifest)
     else:
@@ -40,13 +40,13 @@ def load(
                 'Loading manifest %r into %r from %s.',
                 manifest.name,
                 into.name,
-                manifest.path.resolve(),
+                manifest.path,
             )
         else:
             log.info(
                 'Loading manifest %r from %s.',
                 manifest.name,
-                manifest.path.resolve(),
+                manifest.path,
             )
         schemas = read_manifest_schemas(manifest)
 

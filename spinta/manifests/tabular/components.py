@@ -13,7 +13,7 @@ from spinta.manifests.components import Manifest
 
 
 class TabularManifest(Manifest):
-    pass
+    path: str = None
 
 
 ID: Final = 'id'

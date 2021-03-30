@@ -41,7 +41,7 @@ def copy(
     format_names: bool = Option(False, help=(
         "Reformat model and property names."
     )),
-    output: Optional[pathlib.Path] = Option(None, '-o', '--output', help=(
+    output: Optional[str] = Option(None, '-o', '--output', help=(
         "Output tabular manifest in a specified file"
     )),
     columns: Optional[str] = Option(None, '-c', '--columns', help=(
@@ -53,7 +53,7 @@ def copy(
     rename_duplicates: bool = Option(False, help=(
         "Rename duplicate model names by adding number suffix"
     )),
-    files: List[pathlib.Path] = Argument(None, help=(
+    manifests: List[str] = Argument(None, help=(
         "Source manifest files to copy from"
     )),
 ):
@@ -64,7 +64,7 @@ def copy(
 
     rows = _read_csv_files(
         context,
-        files,
+        manifests,
         external=source,
         access=access,
         format_names=format_names,
@@ -80,7 +80,7 @@ def copy(
 
 def _read_csv_files(
     context: Context,
-    files: List[pathlib.Path],
+    manifests: List[str],
     *,
     external: bool = True,
     access: Access = Access.private,
@@ -89,7 +89,7 @@ def _read_csv_files(
     rename_duplicates: bool = False,
 ) -> Iterator[ManifestRow]:
     rc = context.get('rc')
-    for path in files:
+    for path in manifests:
         with context:
             context.set('rc', rc.fork({
                 'manifest': 'copy',

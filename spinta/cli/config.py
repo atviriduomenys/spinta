@@ -1,11 +1,10 @@
-from pathlib import Path
 from typing import List
 from typing import Optional
 
 from typer import Argument
 from typer import Context as TyperContext
-from typer import echo
 from typer import Option
+from typer import echo
 
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Mode
@@ -26,7 +25,7 @@ def config(
 
 def check(
     ctx: TyperContext,
-    manifests: Optional[List[Path]] = Argument(None, help=(
+    manifests: Optional[List[str]] = Argument(None, help=(
         "Manifest files to load"
     )),
     mode: Mode = Option('internal', help="Mode of backend operation"),

@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 def run(
     ctx: TyperContext,
-    manifests: Optional[List[Path]] = Argument(None, help=(
+    manifests: Optional[List[str]] = Argument(None, help=(
         "Manifest files to load"
     )),
     mode: Mode = Option('internal', help="Mode of backend operation"),

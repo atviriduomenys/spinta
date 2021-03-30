@@ -491,7 +491,7 @@ def _get_from_prefix(config: dict, prefix: tuple):
 
 def configure_rc(
     rc: RawConfig,
-    manifests: List[Path] = None,
+    manifests: List[str] = None,
     *,
     mode: Mode = Mode.internal,
 ) -> RawConfig:

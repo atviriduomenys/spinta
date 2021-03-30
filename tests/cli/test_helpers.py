@@ -32,7 +32,10 @@ def test_configure(tmpdir: Path, rc: RawConfig):
 
     rc = fix_s3_backend_issue(rc)
     context: Context = create_test_context(rc)
-    context = configure_context(context, [tmpdir / 'm1.csv', tmpdir / 'm2.csv'])
+    context = configure_context(context, [
+        str(tmpdir / 'm1.csv'),
+        str(tmpdir / 'm2.csv'),
+    ])
     store = prepare_manifest(context, verbose=False)
     a, b = compare_manifest(store.manifest, '''
     d | r | b | m | property | type   | source

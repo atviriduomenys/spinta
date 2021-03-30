@@ -60,6 +60,7 @@ from spinta.manifests.tabular.components import ResourceRow
 from spinta.manifests.tabular.components import SOURCE
 from spinta.manifests.tabular.components import TITLE
 from spinta.manifests.tabular.constants import DATASET
+from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
 from spinta.utils.schema import NA
@@ -90,7 +91,7 @@ class TabularManifestError(Exception):
 
 
 def _detect_header(
-    path: Optional[pathlib.Path],
+    path: Optional[str],
     line: int,  # Line number
     row: Iterable[str],
 ) -> List[str]:
@@ -134,7 +135,7 @@ def _detect_dimension(
 
 class TabularReader:
     state: State
-    path: pathlib.Path
+    path: str
     line: int
     type: str
     name: str
@@ -145,7 +146,7 @@ class TabularReader:
     def __init__(
         self,
         state: State,
-        path: pathlib.Path,
+        path: str,
         line: int,
     ):
         self.state = state
@@ -792,7 +793,7 @@ class State:
 
 
 def _read_tabular_manifest_rows(
-    path: Optional[pathlib.Path],
+    path: Optional[str],
     rows: Iterator[List[str]],
     *,
     rename_duplicates: bool = True,
@@ -824,16 +825,18 @@ def _read_tabular_manifest_rows(
 
 
 def read_tabular_manifest(
-    path: pathlib.Path,
+    path: str,
     *,
     rename_duplicates: bool = False,
 ) -> Iterator[ParsedRow]:
-    if path.suffix == '.csv':
+    if path.startswith('https://docs.google.com/spreadsheets/'):
+        rows = read_gsheets_manifest(path)
+    elif path.endswith('.csv'):
         rows = _read_csv_manifest(path)
-    elif path.suffix == '.xlsx':
+    elif path.endswith('.xlsx'):
         rows = _read_xlsx_manifest(path)
     else:
-        raise ValueError(f"Unknown tabular manifest format {path.suffix!r}.")
+        raise ValueError(f"Unknown tabular manifest format {path!r}.")
 
     yield from _read_tabular_manifest_rows(
         path,
@@ -842,12 +845,12 @@ def read_tabular_manifest(
     )
 
 
-def _read_csv_manifest(path: pathlib.Path) -> Iterator[List[str]]:
-    with path.open() as f:
+def _read_csv_manifest(path: str) -> Iterator[List[str]]:
+    with pathlib.Path(path).open() as f:
         yield from csv.reader(f)
 
 
-def _read_xlsx_manifest(path: pathlib.Path) -> Iterator[List[str]]:
+def _read_xlsx_manifest(path: str) -> Iterator[List[str]]:
     wb = openpyxl.load_workbook(path)
 
     yield DATASET
@@ -1366,7 +1369,7 @@ def normalizes_columns(cols: List[str]) -> List[ManifestColumn]:
 
 
 def write_tabular_manifest(
-    path: pathlib.Path,
+    path: str,
     rows: Union[
         Manifest,
         Iterable[ManifestRow],
@@ -1383,12 +1386,12 @@ def write_tabular_manifest(
 
     rows = ({c: row[c] for c in cols} for row in rows)
 
-    if path.suffix == '.csv':
-        _write_csv(path, rows, cols)
-    elif path.suffix == '.xlsx':
-        _write_xlsx(path, rows, cols)
+    if path.endswith('.csv'):
+        _write_csv(pathlib.Path(path), rows, cols)
+    elif path.endswith('.xlsx'):
+        _write_xlsx(pathlib.Path(path), rows, cols)
     else:
-        raise ValueError(f"Unknown tabular manifest format {path.suffix!r}.")
+        raise ValueError(f"Unknown tabular manifest format {path!r}.")
 
 
 def _write_csv(

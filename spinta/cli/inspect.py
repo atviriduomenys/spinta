@@ -1,6 +1,4 @@
-import pathlib
 from typing import Optional
-from typing import TextIO
 from typing import Tuple
 
 from typer import Argument
@@ -14,8 +12,6 @@ from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.manifests.components import Manifest
-from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.tabular.helpers import load_ascii_tabular_manifest
 from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
@@ -23,14 +19,14 @@ from spinta.manifests.tabular.helpers import write_tabular_manifest
 
 def inspect(
     ctx: TyperContext,
-    manifest: Optional[pathlib.Path] = Argument(None, help="Path to manifest."),
+    manifest: Optional[str] = Argument(None, help="Path to manifest."),
     resource: Optional[Tuple[str, str]] = Option((None, None), '-r', '--resource', help=(
         "Resource type and source URI (-r sql sqlite:////tmp/db.sqlite)"
     )),
     formula: str = Option('', '-f', '--formula', help=(
         "Formula if needed, to prepare resource for reading"
     )),
-    output: Optional[pathlib.Path] = Option(None, '-o', '--output', help=(
+    output: Optional[str] = Option(None, '-o', '--output', help=(
         "Output tabular manifest in a specified file"
     )),
     auth: Optional[str] = Option(None, '-a', '--auth', help=(
@@ -108,6 +104,6 @@ def inspect(
         commands.inspect(context, manifest)
 
     if output:
-        write_tabular_manifest(pathlib.Path(output), manifest)
+        write_tabular_manifest(output, manifest)
     else:
         echo(render_tabular_manifest(manifest))

@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Optional
 
 from typer import Argument
@@ -13,7 +12,7 @@ from spinta.manifests.tabular.helpers import render_tabular_manifest
 
 def show(
     ctx: TyperContext,
-    manifest: Optional[Path] = Argument(None),
+    manifest: Optional[str] = Argument(None),
 ):
     """Show manifest as ascii table"""
 

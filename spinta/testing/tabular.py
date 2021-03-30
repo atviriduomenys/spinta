@@ -28,7 +28,7 @@ def create_tabular_manifest(
     cols: List[ManifestColumn] = next(rows, [])
     if cols:
         rows = (torow(DATASET, dict(zip(cols, row))) for row in rows)
-        write_tabular_manifest(path, rows)
+        write_tabular_manifest(str(path), rows)
 
 
 @overload
@@ -60,7 +60,7 @@ def load_tabular_manifest(
     if isinstance(manifest, str) and '|' in manifest:
         path = ''
     else:
-        path = pathlib.Path(manifest)
+        path = str(manifest)
         manifest = None
 
     rc = rc.fork({
@@ -68,7 +68,7 @@ def load_tabular_manifest(
         'manifests': {
             'default': {
                 'type': 'tabular',
-                'path': str(path),
+                'path': path,
                 'keymap': 'default',
             },
         },
