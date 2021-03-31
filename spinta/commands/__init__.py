@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+from typing import Any
+from typing import Dict
 from typing import TYPE_CHECKING
+from typing import Union
 from typing import overload
 
 from spinta.dispatcher import command
 
 if TYPE_CHECKING:
     from spinta.components import Store
+    from spinta.components import Model
+    from spinta.components import Property
+    from spinta.types.datatype import DataType
+    from spinta.components import Action
     from spinta.backends import Backend
     from spinta.components import Context
     from spinta.manifests.components import Manifest
@@ -229,15 +236,69 @@ def prepare():
 
         prepare(Context, UrlParams, Version, Request) -> UrlParams
 
-    - Convert Python-native values backend-native values:
-
-        prepare(Context, Model, dict) -> dict
-        prepare(Context, Property, Backend, object) -> object
-        prepare(Context, Type, Backend, object) -> object
-
     - Prepare external dataset for data import:
 
         prepare(Context, Source, Node)
+
+    """
+
+
+@overload
+def prepare_for_write(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    patch_: Dict[str, Any],
+    action: Action,
+):
+    """Convert Python-native Model patch data to backend-native patch"""
+
+
+@overload
+def prepare_for_write(
+    context: Context,
+    prop: Property,
+    backend: Backend,
+    patch_: Any,
+):
+    """Convert Python-native Property patch data to backend-native patch
+
+    This is called, when writing data directly into property, for example:
+
+        PATCH /model/:one/UUID/prop
+
+    """
+
+
+@overload
+def prepare_for_write(
+    context: Context,
+    dtype: DataType,
+    backend: Backend,
+    value: Any,
+):
+    """Convert a Python-native value to a backend-native value for a specific
+    data type
+
+    This is usually called from another prepare_for_write command, from Model or
+    a Property. But also can be called recursively, for nested data types, liek
+    Object or Array.
+    """
+
+
+@command()
+def prepare_for_write(
+    context: Context,
+    dtype: Union[Model, Property, DataType],
+    backend: Backend,
+    patch_: Any,
+    **kwargs,
+):
+    """Convert Python-native values to backend-native values
+
+        prepare(Context, Model, Backend, dict) -> dict
+        prepare(Context, Property, Backend, object) -> object
+        prepare(Context, Type, Backend, object) -> object
 
     """
 

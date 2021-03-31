@@ -27,6 +27,11 @@ Bug fixes:
 - Do a proper `content-type` header parsing to recognize if request is a
   streaming request.
 
+- Fix bug with incorrect type conversion before calculating patch, which
+  resulted in incorrect patch, for example with date types (`#85`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/94
+
 
 0.1.12 (2021-03-04)
 ===================

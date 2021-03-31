@@ -674,8 +674,8 @@ class Version:
 
 
 class DataItem:
-    model: Optional[Node] = None        # Data model.
-    prop: Optional[Node] = None         # Action on a property, not a whole model.
+    model: Optional[Model] = None       # Data model.
+    prop: Optional[Property] = None     # Action on a property, not a whole model.
     propref: bool = False               # Action on property reference or instance.
     backend: Optional[Backend] = None   # Model or property backend depending on prop and propref.
     action: Optional[Action] = None     # Action.
@@ -687,8 +687,8 @@ class DataItem:
 
     def __init__(
         self,
-        model: Optional[Node] = None,
-        prop: Optional[Node] = None,
+        model: Optional[Model] = None,
+        prop: Optional[Property] = None,
         propref: bool = False,
         backend: Optional[Backend] = None,
         action: Optional[Action] = None,
@@ -766,7 +766,7 @@ class DataSubItem:
             for saved_ in self.saved:
                 yield DataSubItem(self, given_, saved_, patch_)
 
-        if (patch or given) and self.patch:
+        if (patch or given) and self.given and self.patch:
             saved_ = NA
             for given_, patch_ in zip(self.given, self.patch):
                 yield DataSubItem(self, given_, saved_, patch_)

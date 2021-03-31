@@ -34,6 +34,7 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
+    from spinta.backends import Backend
     from spinta.datasets.components import Attribute
 
 
@@ -292,27 +293,6 @@ def _prepare_prop_data(name: str, data: dict):
 def check(context: Context, model: Model):
     if '_id' not in model.properties:
         raise exceptions.MissingRequiredProperty(model, prop='_id')
-
-
-@prepare.register(Context, Model, dict)
-def prepare(context: Context, model: Model, data: dict, *, action: Action) -> dict:
-    # prepares model's data for storing in Mongo
-    backend = model.backend
-    result = {}
-    for name, prop in model.properties.items():
-        value = data.get(name, NA)
-        value = prepare(context, prop.dtype, backend, value)
-        if action == Action.UPDATE and not name.startswith('_'):
-            result[name] = None if value is NA else value
-        elif value is not NA:
-            result[name] = value
-    return result
-
-
-@prepare.register(Context, Property, object)
-def prepare(context: Context, prop: Property, value: object, *, action: Action) -> object:
-    value[prop.name] = prepare(context, prop.dtype, prop.dtype.backend, value[prop.name])
-    return value
 
 
 @authorize.register(Context, Action, Model)

@@ -16,8 +16,13 @@ def prepare(context: Context, backend: FileSystem, dtype: File):
     pass
 
 
-@commands.prepare.register(Context, File, Backend, Attachment)
-def prepare(context: Context, dtype: File, backend: Backend, value: Attachment):
+@commands.prepare_for_write.register(Context, File, Backend, Attachment)
+def prepare_for_write(
+    context: Context,
+    dtype: File,
+    backend: Backend,
+    value: Attachment,
+):
     return {
         '_id': value.filename,
         '_content_type': value.content_type,

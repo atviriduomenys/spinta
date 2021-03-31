@@ -6,7 +6,7 @@ from spinta.types.datatype import File
 from spinta.utils.schema import NotAvailable, NA
 
 
-@commands.build_data_patch_for_write.register()
+@commands.build_data_patch_for_write.register(Context, File)
 def build_data_patch_for_write(
     context: Context,
     dtype: File,

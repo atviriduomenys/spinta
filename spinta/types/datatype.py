@@ -326,16 +326,15 @@ def load(
     context: Context,
     dtype: Array,
     value: object,
-) -> Union[None, NotAvailable, list]:
+) -> Union[None, list]:
     # loads value into native python list, including all list items
-    array_item_type = dtype.items.dtype
-    loaded_array = dtype.load(value)
+    value = dtype.load(value)
     if value is None or value is NA:
         return value
-    new_loaded_array = []
-    for item in loaded_array:
-        new_loaded_array.append(load(context, array_item_type, item))
-    return new_loaded_array
+    return [
+        commands.load(context, dtype.items.dtype, item)
+        for item in value
+    ]
 
 
 @load.register(Context, Object, object)

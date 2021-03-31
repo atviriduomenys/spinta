@@ -1089,3 +1089,34 @@ def test_upsert_where_ast(model, app):
     })
     data = resp.json()
     assert resp.status_code == 201, data
+
+
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_upsert_where_ast(model, app):
+    app.authmodel(model, ['upsert', 'changes'])
+
+    payload = {
+        '_op': 'upsert',
+        '_where': {
+            'name': 'eq',
+            'args': [
+                {'name': 'bind', 'args': ['status']},
+                'ok',
+            ],
+        },
+        'status': 'ok',
+        'valid_from_date': '2021-03-31',
+    }
+
+    resp = app.post('/' + model, json=payload)
+    data = resp.json()
+    assert resp.status_code == 201, data
+    rev = data['_revision']
+
+    resp = app.post('/' + model, json=payload)
+    data = resp.json()
+    assert resp.status_code == 200, data
+    assert data['_revision'] == rev

@@ -1,3 +1,4 @@
+from typing import Any
 from typing import AsyncIterator, Union, List, Dict, Optional, Iterable, Generator
 
 import base64
@@ -5,7 +6,6 @@ import datetime
 import decimal
 import pathlib
 import uuid
-import typing
 
 from spinta import spyna
 from spinta import commands
@@ -23,30 +23,85 @@ from spinta.backends.components import Backend
 SelectTree = Optional[Dict[str, dict]]
 
 
-@prepare.register(Context, DataType, Backend, object)
-def prepare(context: Context, dtype: DataType, backend: Backend, value: object) -> object:
+@commands.prepare_for_write.register(Context, Model, Backend, dict)
+def prepare_for_write(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    patch: Dict[str, Any],
+    *,
+    action: Action,
+) -> dict:
+    # prepares model's data for storing in a backend
+    backend = model.backend
+    result = {}
+    for name, value in patch.items():
+        if not name.startswith('_'):
+            prop = model.properties[name]
+            value = commands.prepare_for_write(context, prop.dtype, backend, value)
+        result[name] = value
+    return result
+
+
+@commands.prepare_for_write.register(Context, Property, Backend, object)
+def prepare_for_write(
+    context: Context,
+    prop: Property,
+    backend: Backend,
+    value: Any,
+    *,
+    action: Action,
+) -> Any:
+    if prop.name in value:
+        value[prop.name] = commands.prepare_for_write(
+            context,
+            prop.dtype,
+            prop.dtype.backend,
+            value[prop.name],
+        )
+    return value
+
+
+@commands.prepare_for_write.register(Context, DataType, Backend, object)
+def prepare_for_write(
+    context: Context,
+    dtype: DataType,
+    backend: Backend,
+    value: Any,
+) -> Any:
     # prepares value for data store
     # for simple types - loaded native values should work
     # otherwise - override for this command if necessary
     return value
 
 
-@prepare.register(Context, Array, Backend, list)
-def prepare(context: Context, dtype: Array, backend: Backend, value: list) -> list:
+@commands.prepare_for_write.register(Context, Array, Backend, list)
+def prepare_for_write(
+    context: Context,
+    dtype: Array,
+    backend: Backend,
+    value: List[Any],
+) -> List[Any]:
     # prepare array and it's items for datastore
-    return [prepare(context, dtype.items.dtype, backend, v) for v in value]
+    return [
+        commands.prepare_for_write(context, dtype.items.dtype, backend, v)
+        for v in value
+    ]
 
 
-@prepare.register(Context, Object, Backend, dict)
-def prepare(context: Context, dtype: Object, backend: Backend, value: dict) -> dict:
+@commands.prepare_for_write.register(Context, Object, Backend, dict)
+def prepare_for_write(
+    context: Context,
+    dtype: Object,
+    backend: Backend,
+    value: Dict[str, Any],
+) -> Dict[str, Any]:
     # prepare objects and it's properties for datastore
-    new_loaded_obj = {}
-    for k, prop in dtype.properties.items():
-        # only load value keys which are available in schema
-        # FIXME: If k is not in value, then value should be NA. Do not skip a value
-        if k in value:
-            new_loaded_obj[k] = prepare(context, prop.dtype, backend, value[k])
-    return new_loaded_obj
+    prepped = {}
+    for k, v in value.items():
+        prop = dtype.properties[k]
+        prepped[k] = commands.prepare_for_write(context, prop.dtype, backend, v)
+    return prepped
 
 
 @prepare.register(Context, Backend, Property)
@@ -283,7 +338,7 @@ def prepare_data_for_response(
     backend: Backend,
     value: dict,
     *,
-    select: typing.List[str] = None,
+    select: List[str] = None,
 ) -> dict:
     select = _apply_always_show_id(context, action, select)
     if select is None and action in (Action.GETALL, Action.SEARCH):
@@ -318,7 +373,7 @@ def prepare_data_for_response(
     backend: Backend,
     value: dict,
     *,
-    select: typing.List[str] = None,
+    select: List[str] = None,
 ) -> dict:
     select = _flat_select_to_nested(select)
     return {

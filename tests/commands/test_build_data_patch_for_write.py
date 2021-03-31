@@ -1,3 +1,5 @@
+import datetime
+
 from spinta import commands
 from spinta.commands import build_data_patch_for_write as patch
 from spinta.components import Model
@@ -48,7 +50,7 @@ def test_build_data_patch_for_write(context):
         },
     })
     given = {'obj': {'foo': '42'}}
-    saved = {}
+    saved = []
     assert patch(context, model, given=given, saved=saved) == {
         'obj': {
             'foo': '42',
@@ -56,7 +58,6 @@ def test_build_data_patch_for_write(context):
     }
     assert patch(context, model, given=given, saved=saved, update_action=True) == {
         'scalar': None,
-        'list': [],
         'obj': {
             'foo': '42',
             'bar': None,
@@ -264,3 +265,4 @@ def test_file_fill_saved_all_same(context):
     given = {'file': {'_id': 'test.txt', '_content_type': 'text/plain'}}
     saved = {'file': {'_id': 'test.txt', '_content_type': 'text/plain'}}
     assert patch(context, model, given=given, saved=saved, update_action=True) == {}
+

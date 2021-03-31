@@ -1,9 +1,12 @@
 import cgi
+from typing import Any
 from typing import AsyncIterator, Union, Optional
 
 import itertools
 import json
 import pathlib
+from typing import Dict
+from typing import Iterator
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
@@ -134,6 +137,7 @@ async def push_stream(
         dstream = read_existing_data(context, dstream)
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
+        dstream = prepare_data_for_write(context, dstream)
         dstream = log_write(context, dstream)
         if prop:
             dstream = cmds[action](
@@ -195,7 +199,8 @@ def _stream_group_key(data: DataItem):
 
 def is_streaming_request(request: Request):
     content_type = request.headers.get('content-type')
-    content_type = cgi.parse_header(content_type)[0]
+    if content_type:
+        content_type = cgi.parse_header(content_type)[0]
     return content_type in STREAMING_CONTENT_TYPES
 
 
@@ -433,17 +438,9 @@ async def prepare_data(
             data.payload = commands.rename_metadata(context, data.payload)
             if data.prop:
                 data.given = commands.load(context, data.prop, data.payload)
-                # XXX: I think prepare call must go just before saving data to
-                #      database, Purpose of this command is to convert
-                #      Python-native types to backend-native types.
-                data.given = commands.prepare(context, data.prop, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.prop, data.model.backend)
             else:
                 data.given = commands.load(context, data.model, data.payload)
-                # XXX: I think prepare call must go just before saving data to
-                #      database, Purpose of this command is to convert
-                #      Python-native types to backend-native types.
-                data.given = commands.prepare(context, data.model, data.given, action=data.action)
                 commands.simple_data_check(context, data, data.model, data.model.backend)
         except (exceptions.UserError, InsufficientScopeError) as error:
             report_error(error, stop_on_error)
@@ -485,6 +482,8 @@ async def read_existing_data(
         except exceptions.ItemDoesNotExist:
             rows = []
 
+        rows = _cast_row_to_python(context, data, rows)
+
         # When updating by id only, there must be exactly one existing record.
         if data.action == Action.UPSERT or _has_id_in_where(data.given):
             rows = list(itertools.islice(rows, 2))
@@ -506,6 +505,28 @@ async def read_existing_data(
             data.saved = row
             data.saved['_type'] = data.model.model_type()
             yield data
+
+
+def _cast_row_to_python(
+    context: Context,
+    data: DataItem,
+    rows: Dict[str, Any],
+) -> Iterator[Dict[str, Any]]:
+    for row in  rows:
+        if data.prop:
+            yield commands.cast_backend_to_python(
+                context,
+                data.prop.dtype,
+                data.backend,
+                row,
+            )
+        else:
+            yield commands.cast_backend_to_python(
+                context,
+                data.model,
+                data.model.backend,
+                row,
+            )
 
 
 def _has_id_in_where(given: dict):
@@ -591,7 +612,7 @@ async def prepare_patch(
         yield data
 
 
-@commands.build_data_patch_for_write.register()
+@commands.build_data_patch_for_write.register(Context, Model)
 def build_data_patch_for_write(
     context: Context,
     model: Model,
@@ -627,8 +648,8 @@ def build_data_patch_for_write(
     return patch
 
 
-@commands.build_data_patch_for_write.register()  # noqa
-def build_data_patch_for_write(  # noqa
+@commands.build_data_patch_for_write.register(Context, Property)
+def build_data_patch_for_write(
     context: Context,
     prop: Property,
     *,
@@ -651,8 +672,8 @@ def build_data_patch_for_write(  # noqa
         return {}
 
 
-@commands.build_data_patch_for_write.register()  # noqa
-def build_data_patch_for_write(  # noqa
+@commands.build_data_patch_for_write.register(Context, Object)
+def build_data_patch_for_write(
     context: Context,
     dtype: Object,
     *,
@@ -687,24 +708,29 @@ def build_data_patch_for_write(  # noqa
     return patch or NA
 
 
-@commands.build_data_patch_for_write.register()  # noqa
-def build_data_patch_for_write(  # noqa
+@commands.build_data_patch_for_write.register(Context, Array)
+def build_data_patch_for_write(
     context: Context,
     dtype: Array,
     *,
-    given: Optional[object],
-    saved: Optional[object],
+    given: Optional[Union[list, NotAvailable]],
+    saved: Optional[Union[list, NotAvailable]],
     insert_action: bool = False,
     update_action: bool = False,
-) -> Union[dict, list, None, NotAvailable]:
+) -> Union[list, None, NotAvailable]:
     if given is NA and not (insert_action or update_action):
         return NA
     if given is NA:
-        return saved or []
+        if insert_action:
+            return []
+        if update_action and saved != []:
+            return []
+        return NA
     if given is None and saved == []:
         return NA
     if given is None:
         return []
+
     patch = [
         build_data_patch_for_write(
             context,
@@ -727,8 +753,8 @@ def build_data_patch_for_write(  # noqa
         return patch
 
 
-@commands.build_data_patch_for_write.register()  # noqa
-def build_data_patch_for_write(  # noqa
+@commands.build_data_patch_for_write.register(Context, DataType)
+def build_data_patch_for_write(
     context: Context,
     dtype: DataType,
     *,
@@ -746,6 +772,30 @@ def build_data_patch_for_write(  # noqa
         return given
     else:
         return NA
+
+
+async def prepare_data_for_write(
+    context: Context,
+    dstream: AsyncIterator[DataItem],
+) -> AsyncIterator[DataItem]:
+    async for data in dstream:
+        if data.prop:
+            data.patch = commands.prepare_for_write(
+                context,
+                data.prop,
+                data.backend,
+                data.patch,
+                action=data.action,
+            )
+        else:
+            data.patch = commands.prepare_for_write(
+                context,
+                data.model,
+                data.model.backend,
+                data.patch,
+                action=data.action,
+            )
+        yield data
 
 
 def prepare_response(

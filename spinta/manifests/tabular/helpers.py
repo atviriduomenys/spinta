@@ -846,7 +846,7 @@ def read_tabular_manifest(
 
 
 def _read_csv_manifest(path: str) -> Iterator[List[str]]:
-    with pathlib.Path(path).open() as f:
+    with pathlib.Path(path).open(encoding='utf-8-sig') as f:
         yield from csv.reader(f)
 
 

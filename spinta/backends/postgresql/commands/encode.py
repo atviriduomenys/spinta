@@ -1,6 +1,7 @@
 from typing import List
 
 import datetime
+from typing import Union
 
 from sqlalchemy.engine.result import RowProxy
 
@@ -30,23 +31,31 @@ def prepare_data_for_response(
     )
 
 
-@commands.prepare.register(Context, DateTime, PostgreSQL, datetime.datetime)
-def prepare(
+@commands.prepare_for_write.register(Context, DateTime, PostgreSQL, datetime.datetime)
+def prepare_for_write(
     context: Context,
     dtype: DateTime,
     backend: PostgreSQL,
     value: datetime.datetime,
-) -> object:
+) -> Union[datetime.datetime, str]:
     # convert datetime object to isoformat string if it belongs
     # to a nested property
     if dtype.prop.parent is dtype.prop.model:
         return value
     else:
+        # XXX: Probably this should not be converted to string, because
+        #      if I recall correctly, now nested objects are stored in separate
+        #      tables.
         return value.isoformat()
 
 
-@commands.prepare.register(Context, Date, PostgreSQL, datetime.date)
-def prepare(context: Context, dtype: Date, backend: PostgreSQL, value: datetime.date) -> object:
+@commands.prepare_for_write.register(Context, Date, PostgreSQL, datetime.date)
+def prepare_for_write(
+    context: Context,
+    dtype: Date,
+    backend: PostgreSQL,
+    value: datetime.date,
+) -> Union[datetime.date, str]:
     # convert date object to isoformat string if it belongs
     # to a nested property
     if dtype.prop.parent is dtype.prop.model:
