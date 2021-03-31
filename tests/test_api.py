@@ -1068,3 +1068,24 @@ def test_location_header(model, app, context):
     id_ = resp.json()['_id']
     server_url = context.get('config').server_url
     assert resp.headers['location'] == f'{server_url}{model}s/{id_}'
+
+
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_upsert_where_ast(model, app):
+    app.authmodel(model, ['upsert', 'changes'])
+    resp = app.post('/' + model, json={
+        '_op': 'upsert',
+        '_where': {
+            'name': 'eq',
+            'args': [
+                {'name': 'bind', 'args': ['status']},
+                'ok',
+            ],
+        },
+        'status': 'ok',
+    })
+    data = resp.json()
+    assert resp.status_code == 201, data

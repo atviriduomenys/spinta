@@ -273,10 +273,13 @@ async def _read_request_body(
 
 def _add_where(params: UrlParams, payload: dict):
     if '_where' in payload:
-        return {
-            **payload,
-            '_where': spyna.parse(payload['_where']),
-        }
+        if isinstance(payload, str):
+            return {
+                **payload,
+                '_where': spyna.parse(payload['_where']),
+            }
+        else:
+            return payload
     elif params.pk:
         return {
             **payload,

@@ -19,6 +19,9 @@ New features:
 
 - Add `spinta pii detect --limit` which is set to 1000 by default.
 
+- Now it is possible to pass AST query form to `_where` for `upsert`,
+  `update` and `patch` operations. This improves performance of data sync.
+
 
 0.1.12 (2021-03-04)
 ===================
