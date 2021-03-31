@@ -1,3 +1,4 @@
+import cgi
 from typing import AsyncIterator, Union, Optional
 
 import itertools
@@ -194,6 +195,7 @@ def _stream_group_key(data: DataItem):
 
 def is_streaming_request(request: Request):
     content_type = request.headers.get('content-type')
+    content_type = cgi.parse_header(content_type)[0]
     return content_type in STREAMING_CONTENT_TYPES
 
 

@@ -22,6 +22,11 @@ New features:
 - Now it is possible to pass AST query form to `_where` for `upsert`,
   `update` and `patch` operations. This improves performance of data sync.
 
+Bug fixes:
+
+- Do a proper `content-type` header parsing to recognize if request is a
+  streaming request.
+
 
 0.1.12 (2021-03-04)
 ===================

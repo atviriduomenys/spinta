@@ -8,11 +8,10 @@ from spinta.types.file.helpers import prepare_patch_data
 from spinta.utils.aiotools import aiter
 from spinta.utils.data import take
 from spinta.renderer import render
-from spinta.components import Context, Action, UrlParams, DataItem
+from spinta.components import Action, UrlParams, DataItem
 from spinta.types.datatype import DataType, File
 from spinta.commands.write import prepare_patch, simple_response, validate_data, log_write
 from spinta.components import Context, DataSubItem
-from spinta.backends.components import Backend
 from spinta.backends.postgresql.files import DatabaseFile
 from spinta.backends.postgresql.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
