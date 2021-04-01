@@ -40,7 +40,7 @@ NAME: /[a-z_][a-z0-9_]*/i
 
 ALL: "*"
 STRING: /"(?!"").*?(?<!\\)(\\\\)*?"|'(?!'').*?(?<!\\)(\\\\)*?'/i
-FLOAT: /\d+(\.\d+)?/
+FLOAT: /(\d+)?\.\d+/
 INT: /0|[1-9]\d*/
 BOOL: "false" | "true"
 NULL: "null"
@@ -52,7 +52,7 @@ WS: /[ \t\f\r\n]+/
 %ignore COMMENT
 '''
 
-_parser = lark.Lark(GRAMMAR)
+_parser = lark.Lark(GRAMMAR, parser='lalr')
 
 
 def parse(rql):
