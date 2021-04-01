@@ -6,6 +6,16 @@ Changes
 0.1.14 (unreleased)
 ===================
 
+Performance improvements:
+
+- Migrated from Earley to LALR(1) parser algorithm and this made formula
+  parser 10 times faster, doing write operations involving `_where`, things
+  should be about 3-5 times faster. Whole test suite after this because 20%
+  faster.
+
+- Moved select list handling out of rows loops and this made lists of objects
+  about 5 times faster.
+
 
 0.1.13 (2021-04-01)
 ===================

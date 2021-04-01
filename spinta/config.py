@@ -116,9 +116,7 @@ CONFIG = {
         'html': 'spinta.commands.formats.html:Html',
     },
     'accesslog': {
-        'type': 'file',
-        'file': 'stdout',
-        'buffer_size': 300,
+        'type': 'python',
     },
     'manifests': {
         'default': {
@@ -172,7 +170,7 @@ CONFIG = {
     # even if not explicitly asked.
     'always_show_id': False,
 
-    'default_auth_client': None,
+    'default_auth_client': 'default',
 
     # Public JWK key for validating auth bearer tokens.
     'token_validation_key': None,

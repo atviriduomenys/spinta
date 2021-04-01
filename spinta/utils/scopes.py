@@ -1,7 +1,13 @@
+import functools
 import hashlib
 import re
 
 scope_re = re.compile(r'[^a-z0-9]+', flags=re.IGNORECASE)
+
+
+@functools.lru_cache(maxsize=1000)
+def _sanitize(scope: str):
+    return scope_re.sub('_', scope).lower()
 
 
 def name_to_scope(
@@ -18,5 +24,6 @@ def name_to_scope(
         surplus = len(scope) - maxlen
         name = name[:len(name) - surplus - 8] + hashlib.sha1(name.encode()).hexdigest()[:8]
         scope = template.format(name=name, **params)
-    scope = scope_re.sub('_', scope).lower()
-    return scope
+    return _sanitize(scope)
+
+

@@ -18,6 +18,8 @@ from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import check_scope
+from spinta.backends import get_select_prop_names
+from spinta.backends import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
@@ -1089,13 +1091,28 @@ def _get_simple_response(context: Context, data: DataItem) -> dict:
     elif data.saved:
         resp['_revision'] = data.saved['_revision']
     if data.action and (data.model or data.prop):
-        resp = commands.prepare_data_for_response(
-            context,
-            data.action,
-            data.prop.dtype if data.prop else data.model,
-            data.backend,
-            resp,
-        )
+        if data.prop:
+            resp = commands.prepare_data_for_response(
+                context,
+                data.action,
+                data.prop.dtype,
+                data.backend,
+                resp,
+            )
+        else:
+            select_tree = get_select_tree(context, data.action, None)
+            prop_names = get_select_prop_names(
+                context, data.model, data.action, select_tree,
+            )
+            resp = commands.prepare_data_for_response(
+                context,
+                data.action,
+                data.model,
+                data.backend,
+                resp,
+                select=select_tree,
+                prop_names=prop_names,
+            )
     if data.error is not None:
         return {
             **resp,

@@ -6,6 +6,7 @@ from typing import Union
 from sqlalchemy.engine.result import RowProxy
 
 from spinta import commands
+from spinta.backends import SelectTree
 from spinta.components import Context, Model, Action
 from spinta.types.datatype import Date, DateTime
 from spinta.backends.postgresql.components import PostgreSQL
@@ -19,7 +20,8 @@ def prepare_data_for_response(
     backend: PostgreSQL,
     value: RowProxy,
     *,
-    select: List[str] = None,
+    select: SelectTree = None,
+    prop_names: List[str] = None,
 ) -> dict:
     return commands.prepare_data_for_response(
         context,
@@ -28,6 +30,7 @@ def prepare_data_for_response(
         backend,
         dict(value),
         select=select,
+        prop_names=prop_names,
     )
 
 

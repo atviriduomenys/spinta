@@ -338,13 +338,9 @@ def prepare_data_for_response(
     backend: Backend,
     value: dict,
     *,
-    select: List[str] = None,
+    select: SelectTree,
+    prop_names: List[str],
 ) -> dict:
-    select = _apply_always_show_id(context, action, select)
-    if select is None and action in (Action.GETALL, Action.SEARCH):
-        # If select is not given, select everything.
-        select = {'*': {}}
-    select = _flat_select_to_nested(select)
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
@@ -355,9 +351,8 @@ def prepare_data_for_response(
             select=sel,
         )
         for prop, val, sel in _select_model_props(
-            context,
-            action,
             model,
+            prop_names,
             value,
             select,
             ['_type', '_id', '_revision'],
@@ -375,7 +370,7 @@ def prepare_data_for_response(
     *,
     select: List[str] = None,
 ) -> dict:
-    select = _flat_select_to_nested(select)
+    select = flat_select_to_nested(select)
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
@@ -409,9 +404,9 @@ def prepare_data_for_response(
     reserved = ['_type', '_revision']
 
     if prop.name in value and value[prop.name]:
-        _check_unknown_props(prop, select, set(reserved) | set(value[prop.name]))
+        check_unknown_props(prop, select, set(reserved) | set(value[prop.name]))
     else:
-        _check_unknown_props(prop, select, set(reserved))
+        check_unknown_props(prop, select, set(reserved))
 
     if prop.name in value and value[prop.name]:
         data = commands.prepare_dtype_for_response(
@@ -446,20 +441,29 @@ def _apply_always_show_id(
     return select
 
 
-def _select_model_props(
+def get_select_tree(
     context: Context,
     action: Action,
-    model: Model,
-    value: dict,
-    select: SelectTree,
-    reserved: List[str],
-):
-    _check_unknown_props(model, select, set(reserved) | set(take(model.properties)))
+    select: Optional[List[dict]],
+) -> SelectTree:
+    select = _apply_always_show_id(context, action, select)
+    if select is None and action in (Action.GETALL, Action.SEARCH):
+        # If select is not given, select everything.
+        select = {'*': {}}
+    return flat_select_to_nested(select)
 
-    if select is None:
-        keys = value.keys()
-    elif '*' in select:
-        keys = [
+
+def get_select_prop_names(
+    context: Context,
+    model: Model,
+    action: Action,
+    select: SelectTree,
+):
+    reserved = {'_type', '_id', '_revision'}
+    check_unknown_props(model, select, reserved | set(take(model.properties)))
+
+    if select is None or '*' in select:
+        return [
             p.name
             for p in model.properties.values() if (
                 not p.name.startswith('_') and
@@ -468,8 +472,16 @@ def _select_model_props(
             )
         ]
     else:
-        keys = [k for k in select if not k.startswith('_')]
+        return [k for k in select if not k.startswith('_')]
 
+
+def _select_model_props(
+    model: Model,
+    prop_names: List[str],
+    value: dict,
+    select: SelectTree,
+    reserved: List[str],
+):
     yield from _select_props(
         model,
         reserved,
@@ -479,7 +491,7 @@ def _select_model_props(
     )
     yield from _select_props(
         model,
-        keys,
+        prop_names,
         model.properties,
         value,
         select,
@@ -494,9 +506,9 @@ def _select_prop_props(
     reserved: List[str],
 ):
     if prop.name in value:
-        _check_unknown_props(prop, select, set(reserved) | set(value[prop.name]))
+        check_unknown_props(prop, select, set(reserved) | set(value[prop.name]))
     else:
-        _check_unknown_props(prop, select, set(reserved))
+        check_unknown_props(prop, select, set(reserved))
     yield from _select_props(
         prop,
         reserved,
@@ -566,7 +578,7 @@ def _select_props(
 
 # FIXME: We should check select list at the very beginning of
 #        request, not when returning results.
-def _check_unknown_props(
+def check_unknown_props(
     node: Union[Model, Property, DataType],
     select: Optional[Iterable[str]],
     known: Iterable[str],
@@ -579,11 +591,11 @@ def _check_unknown_props(
         )
 
 
-def _flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
+def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
     """
-    >>> _flat_select_to_nested(None)
+    >>> flat_select_to_nested(None)
 
-    >>> _flat_select_to_nested(['foo.bar'])
+    >>> flat_select_to_nested(['foo.bar'])
     {'foo': {'bar': {}}}
 
     """
@@ -811,7 +823,7 @@ def prepare_dtype_for_response(
     *,
     select: dict = None,
 ):
-    _check_unknown_props(dtype, select, set(take(dtype.properties)))
+    check_unknown_props(dtype, select, set(take(dtype.properties)))
 
     if select is None:
         keys = value.keys()

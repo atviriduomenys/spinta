@@ -3,13 +3,13 @@ import pathlib
 
 from ruamel.yaml import YAML
 
+from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.utils.config import asbool
 from spinta.utils.imports import importstr
 from spinta.commands import load, check
 from spinta.components import Context, Config
 from spinta import components
 from spinta.core.ufuncs import ufunc
-from spinta.utils.schema import NA
 
 yaml = YAML(typ='safe')
 
@@ -55,7 +55,10 @@ def load(context: Context, config: Config) -> Config:
 
     # Load everything else.
     config.debug = rc.get('debug', default=False)
-    config.config_path = rc.get('config_path', cast=pathlib.Path, exists=True)
+    config.config_path = pathlib.Path(
+        rc.get('config_path') or
+        DEFAULT_CONFIG_PATH
+    )
     config.server_url = rc.get('server_url')
     config.scope_prefix = rc.get('scope_prefix')
     config.scope_formatter = rc.get('scope_formatter', cast=importstr)

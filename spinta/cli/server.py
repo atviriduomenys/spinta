@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 from typing import List
 from typing import Optional
 
@@ -26,13 +25,16 @@ def run(
     mode: Mode = Option('internal', help="Mode of backend operation"),
     host: str = Option('127.0.0.1', help="Run server on given host"),
     port: int = Option(8000, help="Run server on given port"),
+    backend: Optional[str] = Option(None, '-b', '--backend', help=(
+        "Backend connection string"
+    )),
 ):
     """Run development server"""
     import uvicorn
     import spinta.api
 
-    context = configure_context(ctx.obj, manifests, mode=mode)
-    prepare_manifest(context)
+    context = configure_context(ctx.obj, manifests, mode=mode, backend=backend)
+    prepare_manifest(context, ensure_config_dir=True)
     app = spinta.api.init(context)
 
     echo("Spinta has started!")

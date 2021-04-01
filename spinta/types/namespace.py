@@ -15,6 +15,8 @@ from toposort import toposort
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
+from spinta.backends import get_select_prop_names
+from spinta.backends import get_select_tree
 from spinta.backends.components import BackendFeatures
 from spinta.compat import urlparams_to_expr
 from spinta.components import Action
@@ -137,8 +139,17 @@ async def getall(
             recursive=True,
         )
     elif params.all:
+        prepare_data_for_response_kwargs = {}
         for model in traverse_ns_models(context, ns, action, internal=True):
             commands.authorize(context, action, model)
+            select_tree = get_select_tree(context, action, params.select)
+            prop_names = get_select_prop_names(
+                context, model, action, select_tree,
+            )
+            prepare_data_for_response_kwargs[model.model_type()] = {
+                'select': select_tree,
+                'prop_names': prop_names,
+            }
         expr = urlparams_to_expr(params)
         rows = getall(context, ns, backend, action=action, query=expr)
         rows = (
@@ -148,7 +159,7 @@ async def getall(
                 ns.manifest.models[row['_type']],
                 ns.manifest.models[row['_type']].backend,
                 row,
-                select=params.select,
+                **prepare_data_for_response_kwargs[row['_type']],
             )
             for row in rows
         )

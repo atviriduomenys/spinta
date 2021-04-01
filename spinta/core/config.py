@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tempfile
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import collections
@@ -489,16 +490,27 @@ def _get_from_prefix(config: dict, prefix: tuple):
             yield k[len(prefix):], v
 
 
+DEFAULT_CONFIG_PATH = pathlib.Path(tempfile.gettempdir()) / 'spinta/config'
+
+
 def configure_rc(
     rc: RawConfig,
     manifests: List[str] = None,
     *,
     mode: Mode = Mode.internal,
+    backend: str = None,
 ) -> RawConfig:
 
     config = {}
 
-    if not rc.get('backends', 'default'):
+    if backend:
+        # TODO: Parse backend string to detect type. Currently type is hardcoded
+        #       to 'postgresql'.
+        config['backends.default'] = {
+            'type': 'postgresql',
+            'dsn': backend,
+        }
+    elif not rc.get('backends', 'default'):
         config['backends.default'] = {
             'type': 'memory',
         }

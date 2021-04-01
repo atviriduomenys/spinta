@@ -1,5 +1,7 @@
 from starlette.requests import Request
 
+from spinta.backends import get_select_prop_names
+from spinta.backends import get_select_tree
 from spinta.compat import urlparams_to_expr
 from spinta import commands
 from spinta.renderer import render
@@ -25,6 +27,8 @@ async def getall(
     hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
     rows = log_getall(context, rows, select=params.select, hidden=hidden_props)
     if not params.count:
+        select_tree = get_select_tree(context, action, params.select)
+        prop_names = get_select_prop_names(context, model, action, select_tree)
         rows = (
             commands.prepare_data_for_response(
                 context,
@@ -32,7 +36,8 @@ async def getall(
                 model,
                 backend,
                 row,
-                select=params.select,
+                select=select_tree,
+                prop_names=prop_names,
             )
             for row in rows
         )
