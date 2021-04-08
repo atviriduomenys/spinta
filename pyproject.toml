@@ -62,7 +62,7 @@ sqlparse = "*"
 alembic = { version = "*", optional = false }
 asyncpg = { version = "*", optional = false }
 psycopg2-binary = { version = "*", optional = false }
-sqlalchemy = "^1.3.22"
+sqlalchemy = "~1.3"
 
 # Mongo backend dependendencies
 pymongo = { version = "*", optional = false }
