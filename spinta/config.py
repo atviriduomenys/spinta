@@ -149,11 +149,19 @@ CONFIG = {
     # How much time to wait in seconds for the backends to go up.
     'wait': 30,
 
-    # Configuration path, where clients, keys and other things are stored.
-    'config_path': '',
+    # Configuration path, where clients, keys and other configuration files are
+    # stored. Defaults to ~/.config/spinta.
+    'config_path': None,
+
+    # Data path, where all data files are stored, like push state, keymap, etc.
+    # Defaults to ~/.local/share/spinta.
+    'data_path': None,
 
     # Path to documentation folder. If set will serve the folder at `/docs`.
     'docs_path': None,
+
+    # Credentials file for remote Spinta instances.
+    'credentials_file': None,
 
     'server_url': 'https://example.com/',
 

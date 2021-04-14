@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Set
 from typing import Type
-from typing import Union, Callable, List, Tuple
+from typing import Union, List, Tuple
 
 import datetime
 import enum

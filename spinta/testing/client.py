@@ -8,7 +8,6 @@ import dataclasses
 import datetime
 import pathlib
 import re
-import urllib.parse
 
 import pprintpp as pprint
 import requests
@@ -20,6 +19,7 @@ from responses import POST
 from spinta import auth
 from spinta import commands
 from spinta import api
+from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
 from spinta.testing.context import TestContext
 from spinta.testing.context import create_test_context
@@ -98,12 +98,10 @@ def create_remote_server(
     if credsfile:
         if credsfile is True:
             credsfile = tmpdir / 'credentials.cfg'
-        urlp = urllib.parse.urlparse(url)
-        create_client_creentials_file(
-            credsfile,
+        add_client_credentials(
+            credsfile, url,
             client=client,
             secret=secret,
-            server=urlp.netloc,
             scopes=scopes,
         )
 
@@ -129,24 +127,6 @@ class RemoteServer:
     client: str = None
     secret: str = None
     credsfile: pathlib.Path = None
-
-
-def create_client_creentials_file(
-    path: pathlib.Path,
-    # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
-    client: str = '3388ea36-4a4f-4821-900a-b574c8829d52',
-    secret: str = 'b5DVbOaEY1BGnfbfv82oA0-4XEBgLQuJ',
-    server: str = 'example.com',
-    scopes: list = None,
-):
-    scopes = scopes or []
-    scopes = '\n' + '\n'.join(f'  {s}' for s in scopes)
-    path.write_text(
-        f'[{client}@{server}]\n'
-        f'client_id = {client}\n'
-        f'client_secret = {secret}\n'
-        f'scopes = {scopes}\n'
-    )
 
 
 class TestClient(starlette.testclient.TestClient):

@@ -496,3 +496,29 @@ class KeymapNotSet(UserError):
         "Keymap is required for {this}, but is not configured. Please make "
         "sure a key map is configured."
     )
+
+
+class RemoteClientError(UserError):
+    pass
+
+
+class RemoteClientCredentialsNotFound(RemoteClientError):
+    template = (
+        "Remote client credentials not fount for {url!r}. Make sure, a "
+        "section [{section}] exists in {credentials} file. You can use "
+        "`spinta remote add {url}` command to add it."
+    )
+
+
+class RemoteClientCredentialsNotGiven(RemoteClientError):
+    template = (
+        "Make sure client name and secret is given in {credentials} file, "
+        "[{section}] section."
+    )
+
+
+class RemoteClientScopesNotGiven(RemoteClientError):
+    template = (
+        "Make sure at least one scope is given for [{section}] in "
+        "{credentials} file."
+    )

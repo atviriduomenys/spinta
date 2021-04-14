@@ -6,6 +6,21 @@ Changes
 0.1.14 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- `spinta push` command is now unified with other commands and works like
+  this `spinta push manifest1 manifest2 target`. Target configuration is moved
+  to XDG compatible credentials configuration, state is now saved in a XDG
+  directory too, by default. `-r` was replaced with `--credentials`, but by
+  default credentials are looked in `~/.config/spinta/credentials` so there is
+  no need to specify it. `-c` flag is also no longer exists, you can add
+  client to target like this `client@target`, if client is not specified it
+  will be read from credentials file.
+
+- Now configuration and data files are stored in a XDG Base Directory
+  Specification compatible directories, by default, but can be overridden via
+  main config file, environment variables or command line arguments.
+
 Performance improvements:
 
 - Migrated from Earley to LALR(1) parser algorithm and this made formula

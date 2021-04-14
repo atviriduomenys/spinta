@@ -503,10 +503,10 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, re
 
     # Push data from local to remote.
     cli.invoke(localrc, [
-        'push', remote.url,
-        '-r', remote.credsfile,
-        '-c', remote.client,
+        'push',
         '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
     ])
 
     remote.app.authmodel('datasets/gov/example/country', ['getall'])
@@ -535,10 +535,10 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, re
 
     # Push data from local to remote.
     cli.invoke(localrc, [
-        'push', remote.url,
-        '-r', remote.credsfile,
-        '-c', remote.client,
+        'push',
         '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
     ])
 
     resp = remote.app.get('/datasets/gov/example/country')
@@ -620,10 +620,10 @@ def test_push_chunks(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, ge
 
     # Push data from local to remote.
     cli.invoke(localrc, [
-        'push', remote.url,
-        '-r', remote.credsfile,
-        '-c', remote.client,
+        'push',
         '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
         '--chunk-size=1',
     ])
 
@@ -656,10 +656,10 @@ def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geo
 
     # Push one row, save state and stop.
     cli.invoke(localrc, [
-        'push', remote.url,
-        '-r', remote.credsfile,
-        '-c', remote.client,
+        'push',
         '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
         '--chunk-size', '1k',
         '--stop-time', '1h',
         '--stop-row', '1',
@@ -671,10 +671,10 @@ def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geo
     assert len(listdata(resp)) == 1
 
     cli.invoke(localrc, [
-        'push', remote.url,
-        '-r', remote.credsfile,
-        '-c', remote.client,
+        'push',
         '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
         '--stop-row', '1',
         '--state', tmpdir / 'state.db',
     ])

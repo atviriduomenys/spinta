@@ -1,4 +1,3 @@
-import configparser
 import datetime
 import hashlib
 import itertools
@@ -6,7 +5,6 @@ import json
 import logging
 import pathlib
 import time
-import urllib.parse
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -19,6 +17,7 @@ import msgpack
 import requests
 import sqlalchemy as sa
 import tqdm
+from typer import Argument
 from typer import Context as TyperContext
 from typer import Option
 from typer import Exit
@@ -31,9 +30,12 @@ from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.data import count_rows
 from spinta.cli.helpers.data import iter_model_rows
 from spinta.cli.helpers.store import prepare_manifest
+from spinta.client import get_access_token
 from spinta.components import Action
 from spinta.components import Context
+from spinta.components import Mode
 from spinta.components import Model
+from spinta.core.context import configure_context
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
 from spinta.utils.json import fix_data_for_json
@@ -46,17 +48,21 @@ log = logging.getLogger(__name__)
 
 def push(
     ctx: TyperContext,
-    target: str,
+    manifests: Optional[List[str]] = Argument(None, help=(
+        "Source manifest files to copy from"
+    )),
+    output: Optional[str] = Option(None, '-o', '--output', help=(
+        "Output data to a given location, by default outputs to stdout"
+    )),
+    credentials: str = Option(None, '--credentials', help=(
+        "Credentials file, defaults to {config_path}/credentials.cfg"
+    )),
     dataset: str = Option(None, '-d', '--dataset', help=(
         "Push only specified dataset"
     )),
-    credentials: str = Option(None, '-r', '--credentials', help=(
-        "Credentials file"
+    auth: str = Option(None, '-a', '--auth', help=(
+        "Authorize as a client, defaults to {default_auth_client}"
     )),
-    client: str = Option(None, '-c', '--client', help=(
-        "Client name from credentials file"
-    )),
-    auth: str = Option(None, '-a', '--auth', help="Authorize as a client"),
     limit: int = Option(None, help=(
         "Limit number of rows read from each model"
     )),
@@ -64,10 +70,20 @@ def push(
         "Push data in chunks (1b, 1k, 2m, ...), default: 1m"
     )),
     stop_time: str = Option(None, help=(
-        "Stop pushing after given time (1s, 1m, 2h, ...)"
+        "Stop pushing after given time (1s, 1m, 2h, ...), by default does not "
+        "stops until all data is pushed"
     )),
-    stop_row: int = Option(None, help="Stop after pushing n rows."),
-    state: pathlib.Path = Option(None, help="Save push state into a file."),
+    stop_row: int = Option(None, help=(
+        "Stop after pushing n rows, by default does not stop until all data "
+        "is pushed"
+    )),
+    state: pathlib.Path = Option(None, help=(
+        "Save push state into a file, by default state is saved in "
+        "{data_path}/pushstate.db"
+    )),
+    mode: Mode = Option('external', help=(
+        "Mode of backend operation, default: external"
+    )),
 ):
     """Push data to external data store"""
     if chunk_size:
@@ -76,14 +92,18 @@ def push(
     if stop_time:
         stop_time = toseconds(stop_time)
 
-    context = ctx.obj
+    context = configure_context(ctx.obj, manifests, mode=mode)
     store = prepare_manifest(context)
+    config = context.get('config')
 
     if credentials:
         credentials = pathlib.Path(credentials)
         if not credentials.exists():
             echo(f"Credentials file {credentials} does not exit.")
             raise Exit(code=1)
+    else:
+        credentials = config.credentials_file
+
 
     manifest = store.manifest
     if dataset and dataset not in manifest.datasets:
@@ -136,7 +156,7 @@ def push(
         if stop_row:
             rows = itertools.islice(rows, stop_row)
 
-        rows = _push_to_remote(rows, target, credentials, client, chunk_size)
+        rows = _push_to_remote_spinta(rows, output, credentials, chunk_size)
 
         if state:
             rows = _save_push_state(context, rows, metadata)
@@ -184,15 +204,14 @@ def _prepare_rows_for_push(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
         yield _PushRow(model, payload)
 
 
-def _push_to_remote(
+def _push_to_remote_spinta(
     rows: Iterable[_PushRow],
     target: str,
     credentials: pathlib.Path,
-    client: str,
     chunk_size: int,
-):
+) -> Iterator[_PushRow]:
     echo(f"Get access token from {target}")
-    token = _get_access_token(credentials, client, target)
+    token = get_access_token(target, credentials)
 
     session = requests.Session()
     session.headers['Content-Type'] = 'application/json'
@@ -218,7 +237,12 @@ def _push_to_remote(
         yield from _send_and_receive(session, target, ready, chunk + suffix)
 
 
-def _send_and_receive(session, target, rows: List[_PushRow], data: str):
+def _send_and_receive(
+    session: requests.Session,
+    target: str,
+    rows: List[_PushRow],
+    data: str,
+):
     data = data.encode('utf-8')
 
     try:
@@ -330,25 +354,3 @@ def _save_push_state(
                 )
             )
         yield row
-
-
-def _get_access_token(credsfile: pathlib.Path, client, url) -> str:
-    url = urllib.parse.urlparse(url)
-    section = f'{client}@{url.hostname}'
-    if url.port:
-        section += f':{url.port}'
-    creds = configparser.ConfigParser()
-    creds.read(credsfile)
-    auth = (
-        creds.get(section, 'client_id'),
-        creds.get(section, 'client_secret'),
-    )
-    resp = requests.post(f'{url.scheme}://{url.netloc}/auth/token', auth=auth, data={
-        'grant_type': 'client_credentials',
-        'scope': creds.get(section, 'scopes'),
-    })
-    if resp.status_code >= 400:
-        echo(resp.text)
-        echo("Can't get access token.")
-        raise Exit(code=1)
-    return resp.json()['access_token']

@@ -490,7 +490,13 @@ def _get_from_prefix(config: dict, prefix: tuple):
             yield k[len(prefix):], v
 
 
-DEFAULT_CONFIG_PATH = pathlib.Path(tempfile.gettempdir()) / 'spinta/config'
+def _get_default_dir(name, default):
+    path = os.environ.get(name, default)
+    return pathlib.Path(path).expanduser() / 'spinta'
+
+
+DEFAULT_CONFIG_PATH = _get_default_dir('XDG_CONFIG_HOME', '~/.config')
+DEFAULT_DATA_PATH = _get_default_dir('XDG_DATA_HOME', '~/.local/share')
 
 
 def configure_rc(

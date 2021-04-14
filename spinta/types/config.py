@@ -4,6 +4,7 @@ import pathlib
 from ruamel.yaml import YAML
 
 from spinta.core.config import DEFAULT_CONFIG_PATH
+from spinta.core.config import DEFAULT_DATA_PATH
 from spinta.utils.config import asbool
 from spinta.utils.imports import importstr
 from spinta.commands import load, check
@@ -58,6 +59,14 @@ def load(context: Context, config: Config) -> Config:
     config.config_path = pathlib.Path(
         rc.get('config_path') or
         DEFAULT_CONFIG_PATH
+    )
+    config.data_path = pathlib.Path(
+        rc.get('data_path') or
+        DEFAULT_DATA_PATH,
+    )
+    config.credentials_file = pathlib.Path(
+        rc.get('credentials_file') or
+        DEFAULT_CONFIG_PATH / 'credentials.cfg'
     )
     config.server_url = rc.get('server_url')
     config.scope_prefix = rc.get('scope_prefix')
