@@ -128,7 +128,11 @@ def getall(
     where = env.execute(expr)
     qry = env.build(where)
 
-    for row in connection.execute(qry):
+    # conn = connection.execution_options(stream_results=True)
+    conn = connection
+    result = conn.execute(qry)
+
+    for row in result:
         row = flat_dicts_to_nested(dict(row))
         row = {
             '_type': model.model_type(),

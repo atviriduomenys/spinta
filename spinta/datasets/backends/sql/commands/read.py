@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from sqlalchemy.engine import RowProxy
+from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
 from spinta.components import Context

@@ -60,9 +60,9 @@ sqlparse = "*"
 
 # PostgreSQL backend dependencies
 alembic = { version = "*", optional = false }
-asyncpg = { version = "*", optional = false }
+asyncpg = { version = "^0.22.0", optional = false }
 psycopg2-binary = { version = "*", optional = false }
-sqlalchemy = "~1.3"
+sqlalchemy = "~1.4"
 
 # Mongo backend dependendencies
 pymongo = { version = "*", optional = false }
@@ -122,7 +122,7 @@ pytest-mock = "*"
 responses = "*"
 snoop = "*"
 # https://github.com/kvesteri/sqlalchemy-utils/issues/472
-sqlalchemy-utils = { version = "0.36.7", optional = false }
+sqlalchemy-utils = "~0.37"
 python-dotenv = "*"
 
 # Docs

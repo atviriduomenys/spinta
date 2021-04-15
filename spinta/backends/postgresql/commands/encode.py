@@ -3,7 +3,7 @@ from typing import List
 import datetime
 from typing import Union
 
-from sqlalchemy.engine.result import RowProxy
+from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
 from spinta.backends import SelectTree

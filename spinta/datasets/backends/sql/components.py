@@ -34,7 +34,7 @@ class Sql(ExternalBackend):
             key = name
 
         if key not in self.schema.tables:
-            sa.Table(name, self.schema, autoload=True)
+            sa.Table(name, self.schema, autoload_with=self.engine)
 
         return self.schema.tables[key]
 

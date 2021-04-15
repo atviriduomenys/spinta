@@ -1,3 +1,4 @@
+from typing import Dict
 from typing import Union
 
 import contextlib
@@ -5,6 +6,7 @@ import itertools
 import uuid
 
 import sqlalchemy as sa
+from sqlalchemy.engine import Engine
 
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.types.datatype import Ref
@@ -31,9 +33,9 @@ class PostgreSQL(Backend):
         BackendFeatures.WRITE,
     }
 
-    engine = None
-    schema = None
-    tables = None
+    engine: Engine = None
+    schema: sa.MetaData = None
+    tables: Dict[str, sa.Table] = None
 
     @contextlib.contextmanager
     def transaction(self, write=False):
@@ -131,6 +133,8 @@ class PostgreSQL(Backend):
 
 
 class ReadTransaction:
+    id: str
+    errors: int
 
     def __init__(self, connection):
         self.connection = connection
@@ -138,7 +142,7 @@ class ReadTransaction:
 
 class WriteTransaction(ReadTransaction):
 
-    def __init__(self, connection, id):
+    def __init__(self, connection, id_: str):
         super().__init__(connection)
-        self.id = id
+        self.id = id_
         self.errors = 0
