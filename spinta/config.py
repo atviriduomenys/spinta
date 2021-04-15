@@ -116,7 +116,8 @@ CONFIG = {
         'html': 'spinta.commands.formats.html:Html',
     },
     'accesslog': {
-        'type': 'python',
+        'type': 'file',
+        'file': '/dev/null',
     },
     'manifests': {
         'default': {

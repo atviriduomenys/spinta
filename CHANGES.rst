@@ -31,6 +31,13 @@ Performance improvements:
 - Moved select list handling out of rows loops and this made lists of objects
   about 5 times faster.
 
+- Enabled server-side cursors for getall actions, now memory consumption is
+  always constant even when downloading large amounts of data.
+
+- Fix few bugs in access logging, because of these bugs whole result set was
+  consumed at once and stored in memory. This cause delays, when starting to
+  download data and also used a lot of memory.
+
 
 0.1.13 (2021-04-01)
 ===================

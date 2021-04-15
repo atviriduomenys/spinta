@@ -14,7 +14,7 @@ class AccessLog:
     method: str = None
     reason: str = None
     url: str = None
-    buffer_size: int = None
+    buffer_size: int = 100
 
     def __enter__(self):
         return self

@@ -2,8 +2,6 @@ import csv
 import itertools
 from typing import Dict
 
-from typing import Optional
-
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 

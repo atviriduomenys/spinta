@@ -128,8 +128,7 @@ def getall(
     where = env.execute(expr)
     qry = env.build(where)
 
-    # conn = connection.execution_options(stream_results=True)
-    conn = connection
+    conn = connection.execution_options(stream_results=True)
     result = conn.execute(qry)
 
     for row in result:

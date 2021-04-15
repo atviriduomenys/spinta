@@ -50,6 +50,31 @@ def test_flatten_two_lists():
     ]
 
 
+def test_flatten_memory_usage():
+    i = 0
+    data = [
+        {'a': 1},
+        {'a': 2},
+        {'a': 3},
+        {'a': 4},
+    ]
+
+    def it():
+        nonlocal i
+        for item in data:
+            i += 1
+            yield item
+
+    res = flatten(it())
+    assert i == 0
+    next(res)
+    assert i == 1
+    next(res)
+    assert i == 2
+    next(res)
+    assert i == 3
+
+
 def test_build_select_tree():
     assert build_select_tree(['a']) == {
         'a': set(),
