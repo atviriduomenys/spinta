@@ -291,7 +291,7 @@ def get_cell(
 ):
     COLORS = {
         'change': '#B2E2AD',
-        'null': '#C1C1C1',
+        'null': '#f5f5f5',
     }
 
     link = None
