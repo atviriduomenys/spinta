@@ -1,5 +1,5 @@
 .PHONY: env
-env: .env .venv/pyvenv.cfg var/.done requirements.txt
+env: .env .venv/pyvenv.cfg var/.done requirements.txt docs/requirements.txt
 
 .venv/pyvenv.cfg: pyproject.toml
 	poetry install
@@ -8,6 +8,9 @@ env: .env .venv/pyvenv.cfg var/.done requirements.txt
 var/.done: Makefile
 	mkdir -p var/files
 	touch var/.done
+
+docs/requirements.txt: env/bin/pip-compile docs/requirements.in
+	env/bin/pip-compile --no-emit-index-url docs/requirements.in -o docs/requirements.txt
 
 requirements.txt: poetry.lock
 	poetry export -f requirements.txt -o requirements.txt
