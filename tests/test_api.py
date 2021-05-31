@@ -133,10 +133,10 @@ def test_model(model, context, app):
         'data': [
             [
                 {'color': None, 'link': f"/{model}/%s" % row['_id'], 'value': row['_id'][:8]},
-                {'color': '#C1C1C1', 'link': None, 'value': ''},
+                {'color': '#f5f5f5', 'link': None, 'value': ''},
                 {'color': None, 'link': None, 'value': 'ok'},
-                {'color': '#C1C1C1', 'link': None, 'value': ''},
-                {'color': '#C1C1C1', 'link': None, 'value': ''},
+                {'color': '#f5f5f5', 'link': None, 'value': ''},
+                {'color': '#f5f5f5', 'link': None, 'value': ''},
                 {'color': None, 'link': None, 'value': 42},
             ],
         ],
@@ -187,10 +187,10 @@ def test_model_get(model, app):
             ('_type', {'color': None, 'link': None, 'value': model}),
             ('_id', {'color': None, 'link': f'/{model}/%s' % row['_id'], 'value': row['_id']}),
             ('_revision', {'color': None, 'link': None, 'value': row['_revision']}),
-            ('report_type', {'color': '#C1C1C1', 'link': None, 'value': ''}),
+            ('report_type', {'color': '#f5f5f5', 'link': None, 'value': ''}),
             ('status', {'color': None, 'link': None, 'value': 'ok'}),
-            ('valid_from_date', {'color': '#C1C1C1', 'link': None, 'value': ''}),
-            ('update_time', {'color': '#C1C1C1', 'link': None, 'value': ''}),
+            ('valid_from_date', {'color': '#f5f5f5', 'link': None, 'value': ''}),
+            ('update_time', {'color': '#f5f5f5', 'link': None, 'value': ''}),
             ('count', {'color': None, 'link': None, 'value': 42}),
         ],
         'formats': [
@@ -442,7 +442,7 @@ def test_changes_single_object(app, mocker):
                 {'color': None, 'link': None, 'value': change[0]['_created']},
                 {'color': None, 'link': None, 'value': 'upsert'},
                 {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': '#C1C1C1', 'link': None, 'value': '1'},
+                {'color': '#f5f5f5', 'link': None, 'value': '1'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
             ],
             [
@@ -528,7 +528,7 @@ def test_changes_object_list(app, mocker):
                 {'color': None, 'link': None, 'value': change[0]['_created']},
                 {'color': None, 'link': None, 'value': 'upsert'},
                 {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': '#C1C1C1', 'link': None, 'value': '1'},
+                {'color': '#f5f5f5', 'link': None, 'value': '1'},
                 {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
             ],
             [
