@@ -119,12 +119,12 @@ Empty lines and lines starting with `#` are ignored.
 Additional configuration sources
 --------------------------------
 
-After reading configuraiton values from command line arguments, environemnt
+After reading configuration values from command line arguments, environment
 variables and `.env` file, Spinta reads additional configuration sources set
 via `config` option.
 
 `config` option can contain list of comma separated values. Each value can be a
-path fo `.yml` file or it can be a python dotted path like
+path to `.yml` file or it can be a python dotted path like
 `myapp.config:CONFIG`, pointing to a dict.
 
 For example we can create and additional configuration file:
@@ -145,6 +145,20 @@ And use it to configure Spinta::
   /tmp/custom.yml  backends.foo.type  mongo
 
 
-This way of configuring Spinta is ment for extensions to provide custom default
+This way of configuring Spinta is meant for extensions to provide custom default
 values, overriding defaults coming from `spinta.config:CONFIG`.
 
+
+.. _config_path:
+
+Configuration directory
+=======================
+
+In addition to main configuration, there are other configuration files, for
+example client credentials, token authorization keys, client access and other
+files. All this addition files are stored in `$XDG_CONFIG_HOME/spinta
+kataloge`__ directory, usually it is `~/.config/spinta` directory.
+
+__ https://specifications.freedesktop.org/basedir-spec/latest/ar01s03.html
+
+Path to this directory can be changed via `config_path` configuration option.

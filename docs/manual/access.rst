@@ -10,8 +10,8 @@ order to access data you need to be registered in the `Authorization Server`_.
 Client registration
 ===================
 
-Spinta provides a simple built-in `Authorization Server`_, here a
-new client can be registered like this::
+Spinta provides a simple built-in `Authorization Server`_, A new client can be
+registered like this::
 
     spinta client add -n client_id -s client_secret
 
@@ -19,7 +19,7 @@ Registered clients will be stored in `$SPINTA_CONFIG_PATH/clients/` directory as
 YAML files. You can edit these files to manage client scopes.
 
 If you use an external `Authorization Server`_, then you need to register
-client there using wathever steps required by the authorization server.
+client there using whatever steps required by the authorization server.
 
 
 Default client
@@ -73,7 +73,9 @@ required. Following actions are available:
   changelog.
 
 :wipe:
-  Clients can do a hard delete, objects will be deleted permanently.
+  Clients can do a hard delete, objects will be deleted permanently, without
+  any trace in changelog. This is usually used in test environments and should
+  not be used in production environments.
 
 
 For example you can give read access to all data by giving client
@@ -171,3 +173,75 @@ Here `country` model and `code` property have `access` set to `private`.
 
 .. _OAuth 2.0 Authorization Framework: https://tools.ietf.org/html/rfc6749
 .. _Authorization Server: https://tools.ietf.org/html/rfc6749#section-1.1
+
+
+Client credentials
+==================
+
+From client side, client credentials are stored in a `credentials.cfg` file
+in :ref:`config_path`.
+
+Here is an example `credentials.cfg` file:
+
+.. code-block:: ini
+
+    [client@example.com]
+    server = https://example.com
+    client = client
+    secret = secret
+    scopes =
+      spinta_getall
+      spinta_getone
+      spinta_search
+      spinta_changes
+
+`credentials.cfg` is an `INI file`_. Each section of this file represents a
+client credentials. Section is a name written between `[` and `]` symbols.
+Section name can be in following forms:
+
+.. _INI file: https://en.wikipedia.org/wiki/INI_file
+
+client@host.name:port
+    Client name, hostname and port.
+
+client@host.name
+    Client name and hostname.
+
+host.name
+    Just a hostname.
+
+client:
+    Just a client name.
+
+It is a good idea to use `client@host.name` form, because, when you nee to
+perform an operation on a remote Spinta instance, then client credentials
+will be automatically found by comparing remote hostname and client. For
+example if try to access remote Spinta using following URL::
+
+    https://myclient@data.example.com/
+
+Then client credentials will be looked up at `myclient@data.example.com`
+section.
+
+Client credentials will be used to get access token of that client.
+
+In each section of `credentials.cfg` file you can use following parameters:
+
+server
+    Optional parameter, if not specified, server URL will be constructed from
+    hostname in section. For example if section is `client@example.com`, then
+    `server` will bet set to `https://example.com`.
+
+client
+    Client name.
+
+secret
+    Client secret.
+
+scopes
+    List of scopes to request in access token. Client must have all scopes on
+    the server, if you request more scopes then available for this client, then
+    you will get an error.
+
+
+
