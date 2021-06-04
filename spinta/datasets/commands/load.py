@@ -1,6 +1,7 @@
 from typing import List
 
 from spinta import commands
+from spinta import spyna
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.components import Attribute
 from spinta.datasets.helpers import load_resource_backend
@@ -51,7 +52,12 @@ def load(
 def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_node(context, resource, data, parent=resource.dataset)
     if resource.prepare:
-        resource.prepare = asttoexpr(resource.prepare)
+        formula = resource.prepare
+        if formula and isinstance(formula, str):
+            # If formula is a string, then convert it to parse tree. Formula can
+            # be given as string or parse tree.
+            formula = spyna.parse(formula)
+        resource.prepare = asttoexpr(formula)
     load_access_param(resource, data.get('access'), (resource.dataset,))
     resource.lang = load_lang_data(context, resource.lang)
     resource.backend = load_resource_backend(

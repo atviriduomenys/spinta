@@ -6,6 +6,13 @@ Changes
 0.1.15 (unreleased)
 ===================
 
+- `spinta inspect` now can read an existing manifest file and update it with
+  new schema changes made in data source, preserving all manual edits made in
+  manifest file. This is not yet fully tested, but does work in simple cases.
+  This feature is not yet ready for use in production, because not all manual
+  edits in manifest file can be preserved. For example composite foreign keys
+  are not yet implemented.
+
 
 0.1.14 (2021-04-15)
 ===================

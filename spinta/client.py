@@ -68,7 +68,7 @@ def add_client_credentials(
 
 
 def get_access_token(url: str, credsfile: pathlib.Path) -> str:
-    purl = _parse_url(url)
+    purl: _ParsedUrl = _parse_url(url)
 
     if not credsfile.exists():
         raise RemoteClientCredentialsNotFound(
@@ -102,7 +102,7 @@ def get_access_token(url: str, credsfile: pathlib.Path) -> str:
     if not scopes:
         raise RemoteClientScopesNotGiven(
             url=url,
-            section=section,
+            section=purl.section,
             credentials=credsfile,
         )
 

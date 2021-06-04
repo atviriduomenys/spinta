@@ -1,9 +1,9 @@
-import sys
 from io import TextIOBase
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Iterator
+from typing import Literal
 from typing import Optional
 from typing import Tuple
 
@@ -24,7 +24,7 @@ from spinta.datasets.backends.sqldump.ufuncs.components import \
     PrepareFileResource
 from spinta.datasets.components import Resource
 from spinta.exceptions import UnexpectedFormulaResult
-from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.components import ManifestSchema
 from spinta.utils.naming import to_model_name
 
 
@@ -75,8 +75,13 @@ def _read_sql_ast(
         yield from _read_sql_statement(resource, statement)
 
 
-@commands.inspect.register(Context, Resource, SqlDump)
-def inspect(context: Context, resource: Resource, backend: SqlDump):
+@commands.inspect.register(Context, SqlDump, Resource, type(None))
+def inspect(
+    context: Context,
+    backend: SqlDump,
+    resource: Resource,
+    source: Literal[None],
+) -> Iterator[ManifestSchema]:
 
     if resource.prepare:
         env = PrepareFileResource(context).init(backend.path)
@@ -95,10 +100,4 @@ def inspect(context: Context, resource: Resource, backend: SqlDump):
 
     with f:
         ast = sqlparse.parsestream(f)
-        schemas = _read_sql_ast(resource, ast)
-        load_manifest_nodes(
-            context,
-            resource.dataset.manifest,
-            schemas,
-            link=True,
-        )
+        yield from _read_sql_ast(resource, ast)

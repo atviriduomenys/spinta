@@ -8,11 +8,13 @@ from typer import echo
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.components import Context
-from spinta.core.config import RawConfig
-from spinta.manifests.tabular.helpers import load_ascii_tabular_manifest
+from spinta.components import Mode
+from spinta.core.config import ResourceTuple
+from spinta.core.context import configure_context
+from spinta.manifests.components import Manifest
+from spinta.manifests.helpers import init_manifest
+from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 
@@ -26,6 +28,9 @@ def inspect(
     formula: str = Option('', '-f', '--formula', help=(
         "Formula if needed, to prepare resource for reading"
     )),
+    backend: Optional[str] = Option(None, '-b', '--backend', help=(
+        "Backend connection string"
+    )),
     output: Optional[str] = Option(None, '-o', '--output', help=(
         "Output tabular manifest in a specified file"
     )),
@@ -34,74 +39,36 @@ def inspect(
     )),
 ):
     """Update manifest schema from an external data source"""
-    context: Context = ctx.obj
-    context = context.fork('inspect')
+    resource = ResourceTuple(*resource, formula)
+    if (
+        resource.type is None and
+        resource.external is None and
+        not resource.prepare
+    ):
+        resource = None
 
-    if any(resource):
-        config = {
-            'backends.null': {
-                'type': 'memory',
-            },
-            'keymaps.inspect': {
-                'type': 'sqlalchemy',
-                'dsn': 'sqlite:///keymaps.db',
-            },
-            'manifests.inspect': {
-                'type': 'tabular',
-                'backend': 'null',
-                'keymap': 'inspect',
-                'mode': 'external',
-                'path': None,
-            },
-            'manifest': 'inspect',
-        }
+    context = configure_context(
+        ctx.obj,
+        [manifest] if manifest else None,
+        mode=Mode.external,
+        backend=backend,
+        resources=[resource] if resource else None,
+    )
+    store = prepare_manifest(context)
 
-        # Add given manifest file to configuration
-        rc: RawConfig = context.get('rc')
-        context.set('rc', rc.fork(config))
-        store = load_store(context)
-        resource_type, resource_source = resource
-        load_ascii_tabular_manifest(context, store.manifest, f'''
-        d | r               | type            | source            | prepare
-        dataset             |                 |                   |
-          | {resource_type} | {resource_type} | {resource_source} | {formula}
-        ''', strip=True)
-        commands.check(context, store.manifest)
-        commands.prepare(context, store.manifest)
-
-    elif manifest:
-        config = {
-            'backends': [],
-            'manifest': 'inspect',
-            'manifests.inspect': {
-                'type': 'tabular',
-                'backend': '',
-                'keymap': 'inspect',
-                'mode': 'internal',
-                'path': manifest,
-            },
-            'keymaps.inspect': {
-                'type': 'sqlalchemy',
-                'dsn': 'sqlite:///keymaps.db',
-            },
-        }
-
-        # Add given manifest file to configuration
-        rc: RawConfig = context.get('rc')
-        context.set('rc', rc.fork(config))
-
-        # Load manifest
-        store = prepare_manifest(context)
-
-    else:
-        # Load manifest
-        store = prepare_manifest(context)
-
-    manifest = store.manifest
-
+    manifest = Manifest()
     with context:
         require_auth(context, auth)
-        commands.inspect(context, manifest)
+        init_manifest(context, manifest, 'inspect')
+        manifest.keymap = store.manifest.keymap
+        schemas = commands.inspect(
+            context,
+            store.manifest.backend,
+            store.manifest,
+            None,
+        )
+        load_manifest_nodes(context, manifest, schemas)
+        commands.link(context, manifest)
 
     if output:
         write_tabular_manifest(output, manifest)

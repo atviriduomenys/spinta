@@ -79,6 +79,8 @@ def test_inspect_from_manifest_table(
       | rs                   | sql    |     | {sqlite.dsn} |
     ''')
 
+    rc = fix_s3_backend_issue(rc)
+
     cli.invoke(rc, [
         'inspect', tmpdir / 'manifest.csv',
         '-o', tmpdir / 'result.csv',
@@ -127,20 +129,21 @@ def test_inspect_format(
 
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
-    manifest.datasets['dataset'].resources['sql'].external = 'sqlite'
+    dataset = manifest.datasets['datasets/gov/example/resources']
+    dataset.resources['resource1'].external = 'sqlite'
     assert manifest == '''
-    id | d | r | b | m | property   | type    | ref     | source     | prepare | level | access | uri | title | description
-       | dataset                    |         |         |            |         |       |        |     |       |
-       |   | sql                    | sql     |         | sqlite     |         |       |        |     |       |
-       |                            |         |         |            |         |       |        |     |       |
-       |   |   |   | Country        |         | id      | COUNTRY    |         |       |        |     |       |
-       |   |   |   |   | id         | integer |         | ID         |         |       |        |     |       |
-       |   |   |   |   | code       | string  |         | CODE       |         |       |        |     |       |
-       |   |   |   |   | name       | string  |         | NAME       |         |       |        |     |       |
-       |                            |         |         |            |         |       |        |     |       |
-       |   |   |   | City           |         |         | CITY       |         |       |        |     |       |
-       |   |   |   |   | name       | string  |         | NAME       |         |       |        |     |       |
-       |   |   |   |   | country_id | ref     | Country | COUNTRY_ID |         |       |        |     |       |
+    id | d | r | b | m | property       | type    | ref     | source     | prepare | level | access | uri | title | description
+       | datasets/gov/example/resources |         |         |            |         |       |        |     |       |
+       |   | resource1                  | sql     |         | sqlite     |         |       |        |     |       |
+       |                                |         |         |            |         |       |        |     |       |
+       |   |   |   | Country            |         | id      | COUNTRY    |         |       |        |     |       |
+       |   |   |   |   | id             | integer |         | ID         |         |       |        |     |       |
+       |   |   |   |   | code           | string  |         | CODE       |         |       |        |     |       |
+       |   |   |   |   | name           | string  |         | NAME       |         |       |        |     |       |
+       |                                |         |         |            |         |       |        |     |       |
+       |   |   |   | City               |         |         | CITY       |         |       |        |     |       |
+       |   |   |   |   | name           | string  |         | NAME       |         |       |        |     |       |
+       |   |   |   |   | country_id     | ref     | Country | COUNTRY_ID |         |       |        |     |       |
     '''
 
 
@@ -174,21 +177,22 @@ def test_inspect_cyclic_refs(
 
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
-    manifest.datasets['dataset'].resources['sql'].external = 'sqlite'
+    dataset = manifest.datasets['datasets/gov/example/resources']
+    dataset.resources['resource1'].external = 'sqlite'
     assert manifest == '''
-    id | d | r | b | m | property   | type    | ref     | source     | prepare | level | access | uri | title | description
-       | dataset                    |         |         |            |         |       |        |     |       |
-       |   | sql                    | sql     |         | sqlite     |         |       |        |     |       |
-       |                            |         |         |            |         |       |        |     |       |
-       |   |   |   | City           |         | id      | CITY       |         |       |        |     |       |
-       |   |   |   |   | id         | integer |         | ID         |         |       |        |     |       |
-       |   |   |   |   | name       | string  |         | NAME       |         |       |        |     |       |
-       |   |   |   |   | country_id | ref     | Country | COUNTRY_ID |         |       |        |     |       |
-       |                            |         |         |            |         |       |        |     |       |
-       |   |   |   | Country        |         | id      | COUNTRY    |         |       |        |     |       |
-       |   |   |   |   | id         | integer |         | ID         |         |       |        |     |       |
-       |   |   |   |   | capital    | ref     | City    | CAPITAL    |         |       |        |     |       |
-       |   |   |   |   | name       | string  |         | NAME       |         |       |        |     |       |
+    id | d | r | b | m | property       | type    | ref     | source     | prepare | level | access | uri | title | description
+       | datasets/gov/example/resources |         |         |            |         |       |        |     |       |
+       |   | resource1                  | sql     |         | sqlite     |         |       |        |     |       |
+       |                                |         |         |            |         |       |        |     |       |
+       |   |   |   | City               |         | id      | CITY       |         |       |        |     |       |
+       |   |   |   |   | id             | integer |         | ID         |         |       |        |     |       |
+       |   |   |   |   | name           | string  |         | NAME       |         |       |        |     |       |
+       |   |   |   |   | country_id     | ref     | Country | COUNTRY_ID |         |       |        |     |       |
+       |                                |         |         |            |         |       |        |     |       |
+       |   |   |   | Country            |         | id      | COUNTRY    |         |       |        |     |       |
+       |   |   |   |   | id             | integer |         | ID         |         |       |        |     |       |
+       |   |   |   |   | capital        | ref     | City    | CAPITAL    |         |       |        |     |       |
+       |   |   |   |   | name           | string  |         | NAME       |         |       |        |     |       |
     '''
 
 
@@ -217,16 +221,17 @@ def test_inspect_self_refs(
 
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
-    manifest.datasets['dataset'].resources['sql'].external = 'sqlite'
+    dataset = manifest.datasets['datasets/gov/example/resources']
+    dataset.resources['resource1'].external = 'sqlite'
     assert manifest == '''
-    id | d | r | b | m | property  | type    | ref      | source    | prepare | level | access | uri | title | description
-       | dataset                   |         |          |           |         |       |        |     |       |
-       |   | sql                   | sql     |          | sqlite    |         |       |        |     |       |
-       |                           |         |          |           |         |       |        |     |       |
-       |   |   |   | Category      |         | id       | CATEGORY  |         |       |        |     |       |
-       |   |   |   |   | id        | integer |          | ID        |         |       |        |     |       |
-       |   |   |   |   | name      | string  |          | NAME      |         |       |        |     |       |
-       |   |   |   |   | parent_id | ref     | Category | PARENT_ID |         |       |        |     |       |
+    id | d | r | b | m | property       | type    | ref      | source    | prepare | level | access | uri | title | description
+       | datasets/gov/example/resources |         |          |           |         |       |        |     |       |
+       |   | resource1                  | sql     |          | sqlite    |         |       |        |     |       |
+       |                                |         |          |           |         |       |        |     |       |
+       |   |   |   | Category           |         | id       | CATEGORY  |         |       |        |     |       |
+       |   |   |   |   | id             | integer |          | ID        |         |       |        |     |       |
+       |   |   |   |   | name           | string  |          | NAME      |         |       |        |     |       |
+       |   |   |   |   | parent_id      | ref     | Category | PARENT_ID |         |       |        |     |       |
     '''
 
 
@@ -280,13 +285,13 @@ def test_inspect_oracle_sqldump_stdin(
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
     assert manifest == '''
-    id | d | r | b | m | property | type    | ref | source  | prepare | level | access | uri | title | description
-       | dataset                  |         |     |         |         |       |        |     |       |
-       |   | sqldump              | sqldump |     | -       |         |       |        |     |       |
-       |                          |         |     |         |         |       |        |     |       |
-       |   |   |   | Country      |         |     | COUNTRY |         |       |        |     |       |
-       |                          |         |     |         |         |       |        |     |       |
-       |   |   |   | City         |         |     | CITY    |         |       |        |     |       |
+    id | d | r | b | m | property       | type    | ref | source  | prepare | level | access | uri | title | description
+       | datasets/gov/example/resources |         |     |         |         |       |        |     |       |
+       |   | resource1                  | sqldump |     | -       |         |       |        |     |       |
+       |                                |         |     |         |         |       |        |     |       |
+       |   |   |   | Country            |         |     | COUNTRY |         |       |        |     |       |
+       |                                |         |     |         |         |       |        |     |       |
+       |   |   |   | City               |         |     | CITY    |         |       |        |     |       |
     '''
 
 
@@ -312,13 +317,14 @@ def test_inspect_oracle_sqldump_file_with_formula(
 
     # Check what was detected.
     manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
-    manifest.datasets['dataset'].resources['sqldump'].external = 'dump.sql'
+    dataset = manifest.datasets['datasets/gov/example/resources']
+    dataset.resources['resource1'].external = 'dump.sql'
     assert manifest == '''
-    id | d | r | b | m | property | type    | ref | source   | prepare                            | level | access    | uri | title | description
-       | dataset                  |         |     |          |                                    |       |           |     |       |
-       |   | sqldump              | sqldump |     | dump.sql | file(self, encoding: 'iso-8859-4') |       |           |     |       |
-       |                          |         |     |          |                                    |       |           |     |       |
-       |   |   |   | Country      |         |     | COUNTRY  |                                    |       |           |     |       |
+    id | d | r | b | m | property       | type    | ref | source   | prepare                            | level | access    | uri | title | description
+       | datasets/gov/example/resources |         |     |          |                                    |       |           |     |       |
+       |   | resource1                  | sqldump |     | dump.sql | file(self, encoding: 'iso-8859-4') |       |           |     |       |
+       |                                |         |     |          |                                    |       |           |     |       |
+       |   |   |   | Country            |         |     | COUNTRY  |                                    |       |           |     |       |
     '''
 
 
@@ -356,5 +362,60 @@ def test_inspect_with_schema(
       |   |   | City         |         | id  | CITY   |
       |   |   |   | id       | integer |     | ID     |
       |   |   |   | name     | string  |     | NAME   |
+    ''')
+    assert a == b
+
+
+def test_inspect_update_existing_manifest(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmpdir: Path,
+    sqlite: Sqlite,
+):
+    # Prepare source data.
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+        ],
+        'CITY': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+            sa.Column('COUNTRY', sa.Integer, sa.ForeignKey("COUNTRY.ID")),
+        ],
+    })
+
+    # Configure Spinta.
+    rc = configure(rc, sqlite, tmpdir / 'manifest.csv', f'''
+    d | r | m | property | type    | ref | source | prepare | access  | title
+    datasets/gov/example |         |     |        |         |         | Example
+      | schema           | sql     | sql |        |         |         | 
+                         |         |     |        |         |         |
+      |   | City         |         | id  | CITY   | id > 1  |         | City
+      |   |   | id       | integer |     | ID     |         | private | 
+      |   |   | name     | string  |     | NAME   | strip() | open    | City name
+    ''')
+
+    cli.invoke(rc, [
+        'inspect',
+        tmpdir / 'manifest.csv',
+        '-o', tmpdir / 'result.csv',
+    ])
+
+    # Check what was detected.
+    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    a, b = compare_manifest(manifest, '''
+    d | r | b | m | property | type    | ref     | source  | prepare | access  | title
+    datasets/gov/example     |         |         |         |         |         | Example
+      | schema               | sql     | sql     |         |         |         |
+                             |         |         |         |         |         |
+      |   |   | Country      |         | id      | COUNTRY |         |         |
+      |   |   |   | id       | integer |         | ID      |         |         |
+      |   |   |   | name     | string  |         | NAME    |         |         |
+                             |         |         |         |         |         |
+      |   |   | City         |         | id      | CITY    | id>1    |         | City
+      |   |   |   | id       | integer |         | ID      |         | private |
+      |   |   |   | name     | string  |         | NAME    | strip() | open    | City name
+      |   |   |   | country  | ref     | Country | COUNTRY |         |         |
     ''')
     assert a == b

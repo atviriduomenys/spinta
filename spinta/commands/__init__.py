@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 from typing import Dict
+from typing import Iterator
+from typing import Optional
 from typing import TYPE_CHECKING
 from typing import Union
 from typing import overload
 
 from spinta.dispatcher import command
+from spinta.manifests.components import ManifestSchema
+from spinta.manifests.components import NodeSchema
 
 if TYPE_CHECKING:
     from spinta.components import Store
@@ -621,35 +625,95 @@ def cast_backend_to_python():
 
 
 @overload
-def inspect(context: Context, manifest: Manifest):
-    """Inspect whole manifest."""
+def inspect(
+    context: Context,
+    backend: Backend,
+    manifest: Optional[Manifest],
+    source: Optional[Any],
+) -> Iterator[ManifestSchema]:
+    """Inspect manifest schema."""
 
 
 @overload
-def inspect(context: Context, manifest: Manifest, backend: Backend):
-    """Inspect a backend defined on a manifest."""
+def inspect(
+    context: Context,
+    backend: Backend,
+    dataset: Optional[Dataset],
+    source: Optional[Any],
+) -> Iterator[ManifestSchema]:
+    """Inspect dataset schema."""
 
 
 @overload
-def inspect(context: Context, dataset: Dataset):
-    """Inspect dataset resources."""
+def inspect(
+    context: Context,
+    backend: Backend,
+    resource: Optional[Resource],
+    source: Optional[Any],
+) -> Iterator[ManifestSchema]:
+    """Inspect dataset resource schema."""
 
 
 @overload
-def inspect(context: Context, resource: Resource, backend: Backend):
-    """Inspect dataset resource."""
+def inspect(
+    context: Context,
+    backend: Backend,
+    model: Optional[Model],
+    source: Optional[Any],
+) -> Iterator[ManifestSchema]:
+    """Inspect model schema."""
+
+
+@overload
+def inspect(
+    context: Context,
+    backend: Backend,
+    prop: Optional[Property],
+    source: Optional[Any],
+) -> NodeSchema:
+    """Inspect model property schema."""
+
+
+@overload
+def inspect(
+    context: Context,
+    backend: Backend,
+    dtype: Optional[DataType],
+    source: Optional[Any],
+) -> NodeSchema:
+    """Inspect property data type schema."""
 
 
 @command()
-def inspect(*args):
-    """Inspect backend schemas and update manifest.
+def inspect(*args) -> Iterator[ManifestSchema]:
+    """Inspect schema of a node on a given backend.
 
     Usually manifest is loaded from a manifest backend, but inspect reads
     manifest metadata directly from storage backend. This way, one can generate
     manifest from an existing data source.
 
     Which data sources must be read will be discovered in the manifest. Inspect
-    will read given manifest and the, will rewrite schemas from backend.
+    will read given manifest and then will rewrite schemas from backend.
 
     This is used in inspect command.
+
+    All inspect commands takes backend and an existing node if a node is already
+    in manifest. If node is not in manifest, then None will be given.
+
+    Inspect commands must generate ManifestSchema objects for all inspected
+    schema elements from a given backend, but also must return existing nodes
+    even if they do not exist in the given backend.
+
+    Nodes that exists in manifest, but not in backend, should clear source
+    (external) values, indicating, that node is not present in the backend.
+
+    If node exists on both, backend and manifest, then two nodes must be merged
+    into one.
+
+    When merging, backend should overwrite everything related to backend,
+    leaving everything else as was in manifest.
+
+    Existing manifest nodes must be matched with backend equivalents by
+    comparing source names.
+
     """

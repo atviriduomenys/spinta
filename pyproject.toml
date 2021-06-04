@@ -130,6 +130,7 @@ sphinx = "*"
 sphinx-autobuild = "*"
 sphinxcontrib-httpdomain = "*"
 memory-profiler = "^0.58.0"
+mypy = "^0.812"
 
 
 [build-system]

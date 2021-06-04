@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
 from spinta.backends.components import Backend
+from spinta.components import EntryId
 from spinta.dimensions.lang.components import LangData
 from spinta.components import MetaData
 from spinta.components import Model
@@ -97,6 +98,7 @@ class ResourceGiven:
 
 
 class Resource(External):
+    eid: EntryId = None
     title: str
     description: str
     dataset: Dataset
@@ -159,7 +161,7 @@ class Entity(External):
     # This is set to True if primary key is not given. Anf if primary key is not
     # given, then `pkeys` will be set to all properties.
     unknown_primary_key: bool = False
-    source: str                     # model.source
+    name: str                       # model.source
     prepare: Expr                   # model.prepare
 
     schema = {

@@ -18,7 +18,7 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
             "initialized."
         )
         # Model backend might not be prepared, this is especially true for
-        # tests. So if backend is not yet prepared, just skipt this model.
+        # tests. So if backend is not yet prepared, just skip this model.
         return
 
     for prop in model.properties.values():

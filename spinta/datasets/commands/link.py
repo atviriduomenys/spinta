@@ -21,7 +21,7 @@ def link(context: Context, resource: Resource):
 
 @commands.link.register(Context, Entity)
 def link(context: Context, entity: Entity):
-    datasets = entity.model.manifest.objects['dataset']
+    datasets = entity.model.manifest.datasets
     if entity.dataset:
         if entity.dataset not in datasets:
             raise MissingReferrence(

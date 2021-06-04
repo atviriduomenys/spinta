@@ -27,7 +27,7 @@ def get_node(
     eid: EntryId,
     data: dict = None,
     *,
-    # Component group from confg.components.
+    # Component group from config.components.
     group: str = 'nodes',
     # If None component name will be taken from data['type'].
     ctype: str = None,

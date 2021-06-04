@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from typing import Any
+
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import TYPE_CHECKING
+from typing import Tuple
 from typing import TypedDict
 from typing import Union
 
@@ -100,3 +104,7 @@ class Manifest(Component):
     @property
     def namespaces(self) -> Dict[str, Namespace]:
         return self.objects['ns']
+
+
+NodeSchema = Optional[Dict[str, Any]]
+ManifestSchema = Tuple[Any, NodeSchema]

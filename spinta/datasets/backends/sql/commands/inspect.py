@@ -1,25 +1,30 @@
+from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Iterator
 from typing import List
+from typing import Literal
 from typing import Optional
-from typing import Tuple
+from typing import Set
+from typing import TypedDict
 
 import frictionless
-import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine as SaEngine
 
 from spinta import commands
 from spinta import spyna
-from spinta.backends import Backend
 from spinta.components import Context
+from spinta.components import Model
+from spinta.components import Property
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import Engine
 from spinta.datasets.backends.sql.ufuncs.components import SqlResource
 from spinta.datasets.components import Resource
 from spinta.exceptions import UnexpectedFormulaResult
-from spinta.manifests.components import Manifest
-from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.components import ManifestSchema
+from spinta.manifests.components import NodeSchema
+from spinta.manifests.helpers import entity_to_schema
+from spinta.manifests.helpers import model_to_schema
 from spinta.utils.imports import full_class_name
 from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
@@ -34,40 +39,31 @@ def _ensure_list(value: Optional[Any]):
         return [value]
 
 
-def _read_foreign_keys(
-    model_name: str,
-    resource: Optional[Resource],
-    foreign_keys: List[Dict[str, Any]],
-    properties: Dict[str, dict],
-) -> Dict[str, Any]:
-    for fk in foreign_keys:
-        if len(fk['fields']) == 1:
-            name = to_property_name(fk['fields'][0])
-            prop = properties[name]
-        else:
-            name = to_property_name('_'.join(fk['fields']))
-            prop = properties[name] = {}
-            prop['prepare'] = ', '.join([
-                to_property_name(f) for f in fk['fields']
-            ])
+class _FrictionlessForeignKeyReference(TypedDict):
+    fields: List[str]
+    resource: str
 
-        ref_model_name = to_model_name(fk['reference']['resource'])
-        if ref_model_name:
-            if resource:
-                ref_model_name = f'{resource.dataset.name}/{ref_model_name}'
-        else:
-            # If ref_model_name is empty string, it means, this is a self
-            # refrence.
-            ref_model_name = model_name
 
-        prop['type'] = 'ref'
-        prop['model'] = ref_model_name
-        prop['refprops'] = [
-            to_property_name(f)
-            for f in fk['reference']['fields']
-        ]
+class _FrictionlessForeignKey(TypedDict):
+    fields: List[str]
+    reference: _FrictionlessForeignKeyReference
 
-    return properties
+
+@dataclass()
+class _ForeignKey:
+    resource: frictionless.Resource
+    field: frictionless.Field
+    foreign_key: _FrictionlessForeignKey
+
+
+@dataclass()
+class _CompositeForeignKey:
+    resource: frictionless.Resource
+    foreign_key: _FrictionlessForeignKey
+
+
+_ForeignKeysByProp = Dict[str, _FrictionlessForeignKey]
+_ForeignKeysByField = Dict[str, _FrictionlessForeignKey]
 
 
 def _read_frictionless_field(field: frictionless.Field) -> Dict[str, Any]:
@@ -79,62 +75,277 @@ def _read_frictionless_field(field: frictionless.Field) -> Dict[str, Any]:
     }
 
 
-def _read_frictionless_resource(
-    resource: Optional[Resource],
-    backend: Backend,
-    frictionless_resource: frictionless.Resource,
-) -> Dict[str, Any]:
-    schema = frictionless_resource.schema
-    name = to_model_name(frictionless_resource.name)
-    if resource:
-        name = f'{resource.dataset.name}/{name}'
+@commands.inspect.register(Context, Sql, Model, _ForeignKey)
+def inspect(
+    context: Context,
+    backend: Sql,
+    model: Model,
+    source: _ForeignKey,
+) -> NodeSchema:
+    ref_model_name = to_model_name(source.foreign_key['reference']['resource'])
+    if ref_model_name:
+        if model.external:
+            ref_model_name = f'{model.external.dataset.name}/{ref_model_name}'
+    else:
+        # If ref_model_name is empty string, it means, this is a self reference.
+        ref_model_name = model.name
+
     return {
-        'type': 'model',
-        'name': name,
+        'type': 'ref',
+        'model': ref_model_name,
+        'refprops': [
+            to_property_name(ref_field)
+            for ref_field in source.foreign_key['reference']['fields']
+        ],
         'external': {
-            'dataset': resource.dataset.name if resource else None,
-            'resource': resource.name if resource else None,
-            'name': frictionless_resource.name,
-            'pk': [
-                to_property_name(p)
-                for p in _ensure_list(schema.primary_key)
-            ],
-        },
-        'properties': _read_foreign_keys(
-            name,
-            resource,
-            schema.foreign_keys,
-            {
-                to_property_name(field.name): _read_frictionless_field(field)
-                for field in schema.fields
-            },
-        ),
+            'name': source.field.name,
+        }
     }
 
 
-def _read_frictionless_package(
-    resource: Optional[Resource],
-    backend: Backend,
-    package: frictionless.Package,
-) -> Iterator[Tuple[int, Dict[str, Any]]]:
-    for i, frictionless_resource in enumerate(package.resources):
-        yield i, _read_frictionless_resource(
-            resource,
-            backend,
-            frictionless_resource,
-        )
+@commands.inspect.register(Context, Sql, Model, _CompositeForeignKey)
+def inspect(
+    context: Context,
+    backend: Sql,
+    model: Model,
+    source: _CompositeForeignKey,
+) -> NodeSchema:
+    ref_model_name = to_model_name(source.foreign_key['reference']['resource'])
+    if ref_model_name:
+        if model.external:
+            ref_model_name = f'{model.external.dataset.name}/{ref_model_name}'
+    else:
+        # If ref_model_name is empty string, it means, this is a self reference.
+        ref_model_name = model.name
+
+    return {
+        'type': 'ref',
+        'model': ref_model_name,
+        'refprops': [
+            to_property_name(ref_field)
+            for ref_field in source.foreign_key['reference']['fields']
+        ],
+    }
 
 
-@commands.inspect.register(Context, Manifest, Sql)
-def inspect(context: Context, manifest: Manifest, backend: Sql):
-    engine = sa.create_engine(backend.config['dsn'])
-    package = frictionless.Package.from_sql(engine=engine)
-    schemas = _read_frictionless_package(None, backend, package)
-    load_manifest_nodes(context, manifest, schemas)
+@commands.inspect.register(Context, Sql, Resource, _ForeignKey)
+def inspect(
+    context: Context,
+    backend: Sql,
+    resource: Resource,
+    source: _ForeignKey,
+) -> NodeSchema:
+    ref_model_name = source.foreign_key['reference']['resource']
+    if ref_model_name:
+        ref_model_name = to_model_name(ref_model_name)
+    else:
+        # If ref_model_name is empty string, it means, this is a self reference.
+        ref_model_name = to_model_name(source.resource.name)
+    ref_model_name = f'{resource.dataset.name}/{ref_model_name}'
+    return {
+        'type': 'ref',
+        'model': ref_model_name,
+        'refprops': [
+            to_property_name(ref_field)
+            for ref_field in source.foreign_key['reference']['fields']
+        ],
+        'external': {
+            'name': source.field.name,
+        }
+    }
 
 
-@commands.inspect.register(Context, Resource, Sql)
-def inspect(context: Context, resource: Resource, backend: Sql):
+@commands.inspect.register(Context, Sql, Property, frictionless.Field)
+def inspect(
+    context: Context,
+    backend: Sql,
+    prop: Property,
+    source: frictionless.Field,
+) -> NodeSchema:
+    return {
+        'type': source.type,
+        'external': {
+            'name': source.name,
+            'prepare': prop.external.prepare,
+        },
+        'access': prop.given.access,
+        'title': prop.title,
+        'description': prop.description,
+    }
+
+
+@commands.inspect.register(Context, Sql, Model, frictionless.Field)
+def inspect(
+    context: Context,
+    backend: Sql,
+    model: Model,
+    source: frictionless.Field,
+) -> NodeSchema:
+    return {
+        'type': source.type,
+        'external': {
+            'name': source.name,
+        }
+    }
+
+
+@commands.inspect.register(Context, Sql, Resource, frictionless.Field)
+def inspect(
+    context: Context,
+    backend: Sql,
+    resource: Resource,
+    source: frictionless.Field,
+) -> NodeSchema:
+    return {
+        'type': source.type,
+        'external': {
+            'name': source.name,
+        }
+    }
+
+
+@commands.inspect.register(Context, Sql, Property, type(None))
+def inspect(
+    context: Context,
+    backend: Sql,
+    prop: Property,
+    source: frictionless.Field,
+) -> NodeSchema:
+    return {
+        'type': prop.dtype.name,
+        'external': {
+            'name': prop.name,
+            'prepare': prop.external.prepare,
+        }
+    }
+
+
+@commands.inspect.register(Context, Sql, Model, frictionless.Resource)
+def inspect(
+    context: Context,
+    backend: Sql,
+    model: Model,
+    source: frictionless.Resource,
+) -> Iterator[ManifestSchema]:
+    schema = source.schema
+    eid, data = model_to_schema(model)
+
+    if model.external:
+        data['external'] = entity_to_schema(model.external)[1]
+        if not data['external']['pk']:
+            data['external']['pk'] = [
+                to_property_name(p)
+                for p in _ensure_list(schema.primary_key)
+            ]
+    else:
+        data['external'] = {}
+
+    data['external']['name'] = source.name
+
+    source_props: Set[str] = set()
+    model_props = {
+        prop.external.name: prop
+        for prop in model.properties.values()
+        if prop.external
+    }
+
+    foreign_keys = _get_foreign_keys_by_field(schema.foreign_keys)
+
+    props = {}
+
+    for field in schema.fields:
+        source_props.add(field.name)
+
+        if field.name in model_props:
+            prop = model_props[field.name]
+            node = prop
+            name = prop.name
+        else:
+            node = model
+            name = to_property_name(field.name)
+
+        if field.name in foreign_keys:
+            fk = _ForeignKey(source, field, foreign_keys[field.name])
+            props[name] = commands.inspect(context, backend, node, fk)
+        else:
+            props[name] = commands.inspect(context, backend, node, field)
+
+    for field, prop in model_props.items():
+        if field not in source_props:
+            props[prop.name] = commands.inspect(context, backend, prop, None)
+
+    for field, fk in foreign_keys.items():
+        if field not in source_props:
+            cfk = _CompositeForeignKey(source, fk)
+            props[field] = commands.inspect(context, backend, model, cfk)
+
+    data['properties'] = props
+
+    yield eid, data
+
+
+def _get_foreign_keys_by_field(
+    foreign_keys: List[_FrictionlessForeignKey],
+) -> _ForeignKeysByField:
+    result: _ForeignKeysByField = {}
+    for fk in foreign_keys:
+        name = '_'.join(fk['fields'])
+        result[name] = fk
+    return result
+
+
+@commands.inspect.register(Context, Sql, Resource, frictionless.Resource)
+def inspect(
+    context: Context,
+    backend: Sql,
+    resource: Resource,
+    source: frictionless.Resource,
+) -> Iterator[ManifestSchema]:
+    schema = source.schema
+    eid, data = model_to_schema(None)
+
+    data['name'] = to_model_name(source.name)
+    data['external'] = {
+        'name': source.name,
+        'pk': [
+            to_property_name(p)
+            for p in _ensure_list(schema.primary_key)
+        ]
+    }
+
+    foreign_keys = _get_foreign_keys_by_field(schema.foreign_keys)
+
+    props = {}
+    for field in schema.fields:
+        name = to_property_name(field.name)
+        if field.name in foreign_keys:
+            fk = _ForeignKey(source, field, foreign_keys[field.name])
+            props[name] = commands.inspect(context, backend, resource, fk)
+        else:
+            props[name] = commands.inspect(context, backend, resource, field)
+
+    data['properties'] = props
+
+    yield eid, data
+
+
+@commands.inspect.register(Context, Sql, Model, type(None))
+def inspect(
+    context: Context,
+    backend: Sql,
+    model: Model,
+    source: None,
+) -> Iterator[ManifestSchema]:
+    yield model_to_schema(model)
+
+
+@commands.inspect.register(Context, Sql, Resource, type(None))
+def inspect(
+    context: Context,
+    backend: Sql,
+    resource: Resource,
+    source: Literal[None],
+) -> Iterator[ManifestSchema]:
     if resource.prepare:
         env = SqlResource(context).init(backend.config['dsn'])
         engine = env.resolve(resource.prepare)
@@ -149,14 +360,35 @@ def inspect(context: Context, resource: Resource, backend: Sql):
     else:
         engine = Engine(backend.config['dsn'])
 
+    resource_models: Set[str] = set()
+    manifest_models = {
+        model.external.name: model
+        for model in resource.models.values()
+        if model.external and model.external.name
+    }
+
     package = frictionless.Package.from_sql(
         engine=engine.create(),
         namespace=engine.schema,
     )
-    schemas = _read_frictionless_package(resource, backend, package)
-    load_manifest_nodes(
-        context,
-        resource.dataset.manifest,
-        schemas,
-        link=True,
-    )
+    for i, source_ in enumerate(package.resources):
+        model = manifest_models.get(source_.name)
+        resource_models.add(source_.name)
+        schemas = commands.inspect(context, backend, model or resource, source_)
+        for eid, schema in schemas:
+            if 'external' not in schema:
+                schema['external'] = {}
+            schema['external']['dataset'] = resource.dataset.name
+            schema['external']['resource'] = resource.name
+            if model is None:
+                schema['name'] = resource.dataset.name + '/' + schema['name']
+            yield eid, schema
+
+    for source_, model in manifest_models.items():
+        if source_ not in resource_models:
+            for eid, schema in commands.inspect(context, backend, model, None):
+                if 'external' not in schema:
+                    schema['external'] = {}
+                schema['external']['dataset'] = resource.dataset.name
+                schema['external']['resource'] = resource.name
+                yield eid, schema

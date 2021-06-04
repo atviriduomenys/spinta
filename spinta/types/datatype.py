@@ -150,7 +150,11 @@ class Image(DataType):
     pass
 
 
-class Spatial(DataType):
+class Geometry(DataType):
+    pass
+
+
+class Spatial(Geometry):
     pass
 
 

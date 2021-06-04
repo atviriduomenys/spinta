@@ -9,6 +9,7 @@ import os
 import pathlib
 import enum
 import sys
+from typing import NamedTuple
 
 from ruamel.yaml import YAML
 import pkg_resources as pres
@@ -499,12 +500,22 @@ DEFAULT_CONFIG_PATH = _get_default_dir('XDG_CONFIG_HOME', '~/.config')
 DEFAULT_DATA_PATH = _get_default_dir('XDG_DATA_HOME', '~/.local/share')
 
 
+class ResourceTuple(NamedTuple):
+    # Resource type from config:components.backends
+    type: str
+    # Resource URI, depends on type.
+    external: str
+    # Resource prepare formula.
+    prepare: str = None
+
+
 def configure_rc(
     rc: RawConfig,
     manifests: List[str] = None,
     *,
     mode: Mode = Mode.internal,
     backend: str = None,
+    resources: List[ResourceTuple] = None,
 ) -> RawConfig:
 
     config = {}
@@ -516,7 +527,7 @@ def configure_rc(
             'type': 'postgresql',
             'dsn': backend,
         }
-    elif not rc.get('backends', 'default'):
+    elif 'default' not in rc.get('backends', default={}):
         config['backends.default'] = {
             'type': 'memory',
         }
@@ -527,7 +538,7 @@ def configure_rc(
             'dsn': 'sqlite:///keymaps.db',
         }
 
-    if manifests:
+    if manifests or resources:
         config['manifests.default'] = {
                 'type': 'backend',
                 'backend': 'default',
@@ -537,12 +548,35 @@ def configure_rc(
         }
         config['manifest'] = 'default'
 
-        for i, manifest_path in enumerate(manifests):
-            manifest_name = f'run{i}'
+        if manifests:
+            for i, manifest_path in enumerate(manifests):
+                manifest_name = f'manifest{i}'
+                config[f'manifests.{manifest_name}'] = {
+                    'type': 'tabular',
+                    'path': manifest_path,
+                    'backend': '',
+                }
+                config['manifests.default']['sync'].append(manifest_name)
+
+        if resources:
+            manifest_name = f'resources'
             config[f'manifests.{manifest_name}'] = {
-                'type': 'tabular',
-                'path': manifest_path,
+                'type': 'inline',
                 'backend': '',
+                'manifest': [
+                    {
+                        'type': 'dataset',
+                        'name': f'datasets/gov/example/{manifest_name}',
+                        'resources': {
+                            f'resource{i}': {
+                                'type': resource.type,
+                                'external': resource.external,
+                                'prepare': resource.prepare,
+                            }
+                            for i, resource in enumerate(resources, 1)
+                        },
+                    },
+                ],
             }
             config['manifests.default']['sync'].append(manifest_name)
 

@@ -26,6 +26,7 @@ from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
 from spinta.components import Context
+from spinta.datasets.components import Resource
 from spinta.dimensions.enum.components import EnumItem
 from spinta.components import Model
 from spinta.components import Namespace
@@ -966,13 +967,28 @@ def tabular_eid(model: Model):
         return 0
 
 
+class OrderBy(NamedTuple):
+    func: Callable[[Union[Dataset, Model, Property, EnumItem]], Any]
+    reverse: bool = False
+
+
+def _order_datasets_by_access(dataset: Dataset):
+    return dataset.access or Access.private
+
+
+def _order_datasets_by_name(dataset: Dataset):
+    return dataset.name
+
+
+DATASETS_ORDER_BY = {
+    'access': OrderBy(_order_datasets_by_access, reverse=True),
+    'default': OrderBy(_order_datasets_by_name),
+}
+
+
+
 def _order_models_by_access(model: Model):
     return model.access or Access.private
-
-
-class OrderBy(NamedTuple):
-    func: Callable[[Union[Model, Property, EnumItem]], Any]
-    reverse: bool = False
 
 
 MODELS_ORDER_BY = {
@@ -990,7 +1006,7 @@ PROPERTIES_ORDER_BY = {
 }
 
 
-T = TypeVar('T', Model, Property, EnumItem)
+T = TypeVar('T', Dataset, Model, Property, EnumItem)
 
 
 def sort(
@@ -1112,6 +1128,150 @@ def _lang_to_tabular(
         first = False
 
 
+def _dataset_to_tabular(dataset: Dataset) -> Iterator[ManifestRow]:
+    yield torow(DATASET, {
+        'id': dataset.id,
+        'dataset': dataset.name,
+        'level': dataset.level,
+        'access': dataset.given.access,
+        'title': dataset.title,
+        'description': dataset.description,
+    })
+    yield from _lang_to_tabular(dataset.lang)
+
+
+def _resource_to_tabular(resource: Resource) -> Iterator[ManifestRow]:
+    backend = resource.backend
+    yield torow(DATASET, {
+        'resource': resource.name,
+        'source': resource.external,
+        'prepare': unparse(resource.prepare or NA),
+        'type': resource.type,
+        'ref': (
+            backend.name
+            if (
+                backend and
+                backend.origin != BackendOrigin.resource
+            )
+            else ''
+        ),
+        'level': resource.level,
+        'access': resource.given.access,
+        'title': resource.title,
+        'description': resource.description,
+    })
+    yield from _lang_to_tabular(resource.lang)
+
+
+def _property_to_tabular(
+    prop: Property,
+    *,
+    external: bool = True,
+    access: Access = Access.private,
+    order_by: ManifestColumn = None,
+) -> Iterator[ManifestRow]:
+    if prop.name.startswith('_'):
+        return
+
+    if prop.access < access:
+        return
+
+    data = {
+        'property': prop.place,
+        'type': prop.dtype.name,
+        'level': prop.level,
+        'access': prop.given.access,
+        'uri': prop.uri,
+        'title': prop.title,
+        'description': prop.description,
+    }
+
+    if external and prop.external:
+        if isinstance(prop.external, list):
+            # data['source'] = ', '.join(x.name for x in prop.external)
+            # data['prepare'] = ', '.join(
+            #     unparse(x.prepare or NA)
+            #     for x in prop.external if x.prepare
+            # )
+            raise DeprecationWarning(
+                "Source can't be a list, use prepare instead."
+            )
+        elif prop.external:
+            data['source'] = prop.external.name
+            data['prepare'] = unparse(prop.external.prepare or NA)
+
+    if isinstance(prop.dtype, Ref):
+        model = prop.model
+        if model.external and model.external.dataset:
+            data['ref'] = to_relative_model_name(
+                prop.dtype.model,
+                model.external.dataset,
+            )
+            pkeys = prop.dtype.model.external.pkeys
+            rkeys = prop.dtype.refprops
+            if rkeys and pkeys != rkeys:
+                rkeys = ', '.join([p.place for p in rkeys])
+                data['ref'] += f'[{rkeys}]'
+        else:
+            data['ref'] = prop.dtype.model.name
+
+    yield torow(DATASET, data)
+    yield from _lang_to_tabular(prop.lang)
+    yield from _enums_to_tabular(
+        prop.enums,
+        external=external,
+        access=access,
+        order_by=order_by,
+    )
+
+
+def _model_to_tabular(
+    model: Model,
+    *,
+    external: bool = True,
+    access: Access = Access.private,
+    order_by: ManifestColumn = None,
+) -> Iterator[ManifestRow]:
+    data = {
+        'id': model.id,
+        'model': model.name,
+        'level': model.level,
+        'access': model.given.access,
+        'title': model.title,
+        'description': model.description,
+    }
+    if model.external and model.external.dataset:
+        data['model'] = to_relative_model_name(
+            model,
+            model.external.dataset,
+        )
+    if external and model.external:
+        data.update({
+            'source': model.external.name,
+            'prepare': unparse(model.external.prepare or NA),
+        })
+        if (
+            not model.external.unknown_primary_key and
+            all(p.access >= access for p in model.external.pkeys)
+        ):
+            # Add `ref` only if all properties are available in the
+            # resulting manifest.
+            data['ref'] = ', '.join([
+                p.name for p in model.external.pkeys
+            ])
+    yield torow(DATASET, data)
+    yield from _lang_to_tabular(model.lang)
+
+    props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)
+    for prop in props:
+        yield from _property_to_tabular(
+            prop,
+            external=external,
+            access=access,
+            order_by=order_by,
+        )
+
+
 def datasets_to_tabular(
     manifest: Manifest,
     *,
@@ -1123,9 +1283,10 @@ def datasets_to_tabular(
     yield from _prefixes_to_tabular(manifest.prefixes)
     yield from _backends_to_tabular(manifest.backends)
     yield from _namespaces_to_tabular(manifest.namespaces)
+
+    seen_datasets = set()
     dataset = None
     resource = None
-
     models = manifest.models if internal else take(manifest.models)
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 
@@ -1137,16 +1298,9 @@ def datasets_to_tabular(
             if dataset is None or dataset.name != model.external.dataset.name:
                 dataset = model.external.dataset
                 if dataset:
+                    seen_datasets.add(dataset.name)
                     resource = None
-                    yield torow(DATASET, {
-                        'id': dataset.id,
-                        'dataset': dataset.name,
-                        'level': dataset.level,
-                        'access': dataset.given.access,
-                        'title': dataset.title,
-                        'description': dataset.description,
-                    })
-                    yield from _lang_to_tabular(dataset.lang)
+                    yield from _dataset_to_tabular(dataset)
 
             if model.external and model.external.resource and (
                 resource is None or
@@ -1154,113 +1308,24 @@ def datasets_to_tabular(
             ):
                 resource = model.external.resource
                 if resource:
-                    backend = resource.backend
-                    yield torow(DATASET, {
-                        'resource': resource.name,
-                        'source': resource.external,
-                        'prepare': unparse(resource.prepare or NA),
-                        'type': resource.type,
-                        'ref': (
-                            backend.name
-                            if (
-                                backend and
-                                backend.origin != BackendOrigin.resource
-                            )
-                            else ''
-                        ),
-                        'level': resource.level,
-                        'access': resource.given.access,
-                        'title': resource.title,
-                        'description': resource.description,
-                    })
-                    yield from _lang_to_tabular(resource.lang)
+                    yield from _resource_to_tabular(resource)
 
         yield torow(DATASET, {})
 
-        data = {
-            'id': model.id,
-            'model': model.name,
-            'level': model.level,
-            'access': model.given.access,
-            'title': model.title,
-            'description': model.description,
-        }
-        if model.external and model.external.dataset:
-            data['model'] = to_relative_model_name(
-                model,
-                model.external.dataset,
-            )
-        if external and model.external:
-            data.update({
-                'source': model.external.name,
-                'prepare': unparse(model.external.prepare or NA),
-            })
-            if (
-                not model.external.unknown_primary_key and
-                all(p.access >= access for p in model.external.pkeys)
-            ):
-                # Add `ref` only if all properties are available in the
-                # resulting manifest.
-                data['ref'] = ', '.join([
-                    p.name for p in model.external.pkeys
-                ])
-        yield torow(DATASET, data)
-        yield from _lang_to_tabular(model.lang)
+        yield from _model_to_tabular(
+            model,
+            external=external,
+            access=access,
+            order_by=order_by,
+        )
 
-        props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)
-        for prop in props:
-            if prop.name.startswith('_'):
-                continue
-
-            if prop.access < access:
-                continue
-
-            data = {
-                'property': prop.place,
-                'type': prop.dtype.name,
-                'level': prop.level,
-                'access': prop.given.access,
-                'uri': prop.uri,
-                'title': prop.title,
-                'description': prop.description,
-            }
-
-            if external and prop.external:
-                if isinstance(prop.external, list):
-                    # data['source'] = ', '.join(x.name for x in prop.external)
-                    # data['prepare'] = ', '.join(
-                    #     unparse(x.prepare or NA)
-                    #     for x in prop.external if x.prepare
-                    # )
-                    raise DeprecationWarning(
-                        "Source can't be a list, use prepare instead."
-                    )
-                elif prop.external:
-                    data['source'] = prop.external.name
-                    data['prepare'] = unparse(prop.external.prepare or NA)
-
-            if isinstance(prop.dtype, Ref):
-                if model.external and model.external.dataset:
-                    data['ref'] = to_relative_model_name(
-                        prop.dtype.model,
-                        model.external.dataset,
-                    )
-                    pkeys = prop.dtype.model.external.pkeys
-                    rkeys = prop.dtype.refprops
-                    if rkeys and pkeys != rkeys:
-                        rkeys = ', '.join([p.place for p in rkeys])
-                        data['ref'] += f'[{rkeys}]'
-                else:
-                    data['ref'] = prop.dtype.model.name
-
-            yield torow(DATASET, data)
-            yield from _lang_to_tabular(prop.lang)
-            yield from _enums_to_tabular(
-                prop.enums,
-                external=external,
-                access=access,
-                order_by=order_by,
-            )
+    datasets = sort(DATASETS_ORDER_BY, manifest.datasets.values(), order_by)
+    for dataset in datasets:
+        if dataset.name in seen_datasets:
+            continue
+        yield from _dataset_to_tabular(dataset)
+        for resource in dataset.resources.values():
+            yield from _resource_to_tabular(resource)
 
 
 def torow(keys, values) -> ManifestRow:

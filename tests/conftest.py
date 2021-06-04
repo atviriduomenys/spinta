@@ -20,7 +20,6 @@ from pygments.formatters.terminal256 import Terminal256Formatter
 from pygments.lexers.python import Python3Lexer
 from pygments.lexers.python import Python3TracebackLexer
 from pygments.lexers.sql import PostgresLexer
-from sqlalchemy.engine.default import StrCompileDialect
 from sqlalchemy.sql import ClauseElement
 
 
@@ -67,6 +66,8 @@ def pp(
         start = time_module.time()
         ret = obj(*args, **kwargs)
         delta = time_module.time() - start
+    else:
+        delta = None
     if v is not na and obj is not v:
         return ret
     if t is not na and not isinstance(obj, t):

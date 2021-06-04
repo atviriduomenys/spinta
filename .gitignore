@@ -16,3 +16,4 @@
 # pyenv
 .python-version
 /keymaps.db
+/.vscode/

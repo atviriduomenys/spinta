@@ -1,7 +1,6 @@
 from typing import Any
 from typing import Dict
 from typing import List, Iterable, Optional
-from typing import Tuple
 
 import jsonpatch
 
@@ -9,8 +8,13 @@ from spinta import commands
 from spinta.backends.components import BackendOrigin
 from spinta.components import Mode
 from spinta.backends.helpers import load_backend
+from spinta.components import Model
+from spinta.datasets.components import Dataset
+from spinta.datasets.components import Entity
+from spinta.datasets.components import Resource
 from spinta.dimensions.prefix.helpers import load_prefixes
 from spinta.exceptions import UnknownKeyMap
+from spinta.manifests.components import ManifestSchema
 from spinta.nodes import get_node
 from spinta.core.config import RawConfig
 from spinta.components import Context, Config, Store, MetaData, EntryId
@@ -18,6 +22,22 @@ from spinta.manifests.components import Manifest
 from spinta.manifests.internal.components import InternalManifest
 from spinta.utils.enums import enum_by_name
 from spinta.core.enums import Access
+
+
+def init_manifest(context: Context, manifest: Manifest, name: str):
+    config = context.get('config')
+    manifest.name = name
+    manifest.store = context.get('store')
+    manifest.parent = None
+    manifest.endpoints = {}
+    manifest.backends = {}
+    manifest.objects = {name: {} for name in config.components['nodes']}
+    manifest.sync = []
+    manifest.prefixes = {}
+    manifest.access = Access.protected
+    manifest.keymap = None
+    manifest.backend = None
+    manifest.mode = Mode.internal
 
 
 def create_manifest(
@@ -32,17 +52,18 @@ def create_manifest(
     Manifest = config.components['manifests'][mtype]
     manifest = Manifest()
     manifest.type = mtype
-    _configure_manifest(context, rc, config, store, manifest, name, seen)
+    init_manifest(context, manifest, name)
+    _configure_manifest(context, rc, store, manifest, seen)
     return manifest
 
 
 def create_internal_manifest(context: Context, store: Store) -> InternalManifest:
     rc = context.get('rc')
-    config = context.get('config')
     manifest = InternalManifest()
     manifest.type = 'yaml'
+    init_manifest(context, manifest, 'internal')
     _configure_manifest(
-        context, rc, config, store, manifest, 'internal',
+        context, rc, store, manifest,
         backend=store.manifest.backend.name if store.manifest.backend else None,
     )
     return manifest
@@ -51,37 +72,28 @@ def create_internal_manifest(context: Context, store: Store) -> InternalManifest
 def _configure_manifest(
     context: Context,
     rc: RawConfig,
-    config: Config,
     store: Store,
     manifest: Manifest,
-    name: str,
     seen: List[str] = None,
     *,
     backend: str = 'default',
 ):
     seen = seen or []
-    manifest.name = name
-    manifest.store = store
-    manifest.parent = None
-    manifest.access = rc.get('manifests', name, 'access') or 'protected'
-    manifest.access = enum_by_name(manifest, 'access', Access, manifest.access)
-    manifest.keymap = rc.get('manifests', name, 'keymap', default=None)
-    if manifest.keymap:
-        if manifest.keymap not in store.keymaps:
-            raise UnknownKeyMap(manifest, keymap=manifest.keymap)
-        manifest.keymap = store.keymaps[manifest.keymap]
-    else:
-        manifest.keymap = None
-    manifest.backend = rc.get('manifests', name, 'backend', default=backend)
-    manifest.backend = store.backends[manifest.backend] if manifest.backend else None
-    manifest.endpoints = {}
-    manifest.backends = {}
-    manifest.objects = {name: {} for name in config.components['nodes']}
-    manifest.sync = []
-    manifest.prefixes = {}
-    manifest.mode = enum_by_name(manifest, 'mode', Mode, (
-        rc.get('manifests', name, 'mode') or 'internal'
-    ))
+    name = manifest.name
+    access = rc.get('manifests', name, 'access')
+    if access:
+        manifest.access = enum_by_name(manifest, 'access', Access, access)
+    keymap = rc.get('manifests', name, 'keymap', default=None)
+    if keymap:
+        if keymap not in store.keymaps:
+            raise UnknownKeyMap(manifest, keymap=keymap)
+        manifest.keymap = store.keymaps[keymap]
+    backend = rc.get('manifests', name, 'backend', default=backend)
+    if backend:
+        manifest.backend = store.backends[backend]
+    mode = rc.get('manifests', name, 'mode')
+    if mode:
+        manifest.mode = enum_by_name(manifest, 'mode', Mode, mode)
     for source in rc.get('manifests', name, 'sync', default=[], cast=list):
         if source in seen:
             raise Exception("Manifest sync cycle: " + ' -> '.join(seen + [source]))
@@ -94,7 +106,7 @@ def _configure_manifest(
 def load_manifest_nodes(
     context: Context,
     manifest: Manifest,
-    schemas: Iterable[Tuple[int, Optional[dict]]],
+    schemas: Iterable[ManifestSchema],
     *,
     source: Manifest = None,
     link: bool = False,
@@ -169,3 +181,98 @@ def get_current_schema_changes(
     current = commands.manifest_read_current(context, manifest, eid=eid)
     patch = jsonpatch.make_patch(freezed, current)
     return list(patch)
+
+
+def entity_to_schema(entity: Optional[Entity]) -> ManifestSchema:
+    if entity is None:
+        return None, {
+            'dataset': None,
+            'resource': None,
+            'name': '',
+            'pk': [],
+        }
+    else:
+        return None, {
+            'dataset': entity.dataset.name if entity.dataset else None,
+            'resource': entity.resource.name if entity.resource else None,
+            'name': entity.name,
+            'prepare': entity.prepare,
+            'pk': [p.name for p in entity.pkeys],
+            # 'pk': [
+            #     to_property_name(p)
+            #     for p in _ensure_list(schema.primary_key)
+            # ],
+        }
+
+
+def model_to_schema(model: Optional[Model]) -> ManifestSchema:
+    if model is None:
+        return None, {
+            'type': 'model',
+            'name': '',
+            'level': None,
+            'access': None,
+            'title': '',
+            'description': '',
+            'external': None,
+            'properties': {},
+        }
+    else:
+        return model.eid, {
+            'type': 'model',
+            'name': model.name,
+            'level': model.level.name if model.level else None,
+            'access': model.given.access,
+            'title': model.title,
+            'description': model.description,
+        }
+
+
+def resource_to_schema(resource: Resource) -> ManifestSchema:
+    if (
+        resource.backend and
+        resource.backend.origin != BackendOrigin.resource
+    ):
+        backend = resource.backend.name
+    else:
+        backend = ''
+
+    return resource.eid, {
+        'type': resource.type,
+        'backend': backend,
+        'external': resource.external,
+        'prepare': None if resource.prepare is None else str(resource.prepare),
+        'level': resource.level.name if resource.level else None,
+        'access': resource.given.access,
+        'title': resource.title,
+        'description': resource.description,
+    }
+
+
+def dataset_to_schema(dataset: Dataset) -> ManifestSchema:
+    return dataset.eid, {
+        'type': 'dataset',
+        'name': dataset.name,
+        'level': dataset.level.name if dataset.level else None,
+        'access': dataset.given.access,
+        'title': dataset.title,
+        'description': dataset.description,
+        'resources': {
+            resource.name: {
+                'type': resource.type,
+                'backend': (
+                    resource.backend.name
+                    if (
+                        resource.backend and
+                        resource.backend.origin != BackendOrigin.resource
+                    )
+                    else ''
+                ),
+                'level': resource.level.name if resource.level else None,
+                'access': resource.given.access,
+                'title': resource.title,
+                'description': resource.description,
+            }
+            for resource in dataset.resources.values()
+        }
+    }

@@ -15,6 +15,7 @@ from ruamel.yaml.scalarstring import walk_tree
 
 from spinta import spyna
 from spinta import exceptions
+from spinta.manifests.yaml.components import InlineManifest
 from spinta.utils.itertools import last
 from spinta.utils.path import is_ignored
 from spinta.components import Context
@@ -93,6 +94,13 @@ def read_freezed_manifest_schemas(
         freezed = last(read_schema_versions(path), None)
         if freezed:
             yield path, freezed['schema']
+
+
+def read_inline_manifest_schemas(
+    manifest: InlineManifest,
+) -> Iterator[Tuple[None, Optional[dict]]]:
+    for schema in manifest.manifest:
+        yield None, schema
 
 
 def add_new_version(path: pathlib.Path, version: SchemaVersion):

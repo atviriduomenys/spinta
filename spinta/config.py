@@ -40,6 +40,7 @@ CONFIG = {
         'manifests': {
             'backend': 'spinta.manifests.backend.components:BackendManifest',
             'yaml': 'spinta.manifests.yaml.components:YamlManifest',
+            'inline': 'spinta.manifests.yaml.components:InlineManifest',
             'tabular': 'spinta.manifests.tabular.components:TabularManifest',
         },
         'backends': {
@@ -53,6 +54,7 @@ CONFIG = {
             's3': 'spinta.backends.s3:S3',
 
             # External backends
+            # XXX: Probably these should be moved to components.resources?
             'sql': 'spinta.datasets.backends.sql.components:Sql',
             'sqldump': 'spinta.datasets.backends.sqldump.components:SqlDump',
             'csv': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',
@@ -91,6 +93,7 @@ CONFIG = {
             'boolean': 'spinta.types.datatype:Boolean',
             'url': 'spinta.types.datatype:URL',
             'image': 'spinta.types.datatype:Image',
+            'geometry': 'spinta.types.datatype:Geometry',
             'spatial': 'spinta.types.datatype:Spatial',
             'ref': 'spinta.types.datatype:Ref',
             'backref': 'spinta.types.datatype:BackRef',
