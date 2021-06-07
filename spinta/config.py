@@ -256,13 +256,6 @@ CONFIG = {
                     'type': 'fs',
                     'path': pathlib.Path() / 'var/files',
                 },
-                's3': {
-                    'type': 's3',
-                    'bucket': 'splat-test',
-                    'region': 'eu-north-1',
-                    'access_key_id': 'test_access_key',
-                    'secret_access_key': 'test_secret_access_key',
-                },
             },
             'manifests': {
                 # TODO: remove `default` manifest

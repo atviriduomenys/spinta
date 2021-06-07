@@ -9,7 +9,6 @@ from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.tabular import load_tabular_manifest
-from spinta.testing.workarounds import fix_s3_backend_issue
 
 
 def test_inspect(
@@ -79,8 +78,6 @@ def test_inspect_from_manifest_table(
       | rs                   | sql    |     | {sqlite.dsn} |
     ''')
 
-    rc = fix_s3_backend_issue(rc)
-
     cli.invoke(rc, [
         'inspect', tmpdir / 'manifest.csv',
         '-o', tmpdir / 'result.csv',
@@ -118,8 +115,6 @@ def test_inspect_format(
             sa.Column('COUNTRY_ID', sa.Integer, sa.ForeignKey("COUNTRY.ID")),
         ],
     })
-
-    rc = fix_s3_backend_issue(rc)
 
     cli.invoke(rc, [
         'inspect',
@@ -167,8 +162,6 @@ def test_inspect_cyclic_refs(
         ],
     })
 
-    rc = fix_s3_backend_issue(rc)
-
     cli.invoke(rc, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
@@ -211,8 +204,6 @@ def test_inspect_self_refs(
         ],
     })
 
-    rc = fix_s3_backend_issue(rc)
-
     cli.invoke(rc, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
@@ -240,7 +231,6 @@ def test_inspect_oracle_sqldump_stdin(
     cli: SpintaCliRunner,
     tmpdir: Path,
 ):
-    rc = fix_s3_backend_issue(rc)
     cli.invoke(rc, [
         'inspect',
         '-r', 'sqldump', '-',
@@ -300,7 +290,6 @@ def test_inspect_oracle_sqldump_file_with_formula(
     cli: SpintaCliRunner,
     tmpdir: Path,
 ):
-    rc = fix_s3_backend_issue(rc)
     (tmpdir / 'dump.sql').write_text('''
     -- Šalys
     CREATE TABLE "GEO"."COUNTRY" (

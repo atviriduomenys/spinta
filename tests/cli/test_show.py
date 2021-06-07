@@ -1,7 +1,6 @@
 from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.workarounds import fix_s3_backend_issue
 
 
 def test_show(rc, cli: SpintaCliRunner, tmpdir):
@@ -25,7 +24,6 @@ def test_show(rc, cli: SpintaCliRunner, tmpdir):
 
     create_tabular_manifest(tmpdir / 'manifest.csv', manifest)
 
-    rc = fix_s3_backend_issue(rc)
     result = cli.invoke(rc, ['show', tmpdir / 'manifest.csv'])
 
     assert striptable(result.stdout) == manifest

@@ -121,7 +121,7 @@ def context(_context, mocker, tmpdir, request):
         # If context was not loaded, then it means, that database was not touched.
         # All database operations require fully loaded context.
         if context.loaded:
-            # XXX: Maybe instead of deleting everythin, we could rollback
+            # XXX: Maybe instead of deleting everything, we could rollback
             #      transactions, once this kind of functionality will be
             #      available? This should be more efficient.
             context.wipe_all()

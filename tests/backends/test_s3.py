@@ -3,6 +3,9 @@ import pathlib
 import boto3
 import pytest
 
+from spinta.core.config import RawConfig
+from spinta.testing.client import create_test_client
+from spinta.testing.utils import create_manifest_files
 from spinta.testing.utils import get_error_codes
 
 
@@ -37,6 +40,69 @@ def _upload_file(model, app):
     revision = resp.json()['_revision']
     assert resp.status_code == 200, resp.text
     return id_, revision
+
+
+@pytest.fixture()
+def app(tmpdir: pathlib.Path, rc: RawConfig, postgresql, mongo, s3):
+    create_manifest_files(tmpdir, {
+        'backends/mongo/s3_file.yml': {
+            'type': 'model',
+            'name': 'backends/mongo/s3_file',
+            'endpoint': 'backends/mongo/s3_files',
+            'backend': 'mongo',
+            'title': "S3 file",
+            'version': {
+                'id': 1,
+                'date': '2020-03-20',
+            },
+            'properties': {
+                'title': {
+                    'type': 'string',
+                },
+                'file': {
+                    'type': 'file',
+                    'backend': 's3',
+                }
+            }
+        },
+        'backends/postgres/s3_file.yml': {
+            'type': 'model',
+            'name': 'backends/postgres/s3_file',
+            'endpoint': 'backends/postgres/s3_files',
+            'title': "S3 file",
+            'version': {
+                'id': 1,
+                'date': '2020-03-20',
+            },
+            'properties': {
+                'title': {
+                    'type': 'string',
+                },
+                'file': {
+                    'type': 'file',
+                    'backend': 's3',
+                }
+            }
+        },
+    })
+
+    rc = rc.fork({
+        'backends.s3': {
+            'type': 's3',
+            'bucket': 'splat-test',
+            'region': 'eu-north-1',
+            'access_key_id': 'test_access_key',
+            'secret_access_key': 'test_secret_access_key',
+        },
+        'manifests.default.path': str(tmpdir),
+    })
+
+    app = create_test_client(rc)
+
+    # In-memory accesslog used with spinta.accesslog.python.
+    app.context.set('accesslog.stream', [])
+
+    return app
 
 
 @pytest.mark.models(
@@ -172,7 +238,7 @@ def test_delete(model, app):
     'backends/mongo/s3_file',
     'backends/postgres/s3_file',
 )
-def test_delete_accesslog(model, app, context):
+def test_delete_accesslog(model, app):
     app.authmodel(model, ['insert', 'update', 'file_update', 'getone', 'file_delete'])
     id_, revision = _upload_file(model, app)
 
@@ -180,7 +246,7 @@ def test_delete_accesslog(model, app, context):
     assert resp.status_code == 204, resp.text
     assert resp.content == b''
 
-    accesslog = context.get('accesslog.stream')
+    accesslog = app.context.get('accesslog.stream')
     assert len(accesslog) == 3
     assert accesslog[-1]['http_method'] == 'DELETE'
     assert accesslog[-1]['fields'] == []
@@ -195,7 +261,7 @@ def test_delete_accesslog(model, app, context):
     'backends/mongo/s3_file',
     'backends/postgres/s3_file',
 )
-def test_wipe(model, app, rc, tmpdir):
+def test_wipe(model, app, tmpdir):
     app.authmodel(model, ['insert', 'update', 'file_update',
                           'file_getone', 'wipe'])
 
@@ -204,6 +270,7 @@ def test_wipe(model, app, rc, tmpdir):
     # add file to S3
     new_file = pathlib.Path(tmpdir) / 'new.file'
     new_file.write_bytes(b'DATA')
+    rc: RawConfig = app.context.get('rc')
     bucket_name = rc.get('backends', 's3', 'bucket', required=False)
     s3 = boto3.resource('s3')
     bucket = s3.Bucket(bucket_name)
