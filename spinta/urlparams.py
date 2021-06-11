@@ -7,6 +7,7 @@ import urllib.parse
 from starlette.requests import Request
 
 from spinta.commands import prepare
+from spinta.components import Action
 from spinta.components import Context, Node
 from spinta.manifests.components import Manifest
 from spinta.utils import url as urlutil
@@ -137,7 +138,9 @@ def _prepare_urlparams_from_path(params):
         elif name == 'fault-tolerant':
             params.fault_tolerant = True
         elif name == 'wipe':
-            params.wipe = True
+            params.action = Action.WIPE
+        elif name == 'check':
+            params.action = Action.CHECK
         else:
             if params.query is None:
                 params.query = []

@@ -32,6 +32,7 @@ def create_test_client(
     config: Dict[str, Any] = None,
     *,
     scope: List[str] = None,
+    raise_server_exceptions: bool = True,
 ) -> TestClient:
     if isinstance(rc_or_context, RawConfig):
         rc = rc_or_context
@@ -48,7 +49,12 @@ def create_test_client(
     else:
         context.load()
     app = api.init(context)
-    client = TestClient(context, app, base_url='https://testserver')
+    client = TestClient(
+        context,
+        app,
+        base_url='https://testserver',
+        raise_server_exceptions=raise_server_exceptions,
+    )
     if scope:
         client.authorize(scope)
     return client

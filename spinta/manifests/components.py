@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import dataclasses
 from typing import Any
+from typing import BinaryIO
 
 from typing import Dict
 from typing import List
@@ -108,3 +110,10 @@ class Manifest(Component):
 
 NodeSchema = Optional[Dict[str, Any]]
 ManifestSchema = Tuple[Any, NodeSchema]
+
+
+@dataclasses.dataclass
+class ManifestUri:
+    name: str = None
+    path: str = None
+    file: BinaryIO = None

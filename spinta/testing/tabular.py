@@ -1,4 +1,6 @@
+import csv
 import pathlib
+from io import StringIO
 from typing import List
 from typing import Literal
 from typing import Union
@@ -94,3 +96,19 @@ def load_tabular_manifest(
         return context
     else:
         return store.manifest
+
+
+def convert_ascii_manifest_to_csv(manifest: str) -> str:
+    file = StringIO()
+    writer = csv.writer(file)
+    rows = read_ascii_tabular_rows(
+        manifest,
+        strip=True,
+        check_column_names=False,
+    )
+    for row in rows:
+        writer.writerow(row)
+    return file.getvalue()
+
+
+

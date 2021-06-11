@@ -13,6 +13,7 @@ from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Set
+from typing import TextIO
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
@@ -828,12 +829,13 @@ def _read_tabular_manifest_rows(
 def read_tabular_manifest(
     path: str,
     *,
+    text_file: TextIO = None,
     rename_duplicates: bool = False,
 ) -> Iterator[ParsedRow]:
     if path.startswith('https://docs.google.com/spreadsheets/'):
         rows = read_gsheets_manifest(path)
     elif path.endswith('.csv'):
-        rows = _read_csv_manifest(path)
+        rows = _read_csv_manifest(path, text_file)
     elif path.endswith('.xlsx'):
         rows = _read_xlsx_manifest(path)
     else:
@@ -846,9 +848,12 @@ def read_tabular_manifest(
     )
 
 
-def _read_csv_manifest(path: str) -> Iterator[List[str]]:
-    with pathlib.Path(path).open(encoding='utf-8-sig') as f:
-        yield from csv.reader(f)
+def _read_csv_manifest(path: str, file: TextIO = None) -> Iterator[List[str]]:
+    if file:
+        yield from csv.reader(file)
+    else:
+        with pathlib.Path(path).open(encoding='utf-8-sig') as f:
+            yield from csv.reader(f)
 
 
 def _read_xlsx_manifest(path: str) -> Iterator[List[str]]:
@@ -886,6 +891,7 @@ def read_ascii_tabular_rows(
     manifest: str,
     *,
     strip: bool = False,
+    check_column_names: bool = True,
 ) -> Iterator[List[str]]:
     if strip:
         manifest = striptable(manifest)
@@ -897,7 +903,10 @@ def read_ascii_tabular_rows(
     header = next(lines, None)
     if header is None:
         return
-    header = normalizes_columns(header.split('|'))
+    header = normalizes_columns(
+        header.split('|'),
+        check_column_names=check_column_names,
+    )
     yield header
 
     # Find index where dimension columns end.
@@ -1420,16 +1429,20 @@ SHORT_NAMES = {
 }
 
 
-def normalizes_columns(cols: List[str]) -> List[ManifestColumn]:
+def normalizes_columns(
+    cols: List[str],
+    *,
+    check_column_names: bool = True,
+) -> List[ManifestColumn]:
     result: List[ManifestColumn] = []
     for col in cols:
         col = col.strip().lower()
         col = SHORT_NAMES.get(col, col)
         col = cast(ManifestColumn, col)
-        if col in MANIFEST_COLUMNS:
-            result.append(col)
-        else:
+        if check_column_names and col not in MANIFEST_COLUMNS:
             raise PropertyNotFound(property=col)
+        else:
+            result.append(col)
     return result
 
 

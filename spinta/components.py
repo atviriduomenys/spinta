@@ -608,6 +608,8 @@ class Action(enum.Enum):
 
     CHANGES = 'changes'
 
+    CHECK = 'check'
+
     @classmethod
     def has_value(cls, value):
         return value in cls._value2member_map_
@@ -656,8 +658,8 @@ class UrlParams:
     summary: bool = False
     # In batch requests, continue execution even if some actions fail.
     fault_tolerant: bool = False
-    # Wipe all data of a model or all models in a namespace.
-    wipe: bool = False
+
+    action: Action = None
 
     query: List[dict] = None
 

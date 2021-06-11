@@ -40,6 +40,15 @@ def init_manifest(context: Context, manifest: Manifest, name: str):
     manifest.mode = Mode.internal
 
 
+def clone_manifest(context: Context, name: str = 'manifest') -> Manifest:
+    manifest = Manifest()
+    store: Store = context.get('store')
+    init_manifest(context, manifest, name)
+    if store.manifest:
+        manifest.keymap = store.manifest.keymap
+    return manifest
+
+
 def create_manifest(
     context: Context,
     store: Store,

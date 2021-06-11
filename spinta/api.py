@@ -88,16 +88,13 @@ async def error(request, exc):
     if isinstance(exc, MultipleErrors):
         # TODO: probably there should be a more sophisticated way to get status
         #       code from error list.
-        # XXX:  On the other hand, mxing status code is probably not a good
+        # XXX:  On the other hand, mixing status code is probably not a good
         #       idea, so instead, MultipleErrors must have one status code for
-        #       all errros. And that should be inforced by MultipleErrors. If an
+        #       all errors. And that should be enforced by MultipleErrors. If an
         #       exception comes in with a different status code, then this
-        #       dhould be an error.
+        #       should be an error.
         status_code = exc.errors[0].status_code
-        errors = [
-            error_response(error)
-            for error in exc.errors
-        ]
+        errors = [error_response(e) for e in exc.errors]
 
     elif isinstance(exc, BaseError):
         status_code = exc.status_code
@@ -110,7 +107,7 @@ async def error(request, exc):
         elif isinstance(exc, AuthlibHTTPError):
             status_code = exc.status_code
             if exc.description:
-                # show overriden description
+                # show overridden description
                 message = str(f'{exc.error}: {exc.description}')
             elif exc.get_error_description():
                 # show dynamic description

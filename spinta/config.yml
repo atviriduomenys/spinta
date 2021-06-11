@@ -122,6 +122,13 @@ manifests:
       yaml:
         path:
           type: path
+      tabular:
+        # File path or a URL that points to a tabular manifest file.
+        path:
+          type: path
+        # Manifest can be passed via pipe or other means as a file-like object.
+        file:
+          type: io
 
 manifest:
   type: ref

@@ -1,13 +1,23 @@
-import itertools
 import json
+from io import TextIOWrapper
+from typing import cast
 
+import itertools
+from starlette.datastructures import UploadFile
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.commands.formats import Format
-from spinta.components import Context, Action, UrlParams, Node
 from spinta import exceptions
+from spinta.commands.formats import Format
+from spinta.components import Action
+from spinta.components import Context
+from spinta.components import Node
+from spinta.components import UrlParams
 from spinta.exceptions import NoBackendConfigured
+from spinta.manifests.helpers import clone_manifest
+from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.tabular.helpers import read_tabular_manifest
+from spinta.renderer import render
 
 METHOD_TO_ACTION = {
     'POST': Action.INSERT,
@@ -15,6 +25,34 @@ METHOD_TO_ACTION = {
     'PATCH': Action.PATCH,
     'DELETE': Action.DELETE,
 }
+
+
+async def _check(context: Context, request: Request, params: UrlParams):
+    commands.authorize(context, Action.CHECK, params.model)
+
+    form = await request.form()
+    field = cast(UploadFile, form['manifest'])
+    filename = field.filename
+
+    # ---8<----
+    # FIXME: https://github.com/pallets/werkzeug/issues/1344
+    field.file.readable = field.file._file.readable
+    field.file.writable = field.file._file.writable
+    field.file.seekable = field.file._file.seekable
+    # --->8----
+
+    schemas = read_tabular_manifest(
+        filename,
+        text_file=TextIOWrapper(field.file, encoding='utf-8'),
+    )
+
+    manifest = clone_manifest(context)
+    load_manifest_nodes(context, manifest, schemas)
+    commands.link(context, manifest)
+    commands.check(context, manifest)
+
+    data = {'status': 'OK'}
+    return render(context, request, params.model, params, data, action=Action.CHECK)
 
 
 async def create_http_response(context: Context, params: UrlParams, request: Request):
@@ -73,7 +111,10 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
 
             return await commands.getall(context, request, model, backend, action=action, params=params)
 
-    elif request.method == 'DELETE' and params.wipe:
+    elif request.method == 'POST' and params.action == Action.CHECK:
+        return await _check(context, request, params)
+
+    elif request.method == 'DELETE' and params.action == Action.WIPE:
         context.attach('transaction', manifest.backend.transaction, write=True)
         return await commands.wipe(context, request, params.model, params.model.backend, action=Action.WIPE, params=params)
 

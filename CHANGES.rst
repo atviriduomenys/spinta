@@ -13,6 +13,8 @@ Changes
   edits in manifest file can be preserved. For example composite foreign keys
   are not yet implemented.
 
+- Add API endpoint `/:check` for checking if manifest table is correct.
+
 
 0.1.14 (2021-04-15)
 ===================

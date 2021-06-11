@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tempfile
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import collections
@@ -15,6 +14,7 @@ from ruamel.yaml import YAML
 import pkg_resources as pres
 
 from spinta.components import Mode
+from spinta.manifests.components import ManifestUri
 from spinta.utils.imports import importstr
 from spinta.utils.schema import NA
 
@@ -509,9 +509,15 @@ class ResourceTuple(NamedTuple):
     prepare: str = None
 
 
+def parse_manifest_uri(uri: Union[str, ManifestUri]) -> ManifestUri:
+    if isinstance(uri, ManifestUri):
+        return uri
+    return ManifestUri(path=uri)
+
+
 def configure_rc(
     rc: RawConfig,
-    manifests: List[str] = None,
+    manifests: List[Union[str, ManifestUri]] = None,
     *,
     mode: Mode = Mode.internal,
     backend: str = None,
@@ -549,11 +555,13 @@ def configure_rc(
         config['manifest'] = 'default'
 
         if manifests:
-            for i, manifest_path in enumerate(manifests):
+            for i, uri in enumerate(manifests):
                 manifest_name = f'manifest{i}'
+                manifest = parse_manifest_uri(uri)
                 config[f'manifests.{manifest_name}'] = {
                     'type': 'tabular',
-                    'path': manifest_path,
+                    'path': manifest.path,
+                    'file': manifest.file,
                     'backend': '',
                 }
                 config['manifests.default']['sync'].append(manifest_name)

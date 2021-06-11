@@ -33,6 +33,10 @@ RULES = {
     'wipe': {
         'maxargs': 0,
     },
+    # Check manifest.
+    'check': {
+        'maxargs': 0,
+    }
 }
 
 
