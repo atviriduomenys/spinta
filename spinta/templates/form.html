@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <form id="{{ name }}" name="{{ name }}" method="POST" enctype="multipart/form-data">
+    <h1>{{ title }}</h1>
+    <p>{{ description|safe }}</p>
+    {% for field in fields %}
+        <p>
+            <strong>{{ field.label }}</strong>
+            {% if field.help %}
+                <br>
+                <small>{{ field.help }}</small>
+            {% endif %}
+        </p>
+        <p>{{ field.input|safe }}</p>
+    {% endfor %}
+    <hr>
+    <p><input type="submit" value="{{ submit }}"></p>
+    </form>
+
+    {% if result %}
+        <h1>{{ result.message }}</h1>
+        {% if result.errors %}
+            {% for error in result.errors %}
+            <p>{{ error }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endif %}
+{% endblock %}

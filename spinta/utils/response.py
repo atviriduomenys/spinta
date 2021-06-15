@@ -13,7 +13,9 @@ from spinta.components import Action
 from spinta.components import Context
 from spinta.components import Node
 from spinta.components import UrlParams
+from spinta.exceptions import BaseError
 from spinta.exceptions import NoBackendConfigured
+from spinta.exceptions import error_response
 from spinta.manifests.helpers import clone_manifest
 from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.helpers import read_tabular_manifest
@@ -27,9 +29,7 @@ METHOD_TO_ACTION = {
 }
 
 
-async def _check(context: Context, request: Request, params: UrlParams):
-    commands.authorize(context, Action.CHECK, params.model)
-
+async def _check_post(context: Context, request: Request, params: UrlParams):
     form = await request.form()
     field = cast(UploadFile, form['manifest'])
     filename = field.filename
@@ -46,12 +46,30 @@ async def _check(context: Context, request: Request, params: UrlParams):
         text_file=TextIOWrapper(field.file, encoding='utf-8'),
     )
 
-    manifest = clone_manifest(context)
-    load_manifest_nodes(context, manifest, schemas)
-    commands.link(context, manifest)
-    commands.check(context, manifest)
+    try:
+        manifest = clone_manifest(context)
+        load_manifest_nodes(context, manifest, schemas)
+        commands.link(context, manifest)
+        commands.check(context, manifest)
+    except BaseError as e:
+        return {
+            'status': 'error',
+            'errors': [error_response(e)],
+        }
+    else:
+        return {
+            'status': 'OK',
+        }
 
-    data = {'status': 'OK'}
+
+async def _check(context: Context, request: Request, params: UrlParams):
+    commands.authorize(context, Action.CHECK, params.model)
+
+    if request.method == 'POST':
+        data = await _check_post(context, request, params)
+    else:
+        data = None
+
     return render(context, request, params.model, params, data, action=Action.CHECK)
 
 
@@ -61,6 +79,9 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
 
     if manifest.backend is None:
         raise NoBackendConfigured(manifest)
+
+    if params.action == Action.CHECK:
+        return await _check(context, request, params)
 
     if request.method == 'GET':
         context.attach('transaction', manifest.backend.transaction)
@@ -110,9 +131,6 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
                 context.attach(f'keymap.{model.keymap.name}', lambda: model.keymap)
 
             return await commands.getall(context, request, model, backend, action=action, params=params)
-
-    elif request.method == 'POST' and params.action == Action.CHECK:
-        return await _check(context, request, params)
 
     elif request.method == 'DELETE' and params.action == Action.WIPE:
         context.attach('transaction', manifest.backend.transaction, write=True)

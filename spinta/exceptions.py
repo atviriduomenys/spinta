@@ -92,36 +92,6 @@ def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: di
     return {k: v for k, v in sorted(context.items(), key=sort_key)}
 
 
-def error_response(error):
-    return {
-        'type': error.type,
-        'code': type(error).__name__,
-        'template': error.template,
-        'context': error.context,
-        'message': error.message,
-    }
-
-
-def _render_template(error):
-    if error.type in error.context:
-        context = {
-            **error.context,
-            'this': f'<{error.type} name={error.context[error.type]!r}>',
-        }
-    else:
-        context = error.context
-    try:
-        return error.template.format(**context)
-    except KeyError:
-        context = context.copy()
-        template_vars_re = re.compile(r'\{(\w+)')
-        for match in template_vars_re.finditer(error.template):
-            name = match.group(1)
-            if name not in context:
-                context[name] = UNKNOWN_VALUE
-        return error.template.format(**context)
-
-
 class BaseError(Exception):
     type = None
     status_code = 500
@@ -158,6 +128,38 @@ class BaseError(Exception):
                 for k, v in self.context.items()
             )
         )
+
+
+def error_response(error: BaseError):
+    return {
+        'type': error.type,
+        'code': type(error).__name__,
+        'template': error.template,
+        'context': error.context,
+        'message': error.message,
+    }
+
+
+def _render_template(error: BaseError):
+    if error.type in error.context:
+        context = {
+            **error.context,
+            'this': f'<{error.type} name={error.context[error.type]!r}>',
+        }
+    else:
+        context = error.context
+    try:
+        return error.template.format(**context)
+    except KeyError:
+        context = context.copy()
+        template_vars_re = re.compile(r'\{(\w+)')
+        for match in template_vars_re.finditer(error.template):
+            name = match.group(1)
+            if name not in context:
+                context[name] = UNKNOWN_VALUE
+        return error.template.format(**context)
+
+
 
 
 class MultipleErrors(Exception):

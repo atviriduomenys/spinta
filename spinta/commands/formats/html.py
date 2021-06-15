@@ -33,6 +33,47 @@ class Html(Format):
     streamable = False
 
 
+def _render_check(request: Request, data: Dict[str, Any] = None):
+    if data:
+        if 'errors' in data:
+            result = {
+                'message': "Yra klaidų",
+                'errors': [
+                    err['message']
+                    for err in data['errors']
+                ],
+            }
+        else:
+            result = {
+                'message': "Klaidų nerasta.",
+                'errors': None,
+            }
+    else:
+        result = data
+
+    templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
+    return templates.TemplateResponse('form.html', {
+        'request': request,
+        'title': "Duomenų struktūros aprašo tikrinimas",
+        'description': (
+            "Ši priemonė leidžia patikrinti ar "
+            "<a href=\"https://atviriduomenys.readthedocs.io/dsa/index.html\">"
+            "duomenų struktūros apraše</a> nėra klaidų."
+        ),
+        'name': 'check',
+        'fields': [
+            {
+                'label': "Duomenų struktūros aprašas",
+                'help': "Pateikite duomenų struktūros aprašo failą.",
+                'input': '<input type="file" name="manifest" accept=".csv">'
+            },
+        ],
+        'submit': "Tikrinti",
+        'result': result,
+    })
+
+
+
 @commands.render.register()
 def render(
     context: Context,
@@ -46,7 +87,10 @@ def render(
     status_code: int = 200,
     headers: Optional[dict] = None,
 ):
-    return _render_model(context, request, ns, action, params, data, headers)
+    if action == Action.CHECK:
+        return _render_check(request, data)
+    else:
+        return _render_model(context, request, ns, action, params, data, headers)
 
 
 @commands.render.register()  # noqa
@@ -121,7 +165,7 @@ def get_output_formats(params: UrlParams):
     ]
 
 
-def get_template_context(context: Context, model, params):
+def get_template_context(context: Context, model, params: UrlParams):
     config: Config = context.get('config')
     return {
         'location': get_current_location(config, model, params),

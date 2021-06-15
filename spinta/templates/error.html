@@ -1,44 +1,8 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width">
-        <title>Spinta</title>
-        <style>
-            body {
-                margin: 0;
-                padding: 0;
-            }
-            .container {
-                padding: 8px;
-            }
-            .warning {
-                background-color: #ffe9ea;
-                color: #b42b3f;
-                margin: 0;
-                padding: 8px 16px;
-                font-size: 12px;
-            }
-            .warning a {
-                color: #b42b3f;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="warning">
-            <strong>Dėmesio!</strong>
-            <a href="https://data.gov.lt/page/saugykla" target="_blank">Atvirų
-                duomenų saugykla</a> šiuo metu yra
-            <a href="https://atviriduomenys.readthedocs.io/priemones/index.html#statusas-ir-planas" target="_blank">aktyviai vystoma</a>,
-            todėl galite susidurti su įvairaus pobūdžio sutrikimais, apie
-            kuriuos maloniai prašome <a href="https://gitlab.com/atviriduomenys/spinta/-/issues/new" target="_blank">pranešti</a>.
-        </div>
+{% extends "base.html" %}
 
-        <div class="container">
-        {% for error in errors %}
-        <h1>{{ error.code }}</h1>
-        <p>{{ error.message }}</p>
-        {% endfor %}
-        </div>
-    </body>
-</html>
+{% block content %}
+    {% for error in errors %}
+    <h1>{{ error.code }}</h1>
+    <p>{{ error.message }}</p>
+    {% endfor %}
+{% endblock %}

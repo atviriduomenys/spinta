@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="formats">
+    <p>
+        Get this data as:
+        <strong>HTML</strong>,
+        {% for fmt, link in formats %}
+            <a href="{{ link }}">{{ fmt }}</a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+    </p>
+</div>
+
+<p>
+    {% for name, link in location %}
+        {% if link %}
+            <a href="{{ link }}">{{ name }}</a>
+        {% else %}
+            <strong>{{ name }}</strong>
+        {% endif %}
+        {% if not loop.last %}/{% endif %}
+    {% endfor %}
+</p>
+
+{% if data %}
+    <table class="table">
+        <thead>
+        <tr>
+            {% for column in header %}
+                <th>{{ column }}</th>
+            {% endfor %}
+        </tr>
+        </thead>
+        <tbody>
+        {% for row in data %}
+            <tr>
+                {% for cell in row %}
+                    <td{% if cell.color %} style="background-color: {{ cell.color }}"{% endif %}>
+                        {% if cell.link %}
+                            <a href="{{ cell.link }}">{{ cell.value }}</a>
+                        {% else %}
+                            {{ cell.value }}
+                        {% endif %}
+                    </td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% if limit_enforced and data|length >= 100 %}
+        <p>Number of rows is limited up to 100 rows.</p>
+    {% endif %}
+{% endif %}
+
+{% if row %}
+    <table class="table">
+        <tbody>
+        {% for column, cell in row %}
+            <tr>
+                <th>{{ column }}</th>
+                <td{% if cell.color %} style="background-color: {{ cell.color }}"{% endif %}>
+                    {% if column in ('id', 'type') %}
+                        <strong>{{ cell.value }}</strong>
+                    {% elif cell.link %}
+                        <a href="{{ cell.link }}">{{ cell.value }}</a>
+                    {% else %}
+                        {{ cell.value }}
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+{% endblock %}

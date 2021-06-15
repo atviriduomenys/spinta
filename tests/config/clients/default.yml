@@ -6,3 +6,4 @@ scopes:
   - spinta_getall
   - spinta_search
   - spinta_changes
+  - spinta_check

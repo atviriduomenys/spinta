@@ -428,7 +428,9 @@ def authorized(
 
     # Unauthorized clients can only access open nodes.
     unauthorized = token.get_client_id() == config.default_auth_client
-    if unauthorized and node.access < Access.open:
+
+    open_node = node.access >= Access.open
+    if unauthorized and not open_node:
         if throw:
             raise AuthorizedClientsOnly()
         else:

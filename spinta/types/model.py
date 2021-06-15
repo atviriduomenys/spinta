@@ -12,7 +12,6 @@ from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.commands import prepare
 from spinta.components import Action
 from spinta.components import Base
 from spinta.components import Context
@@ -66,7 +65,10 @@ def load(
 
     manifest.add_model_endpoint(model)
     _load_namespace_from_model(context, manifest, model)
-    load_access_param(model, data.get('access'))
+    load_access_param(model, data.get('access'), itertools.chain(
+        [model.ns],
+        model.ns.parents(),
+    ))
     load_model_properties(context, model, Property, data.get('properties'))
 
     # XXX: Maybe it is worth to leave possibility to override _id access?
