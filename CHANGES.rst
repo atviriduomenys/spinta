@@ -22,6 +22,9 @@ Bug fixes:
 - Now root namespace is always added to manifest event if manifest is empty.
   This fixes 404 error when accessing root namespace on an empty manifest.
 
+- Create default auth client automatically if it does not exists. Currently
+  this was enabled only for `spinta inspect` command.
+
 
 0.1.14 (2021-04-15)
 ===================

@@ -54,7 +54,7 @@ def inspect(
         backend=backend,
         resources=[resource] if resource else None,
     )
-    store = prepare_manifest(context)
+    store = prepare_manifest(context, ensure_config_dir=True)
 
     manifest = Manifest()
     with context:

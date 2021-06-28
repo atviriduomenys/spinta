@@ -478,6 +478,13 @@ def authorized(
         return token.valid_scope(scopes, operator='OR')
 
 
+def auth_server_keys_exists(path: pathlib.Path):
+    return (
+        (path / 'keys/private.json').exists() and
+        (path / 'keys/public.json').exists()
+    )
+
+
 def gen_auth_server_keys(
     path: pathlib.Path,
     *,
@@ -515,6 +522,11 @@ def gen_auth_server_keys(
 
 class KeyFileExists(Exception):
     pass
+
+
+def client_exists(path: pathlib.Path, client: str) -> bool:
+    client_file = path / f'{client}.yml'
+    return client_file.exists()
 
 
 def create_client_file(

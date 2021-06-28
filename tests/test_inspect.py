@@ -408,3 +408,44 @@ def test_inspect_update_existing_manifest(
       |   |   |   | country  | ref     | Country | COUNTRY |         |         |
     ''')
     assert a == b
+
+
+def test_inspect_with_empty_config_dir(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmpdir: Path,
+    sqlite: Sqlite,
+):
+    # Prepare source data.
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+        ],
+    })
+
+    # Change config dir
+    (tmpdir / 'config').mkdir()
+    rc = rc.fork({
+        'config_path': tmpdir / 'config',
+    })
+
+    cli.invoke(rc, [
+        'inspect',
+        '-r', 'sql', sqlite.dsn,
+        '-o', tmpdir / 'result.csv',
+    ])
+
+    # Check what was detected.
+    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    dataset = manifest.datasets['datasets/gov/example/resources']
+    dataset.resources['resource1'].external = 'sqlite://'
+    assert manifest == '''
+    d | r | b | m | property       | type    | ref     | source
+    datasets/gov/example/resources |         |         |
+      | resource1                  | sql     |         | sqlite://
+                                   |         |         |
+      |   |   | Country            |         | id      | COUNTRY
+      |   |   |   | id             | integer |         | ID
+      |   |   |   | name           | string  |         | NAME
+    '''
