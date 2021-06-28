@@ -20,6 +20,7 @@ from spinta.core.config import RawConfig
 from spinta.components import Context, Config, Store, MetaData, EntryId
 from spinta.manifests.components import Manifest
 from spinta.manifests.internal.components import InternalManifest
+from spinta.types.namespace import load_namespace_from_name
 from spinta.utils.enums import enum_by_name
 from spinta.core.enums import Access
 
@@ -58,8 +59,8 @@ def create_manifest(
     rc: RawConfig = context.get('rc')
     config = context.get('config')
     mtype = rc.get('manifests', name, 'type', required=True)
-    Manifest = config.components['manifests'][mtype]
-    manifest = Manifest()
+    Manifest_ = config.components['manifests'][mtype]
+    manifest = Manifest_()
     manifest.type = mtype
     init_manifest(context, manifest, name)
     _configure_manifest(context, rc, store, manifest, seen)
@@ -130,6 +131,12 @@ def load_manifest_nodes(
             manifest.objects[node.type][node.name] = node
             if link:
                 to_link.append(node)
+
+    if '' not in manifest.namespaces:
+        # Root namespace must always be present in manifest event if manifest is
+        # empty.
+        load_namespace_from_name(context, manifest, '', drop=False)
+
     if to_link:
         for node in to_link:
             commands.link(context, node)

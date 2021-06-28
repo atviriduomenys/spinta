@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterator
@@ -10,6 +11,7 @@ import enum
 import contextlib
 import dataclasses
 import pathlib
+from typing import TypedDict
 
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
@@ -623,9 +625,15 @@ class Action(enum.Enum):
         return list(cls._value2member_map_.keys())
 
 
-class UrlParams:
-    parsetree: List[dict]
+class UrlParseNode(TypedDict):
+    name: str
+    args: List[Any]
 
+
+class UrlParams:
+    parsetree: List[UrlParseNode]
+
+    path_parts: List[str] = None
     path: Optional[str] = None
     model: Optional[Model] = None
     pk: Optional[str] = None
@@ -826,5 +834,3 @@ class Config:
         self.manifests = {}
         self.ignore = []
         self.debug = False
-
-

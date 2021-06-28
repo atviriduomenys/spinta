@@ -1,6 +1,9 @@
+from typing import Iterable
 from typing import List
 
 import cgi
+from typing import Union
+
 import itertools
 import urllib.parse
 
@@ -9,15 +12,15 @@ from starlette.requests import Request
 from spinta.commands import prepare
 from spinta.components import Action
 from spinta.components import Context, Node
+from spinta.components import Model
+from spinta.components import Namespace
 from spinta.manifests.components import Manifest
 from spinta.utils import url as urlutil
 from spinta.components import UrlParams, Version
 from spinta.commands import is_object_id
 from spinta import exceptions
 from spinta import spyna
-from spinta.exceptions import (
-    ModelNotFound,
-)
+from spinta.exceptions import ModelNotFound
 
 
 @prepare.register(Context, UrlParams, Version, Request)
@@ -51,7 +54,7 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     params.format = get_response_type(context, request, params)
 
 
-def _prepare_urlparams_from_path(params):
+def _prepare_urlparams_from_path(params: UrlParams):
     params.formatparams = {}
 
     for param in params.parsetree:
@@ -59,7 +62,7 @@ def _prepare_urlparams_from_path(params):
         args = param['args']
 
         if name == 'path':
-            params.path = args
+            params.path_parts = args
         elif name == 'ns':
             params.ns = True
         elif name == 'all':
@@ -157,37 +160,42 @@ def _read_format_params(node):
     raise Exception(f"Unknown node {node!r}.")
 
 
+def _join_path_parts(*parts: str) -> str:
+    return '/'.join(parts)
+
+
 def _find_model_name_index(
     manifest: Manifest,
     parts: List[str],
 ) -> int:
     keys = (
-        set(manifest.objects['ns']) |
+        set(manifest.namespaces) |
         set(manifest.models) |
         set(manifest.endpoints)
     )
-    for i, name in enumerate(itertools.accumulate(parts, '{}/{}'.format)):
+    for i, name in enumerate(itertools.accumulate(parts, _join_path_parts)):
         if name not in keys:
             return i
     return len(parts)
 
 
 def _resolve_path(context: Context, params: UrlParams) -> None:
-    if params.path is None:
+    if params.path_parts is None:
         params.path = ''
+        params.path_parts = []
 
-    path = '/'.join(params.path)
     manifest = context.get('store').manifest
-    i = _find_model_name_index(manifest, params.path)
-    parts = params.path[i:]
-    params.path = '/'.join(params.path[:i])
+    i = _find_model_name_index(manifest, params.path_parts)
+    parts = params.path_parts[i:]
+    params.path = '/'.join(params.path_parts[:i])
     params.model = get_model_from_params(manifest, params)
 
     if parts:
         # Resolve ID.
         params.pk = parts.pop(0)
         if not is_object_id(context, params.model.backend, params.model, params.pk):
-            raise ModelNotFound(model=path)
+            given_path = '/'.join(params.path_parts)
+            raise ModelNotFound(model=given_path)
 
     if parts:
         # Resolve property (subresource).
@@ -200,20 +208,24 @@ def _resolve_path(context: Context, params: UrlParams) -> None:
         params.prop = params.model.flatprops[prop]
 
     if parts:
-        raise ModelNotFound(model=path)
+        given_path = '/'.join(params.path_parts)
+        raise ModelNotFound(model=given_path)
 
 
 def get_model_by_name(context: Context, manifest: Manifest, name: str) -> Node:
     config = context.get('config')
-    UrlParams = config.components['urlparams']['component']
-    params = UrlParams()
+    UrlParams_ = config.components['urlparams']['component']
+    params = UrlParams_()
     params.parsetree = urlutil.parse_url_path(name)
     _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
     return params.model
 
 
-def get_model_from_params(manifest, params: UrlParams):
+def get_model_from_params(
+    manifest: Manifest,
+    params: UrlParams,
+) -> Union[Namespace, Model]:
     name = params.path
 
     if name in manifest.endpoints:
@@ -222,22 +234,26 @@ def get_model_from_params(manifest, params: UrlParams):
         name = manifest.endpoints[name]
 
     if params.ns:
-        if name in manifest.objects['ns']:
-            return manifest.objects['ns'][name]
+        if name in manifest.namespaces:
+            return manifest.namespaces[name]
         else:
             raise ModelNotFound(manifest, model=name)
 
-    elif name in manifest.objects['model']:
-        return manifest.objects['model'].get(name)
+    elif name in manifest.models:
+        return manifest.models[name]
 
-    elif name in manifest.objects['ns']:
-        return manifest.objects['ns'][name]
+    elif name in manifest.namespaces:
+        return manifest.namespaces[name]
 
     else:
         raise ModelNotFound(model=name)
 
 
-def get_response_type(context: Context, request: Request, params: UrlParams = None):
+def get_response_type(
+    context: Context,
+    request: Request,
+    params: UrlParams = None,
+):
     config = context.get('config')
 
     if params is not None and params.format:

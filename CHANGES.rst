@@ -6,6 +6,8 @@ Changes
 0.1.15 (unreleased)
 ===================
 
+New features:
+
 - `spinta inspect` now can read an existing manifest file and update it with
   new schema changes made in data source, preserving all manual edits made in
   manifest file. This is not yet fully tested, but does work in simple cases.
@@ -14,6 +16,11 @@ Changes
   are not yet implemented.
 
 - Add API endpoint `/:check` for checking if manifest table is correct.
+
+Bug fixes:
+
+- Now root namespace is always added to manifest event if manifest is empty.
+  This fixes 404 error when accessing root namespace on an empty manifest.
 
 
 0.1.14 (2021-04-15)

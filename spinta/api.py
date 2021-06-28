@@ -191,6 +191,11 @@ def init(context: Context):
     app.state.context = context
 
     context.bind('auth.server', AuthorizationServer, context)
-    context.bind('auth.resource_protector', ResourceProtector, context, BearerTokenValidator)
+    context.bind(
+        'auth.resource_protector',
+        ResourceProtector,
+        context,
+        BearerTokenValidator,
+    )
 
     return app

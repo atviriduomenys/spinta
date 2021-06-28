@@ -43,6 +43,7 @@ def load_namespace_from_name(
     manifest: Manifest,
     path: str,
     *,
+    # Drop last element from path which is usually a model name.
     drop: bool = True,
 ) -> Namespace:
     ns: Optional[Namespace] = None
