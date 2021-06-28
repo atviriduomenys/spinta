@@ -133,8 +133,11 @@ async def create_http_response(context: Context, params: UrlParams, request: Req
             return await commands.getall(context, request, model, backend, action=action, params=params)
 
     elif request.method == 'DELETE' and params.action == Action.WIPE:
-        context.attach('transaction', manifest.backend.transaction, write=True)
-        return await commands.wipe(context, request, params.model, params.model.backend, action=Action.WIPE, params=params)
+        if params.pk:
+            raise NotImplementedError
+        else:
+            context.attach('transaction', manifest.backend.transaction, write=True)
+            return await commands.wipe(context, request, params.model, params.model.backend, action=Action.WIPE, params=params)
 
     else:
         context.attach('transaction', manifest.backend.transaction, write=True)
