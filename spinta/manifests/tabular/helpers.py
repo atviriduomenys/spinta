@@ -870,7 +870,7 @@ def _read_xlsx_manifest(path: str) -> Iterator[List[str]]:
         cols = [cols.index(c) if c in cols else None for c in DATASET]
 
         for row in rows:
-            yield [row[c] for c in cols]
+            yield [row[c] if c is not None else None for c in cols]
 
 
 def striptable(table):
