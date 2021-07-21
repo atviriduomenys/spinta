@@ -104,7 +104,6 @@ def push(
     else:
         credentials = config.credentials_file
 
-
     manifest = store.manifest
     if dataset and dataset not in manifest.datasets:
         echo(str(exceptions.NodeNotFound(manifest, type='dataset', name=dataset)))
@@ -210,6 +209,9 @@ def _push_to_remote_spinta(
     credentials: pathlib.Path,
     chunk_size: int,
 ) -> Iterator[_PushRow]:
+    if target.startswith('spinta+'):
+        target = target[len('spinta+'):]
+
     echo(f"Get access token from {target}")
     token = get_access_token(target, credentials)
 

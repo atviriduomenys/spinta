@@ -502,12 +502,14 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, re
     localrc = create_rc(rc, tmpdir, geodb)
 
     # Push data from local to remote.
-    cli.invoke(localrc, [
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
         'push',
         '-d', 'datasets/gov/example',
-        '-o', remote.url,
+        '-o', 'spinta+' + remote.url,
         '--credentials', remote.credsfile,
     ])
+    assert result.exit_code == 0
 
     remote.app.authmodel('datasets/gov/example/country', ['getall'])
     resp = remote.app.get('/datasets/gov/example/country')
