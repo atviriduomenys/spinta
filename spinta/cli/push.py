@@ -28,10 +28,12 @@ from spinta import spyna
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.data import count_rows
+from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.data import iter_model_rows
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.components import Action
+from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
 from spinta.components import Model
@@ -94,7 +96,7 @@ def push(
 
     context = configure_context(ctx.obj, manifests, mode=mode)
     store = prepare_manifest(context)
-    config = context.get('config')
+    config: Config = context.get('config')
 
     if credentials:
         credentials = pathlib.Path(credentials)
@@ -103,6 +105,10 @@ def push(
             raise Exit(code=1)
     else:
         credentials = config.credentials_file
+
+    if not state:
+        ensure_data_dir(config.data_path)
+        state = config.data_path / 'pushstate.db'
 
     manifest = store.manifest
     if dataset and dataset not in manifest.datasets:
@@ -165,7 +171,7 @@ def push(
                 next(rows)
             except StopIteration:
                 break
-            except Exception:
+            except:
                 log.exception("Error while reading data.")
 
 

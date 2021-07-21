@@ -602,7 +602,15 @@ def test_count(rc, tmpdir, geodb):
     assert listdata(resp) == [3]
 
 
-def test_push_chunks(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
+def test_push_chunks(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmpdir,
+    geodb,
+    request,
+):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
@@ -624,7 +632,7 @@ def test_push_chunks(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, ge
     cli.invoke(localrc, [
         'push',
         '-d', 'datasets/gov/example',
-        '-o', remote.url,
+        '-o', 'spinta+' + remote.url,
         '--credentials', remote.credsfile,
         '--chunk-size=1',
     ])

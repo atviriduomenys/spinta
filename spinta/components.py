@@ -825,6 +825,8 @@ class Config:
     always_show_id: bool = False
     # Limit access to specified namespace root.
     root: str = None
+    credentials_file: pathlib.Path
+    data_path: pathlib.Path
 
     def __init__(self):
         self.commands = _CommandsConfig()

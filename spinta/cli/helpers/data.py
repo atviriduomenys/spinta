@@ -118,3 +118,10 @@ async def process_stream(
         with tqdm.tqdm(desc=source, ascii=True) as pbar:
             async for _ in stream:
                 pbar.update(1)
+
+
+def ensure_data_dir(
+    path: pathlib.Path,
+):
+    """Create default data directory if it does not exits"""
+    path.mkdir(parents=True, exist_ok=True)

@@ -20,19 +20,31 @@ from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest
 
 
+def _remove_push_state(rc: RawConfig) -> None:
+    data_dir = rc.get('data_path')
+    if data_dir:
+        push_state_file = pathlib.Path(data_dir) / 'pushstate.db'
+        if push_state_file.exists():
+            push_state_file.unlink()
+
+
 @pytest.fixture(scope='session')
 def rc():
     with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        data_dir = tmpdir / '.local/share'
         rc = read_config()
         rc.add('pytest', {
             'env': 'test',
+            'data_path': data_dir,
             'keymaps.default': {
                 'type': 'sqlalchemy',
-                'dsn': 'sqlite:////' + os.path.join(tmpdir, 'keymaps.db'),
+                'dsn': 'sqlite:////' + str(tmpdir / 'keymaps.db'),
             },
         })
         rc.lock()
         yield rc
+        _remove_push_state(rc)
 
 
 @pytest.fixture()
@@ -140,8 +152,9 @@ def app(context):
 
 
 @pytest.fixture
-def cli():
-    return SpintaCliRunner(mix_stderr=False)
+def cli(rc: RawConfig):
+    yield SpintaCliRunner(mix_stderr=False)
+    _remove_push_state(rc)
 
 
 def pytest_addoption(parser):
