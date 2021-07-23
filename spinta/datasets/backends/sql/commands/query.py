@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import base64
 from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
+from typing import TypedDict
 from typing import Union
 
 import sqlalchemy as sa
@@ -20,12 +22,14 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import ufunc
 from spinta.datasets.backends.sql.components import Sql
+from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UnknownExpr
 from spinta.types.datatype import DataType
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
+from spinta.types.file.components import FileData
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
@@ -147,7 +151,11 @@ class SqlQueryBuilder(Env):
     def default_resolver(self, expr, *args, **kwargs):
         raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
 
-    def add_column(self, column: sa.Column) -> int:
+    def add_column(self, column: Union[sa.Column, Function]) -> int:
+        """Returns position in select column list, which is stored in
+        Selected.item.
+        """
+        assert isinstance(column, (sa.Column, Function)), column
         if column not in self.columns:
             self.columns.append(column)
         return self.columns.index(column)
@@ -173,6 +181,9 @@ class Selected:
         self.item = item
         self.prop = prop
         self.prep = prep
+
+    def __repr__(self):
+        return self.debug()
 
     def debug(self, indent: str = ''):
         prop = self.prop.place if self.prop else 'None'
@@ -489,9 +500,13 @@ def select(env: SqlQueryBuilder, dtype: DataType, prep: Any) -> Selected:
         return Selected(prop=dtype.prop, prep=prep)
     elif isinstance(prep, Expr):
         # If `prepare` expression returns another expression, then this means,
-        # ite must be processed on values returned be query.
-        sel = env.call('select', dtype)
-        return Selected(item=sel.item, prop=sel.prop, prep=prep)
+        # it must be processed on values returned by query.
+        prop = dtype.prop
+        if prop.external and prop.external.name:
+            sel = env.call('select', dtype)
+            return Selected(item=sel.item, prop=sel.prop, prep=prep)
+        else:
+            return Selected(item=None, prop=prop, prep=prep)
     else:
         result = env.call('select', prep)
         return Selected(prop=dtype.prop, prep=result)
@@ -638,6 +653,15 @@ def select(
     return tuple(env.call('select', v) for v in prep)
 
 
+@ufunc.resolver(SqlQueryBuilder, dict)
+def select(
+    env: SqlQueryBuilder,
+    prep: Dict[str, Any],
+) -> Dict[str, Any]:
+    # TODO: Add tests.
+    return {k: env.call('select', v) for k, v in prep.items()}
+
+
 @ufunc.resolver(SqlQueryBuilder, Property)
 def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
     if prop.external.prepare is not None:
@@ -740,3 +764,38 @@ def offset(env: SqlQueryBuilder, n: int):
 @ufunc.resolver(SqlQueryBuilder, Property, object, object)
 def swap(env: SqlQueryBuilder, prop: Property, old: Any, new: Any) -> Any:
     return Expr('swap', old, new)
+
+
+@ufunc.resolver(SqlQueryBuilder, Expr)
+def file(env: SqlQueryBuilder, expr: Expr) -> Expr:
+    args, kwargs = expr.resolve(env)
+    return Expr(
+        'file',
+        name=env.call('select', kwargs['name']),
+        content=env.call('select', kwargs['content']),
+    )
+
+
+class _FileSelected(TypedDict):
+    name: Selected      # File name
+    content: Selected   # File content
+
+
+@ufunc.resolver(SqlResultBuilder, Expr)
+def file(env: SqlResultBuilder, expr: Expr) -> FileData:
+    """Post query file data processor
+
+    Will be called with _FileSelected kwargs and no args.
+    """
+    kwargs: _FileSelected
+    args, kwargs = expr.resolve(env)
+    assert len(args) == 0, args
+    name = env.data[kwargs['name'].item]
+    content = env.data[kwargs['content'].item]
+    content = base64.b64encode(content).decode()
+    return {
+        '_id': name,
+        # TODO: Content probably should not be returned if not explicitly
+        #       requested in select list.
+        '_content': content,
+    }

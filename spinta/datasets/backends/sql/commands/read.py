@@ -6,11 +6,11 @@ from sqlalchemy.engine.row import RowProxy
 from spinta import commands
 from spinta.components import Context
 from spinta.components import Model
-from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
+from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
@@ -26,12 +26,11 @@ log = logging.getLogger(__name__)
 
 
 def _resolve_expr(context: Context, row: RowProxy, sel: Selected) -> Any:
-    val = row[sel.item]
-    env = Env(context, scope={
-        'this': val,
-        'prop': sel.prop,
-        'data': row,
-    })
+    if sel.item is None:
+        val = None
+    else:
+        val = row[sel.item]
+    env = SqlResultBuilder(context).init(val, sel.prop, row)
     return env.resolve(sel.prep)
 
 

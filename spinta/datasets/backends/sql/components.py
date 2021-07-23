@@ -45,7 +45,7 @@ class Sql(ExternalBackend):
         *,
         select=False,
     ) -> sa.Column:
-        if prop.external is None:
+        if prop.external is None or not prop.external.name:
             raise NoExternalName(prop)
         if prop.external.name not in table.c:
             raise PropertyNotFound(

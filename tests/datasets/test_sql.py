@@ -1,3 +1,4 @@
+import base64
 import pathlib
 
 import pytest
@@ -1387,4 +1388,45 @@ def test_implicit_filter_by_enum(rc, tmpdir, sqlite):
     assert listdata(resp, 'name') == [
         'Ryga',
         'Vilnius',
+    ]
+
+
+def test_file(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | m | property  | type   | ref | source    | prepare                                   | access
+    datasets/gov/example  |        |     |           |                                           |
+      | resource          | sql    |     |           |                                           |
+      |   | Country       |        | id  | COUNTRY   |                                           |     
+      |   |   | id        | string |     | ID        |                                           | private
+      |   |   | name      | string |     | NAME      |                                           | open
+      |   |   | flag_name | string |     | FLAG_FILE |                                           | open
+      |   |   | flag_data | binary |     | FLAG_DATA |                                           | open
+      |   |   | flag      | file   |     |           | file(name: flag_name, content: flag_data) | open
+    '''))
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('ID', sa.Integer),
+            sa.Column('NAME', sa.Text),
+            sa.Column('FLAG_FILE', sa.Text),
+            sa.Column('FLAG_DATA', sa.LargeBinary),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {
+            'ID': 2,
+            'NAME': 'Lithuania',
+            'FLAG_FILE': 'lt.png',
+            'FLAG_DATA': b'DATA',
+        },
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    resp = app.get('/datasets/gov/example/Country')
+    assert listdata(resp, 'name', 'flag') == [
+        ('Lithuania', {
+            '_id': 'lt.png',
+            '_content_type': None,  # FIXME: Should be 'image/png'.
+        }),
     ]

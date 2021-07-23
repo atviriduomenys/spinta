@@ -22,9 +22,11 @@ class Expr:
     args: Tuple[Any]
     kwargs: Dict[str, Any]
 
-    def __init__(self, name, *args, **kwargs):
-        self.name = name
-        self.args = args
+    def __init__(self, *args, **kwargs):
+        # Can't use name arguments, because it can be used in kwargs, so
+        # expr.name is extracted from args.
+        self.name, *args = args
+        self.args = tuple(args)
         self.kwargs = kwargs
 
     def __repr__(self):
@@ -61,6 +63,9 @@ class Expr:
                 kwargs[arg.name] = arg.value
             else:
                 args.append(arg)
+        for key, arg in self.kwargs.items():
+            val = env.resolve(arg)
+            kwargs[key] = val
         return args, kwargs
 
 
@@ -166,6 +171,7 @@ class ufunc:
 
 class Env:
     this: Any
+    context: Context
 
     def __init__(
         self,

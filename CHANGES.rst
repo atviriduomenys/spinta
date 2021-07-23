@@ -3,7 +3,7 @@
 Changes
 #######
 
-0.1.15 (unreleased)
+0.1.16 (unreleased)
 ===================
 
 New features:
@@ -17,6 +17,9 @@ New features:
 
 - Add API endpoint `/:check` for checking if manifest table is correct.
 
+- Add `file()` function for reading file data from external datasets.
+  Currently this is only implemented for SQL backend.
+
 Bug fixes:
 
 - Now root namespace is always added to manifest event if manifest is empty.
@@ -24,6 +27,13 @@ Bug fixes:
 
 - Create default auth client automatically if it does not exists. Currently
   this was enabled only for `spinta inspect` command.
+
+
+0.1.15 (unreleased)
+===================
+
+Actually this version was released, but because of human error, it was the
+same as 0.1.14 version.
 
 
 0.1.14 (2021-04-15)
