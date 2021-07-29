@@ -45,7 +45,7 @@ def geodb():
         yield db
 
 
-def create_rc(rc: RawConfig, tmpdir: pathlib.Path, geodb: Sqlite):
+def create_rc(rc: RawConfig, tmpdir: pathlib.Path, db: Sqlite) -> RawConfig:
     return rc.fork({
         'manifests': {
             'default': {
@@ -58,7 +58,7 @@ def create_rc(rc: RawConfig, tmpdir: pathlib.Path, geodb: Sqlite):
         'backends': {
             'sql': {
                 'type': 'sql',
-                'dsn': geodb.dsn,
+                'dsn': db.dsn,
             },
         },
         # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
@@ -66,8 +66,14 @@ def create_rc(rc: RawConfig, tmpdir: pathlib.Path, geodb: Sqlite):
     })
 
 
-def configure_remote_server(cli, rc: RawConfig, tmpdir: pathlib.Path, responses):
-    cli.invoke(rc, [
+def configure_remote_server(
+    cli,
+    local_rc: RawConfig,
+    rc: RawConfig,
+    tmpdir: pathlib.Path,
+    responses,
+):
+    cli.invoke(local_rc, [
         'copy',
         '--no-source',
         '--access', 'open',
@@ -77,7 +83,7 @@ def configure_remote_server(cli, rc: RawConfig, tmpdir: pathlib.Path, responses)
 
     # Create remote server with PostgreSQL backend
     tmpdir = pathlib.Path(tmpdir)
-    remoterc = rc.fork({
+    remote_rc = rc.fork({
         'manifests': {
             'default': {
                 'type': 'tabular',
@@ -88,7 +94,7 @@ def configure_remote_server(cli, rc: RawConfig, tmpdir: pathlib.Path, responses)
         'backends': ['default'],
     })
     return create_remote_server(
-        remoterc,
+        remote_rc,
         tmpdir,
         responses,
         scopes=['spinta_set_meta_fields', 'spinta_upsert'],
@@ -494,12 +500,12 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, re
       |   |   |   | country | ref    | Country | salis        | open
     '''))
 
-    # Configure remote server
-    remote = configure_remote_server(cli, rc, tmpdir, responses)
-    request.addfinalizer(remote.app.context.wipe_all)
-
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmpdir, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
 
     # Push data from local to remote.
     assert remote.url == 'https://example.com/'
@@ -621,12 +627,12 @@ def test_push_chunks(
       |   |   |   | name     | pavadinimas | string |         | open
     '''))
 
-    # Configure remote server
-    remote = configure_remote_server(cli, rc, tmpdir, responses)
-    request.addfinalizer(remote.app.context.wipe_all)
-
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmpdir, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
 
     # Push data from local to remote.
     cli.invoke(localrc, [
@@ -657,12 +663,12 @@ def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geo
       |   |   |   | name     | pavadinimas | string |         | open
     '''))
 
-    # Configure remote server
-    remote = configure_remote_server(cli, rc, tmpdir, responses)
-    request.addfinalizer(remote.app.context.wipe_all)
-
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmpdir, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
 
     # Push one row, save state and stop.
     cli.invoke(localrc, [
@@ -1391,7 +1397,7 @@ def test_implicit_filter_by_enum(rc, tmpdir, sqlite):
 
 
 def test_file(rc, tmpdir, sqlite):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
     d | r | m | property  | type   | ref | source    | prepare                                   | access
     datasets/gov/example  |        |     |           |                                           |
       | resource          | sql    |     |           |                                           |
@@ -1401,7 +1407,7 @@ def test_file(rc, tmpdir, sqlite):
       |   |   | flag_name | string |     | FLAG_FILE |                                           | private
       |   |   | flag_data | binary |     | FLAG_DATA |                                           | private
       |   |   | flag      | file   |     |           | file(name: flag_name, content: flag_data) | open
-    '''))
+    ''')
 
     sqlite.init({
         'COUNTRY': [
@@ -1430,3 +1436,71 @@ def test_file(rc, tmpdir, sqlite):
             'flag._content_type': None,  # FIXME: Should be 'image/png'.
         },
     ]
+
+
+def test_push_file(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmpdir,
+    sqlite: Sqlite,
+    request,
+):
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | m | property   | type   | ref | source    | prepare                                   | access
+    datasets/gov/push/file |        |     |           |                                           |
+      | resource           | sql    | sql |           |                                           |
+      |   | Country        |        | id  | COUNTRY   |                                           |     
+      |   |   | id         | string |     | ID        |                                           | private
+      |   |   | name       | string |     | NAME      |                                           | open
+      |   |   | flag_name  | string |     | FLAG_FILE |                                           | private
+      |   |   | flag_data  | binary |     | FLAG_DATA |                                           | private
+      |   |   | flag       | file   |     |           | file(name: flag_name, content: flag_data) | open
+    ''')
+
+    # Configure local server with SQL backend
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('ID', sa.Integer),
+            sa.Column('NAME', sa.Text),
+            sa.Column('FLAG_FILE', sa.Text),
+            sa.Column('FLAG_DATA', sa.LargeBinary),
+        ],
+    })
+    sqlite.write('COUNTRY', [
+        {
+            'ID': 2,
+            'NAME': 'Lithuania',
+            'FLAG_FILE': 'lt.png',
+            'FLAG_DATA': b'DATA',
+        },
+    ])
+    local_rc = create_rc(rc, tmpdir, sqlite)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, local_rc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data to the remote server
+    cli.invoke(local_rc, [
+        'push',
+        str(tmpdir / 'manifest.csv'),
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+    ])
+
+    remote.app.authmodel('datasets/gov/push/file/Country', ['getall', 'getone'])
+    resp = remote.app.get('/datasets/gov/push/file/Country')
+    assert listdata(resp, full=True) == [
+        {
+            'name': 'Lithuania',
+            'flag._id': 'lt.png',
+            'flag._content_type': None,  # FIXME: Should be 'image/png'.
+        },
+    ]
+    _id = resp.json()['_data'][0]['_id']
+    resp = remote.app.get(f'/datasets/gov/push/file/Country/{_id}/flag')
+    assert resp.status_code == 200
+    assert resp.content == b'DATA'
+

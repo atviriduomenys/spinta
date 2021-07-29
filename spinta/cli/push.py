@@ -118,7 +118,8 @@ def push(
     ns = manifest.namespaces['']
 
     with context:
-        require_auth(context, auth)
+        client = auth or config.default_auth_client
+        require_auth(context, client)
         context.attach('transaction', manifest.backend.transaction)
 
         backends = set()

@@ -146,10 +146,6 @@ class URL(DataType):
     pass
 
 
-class Image(DataType):
-    pass
-
-
 class Geometry(DataType):
     pass
 
@@ -235,6 +231,10 @@ class File(DataType):
         # TODO: Maybe add all properties in schema as File.properties and maybe
         #       File should extend Object?
     }
+
+
+class Image(File):
+    pass
 
 
 class RQL(DataType):

@@ -15,6 +15,15 @@ Bug fixes:
 
 - Allow private properties to be used ad `file()` arguments for `file` types.
 
+- When pushing data to remote server, read data as default client, by default
+
+- Previously data was read with admin rights, which caused issues with
+  non-open properties being sent to remote, which was refused by remote as
+  unknown properties.
+
+- When copying data with `spinta copy --no-source`, also clean `ref`, `source`
+  and `prepare` values of `resource` rows.
+
 
 0.1.16 (2021-07-23)
 ===================

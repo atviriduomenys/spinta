@@ -1149,16 +1149,21 @@ def _dataset_to_tabular(dataset: Dataset) -> Iterator[ManifestRow]:
     yield from _lang_to_tabular(dataset.lang)
 
 
-def _resource_to_tabular(resource: Resource) -> Iterator[ManifestRow]:
+def _resource_to_tabular(
+    resource: Resource,
+    *,
+    external: bool = True,
+) -> Iterator[ManifestRow]:
     backend = resource.backend
     yield torow(DATASET, {
         'resource': resource.name,
-        'source': resource.external,
-        'prepare': unparse(resource.prepare or NA),
+        'source': resource.external if external else '',
+        'prepare': unparse(resource.prepare or NA) if external else '',
         'type': resource.type,
         'ref': (
             backend.name
             if (
+                external and
                 backend and
                 backend.origin != BackendOrigin.resource
             )
@@ -1284,9 +1289,9 @@ def _model_to_tabular(
 def datasets_to_tabular(
     manifest: Manifest,
     *,
-    external: bool = True,
+    external: bool = True,   # clean content of source and prepare
     access: Access = Access.private,
-    internal: bool = False,
+    internal: bool = False,  # internal models with _ prefix like _txn
     order_by: ManifestColumn = None,
 ) -> Iterator[ManifestRow]:
     yield from _prefixes_to_tabular(manifest.prefixes)
@@ -1317,7 +1322,7 @@ def datasets_to_tabular(
             ):
                 resource = model.external.resource
                 if resource:
-                    yield from _resource_to_tabular(resource)
+                    yield from _resource_to_tabular(resource, external=external)
 
         yield torow(DATASET, {})
 
