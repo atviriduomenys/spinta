@@ -6,6 +6,11 @@ Changes
 0.1.17 (unreleased)
 ===================
 
+New features:
+
+- Add /robots.txt handler. Currently it allows everything for robots and is
+  mainly added to avoid error messages in logs about missing robots.txt.
+
 
 0.1.16 (2021-07-23)
 ===================

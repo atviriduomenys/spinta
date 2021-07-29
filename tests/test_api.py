@@ -4,6 +4,7 @@ from typing import Dict
 
 import pytest
 
+from spinta.testing.client import TestClient
 from spinta.testing.utils import get_error_codes, get_error_context
 from spinta.utils.nestedstruct import flatten
 
@@ -1120,3 +1121,9 @@ def test_upsert_where_ast(model, app):
     data = resp.json()
     assert resp.status_code == 200, data
     assert data['_revision'] == rev
+
+
+def test_robots(app: TestClient):
+    resp = app.get('/robots.txt')
+    assert resp.status_code == 200
+    assert resp.text == 'User-Agent: *\nAllow: /\n'

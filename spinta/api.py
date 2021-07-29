@@ -39,6 +39,15 @@ async def favicon(request: Request):
     return Response('', media_type='text/plain', status_code=404)
 
 
+async def robots(request: Request):
+    content = '\n'.join([
+        'User-Agent: *',
+        'Allow: /',
+        '',
+    ])
+    return Response(content, media_type='text/plain', status_code=200)
+
+
 async def version(request: Request):
     version = get_version(request.state.context)
     return JSONResponse(version)
@@ -153,6 +162,7 @@ def init(context: Context):
     config = context.get('config')
 
     routes = [
+        Route('/robots.txt', robots, methods=['GET']),
         Route('/favicon.ico', favicon, methods=['GET']),
         Route('/version', version, methods=['GET']),
         Route('/auth/token', auth_token, methods=['POST'])
