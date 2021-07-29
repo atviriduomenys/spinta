@@ -1504,3 +1504,111 @@ def test_push_file(
     assert resp.status_code == 200
     assert resp.content == b'DATA'
 
+
+def test_image(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | m | property  | type   | ref | source    | prepare                                   | access
+    datasets/gov/example  |        |     |           |                                           |
+      | resource          | sql    |     |           |                                           |
+      |   | Country       |        | id  | COUNTRY   |                                           |     
+      |   |   | id        | string |     | ID        |                                           | private
+      |   |   | name      | string |     | NAME      |                                           | open
+      |   |   | flag_name | string |     | FLAG_FILE |                                           | private
+      |   |   | flag_data | binary |     | FLAG_DATA |                                           | private
+      |   |   | flag      | image  |     |           | file(name: flag_name, content: flag_data) | open
+    ''')
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('ID', sa.Integer),
+            sa.Column('NAME', sa.Text),
+            sa.Column('FLAG_FILE', sa.Text),
+            sa.Column('FLAG_DATA', sa.LargeBinary),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {
+            'ID': 2,
+            'NAME': 'Lithuania',
+            'FLAG_FILE': 'lt.png',
+            'FLAG_DATA': b'DATA',
+        },
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    resp = app.get('/datasets/gov/example/Country')
+    assert listdata(resp, full=True) == [
+        {
+            'name': 'Lithuania',
+            'flag._id': 'lt.png',
+            'flag._content_type': None,  # FIXME: Should be 'image/png'.
+        },
+    ]
+
+
+def test_image_file(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmpdir,
+    sqlite: Sqlite,
+    request,
+):
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | m | property   | type   | ref | source    | prepare                                   | access
+    datasets/gov/push/file |        |     |           |                                           |
+      | resource           | sql    | sql |           |                                           |
+      |   | Country        |        | id  | COUNTRY   |                                           |     
+      |   |   | id         | string |     | ID        |                                           | private
+      |   |   | name       | string |     | NAME      |                                           | open
+      |   |   | flag_name  | string |     | FLAG_FILE |                                           | private
+      |   |   | flag_data  | binary |     | FLAG_DATA |                                           | private
+      |   |   | flag       | image  |     |           | file(name: flag_name, content: flag_data) | open
+    ''')
+
+    # Configure local server with SQL backend
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('ID', sa.Integer),
+            sa.Column('NAME', sa.Text),
+            sa.Column('FLAG_FILE', sa.Text),
+            sa.Column('FLAG_DATA', sa.LargeBinary),
+        ],
+    })
+    sqlite.write('COUNTRY', [
+        {
+            'ID': 2,
+            'NAME': 'Lithuania',
+            'FLAG_FILE': 'lt.png',
+            'FLAG_DATA': b'DATA',
+        },
+    ])
+    local_rc = create_rc(rc, tmpdir, sqlite)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, local_rc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data to the remote server
+    cli.invoke(local_rc, [
+        'push',
+        str(tmpdir / 'manifest.csv'),
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+    ])
+
+    remote.app.authmodel('datasets/gov/push/file/Country', ['getall', 'getone'])
+    resp = remote.app.get('/datasets/gov/push/file/Country')
+    assert listdata(resp, full=True) == [
+        {
+            'name': 'Lithuania',
+            'flag._id': 'lt.png',
+            'flag._content_type': None,  # FIXME: Should be 'image/png'.
+        },
+    ]
+    _id = resp.json()['_data'][0]['_id']
+    resp = remote.app.get(f'/datasets/gov/push/file/Country/{_id}/flag')
+    assert resp.status_code == 200
+    assert resp.content == b'DATA'
