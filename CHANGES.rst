@@ -11,6 +11,10 @@ New features:
 - Add /robots.txt handler. Currently it allows everything for robots and is
   mainly added to avoid error messages in logs about missing robots.txt.
 
+Bug fixes:
+
+- Allow private properties to be used ad `file()` arguments for `file` types.
+
 
 0.1.16 (2021-07-23)
 ===================

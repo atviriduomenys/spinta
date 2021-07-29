@@ -429,19 +429,24 @@ def select(env: SqlQueryBuilder, value: Any) -> Selected:
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
-def select(env: SqlQueryBuilder, item: Bind):
-    prop = _get_property_for_select(env, item.name)
+def select(env: SqlQueryBuilder, item: Bind, *, nested: bool = False):
+    prop = _get_property_for_select(env, item.name, nested=nested)
     return env.call('select', prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, str)
-def select(env: SqlQueryBuilder, item: str):
+def select(env: SqlQueryBuilder, item: str, *, nested: bool = False):
     # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    prop = _get_property_for_select(env, item)
+    prop = _get_property_for_select(env, item, nested=nested)
     return env.call('select', prop)
 
 
-def _get_property_for_select(env: SqlQueryBuilder, name: str) -> Property:
+def _get_property_for_select(
+    env: SqlQueryBuilder,
+    name: str,
+    *,
+    nested: bool = False,
+) -> Property:
     # TODO: `name` can refer to (in specified order):
     #       - var - a defined variable
     #       - param - a parameter if parametrization is used
@@ -449,7 +454,16 @@ def _get_property_for_select(env: SqlQueryBuilder, name: str) -> Property:
     #       - prop - a property
     #       Currently only `prop` is resolved.
     prop = env.model.flatprops.get(name)
-    if prop and authorized(env.context, prop, Action.SEARCH):
+    if prop and (
+        # Check authorization only for top level properties in select list.
+        # XXX: Not sure if nested is the right property to user, probably better
+        #      option is to check if this call comes from a prepare context. But
+        #      then how prepare context should be defined? Probably resolvers
+        #      should be called with a different env class?
+        #      tag:resolving_private_properties_in_prepare_context
+        nested or
+        authorized(env.context, prop, Action.SEARCH)
+    ):
         return prop
     else:
         raise PropertyNotFound(env.model, property=name)
@@ -469,6 +483,12 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
                 result = env(this=prop).resolve(prop.external.prepare)
             else:
                 result = prop.external.prepare
+            # XXX: Maybe interpretation of prepare formula should be done under
+            #      a different Env? This way, select resolvers would know when
+            #      properties are resolved under a formula context and for
+            #      example would be able to decide to not check permissions on
+            #      properties.
+            #      tag:resolving_private_properties_in_prepare_context
             result = env.call('select', prop.dtype, result)
         else:
             # If prepare is not given, then take value from `source`.
@@ -771,8 +791,8 @@ def file(env: SqlQueryBuilder, expr: Expr) -> Expr:
     args, kwargs = expr.resolve(env)
     return Expr(
         'file',
-        name=env.call('select', kwargs['name']),
-        content=env.call('select', kwargs['content']),
+        name=env.call('select', kwargs['name'], nested=True),
+        content=env.call('select', kwargs['content'], nested=True),
     )
 
 

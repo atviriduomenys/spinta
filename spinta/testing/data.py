@@ -18,7 +18,7 @@ def listdata(
     resp: Union[requests.Response, List[Dict[str, Any]]],
     *keys: Union[str, Callable[[], bool]],
     sort: Union[bool, str] = True,
-    full: bool = False,
+    full: bool = False,  # returns dicts instead of tuples
 ) -> List[tuple]:
     """Return data from a given requests.Response object.
 

@@ -1398,8 +1398,8 @@ def test_file(rc, tmpdir, sqlite):
       |   | Country       |        | id  | COUNTRY   |                                           |     
       |   |   | id        | string |     | ID        |                                           | private
       |   |   | name      | string |     | NAME      |                                           | open
-      |   |   | flag_name | string |     | FLAG_FILE |                                           | open
-      |   |   | flag_data | binary |     | FLAG_DATA |                                           | open
+      |   |   | flag_name | string |     | FLAG_FILE |                                           | private
+      |   |   | flag_data | binary |     | FLAG_DATA |                                           | private
       |   |   | flag      | file   |     |           | file(name: flag_name, content: flag_data) | open
     '''))
 
@@ -1423,9 +1423,10 @@ def test_file(rc, tmpdir, sqlite):
 
     app = create_client(rc, tmpdir, sqlite)
     resp = app.get('/datasets/gov/example/Country')
-    assert listdata(resp, 'name', 'flag') == [
-        ('Lithuania', {
-            '_id': 'lt.png',
-            '_content_type': None,  # FIXME: Should be 'image/png'.
-        }),
+    assert listdata(resp, full=True) == [
+        {
+            'name': 'Lithuania',
+            'flag._id': 'lt.png',
+            'flag._content_type': None,  # FIXME: Should be 'image/png'.
+        },
     ]
