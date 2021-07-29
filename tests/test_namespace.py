@@ -9,6 +9,8 @@ from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.data import pushdata
 from spinta.testing.manifest import configure_manifest
+from spinta.testing.tabular import load_tabular_manifest
+from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
 
 
@@ -125,4 +127,31 @@ def test_ns_titles_bare_models(
         ('datasets/gov/vpt/new/:ns', "New data", "Data from a new database."),
         ('datasets/gov/vpt/new/City', "Cities", "All cities."),
         ('datasets/gov/vpt/new/Country', "Countries", "All countries."),
+    ]
+
+
+def test_sort_models_by_refs(rc: RawConfig):
+    manifest = load_tabular_manifest(rc, '''
+    d | r | b | m | property  | type   | ref       | access
+    datasets/gov/example      |        |           |
+      |   |                   |        |           |
+      |   |   | Continent     |        |           |
+      |   |   |   | name      | string |           | open
+      |   |                   |        |           |
+      |   |   | Country       |        |           |
+      |   |   |   | code      | string |           | open
+      |   |   |   | name      | string |           | open
+      |   |   |   | continent | ref    | Continent | open
+      |   |                   |        |           |
+      |   |   | City          |        |           |
+      |   |   |   | name      | string |           | open
+      |   |   |   | country   | ref    | Country   | open
+    ''', return_context=False)
+
+    models = sort_models_by_refs(manifest.models.values())
+    names = [model.name for model in models]
+    assert names == [
+        'datasets/gov/example/City',
+        'datasets/gov/example/Country',
+        'datasets/gov/example/Continent',
     ]

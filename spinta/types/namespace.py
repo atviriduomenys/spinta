@@ -31,6 +31,7 @@ from spinta.manifests.components import Manifest
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
 from spinta.renderer import render
+from spinta.types.datatype import Ref
 
 
 class NamespaceData(TypedDict):
@@ -399,8 +400,8 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
     graph = collections.defaultdict(set)
     for name, model in models.items():
         graph[''].add(name)
-        for prop in iter_model_refs(model):
-            ref = prop.dtype.model.model_type()
+        for dtype in iter_model_refs(model):
+            ref = dtype.model.model_type()
             if ref in models:
                 graph[ref].add(name)
     graph = toposort(graph)
@@ -413,7 +414,7 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
             yield models[name]
 
 
-def iter_model_refs(model: Model):
+def iter_model_refs(model: Model) -> Iterator[Ref]:
     for prop in model.properties.values():
         if prop.dtype.name == 'ref':
-            yield prop
+            yield prop.dtype

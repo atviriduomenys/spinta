@@ -1,4 +1,3 @@
-import base64
 import pathlib
 
 import pytest
@@ -482,17 +481,17 @@ def test_ns_getall(rc, tmpdir, geodb):
 
 def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
-    d | r | b | m | property | source      | type   | ref     | access
-    datasets/gov/example     |             |        |         |
-      | data                 |             | sql    |         |
-      |   |                  |             |        |         |
-      |   |   | country      | salis       |        | code    |
-      |   |   |   | code     | kodas       | string |         | open
-      |   |   |   | name     | pavadinimas | string |         | open
-      |   |                  |             |        |         |
-      |   |   | city         | miestas     |        | name    |
-      |   |   |   | name     | pavadinimas | string |         | open
-      |   |   |   | country  | salis       | ref    | country | open
+    d | r | b | m | property| type   | ref     | source       | access
+    datasets/gov/example    |        |         |              |
+      | data                | sql    |         |              |
+      |   |                 |        |         |              |
+      |   |   | Country     |        | code    | salis        |
+      |   |   |   | code    | string |         | kodas        | open
+      |   |   |   | name    | string |         | pavadinimas  | open
+      |   |                 |        |         |              |
+      |   |   | City        |        | name    | miestas      |
+      |   |   |   | name    | string |         | pavadinimas  | open
+      |   |   |   | country | ref    | Country | salis        | open
     '''))
 
     # Configure remote server
@@ -512,8 +511,8 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, re
     ])
     assert result.exit_code == 0
 
-    remote.app.authmodel('datasets/gov/example/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/country')
+    remote.app.authmodel('datasets/gov/example/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
@@ -521,8 +520,8 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, re
     ]
 
     codes = dict(listdata(resp, '_id', 'code'))
-    remote.app.authmodel('datasets/gov/example/city', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/city')
+    remote.app.authmodel('datasets/gov/example/City', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/City')
     data = listdata(resp, 'country._id', 'name')
     data = [(codes.get(country), city) for country, city in data]
     assert sorted(data) == [
@@ -544,14 +543,14 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, re
         '--credentials', remote.credsfile,
     ])
 
-    resp = remote.app.get('/datasets/gov/example/country')
+    resp = remote.app.get('/datasets/gov/example/Country')
     assert listdata(resp, 'code', 'name') == [
         ('ee', 'Estija'),
         ('lt', 'Lietuva'),
         ('lv', 'Latvija')
     ]
 
-    resp = remote.app.get('/datasets/gov/example/city')
+    resp = remote.app.get('/datasets/gov/example/City')
     data = listdata(resp, 'country._id', 'name')
     data = [(codes.get(country), city) for country, city in data]
     assert sorted(data) == [
