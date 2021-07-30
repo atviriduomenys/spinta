@@ -83,7 +83,17 @@ def prepare_manifest(
         ensure_config_dir=ensure_config_dir,
     )
     if verbose:
-        click.echo(f"Loading manifest {store.manifest.name}...")
+        if store.manifest.path:
+            click.echo(
+                f"Loading {type(store.manifest).__name__} "
+                f"manifest {store.manifest.name} "
+                f"({store.manifest.path})..."
+            )
+        else:
+            click.echo(
+                f"Loading {type(store.manifest).__name__} "
+                f"manifest {store.manifest.name}"
+            )
     commands.load(context, store.manifest)
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)

@@ -2,6 +2,7 @@ import lxml.html
 
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
+from spinta.testing.client import get_html_tree
 from spinta.testing.tabular import convert_ascii_manifest_to_csv
 
 
@@ -81,7 +82,7 @@ def test_html_ui(rc: RawConfig):
     app = create_test_client(rc)
     app.authmodel('', ['check'])
     resp = app.get('/:check', headers={'accept': 'text/html'})
-    html = lxml.html.fromstring(resp.text)
+    html = get_html_tree(resp)
     assert len(html.forms) == 1
 
     form = html.forms[0]

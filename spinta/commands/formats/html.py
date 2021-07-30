@@ -139,7 +139,7 @@ def _render_model(
 
     templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
     return templates.TemplateResponse(
-        'base.html',
+        'data.html',
         {
             **get_template_context(context, model, params),
             'request': request,

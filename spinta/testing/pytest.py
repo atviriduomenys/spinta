@@ -13,6 +13,7 @@ from spinta.core.config import RawConfig
 from spinta.core.config import read_config
 from spinta.manifests.components import Manifest
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.client import TestClient
 from spinta.testing.client import create_test_client
 from spinta.testing.context import ContextForTests
 from spinta.testing.context import create_test_context
@@ -146,7 +147,7 @@ def responses():
 
 
 @pytest.fixture
-def app(context):
+def app(context) -> TestClient:
     context.attach('client', create_test_client, context)
     return context.get('client')
 

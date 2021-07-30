@@ -8,10 +8,14 @@ import dataclasses
 import datetime
 import pathlib
 import re
+from typing import cast
 
+import lxml.html
 import pprintpp as pprint
 import requests
 import starlette.testclient
+from lxml.etree import _Element
+from requests import Response
 
 from responses import RequestsMock
 from responses import POST
@@ -20,6 +24,7 @@ from spinta import auth
 from spinta import commands
 from spinta import api
 from spinta.client import add_client_credentials
+from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.context import TestContext
 from spinta.testing.context import create_test_context
@@ -135,7 +140,13 @@ class RemoteServer:
     credsfile: pathlib.Path = None
 
 
+class TestClientResponse(requests.Response):
+    template: str
+    context: Dict[str, Any]
+
+
 class TestClient(starlette.testclient.TestClient):
+    context: Context
 
     def __init__(self, context, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -181,12 +192,23 @@ class TestClient(starlette.testclient.TestClient):
             'Authorization': f'Bearer {token}'
         })
 
-    def request(self, method: str, url: str, *args, **kwargs):
+    def request(
+        self,
+        method: str,
+        url: str,
+        *args,
+        **kwargs,
+    ) -> TestClientResponse:
         if self._requests_session:
             url = self._requests_session_base_url + url
-            return self._requests_session.request(method, url, *args, **kwargs)
+            session = self._requests_session
+            response = session.request(method, url, *args, **kwargs)
         else:
-            return super().request(method, url, *args, **kwargs)
+            response = super().request(method, url, *args, **kwargs)
+        return cast(TestClientResponse, response)
+
+    def get(self, *args, **kwargs) -> TestClientResponse:
+        return cast(TestClientResponse, super().get(*args, **kwargs))
 
     def getdata(self, *args, **kwargs):
         resp = self.get(*args, **kwargs)
@@ -194,3 +216,10 @@ class TestClient(starlette.testclient.TestClient):
         resp = resp.json()
         assert '_data' in resp, pprint.pformat(resp)
         return resp['_data']
+
+
+def get_html_tree(resp: requests.Response) -> Union[
+    _Element,
+    lxml.html.HtmlMixin,
+]:
+    return lxml.html.fromstring(resp.text)

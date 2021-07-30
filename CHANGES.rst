@@ -6,6 +6,12 @@ Changes
 0.1.18 (unreleased)
 ===================
 
+Bug fixes:
+
+- Because an incorrect template was used, html format was not outputing
+  anything at all. Added a test to actually test what is inside rendered
+  html, this should prevent errors like this in future.
+
 
 0.1.17 (2021-07-29)
 ===================

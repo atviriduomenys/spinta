@@ -5,11 +5,17 @@ from typing import Dict
 import pytest
 
 from spinta.testing.client import TestClient
+from spinta.testing.client import TestClientResponse
+from spinta.testing.client import get_html_tree
 from spinta.testing.utils import get_error_codes, get_error_context
 from spinta.utils.nestedstruct import flatten
 
 
-def _cleaned_context(resp, *, data: bool = True) -> Dict[str, Any]:
+def _cleaned_context(
+    resp: TestClientResponse,
+    *,
+    data: bool = True,
+) -> Dict[str, Any]:
     context = resp.context.copy()
     if data:
         context['data'] = [
@@ -60,6 +66,12 @@ def test_app(app):
         'title': '📄 Country',
         'description': None,
     }
+
+    html = get_html_tree(resp)
+    rows = html.cssselect('table.table tr td:nth-child(1)')
+    rows = [row.text_content().strip() for row in rows]
+    assert '📄 Country' in rows
+    assert '📁 datasets/' in rows
 
 
 def test_directory(app):
