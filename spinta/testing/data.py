@@ -101,7 +101,11 @@ def listdata(
     if sort is True:
         data = sorted(data, key=str)
     elif sort:
-        data = sorted(data, key=operator.itemgetter(keys.index(sort)))
+        if full:
+            sort_key = operator.itemgetter(sort)
+        else:
+            sort_key = operator.itemgetter(keys.index(sort))
+        data = sorted(data, key=sort_key)
 
     return data
 

@@ -1700,7 +1700,7 @@ def test_push_null_foreign_key(
     countries = dict(listdata(resp, 'name', '_id'))
 
     resp = remote.app.get('/example/null/fk/City')
-    assert listdata(resp, full=True) == [
+    assert listdata(resp, full=True, sort='name') == [
         {
             'name': 'Ryga',
             'country._id': countries['Latvia'],
