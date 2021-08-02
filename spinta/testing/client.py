@@ -146,7 +146,7 @@ class TestClientResponse(requests.Response):
 
 
 class TestClient(starlette.testclient.TestClient):
-    context: Context
+    context: Union[Context, TestContext]
 
     def __init__(self, context, *args, **kwargs):
         super().__init__(*args, **kwargs)

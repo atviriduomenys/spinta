@@ -1,3 +1,4 @@
+import datetime
 import pathlib
 
 import pytest
@@ -1612,3 +1613,107 @@ def test_image_file(
     resp = remote.app.get(f'/datasets/gov/push/file/Country/{_id}/flag')
     assert resp.status_code == 200
     assert resp.content == b'DATA'
+
+
+def test_push_null_foreign_key(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmpdir,
+    sqlite: Sqlite,
+    request,
+):
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | b | m | property      | type     | ref          | source        | access
+    example/null/fk               |          |              |               |
+      | resource                  | sql      | sql          |               |
+      |   |   | Country           |          | id           | COUNTRY       |
+      |   |   |   | id            | integer  |              | ID            | private
+      |   |   |   | name          | string   |              | NAME          | open
+      |   |   | City              |          | id           | CITY          |
+      |   |   |   | id            | integer  |              | ID            | private
+      |   |   |   | name          | string   |              | NAME          | open
+      |   |   |   | country       | ref      | Country      | COUNTRY       | open
+      |   |   |   | embassy       | ref      | Country      | EMBASSY       | open
+    ''')
+
+    # Configure local server with SQL backend
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('ID',           sa.Integer),
+            sa.Column('NAME',         sa.String),
+        ],
+        'CITY': [
+            sa.Column('ID',           sa.Integer),
+            sa.Column('NAME',         sa.String),
+            sa.Column('COUNTRY',      sa.Integer, sa.ForeignKey('COUNTRY.ID')),
+            sa.Column('EMBASSY',      sa.Integer, sa.ForeignKey('COUNTRY.ID')),
+        ],
+    })
+    sqlite.write('COUNTRY', [
+        {
+            'ID': 1,
+            'NAME': 'Latvia',
+        },
+        {
+            'ID': 2,
+            'NAME': 'Lithuania',
+        },
+    ])
+    sqlite.write('CITY', [
+        {
+            'ID': 1,
+            'NAME': 'Ryga',
+            'COUNTRY': 1,
+            'EMBASSY': None,
+        },
+        {
+            'ID': 2,
+            'NAME': 'Vilnius',
+            'COUNTRY': 2,
+            'EMBASSY': 1,
+        },
+        {
+            'ID': 3,
+            'NAME': 'Winterfell',
+            'COUNTRY': None,
+            'EMBASSY': None,
+        },
+    ])
+    local_rc = create_rc(rc, tmpdir, sqlite)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, local_rc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    cli.invoke(local_rc, [
+        'push',
+        '-o', 'spinta+' + remote.url,
+        '--credentials', remote.credsfile,
+    ])
+
+    remote.app.authmodel('example/null/fk', ['getall'])
+
+    resp = remote.app.get('/example/null/fk/Country')
+    countries = dict(listdata(resp, 'name', '_id'))
+
+    resp = remote.app.get('/example/null/fk/City')
+    assert listdata(resp, full=True) == [
+        {
+            'name': 'Ryga',
+            'country._id': countries['Latvia'],
+            'embassy._id': None,
+        },
+        {
+            'name': 'Vilnius',
+            'country._id': countries['Lithuania'],
+            'embassy._id': countries['Latvia'],
+        },
+        {
+            'name': 'Winterfell',
+            'country._id': None,
+            'embassy._id': None,
+        },
+    ]
