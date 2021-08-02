@@ -1,5 +1,6 @@
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 from spinta import exceptions
 from spinta.auth import authorized
@@ -114,6 +115,11 @@ def get_ref_filters(
     context: Context,
     model: Model,
     fpr: ForeignProperty = None,
+    *,
+    seen: List[Tuple[
+        str,  # absolute model name
+        str,  # model property
+    ]] = None,
 ) -> Optional[Expr]:
     query: Optional[Expr] = None
     if fpr:
@@ -126,9 +132,13 @@ def get_ref_filters(
             get_enum_filters(context, model, fpr),
         )
 
+    seen = seen or []
+
     for prop in take(['_id', all], model.properties).values():
+        ref_key = (model.name, prop.name)
         if (
             isinstance(prop.dtype, Ref) and
+            ref_key not in seen and
             authorized(context, prop, Action.GETALL)
         ):
             if fpr:
@@ -136,9 +146,11 @@ def get_ref_filters(
             else:
                 fpr = ForeignProperty(fpr, prop.dtype)
 
-            query = merge_formulas(
-                query,
-                get_ref_filters(context, prop.dtype.model, fpr),
-            )
+            query = merge_formulas(query, get_ref_filters(
+                context,
+                prop.dtype.model,
+                fpr,
+                seen=seen + [ref_key],
+            ))
 
     return query

@@ -6,6 +6,11 @@ Changes
 0.1.19 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fix issue with self referenced models, external SQL backend ended up with
+  an infinite recursion on self referenced models.
+
 
 0.1.18 (2021-07-30)
 ===================

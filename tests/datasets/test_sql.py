@@ -1717,3 +1717,71 @@ def test_push_null_foreign_key(
             'embassy._id': None,
         },
     ]
+
+
+def test_push_self_ref(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmpdir,
+    sqlite: Sqlite,
+    request,
+):
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | b | m | property      | type     | ref          | source        | access
+    example/self/ref              |          |              |               |
+      | resource                  | sql      | sql          |               |
+      |   |   | City              |          | id           | CITY          |
+      |   |   |   | id            | integer  |              | ID            | private
+      |   |   |   | name          | string   |              | NAME          | open
+      |   |   |   | governance    | ref      | City         | GOVERNANCE    | open
+    ''')
+
+    # Configure local server with SQL backend
+    sqlite.init({
+        'CITY': [
+            sa.Column('ID',           sa.Integer),
+            sa.Column('NAME',         sa.String),
+            sa.Column('GOVERNANCE',   sa.Integer, sa.ForeignKey('CITY.ID')),
+        ],
+    })
+    sqlite.write('CITY', [
+        {
+            'ID': 1,
+            'NAME': 'Vilnius',
+            'GOVERNANCE': None,
+        },
+        {
+            'ID': 2,
+            'NAME': 'Trakai',
+            'GOVERNANCE': 1,
+        },
+    ])
+    local_rc = create_rc(rc, tmpdir, sqlite)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, local_rc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    cli.invoke(local_rc, [
+        'push',
+        '-o', 'spinta+' + remote.url,
+        '--credentials', remote.credsfile,
+    ])
+
+    remote.app.authmodel('example/self/ref', ['getall'])
+
+    resp = remote.app.get('/example/self/ref/City')
+    cities = dict(listdata(resp, 'name', '_id'))
+    assert listdata(resp, full=True) == [
+        {
+            'name': 'Trakai',
+            'governance._id': cities['Vilnius'],
+        },
+        {
+            'name': 'Vilnius',
+            'governance._id': None,
+        },
+    ]
