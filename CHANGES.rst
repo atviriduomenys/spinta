@@ -9,7 +9,13 @@ Changes
 Bug fixes:
 
 - Fix issue with self referenced models, external SQL backend ended up with
-  an infinite recursion on self referenced models.
+  an infinite recursion on self referenced models (`#113`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/110
+
+- Use different push state file for each server (`#110`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/110
 
 
 0.1.18 (2021-07-30)

@@ -9,6 +9,7 @@ from responses import RequestsMock
 
 from spinta.client import add_client_credentials
 from spinta.client import get_access_token
+from spinta.client import get_client_credentials
 from spinta.exceptions import RemoteClientCredentialsNotFound
 
 
@@ -47,14 +48,16 @@ def test_get_access_token(responses: RequestsMock, tmpdir: PathBase, url: str):
     responses.add(POST, 'https://example.com/auth/token', json={
         'access_token': 'TOKEN',
     })
-    token = get_access_token(url, credsfile)
+    creds = get_client_credentials(credsfile, url)
+    token = get_access_token(creds)
     assert token == 'TOKEN'
 
 
 def test_get_access_token_no_credsfile(tmpdir: PathBase):
     credsfile = Path(tmpdir / 'credentials.cfg')
     with pytest.raises(RemoteClientCredentialsNotFound):
-        get_access_token('https://example.com', credsfile)
+        creds = get_client_credentials(credsfile, 'https://example.com')
+        get_access_token(creds)
 
 
 def test_get_access_token_no_section(tmpdir: PathBase):
@@ -68,7 +71,8 @@ def test_get_access_token_no_section(tmpdir: PathBase):
         spinta_getone
     '''))
     with pytest.raises(RemoteClientCredentialsNotFound):
-        get_access_token('https://example.com', credsfile)
+        creds = get_client_credentials(credsfile, 'https://example.com')
+        get_access_token(creds)
 
 
 def test_add_client_credentials(tmpdir: PathBase):
@@ -125,3 +129,18 @@ def test_add_client_credentials_kwargs(tmpdir: PathBase):
         'secret': 'verysecret',
         'scopes': '\nspinta_getall\nspinta_getone',
     }
+
+
+@pytest.mark.parametrize('name, remote', [
+    ('example', 'example'),
+    ('example.com', 'example_com'),
+    ('spinta@example.com', 'example_com'),
+    ('https://spinta@example.com', 'example_com'),
+    ('https://example.com', 'example_com'),
+    ('https://example.com:80', 'example_com'),
+    ('https://example.com:443', 'example_com'),
+    ('https://example.com:8000', 'example_com_8000'),
+])
+def test_get_client_credentials_remote(name: str, remote: str):
+    creds = get_client_credentials(None, name, check=False)
+    assert creds.remote == remote

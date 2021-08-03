@@ -23,10 +23,8 @@ from spinta.testing.manifest import compare_manifest
 
 def _remove_push_state(rc: RawConfig) -> None:
     data_dir = rc.get('data_path')
-    if data_dir:
-        push_state_file = pathlib.Path(data_dir) / 'pushstate.db'
-        if push_state_file.exists():
-            push_state_file.unlink()
+    for file in (data_dir / 'push').glob('*.db'):
+        file.unlink()
 
 
 @pytest.fixture(scope='session')

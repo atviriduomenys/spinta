@@ -31,7 +31,9 @@ from spinta.cli.helpers.data import count_rows
 from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.data import iter_model_rows
 from spinta.cli.helpers.store import prepare_manifest
+from spinta.client import RemoteClientCredentials
 from spinta.client import get_access_token
+from spinta.client import get_client_credentials
 from spinta.components import Action
 from spinta.components import Config
 from spinta.components import Context
@@ -80,8 +82,8 @@ def push(
         "is pushed"
     )),
     state: pathlib.Path = Option(None, help=(
-        "Save push state into a file, by default state is saved in "
-        "{data_path}/pushstate.db"
+        "Save push state into a file, by default state is saved to "
+        "{data_path}/push/{remote}.db SQLite database file"
     )),
     mode: Mode = Option('external', help=(
         "Mode of backend operation, default: external"
@@ -99,16 +101,18 @@ def push(
     config: Config = context.get('config')
 
     if credentials:
-        credentials = pathlib.Path(credentials)
-        if not credentials.exists():
-            echo(f"Credentials file {credentials} does not exit.")
+        credsfile = pathlib.Path(credentials)
+        if not credsfile.exists():
+            echo(f"Credentials file {credsfile} does not exit.")
             raise Exit(code=1)
     else:
-        credentials = config.credentials_file
+        credsfile = config.credentials_file
+    # TODO: Read client credentials only if a Spinta URL is given.
+    creds = get_client_credentials(credsfile, output)
 
     if not state:
-        ensure_data_dir(config.data_path)
-        state = config.data_path / 'pushstate.db'
+        ensure_data_dir(config.data_path / 'push')
+        state = config.data_path / 'push' / f'{creds.remote}.db'
 
     manifest = store.manifest
     if dataset and dataset not in manifest.datasets:
@@ -162,7 +166,7 @@ def push(
         if stop_row:
             rows = itertools.islice(rows, stop_row)
 
-        rows = _push_to_remote_spinta(rows, output, credentials, chunk_size)
+        rows = _push_to_remote_spinta(rows, creds, chunk_size)
 
         if state:
             rows = _save_push_state(context, rows, metadata)
@@ -212,15 +216,11 @@ def _prepare_rows_for_push(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
 
 def _push_to_remote_spinta(
     rows: Iterable[_PushRow],
-    target: str,
-    credentials: pathlib.Path,
+    creds: RemoteClientCredentials,
     chunk_size: int,
 ) -> Iterator[_PushRow]:
-    if target.startswith('spinta+'):
-        target = target[len('spinta+'):]
-
-    echo(f"Get access token from {target}")
-    token = get_access_token(target, credentials)
+    echo(f"Get access token from {creds.server}")
+    token = get_access_token(creds)
 
     session = requests.Session()
     session.headers['Content-Type'] = 'application/json'
@@ -236,14 +236,14 @@ def _push_to_remote_spinta(
         data = fix_data_for_json(row.data)
         data = json.dumps(data, ensure_ascii=False)
         if ready and len(chunk) + len(data) + slen > chunk_size:
-            yield from _send_and_receive(session, target, ready, chunk + suffix)
+            yield from _send_and_receive(session, creds.server, ready, chunk + suffix)
             chunk = prefix
             ready = []
         chunk += (',' if ready else '') + data
         ready.append(row)
 
     if ready:
-        yield from _send_and_receive(session, target, ready, chunk + suffix)
+        yield from _send_and_receive(session, creds.server, ready, chunk + suffix)
 
 
 def _send_and_receive(
