@@ -1,21 +1,31 @@
 import asyncio
+from typing import List
+from typing import Optional
 
 import click
+from typer import Argument
 from typer import Context as TyperContext
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
+from spinta.core.context import configure_context
 
 
-def bootstrap(ctx: TyperContext):
+def bootstrap(
+    ctx: TyperContext,
+    manifests: Optional[List[str]] = Argument(None, help=(
+        "Manifest files to load"
+    )),
+):
     """Initialize backends
 
     This will create tables and sync manifest to backends.
     """
-    context = ctx.obj
-    store = prepare_manifest(context)
+    context = configure_context(ctx.obj, manifests)
+    store = prepare_manifest(context, ensure_config_dir=True)
+
     with context:
         require_auth(context)
         commands.bootstrap(context, store.manifest)
@@ -36,10 +46,15 @@ def sync(ctx: TyperContext):
     click.echo("Done.")
 
 
-def migrate(ctx: TyperContext):
+def migrate(
+    ctx: TyperContext,
+    manifests: Optional[List[str]] = Argument(None, help=(
+        "Manifest files to load"
+    )),
+):
     """Migrate schema change to backends"""
-    context = ctx.obj
-    store = prepare_manifest(context)
+    context = configure_context(ctx.obj, manifests)
+    store = prepare_manifest(context, ensure_config_dir=True)
     with context:
         require_auth(context)
         loop = asyncio.get_event_loop()

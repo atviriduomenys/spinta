@@ -1,17 +1,23 @@
+import base64
 import hashlib
+from typing import Tuple
 
 import pytest
+from _pytest.fixtures import FixtureRequest
 from starlette.requests import Request
 
 from spinta import commands
 from spinta.commands.formats.html import CurrentLocation
 from spinta.commands.formats.html import get_current_location
+from spinta.commands.formats.html import short_id
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Namespace
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.core.config import RawConfig
+from spinta.testing.client import TestClient
+from spinta.testing.client import create_test_client
 from spinta.testing.manifest import configure_manifest
 from spinta.types.namespace import get_ns_model
 
@@ -222,3 +228,165 @@ def test_current_location_with_root(
 ):
     context = context_current_location_with_root
     assert _get_current_loc(context, path) == result
+
+
+def _prep_file_type(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+) -> Tuple[TestClient, str]:
+    context = configure_manifest(rc, '''
+    d | r | b | m | property | type   | access
+    example/html/file        |        |
+      | resource             |        |
+      |   |   | Country      |        |
+      |   |   |   | name     | string | open
+      |   |   |   | flag     | image  | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/html/file', [
+        'insert',
+        'getall',
+        'getone',
+        'changes',
+        'search',
+    ])
+
+    # Add a file
+    resp = app.post(f'/example/html/file/Country', json={
+        'name': 'Lithuania',
+        'flag': {
+            '_id': 'flag.png',
+            '_content_type': 'image/png',
+            '_content': base64.b64encode(b'IMAGE').decode(),
+        },
+    })
+    assert resp.status_code == 201, resp.json()
+    data = resp.json()
+    _id = data['_id']
+
+    return app, _id
+
+
+def test_file_type_list(
+    postgresql: str,
+    rc: RawConfig,
+    request: FixtureRequest,
+):
+    app, _id = _prep_file_type(rc, postgresql, request)
+    resp = app.get('/example/html/file/Country', headers={
+        'Accept': 'text/html',
+    })
+    assert resp.context['data'] == [
+        [
+            {
+                'color': None,
+                'link': f'/example/html/file/Country/{_id}',
+                'value': short_id(_id),
+            },
+            {
+                'color': None,
+                'link': None,
+                'value': 'Lithuania',
+            },
+            {
+                'color': None,
+                'link': f'/example/html/file/Country/{_id}/flag',
+                'value': 'flag.png',
+            },
+        ]
+    ]
+
+
+def test_file_type_details(
+    postgresql: str,
+    rc: RawConfig,
+    request: FixtureRequest,
+):
+    app, _id = _prep_file_type(rc, postgresql, request)
+    resp = app.get(f'/example/html/file/Country/{_id}', headers={
+        'Accept': 'text/html',
+    })
+    assert resp.context['row'][3:] == [
+        ('name', {
+            'color': None,
+            'link': None,
+            'value': 'Lithuania',
+        }),
+        ('flag', {
+            'color': None,
+            'link': f'/example/html/file/Country/{_id}/flag',
+            'value': 'flag.png',
+        }),
+    ]
+
+
+def test_file_type_changes(
+    postgresql: str,
+    rc: RawConfig,
+    request: FixtureRequest,
+):
+    app, _id = _prep_file_type(rc, postgresql, request)
+    resp = app.get(f'/example/html/file/Country/:changes', headers={
+        'Accept': 'text/html',
+    })
+    assert resp.context['data'][0][6:] == [
+        {
+            'color': '#B2E2AD',
+            'link': None,
+            'value': 'Lithuania',
+        },
+        {
+            'color': '#B2E2AD',
+            'link': f'/example/html/file/Country/{_id}/flag',
+            'value': 'flag.png',
+        },
+    ]
+
+
+def test_file_type_changes_single_object(
+    postgresql: str,
+    rc: RawConfig,
+    request: FixtureRequest,
+):
+    app, _id = _prep_file_type(rc, postgresql, request)
+    resp = app.get(f'/example/html/file/Country/{_id}/:changes', headers={
+        'Accept': 'text/html',
+    })
+    assert resp.context['data'][0][6:] == [
+        {
+            'color': '#B2E2AD',
+            'link': None,
+            'value': 'Lithuania',
+        },
+        {
+            'color': '#B2E2AD',
+            'link': f'/example/html/file/Country/{_id}/flag',
+            'value': 'flag.png',
+        },
+    ]
+
+
+def test_file_type_no_pk(
+    postgresql: str,
+    rc: RawConfig,
+    request: FixtureRequest,
+):
+    app, _id = _prep_file_type(rc, postgresql, request)
+    resp = app.get('/example/html/file/Country?select(name, flag)', headers={
+        'Accept': 'text/html',
+    })
+    assert resp.context['data'] == [
+        [
+            {
+                'color': None,
+                'link': None,
+                'value': 'Lithuania',
+            },
+            {
+                'color': None,
+                'link': None,
+                'value': 'flag.png',
+            },
+        ]
+    ]

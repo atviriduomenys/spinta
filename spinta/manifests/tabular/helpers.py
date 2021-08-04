@@ -836,6 +836,8 @@ def read_tabular_manifest(
         rows = read_gsheets_manifest(path)
     elif path.endswith('.csv'):
         rows = _read_csv_manifest(path, text_file)
+    elif path.endswith('.txt'):
+        rows = _read_txt_manifest(path, text_file)
     elif path.endswith('.xlsx'):
         rows = _read_xlsx_manifest(path)
     else:
@@ -846,6 +848,14 @@ def read_tabular_manifest(
         rows,
         rename_duplicates=rename_duplicates,
     )
+
+
+def _read_txt_manifest(path: str, file: TextIO = None) -> Iterator[List[str]]:
+    if file:
+        yield from _read_ascii_tabular_manifest(file)
+    else:
+        with pathlib.Path(path).open(encoding='utf-8-sig') as f:
+            yield from _read_ascii_tabular_manifest(f)
 
 
 def _read_csv_manifest(path: str, file: TextIO = None) -> Iterator[List[str]]:
@@ -887,16 +897,12 @@ def _join_escapes(row: List[str]) -> List[str]:
     return res
 
 
-def read_ascii_tabular_rows(
-    manifest: str,
+def _read_ascii_tabular_manifest(
+    lines: Iterable[str],
     *,
-    strip: bool = False,
     check_column_names: bool = True,
 ) -> Iterator[List[str]]:
-    if strip:
-        manifest = striptable(manifest)
-
-    lines = (line.strip() for line in manifest.splitlines())
+    lines = (line.strip() for line in lines)
     lines = filter(None, lines)
 
     # Read header
@@ -918,6 +924,20 @@ def read_ascii_tabular_rows(
         row = row[:dim - rem] + [''] * rem + row[dim - rem:]
         assert len(header) == len(row), line
         yield row
+
+
+def read_ascii_tabular_rows(
+    manifest: str,
+    *,
+    strip: bool = False,
+    check_column_names: bool = True,
+) -> Iterator[List[str]]:
+    if strip:
+        manifest = striptable(manifest)
+    yield from _read_ascii_tabular_manifest(
+        manifest.splitlines(),
+        check_column_names=check_column_names,
+    )
 
 
 def read_ascii_tabular_manifest(

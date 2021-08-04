@@ -6,16 +6,18 @@ Changes
 0.1.19 (unreleased)
 ===================
 
-Bug fixes:
+Backwards incompatible changes:
 
-- Fix issue with self referenced models, external SQL backend ended up with
-  an infinite recursion on self referenced models (`#113`__).
+- Use different push state file for each server (`#110`__). Previously push
+  state was stored in `{data_dir}/pushstate.db`, now it is moved to
+  `{data_dir}/push/{remote}.db`, where remote is section name without client
+  name part from credentials.cfg file. When upgrading, you need to move
+  `pushstate.db` manually to desired location. If not moved, you will loose
+  you state and all data will be pushed.
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/110
 
-- Use different push state file for each server (`#110`__).
-
-  __ https://gitlab.com/atviriduomenys/spinta/-/issues/110
+New features:
 
 - Show server error and first item from data chunk sent to server, this will
   help to understand what was wrong in case of an error (`#111`__).
@@ -23,6 +25,22 @@ Bug fixes:
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/111
 
 - Add `--log-file` and `--log-level` arguments to `spinta` command.
+
+- In HTML format view, show file name and link to a file if `_id` is included
+  in the query (`#114`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/114
+
+- Add support for ASCII manifest files. This makes it easy to test examples
+  from tests or documentation. ASCII manifests files must have `.txt` file
+  extension to be recognized as ASCII manifest files.
+
+Bug fixes:
+
+- Fix issue with self referenced models, external SQL backend ended up with
+  an infinite recursion on self referenced models (`#113`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/110
 
 
 0.1.18 (2021-07-30)

@@ -61,3 +61,20 @@ def test_configure_with_resource(rc: RawConfig):
     datasets/gov/example/resources |        |
       | resource1                  | sql    | sqlite://
     '''
+
+
+def test_ascii_manifest(tmpdir: Path, rc: RawConfig):
+    manifest = '''
+    d | r | b | m | property | type   | source
+    datasets/1               |        |
+      | data                 | sql    |
+                             |        |
+      |   |   | Country      |        | SALIS
+      |   |   |   | name     | string | PAVADINIMAS
+    '''
+    manifest_file = tmpdir / 'ascii.txt'
+    manifest_file.write_text(striptable(manifest), encoding='utf-8')
+    context: Context = create_test_context(rc)
+    context = configure_context(context, [str(manifest_file)])
+    store = prepare_manifest(context, verbose=False)
+    assert store.manifest == manifest

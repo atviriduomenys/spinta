@@ -25,7 +25,7 @@ def freeze(context: Context, current: YamlManifest):
     for ntype, nodes in current.objects.items():
 
         if ntype == 'ns':
-            # Namespaces do not have phisical form, yet, se there is no need to
+            # Namespaces do not have physical form, yet, se there is no need to
             # freeze them.
             continue
 

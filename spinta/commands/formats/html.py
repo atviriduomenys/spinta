@@ -5,6 +5,7 @@ from typing import Optional, Union, List
 
 import datetime
 from typing import Tuple
+from typing import TypedDict
 
 import pkg_resources as pres
 
@@ -17,6 +18,7 @@ from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType, Ref
 from spinta.commands.formats import Format
 from spinta.components import Context, Action, UrlParams, Node, Property
+from spinta.types.datatype import File
 from spinta.utils.url import build_url_path
 from spinta import commands
 from spinta.components import Namespace, Model
@@ -278,10 +280,10 @@ def get_changes(context: Context, rows, model, params: UrlParams):
     # XXX: With large changes sets this will consume a lot of memmory.
     current = {}
     for data in rows:
-        id_ = data['_rid']
-        if id_ not in current:
-            current[id_] = {}
-        current[id_].update({
+        pk = data['_rid']
+        if pk not in current:
+            current[pk] = {}
+        current[pk].update({
             k: v for k, v in data.items() if not k.startswith('_')
         })
         row = [
@@ -290,7 +292,7 @@ def get_changes(context: Context, rows, model, params: UrlParams):
             {'color': None, 'value': data['_txn'], 'link': None},
             {'color': None, 'value': data['_created'], 'link': None},
             {'color': None, 'value': data['_op'], 'link': None},
-            get_cell(context, model.properties['_id'], data, '_rid', shorten=True),
+            get_cell(context, model.properties['_id'], pk, data, '_rid', shorten=True),
         ]
         for prop in props:
             if prop.name in data:
@@ -302,7 +304,8 @@ def get_changes(context: Context, rows, model, params: UrlParams):
             cell = get_cell(
                 context,
                 prop,
-                current[id_],
+                pk,
+                current[pk],
                 prop.name,
                 shorten=True,
                 color=color,
@@ -315,6 +318,7 @@ def get_row(context: Context, row, model: Node):
     if row is None:
         raise HTTPException(status_code=404)
     include = {'_type', '_id', '_revision'}
+    pk = row['_id']
     for prop in model.properties.values():
         if (
             not prop.hidden and
@@ -322,12 +326,23 @@ def get_row(context: Context, row, model: Node):
             prop.dtype.name not in ('object', 'array') and
             (prop.name in include or not prop.name.startswith('_'))
         ):
-            yield prop.name, get_cell(context, prop, row, prop.name)
+            yield prop.name, get_cell(
+                context,
+                prop,
+                pk,
+                row,
+                prop.name,
+            )
+
+
+def short_id(value: str) -> str:
+    return value[:8]
 
 
 def get_cell(
     context: Context,
     prop: Property,
+    pk: Optional[str],
     row: Dict[str, Any],
     name: Any,
     shorten=False,
@@ -342,6 +357,16 @@ def get_cell(
     model = None
     if prop.dtype.name == 'ref':
         value = row.get(f'{name}._id')
+    elif isinstance(prop.dtype, File):
+        # XXX: In listing, row is flattened, in single object view row is
+        #      nested, because of that, we need to check both cases here.
+        value = row.get(f'{name}._id') or row.get(name, {}).get('_id')
+        if pk:
+            # Primary key might not be given in select, for example
+            # select(count()).
+            link = '/' + build_url_path(
+                get_model_link_params(prop.model, pk=pk, prop=prop.place)
+            )
     else:
         value = row.get(name)
 
@@ -354,7 +379,7 @@ def get_cell(
         link = '/' + build_url_path(get_model_link_params(model, pk=value))
 
     if prop.dtype.name in ('ref', 'pk') and shorten and isinstance(value, str):
-        value = value[:8]
+        value = short_id(value)
 
     if isinstance(value, datetime.datetime):
         value = value.isoformat()
@@ -447,8 +472,9 @@ def get_data(
 
     for data in flatten(rows):
         row = []
+        pk = data.get('_id')
         for name, prop in zip(header, props):
-            row.append(get_cell(context, prop, data, name, shorten=True))
+            row.append(get_cell(context, prop, pk, data, name, shorten=True))
         yield row
 
 
@@ -501,13 +527,29 @@ def _find_linked_prop(
         return prop
 
 
-def get_model_link_params(model: Node, *, pk: Optional[str] = None, **extra):
+class _ParsedNode(TypedDict):
+    name: str
+    args: List[Any]
+
+
+def get_model_link_params(
+    model: Node,
+    *,
+    pk: Optional[str] = None,
+    prop: Optional[str] = None,
+    **extra,
+) -> List[_ParsedNode]:
+    assert prop is None or (prop and pk), (
+        "If prop is given, pk must be given too."
+    )
+
     ptree = [
         {
             'name': 'path',
             'args': (
                 model.name.split('/') +
-                ([pk] if pk is not None else [])
+                ([pk] if pk is not None else []) +
+                ([prop] if prop is not None else [])
             ),
         }
     ]

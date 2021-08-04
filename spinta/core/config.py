@@ -544,7 +544,19 @@ def configure_rc(
             'dsn': 'sqlite:///keymaps.db',
         }
 
-    if manifests or resources:
+    if manifests and len(manifests) == 1 and not resources:
+        manifest = parse_manifest_uri(manifests[0])
+        config['manifests.default'] = {
+            'type': 'tabular',
+            'backend': 'default',
+            'keymap': 'default',
+            'mode': mode.value,
+            'path': manifest.path,
+            'file': manifest.file,
+        }
+        config['manifest'] = 'default'
+
+    elif manifests or resources:
         config['manifests.default'] = {
                 'type': 'backend',
                 'backend': 'default',
@@ -562,7 +574,6 @@ def configure_rc(
                     'type': 'tabular',
                     'path': manifest.path,
                     'file': manifest.file,
-                    'backend': '',
                 }
                 config['manifests.default']['sync'].append(manifest_name)
 
