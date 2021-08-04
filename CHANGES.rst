@@ -17,6 +17,13 @@ Bug fixes:
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/110
 
+- Show server error and first item from data chunk sent to server, this will
+  help to understand what was wrong in case of an error (`#111`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/111
+
+- Add `--log-file` and `--log-level` arguments to `spinta` command.
+
 
 0.1.18 (2021-07-30)
 ===================

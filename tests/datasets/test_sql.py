@@ -1,9 +1,18 @@
+import logging
 import pathlib
+import re
+from typing import Dict
+from typing import Tuple
 
 import pytest
 
 import sqlalchemy as sa
+from _pytest.logging import LogCaptureFixture
+from requests import PreparedRequest
+from responses import POST
+from responses import RequestsMock
 
+from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
@@ -1784,3 +1793,123 @@ def test_push_self_ref(
             'governance._id': None,
         },
     ]
+
+
+def _prep_error_handling(
+    tmpdir: pathlib.Path,
+    sqlite: Sqlite,
+    rc: RawConfig,
+    responses: RequestsMock,
+    *,
+    response: Tuple[int, Dict[str, str], str] = None,
+    exception: Exception = None,
+) -> RawConfig:
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | b | m | property      | type     | ref          | source        | access
+    example/errors                |          |              |               |
+      | resource                  | sql      | sql          |               |
+      |   |   | City              |          | id           | CITY          |
+      |   |   |   | id            | integer  |              | ID            | private
+      |   |   |   | name          | string   |              | NAME          | open
+    ''')
+
+    # Configure local server with SQL backend
+    sqlite.init({
+        'CITY': [
+            sa.Column('ID',           sa.Integer),
+            sa.Column('NAME',         sa.String),
+        ],
+    })
+    sqlite.write('CITY', [
+        {'ID': 1, 'NAME': 'Vilnius'},
+        {'ID': 2, 'NAME': 'Kaunas'},
+    ])
+    rc = create_rc(rc, tmpdir, sqlite)
+
+    # Configure remote server
+    def handler(request: PreparedRequest):
+        if request.url.endswith('/auth/token'):
+            return (
+                200,
+                {'content-type': 'application/json'},
+                '{"access_token":"TOKEN"}',
+            )
+        elif exception:
+            raise exception
+        else:
+            return response
+
+    responses.add_callback(
+        POST, re.compile(r'https://example.com/.*'),
+        callback=handler,
+        content_type='application/json',
+    )
+
+    add_client_credentials(
+        tmpdir / 'credentials.cfg',
+        'https://example.com',
+        client='test',
+        secret='secret',
+        scopes=['spinta_insert'],
+    )
+
+    return rc
+
+
+def test_error_handling_server_error(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses: RequestsMock,
+    tmpdir: pathlib.Path,
+    sqlite: Sqlite,
+    caplog: LogCaptureFixture,
+):
+    rc = _prep_error_handling(tmpdir, sqlite, rc, responses, response=(
+        400,
+        {'content-type': 'application/json'},
+        '{"errors":[{"type": "system", "message": "ERROR"}]}',
+    ))
+
+    # Push data from local to remote.
+    with caplog.at_level(logging.ERROR):
+        cli.invoke(rc, [
+            'push',
+            '-o', 'spinta+https://example.com',
+            '--credentials', tmpdir / 'credentials.cfg',
+        ])
+
+    message = (
+        'Error when sending and receiving data. Model example/errors/City, '
+        'items in chunk: 2, first item in chunk:'
+    )
+    assert message in caplog.text
+    assert 'Server response (status=400):' in caplog.text
+
+
+def test_error_handling_io_error(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses: RequestsMock,
+    tmpdir,
+    sqlite: Sqlite,
+    caplog: LogCaptureFixture,
+):
+    rc = _prep_error_handling(
+        tmpdir, sqlite, rc, responses,
+        exception=IOError('I/O error.'),
+    )
+
+    # Push data from local to remote.
+    with caplog.at_level(logging.ERROR):
+        cli.invoke(rc, [
+            'push',
+            '-o', 'spinta+https://example.com',
+            '--credentials', tmpdir / 'credentials.cfg',
+        ])
+
+    message = (
+        'Error when sending and receiving data. Model example/errors/City, '
+        'items in chunk: 2, first item in chunk:'
+    )
+    assert message in caplog.text
+    assert 'Error: I/O error.' in caplog.text

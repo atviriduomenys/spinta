@@ -70,8 +70,25 @@ def main(
     env_file: Optional[pathlib.Path] = Option(None, '--env-file', help=(
         "Load configuration from a given .env file."
     )),
-    version: bool = Option(False, help="Show version number.")
+    version: bool = Option(False, help="Show version number."),
+    log_file: Optional[pathlib.Path] = Option(None, '--log-file', help=(
+        "Write log messages to a specified file, if not given, writes logs to "
+        "STDERR."
+    )),
+    log_level: Optional[str] = Option('warning', '--log-level', help=(
+        "Log level. Possible levels: fatal, error, warning, info, debug. "
+        "Default: warning."
+    )),
 ):
+    logging.basicConfig(
+        level=logging.getLevelName(log_level.upper()),
+        format='%(asctime)s %(levelname)s: %(message)s',
+        filename=log_file,
+    )
+
+    log.debug("log file set to: %s", log_file or 'STDERR')
+    log.debug("log level set to: %s", log_level)
+
     ctx.obj = ctx.obj or create_context('cli', args=option, envfile=env_file)
     if version:
         echo(spinta.__version__)

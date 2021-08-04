@@ -57,6 +57,7 @@ ujson = "*"
 unidecode = "*"
 frictionless = {extras = ["sql"], version = "^3.48.0"}
 sqlparse = "*"
+pprintpp = "*"
 
 # PostgreSQL backend dependencies
 alembic = { version = "*", optional = false }
@@ -114,7 +115,6 @@ ipdb = "*"
 ipython = "*"
 moto = "*"
 pp-ez = "*"
-pprintpp = "*"
 pytest = "*"
 pytest-asyncio = "*"
 pytest-cov = "*"

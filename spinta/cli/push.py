@@ -1,9 +1,13 @@
 import datetime
 import hashlib
+import textwrap
+
 import itertools
 import json
 import logging
 import pathlib
+
+import pprintpp
 import time
 from typing import Any
 from typing import Dict
@@ -17,6 +21,7 @@ import msgpack
 import requests
 import sqlalchemy as sa
 import tqdm
+from requests import HTTPError
 from typer import Argument
 from typer import Context as TyperContext
 from typer import Option
@@ -246,6 +251,20 @@ def _push_to_remote_spinta(
         yield from _send_and_receive(session, creds.server, ready, chunk + suffix)
 
 
+def _get_row_for_error(rows: List[_PushRow]) -> str:
+    size = len(rows)
+    if size > 0:
+        row = rows[0]
+        data = pprintpp.pformat(row.data)
+        return (
+            f" Model {row.model.name},"
+            f" items in chunk: {size},"
+            f" first item in chunk:\n {data}"
+        )
+    else:
+        return ''
+
+
 def _send_and_receive(
     session: requests.Session,
     target: str,
@@ -256,11 +275,32 @@ def _send_and_receive(
 
     try:
         resp = session.post(target, data=data)
-        resp.raise_for_status()
-        data = resp.json()['_data']
-    except Exception:
-        log.exception("Error when sending and receiving data.")
+    except IOError as e:
+        log.error(
+            (
+                "Error when sending and receiving data.%s\n"
+                "Error: %s"
+            ),
+            _get_row_for_error(rows),
+            e,
+        )
         return
+
+    try:
+        resp.raise_for_status()
+    except HTTPError:
+        log.error(
+            (
+                "Error when sending and receiving data.%s\n"
+                "Server response (status=%s):\n%s"
+            ),
+            _get_row_for_error(rows),
+            resp.status_code,
+            textwrap.indent(pprintpp.pformat(resp.json()), '    '),
+        )
+        return
+
+    data = resp.json()['_data']
 
     assert len(rows) == len(data), (
         f"len(sent) = {len(rows)}, len(received) = {len(data)}"

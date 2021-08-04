@@ -15,6 +15,7 @@ import pprintpp as pprint
 import requests
 import starlette.testclient
 from lxml.etree import _Element
+from requests import PreparedRequest
 from requests import Response
 
 from responses import RequestsMock
@@ -77,7 +78,7 @@ def create_remote_server(
     credsfile: Union[bool, pathlib.Path] = None,
 ) -> RemoteServer:
 
-    def remote(request):
+    def remote(request: PreparedRequest):
         path = request.url[len(url.rstrip('/')):]
         resp = app.request(
             request.method,
