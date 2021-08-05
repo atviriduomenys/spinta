@@ -199,7 +199,7 @@ def detect(
             },
             'keymaps.default': {
                 'type': 'sqlalchemy',
-                'dsn': 'sqlite:///keymaps.db',
+                'dsn': 'sqlite:///{data_dir}/keymap.db',
             },
             'manifests.cli': {
                 'type': 'tabular',

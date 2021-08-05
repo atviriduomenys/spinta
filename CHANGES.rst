@@ -17,6 +17,14 @@ Backwards incompatible changes:
 
   __ https://gitlab.com/atviriduomenys/spinta/-/issues/110
 
+- Use different location for keymap SQLite database file (`#117`__).
+  Previously, by default `keymaps.db` file, was stored in a current working
+  directory, but now file was moved to `{data_dir}/keymap.db`. Please move
+  `keymaps.db` file to `{data_dir}/keymap.db` after upgrade. By default
+  `{data_dir}` is set to `~/.local/share/spinta`.
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/117
+
 New features:
 
 - Show server error and first item from data chunk sent to server, this will

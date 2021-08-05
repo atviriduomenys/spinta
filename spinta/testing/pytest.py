@@ -38,7 +38,7 @@ def rc():
             'data_path': data_dir,
             'keymaps.default': {
                 'type': 'sqlalchemy',
-                'dsn': 'sqlite:////' + str(tmpdir / 'keymaps.db'),
+                'dsn': 'sqlite:///{data_dir}/keymap.db',
             },
         })
         rc.lock()

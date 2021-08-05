@@ -541,7 +541,7 @@ def configure_rc(
     if not rc.get('keymaps', 'default'):
         config['keymaps.default'] = {
             'type': 'sqlalchemy',
-            'dsn': 'sqlite:///keymaps.db',
+            'dsn': 'sqlite:///{data_dir}/keymap.db',
         }
 
     if manifests and len(manifests) == 1 and not resources:

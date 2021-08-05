@@ -9,7 +9,10 @@ import msgpack
 import sqlalchemy as sa
 
 from spinta import commands
+from spinta.cli.helpers.data import ensure_data_dir
+from spinta.components import Config
 from spinta.components import Context
+from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap
 
 
@@ -94,8 +97,12 @@ def _encode_value(value):
 
 @commands.configure.register(Context, SqlAlchemyKeyMap)
 def configure(context: Context, keymap: SqlAlchemyKeyMap):
-    rc = context.get('rc')
-    keymap.dsn = rc.get('keymaps', keymap.name, 'dsn', required=True)
+    rc: RawConfig = context.get('rc')
+    config: Config = context.get('config')
+    dsn = rc.get('keymaps', keymap.name, 'dsn', required=True)
+    ensure_data_dir(config.data_path)
+    dsn = dsn.format(data_dir=config.data_path)
+    keymap.dsn = dsn
 
 
 @commands.prepare.register(Context, SqlAlchemyKeyMap)
