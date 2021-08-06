@@ -254,7 +254,7 @@ class RawConfig:
                 # XXX: why []?
                 value = default or []
 
-        if required and not value:
+        if required and value is None:
             name = '.'.join(key)
             raise Exception(f"{name!r} is a required configuration option.")
 
@@ -544,27 +544,9 @@ def configure_rc(
             'dsn': 'sqlite:///{data_dir}/keymap.db',
         }
 
-    if manifests and len(manifests) == 1 and not resources:
-        manifest = parse_manifest_uri(manifests[0])
-        config['manifests.default'] = {
-            'type': 'tabular',
-            'backend': 'default',
-            'keymap': 'default',
-            'mode': mode.value,
-            'path': manifest.path,
-            'file': manifest.file,
-        }
-        config['manifest'] = 'default'
-
-    elif manifests or resources:
-        config['manifests.default'] = {
-                'type': 'backend',
-                'backend': 'default',
-                'keymap': 'default',
-                'mode': mode.value,
-                'sync': [],
-        }
-        config['manifest'] = 'default'
+    if manifests or resources:
+        sync = []
+        inline = []
 
         if manifests:
             for i, uri in enumerate(manifests):
@@ -575,29 +557,32 @@ def configure_rc(
                     'path': manifest.path,
                     'file': manifest.file,
                 }
-                config['manifests.default']['sync'].append(manifest_name)
+                sync.append(manifest_name)
 
         if resources:
             manifest_name = f'resources'
-            config[f'manifests.{manifest_name}'] = {
-                'type': 'inline',
-                'backend': '',
-                'manifest': [
-                    {
-                        'type': 'dataset',
-                        'name': f'datasets/gov/example/{manifest_name}',
-                        'resources': {
-                            f'resource{i}': {
-                                'type': resource.type,
-                                'external': resource.external,
-                                'prepare': resource.prepare,
-                            }
-                            for i, resource in enumerate(resources, 1)
-                        },
-                    },
-                ],
-            }
-            config['manifests.default']['sync'].append(manifest_name)
+            inline.append({
+                'type': 'dataset',
+                'name': f'datasets/gov/example/{manifest_name}',
+                'resources': {
+                    f'resource{i}': {
+                        'type': resource.type,
+                        'external': resource.external,
+                        'prepare': resource.prepare,
+                    }
+                    for i, resource in enumerate(resources, 1)
+                },
+            })
+
+        config['manifests.default'] = {
+            'type': 'inline',
+            'backend': 'default',
+            'keymap': 'default',
+            'mode': mode.value,
+            'sync': sync,
+            'manifest': inline,
+        }
+        config['manifest'] = 'default'
 
     if config:
         rc = rc.fork(config)

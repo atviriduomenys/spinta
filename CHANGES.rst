@@ -6,6 +6,21 @@ Changes
 0.1.20 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- Configuration reader now assumes, that a required configuration parameter
+  is not given if it is None. Previously zeros, empty strings or lists were
+  considered as if required value was not given. But zero or an empty list
+  can be a valid given value. Since all tests pass I assume, this change should
+  not create any issues.
+
+Bug fixes:
+
+- Fix a bug related with dynamic manifest construction from command line
+  arguments. Now dynamic manifest uses `inline` manifest type, which now
+  supports `sync` parameter. Also simplified code responsible for dynamic
+  manifest building.
+
 
 0.1.19 (2021-08-05)
 ===================

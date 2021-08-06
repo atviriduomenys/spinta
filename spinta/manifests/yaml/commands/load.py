@@ -69,45 +69,34 @@ def load(
     manifest: InlineManifest,
     *,
     into: Manifest = None,
-    freezed: bool = False,
+    freezed: bool = True,
 ):
+    assert freezed, (
+        "InlineManifest does not have unfreezed version of manifest."
+    )
+
     target = into or manifest
     if '_schema' not in target.models:
         store = context.get('store')
         commands.load(context, store.internal, into=target)
 
-    if freezed:
-        if into:
-            log.info(
-                'Loading freezed manifest %r into %r from %s.',
-                manifest.name,
-                into.name,
-                '<inline>',
-            )
-        else:
-            log.info(
-                'Loading freezed manifest %r from %s.',
-                manifest.name,
-                '<inline>',
-            )
-        schemas = read_inline_manifest_schemas(manifest)
-    else:
-        if into:
-            log.info(
-                'Loading manifest %r into %r from %s.',
-                manifest.name,
-                into.name,
-                '<inline>',
-            )
-        else:
-            log.info(
-                'Loading manifest %r from %s.',
-                manifest.name,
-                '<inline>',
-            )
-        schemas = read_inline_manifest_schemas(manifest)
-
     if into:
+        log.info(
+            'Loading freezed manifest %r into %r from %s.',
+            manifest.name,
+            into.name,
+            '<inline>',
+        )
+        schemas = read_inline_manifest_schemas(manifest)
         load_manifest_nodes(context, into, schemas, source=manifest)
     else:
+        log.info(
+            'Loading freezed manifest %r from %s.',
+            manifest.name,
+            '<inline>',
+        )
+        schemas = read_inline_manifest_schemas(manifest)
         load_manifest_nodes(context, manifest, schemas)
+
+    for source in manifest.sync:
+        commands.load(context, source, into=into or manifest, freezed=freezed)

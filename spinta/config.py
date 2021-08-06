@@ -196,7 +196,7 @@ CONFIG = {
         'dev': {
             'keymaps.default': {
                 'type': 'sqlalchemy',
-                'dsn': 'sqlite://{data_dir}/keymap.db',
+                'dsn': 'sqlite:///{data_dir}/keymap.db',
             },
             'backends': {
                 'default': {

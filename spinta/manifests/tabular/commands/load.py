@@ -50,3 +50,6 @@ def load(
         )
         schemas = read_tabular_manifest(manifest.path)
         load_manifest_nodes(context, manifest, schemas)
+
+    for source in manifest.sync:
+        commands.load(context, source, into=into or manifest, freezed=freezed)
