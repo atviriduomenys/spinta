@@ -20,6 +20,7 @@ from spinta.dimensions.enum.components import EnumValue
 from spinta.dimensions.enum.components import Enums
 from spinta.exceptions import FormulaError
 from spinta.exceptions import ValueNotInEnum
+from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import EnumRow
 from spinta.nodes import load_node
 from spinta.utils.schema import NA
@@ -27,18 +28,19 @@ from spinta.utils.schema import NA
 
 def _load_enum_item(
     context: Context,
-    parents: List[Union[Property, Model, Namespace]],
+    parents: List[Union[Property, Model, Namespace, Manifest]],
     data: EnumRow,
 ) -> EnumItem:
     item = EnumItem()
-    item = load_node(context, item, data, parent=parents[0])
+    parent = parents[0]
+    item = load_node(context, item, data, parent=parent)
     item = cast(EnumItem, item)
     if item.prepare is not NA:
         ast = item.prepare
         expr = asttoexpr(ast)
         env = EnumFormula(context, scope={
             'this': item.source,
-            'node': parents[0],
+            'node': parent,
         })
         item.prepare = env.resolve(expr)
         if isinstance(item.prepare, Expr):
@@ -52,7 +54,7 @@ def _load_enum_item(
 
 def load_enums(
     context: Context,
-    parents: List[Union[Property, Model, Namespace]],
+    parents: List[Union[Property, Model, Namespace, Manifest]],
     enums: Optional[Dict[str, Dict[str, EnumRow]]],
 ) -> Optional[Enums]:
     if enums is None:

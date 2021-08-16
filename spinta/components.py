@@ -15,6 +15,7 @@ from typing import TypedDict
 
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
+from spinta.units.components import Unit
 from spinta.utils.schema import NA
 from spinta.core.enums import Access
 from spinta.datasets.enums import Level
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from spinta.datasets.components import Entity
     from spinta.datasets.keymaps.components import KeyMap
     from spinta.dimensions.enum.components import Enums
+    from spinta.dimensions.enum.components import EnumValue
     from spinta.core.config import RawConfig
 
 
@@ -508,6 +510,7 @@ class Model(MetaData):
 
 class PropertyGiven:
     access: str = None
+    enum: str = None
 
 
 class Property(Node):
@@ -524,8 +527,10 @@ class Property(Node):
     model: Model = None
     uri: str = None
     given: PropertyGiven
+    enum: EnumValue = None        # Enum name from Enums dict.
     enums: Enums
     lang: LangData = None
+    units: Unit = None       # Given in ref column.
 
     schema = {
         'title': {},
@@ -545,7 +550,9 @@ class Property(Node):
         },
         'external': {},
         'uri': {'type': 'string'},
+        'enum': {'type': 'string'},
         'enums': {},
+        'units': {'type': 'string'},
         'lang': {'type': 'object'},
     }
 

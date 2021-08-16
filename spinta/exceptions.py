@@ -233,6 +233,10 @@ class ValueNotInEnum(UserError):
     template = "Given value {value} is not defined in enum."
 
 
+class UndefinedEnum(UserError):
+    template = "Enum {name!r} is not defined."
+
+
 class EmptyStringSearch(UserError):
     template = \
         "Empty string can't be used with `{op}`. " \

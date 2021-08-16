@@ -150,8 +150,10 @@ class PropertyRow(TypedDict, total=False):
     model: str
     refprops: List[str]
     external: PropertyExternalRow
+    enum: str
     enums: Dict[str, Dict[str, EnumRow]]
     lang: LangData
+    units: str
 
 
 class PropertyExternalRow(TypedDict, total=False):

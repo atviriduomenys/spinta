@@ -61,6 +61,7 @@ def test_detect_pii(rc, cli: SpintaCliRunner, tmpdir, sqlite):
     assert manifest == '''
     d | r | m | property | type   | ref | source | access | uri
                          | prefix | pii |        |        | https://data.gov.lt/pii/
+                         |        |     |        |        |
     datasets/ds          |        |     |        |        |
       | rs               | sql    | sql |        |        |
                          |        |     |        |        |

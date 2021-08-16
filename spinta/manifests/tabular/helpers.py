@@ -463,10 +463,13 @@ class PropertyReader(TabularReader):
 
         dataset = self.state.dataset.data if self.state.dataset else None
 
-        if row['type'] == 'ref':
+        if row['type'] in ('ref', 'backref', 'generic'):
             ref_model, ref_props = _parse_property_ref(row['ref'])
             self.data['model'] = get_relative_model_name(dataset, ref_model)
             self.data['refprops'] = ref_props
+        else:
+            # TODO: Detect if ref is a unit or an enum.
+            self.data['enum'] = row['ref']
 
         if dataset or row['source']:
             self.data['external'] = {
@@ -516,6 +519,10 @@ class PrefixReader(TabularReader):
     data: PrefixRow
 
     def read(self, row: Dict[str, str]) -> None:
+        if not row['ref']:
+            # `ref` is a required parameter.
+            return
+
         self.name = row['ref']
 
         node = (
@@ -622,12 +629,13 @@ def _read_enum_row(name: str, row: ManifestRow) -> Dict[str, Any]:
 class EnumReader(TabularReader):
     type: str = 'enum'
     data: EnumRow
+    name: str = None
 
     def read(self, row: ManifestRow) -> None:
         if row[REF]:
             self.name = row[REF]
         else:
-            self.name = ''
+            self.name = self.name or ''
 
         if not any([
             row[SOURCE],
@@ -656,15 +664,22 @@ class EnumReader(TabularReader):
             'description': row[DESCRIPTION],
         }
 
-        prop = self.state.prop
+        node = (
+            self.state.prop or
+            self.state.model or
+            self.state.base or
+            self.state.resource or
+            self.state.dataset or
+            self.state.manifest
+        )
 
-        if 'enums' not in prop.data:
-            prop.data['enums'] = {}
+        if 'enums' not in node.data:
+            node.data['enums'] = {}
 
-        if self.name not in prop.data['enums']:
-            prop.data['enums'][self.name] = {}
+        if self.name not in node.data['enums']:
+            node.data['enums'][self.name] = {}
 
-        enum = prop.data['enums'][self.name]
+        enum = node.data['enums'][self.name]
 
         if source in enum:
             self.error(
@@ -1015,7 +1030,6 @@ DATASETS_ORDER_BY = {
 }
 
 
-
 def _order_models_by_access(model: Model):
     return model.access or Access.private
 
@@ -1058,6 +1072,8 @@ def sort(
 
 def _prefixes_to_tabular(
     prefixes: Dict[str, UriPrefix],
+    *,
+    separator: bool = False,
 ) -> Iterator[ManifestRow]:
     first = True
     for name, prefix in prefixes.items():
@@ -1071,9 +1087,14 @@ def _prefixes_to_tabular(
         })
         first = False
 
+    if separator and prefixes:
+        yield torow(DATASET, {})
+
 
 def _backends_to_tabular(
     backends: Dict[str, Backend],
+    *,
+    separator: bool = False,
 ) -> Iterator[ManifestRow]:
     for name, backend in backends.items():
         yield torow(DATASET, {
@@ -1082,9 +1103,14 @@ def _backends_to_tabular(
             'source': backend.config.get('dsn'),
         })
 
+    if separator and backends:
+        yield torow(DATASET, {})
+
 
 def _namespaces_to_tabular(
     namespaces: Dict[str, Namespace],
+    *,
+    separator: bool = False,
 ) -> Iterator[ManifestRow]:
     namespaces = {
         k: ns
@@ -1099,6 +1125,9 @@ def _namespaces_to_tabular(
             'description': ns.description,
         })
         first = False
+
+    if separator and namespaces:
+        yield torow(DATASET, {})
 
 
 def _order_enums_by_access(item: EnumItem):
@@ -1116,6 +1145,7 @@ def _enums_to_tabular(
     external: bool = True,
     access: Access = Access.private,
     order_by: ManifestColumn = None,
+    separator: bool = False,
 ) -> Iterator[ManifestRow]:
     if enums is None:
         return
@@ -1123,7 +1153,7 @@ def _enums_to_tabular(
         first = True
         items = sort(ENUMS_ORDER_BY, enum.values(), order_by)
         for item in items:
-            if item.access < access:
+            if item.access is not None and item.access < access:
                 continue
             yield torow(DATASET, {
                 'type': 'enum' if first else '',
@@ -1139,6 +1169,9 @@ def _enums_to_tabular(
                 yield from lang
             else:
                 first = False
+
+    if separator and enums:
+        yield torow(DATASET, {})
 
 
 def _lang_to_tabular(
@@ -1248,6 +1281,8 @@ def _property_to_tabular(
                 data['ref'] += f'[{rkeys}]'
         else:
             data['ref'] = prop.dtype.model.name
+    elif prop.enum is not None:
+        data['ref'] = prop.given.enum
 
     yield torow(DATASET, data)
     yield from _lang_to_tabular(prop.lang)
@@ -1314,9 +1349,16 @@ def datasets_to_tabular(
     internal: bool = False,  # internal models with _ prefix like _txn
     order_by: ManifestColumn = None,
 ) -> Iterator[ManifestRow]:
-    yield from _prefixes_to_tabular(manifest.prefixes)
-    yield from _backends_to_tabular(manifest.backends)
-    yield from _namespaces_to_tabular(manifest.namespaces)
+    yield from _prefixes_to_tabular(manifest.prefixes, separator=True)
+    yield from _backends_to_tabular(manifest.backends, separator=True)
+    yield from _namespaces_to_tabular(manifest.namespaces, separator=True)
+    yield from _enums_to_tabular(
+        manifest.enums,
+        external=external,
+        access=access,
+        order_by=order_by,
+        separator=True,
+    )
 
     seen_datasets = set()
     dataset = None
@@ -1324,6 +1366,7 @@ def datasets_to_tabular(
     models = manifest.models if internal else take(manifest.models)
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 
+    separator = False
     for model in models:
         if model.access < access:
             continue
@@ -1334,6 +1377,7 @@ def datasets_to_tabular(
                 if dataset:
                     seen_datasets.add(dataset.name)
                     resource = None
+                    separator = True
                     yield from _dataset_to_tabular(dataset)
 
             if model.external and model.external.resource and (
@@ -1342,9 +1386,13 @@ def datasets_to_tabular(
             ):
                 resource = model.external.resource
                 if resource:
+                    separator = True
                     yield from _resource_to_tabular(resource, external=external)
 
-        yield torow(DATASET, {})
+        if separator:
+            yield torow(DATASET, {})
+        else:
+            separator = False
 
         yield from _model_to_tabular(
             model,

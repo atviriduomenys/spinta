@@ -18,6 +18,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Store
 from spinta.core.enums import Access
+from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.prefix.components import UriPrefix
 
 if TYPE_CHECKING:
@@ -47,6 +48,7 @@ class Manifest(Component):
     path: str = None
     access: Access = Access.protected
     prefixes: Dict[str, UriPrefix]
+    enums: Enums
 
     # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
     # name and endpoint for all of them should match.

@@ -12,6 +12,7 @@ from spinta.components import Model
 from spinta.datasets.components import Dataset
 from spinta.datasets.components import Entity
 from spinta.datasets.components import Resource
+from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.prefix.helpers import load_prefixes
 from spinta.exceptions import UnknownKeyMap
 from spinta.manifests.components import ManifestSchema
@@ -35,6 +36,7 @@ def init_manifest(context: Context, manifest: Manifest, name: str):
     manifest.objects = {name: {} for name in config.components['nodes']}
     manifest.sync = []
     manifest.prefixes = {}
+    manifest.enums = {}
     manifest.access = Access.protected
     manifest.keymap = None
     manifest.backend = None
@@ -169,6 +171,10 @@ def _load_manifest(
     if 'prefixes' in data:
         prefixes = load_prefixes(context, manifest, manifest, data['prefixes'])
         manifest.prefixes.update(prefixes)
+    if 'enums' in data:
+        parents = [manifest]
+        enums = load_enums(context, parents, data['enums'])
+        manifest.enums.update(enums)
 
 
 def _load_manifest_node(

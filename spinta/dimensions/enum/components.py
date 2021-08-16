@@ -22,7 +22,7 @@ class EnumValueGiven:
 class EnumItem(Node):
     source: str
     prepare: Expr
-    access: Access
+    access: Access = None
     title: str
     description: str
     given: EnumValueGiven

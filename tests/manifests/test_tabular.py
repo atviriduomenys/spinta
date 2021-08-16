@@ -29,6 +29,7 @@ def test_uri(tmpdir, rc):
     d | r | b | m | property | type       | ref     | uri
                              | prefix     | locn    | http://www.w3.org/ns/locn#
                              |            | ogc     | http://www.opengis.net/rdf#
+                             |            |         |
     datasets/gov/example     |            |         |
       | data                 | postgresql | default |
                              |            |         |
@@ -46,6 +47,7 @@ def test_backends(tmpdir, rc):
     check(tmpdir, rc, f'''
     d | r | b | m | property | type | ref | source
       | default              | sql  |     | sqlite:///{tmpdir}/db
+                             |      |     |
     ''')
 
 
@@ -66,6 +68,7 @@ def test_ns(tmpdir, rc):
                              | ns   | datasets             | All datasets        | All external datasets.
                              |      | datasets/gov         | Government datasets | All government datasets.
                              |      | datasets/gov/example | Example             |
+                             |      |                      |                     |
     ''')
 
 
@@ -75,6 +78,7 @@ def test_ns_with_models(tmpdir, rc):
                              | ns     | datasets             | All datasets        | All external datasets.
                              |        | datasets/gov         | Government datasets | All government datasets.
                              |        | datasets/gov/example | Example             |
+                             |        |                      |                     |
     datasets/gov/example     |        |                      |                     |
       | data                 |        | default              |                     |
                              |        |                      |                     |

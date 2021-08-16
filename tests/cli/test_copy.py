@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
@@ -331,4 +334,49 @@ def test_copy_rename_duplicates(rc, cli, tmpdir):
                                |
       |   |   | City_2         |
       |   |   |   | name       | string
+    '''
+
+
+def test_enum_ref(rc: RawConfig, cli: SpintaCliRunner, tmpdir: Path):
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | b | m | property | type    | ref     | source      | prepare | access | title
+                             | enum    | sex     |             | 1       |        | Male
+                             |         |         |             | 2       |        | Female
+                             |         |         |             |         |        |
+    datasets/gov/example     |         |         |             |         |        |
+      | data                 | sql     |         |             |         |        |
+                             |         |         |             |         |        |
+      |   |   | Report1      |         | id      | REPORT1     |         |        |
+      |   |   |   | id       | integer |         | ID          |         | open   |
+      |   |   |   | sex      | integer | sex     | SEX         |         | open   |
+      |   |   |   | name     | string  |         | NAME        |         | open   |
+                             |         |         |             |         |        |
+      |   |   | Report2      |         | id      | REPORT2     |         |        |
+      |   |   |   | id       | integer |         | ID          |         | open   |
+      |   |   |   | sex      | integer | sex     | SEX         |         | open   |
+      |   |   |   | name     | string  |         | NAME        |         | open   |
+    ''')
+
+    cli.invoke(rc, [
+        'copy', tmpdir / 'manifest.csv', '-o', tmpdir / 'result.csv',
+    ])
+
+    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type    | ref     | source      | prepare | access | title
+                             | enum    | sex     |             | 1       |        | Male
+                             |         |         |             | 2       |        | Female
+                             |         |         |             |         |        |
+    datasets/gov/example     |         |         |             |         |        |
+      | data                 | sql     |         |             |         |        |
+                             |         |         |             |         |        |
+      |   |   | Report1      |         | id      | REPORT1     |         |        |
+      |   |   |   | id       | integer |         | ID          |         | open   |
+      |   |   |   | sex      | integer | sex     | SEX         |         | open   |
+      |   |   |   | name     | string  |         | NAME        |         | open   |
+                             |         |         |             |         |        |
+      |   |   | Report2      |         | id      | REPORT2     |         |        |
+      |   |   |   | id       | integer |         | ID          |         | open   |
+      |   |   |   | sex      | integer | sex     | SEX         |         | open   |
+      |   |   |   | name     | string  |         | NAME        |         | open   |
     '''

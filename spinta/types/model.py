@@ -24,6 +24,7 @@ from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.exceptions import KeymapNotSet
+from spinta.exceptions import UndefinedEnum
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
@@ -168,11 +169,17 @@ def link(context: Context, base: Base):
 
 
 @load.register(Context, Property, dict, Manifest)
-def load(context: Context, prop: Property, data: PropertyRow, manifest: Manifest) -> Property:
+def load(
+    context: Context,
+    prop: Property,
+    data: PropertyRow,
+    manifest: Manifest,
+) -> Property:
     config = context.get('config')
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
+    prop.given.enum = prop.enum
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
@@ -219,6 +226,21 @@ def link(context: Context, prop: Property):
         ))
     link_access_param(prop, parents)
     link_enums([prop] + parents, prop.enums)
+
+    if prop.given.enum:
+        if prop.enums and prop.given.enum in prop.enums:
+            prop.enum = prop.enums[prop.given.enum]
+        elif (
+            prop.model.manifest.enums and
+            prop.given.enum in prop.model.manifest.enums
+        ):
+            prop.enum = prop.model.manifest.enums[prop.given.enum]
+        else:
+            raise UndefinedEnum(prop, name=prop.given.enum)
+    elif prop.enums:
+        prop.enum = prop.enums.get('')
+    else:
+        prop.enum = None
 
 
 def _load_property_external(
