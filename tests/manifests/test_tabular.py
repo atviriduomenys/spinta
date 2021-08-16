@@ -101,6 +101,21 @@ def test_enum(tmpdir, rc):
     ''')
 
 
+def test_enum_ref(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property     | type   | ref     | source | prepare | access  | title | description
+                                 | enum   | side    | l      | 'left'  | open    | Left  | Left side.
+                                 |        |         | r      | 'right' | private | Right | Right side.
+                                 |        |         |        |         |         |       |
+    datasets/gov/example         |        |         |        |         |         |       |
+      | data                     |        | default |        |         |         |       |
+                                 |        |         |        |         |         |       |
+      |   |   | Country          |        |         |        |         |         |       |
+      |   |   |   | name         | string |         |        |         |         |       |
+      |   |   |   | driving_side | string | side    |        |         |         |       |
+    ''')
+
+
 def test_lang(tmpdir, rc):
     check(tmpdir, rc, '''
     d | r | b | m | property | type   | ref     | prepare | title       | description

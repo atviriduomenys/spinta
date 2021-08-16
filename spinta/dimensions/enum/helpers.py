@@ -80,8 +80,8 @@ def link_enums(
 
 
 def get_prop_enum(prop: Optional[Property]) -> EnumValue:
-    if prop and prop.enums and '' in prop.enums:
-        return prop.enums['']
+    if prop and prop.enum:
+        return prop.enum
 
 
 T = TypeVar('T')

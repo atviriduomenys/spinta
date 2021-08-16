@@ -1070,6 +1070,41 @@ def test_enum(rc, tmpdir, sqlite):
     ]
 
 
+def test_enum_ref(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | m | property | type   | ref  | source  | prepare | access
+                         | enum   | side | l       | 'left'  | open
+                         |        |      | r       | 'right' | open
+                         |        |      |         |         |     
+    datasets/gov/example |        |      |         |         |
+      | resource         | sql    |      |         |         |
+      |   | Country      |        | name | COUNTRY |         |     
+      |   |   | name     | string |      | NAME    |         | open
+      |   |   | driving  | string | side | DRIVING |         | open
+    '''))
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('DRIVING', sa.Text),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {'DRIVING': 'r', 'NAME': 'Lithuania'},
+        {'DRIVING': 'r', 'NAME': 'Latvia'},
+        {'DRIVING': 'l', 'NAME': 'India'},
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    resp = app.get('/datasets/gov/example/Country')
+    assert listdata(resp) == [
+        ('left', 'India'),
+        ('right', 'Latvia'),
+        ('right', 'Lithuania'),
+    ]
+
+
 def test_enum_no_prepare(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
@@ -1115,6 +1150,41 @@ def test_enum_empty_source(rc, tmpdir, sqlite):
                              | enum   |         | l       |               | open
                              |        |         | r       |               | open
                              |        |         | -       | null          | open
+    '''))
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('DRIVING', sa.Text),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {'DRIVING': 'r', 'NAME': 'Lithuania'},
+        {'DRIVING': 'r', 'NAME': 'Latvia'},
+        {'DRIVING': '', 'NAME': 'Antarctica'},
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    resp = app.get('/datasets/gov/example/Country')
+    assert listdata(resp) == [
+        ('r', 'Latvia'),
+        ('r', 'Lithuania'),
+        (None, 'Antarctica'),
+    ]
+
+
+def test_enum_ref_empty_source(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | m | property     | type   | ref     | source  | prepare       | access
+                             | enum   | side    | l       |               | open
+                             |        |         | r       |               | open
+                             |        |         | -       | null          | open
+    datasets/gov/example     |        |         |         |               |
+      | resource             | sql    |         |         |               |
+      |   | Country          |        | name    | COUNTRY |               |     
+      |   |   | name         | string |         | NAME    |               | open
+      |   |   | driving      | string | side    | DRIVING | swap('', '-') | open
     '''))
 
     sqlite.init({
@@ -1206,6 +1276,39 @@ def test_filter_by_enum_access(rc, tmpdir, sqlite):
     ]
 
 
+def test_filter_by_ref_enum_access(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | m | property     | type   | ref     | source  | prepare | access
+                             | enum   | side    | 0       | 'l'     | private
+                             |        |         | 1       | 'r'     | open
+    datasets/gov/example     |        |         |         |         |
+      | resource             | sql    |         |         |         |
+      |   | Country          |        | name    | COUNTRY |         |     
+      |   |   | name         | string |         | NAME    |         | open
+      |   |   | driving      | string | side    | DRIVING |         | open
+    '''))
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('DRIVING', sa.Integer),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {'DRIVING': 0, 'NAME': 'India'},
+        {'DRIVING': 1, 'NAME': 'Lithuania'},
+        {'DRIVING': 1, 'NAME': 'Latvia'},
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    resp = app.get('/datasets/gov/example/Country')
+    assert listdata(resp) == [
+        ('r', 'Latvia'),
+        ('r', 'Lithuania'),
+    ]
+
+
 def test_filter_by_enum(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
@@ -1216,6 +1319,39 @@ def test_filter_by_enum(rc, tmpdir, sqlite):
       |   |   | driving      | string |         | DRIVING |         | open
                              | enum   |         | 0       | 'l'     | private
                              |        |         | 1       | 'r'     | open
+    '''))
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('DRIVING', sa.Integer),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {'DRIVING': 0, 'NAME': 'India'},
+        {'DRIVING': 1, 'NAME': 'Lithuania'},
+        {'DRIVING': 1, 'NAME': 'Latvia'},
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    resp = app.get('/datasets/gov/example/Country?driving="r"')
+    assert listdata(resp) == [
+        ('r', 'Latvia'),
+        ('r', 'Lithuania'),
+    ]
+
+
+def test_filter_by_ref_enum(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | m | property     | type   | ref     | source  | prepare | access
+                             | enum   | side    | 0       | 'l'     | private
+                             |        |         | 1       | 'r'     | open
+    datasets/gov/example     |        |         |         |         |
+      | resource             | sql    |         |         |         |
+      |   | Country          |        | name    | COUNTRY |         |     
+      |   |   | name         | string |         | NAME    |         | open
+      |   |   | driving      | string | side    | DRIVING |         | open
     '''))
 
     sqlite.init({
