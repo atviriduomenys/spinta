@@ -47,6 +47,9 @@ python-multipart = "*"
 pytz = "*"
 requests = "*"
 "ruamel.yaml" = "*"
+# FIXME: https://setuptools.readthedocs.io/en/latest/history.html#v58-0-0
+#        simpleeval package uses use_2to3 thus it is not compatbile with
+#        setuptools>=58
 setuptools = "~57"
 setuptools-scm = "*"
 starlette = "*"
@@ -137,8 +140,5 @@ cssselect = "^1.1.0"
 
 
 [build-system]
-requires = [
-    "poetry_core>=1.0.0",
-    "setuptools>=57.0.0,<58.0.0"
-]
+requires = ["poetry_core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
