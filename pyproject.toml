@@ -47,7 +47,7 @@ python-multipart = "*"
 pytz = "*"
 requests = "*"
 "ruamel.yaml" = "*"
-setuptools = "*"
+setuptools = "~57"
 setuptools-scm = "*"
 starlette = "*"
 texttable = "*"
@@ -137,5 +137,8 @@ cssselect = "^1.1.0"
 
 
 [build-system]
-requires = ["poetry_core>=1.0.0"]
+requires = [
+    "poetry_core>=1.0.0",
+    "setuptools>=57.0.0,<58.0.0"
+]
 build-backend = "poetry.core.masonry.api"
