@@ -63,7 +63,9 @@ pprintpp = "*"
 alembic = { version = "*", optional = false }
 asyncpg = { version = "^0.22.0", optional = false }
 psycopg2-binary = { version = "*", optional = false }
-sqlalchemy = "~1.4"
+# FIXME: https://github.com/python-poetry/poetry/issues/4402
+# sqlalchemy = "~1.4"
+sqlalchemy = ">=1.4,<1.4.23"
 
 # Mongo backend dependendencies
 pymongo = { version = "*", optional = false }
