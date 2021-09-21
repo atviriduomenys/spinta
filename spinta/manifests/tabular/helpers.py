@@ -38,6 +38,7 @@ from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
+from spinta.exceptions import MultipleErrors
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
@@ -935,6 +936,7 @@ def _read_ascii_tabular_manifest(
     for line in lines:
         row = _join_escapes(line.split('|'))
         row = [x.strip() for x in row]
+        row = row[:len(header)]
         rem = len(header) - len(row)
         row = row[:dim - rem] + [''] * rem + row[dim - rem:]
         assert len(header) == len(row), line
@@ -1508,14 +1510,28 @@ def normalizes_columns(
     check_column_names: bool = True,
 ) -> List[ManifestColumn]:
     result: List[ManifestColumn] = []
+    unknown: List[str] = []
+    invalid: List[str] = []
     for col in cols:
+        col = col or ''
         col = col.strip().lower()
         col = SHORT_NAMES.get(col, col)
         col = cast(ManifestColumn, col)
-        if check_column_names and col not in MANIFEST_COLUMNS:
-            raise PropertyNotFound(property=col)
+        if col not in MANIFEST_COLUMNS:
+            unknown.append(col)
         else:
+            if unknown:
+                result += unknown
+                invalid += unknown
+                unknown = []
             result.append(col)
+    if check_column_names and invalid:
+        if len(invalid) == 1:
+            raise PropertyNotFound(property=invalid[0])
+        else:
+            raise MultipleErrors(
+                PropertyNotFound(property=col) for col in invalid
+            )
     return result
 
 

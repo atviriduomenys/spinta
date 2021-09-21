@@ -14,6 +14,10 @@ Backwards incompatible changes:
   can be a valid given value. Since all tests pass I assume, this change should
   not create any issues.
 
+New features:
+
+- Allow unknown columns to be added at the end of manifest table.
+
 Bug fixes:
 
 - Fix a bug related with dynamic manifest construction from command line

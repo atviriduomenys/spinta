@@ -56,26 +56,28 @@ _parser = lark.Lark(GRAMMAR, parser='lalr')
 
 
 def parse(rql):
-    if rql:
-        if rql.startswith('_id=') and len(rql) == 42:
-            # Performance optimization for
-            # _id='d6ee6808-6fc8-43eb-b1a5-cfb21c4be906' case.
-            _id = rql[5:41]
+    if not isinstance(rql, str):
+        return rql
 
-        elif rql.startswith('eq(_id,') and len(rql) == 47:
-            # Performance optimization for
-            # eq(_id, 'd6ee6808-6fc8-43eb-b1a5-cfb21c4be906') case.
-            _id = rql[9:45]
+    if not rql:
+        return None
 
-        else:
-            ast = _parser.parse(rql)
-            visit = Visitor()
-            return visit(ast)
+    if rql.startswith('_id=') and len(rql) == 42:
+        # Performance optimization for
+        # _id='d6ee6808-6fc8-43eb-b1a5-cfb21c4be906' case.
+        _id = rql[5:41]
 
-        return {'name': 'eq', 'args': [{'name': 'bind', 'args': ['_id']}, _id]}
+    elif rql.startswith('eq(_id,') and len(rql) == 47:
+        # Performance optimization for
+        # eq(_id, 'd6ee6808-6fc8-43eb-b1a5-cfb21c4be906') case.
+        _id = rql[9:45]
 
     else:
-        return None
+        ast = _parser.parse(rql)
+        visit = Visitor()
+        return visit(ast)
+
+    return {'name': 'eq', 'args': [{'name': 'bind', 'args': ['_id']}, _id]}
 
 
 class Visitor:
