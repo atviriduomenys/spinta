@@ -25,6 +25,15 @@ Bug fixes:
   supports `sync` parameter. Also simplified code responsible for dynamic
   manifest building.
 
+- Fix a bug on external sql backend in dynamic query construction from related
+  models with filters. Bug appeared only of a model had more than one related
+  models (`#120`__).
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/120
+
+- Fix a bug on external sql backend, when select was used with joins to
+  related tables.
+
 
 0.1.19 (2021-08-05)
 ===================

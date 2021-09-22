@@ -565,6 +565,14 @@ def select(env: SqlQueryBuilder, dtype: Ref, prep: Any) -> Selected:
     )
 
 
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty)
+def select(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+) -> Selected:
+    return env.call('select', fpr, fpr.right.prop)
+
+
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, Property)
 def select(
     env: SqlQueryBuilder,

@@ -11,7 +11,8 @@ from spinta.backends import log_getone
 from spinta.types.datatype import DataType, File, Object
 from spinta.exceptions import NotFoundError, ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_column_name, flat_dicts_to_nested
+from spinta.backends.postgresql.helpers import get_column_name
+from spinta.utils.nestedstruct import flat_dicts_to_nested
 
 
 @commands.getone.register(Context, Request, Property, Object, PostgreSQL)

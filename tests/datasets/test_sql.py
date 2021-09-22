@@ -1491,6 +1491,66 @@ def test_implicit_filter(rc, tmpdir, sqlite):
     ]
 
 
+def test_implicit_filter_two_refs(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property     | type    | ref                | source             | prepare | access 
+    example/standards            |         |                    |                    |         |        
+      | sql                      | sql     |                    | sqlite://          |         |        
+                                 |         |                    |                    |         |        
+      |   |   | StandardDocument |         | standard, document | STANDARD_DOCUMENTS |         |        
+      |   |   |   | standard     | ref     | Standard           | STANDARD_ID        |         | open   
+      |   |   |   | document     | ref     | Document           | DOCUMENT_ID        |         | open   
+                                 |         |                    |                    |         |        
+      |   |   | Standard         |         | id                 | STANDARD           |         |        
+      |   |   |   | id           | integer |                    | STANDARD_ID        |         | private
+      |   |   |   | name         | string  |                    | STANDARD_NAME      |         | open   
+                                 |         |                    |                    |         |        
+      |   |   | Document         |         | id                 | DOCUMENT           | id=2    |        
+      |   |   |   | id           | integer |                    | DOCUMENT_ID        |         | private
+      |   |   |   | name         | string  |                    | NAME               |         | open   
+    '''))
+
+    sqlite.init({
+        'STANDARD': [
+            sa.Column('STANDARD_ID', sa.Integer),
+            sa.Column('STANDARD_NAME', sa.Text),
+        ],
+        'DOCUMENT': [
+            sa.Column('DOCUMENT_ID', sa.Integer),
+            sa.Column('NAME', sa.Text),
+        ],
+        'STANDARD_DOCUMENTS': [
+            sa.Column('STANDARD_ID', sa.Integer, sa.ForeignKey('STANDARD.STANDARD_ID')),
+            sa.Column('DOCUMENT_ID', sa.Integer, sa.ForeignKey('DOCUMENT.DOCUMENT_ID')),
+        ],
+    })
+
+    sqlite.write('STANDARD', [
+        {'STANDARD_ID': 1, 'STANDARD_NAME': 'S1'},
+        {'STANDARD_ID': 2, 'STANDARD_NAME': 'S2'},
+    ])
+
+    sqlite.write('DOCUMENT', [
+        {'DOCUMENT_ID': 1, 'NAME': 'DOC1'},
+        {'DOCUMENT_ID': 2, 'NAME': 'DOC2'},
+    ])
+
+    sqlite.write('STANDARD_DOCUMENTS', [
+        {'STANDARD_ID': 1, 'DOCUMENT_ID': 1},
+        {'STANDARD_ID': 2, 'DOCUMENT_ID': 2},
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    resp = app.get(
+        '/example/standards/StandardDocument'
+        '?select(standard.name, document.name)'
+    )
+    assert listdata(resp, 'standard.name', 'document.name') == [
+        ('S2', 'DOC2'),
+    ]
+
+
 def test_implicit_filter_by_enum(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access

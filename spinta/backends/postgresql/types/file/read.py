@@ -12,7 +12,7 @@ from spinta.types.datatype import File
 from spinta.exceptions import NotFoundError, ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.constants import TableType
-from spinta.backends.postgresql.helpers import flat_dicts_to_nested
+from spinta.utils.nestedstruct import flat_dicts_to_nested
 
 
 @commands.getone.register(Context, Request, Property, File, PostgreSQL)

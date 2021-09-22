@@ -11,7 +11,7 @@ from spinta.backends import log_getall, log_getone
 from spinta.types.datatype import DataType
 from spinta.exceptions import NotFoundError, ItemDoesNotExist, UnavailableSubresource
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import flat_dicts_to_nested
+from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.backends.postgresql.commands.query import PgQueryBuilder
 
 

@@ -65,3 +65,16 @@ def build_select_tree(select: List[str]):
                 tree[name].add(node)
             split = name.rsplit('.', 1)
     return tree
+
+
+def flat_dicts_to_nested(value):
+    res = {}
+    for k, v in dict(value).items():
+        names = k.split('.')
+        vref = res
+        for name in names[:-1]:
+            if name not in vref:
+                vref[name] = {}
+            vref = vref[name]
+        vref[names[-1]] = v
+    return res

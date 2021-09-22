@@ -4,6 +4,7 @@ from typing import Any
 from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
+from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -103,5 +104,7 @@ def getall(
                         val = keymap.encode(sel.prop.dtype.model.model_type(), val)
                         val = {'_id': val}
                 res[key] = val
+
+            res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res

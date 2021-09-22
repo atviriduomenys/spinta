@@ -142,14 +142,14 @@ def get_ref_filters(
             authorized(context, prop, Action.GETALL)
         ):
             if fpr:
-                fpr = fpr.push(prop)
+                _fpr = fpr.push(prop)
             else:
-                fpr = ForeignProperty(fpr, prop.dtype)
+                _fpr = ForeignProperty(fpr, prop.dtype)
 
             query = merge_formulas(query, get_ref_filters(
                 context,
                 prop.dtype.model,
-                fpr,
+                _fpr,
                 seen=seen + [ref_key],
             ))
 
