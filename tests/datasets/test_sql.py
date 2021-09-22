@@ -2109,3 +2109,35 @@ def test_error_handling_io_error(
     )
     assert message in caplog.text
     assert 'Error: I/O error.' in caplog.text
+
+
+def test_sql_views(rc: RawConfig, tmpdir: pathlib.Path, sqlite: Sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | b | m | property      | type     | ref          | source        | access
+    example/views                 |          |              |               |
+      | resource                  | sql      | sql          |               |
+      |   |   | City              |          | id           | CITY_VIEW     |
+      |   |   |   | id            | integer  |              | ID            | private
+      |   |   |   | name          | string   |              | NAME          | open
+    ''')
+
+    # Configure local server with SQL backend
+    sqlite.init({
+        'CITY': [
+            sa.Column('ID', sa.Integer),
+            sa.Column('NAME', sa.String),
+        ],
+    })
+    sqlite.write('CITY', [
+        {'ID': 1, 'NAME': 'Vilnius'},
+        {'ID': 2, 'NAME': 'Kaunas'},
+    ])
+    sqlite.engine.execute(
+        'CREATE VIEW CITY_VIEW AS '
+        'SELECT * FROM CITY'
+    )
+
+    app = create_client(rc, tmpdir, sqlite)
+
+    resp = app.get('/example/views/City')
+    assert listdata(resp) == ['Kaunas', 'Vilnius']
