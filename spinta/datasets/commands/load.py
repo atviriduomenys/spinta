@@ -1,11 +1,17 @@
+from typing import Any
+from typing import Dict
 from typing import List
 
 from spinta import commands
 from spinta import spyna
+from spinta.components import Model
 from spinta.core.ufuncs import asttoexpr
 from spinta.datasets.components import Attribute
 from spinta.datasets.helpers import load_resource_backend
+from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
+from spinta.exceptions import MultipleErrors
+from spinta.exceptions import PropertyNotFound
 from spinta.nodes import get_node, load_node
 from spinta.components import Context
 from spinta.manifests.components import Manifest
@@ -26,13 +32,18 @@ def load(
 ):
     config = context.get('config')
 
+    ns = load_namespace_from_name(context, manifest, data['name'], drop=False)
+    if ns.generated:
+        ns.title = data.get('title', '')
+        ns.description = data.get('description', '')
+    if 'enums' in data:
+        parents = list(ns.parents())
+        ns.enums = load_enums(context, parents, data.pop('enums'))
+
     load_node(context, dataset, data, parent=manifest)
     load_access_param(dataset, data.get('access'), (manifest,))
 
-    ns = load_namespace_from_name(context, manifest, dataset.name, drop=False)
-    if ns.generated:
-        ns.title = dataset.title
-        ns.description = dataset.description
+    dataset.ns = ns
 
     dataset.lang = load_lang_data(context, dataset.lang)
 
@@ -72,11 +83,26 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     return resource
 
 
+def _check_unknown_keys(
+    model: Model,
+    keys: List[str],
+    data: Dict[str, Any],
+) -> None:
+    # XXX: Similar to spinta.types.helpers.check_no_extra_keys.
+    unknown = set(keys) - set(data)
+    if unknown:
+        raise MultipleErrors(
+            PropertyNotFound(model, property=name)
+            for name in sorted(unknown)
+        )
+
+
 @commands.load.register(Context, Entity, dict, Manifest)
 def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
     # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
     pkeys: List[str] = entity.pkeys or []
     if pkeys:
+        _check_unknown_keys(entity.model, pkeys, entity.model.properties)
         entity.pkeys = [entity.model.properties[k] for k in pkeys]
     else:
         entity.unknown_primary_key = True

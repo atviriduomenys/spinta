@@ -55,6 +55,76 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     '''
 
 
+def test_copy_enum_0(rc, cli: SpintaCliRunner, tmpdir):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | type    | ref     | source      | prepare | access
+    datasets/gov/example     |         |         |             |         |
+      | data                 | sql     |         |             |         |
+                             |         |         |             |         |
+      |   |   | Country      |         | name    | salis       |         |
+      |   |   |   | name     | string  |         | pavadinimas |         | open
+      |   |   |   | driving  | integer |         | vairavimas  |         | open
+                             | enum    |         | l           | 0       | open
+                             |         |         | r           | 1       | open
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '--no-source',
+        '--access', 'open',
+        '-o', tmpdir / 'result.csv',
+        tmpdir / 'manifest.csv',
+  ])
+
+    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type    | ref     | source | prepare | access
+    datasets/gov/example     |         |         |        |         |
+      | data                 | sql     |         |        |         |
+                             |         |         |        |         |
+      |   |   | Country      |         |         |        |         |
+      |   |   |   | name     | string  |         |        |         | open
+      |   |   |   | driving  | integer |         |        |         | open
+                             | enum    |         |        | 0       | open
+                             |         |         |        | 1       | open
+    '''
+
+
+def test_copy_global_enum(rc, cli: SpintaCliRunner, tmpdir):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | type    | ref       | source      | prepare | access
+    datasets/gov/example     |         |           |             |         |
+                             | enum    | direction | l           | 0       |     
+                             |         |           | r           | 1       |     
+      | data                 | sql     |           |             |         |
+                             |         |           |             |         |
+      |   |   | Country      |         | name      | salis       |         |
+      |   |   |   | name     | string  |           | pavadinimas |         | open
+      |   |   |   | driving  | integer | direction | vairavimas  |         | open
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '--no-source',
+        '--access', 'open',
+        '-o', tmpdir / 'result.csv',
+        tmpdir / 'manifest.csv',
+    ])
+
+    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property | type    | ref       | source | prepare | access
+    datasets/gov/example     |         |           |        |         |
+                             | enum    | direction |        | 0       |
+                             |         |           |        | 1       |
+      | data                 | sql     |           |        |         |
+                             |         |           |        |         |
+      |   |   | Country      |         |           |        |         |
+      |   |   |   | name     | string  |           |        |         | open
+      |   |   |   | driving  | integer | direction |        |         | open
+    '''
+
+
 def test_copy_with_filters_and_externals(rc, cli, tmpdir):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     d | r | b | m | property | type   | ref     | source      | prepare   | access

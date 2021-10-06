@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from typing import List
+from typing import Tuple
+
 import itertools
 from typing import Any
 from typing import Dict
@@ -168,6 +171,16 @@ def link(context: Context, base: Base):
     ]
 
 
+def _parse_dtype_string(dtype: str) -> Tuple[str, List[str]]:
+    if '(' in dtype:
+        name, args = dtype.split('(', 1)
+        args = args.strip().rstrip(')')
+        args = [a.strip() for a in args.split(',')]
+        return name, args
+    else:
+        return dtype, []
+
+
 @load.register(Context, Property, dict, Manifest)
 def load(
     context: Context,
@@ -187,7 +200,19 @@ def load(
     load_access_param(prop, prop.access, parents)
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
-    prop.dtype = get_node(config, manifest, prop.model.eid, data, group='types', parent=prop)
+
+    # Parse dtype liek geometry(point, 3346)
+    dtype_type, dtype_args = _parse_dtype_string(data['type'])
+    data = {**data, 'type': dtype_type, 'type_args': dtype_args}
+
+    prop.dtype = get_node(
+        config,
+        manifest,
+        prop.model.eid,
+        data,
+        group='types',
+        parent=prop,
+    )
     prop.dtype.type = 'type'
     prop.dtype.prop = prop
     load_node(context, prop.dtype, data)
@@ -228,13 +253,16 @@ def link(context: Context, prop: Property):
     link_enums([prop] + parents, prop.enums)
 
     if prop.given.enum:
-        if prop.enums and prop.given.enum in prop.enums:
-            prop.enum = prop.enums[prop.given.enum]
-        elif (
-            prop.model.manifest.enums and
-            prop.given.enum in prop.model.manifest.enums
-        ):
-            prop.enum = prop.model.manifest.enums[prop.given.enum]
+        enums_locations = (
+            [prop.enums] +
+            [prop.model.ns.enums] +
+            [ns.enums for ns in model.ns.parents()] +
+            [prop.model.manifest.enums]
+        )
+        for enums in enums_locations:
+            if enums and prop.given.enum in enums:
+                prop.enum = enums[prop.given.enum]
+                break
         else:
             raise UndefinedEnum(prop, name=prop.given.enum)
     elif prop.enums:

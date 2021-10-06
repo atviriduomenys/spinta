@@ -61,6 +61,7 @@ CONFIG = {
             'xml': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',
             'xlsx': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',
             'json': 'spinta.datasets.backends.frictionless.components:FrictionlessBackend',
+            'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
         },
         'migrations': {
             'alembic': 'spinta.migrations.schema.alembic:Alembic',

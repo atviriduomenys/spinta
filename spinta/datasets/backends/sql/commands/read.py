@@ -82,11 +82,12 @@ def getall(
 
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
 
-    for params in iterparams(model):
+    for params in iterparams(context, model):
         table = model.external.name.format(**params)
         table = backend.get_table(model, table)
 
         env = builder.init(backend, table)
+        env.update(params=params)
         expr = env.resolve(query)
         where = env.execute(expr)
         qry = env.build(where)

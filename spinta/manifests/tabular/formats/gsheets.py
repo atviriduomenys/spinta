@@ -1,6 +1,9 @@
 import csv
 import re
 from io import StringIO
+from typing import Iterator
+from typing import List
+from typing import Tuple
 from urllib.parse import parse_qsl
 from urllib.parse import urlparse
 
@@ -9,7 +12,7 @@ import requests
 gsheet_key_re = re.compile('/d/([^/]+)/')
 
 
-def read_gsheets_manifest(path: str):
+def read_gsheets_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
     purl = urlparse(path)
 
     if match := gsheet_key_re.search(purl.path):
@@ -32,5 +35,7 @@ def read_gsheets_manifest(path: str):
 
     resp = requests.get(url, params)
     resp.raise_for_status()
-    yield from csv.reader(StringIO(resp.text))
+    rows = csv.reader(StringIO(resp.text))
+    for i, row in enumerate(rows, 2):
+        yield str(i), row
 

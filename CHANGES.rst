@@ -6,6 +6,29 @@ Changes
 0.1.21 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- When returning error messages now `eid` became string, previously it was an
+  integer.
+
+New features:
+
+- Add support for enums on datasets.
+- Add support for type arguments, for example `geometry(point)`. But
+  currently type arguments are not interpreted in any way.
+- Added `geojson` to list of supported backend, but actual `geojson` backend
+  is not yet implemented.
+
+Improvements:
+
+- When reading manifest from XLSX show tab number.
+
+Bug fixes:
+
+- Fix `copy` command to render `-2` as is, instead of `negative(2)`.
+- Fix `enum` with `0` as value, before this fix, `enum` items with `0` was
+  ignored.
+
 
 0.1.20 (2021-09-23)
 ===================

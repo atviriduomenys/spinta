@@ -417,6 +417,7 @@ class Namespace(MetaData):
     generated: bool = False
     given: NamespaceGiven
     lang: LangData = None
+    enums: Enums = None
 
     def __init__(self):
         self.given = NamespaceGiven()
@@ -488,6 +489,7 @@ class Model(MetaData):
             'default': 'protected',
         },
         'lang': {'type': 'object'},
+        'params': {'type': 'object'},
     }
 
     def __init__(self):
@@ -503,6 +505,7 @@ class Model(MetaData):
         self.flatprops = {}
         self.leafprops = {}
         self.given = ModelGiven()
+        self.params = {}
 
     def model_type(self):
         return self.name

@@ -2141,3 +2141,52 @@ def test_sql_views(rc: RawConfig, tmpdir: pathlib.Path, sqlite: Sqlite):
 
     resp = app.get('/example/views/City')
     assert listdata(resp) == ['Kaunas', 'Vilnius']
+
+
+@pytest.mark.skip('TODO')
+def test_params(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmpdir,
+    sqlite: Sqlite,
+):
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | b | m | property | type    | ref      | source   | prepare
+    example/self/ref/param   |         |          |          |
+      | resource             | sql     | sql      |          |
+      |   |   | Category     |         | id       | CATEGORY | parent = param(parent)
+      |   |   |   |          | param   | parent   |          | null
+      |   |   |   |          |         |          | Category | select(id).id
+      |   |   |   | id       | integer |          | ID       |
+      |   |   |   | name     | string  |          | NAME     |
+      |   |   |   | parent   | ref     | Category | PARENT   |
+    ''')
+
+    # Configure local server with SQL backend
+    sqlite.init({
+        'CATEGORY': [
+            sa.Column('ID',     sa.Integer),
+            sa.Column('NAME',   sa.String),
+            sa.Column('PARENT', sa.Integer, sa.ForeignKey('CATEGORY.ID')),
+        ],
+    })
+    sqlite.write('CATEGORY', [
+        {
+            'ID': 1,
+            'NAME': 'Cat 1',
+            'PARENT': None,
+        },
+        {
+            'ID': 2,
+            'NAME': 'Cat 1.1',
+            'PARENT': 1,
+        },
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    app.authmodel('example/self/ref/param', ['search'])
+
+    resp = app.get('/example/self/ref/param/Category?select(name)')
+    assert listdata(resp, sort=False) == ['Cat 1', 'Cat 1.1']

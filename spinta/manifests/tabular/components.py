@@ -106,6 +106,18 @@ class BaseRow(TypedDict, total=False):
     lang: LangData
 
 
+class ParamRow(TypedDict):
+    name: str                   # param name
+    source: List[str]           # list of `self` for prepare formulas
+    prepare: List[Any]          # list of formulas
+    title: str
+    description: str
+
+
+class ModelExtraData(TypedDict):
+    params: List[ParamRow]
+
+
 class ModelRow(TypedDict, total=False):
     type: str
     id: str
@@ -119,6 +131,7 @@ class ModelRow(TypedDict, total=False):
     external: ModelExternalRow
     backend: str
     lang: LangData
+    data: ModelExtraData
 
 
 class ModelExternalRow(TypedDict, total=False):
@@ -141,6 +154,7 @@ class EnumRow(TypedDict, total=False):
 
 class PropertyRow(TypedDict, total=False):
     type: str
+    type_args: List[str]
     prepare: Optional[Dict[str, Any]]
     level: str
     access: str

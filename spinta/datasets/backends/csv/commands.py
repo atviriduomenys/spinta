@@ -43,7 +43,7 @@ def getall(
         for p in model.properties.values()
         if p.external
     }
-    for params in iterparams(model):
+    for params in iterparams(context, model):
         url = urllib.parse.urljoin(base, external.name) if base else external.name
         url = url.format(**params)
         with fetch(context, url, text=True).open() as f:

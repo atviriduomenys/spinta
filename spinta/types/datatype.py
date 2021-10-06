@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 class DataType(Component):
     schema = {
         'type': {'type': 'string', 'attr': 'name'},
+        'type_args': {'type': 'array'},
         'unique': {'type': 'bool', 'default': False},
         'nullable': {'type': 'bool', 'default': False},
         'required': {'type': 'bool', 'default': False},
@@ -36,6 +37,7 @@ class DataType(Component):
     }
 
     type: str
+    type_args: List[str]
     name: str
     unique: bool = False
     nullable: bool = False

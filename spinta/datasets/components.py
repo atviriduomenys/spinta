@@ -9,6 +9,7 @@ from sqlalchemy.engine.base import Engine
 
 from spinta.backends.components import Backend
 from spinta.components import EntryId
+from spinta.components import Namespace
 from spinta.dimensions.lang.components import LangData
 from spinta.components import MetaData
 from spinta.components import Model
@@ -44,6 +45,7 @@ class Dataset(MetaData):
     description: str
     given: DatasetGiven
     lang: LangData = None
+    ns: Namespace = None
 
     schema = {
         'type': {'type': 'string', 'required': True},
@@ -148,6 +150,12 @@ class Resource(External):
         self.given = ResourceGiven()
 
 
+class Param:
+    name: str
+    sources: List[str]
+    formulas: List[Expr]
+
+
 class Entity(External):
     # XXX: Here `dataset` and `resource` first are resolved as `str` and then
     #      linked with `Dataset` and `Resource` instances. That is not a good
@@ -163,6 +171,7 @@ class Entity(External):
     unknown_primary_key: bool = False
     name: str                       # model.source
     prepare: Expr                   # model.prepare
+    params: List[Param]
 
     schema = {
         'model': {'parent': True},

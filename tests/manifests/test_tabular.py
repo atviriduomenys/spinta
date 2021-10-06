@@ -134,3 +134,15 @@ def test_lang(tmpdir, rc):
                              | enum   |         | 'right' | Right       | Right side.
                              | lang   | lt      |         | Dešinė      | Dešinė pusė.
     ''')
+
+
+def test_enum_negative(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property | type    | prepare | title
+    datasets/gov/example     |         |         |
+                             |         |         |
+      |   |   | Data         |         |         |
+      |   |   |   | value    | integer |         |
+                             | enum    | 1       | Positive
+                             |         | -1      | Negative
+    ''')

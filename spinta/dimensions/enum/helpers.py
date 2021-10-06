@@ -43,10 +43,6 @@ def _load_enum_item(
             'node': parent,
         })
         item.prepare = env.resolve(expr)
-        if isinstance(item.prepare, Expr):
-            raise FormulaError(item, formula=spyna.unparse(ast), error=(
-                "Formula must resolve to a literal value."
-            ))
 
     load_access_param(item, data.get('access'), parents)
     return item

@@ -84,14 +84,14 @@ def test_unknown_type(rc: RawConfig):
                 'type': 'system',
                 'code': 'InvalidManifestFile',
                 'message': (
-                    "Error while parsing 3 manifest entry: Unknown component "
+                    "Error while parsing '3' manifest entry: Unknown component "
                     "'stringz' in 'types'."
                 ),
                 'template': (
                     'Error while parsing {eid!r} manifest entry: {error}'
                 ),
                 'context': {
-                    'eid': 3,
+                    'eid': '3',
                     'error': "Unknown component 'stringz' in 'types'.",
                     'manifest': 'manifest',
                 },

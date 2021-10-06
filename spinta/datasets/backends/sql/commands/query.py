@@ -15,6 +15,7 @@ from sqlalchemy.sql.functions import Function
 
 from spinta.auth import authorized
 from spinta.components import Action
+from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Env
@@ -24,6 +25,7 @@ from spinta.core.ufuncs import ufunc
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
+from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UnknownExpr
 from spinta.types.datatype import DataType
@@ -103,6 +105,7 @@ class SqlFrom:
 
 class SqlQueryBuilder(Env):
     backend: Sql
+    model: Model
     table: sa.Table
     joins: SqlFrom
     columns: List[sa.Column]
@@ -111,6 +114,7 @@ class SqlQueryBuilder(Env):
     # different results.
     resolved: Dict[str, Selected]
     selected: Dict[str, Selected] = None
+    params: ResolvedParams
 
     def init(self, backend: Sql, table: sa.Table):
         return self(

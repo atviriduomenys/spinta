@@ -257,7 +257,7 @@ class BasicAuthRequired(UserError):
 
 class AuthorizedClientsOnly(UserError):
     status_code = 401
-    template = "This resource can only be access by an authorized client."
+    template = "This resource can only be accessed by an authorized client."
 
 
 class MultipleRowsFound(BaseError):

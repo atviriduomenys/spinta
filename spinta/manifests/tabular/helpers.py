@@ -21,6 +21,7 @@ from typing import cast
 
 import openpyxl
 import xlsxwriter
+from lark import UnexpectedToken
 
 from spinta import commands
 from spinta import spyna
@@ -47,6 +48,7 @@ from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
 from spinta.manifests.tabular.components import DESCRIPTION
 from spinta.manifests.tabular.components import DatasetRow
+from spinta.manifests.tabular.components import ParamRow
 from spinta.manifests.tabular.components import EnumRow
 from spinta.manifests.tabular.components import ID
 from spinta.manifests.tabular.components import MANIFEST_COLUMNS
@@ -110,7 +112,7 @@ def _detect_header(
 
 def _detect_dimension(
     path: Optional[pathlib.Path],
-    line: int,  # Line number
+    line: str,  # Line number with a prefix (depends on manifest format)
     row: Dict[str, str],
 ) -> Optional[str]:
     dimensions = [k for k in MAIN_DIMENSIONS if row[k]]
@@ -139,7 +141,7 @@ def _detect_dimension(
 class TabularReader:
     state: State
     path: str
-    line: int
+    line: str
     type: str
     name: str
     data: ManifestRow               # Used when `appendable` is False
@@ -150,7 +152,7 @@ class TabularReader:
         self,
         state: State,
         path: str,
-        line: int,
+        line: str,
     ):
         self.state = state
         self.path = path
@@ -449,12 +451,16 @@ class PropertyReader(TabularReader):
                 f"defined for this {self.state.model.name!r} model."
             )
 
+        prepare = NA
+        if row[PREPARE]:
+            try:
+                prepare = spyna.parse(row[PREPARE])
+            except UnexpectedToken as e:
+                self.error(str(e))
+
         self.data = {
             'type': row['type'],
-            'prepare': (
-                spyna.parse(row['prepare'])
-                if row['prepare'] else None
-            ),
+            'prepare': prepare,
             'level': row['level'],
             'access': row['access'],
             'uri': row['uri'],
@@ -464,13 +470,14 @@ class PropertyReader(TabularReader):
 
         dataset = self.state.dataset.data if self.state.dataset else None
 
-        if row['type'] in ('ref', 'backref', 'generic'):
-            ref_model, ref_props = _parse_property_ref(row['ref'])
-            self.data['model'] = get_relative_model_name(dataset, ref_model)
-            self.data['refprops'] = ref_props
-        else:
-            # TODO: Detect if ref is a unit or an enum.
-            self.data['enum'] = row['ref']
+        if row['ref']:
+            if row['type'] in ('ref', 'backref', 'generic'):
+                ref_model, ref_props = _parse_property_ref(row['ref'])
+                self.data['model'] = get_relative_model_name(dataset, ref_model)
+                self.data['refprops'] = ref_props
+            else:
+                # TODO: Detect if ref is a unit or an enum.
+                self.data['enum'] = row['ref']
 
         if dataset or row['source']:
             self.data['external'] = {
@@ -613,6 +620,77 @@ class NamespaceReader(TabularReader):
         pass
 
 
+class ParamReader(TabularReader):
+    type: str = 'param'
+    data: ParamRow
+    name: str = None
+
+    def _get_node(self) -> TabularReader:
+        return (
+            self.state.prop or
+            self.state.model or
+            self.state.base or
+            self.state.resource or
+            self.state.dataset or
+            self.state.manifest
+        )
+
+    def _get_data(self, name: str, row: ManifestRow):
+        return {
+            'name': name,
+            'source': [row[SOURCE]],
+            'prepare': [spyna.parse(row[PREPARE]) if row[PREPARE] else NA],
+            'title': row[TITLE],
+            'description': row[DESCRIPTION],
+        }
+
+    def _ensure_params_list(self, node: TabularReader, name: str) -> None:
+        if 'params' not in node.data:
+            node.data['params'] = {}
+
+        if name not in node.data['params']:
+            node.data['params'][name] = []
+
+    def _check_param_name(self, node: TabularReader, name: str) -> None:
+        if 'params' in node.data and name in node.data['params']:
+            self.error(
+                f"Parameter {name!r} with the same name already defined!"
+            )
+
+    def read(self, row: ManifestRow) -> None:
+        node = self._get_node()
+
+        self.name = row[REF]
+        if not self.name:
+            self.error("Parameter must have a name.")
+
+        self._check_param_name(node, self.name)
+        self._ensure_params_list(node, self.name)
+
+        self.data = self._get_data(self.name, row)
+        node.data['params'][self.name].append(self.data)
+
+    def append(self, row: ManifestRow) -> None:
+        node = self._get_node()
+
+        if row[REF]:
+            self.name = row[REF]
+            self._check_param_name(node, self.name)
+            self._ensure_params_list(node, self.name)
+
+        self.data = self._get_data(self.name, row)
+        node.data['params'][self.name].append(self.data)
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return not isinstance(reader, (AppendReader, LangReader))
+
+    def enter(self) -> None:
+        pass
+
+    def leave(self) -> None:
+        pass
+
+
 def _read_enum_row(name: str, row: ManifestRow) -> Dict[str, Any]:
     return {
         'name': name,
@@ -653,13 +731,17 @@ class EnumReader(TabularReader):
                 "At least source or prepare must be specified for an enum."
             )
 
+        prepare = NA
+        if row[PREPARE]:
+            try:
+                prepare = spyna.parse(row[PREPARE])
+            except UnexpectedToken as e:
+                self.error(str(e))
+
         self.data = {
             'name': self.name,
             'source': row[SOURCE],
-            'prepare': (
-                spyna.parse(row[PREPARE])
-                if row[PREPARE] else NA
-            ),
+            'prepare': prepare,
             'access': row[ACCESS],
             'title': row[TITLE],
             'description': row[DESCRIPTION],
@@ -765,6 +847,7 @@ READERS = {
     '': AppendReader,
     'prefix': PrefixReader,
     'ns': NamespaceReader,
+    'param': ParamReader,
     'enum': EnumReader,
     'lang': LangReader,
 }
@@ -812,11 +895,11 @@ class State:
 
 def _read_tabular_manifest_rows(
     path: Optional[str],
-    rows: Iterator[List[str]],
+    rows: Iterator[Tuple[str, List[str]]],
     *,
     rename_duplicates: bool = True,
 ) -> Iterator[ParsedRow]:
-    header = next(rows, None)
+    _, header = next(rows, (None, None))
     if header is None:
         # Looks like an empty file.
         return
@@ -826,16 +909,16 @@ def _read_tabular_manifest_rows(
 
     state = State()
     state.rename_duplicates = rename_duplicates
-    reader = ManifestReader(state, path, 1)
+    reader = ManifestReader(state, path, '1')
     reader.read({})
     yield from state.release(reader)
 
-    for i, row in enumerate(rows, 2):
+    for line, row in rows:
         row = dict(zip(header, row))
         row = {**defaults, **row}
-        dimension = _detect_dimension(path, i, row)
+        dimension = _detect_dimension(path, line, row)
         Reader = READERS[dimension]
-        reader = Reader(state, path, i)
+        reader = Reader(state, path, line)
         reader.read(row)
         yield from state.release(reader)
 
@@ -866,7 +949,10 @@ def read_tabular_manifest(
     )
 
 
-def _read_txt_manifest(path: str, file: TextIO = None) -> Iterator[List[str]]:
+def _read_txt_manifest(
+    path: str,
+    file: TextIO = None,
+) -> Iterator[Tuple[str, List[str]]]:
     if file:
         yield from _read_ascii_tabular_manifest(file)
     else:
@@ -874,18 +960,25 @@ def _read_txt_manifest(path: str, file: TextIO = None) -> Iterator[List[str]]:
             yield from _read_ascii_tabular_manifest(f)
 
 
-def _read_csv_manifest(path: str, file: TextIO = None) -> Iterator[List[str]]:
+def _read_csv_manifest(
+    path: str,
+    file: TextIO = None,
+) -> Iterator[Tuple[str, List[str]]]:
     if file:
-        yield from csv.reader(file)
+        rows = csv.reader(file)
+        for i, row in enumerate(rows, 1):
+            yield str(i), row
     else:
         with pathlib.Path(path).open(encoding='utf-8-sig') as f:
-            yield from csv.reader(f)
+            rows = csv.reader(f)
+            for i, row in enumerate(rows, 1):
+                yield str(i), row
 
 
-def _read_xlsx_manifest(path: str) -> Iterator[List[str]]:
+def _read_xlsx_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
     wb = openpyxl.load_workbook(path)
 
-    yield DATASET
+    yield '1', DATASET
 
     for sheet in wb:
         rows = sheet.iter_rows(values_only=True)
@@ -895,8 +988,9 @@ def _read_xlsx_manifest(path: str) -> Iterator[List[str]]:
         cols = normalizes_columns(cols)
         cols = [cols.index(c) if c in cols else None for c in DATASET]
 
-        for row in rows:
-            yield [row[c] if c is not None else None for c in cols]
+        for i, row in enumerate(rows, 2):
+            row = [row[c] if c is not None else None for c in cols]
+            yield f'{sheet.title}:{i}', row
 
 
 def striptable(table):
@@ -917,7 +1011,7 @@ def _read_ascii_tabular_manifest(
     lines: Iterable[str],
     *,
     check_column_names: bool = True,
-) -> Iterator[List[str]]:
+) -> Iterator[Tuple[str, List[str]]]:
     lines = (line.strip() for line in lines)
     lines = filter(None, lines)
 
@@ -929,18 +1023,18 @@ def _read_ascii_tabular_manifest(
         header.split('|'),
         check_column_names=check_column_names,
     )
-    yield header
+    yield '1', header
 
     # Find index where dimension columns end.
     dim = sum(1 for h in header if h in DATASET[:6])
-    for line in lines:
+    for i, line in enumerate(lines, 2):
         row = _join_escapes(line.split('|'))
         row = [x.strip() for x in row]
         row = row[:len(header)]
         rem = len(header) - len(row)
         row = row[:dim - rem] + [''] * rem + row[dim - rem:]
         assert len(header) == len(row), line
-        yield row
+        yield str(i), row
 
 
 def read_ascii_tabular_rows(
@@ -951,10 +1045,12 @@ def read_ascii_tabular_rows(
 ) -> Iterator[List[str]]:
     if strip:
         manifest = striptable(manifest)
-    yield from _read_ascii_tabular_manifest(
+    rows = _read_ascii_tabular_manifest(
         manifest.splitlines(),
         check_column_names=check_column_names,
     )
+    for line, row in rows:
+        yield row
 
 
 def read_ascii_tabular_manifest(
@@ -963,7 +1059,9 @@ def read_ascii_tabular_manifest(
     strip: bool = False,
     rename_duplicates: bool = False,
 ) -> Iterator[ParsedRow]:
-    rows = read_ascii_tabular_rows(manifest, strip=strip)
+    if strip:
+        manifest = striptable(manifest)
+    rows = _read_ascii_tabular_manifest(manifest.splitlines())
     yield from _read_tabular_manifest_rows(
         None,
         rows,
@@ -1161,7 +1259,7 @@ def _enums_to_tabular(
                 'type': 'enum' if first else '',
                 'ref': name if first else '',
                 'source': item.source if external else '',
-                'prepare': spyna.unparse(item.prepare or NA),
+                'prepare': unparse(item.prepare),
                 'access': item.given.access,
                 'title': item.title,
                 'description': item.description,
@@ -1192,7 +1290,13 @@ def _lang_to_tabular(
         first = False
 
 
-def _dataset_to_tabular(dataset: Dataset) -> Iterator[ManifestRow]:
+def _dataset_to_tabular(
+    dataset: Dataset,
+    *,
+    external: bool = True,
+    access: Access = Access.private,
+    order_by: ManifestColumn = None,
+) -> Iterator[ManifestRow]:
     yield torow(DATASET, {
         'id': dataset.id,
         'dataset': dataset.name,
@@ -1202,6 +1306,12 @@ def _dataset_to_tabular(dataset: Dataset) -> Iterator[ManifestRow]:
         'description': dataset.description,
     })
     yield from _lang_to_tabular(dataset.lang)
+    yield from _enums_to_tabular(
+        dataset.ns.enums,
+        external=external,
+        access=access,
+        order_by=order_by,
+    )
 
 
 def _resource_to_tabular(
@@ -1380,7 +1490,12 @@ def datasets_to_tabular(
                     seen_datasets.add(dataset.name)
                     resource = None
                     separator = True
-                    yield from _dataset_to_tabular(dataset)
+                    yield from _dataset_to_tabular(
+                        dataset,
+                        external=external,
+                        access=access,
+                        order_by=order_by,
+                    )
 
             if model.external and model.external.resource and (
                 resource is None or
@@ -1407,7 +1522,12 @@ def datasets_to_tabular(
     for dataset in datasets:
         if dataset.name in seen_datasets:
             continue
-        yield from _dataset_to_tabular(dataset)
+        yield from _dataset_to_tabular(
+            dataset,
+            external=external,
+            access=access,
+            order_by=order_by,
+        )
         for resource in dataset.resources.values():
             yield from _resource_to_tabular(resource)
 

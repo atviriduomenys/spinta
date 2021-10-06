@@ -143,3 +143,11 @@ def test_select_all():
 
 def test_group():
     check("foo, bar, baz")
+
+
+def test_zero():
+    check("0")
+
+
+def test_negative():
+    check("-2")
