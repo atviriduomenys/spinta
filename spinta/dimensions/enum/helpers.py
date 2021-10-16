@@ -5,20 +5,17 @@ from typing import TypeVar
 from typing import Union
 from typing import cast
 
-from spinta import spyna
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import asttoexpr
 from spinta.dimensions.enum.components import EnumFormula
 from spinta.dimensions.enum.components import EnumItem
 from spinta.dimensions.enum.components import EnumValue
 from spinta.dimensions.enum.components import Enums
-from spinta.exceptions import FormulaError
 from spinta.exceptions import ValueNotInEnum
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import EnumRow
