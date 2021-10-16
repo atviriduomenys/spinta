@@ -151,3 +151,26 @@ def test_zero():
 
 def test_negative():
     check("-2")
+
+
+def test_true():
+    check("true")
+
+
+def test_false():
+    check("false")
+
+
+def test_false_expr():
+    ast = parse('false')
+    assert ast is False
+
+
+def test_true_expr():
+    ast = parse('true')
+    assert ast is True
+
+
+def test_null_expr():
+    ast = parse('null')
+    assert ast is None

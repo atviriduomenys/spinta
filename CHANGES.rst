@@ -6,6 +6,10 @@ Changes
 0.1.22 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fix incorrect parsing of `null`, `false` and `true`.
+
 
 0.1.21 (2021-10-06)
 ===================

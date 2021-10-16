@@ -125,10 +125,12 @@ class Visitor:
             'args': self._args(left, right),
         }
 
-    def name(self, node, name):
+    def name(self, node, token):
+        if token.value in ('null', 'false', 'true'):
+            return self._const(token.value)
         return {
             'name': 'bind',
-            'args': [name.value],
+            'args': [token.value],
         }
 
     def attr(self, node, name):
@@ -159,16 +161,20 @@ class Visitor:
         if token.type == 'NULL':
             return None
         if token.type == 'BOOL':
-            return {
-                'false': False,
-                'true': True,
-            }[token.value]
+            return self._const(token.value)
         if token.type == 'ALL':
             return {
                 'name': 'op',
                 'args': ['*'],
             }
         raise Exception(f"Unknown token type: {token.type}")
+
+    def _const(self, name: str):
+        return {
+            'null': None,
+            'false': False,
+            'true': True,
+        }[name]
 
     def func(self, node, name, args):
         return {
