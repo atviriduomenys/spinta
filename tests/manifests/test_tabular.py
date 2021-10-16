@@ -146,3 +146,38 @@ def test_enum_negative(tmpdir, rc):
                              | enum    | 1       | Positive
                              |         | -1      | Negative
     ''')
+
+
+def test_units(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property | type    | ref
+    datasets/gov/example     |         |
+                             |         |
+      |   |   | City         |         |
+      |   |   |   | founded  | date    | 1Y
+    ''')
+
+
+def test_boolean_enum(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property | type    | ref   | source | prepare
+    datasets/gov/example     |         |       |        |
+                             | enum    | bool  |        | null
+                             |         |       | no     | false
+                             |         |       | yes    | true
+                             |         |       |        |
+      |   |   | Bool         |         |       |        |
+      |   |   |   | value    | boolean | bool  |        |
+    ''')
+
+
+def test_enum_with_unit_name(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property | type    | ref   | source | prepare
+    datasets/gov/example     |         |       |        |
+                             | enum    | m     | no     | 0
+                             |         |       | yes    | 1
+                             |         |       |        |
+      |   |   | Bool         |         |       |        |
+      |   |   |   | value    | integer | m     |        |
+    ''')

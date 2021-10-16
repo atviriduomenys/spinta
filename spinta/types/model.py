@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import List
+from typing import Optional
 from typing import Tuple
 
 import itertools
@@ -23,6 +24,8 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.dimensions.enum.components import EnumValue
+from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
@@ -34,11 +37,12 @@ from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
 from spinta.types.namespace import load_namespace_from_name
+from spinta.units.helpers import is_unit
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
-    from spinta.backends import Backend
     from spinta.datasets.components import Attribute
+    from spinta.types.datatype import DataType
 
 
 def _load_namespace_from_model(context: Context, manifest: Manifest, model: Model):
@@ -192,7 +196,6 @@ def load(
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
-    prop.given.enum = prop.enum
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
@@ -221,7 +224,41 @@ def load(
     else:
         prop.external = None
     commands.load(context, prop.dtype, data, manifest)
+
+    unit: Optional[str] = prop.enum
+    if unit is None:
+        prop.given.enum = None
+        prop.given.unit = None
+        prop.enum = None
+        prop.unit = None
+    elif is_unit(prop.dtype, unit):
+        prop.given.enum = None
+        prop.given.unit = unit
+        prop.enum = None
+        prop.unit = unit
+    else:
+        prop.given.enum = unit
+
     return prop
+
+
+def _link_prop_enum(
+    prop: Property,
+) -> Optional[EnumValue]:
+    if prop.given.enum:
+        enums: List[Enums] = (
+            [prop.enums] +
+            [prop.model.ns.enums] +
+            [ns.enums for ns in prop.model.ns.parents()] +
+            [prop.model.manifest.enums]
+        )
+        for enums_ in enums:
+            if enums_ and prop.given.enum in enums_:
+                return enums_[prop.given.enum]
+        if not is_unit(prop.dtype, prop.given.enum):
+            raise UndefinedEnum(prop, name=prop.given.enum)
+    elif prop.enums:
+        return prop.enums.get('')
 
 
 @commands.link.register(Context, Property)
@@ -251,24 +288,7 @@ def link(context: Context, prop: Property):
         ))
     link_access_param(prop, parents)
     link_enums([prop] + parents, prop.enums)
-
-    if prop.given.enum:
-        enums_locations = (
-            [prop.enums] +
-            [prop.model.ns.enums] +
-            [ns.enums for ns in model.ns.parents()] +
-            [prop.model.manifest.enums]
-        )
-        for enums in enums_locations:
-            if enums and prop.given.enum in enums:
-                prop.enum = enums[prop.given.enum]
-                break
-        else:
-            raise UndefinedEnum(prop, name=prop.given.enum)
-    elif prop.enums:
-        prop.enum = prop.enums.get('')
-    else:
-        prop.enum = None
+    prop.enum = _link_prop_enum(prop)
 
 
 def _load_property_external(

@@ -514,6 +514,7 @@ class Model(MetaData):
 class PropertyGiven:
     access: str = None
     enum: str = None
+    unit: str = None
 
 
 class Property(Node):
@@ -533,7 +534,7 @@ class Property(Node):
     enum: EnumValue = None        # Enum name from Enums dict.
     enums: Enums
     lang: LangData = None
-    units: Unit = None       # Given in ref column.
+    unit: Unit = None       # Given in ref column.
 
     schema = {
         'title': {},

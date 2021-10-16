@@ -6,6 +6,10 @@ Changes
 0.1.22 (unreleased)
 ===================
 
+New features:
+
+- Add support for units in `property.ref`.
+
 Bug fixes:
 
 - Fix incorrect parsing of `null`, `false` and `true`.

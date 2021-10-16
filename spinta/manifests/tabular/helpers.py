@@ -1395,6 +1395,8 @@ def _property_to_tabular(
             data['ref'] = prop.dtype.model.name
     elif prop.enum is not None:
         data['ref'] = prop.given.enum
+    elif prop.unit is not None:
+        data['ref'] = prop.given.unit
 
     yield torow(DATASET, data)
     yield from _lang_to_tabular(prop.lang)
