@@ -7,7 +7,6 @@ from spinta import commands
 from spinta.renderer import render
 from spinta.components import Context, Action, UrlParams
 from spinta.components import Model
-from spinta.backends import log_getall
 from spinta.datasets.components import ExternalBackend
 
 
@@ -23,9 +22,13 @@ async def getall(
 ):
     commands.authorize(context, action, model)
     expr = urlparams_to_expr(params, add_count=False)
+    accesslog = context.get('accesslog')
+    accesslog.log(
+        model=model.model_type(),
+        action=action.value,
+        query=expr.todict(),
+    )
     rows = commands.getall(context, model, backend, query=expr)
-    hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
-    rows = log_getall(context, rows, select=params.select, hidden=hidden_props)
     if not params.count:
         select_tree = get_select_tree(context, action, params.select)
         prop_names = get_select_prop_names(context, model, action, select_tree)

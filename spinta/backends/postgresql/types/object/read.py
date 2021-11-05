@@ -5,9 +5,9 @@ from multipledispatch import dispatch
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.accesslog import AccessLog
 from spinta.renderer import render
 from spinta.components import Context, Model, Property, Action, UrlParams
-from spinta.backends import log_getone
 from spinta.types.datatype import DataType, File, Object
 from spinta.exceptions import NotFoundError, ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
@@ -27,8 +27,16 @@ async def getone(
     params: UrlParams,
 ):
     commands.authorize(context, action, prop)
+
+    accesslog: AccessLog = context.get('accesslog')
+    accesslog.log(
+        model=prop.model.model_type(),
+        prop=prop.place,
+        action=action.value,
+        id_=params.pk,
+    )
+
     data = getone(context, prop, dtype, backend, id_=params.pk)
-    log_getone(context, data)
     data = commands.prepare_data_for_response(
         context,
         Action.GETONE,

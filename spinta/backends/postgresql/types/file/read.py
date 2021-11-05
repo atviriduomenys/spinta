@@ -2,10 +2,10 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from spinta import commands
+from spinta.accesslog import AccessLog
 from spinta.renderer import render
 from spinta.components import Context, Property, Action, UrlParams
 from spinta.backends.components import BackendFeatures
-from spinta.backends import log_getone
 from spinta.backends.postgresql.files import DatabaseFile
 from spinta.utils.data import take
 from spinta.types.datatype import File
@@ -27,11 +27,18 @@ async def getone(
     params: UrlParams,
 ):
     commands.authorize(context, action, prop)
+
+    accesslog: AccessLog = context.get('accesslog')
+    accesslog.log(
+        model=prop.model.model_type(),
+        prop=prop.place,
+        action=action.value,
+        id_=params.pk,
+    )
     data = getone(context, prop, dtype, backend, id_=params.pk)
 
     # Return file metadata
     if params.propref:
-        log_getone(context, data)
         data = commands.prepare_data_for_response(
             context,
             Action.GETONE,

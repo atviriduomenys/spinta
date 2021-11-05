@@ -6,14 +6,17 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.accesslog import AccessLog
 
-from spinta.commands.write import log_write
 from spinta.renderer import render
 from spinta.utils.aiotools import aiter
 from spinta.components import Context, Action, UrlParams, DataItem
 from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.types.datatype import File
 from spinta.backends.fs.components import FileSystem
+
+if typing.TYPE_CHECKING:
+    from spinta.backends.postgresql.components import WriteTransaction
 
 
 @commands.push.register()
@@ -29,6 +32,17 @@ async def push(
     prop = dtype.prop
 
     commands.authorize(context, action, prop)
+
+    transaction: WriteTransaction = context.get('transaction')
+    accesslog: AccessLog = context.get('accesslog')
+    accesslog.log(
+        model=prop.model.model_type(),
+        prop=prop.place,
+        action=action.value,
+        id_=params.pk,
+        rev=request.headers.get('revision'),
+        txn=transaction.id,
+    )
 
     data = DataItem(
         prop.model,
@@ -63,7 +77,6 @@ async def push(
     dstream = aiter([data])
     dstream = validate_data(context, dstream)
     dstream = prepare_patch(context, dstream)
-    dstream = log_write(context, dstream)
     if action in (Action.UPDATE, Action.PATCH):
         dstream = create_file(filepath, dstream, request.stream())
         dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)

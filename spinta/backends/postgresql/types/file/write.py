@@ -3,14 +3,16 @@ import cgi
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.accesslog import AccessLog
 from spinta.backends.fs.components import FileSystem
+from spinta.backends.mongo.components import WriteTransaction
 from spinta.types.file.helpers import prepare_patch_data
 from spinta.utils.aiotools import aiter
 from spinta.utils.data import take
 from spinta.renderer import render
 from spinta.components import Action, UrlParams, DataItem
 from spinta.types.datatype import DataType, File
-from spinta.commands.write import prepare_patch, simple_response, validate_data, log_write
+from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.components import Context, DataSubItem
 from spinta.backends.postgresql.files import DatabaseFile
 from spinta.backends.postgresql.constants import TableType
@@ -41,6 +43,17 @@ async def push(
     #      too much work.
 
     commands.authorize(context, action, prop)
+
+    transaction: WriteTransaction = context.get('transaction')
+    accesslog: AccessLog = context.get('accesslog')
+    accesslog.log(
+        model=prop.model.model_type(),
+        prop=prop.place,
+        action=action.value,
+        id_=params.pk,
+        rev=request.headers.get('revision'),
+        txn=transaction.id,
+    )
 
     data = DataItem(
         prop.model,
@@ -80,7 +93,6 @@ async def push(
     dstream = aiter([data])
     dstream = validate_data(context, dstream)
     dstream = prepare_patch(context, dstream)
-    dstream = log_write(context, dstream)
     if action in (Action.UPDATE, Action.PATCH, Action.DELETE):
         dstream = commands.update(context, prop, dtype, prop.model.backend, dstream=dstream)
         dstream = commands.create_changelog_entry(

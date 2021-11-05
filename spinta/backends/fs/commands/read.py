@@ -2,8 +2,8 @@ from starlette.requests import Request
 from starlette.responses import FileResponse
 
 from spinta import commands
+from spinta.components import Action
 from spinta.components import Context, Property, UrlParams
-from spinta.backends import log_getone
 from spinta.backends.fs.components import FileSystem
 from spinta.types.datatype import DataType, File
 from spinta.exceptions import ItemDoesNotExist
@@ -17,12 +17,20 @@ async def getone(
     dtype: File,
     backend: FileSystem,
     *,
-    action: str,
+    action: Action,
     params: UrlParams,
 ):
     commands.authorize(context, action, prop)
+
+    accesslog = context.get('accesslog')
+    accesslog.log(
+        model=prop.model.model_type(),
+        prop=prop.place,
+        action=action.value,
+        id_=params.pk,
+    )
+
     data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
-    log_getone(context, data)
     value = data[prop.name]
     filename = value['_id']
     if filename is None:

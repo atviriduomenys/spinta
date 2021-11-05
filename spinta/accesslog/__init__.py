@@ -10,7 +10,7 @@ from spinta.components import Context, Config
 
 
 class AccessLog:
-    accessors: List[Dict[str, str]]
+    client: str = None
     method: str = None
     reason: str = None
     url: str = None
@@ -24,32 +24,45 @@ class AccessLog:
 
     def create_message(
         self,
-        txn: str,
-        method: str,
-        reason: str,
-        resources: List[Dict[str, Any]],
-        fields: List[str],
+        *,
+        model: str = None,
+        prop: str = None,
+        txn: str = None,
+        action: str = None,
+        query: Dict[str, Any] = None,
+        method: str = None,
+        reason: str = None,
+        id_: str = None,
+        rev: str = None,
     ):
         message = {
-            'accessors': self.accessors,
-            'http_method': method or self.method,
+            'client': self.client,
+            'action': action,
+            'method': method or self.method,
             'url': self.url,
             'reason': reason or self.reason,
-            'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'transaction_id': txn,
-            'resources': resources,
-            'fields': fields,
+            'time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'txn': txn,
+            'model': model,
+            'prop': prop,
+            'query': query,
+            'id': id_,
+            'rev': rev,
         }
-        return message
+        return {k: v for k, v in message.items() if v is not None}
 
     def log(
         self,
         *,
+        model: str = None,
+        prop: str = None,
         txn: str = None,
+        action: str = None,
+        query: Dict[str, Any] = None,
         method: str = None,
         reason: str = None,
-        resources: List[Dict[str, Any]],
-        fields: List[str],
+        id_: str = None,
+        rev: str = None,
     ):
         raise NotImplementedError
 
@@ -61,16 +74,7 @@ def load(context: Context, accesslog: AccessLog, config: Config):
 
 @commands.load.register(Context, AccessLog, rfc6749.TokenMixin)
 def load(context: Context, accesslog: AccessLog, token: rfc6749.TokenMixin):  # noqa
-    accesslog.accessors.extend([
-        {
-            'type': 'person',
-            'id': token.get_sub(),
-        },
-        {
-            'type': 'client',
-            'id': token.get_aud(),
-        },
-    ])
+    accesslog.client = token.get_sub()
 
 
 @commands.load.register(Context, AccessLog, Request)
@@ -88,7 +92,6 @@ def create_accesslog(
     config = context.get('config')
     accesslog = config.AccessLog()
     accesslog.method = method
-    accesslog.accessors = []
     for loader in loaders:
         commands.load(context, accesslog, loader)
     return accesslog

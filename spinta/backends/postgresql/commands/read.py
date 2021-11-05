@@ -7,7 +7,6 @@ from spinta.compat import urlparams_to_expr
 from spinta.core.ufuncs import Expr
 from spinta.renderer import render
 from spinta.components import Context, Model, Property, Action, UrlParams
-from spinta.backends import log_getall, log_getone
 from spinta.types.datatype import DataType
 from spinta.exceptions import NotFoundError, ItemDoesNotExist, UnavailableSubresource
 from spinta.backends.postgresql.components import PostgreSQL
@@ -26,9 +25,16 @@ async def getone(
     params: UrlParams,
 ):
     commands.authorize(context, action, model)
+
+    accesslog = context.get('accesslog')
+    accesslog.log(
+        model=model.model_type(),
+        action=action.value,
+        id_=params.pk,
+        query=params.select,
+    )
+
     data = getone(context, model, backend, id_=params.pk)
-    hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
-    log_getone(context, data, select=params.select, hidden=hidden_props)
     select_tree = get_select_tree(context, action, params.select)
     prop_names = get_select_prop_names(context, model, action, select_tree)
     data = commands.prepare_data_for_response(
@@ -88,9 +94,13 @@ async def getall(
 ):
     commands.authorize(context, action, model)
     expr = urlparams_to_expr(params)
+    accesslog = context.get('accesslog')
+    accesslog.log(
+        model=model.model_type(),
+        action=action.value,
+        query=expr.todict(),
+    )
     rows = getall(context, model, backend, query=expr)
-    hidden_props = [prop.name for prop in model.properties.values() if prop.hidden]
-    rows = log_getall(context, rows, select=params.select, hidden=hidden_props)
     if not params.count:
         select_tree = get_select_tree(context, action, params.select)
         prop_names = get_select_prop_names(context, model, action, select_tree)

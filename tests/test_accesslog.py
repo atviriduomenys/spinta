@@ -12,16 +12,15 @@ def _upload_pdf(model, app):
     assert resp.status_code == 201
     data = resp.json()
     id_ = data['_id']
-    revision = data['_revision']
+    rev = data['_revision']
 
     resp = app.put(f'/{model}/{id_}/pdf', data=b'BINARYDATA', headers={
-        'revision': revision,
+        'revision': rev,
         'content-type': 'application/pdf',
         'content-disposition': 'attachment; filename="test.pdf"',
     })
-    revision = resp.json()['_revision']
     assert resp.status_code == 200, resp.text
-    return id_, revision, resp
+    return id_, rev, resp
 
 
 @pytest.mark.models(
@@ -34,33 +33,16 @@ def test_post_accesslog(model, app, context):
     resp = app.post(f'/{model}', json={'status': '42'})
     assert resp.status_code == 201, resp.json()
 
-    data = resp.json()
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 1
     assert accesslog[-1] == {
-        'http_method': 'POST',
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'method': 'POST',
         'url': f'https://testserver/{model}',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': model,
-                '_id': data['_id'],
-                '_revision': data['_revision'],
-            },
-        ],
+        'action': 'insert',
+        'model': model,
     }
 
 
@@ -78,33 +60,16 @@ def test_post_array_accesslog(model, app, context):
     })
     assert resp.status_code == 201
 
-    data = resp.json()
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 1
     assert accesslog[-1] == {
-        'http_method': 'POST',
+        'method': 'POST',
+        'action': 'insert',
         'url': f'https://testserver/{model}',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': model,
-                '_id': data['_id'],
-                '_revision': data['_revision'],
-            },
-        ],
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
     }
 
 
@@ -118,6 +83,7 @@ def test_put_accesslog(model, app, context):
     assert resp.status_code == 201
     data = resp.json()
     id_ = data['_id']
+    rev = data['_revision']
     revision = data['_revision']
 
     resp = app.put(f'/{model}/{id_}', json={
@@ -126,33 +92,18 @@ def test_put_accesslog(model, app, context):
     })
     assert resp.status_code == 200
 
-    data = resp.json()
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
-        'http_method': 'PUT',
+        'method': 'PUT',
+        'action': 'update',
         'url': f'https://testserver/{model}/{id_}',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': model,
-                '_id': id_,
-                '_revision': data['_revision'],
-            },
-        ],
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client':  'test-client',
+        'model': model,
+        'id': id_,
+        'rev': rev,
     }
 
 
@@ -162,34 +113,21 @@ def test_put_accesslog(model, app, context):
 )
 def test_pdf_put_accesslog(model, app, context):
     app.authmodel(model, ['insert', 'update', 'pdf_update'])
-    id_, revision, resp = _upload_pdf(model, app)
+    id_, rev, resp = _upload_pdf(model, app)
 
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2  # 2 accesses overall: POST and PUT
     assert accesslog[-1] == {
-        'http_method': 'PUT',
+        'action': 'update',
+        'method': 'PUT',
         'url': f'https://testserver/{model}/{id_}/pdf',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': f'{model}.pdf',
-                '_id': id_,
-                '_revision': revision,
-            },
-        ],
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client':  'test-client',
+        'model': model,
+        'prop': 'pdf',
+        'id': id_,
+        'rev': rev,
     }
 
 
@@ -203,44 +141,26 @@ def test_patch_accesslog(model, app, context):
     assert resp.status_code == 201
     data = resp.json()
     id_ = data['_id']
-    revision = data['_revision']
+    rev = data['_revision']
 
     resp = app.patch(f'/{model}/{id_}', json={
-        '_revision': revision,
+        '_revision': rev,
         'status': '13',
     })
     assert resp.status_code == 200
 
-    data = resp.json()
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
-        'http_method': 'PATCH',
+        'action': 'patch',
+        'method': 'PATCH',
         'url': f'https://testserver/{model}/{id_}',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [
-            '_revision',
-            'status',
-        ],
-        'resources': [
-            {
-                '_type': model,
-                '_id': id_,
-                '_revision': data['_revision'],
-            },
-        ],
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'id': id_,
+        'rev': rev,
     }
 
 
@@ -254,36 +174,20 @@ def test_get_accesslog(app, model, context):
     assert resp.status_code == 201
 
     data = resp.json()
-    pk = data['_id']
-    resp = app.get(f'/{model}/{pk}')
+    id_ = data['_id']
+    resp = app.get(f'/{model}/{id_}')
     assert resp.status_code == 200
 
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
-        'http_method': 'GET',
-        'url': f'https://testserver/{model}/{pk}',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': model,
-                '_id': data['_id'],
-                '_revision': data['_revision'],
-            },
-        ],
+        'action': 'getone',
+        'method': 'GET',
+        'url': f'https://testserver/{model}/{id_}',
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'id': id_,
     }
 
 
@@ -303,34 +207,17 @@ def test_get_array_accesslog(model, app, context):
     data = resp.json()
     id_ = data['_id']
 
-    resp = app.get(f'/{model}/{id_}')
-    data = resp.json()
+    app.get(f'/{model}/{id_}')
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
-        'http_method': 'GET',
+        'action': 'getone',
+        'method': 'GET',
         'url': f'https://testserver/{model}/{id_}',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': model,
-                '_id': id_,
-                '_revision': data['_revision'],
-            },
-        ],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'id': id_,
     }
 
 
@@ -342,36 +229,18 @@ def test_pdf_get_accesslog(model, app, context):
     app.authmodel(model, ['insert', 'update', 'pdf_update', 'pdf_getone'])
     id_, revision, resp = _upload_pdf(model, app)
 
-    resp = app.get(f'/{model}/{id_}/pdf')
-    assert resp.status_code == 200
-    revision = resp.headers['revision']
-
+    app.get(f'/{model}/{id_}/pdf')
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 3  # 3 accesses overall: POST, PUT, GET
     assert accesslog[-1] == {
-        'http_method': 'GET',
+        'action': 'getone',
+        'method': 'GET',
         'url': f'https://testserver/{model}/{id_}/pdf',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': f'{model}.pdf',
-                '_id': id_,
-                '_revision': revision,  # XXX: revisions between report and report.pdf are not the same?
-            },
-        ],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'prop': 'pdf',
+        'id': id_,
     }
 
 
@@ -392,29 +261,14 @@ def test_get_prop_accesslog(app, model, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
-        'http_method': 'GET',
+        'action': 'getone',
+        'method': 'GET',
         'url': f'https://testserver/{model}/{pk}/sync',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            }
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': f'{model}.sync',
-                '_id': data['_id'],
-                '_revision': data['_revision'],
-            },
-        ],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'prop': 'sync',
+        'id': pk,
     }
 
 
@@ -434,31 +288,14 @@ def test_get_w_select_accesslog(app, model, context):
 
     accesslog = context.get('accesslog.stream')
     assert accesslog[-1] == {
-        'http_method': 'GET',
+        'action': 'getone',
+        'method': 'GET',
         'url': f'https://testserver/{model}/{pk}?select(status)',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [
-            'status',
-        ],
-        'resources': [
-            {
-                '_type': model,
-                '_id': data['_id'],
-                '_revision': data['_revision'],
-            },
-        ],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'id': pk,
+        'query': [{'args': ['status'], 'name': 'bind'}],
     }
 
 
@@ -479,29 +316,13 @@ def test_getall_accesslog(app, model, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
-        'http_method': 'GET',
+        'action': 'getall',
+        'method': 'GET',
         'url': f'https://testserver/{model}',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': model,
-                '_id': data['_id'],
-                '_revision': data['_revision'],
-            },
-        ],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'query': {'name': 'select', 'args': []},
     }
 
 
@@ -514,38 +335,22 @@ def test_getall_w_select_accesslog(app, model, context):
     resp = app.post(f'/{model}', json={'status': '42'})
     assert resp.status_code == 201
 
-    data = resp.json()
     resp = app.get(f'/{model}?select(status)')
     assert resp.status_code == 200
 
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
-        'http_method': 'GET',
+        'action': 'search',
+        'method': 'GET',
         'url': f'https://testserver/{model}?select(status)',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [
-            'status',
-        ],
-        'resources': [
-            {
-                '_type': model,
-                '_id': data['_id'],
-                '_revision': data['_revision'],
-            },
-        ],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'query': {
+            'name': 'select',
+            'args': [{'name': 'bind', 'args': ['status']}],
+        },
     }
 
 
@@ -568,35 +373,18 @@ def test_accesslog_file(model, postgresql, rc, request, tmpdir):
 
     app.authmodel(model, ['insert'])
     resp = app.post(f'/{model}', json={'status': '42'})
-    data = resp.json()
     assert resp.status_code == 201
 
     accesslog = [json.loads(line) for line in logfile.read_text().splitlines()]
     assert len(accesslog) == 1
     assert accesslog[-1] == {
-        'http_method': 'POST',
+        'action': 'insert',
+        'method': 'POST',
         'url': f'https://testserver/{model}',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': model,
-                '_id': data['_id'],
-                '_revision': data['_revision'],
-            },
-        ],
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
     }
 
 
@@ -638,29 +426,14 @@ def test_delete_accesslog(model, app, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
-        'http_method': 'DELETE',
+        'action': 'delete',
+        'method': 'DELETE',
         'url': f'https://testserver/{model}/{id_}',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': model,
-                '_id': data['_id'],
-                '_revision': data['_revision'],
-            },
-        ],
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'id': data['_id'],
     }
 
 
@@ -670,7 +443,7 @@ def test_delete_accesslog(model, app, context):
 )
 def test_pdf_delete_accesslog(model, app, context):
     app.authmodel(model, ['insert', 'update', 'getone', 'pdf_getone', 'pdf_update', 'pdf_delete'])
-    id_, revision, resp = _upload_pdf(model, app)
+    id_, rev, resp = _upload_pdf(model, app)
 
     resp = app.delete(f'/{model}/{id_}/pdf')
     assert resp.status_code == 204
@@ -679,30 +452,23 @@ def test_pdf_delete_accesslog(model, app, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 3  # 3 accesses overall: POST, PUT, DELETE
     assert accesslog[-1] == {
-        'http_method': 'DELETE',
+        'action': 'delete',
+        'method': 'DELETE',
         'url': f'https://testserver/{model}/{id_}/pdf',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': f'{model}.pdf',
-                '_id': id_,
-                '_revision': revision,  # XXX: revisions between report and report.pdf are not the same?
-            },
-        ],
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'prop': 'pdf',
+        'id': id_,
     }
+
+
+def _get_object_rev(app, model: str, id_: str) -> str:
+    resp = app.get(f'/{model}/{id_}')
+    assert resp.status_code == 200
+    data = resp.json()
+    return data['_revision']
 
 
 @pytest.mark.models(
@@ -711,42 +477,29 @@ def test_pdf_delete_accesslog(model, app, context):
 )
 def test_pdf_ref_update_accesslog(model, app, context, tmpdir):
     app.authmodel(model, ['insert', 'update', 'getone', 'pdf_getone', 'pdf_update', 'pdf_delete'])
-    id_, revision, resp = _upload_pdf(model, app)
+    id_, rev, resp = _upload_pdf(model, app)
 
     image = pathlib.Path(tmpdir) / 'image.png'
     image.write_bytes(b'IMAGEDATA')
 
+    rev = _get_object_rev(app, model, id_)
     resp = app.put(f'/{model}/{id_}/pdf:ref', json={
         '_id': 'image.png',
-        '_revision': revision
+        '_revision': rev
     })
     assert resp.status_code == 200
-    revision = resp.json()['_revision']
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 3  # 3 accesses overall: POST, PUT, PUT
+    assert len(accesslog) == 4  # 4 accesses overall: POST, PUT, GET, PUT
     assert accesslog[-1] == {
-        'http_method': 'PUT',
+        'action': 'update',
+        'method': 'PUT',
         'url': f'https://testserver/{model}/{id_}/pdf:ref',
-        'reason': None,
-        'transaction_id': accesslog[-1]['transaction_id'],
-        'timestamp': accesslog[-1]['timestamp'],
-        'accessors': [
-            {
-                'type': 'person',
-                'id': 'test-client',
-            },
-            {
-                'type': 'client',
-                'id': 'test-client',
-            },
-        ],
-        'fields': [],
-        'resources': [
-            {
-                '_type': f'{model}.pdf',
-                '_id': id_,
-                '_revision': revision,
-            },
-        ],
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'model': model,
+        'prop': 'pdf',
+        'id': id_,
+        'rev': rev,
     }

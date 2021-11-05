@@ -1,4 +1,5 @@
 import cgi
+import typing
 from typing import Any
 from typing import AsyncIterator, Union, Optional
 
@@ -17,6 +18,7 @@ from starlette.responses import Response
 from spinta import spyna
 from spinta import commands
 from spinta import exceptions
+from spinta.accesslog import AccessLog
 from spinta.auth import check_scope
 from spinta.backends import get_select_prop_names
 from spinta.backends import get_select_tree
@@ -33,6 +35,9 @@ from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
 from spinta.core.ufuncs import asttoexpr
+
+if typing.TYPE_CHECKING:
+    from spinta.backends.postgresql.components import WriteTransaction
 
 
 STREAMING_CONTENT_TYPES = [
@@ -140,7 +145,6 @@ async def push_stream(
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
         dstream = prepare_data_for_write(context, dstream)
-        dstream = log_write(context, dstream)
         if prop:
             dstream = cmds[action](
                 context, prop, prop.dtype, prop.dtype.backend or model.backend, dstream=dstream,
@@ -167,32 +171,6 @@ async def write(context: Context, scope: Node, payload, *, changed=False):
     async for data in stream:
         if changed is False or data.patch:
             yield _get_simple_response(context, data)
-
-
-async def log_write(context, dstream):
-    accesslog = context.get('accesslog')
-    async for data in dstream:
-        # on writes only log PATCH'ed fields and nothing else
-        # as this is the specification
-        if data.action == Action.PATCH:
-            fields = sorted(list(data.patch.keys()))
-        else:
-            fields = []
-
-        resource = take(
-            ['_id', '_type', '_revision'],
-            data.patch,
-            data.saved,
-            {'_type': data.model.name}
-        )
-        # make _type as resource.subresource format for /subresource:ref request
-        if data.prop and not resource['_type'].endswith(f'.{data.prop.name}'):
-            resource['_type'] = data.prop.model_type()
-        if data.action == Action.DELETE:
-            resource['_revision'] = take('_revision', data.saved)
-        transaction = context.get("transaction")
-        accesslog.log(resources=[resource], fields=fields, txn=transaction.id)
-        yield data
 
 
 def _stream_group_key(data: DataItem):
@@ -246,7 +224,9 @@ async def _read_request_body(
         backend = model.backend
 
     if action == Action.DELETE:
-        payload = _add_where(params, {})
+        payload = {}
+        _log_write(context, model, prop, action, params.pk, payload)
+        payload = _add_where(params, payload)
         yield DataItem(model, prop, propref, backend, action, payload)
         return
 
@@ -268,16 +248,58 @@ async def _read_request_body(
             # TODO: Handler propref in batch case.
             yield dataitem_from_payload(context, scope, data, stop_on_error)
     else:
-        payload = _add_where(params, payload)
         # TODO: payload `_type` should be validated to match with `scope` or
         #       `node` given in URL.
 
         if '_op' in payload:
             action = _action_from_op(scope, payload, stop_on_error)
             if isinstance(action, exceptions.UserError):
-                yield DataItem(model, prop, propref, backend, payload=payload, error=action)
+                yield DataItem(
+                    model,
+                    prop,
+                    propref,
+                    backend,
+                    payload=payload,
+                    error=action,
+                )
+
+        _log_write(context, model, prop, action, params.pk, payload)
+
+        payload = _add_where(params, payload)
 
         yield DataItem(model, prop, propref, backend, action, payload)
+
+
+def _log_write(
+    context: Context,
+    model: Union[Namespace, Model],
+    prop: Optional[Property],
+    action: Action,
+    id_: Optional[str],
+    payload: Dict[str, Any],
+) -> None:
+    transaction: WriteTransaction = context.get('transaction')
+    accesslog: AccessLog = context.get('accesslog')
+
+    if prop:
+        accesslog.log(
+            model=model.model_type(),
+            prop=prop.place,
+            action=action.value,
+            query=payload.get('_where'),
+            id_=id_,
+            rev=payload.get('_revision'),
+            txn=transaction.id,
+        )
+    else:
+        accesslog.log(
+            model=model.model_type(),
+            action=action.value,
+            query=payload.get('_where'),
+            id_=id_,
+            rev=payload.get('_revision'),
+            txn=transaction.id,
+        )
 
 
 def _add_where(params: UrlParams, payload: dict):

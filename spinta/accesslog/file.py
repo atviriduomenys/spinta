@@ -17,18 +17,10 @@ class FileAccessLog(AccessLog):
         if self.close:
             self.file.close()
 
-    def log(
-        self,
-        *,
-        txn: str = None,
-        method: str = None,
-        reason: str = None,
-        resources: List[Dict[str, Any]],
-        fields: List[str],
-    ):
+    def log(self, **kwargs):
         if self.file is None:
             return
-        message = self.create_message(txn, method, reason, resources, fields)
+        message = self.create_message(**kwargs)
         message = json.dumps(message)
         print(message, file=self.file)
 

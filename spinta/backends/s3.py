@@ -1,5 +1,6 @@
 import cgi
 import tempfile
+import typing
 from typing import AsyncGenerator
 from typing import AsyncIterator
 from typing import Dict, Any
@@ -12,10 +13,11 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
 from spinta import commands
-from spinta.backends import Backend, simple_data_check, log_getone
+from spinta.accesslog import AccessLog
+from spinta.backends import Backend, simple_data_check
 from spinta.backends.components import BackendFeatures
 from spinta.commands import getall
-from spinta.commands.write import prepare_patch, simple_response, validate_data, log_write
+from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.components import Action, Context, DataItem, Property, UrlParams
 from spinta.exceptions import ItemDoesNotExist
 from spinta.manifests.components import Manifest
@@ -23,6 +25,9 @@ from spinta.renderer import render
 from spinta.types.datatype import File
 from spinta.utils.aiotools import aiter
 from spinta.utils.data import take
+
+if typing.TYPE_CHECKING:
+    from spinta.backends.postgresql.components import WriteTransaction
 
 
 class S3(Backend):
@@ -92,6 +97,18 @@ async def push(
 ):
     prop = dtype.prop
     commands.authorize(context, action, prop)
+
+    transaction: WriteTransaction = context.get('transaction')
+    accesslog: AccessLog = context.get('accesslog')
+    accesslog.log(
+        model=prop.model.model_type(),
+        prop=prop.place,
+        action=action.value,
+        id_=params.pk,
+        rev=request.headers.get('revision'),
+        txn=transaction.id,
+    )
+
     data = DataItem(
         prop.model,
         prop,
@@ -122,7 +139,6 @@ async def push(
     dstream = aiter([data])
     dstream = validate_data(context, dstream)
     dstream = prepare_patch(context, dstream)
-    dstream = log_write(context, dstream)
     filename = data.given[prop.name]['_id']
     if action == Action.UPDATE:
         if 'content-length' not in request.headers:
@@ -170,12 +186,17 @@ async def getone(
     dtype: File,
     backend: S3,
     *,
-    action: str,
+    action: Action,
     params: UrlParams,
 ):
     commands.authorize(context, action, prop)
+    accesslog: AccessLog = context.get('accesslog')
+    accesslog.log(
+        model=prop.model.model_type(),
+        action=action.value,
+        id_=params.pk,
+    )
     data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
-    log_getone(context, data)
     value = data[prop.name]
     filename = value['_id']
     if filename is None:

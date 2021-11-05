@@ -10,16 +10,8 @@ from spinta.components import Context, Store
 class PythonAccessLog(AccessLog):
     stream: list
 
-    def log(
-        self,
-        *,
-        txn: str = None,
-        method: str = None,
-        reason: str = None,
-        resources: List[Dict[str, Any]],
-        fields: List[str],
-    ):
-        message = self.create_message(txn, method, reason, resources, fields)
+    def log(self, **kwargs):
+        message = self.create_message(**kwargs)
         # `message` must be JSON serializable.
         json.dumps(message)
         self.stream.append(message)
