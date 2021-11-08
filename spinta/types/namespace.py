@@ -129,7 +129,14 @@ async def getall(
         ns = ns.manifest.namespaces[config.root]
 
     commands.authorize(context, action, ns)
+
     if params.all and params.ns:
+        accesslog = context.get('accesslog')
+        accesslog.log(
+            ns=ns.name,
+            action=action.value,
+        )
+
         for model in traverse_ns_models(context, ns, action, internal=True):
             commands.authorize(context, action, model)
         return _get_ns_content(
@@ -141,6 +148,12 @@ async def getall(
             recursive=True,
         )
     elif params.all:
+        accesslog = context.get('accesslog')
+        accesslog.log(
+            ns=ns.name,
+            action=action.value,
+        )
+
         prepare_data_for_response_kwargs = {}
         for model in traverse_ns_models(context, ns, action, internal=True):
             commands.authorize(context, action, model)

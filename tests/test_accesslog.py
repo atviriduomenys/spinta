@@ -611,3 +611,55 @@ def test_stream_write(model, app, context, tmpdir):
         'client': 'test-client',
         'ns': ns,
     }
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_ns_read(model, app, context, tmpdir):
+    ns = model[:-len('/report')]
+
+    app.authmodel(ns, ['getall'])
+
+    resp = app.get(f'/{ns}/:ns/:all')
+    assert resp.status_code == 200, resp.json()
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 1
+    assert accesslog[-1] == {
+        'agent': 'testclient',
+        'format': 'json',
+        'action': 'getall',
+        'method': 'GET',
+        'url': f'https://testserver/{ns}/:ns/:all',
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'ns': ns,
+    }
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_ns_read(model, app, context, tmpdir):
+    ns = model[:-len('/report')]
+
+    app.authmodel(ns, ['getall'])
+
+    resp = app.get(f'/{ns}/:ns/:all/:format/csv')
+    assert resp.status_code == 200
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 1
+    assert accesslog[-1] == {
+        'agent': 'testclient',
+        'format': 'csv',
+        'action': 'getall',
+        'method': 'GET',
+        'url': f'https://testserver/{ns}/:ns/:all/:format/csv',
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'ns': ns,
+    }

@@ -94,12 +94,14 @@ async def getall(
 ):
     commands.authorize(context, action, model)
     expr = urlparams_to_expr(params)
+
     accesslog = context.get('accesslog')
     accesslog.log(
         model=model.model_type(),
         action=action.value,
         query=expr.todict(),
     )
+
     rows = getall(context, model, backend, query=expr)
     if not params.count:
         select_tree = get_select_tree(context, action, params.select)
