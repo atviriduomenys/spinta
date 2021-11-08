@@ -68,7 +68,9 @@ async def push(
 
     stop_on_error = not params.fault_tolerant
     if is_streaming_request(request):
-        stream = _read_request_stream(context, request, scope, stop_on_error)
+        stream = _read_request_stream(
+            context, request, scope, action, stop_on_error,
+        )
     else:
         stream = _read_request_body(
             context, request, scope, action, params, stop_on_error,
@@ -244,6 +246,7 @@ async def _read_request_body(
         raise exceptions.JSONError(scope, error=str(e))
 
     if '_data' in payload:
+        _log_write(context, model, prop, action, None, {})
         for data in payload['_data']:
             # TODO: Handler propref in batch case.
             yield dataitem_from_payload(context, scope, data, stop_on_error)
@@ -281,25 +284,23 @@ def _log_write(
     transaction: WriteTransaction = context.get('transaction')
     accesslog: AccessLog = context.get('accesslog')
 
+    message = {
+        'action': action.value,
+        'query': payload.get('_where'),
+        'id_': id_,
+        'rev': payload.get('_revision'),
+        'txn': transaction.id,
+    }
+
     if prop:
-        accesslog.log(
-            model=model.model_type(),
-            prop=prop.place,
-            action=action.value,
-            query=payload.get('_where'),
-            id_=id_,
-            rev=payload.get('_revision'),
-            txn=transaction.id,
-        )
+        message['prop'] = prop.place
+
+    if isinstance(model, Namespace):
+        message['ns'] = model.name
     else:
-        accesslog.log(
-            model=model.model_type(),
-            action=action.value,
-            query=payload.get('_where'),
-            id_=id_,
-            rev=payload.get('_revision'),
-            txn=transaction.id,
-        )
+        message['model'] = model.model_type()
+
+    accesslog.log(**message)
 
 
 def _add_where(params: UrlParams, payload: dict):
@@ -328,10 +329,12 @@ def _add_where(params: UrlParams, payload: dict):
 async def _read_request_stream(
     context: Context,
     request: Request,
-    scope: Node,
+    scope: Union[Namespace, Model],
+    action: Action,
     stop_on_error: bool = True,
 ) -> AsyncIterator[DataItem]:
     transaction = context.get('transaction')
+    _log_write(context, scope, None, action, None, {})
     async for line in splitlines(request.stream()):
         try:
             payload = json.loads(line.strip())

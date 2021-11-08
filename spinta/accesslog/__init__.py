@@ -7,6 +7,7 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.components import Context, Config
+from spinta.components import UrlParams
 
 
 class AccessLog:
@@ -15,6 +16,9 @@ class AccessLog:
     reason: str = None
     url: str = None
     buffer_size: int = 100
+    format: str = None          # response format
+    content_type: str = None    # request content-type header
+    agent: str = None           # request user-agent header
 
     def __enter__(self):
         return self
@@ -25,6 +29,7 @@ class AccessLog:
     def create_message(
         self,
         *,
+        ns: str = None,
         model: str = None,
         prop: str = None,
         txn: str = None,
@@ -36,13 +41,17 @@ class AccessLog:
         rev: str = None,
     ):
         message = {
+            'agent': self.agent,
             'client': self.client,
+            'rctype': self.content_type,
+            'format': self.format,
             'action': action,
             'method': method or self.method,
             'url': self.url,
             'reason': reason or self.reason,
             'time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'txn': txn,
+            'ns': ns,
             'model': model,
             'prop': prop,
             'query': query,
@@ -54,6 +63,7 @@ class AccessLog:
     def log(
         self,
         *,
+        ns: str = None,
         model: str = None,
         prop: str = None,
         txn: str = None,
@@ -81,6 +91,13 @@ def load(context: Context, accesslog: AccessLog, token: rfc6749.TokenMixin):  # 
 def load(context: Context, accesslog: AccessLog, request: Request):  # noqa
     accesslog.method = request.method
     accesslog.url = str(request.url)
+    accesslog.content_type = request.headers.get('content-type')
+    accesslog.agent = request.headers.get('user-agent')
+
+
+@commands.load.register(Context, AccessLog, UrlParams)
+def load(context: Context, accesslog: AccessLog, params: UrlParams):  # noqa
+    accesslog.format = params.format
 
 
 def create_accesslog(

@@ -76,15 +76,17 @@ async def homepage(request: Request):
         'headers': request.headers,
     }))
     context.set('auth.token', get_auth_token(context))
-    context.attach('accesslog', create_accesslog, context, loaders=(
-        context.get('store'),
-        context.get("auth.token"),
-        request,
-    ))
 
     config = context.get('config')
     UrlParams: Type[components.UrlParams] = config.components['urlparams']['component']
     params = prepare(context, UrlParams(), Version(), request)
+
+    context.attach('accesslog', create_accesslog, context, loaders=(
+        context.get('store'),
+        context.get("auth.token"),
+        request,
+        params,
+    ))
 
     return await create_http_response(context, params, request)
 

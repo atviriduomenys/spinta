@@ -1,14 +1,15 @@
-from typing import Iterator
+from typing import AsyncIterable
+from typing import AsyncIterator
 
 import io
 import codecs
 
 
 async def splitlines(
-    stream: Iterator[bytes],
+    stream: AsyncIterable[bytes],
     encoding: str = 'utf-8',
     errors: str = 'strict',
-) -> Iterator[str]:
+) -> AsyncIterator[str]:
     """Read chunks of bytes from stream and yield lines."""
     decoder = codecs.getincrementaldecoder(encoding)(errors)
     decoder = io.IncrementalNewlineDecoder(decoder, translate=True, errors=errors)

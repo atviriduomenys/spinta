@@ -41,6 +41,9 @@ def test_post_accesslog(model, app, context):
         'client': 'test-client',
         'method': 'POST',
         'url': f'https://testserver/{model}',
+        'agent': 'testclient',
+        'rctype': 'application/json',
+        'format': 'json',
         'action': 'insert',
         'model': model,
     }
@@ -64,6 +67,9 @@ def test_post_array_accesslog(model, app, context):
     assert len(accesslog) == 1
     assert accesslog[-1] == {
         'method': 'POST',
+        'agent': 'testclient',
+        'rctype': 'application/json',
+        'format': 'json',
         'action': 'insert',
         'url': f'https://testserver/{model}',
         'txn': accesslog[-1]['txn'],
@@ -96,6 +102,9 @@ def test_put_accesslog(model, app, context):
     assert len(accesslog) == 2
     assert accesslog[-1] == {
         'method': 'PUT',
+        'agent': 'testclient',
+        'rctype': 'application/json',
+        'format': 'json',
         'action': 'update',
         'url': f'https://testserver/{model}/{id_}',
         'txn': accesslog[-1]['txn'],
@@ -119,6 +128,9 @@ def test_pdf_put_accesslog(model, app, context):
     assert len(accesslog) == 2  # 2 accesses overall: POST and PUT
     assert accesslog[-1] == {
         'action': 'update',
+        'agent': 'testclient',
+        'rctype': 'application/pdf',
+        'format': 'json',
         'method': 'PUT',
         'url': f'https://testserver/{model}/{id_}/pdf',
         'txn': accesslog[-1]['txn'],
@@ -152,6 +164,9 @@ def test_patch_accesslog(model, app, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'rctype': 'application/json',
+        'format': 'json',
         'action': 'patch',
         'method': 'PATCH',
         'url': f'https://testserver/{model}/{id_}',
@@ -181,6 +196,8 @@ def test_get_accesslog(app, model, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'format': 'json',
         'action': 'getone',
         'method': 'GET',
         'url': f'https://testserver/{model}/{id_}',
@@ -211,6 +228,8 @@ def test_get_array_accesslog(model, app, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'format': 'json',
         'action': 'getone',
         'method': 'GET',
         'url': f'https://testserver/{model}/{id_}',
@@ -233,6 +252,8 @@ def test_pdf_get_accesslog(model, app, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 3  # 3 accesses overall: POST, PUT, GET
     assert accesslog[-1] == {
+        'format': 'json',
+        'agent': 'testclient',
         'action': 'getone',
         'method': 'GET',
         'url': f'https://testserver/{model}/{id_}/pdf',
@@ -261,6 +282,8 @@ def test_get_prop_accesslog(app, model, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'format': 'json',
         'action': 'getone',
         'method': 'GET',
         'url': f'https://testserver/{model}/{pk}/sync',
@@ -288,6 +311,8 @@ def test_get_w_select_accesslog(app, model, context):
 
     accesslog = context.get('accesslog.stream')
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'format': 'json',
         'action': 'getone',
         'method': 'GET',
         'url': f'https://testserver/{model}/{pk}?select(status)',
@@ -316,6 +341,8 @@ def test_getall_accesslog(app, model, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'format': 'json',
         'action': 'getall',
         'method': 'GET',
         'url': f'https://testserver/{model}',
@@ -341,6 +368,8 @@ def test_getall_w_select_accesslog(app, model, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'format': 'json',
         'action': 'search',
         'method': 'GET',
         'url': f'https://testserver/{model}?select(status)',
@@ -378,6 +407,9 @@ def test_accesslog_file(model, postgresql, rc, request, tmpdir):
     accesslog = [json.loads(line) for line in logfile.read_text().splitlines()]
     assert len(accesslog) == 1
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'rctype': 'application/json',
+        'format': 'json',
         'action': 'insert',
         'method': 'POST',
         'url': f'https://testserver/{model}',
@@ -426,6 +458,8 @@ def test_delete_accesslog(model, app, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 2
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'format': 'json',
         'action': 'delete',
         'method': 'DELETE',
         'url': f'https://testserver/{model}/{id_}',
@@ -452,6 +486,8 @@ def test_pdf_delete_accesslog(model, app, context):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 3  # 3 accesses overall: POST, PUT, DELETE
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'format': 'json',
         'action': 'delete',
         'method': 'DELETE',
         'url': f'https://testserver/{model}/{id_}/pdf',
@@ -492,6 +528,9 @@ def test_pdf_ref_update_accesslog(model, app, context, tmpdir):
     accesslog = context.get('accesslog.stream')
     assert len(accesslog) == 4  # 4 accesses overall: POST, PUT, GET, PUT
     assert accesslog[-1] == {
+        'agent': 'testclient',
+        'rctype': 'application/json',
+        'format': 'json',
         'action': 'update',
         'method': 'PUT',
         'url': f'https://testserver/{model}/{id_}/pdf:ref',
@@ -502,4 +541,73 @@ def test_pdf_ref_update_accesslog(model, app, context, tmpdir):
         'prop': 'pdf',
         'id': id_,
         'rev': rev,
+    }
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_batch_write(model, app, context, tmpdir):
+    ns = model[:-len('/report')]
+
+    app.authmodel(ns, ['insert'])
+
+    resp = app.post(f'/{ns}', json={
+        '_data': [
+            {
+                '_op': 'insert',
+                '_type': model,
+                'status': 'ok',
+            },
+        ],
+    })
+    resp.raise_for_status()
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 1
+    assert accesslog[-1] == {
+        'agent': 'testclient',
+        'rctype': 'application/json',
+        'format': 'json',
+        'action': 'insert',
+        'method': 'POST',
+        'url': f'https://testserver/{ns}',
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'ns': ns,
+    }
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_stream_write(model, app, context, tmpdir):
+    ns = model[:-len('/report')]
+
+    app.authmodel(ns, ['insert'])
+
+    headers = {'content-type': 'application/x-ndjson'}
+    resp = app.post(f'/{ns}', headers=headers, data=json.dumps({
+        '_op': 'insert',
+        '_type': model,
+        'status': 'ok',
+    }))
+    resp.raise_for_status()
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 1
+    assert accesslog[-1] == {
+        'agent': 'testclient',
+        'rctype': 'application/x-ndjson',
+        'format': 'json',
+        'action': 'insert',
+        'method': 'POST',
+        'url': f'https://testserver/{ns}',
+        'txn': accesslog[-1]['txn'],
+        'time': accesslog[-1]['time'],
+        'client': 'test-client',
+        'ns': ns,
     }
