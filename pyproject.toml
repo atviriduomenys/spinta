@@ -73,9 +73,6 @@ sqlalchemy = ">=1.4,<1.4.23"
 # Mongo backend dependendencies
 pymongo = { version = "*", optional = false }
 
-# S3 backend dependencies
-boto3 = { version = "*", optional = false }
-
 # Excel dependencies
 xlrd = { version = "*", optional = false }
 
@@ -103,7 +100,6 @@ postgresql = [
     "sqlalchemy-utils",
 ]
 mongo = ["pymongo"]
-s3 = ["boto3"]
 
 # Formats
 excel = ["xlrd"]
@@ -118,7 +114,6 @@ server = ["gunicorn", "uvicorn"]
 codecov = "*"
 ipdb = "*"
 ipython = "*"
-moto = "*"
 pp-ez = "*"
 pytest = "*"
 pytest-asyncio = "*"

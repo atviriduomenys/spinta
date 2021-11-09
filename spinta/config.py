@@ -51,7 +51,6 @@ CONFIG = {
             'postgresql': 'spinta.backends.postgresql.components:PostgreSQL',
             'mongo': 'spinta.backends.mongo.components:Mongo',
             'fs': 'spinta.backends.fs.components:FileSystem',
-            's3': 'spinta.backends.s3:S3',
 
             # External backends
             # XXX: Probably these should be moved to components.resources?
@@ -211,11 +210,6 @@ CONFIG = {
                     'db': 'spinta',
                 },
                 'fs': {
-                    'type': 'fs',
-                    'path': pathlib.Path() / 'var/files',
-                },
-                # Locally we don't have access to s3.
-                's3': {
                     'type': 'fs',
                     'path': pathlib.Path() / 'var/files',
                 },

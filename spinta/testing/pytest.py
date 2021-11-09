@@ -75,38 +75,15 @@ def mongo(rc):
 
 
 @pytest.fixture(scope='session')
-def s3(rc):
-    with moto.mock_s3():
-        yield
-        bucket_name = rc.get('backends', 's3', 'bucket', required=False)
-        if bucket_name:
-            s3 = boto3.resource('s3')
-            s3_client = boto3.client('s3')
-            try:
-                objs = s3_client.list_objects(Bucket=bucket_name)
-                contents = objs.get('Contents')
-                if contents:
-                    obj_keys = {'Objects': [
-                        {'Key': obj['Key'] for obj in contents}
-                    ]}
-                    bucket = s3.Bucket(bucket_name)
-                    bucket.delete_objects(Delete=obj_keys)
-                    bucket.delete()
-            except s3_client.exceptions.NoSuchBucket:
-                pass
-
-
-@pytest.fixture(scope='session')
-def backends(postgresql, mongo, s3):
+def backends(postgresql, mongo):
     yield {
         'postgresql': postgresql,
         'mongo': mongo,
-        's3': s3,
     }
 
 
 @pytest.fixture(scope='session')
-def _context(rc: RawConfig, postgresql, mongo, s3):
+def _context(rc: RawConfig, postgresql, mongo):
     context: ContextForTests = create_test_context(rc)
     context.load()
     yield context
