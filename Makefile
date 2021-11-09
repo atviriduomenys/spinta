@@ -1,7 +1,7 @@
 .PHONY: env
 env: .env .venv/pyvenv.cfg var/.done requirements.txt docs/requirements.txt
 
-.venv/pyvenv.cfg: pyproject.toml
+.venv/pyvenv.cfg: pyproject.toml poetry.toml
 	poetry install
 	touch --no-create .venv/pyvenv.cfg
 

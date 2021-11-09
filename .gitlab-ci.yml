@@ -17,9 +17,8 @@ before_script:
   - python --version
   - pip install poetry
   - poetry --version
-  - poetry config virtualenvs.in-project true
   # FIXME: https://setuptools.readthedocs.io/en/latest/history.html#v58-0-0
-  #        simpleeval package uses use_2to3 thus it is not compatbile with
+  #        simpleeval package uses use_2to3 thus it is not compatible with
   #        setuptools>=58
   #        See: https://github.com/python-poetry/poetry/issues/4511
   - poetry config experimental.new-installer false

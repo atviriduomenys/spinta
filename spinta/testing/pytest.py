@@ -3,8 +3,6 @@ import pathlib
 import tempfile
 from typing import Any
 
-import boto3
-import moto
 import pytest
 import sqlalchemy_utils as su
 from responses import RequestsMock
