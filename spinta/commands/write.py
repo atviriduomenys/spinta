@@ -284,9 +284,10 @@ def _log_write(
     transaction: WriteTransaction = context.get('transaction')
     accesslog: AccessLog = context.get('accesslog')
 
+    # TODO: Log _where part, because it is quite important information and must
+    #       be available in logs.
     message = {
         'action': action.value,
-        'query': payload.get('_where'),
         'id_': id_,
         'rev': payload.get('_revision'),
         'txn': transaction.id,

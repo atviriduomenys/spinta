@@ -1,6 +1,7 @@
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.accesslog import AccessLog
 from spinta.backends import get_select_prop_names
 from spinta.backends import get_select_tree
 from spinta.compat import urlparams_to_expr
@@ -26,12 +27,11 @@ async def getone(
 ):
     commands.authorize(context, action, model)
 
-    accesslog = context.get('accesslog')
+    accesslog: AccessLog = context.get('accesslog')
     accesslog.log(
         model=model.model_type(),
         action=action.value,
         id_=params.pk,
-        query=params.select,
     )
 
     data = getone(context, model, backend, id_=params.pk)
@@ -99,7 +99,6 @@ async def getall(
     accesslog.log(
         model=model.model_type(),
         action=action.value,
-        query=expr.todict(),
     )
 
     rows = getall(context, model, backend, query=expr)

@@ -82,6 +82,8 @@ Always present fields:
 
 Extra fields fields, that might not be present in log message:
 
+:txn:
+    Transaction id of a write operation.
 :rctype:
     Request body content type, for example `application/json`.
 :ns:
@@ -90,13 +92,14 @@ Extra fields fields, that might not be present in log message:
     Accessed absolute model name (if a model was accessed).
 :prop:
     Accessed property name of a model (if property was accessed).
-:query:
-    Parsed query AST.
+:id:
+    Accessed object id (if object was accessed directly).
+:ref:
+    Accessed object revision (if object was accessed directly for writing).
 
 Log messages contains only relevant fields. For example `rctype` is only
 available for write operations, `ns`, `model`, `prop` are only available if a
-namespace, a model or a property is accessed. `query` is available only if a
-query was given.
+namespace, a model or a property is accessed.
 
 
 Reading log messages

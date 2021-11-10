@@ -6,6 +6,16 @@ Changes
 0.1.22 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- Refactored accesslog, now accesslog only logs information about a request,
+  not a response content. Previously whole response content was logged, which
+  created huge log files pretty quickly. Now logs should be a lot smaller.
+  But information about each individual object accessed is no longer
+  available. (`#97`__)
+
+  __ https://gitlab.com/atviriduomenys/spinta/-/issues/97
+
 New features:
 
 - Add support for units in `property.ref`.

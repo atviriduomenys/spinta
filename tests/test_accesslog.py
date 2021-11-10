@@ -2,7 +2,11 @@ import json
 import pathlib
 
 import pytest
+from _pytest.capture import CaptureFixture
 
+from spinta.accesslog.file import FileAccessLog
+from spinta.components import Store
+from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.context import create_test_context
 
@@ -320,7 +324,6 @@ def test_get_w_select_accesslog(app, model, context):
         'client': 'test-client',
         'model': model,
         'id': pk,
-        'query': [{'args': ['status'], 'name': 'bind'}],
     }
 
 
@@ -334,7 +337,6 @@ def test_getall_accesslog(app, model, context):
     resp = app.post(f'/{model}', json={'status': '42'})
     assert resp.status_code == 201
 
-    data = resp.json()
     resp = app.get(f'/{model}')
     assert resp.status_code == 200
 
@@ -349,7 +351,6 @@ def test_getall_accesslog(app, model, context):
         'time': accesslog[-1]['time'],
         'client': 'test-client',
         'model': model,
-        'query': {'name': 'select', 'args': []},
     }
 
 
@@ -376,10 +377,6 @@ def test_getall_w_select_accesslog(app, model, context):
         'time': accesslog[-1]['time'],
         'client': 'test-client',
         'model': model,
-        'query': {
-            'name': 'select',
-            'args': [{'name': 'bind', 'args': ['status']}],
-        },
     }
 
 
@@ -438,6 +435,134 @@ def test_accesslog_file_dev_null(model, postgresql, rc, request):
     app.authmodel(model, ['insert'])
     resp = app.post(f'/{model}', json={'status': '42'})
     assert resp.status_code == 201
+
+    store: Store = context.get('store')
+    assert isinstance(store.accesslog, FileAccessLog)
+    assert store.accesslog.file is None
+
+
+@pytest.mark.models(
+    'backends/postgres/report',
+)
+def test_accesslog_file_null(model, postgresql, rc, request):
+    rc = rc.fork({
+        'accesslog': {
+            'type': 'file',
+            'file': 'null',
+        },
+    })
+
+    context = create_test_context(rc)
+    request.addfinalizer(context.wipe_all)
+    app = create_test_client(context)
+
+    app.authmodel(model, ['insert'])
+    resp = app.post(f'/{model}', json={'status': '42'})
+    assert resp.status_code == 201
+
+    store: Store = context.get('store')
+    assert isinstance(store.accesslog, FileAccessLog)
+    assert store.accesslog.file is None
+
+
+@pytest.mark.models(
+    'backends/postgres/report',
+)
+def test_accesslog_file_stdin(
+    model: str,
+    postgresql,
+    rc: RawConfig,
+    request,
+    capsys: CaptureFixture,
+):
+    rc = rc.fork({
+        'accesslog': {
+            'type': 'file',
+            'file': 'stdout',
+        },
+    })
+
+    context = create_test_context(rc)
+    request.addfinalizer(context.wipe_all)
+    app = create_test_client(context)
+
+    app.authmodel(model, ['insert'])
+    resp = app.post(f'/{model}', json={'status': '42'})
+    assert resp.status_code == 201
+
+    store: Store = context.get('store')
+    assert isinstance(store.accesslog, FileAccessLog)
+
+    cap = capsys.readouterr()
+    accesslog = [
+        json.loads(line)
+        for line in cap.out.splitlines()
+        # Skip other lines from stdout that are not json
+        if line.startswith('{')
+    ]
+    assert len(accesslog) == 1
+    assert accesslog[-1] == {
+        'action': 'insert',
+        'agent': 'testclient',
+        'client': 'test-client',
+        'format': 'json',
+        'method': 'POST',
+        'model': 'backends/postgres/report',
+        'rctype': 'application/json',
+        'time': accesslog[-1]['time'],
+        'txn': accesslog[-1]['txn'],
+        'url': 'https://testserver/backends/postgres/report'
+    }
+
+
+@pytest.mark.models(
+    'backends/postgres/report',
+)
+def test_accesslog_file_stderr(
+    model: str,
+    postgresql,
+    rc: RawConfig,
+    request,
+    capsys: CaptureFixture,
+):
+    rc = rc.fork({
+        'accesslog': {
+            'type': 'file',
+            'file': 'stderr',
+        },
+    })
+
+    context = create_test_context(rc)
+    request.addfinalizer(context.wipe_all)
+    app = create_test_client(context)
+
+    app.authmodel(model, ['insert'])
+    resp = app.post(f'/{model}', json={'status': '42'})
+    assert resp.status_code == 201
+
+    store: Store = context.get('store')
+    assert isinstance(store.accesslog, FileAccessLog)
+
+    cap = capsys.readouterr()
+    accesslog = [
+        json.loads(line)
+        for line in cap.err.splitlines()
+        # Skip other lines from stdout that are not json
+        if line.startswith('{')
+    ]
+    assert len(accesslog) == 1
+    assert accesslog[-1] == {
+        'action': 'insert',
+        'agent': 'testclient',
+        'client': 'test-client',
+        'format': 'json',
+        'method': 'POST',
+        'model': 'backends/postgres/report',
+        'rctype': 'application/json',
+        'time': accesslog[-1]['time'],
+        'txn': accesslog[-1]['txn'],
+        'url': 'https://testserver/backends/postgres/report'
+    }
 
 
 @pytest.mark.models(

@@ -26,7 +26,6 @@ async def getall(
     accesslog.log(
         model=model.model_type(),
         action=action.value,
-        query=expr.todict(),
     )
     rows = commands.getall(context, model, backend, query=expr)
     if not params.count:

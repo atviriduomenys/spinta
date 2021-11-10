@@ -1,11 +1,11 @@
-from typing import List, Dict, Any
+from typing import List, Any
 
 import datetime
 
-from authlib.oauth2 import rfc6749
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.auth import Token
 from spinta.components import Context, Config
 from spinta.components import UrlParams
 
@@ -34,7 +34,6 @@ class AccessLog:
         prop: str = None,
         txn: str = None,
         action: str = None,
-        query: Dict[str, Any] = None,
         method: str = None,
         reason: str = None,
         id_: str = None,
@@ -54,7 +53,6 @@ class AccessLog:
             'ns': ns,
             'model': model,
             'prop': prop,
-            'query': query,
             'id': id_,
             'rev': rev,
         }
@@ -68,7 +66,6 @@ class AccessLog:
         prop: str = None,
         txn: str = None,
         action: str = None,
-        query: Dict[str, Any] = None,
         method: str = None,
         reason: str = None,
         id_: str = None,
@@ -79,11 +76,13 @@ class AccessLog:
 
 @commands.load.register(Context, AccessLog, Config)
 def load(context: Context, accesslog: AccessLog, config: Config):
-    accesslog.buffer_size = config.rc.get('accesslog', 'buffer_size', required=True)
+    accesslog.buffer_size = config.rc.get(
+        'accesslog', 'buffer_size', required=True,
+    )
 
 
-@commands.load.register(Context, AccessLog, rfc6749.TokenMixin)
-def load(context: Context, accesslog: AccessLog, token: rfc6749.TokenMixin):  # noqa
+@commands.load.register(Context, AccessLog, Token)
+def load(context: Context, accesslog: AccessLog, token: Token):  # noqa
     accesslog.client = token.get_sub()
 
 
@@ -106,8 +105,10 @@ def create_accesslog(
     method: str = None,
     loaders: List[Any],
 ) -> AccessLog:
-    config = context.get('config')
-    accesslog = config.AccessLog()
+    config: Config = context.get('config')
+    # XXX: Probably we should clone store.accesslog here, instead of creating
+    #      completely new AccessLog instance.
+    accesslog: AccessLog = config.AccessLog()
     accesslog.method = method
     for loader in loaders:
         commands.load(context, accesslog, loader)

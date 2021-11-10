@@ -11,6 +11,7 @@ import enum
 import contextlib
 import dataclasses
 import pathlib
+from typing import Type
 from typing import TypedDict
 
 from spinta import exceptions
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
     from spinta.dimensions.enum.components import Enums
     from spinta.dimensions.enum.components import EnumValue
     from spinta.core.config import RawConfig
+    from spinta.accesslog import AccessLog
 
 
 class Context:
@@ -293,6 +295,7 @@ class _CommandsConfig:
 class Store:
     manifest: Manifest = None
     internal: InternalManifest = None
+    accesslog: AccessLog = None
 
     def __init__(self):
         self.config = None
@@ -680,7 +683,7 @@ class UrlParams:
 
     action: Action = None
 
-    query: List[dict] = None
+    query: List[Dict[str, Any]] = None
 
     def changed_parsetree(self, change):
         ptree = {x['name']: x['args'] for x in (self.parsetree or [])}
@@ -838,6 +841,7 @@ class Config:
     root: str = None
     credentials_file: pathlib.Path
     data_path: pathlib.Path
+    AccessLog: Type[AccessLog]
 
     def __init__(self):
         self.commands = _CommandsConfig()

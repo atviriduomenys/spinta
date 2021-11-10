@@ -25,13 +25,14 @@ async def getone(
     params: UrlParams,
 ):
     commands.authorize(context, action, model)
+
     accesslog = context.get('accesslog')
     accesslog.log(
         model=model.model_type(),
         action=action.value,
         id_=params.pk,
-        query=params.select,
     )
+
     data = getone(context, model, backend, id_=params.pk)
     select_tree = get_select_tree(context, action, params.select)
     prop_names = get_select_prop_names(context, model, action, select_tree)
@@ -101,7 +102,6 @@ async def getone(
         prop=prop.place,
         action=action.value,
         id_=params.pk,
-        query=params.select,
     )
 
     data = getone(context, prop, dtype, backend, id_=params.pk)
@@ -186,7 +186,6 @@ async def getall(
     accesslog.log(
         model=model.model_type(),
         action=action.value,
-        query=expr.todict(),
     )
     data = commands.getall(context, model, model.backend, query=expr)
     select_tree = get_select_tree(context, action, params.select)

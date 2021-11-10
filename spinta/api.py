@@ -67,7 +67,7 @@ async def auth_token(request: Request):
 
 
 async def homepage(request: Request):
-    context = request.state.context
+    context: Context = request.state.context
 
     context.set('auth.request', get_auth_request({
         'method': request.method,
