@@ -10,6 +10,11 @@ New features:
 
 - Add support for units in `property.ref`.
 
+Improvements:
+
+- `spinta run` no longer requires setting `AUTHLIB_INSECURE_TRANSPORT=1`
+  environment variable, it is set internally.
+
 Bug fixes:
 
 - Fix incorrect parsing of `null`, `false` and `true`.

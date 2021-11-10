@@ -42,7 +42,11 @@ Each client can be given list of scopes. Scopes names uses following pattern::
 
 `$SPINTA_SCOPE_PREFIX` can be set via configuration, default scope prefix is
 `spinta_`. `ns`, `model` and `property` are all optional, only `action` is
-required. Following actions are available:
+required.
+
+.. _available-actions:
+
+Following actions are available:
 
 :getone:
   Client can get single object by id.
@@ -174,6 +178,7 @@ Here `country` model and `code` property have `access` set to `private`.
 .. _OAuth 2.0 Authorization Framework: https://tools.ietf.org/html/rfc6749
 .. _Authorization Server: https://tools.ietf.org/html/rfc6749#section-1.1
 
+.. _client-credentials:
 
 Client credentials
 ==================

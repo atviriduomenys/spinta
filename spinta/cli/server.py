@@ -30,8 +30,11 @@ def run(
     )),
 ):
     """Run development server"""
+    import os
     import uvicorn
     import spinta.api
+
+    os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
 
     context = configure_context(ctx.obj, manifests, mode=mode, backend=backend)
     prepare_manifest(context, ensure_config_dir=True)
