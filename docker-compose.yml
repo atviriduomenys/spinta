@@ -2,7 +2,7 @@ version: "3"
 
 services:
   db:
-    image: postgres:11.2-alpine
+    image: postgis/postgis:11-2.5-alpine
     ports:
       - "54321:5432"
     environment:

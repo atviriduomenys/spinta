@@ -1,7 +1,7 @@
 image: python:3.8
 
 services:
-  - postgres:11.2-alpine
+  - postgis/postgis:11-2.5-alpine
   - mongo:4.0.9-xenial
 
 variables:
