@@ -2,6 +2,7 @@ from typing import cast
 
 import pytest
 
+from spinta.components import Store
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Env
@@ -9,8 +10,8 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Pair
 from spinta.core.ufuncs import UFuncRegistry
 from spinta.exceptions import IncompatibleForeignProperties
-from spinta.manifests.components import Manifest
-from spinta.testing.tabular import load_tabular_manifest
+from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import load_manifest_get_context
 from spinta.testing.ufuncs import UFuncTester
 from spinta.types.datatype import Ref
 from spinta.ufuncs.components import ForeignProperty
@@ -152,7 +153,7 @@ def test_execute_attrs(ufunc):
 
 
 def test_fpr_get_bind_expr(rc: RawConfig):
-    manifest = load_tabular_manifest(rc, '''
+    manifest = load_manifest(rc, '''
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -198,7 +199,7 @@ def test_fpr_get_bind_expr(rc: RawConfig):
 
 
 def test_fpr_join(rc: RawConfig):
-    manifest = load_tabular_manifest(rc, '''
+    manifest = load_manifest(rc, '''
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -237,7 +238,7 @@ def test_fpr_join(rc: RawConfig):
 
 
 def test_fpr_join_no_right(rc: RawConfig):
-    manifest = load_tabular_manifest(rc, '''
+    manifest = load_manifest(rc, '''
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -275,7 +276,7 @@ def test_fpr_join_no_right(rc: RawConfig):
 
 
 def test_fpr_join_incompatible_refs(rc: RawConfig):
-    manifest = load_tabular_manifest(rc, '''
+    manifest = load_manifest(rc, '''
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -314,7 +315,7 @@ def test_fpr_join_incompatible_refs(rc: RawConfig):
 
 
 def test_fpr_join_incompatible_refs_no_right(rc: RawConfig):
-    manifest = load_tabular_manifest(rc, '''
+    manifest = load_manifest(rc, '''
     d | r | m | property  | type   | ref
     datasets/gov/example  |        |
       | resource          | sql    |
@@ -351,7 +352,7 @@ def test_fpr_join_incompatible_refs_no_right(rc: RawConfig):
 
 
 def test_change_base_model(rc: RawConfig):
-    context = load_tabular_manifest(rc, '''
+    context = load_manifest_get_context(rc, '''
     d | r | m | property  | type   | ref       | prepare
     datasets/gov/example  |        |           |
       | resource          | sql    |           |
@@ -365,9 +366,10 @@ def test_change_base_model(rc: RawConfig):
       |   | City          |        | name      |
       |   |   | name      | string |           |
       |   |   | country   | ref    | Country   |
-    ''', return_context=True)
+    ''')
 
-    manifest: Manifest = context.get('store').manifest
+    store: Store = context.get('store')
+    manifest = store.manifest
 
     country = manifest.models['datasets/gov/example/Country']
     city = manifest.models['datasets/gov/example/City']
@@ -379,7 +381,7 @@ def test_change_base_model(rc: RawConfig):
 
 
 def test_change_base_model_non_ref(rc: RawConfig):
-    context = load_tabular_manifest(rc, '''
+    context = load_manifest_get_context(rc, '''
     d | r | m | property  | type   | ref       | prepare
     datasets/gov/example  |        |           |
       | resource          | sql    |           |
@@ -393,9 +395,10 @@ def test_change_base_model_non_ref(rc: RawConfig):
       |   | City          |        | name      |
       |   |   | name      | string |           |
       |   |   | country   | ref    | Country   |
-    ''', return_context=True)
+    ''')
 
-    manifest: Manifest = context.get('store').manifest
+    store: Store = context.get('store')
+    manifest = store.manifest
 
     continent = manifest.models['datasets/gov/example/Continent']
     country = manifest.models['datasets/gov/example/Country']

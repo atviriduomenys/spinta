@@ -7,13 +7,13 @@ from operator import itemgetter
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import IO
 from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Set
-from typing import TextIO
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
@@ -64,6 +64,7 @@ from spinta.manifests.tabular.components import REF
 from spinta.manifests.tabular.components import ResourceRow
 from spinta.manifests.tabular.components import SOURCE
 from spinta.manifests.tabular.components import TITLE
+from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.types.datatype import Ref
@@ -926,21 +927,22 @@ def _read_tabular_manifest_rows(
 
 
 def read_tabular_manifest(
-    path: str,
+    format_: TabularFormat = None,
     *,
-    text_file: TextIO = None,
+    path: str = None,
+    file: IO = None,
     rename_duplicates: bool = False,
 ) -> Iterator[ParsedRow]:
-    if path.startswith('https://docs.google.com/spreadsheets/'):
+    if format_ == TabularFormat.GSHEETS:
         rows = read_gsheets_manifest(path)
-    elif path.endswith('.csv'):
-        rows = _read_csv_manifest(path, text_file)
-    elif path.endswith('.txt'):
-        rows = _read_txt_manifest(path, text_file)
-    elif path.endswith('.xlsx'):
+    elif format_ == TabularFormat.CSV:
+        rows = _read_csv_manifest(path, file)
+    elif format_ == TabularFormat.ASCII:
+        rows = _read_txt_manifest(path, file)
+    elif format_ == TabularFormat.XLSX:
         rows = _read_xlsx_manifest(path)
     else:
-        raise ValueError(f"Unknown tabular manifest format {path!r}.")
+        raise ValueError(f"Unknown tabular manifest format {format_!r}.")
 
     yield from _read_tabular_manifest_rows(
         path,
@@ -951,7 +953,7 @@ def read_tabular_manifest(
 
 def _read_txt_manifest(
     path: str,
-    file: TextIO = None,
+    file: IO[str] = None,
 ) -> Iterator[Tuple[str, List[str]]]:
     if file:
         yield from _read_ascii_tabular_manifest(file)
@@ -962,7 +964,7 @@ def _read_txt_manifest(
 
 def _read_csv_manifest(
     path: str,
-    file: TextIO = None,
+    file: IO[str] = None,
 ) -> Iterator[Tuple[str, List[str]]]:
     if file:
         rows = csv.reader(file)

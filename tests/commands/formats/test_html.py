@@ -18,7 +18,7 @@ from spinta.components import Version
 from spinta.core.config import RawConfig
 from spinta.testing.client import TestClient
 from spinta.testing.client import create_test_client
-from spinta.testing.manifest import configure_manifest
+from spinta.testing.manifest import bootstrap_manifest
 from spinta.types.namespace import get_ns_model
 
 
@@ -104,7 +104,7 @@ def _get_current_loc(context: Context, path: str):
 
 @pytest.fixture(scope='module')
 def context_current_location(rc: RawConfig) -> Context:
-    return configure_manifest(rc, '''
+    return bootstrap_manifest(rc, '''
     d | r | b | m | property | type   | ref          | title               | description
                              | ns     | datasets     | All datasets        | All external datasets.
                              | ns     | datasets/gov | Government datasets | All external government datasets.
@@ -175,7 +175,7 @@ def context_current_location_with_root(rc: RawConfig):
     rc = rc.fork({
         'root': 'datasets/gov/vpt',
     })
-    return configure_manifest(rc, '''
+    return bootstrap_manifest(rc, '''
     d | r | b | m | property | type   | ref          | title               | description
                              | ns     | datasets     | All datasets        | All external datasets.
                              | ns     | datasets/gov | Government datasets | All external government datasets.
@@ -235,7 +235,7 @@ def _prep_file_type(
     postgresql: str,
     request: FixtureRequest,
 ) -> Tuple[TestClient, str]:
-    context = configure_manifest(rc, '''
+    context = bootstrap_manifest(rc, '''
     d | r | b | m | property | type   | access
     example/html/file        |        |
       | resource             |        |

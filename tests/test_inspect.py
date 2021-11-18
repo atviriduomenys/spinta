@@ -8,7 +8,7 @@ from spinta.testing.config import configure
 from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import compare_manifest
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.tabular import load_tabular_manifest
+from spinta.testing.manifest import load_manifest
 
 
 def test_inspect(
@@ -40,7 +40,7 @@ def test_inspect(
     cli.invoke(rc, ['inspect', '-o', tmpdir / 'result.csv'])
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     manifest.datasets['dataset'].resources['rs'].external = 'sqlite'
     assert manifest == '''
     id | d | r | b | m | property   | type    | ref     | source     | prepare | level | access | uri | title | description
@@ -84,7 +84,7 @@ def test_inspect_from_manifest_table(
     ])
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     manifest.datasets['dataset'].resources['rs'].external = 'sqlite'
     assert manifest == '''
     id | d | r | b | m | property | type    | ref | source  | prepare | level | access | uri | title | description
@@ -123,7 +123,7 @@ def test_inspect_format(
     ])
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
     dataset = manifest.datasets['datasets/gov/example/resources']
     dataset.resources['resource1'].external = 'sqlite'
     assert manifest == '''
@@ -169,7 +169,7 @@ def test_inspect_cyclic_refs(
               ])
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
     dataset = manifest.datasets['datasets/gov/example/resources']
     dataset.resources['resource1'].external = 'sqlite'
     assert manifest == '''
@@ -211,7 +211,7 @@ def test_inspect_self_refs(
               ])
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
     dataset = manifest.datasets['datasets/gov/example/resources']
     dataset.resources['resource1'].external = 'sqlite'
     assert manifest == '''
@@ -273,7 +273,7 @@ def test_inspect_oracle_sqldump_stdin(
     ''')
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
     assert manifest == '''
     id | d | r | b | m | property       | type    | ref | source  | prepare | level | access | uri | title | description
        | datasets/gov/example/resources |         |     |         |         |       |        |     |       |
@@ -305,7 +305,7 @@ def test_inspect_oracle_sqldump_file_with_formula(
     ])
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
     dataset = manifest.datasets['datasets/gov/example/resources']
     dataset.resources['resource1'].external = 'dump.sql'
     assert manifest == '''
@@ -341,7 +341,7 @@ def test_inspect_with_schema(
     cli.invoke(rc, ['inspect', '-o', tmpdir / 'result.csv'])
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     manifest.datasets['dataset'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref | source | prepare
@@ -392,7 +392,7 @@ def test_inspect_update_existing_manifest(
     ])
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
@@ -437,7 +437,7 @@ def test_inspect_with_empty_config_dir(
     ])
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     dataset = manifest.datasets['datasets/gov/example/resources']
     dataset.resources['resource1'].external = 'sqlite://'
     assert manifest == '''

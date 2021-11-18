@@ -8,8 +8,8 @@ from spinta.testing.client import TestClient
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.data import pushdata
-from spinta.testing.manifest import configure_manifest
-from spinta.testing.tabular import load_tabular_manifest
+from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.manifest import load_manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
 
@@ -77,7 +77,7 @@ def test_getall_ns(model, app):
 def test_ns_titles(
     rc: RawConfig,
 ):
-    context = configure_manifest(rc, '''
+    context = bootstrap_manifest(rc, '''
     d | r | b | m | property | type   | ref          | title               | description
                              | ns     | datasets     | All datasets        | All external datasets.
                              | ns     | datasets/gov | Government datasets | All external government datasets.
@@ -105,7 +105,7 @@ def test_ns_titles(
 def test_ns_titles_bare_models(
     rc: RawConfig,
 ):
-    context = configure_manifest(rc, '''
+    context = bootstrap_manifest(rc, '''
     d | r | b | m | property                 | type   | ref                  | title               | description
                                              | ns     | datasets             | All datasets        | All external datasets.
                                              |        | datasets/gov         | Government datasets | All external government datasets.
@@ -131,7 +131,7 @@ def test_ns_titles_bare_models(
 
 
 def test_sort_models_by_refs(rc: RawConfig):
-    manifest = load_tabular_manifest(rc, '''
+    manifest = load_manifest(rc, '''
     d | r | b | m | property  | type   | ref       | access
     datasets/gov/example      |        |           |
       |   |                   |        |           |
@@ -146,7 +146,7 @@ def test_sort_models_by_refs(rc: RawConfig):
       |   |   | City          |        |           |
       |   |   |   | name      | string |           | open
       |   |   |   | country   | ref    | Country   | open
-    ''', return_context=False)
+    ''')
 
     models = sort_models_by_refs(manifest.models.values())
     names = [model.name for model in models]

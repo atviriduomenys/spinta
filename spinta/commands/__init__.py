@@ -72,6 +72,11 @@ def load(
     *,
     into: Manifest = None,
     freezed: bool = True,
+    # Do not raise error, when trying to load a node, with a name, that is
+    # already loaded, instead rename the new node.
+    rename_duplicates: bool = False,
+    # If True, load internal manifest, if not loaded.
+    load_internal: bool = True,
 ) -> None:
     """Load primitive data structures to python-native objects.
 

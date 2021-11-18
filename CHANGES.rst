@@ -6,6 +6,14 @@ Changes
 0.1.23 (unreleased)
 ===================
 
+Refactoring:
+
+- Unify manifest loading and configuration. Now more placed uses unified
+  `configure_rc` function for loading and configuring Spinta.
+
+- Add possibility to load manifest from a file stream, without specifying
+  file name. Currently this is not yet exposed via CLI interface.
+
 
 0.1.22 (2021-11-11)
 ===================

@@ -1,12 +1,12 @@
 import pytest
 
 from spinta.testing.context import create_test_context
-from spinta.testing.tabular import load_tabular_manifest
+from spinta.testing.manifest import load_manifest
 
 
 @pytest.mark.skip
 def test_filter(rc, tmpdir):
-    load_tabular_manifest(rc, tmpdir / 'manifest.csv', '''
+    load_manifest(rc, tmpdir / 'manifest.csv', '''
     d | r | b | m | property | source      | prepare   | type   | ref     | level | access | uri | title   | description
     datasets/gov/example     |             |           |        |         |       |        |     | Example |
       | data                 |             |           | sql    |         |       |        |     | Data    |

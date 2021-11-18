@@ -6,7 +6,7 @@ from responses import RequestsMock
 
 from spinta.core.config import RawConfig
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.tabular import load_tabular_manifest
+from spinta.testing.manifest import load_manifest
 
 
 def test_gsheets(rc: RawConfig, tmpdir: py.path.local, responses: RequestsMock):
@@ -45,5 +45,5 @@ def test_gsheets(rc: RawConfig, tmpdir: py.path.local, responses: RequestsMock):
         body=path.read_bytes(),
     )
 
-    manifest = load_tabular_manifest(rc, gsheet)
+    manifest = load_manifest(rc, gsheet)
     assert manifest == table

@@ -71,17 +71,21 @@ def load_store(
     return store
 
 
-def prepare_manifest(
+def load_manifest(
     context: Context,
     *,
+    store: Store = None,
     verbose: bool = True,
     ensure_config_dir: bool = False,
+    rename_duplicates: bool = False,
+    load_internal: bool = True,
 ) -> Store:
-    store = load_store(
-        context,
-        verbose=verbose,
-        ensure_config_dir=ensure_config_dir,
-    )
+    if store is None:
+        store = load_store(
+            context,
+            verbose=verbose,
+            ensure_config_dir=ensure_config_dir,
+        )
     if verbose:
         if store.manifest.path:
             click.echo(
@@ -94,9 +98,27 @@ def prepare_manifest(
                 f"Loading {type(store.manifest).__name__} "
                 f"manifest {store.manifest.name}"
             )
-    commands.load(context, store.manifest)
+    commands.load(
+        context, store.manifest,
+        rename_duplicates=rename_duplicates,
+        load_internal=load_internal,
+    )
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)
+    return store
+
+
+def prepare_manifest(
+    context: Context,
+    *,
+    verbose: bool = True,
+    ensure_config_dir: bool = False,
+) -> Store:
+    store = load_manifest(
+        context,
+        verbose=verbose,
+        ensure_config_dir=ensure_config_dir,
+    )
     commands.wait(context, store)
     commands.prepare(context, store.manifest)
     return store

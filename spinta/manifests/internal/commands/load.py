@@ -18,6 +18,8 @@ def load(
     *,
     into: Manifest = None,
     freezed: bool = True,
+    rename_duplicates: bool = False,
+    load_internal: bool = True,
 ):
     if freezed:
         if into:

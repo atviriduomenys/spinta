@@ -20,11 +20,14 @@ def load(
     *,
     into: Manifest = None,
     freezed: bool = False,
+    rename_duplicates: bool = False,
+    load_internal: bool = True,
 ):
-    target = into or manifest
-    if '_schema' not in target.models:
-        store = context.get('store')
-        commands.load(context, store.internal, into=target)
+    if load_internal:
+        target = into or manifest
+        if '_schema' not in target.models:
+            store = context.get('store')
+            commands.load(context, store.internal, into=target)
 
     if freezed:
         if into:
@@ -70,15 +73,18 @@ def load(
     *,
     into: Manifest = None,
     freezed: bool = True,
+    rename_duplicates: bool = False,
+    load_internal: bool = True,
 ):
     assert freezed, (
         "InlineManifest does not have unfreezed version of manifest."
     )
 
-    target = into or manifest
-    if '_schema' not in target.models:
-        store = context.get('store')
-        commands.load(context, store.internal, into=target)
+    if load_internal:
+        target = into or manifest
+        if '_schema' not in target.models:
+            store = context.get('store')
+            commands.load(context, store.internal, into=target)
 
     if into:
         log.info(
@@ -99,4 +105,10 @@ def load(
         load_manifest_nodes(context, manifest, schemas)
 
     for source in manifest.sync:
-        commands.load(context, source, into=into or manifest, freezed=freezed)
+        commands.load(
+            context, source,
+            into=into or manifest,
+            freezed=freezed,
+            rename_duplicates=rename_duplicates,
+            load_internal=load_internal,
+        )

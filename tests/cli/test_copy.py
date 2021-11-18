@@ -4,7 +4,7 @@ from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.tabular import load_tabular_manifest
+from spinta.testing.manifest import load_manifest
 
 
 def test_copy(rc, cli: SpintaCliRunner, tmpdir):
@@ -13,20 +13,20 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     datasets/gov/example     |        |         |             |         |
       | data                 | sql    |         |             |         |
                              |        |         |             |         |
-      |   |   | country      |        | code    | salis       |         |
+      |   |   | Country      |        | code    | salis       |         |
       |   |   |   | code     | string |         | kodas       |         | public
       |   |   |   | name     | string |         | pavadinimas |         | open
       |   |   |   | driving  | string |         | vairavimas  |         | open
                              | enum   |         | l           | 'left'  | open
                              |        |         | r           | 'right' | open
                              |        |         |             |         |
-      |   |   | city         |        | name    | miestas     |         |
+      |   |   | City         |        | name    | miestas     |         |
       |   |   |   | name     | string |         | pavadinimas |         | open
-      |   |   |   | country  | ref    | country | salis       |         | open
+      |   |   |   | country  | ref    | Country | salis       |         | open
                              |        |         |             |         |
-      |   |   | capital      |        | name    | miestas     |         |
+      |   |   | Capital      |        | name    | miestas     |         |
       |   |   |   | name     | string |         | pavadinimas |         |
-      |   |   |   | country  | ref    | country | salis       |         |
+      |   |   |   | country  | ref    | Country | salis       |         |
     '''))
 
     cli.invoke(rc, [
@@ -37,21 +37,21 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
         tmpdir / 'manifest.csv',
     ])
 
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type   | ref     | source | prepare | access
     datasets/gov/example     |        |         |        |         |
       | data                 | sql    |         |        |         |
                              |        |         |        |         |
-      |   |   | country      |        |         |        |         |
+      |   |   | Country      |        |         |        |         |
       |   |   |   | name     | string |         |        |         | open
       |   |   |   | driving  | string |         |        |         | open
                              | enum   |         |        | 'left'  | open
                              |        |         |        | 'right' | open
                              |        |         |        |         |
-      |   |   | city         |        |         |        |         |
+      |   |   | City         |        |         |        |         |
       |   |   |   | name     | string |         |        |         | open
-      |   |   |   | country  | ref    | country |        |         | open
+      |   |   |   | country  | ref    | Country |        |         | open
     '''
 
 
@@ -76,7 +76,7 @@ def test_copy_enum_0(rc, cli: SpintaCliRunner, tmpdir):
         tmpdir / 'manifest.csv',
   ])
 
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type    | ref     | source | prepare | access
     datasets/gov/example     |         |         |        |         |
@@ -111,7 +111,7 @@ def test_copy_global_enum(rc, cli: SpintaCliRunner, tmpdir):
         tmpdir / 'manifest.csv',
     ])
 
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type    | ref       | source | prepare | access
     datasets/gov/example     |         |           |        |         |
@@ -154,7 +154,7 @@ def test_copy_with_filters_and_externals(rc, cli, tmpdir):
         tmpdir / 'manifest.csv',
     ])
 
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type   | ref     | source      | prepare   | level | access
     datasets/gov/example     |        |         |             |           |       |
@@ -197,7 +197,7 @@ def test_copy_and_format_names(rc, cli, tmpdir):
         tmpdir / 'manifest.csv',
     ])
 
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property     | type    | ref                         | source      | prepare                    | level  | access    | title
     datasets/gov/example         |         |                             |             |                            |        |           | Example dataset
@@ -242,7 +242,7 @@ def test_copy_and_format_names_for_ref(rc, cli, tmpdir):
         tmpdir / 'manifest.csv',
     ])
 
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property     | type   | ref       | prepare
     datasets/gov/example         |        |           |
@@ -278,7 +278,7 @@ def test_copy_and_format_names_with_formulas(rc, cli, tmpdir):
         tmpdir / 'manifest.csv',
   ])
 
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type   | prepare
     datasets/gov/example     |        |
@@ -341,7 +341,7 @@ def test_copy_order_by_access(rc, cli, tmpdir):
         tmpdir / 'manifest.csv',
     ])
 
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property   | type    | ref        | source | prepare  | access
     datasets/gov/example       |         |            |        |          |
@@ -390,7 +390,7 @@ def test_copy_rename_duplicates(rc, cli, tmpdir):
         '-o', tmpdir / 'result.csv',
     ])
 
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property   | type
     datasets/gov/example       |
@@ -431,7 +431,7 @@ def test_enum_ref(rc: RawConfig, cli: SpintaCliRunner, tmpdir: Path):
         'copy', tmpdir / 'manifest.csv', '-o', tmpdir / 'result.csv',
     ])
 
-    manifest = load_tabular_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmpdir / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type    | ref     | source      | prepare | access | title
                              | enum    | sex     |             | 1       |        | Male

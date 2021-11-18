@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 from typing import Dict
 from typing import Final
+from typing import IO
 from typing import List
 from typing import Literal
 from typing import Optional
@@ -12,8 +14,54 @@ from spinta.dimensions.lang.components import LangData
 from spinta.manifests.components import Manifest
 
 
+class TabularFormat(Enum):
+    CSV = 'csv'
+    ASCII = 'ascii'
+    XLSX = 'xlsx'
+    GSHEETS = 'gsheets'
+
+
 class TabularManifest(Manifest):
+    format: TabularFormat = None
     path: str = None
+
+
+class CsvManifest(TabularManifest):
+    type = 'csv'
+    format: TabularFormat = TabularFormat.CSV
+    file: IO[str] = None
+
+    @staticmethod
+    def detect_from_path(path: str) -> bool:
+        return path.endswith('.csv')
+
+
+class AsciiManifest(TabularManifest):
+    type = 'ascii'
+    format: TabularFormat = TabularFormat.ASCII
+    file: IO[str] = None
+
+    @staticmethod
+    def detect_from_path(path: str) -> bool:
+        return path.endswith('.txt')
+
+
+class XlsxManifest(TabularManifest):
+    type = 'xlsx'
+    format: TabularFormat = TabularFormat.XLSX
+
+    @staticmethod
+    def detect_from_path(path: str) -> bool:
+        return path.endswith('.xlsx')
+
+
+class GsheetsManifest(TabularManifest):
+    type = 'gsheets'
+    format: TabularFormat = TabularFormat.GSHEETS
+
+    @staticmethod
+    def detect_from_path(path: str) -> bool:
+        return path.startswith('https://docs.google.com/spreadsheets/')
 
 
 ID: Final = 'id'

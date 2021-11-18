@@ -4,7 +4,7 @@ import py.path
 
 from spinta.core.config import RawConfig
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.tabular import load_tabular_manifest
+from spinta.testing.manifest import load_manifest
 
 
 def test_xlsx(rc: RawConfig, tmpdir: py.path.local):
@@ -22,5 +22,5 @@ def test_xlsx(rc: RawConfig, tmpdir: py.path.local):
       |   |   |   | country  | šalis       |           | ref        | country | 4     | open   |     | Country |
     '''
     create_tabular_manifest(Path(tmpdir) / 'manifest.xlsx', table)
-    manifest = load_tabular_manifest(rc, Path(tmpdir) / 'manifest.xlsx')
+    manifest = load_manifest(rc, Path(tmpdir) / 'manifest.xlsx')
     assert manifest == table

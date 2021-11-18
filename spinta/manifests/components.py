@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import dataclasses
+from builtins import staticmethod
 from typing import Any
 from typing import BinaryIO
 
 from typing import Dict
+from typing import IO
 from typing import List
 from typing import Optional
 from typing import TYPE_CHECKING
@@ -65,6 +67,10 @@ class Manifest(Component):
 
     given: ManifestGiven
 
+    @staticmethod
+    def detect_from_path(path: str) -> bool:
+        return False
+
     def __init__(self):
         self.given = ManifestGiven()
 
@@ -115,7 +121,8 @@ ManifestSchema = Tuple[Any, NodeSchema]
 
 
 @dataclasses.dataclass
-class ManifestUri:
+class ManifestPath:
+    type: str = 'tabular'
     name: str = None
     path: str = None
-    file: BinaryIO = None
+    file: IO = None

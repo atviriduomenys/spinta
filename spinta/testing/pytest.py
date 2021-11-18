@@ -51,8 +51,8 @@ def sqlite():
 
 
 @pytest.fixture(scope='session')
-def postgresql(rc):
-    dsn = rc.get('backends', 'default', 'dsn', required=True)
+def postgresql(rc) -> str:
+    dsn: str = rc.get('backends', 'default', 'dsn', required=True)
     if su.database_exists(dsn):
         yield dsn
     else:

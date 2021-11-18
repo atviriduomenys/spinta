@@ -1,6 +1,6 @@
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
-from spinta.testing.manifest import configure_manifest
+from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import error
 
 
@@ -8,7 +8,7 @@ def test_empty_manifest(rc: RawConfig):
     rc = rc.fork({
         'default_auth_client': 'default',
     })
-    context = configure_manifest(rc, '''
+    context = bootstrap_manifest(rc, '''
     d | r | b | m | property | type   | access
     ''')
 
@@ -22,7 +22,7 @@ def test_manifest_without_open_properties(rc: RawConfig):
         'default_auth_client': 'default',
     })
 
-    context = configure_manifest(rc, '''
+    context = bootstrap_manifest(rc, '''
     d | r | b | m | property | type   | access
     datasets/gov/vpt/new     |        |
       | resource             |        |
@@ -42,7 +42,7 @@ def test_manifest_with_open_properties(rc: RawConfig):
         'default_auth_client': 'default',
     })
 
-    context = configure_manifest(rc, '''
+    context = bootstrap_manifest(rc, '''
     d | r | b | m | property | type   | access
     datasets/gov/vpt/new     |        |
       | resource             |        |

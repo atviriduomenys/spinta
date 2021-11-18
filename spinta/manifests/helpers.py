@@ -1,6 +1,7 @@
 from typing import Any
 from typing import Dict
 from typing import List, Iterable, Optional
+from typing import Type
 
 import jsonpatch
 
@@ -24,6 +25,7 @@ from spinta.manifests.internal.components import InternalManifest
 from spinta.types.namespace import load_namespace_from_name
 from spinta.utils.enums import enum_by_name
 from spinta.core.enums import Access
+from spinta.utils.imports import importstr
 
 
 def init_manifest(context: Context, manifest: Manifest, name: str):
@@ -298,3 +300,14 @@ def dataset_to_schema(dataset: Dataset) -> ManifestSchema:
             for resource in dataset.resources.values()
         }
     }
+
+
+def detect_manifest_from_path(rc: RawConfig, path: str) -> Type[Manifest]:
+    for type_ in rc.keys('components', 'manifests'):
+        Manifest_: Type[Manifest] = rc.get(
+            'components', 'manifests', type_,
+            cast=importstr,
+        )
+        if Manifest_.detect_from_path(path):
+            return Manifest_
+    raise ValueError(f"Can't find manifest type matching given path {path!r}")

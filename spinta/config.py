@@ -41,7 +41,11 @@ CONFIG = {
             'backend': 'spinta.manifests.backend.components:BackendManifest',
             'yaml': 'spinta.manifests.yaml.components:YamlManifest',
             'inline': 'spinta.manifests.yaml.components:InlineManifest',
-            'tabular': 'spinta.manifests.tabular.components:TabularManifest',
+            'tabular': 'spinta.manifests.tabular.components:CsvManifest',
+            'csv': 'spinta.manifests.tabular.components:CsvManifest',
+            'ascii': 'spinta.manifests.tabular.components:AsciiManifest',
+            'xlsx': 'spinta.manifests.tabular.components:XlsxManifest',
+            'gsheets': 'spinta.manifests.tabular.components:GsheetsManifest',
         },
         'backends': {
             # In memory backends mostly usable in tests

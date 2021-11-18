@@ -79,7 +79,7 @@ class ContextForTests:
         if self.loaded:
             raise Exception("test context is already loaded")
 
-        rc = self.get('rc')
+        rc: RawConfig = self.get('rc')
 
         if overrides:
             rc.add('test', {

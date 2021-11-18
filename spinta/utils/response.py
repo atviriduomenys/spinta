@@ -16,9 +16,6 @@ from spinta.components import UrlParams
 from spinta.exceptions import BaseError
 from spinta.exceptions import NoBackendConfigured
 from spinta.exceptions import error_response
-from spinta.manifests.helpers import clone_manifest
-from spinta.manifests.helpers import load_manifest_nodes
-from spinta.manifests.tabular.helpers import read_tabular_manifest
 from spinta.renderer import render
 
 METHOD_TO_ACTION = {
@@ -41,10 +38,34 @@ async def _check_post(context: Context, request: Request, params: UrlParams):
     field.file.seekable = field.file._file.seekable
     # --->8----
 
-    schemas = read_tabular_manifest(
-        filename,
-        text_file=TextIOWrapper(field.file, encoding='utf-8'),
-    )
+    # XXX: This is a quick and dirty hack, uploaded manifest file should be
+    #      loaded as any other manifest. Here only tabluar manifest loading is
+    #      hardcoded.
+    from spinta.core.config import RawConfig
+    from spinta.manifests.helpers import clone_manifest
+    from spinta.manifests.helpers import detect_manifest_from_path
+    from spinta.manifests.helpers import load_manifest_nodes
+    from spinta.manifests.tabular.components import TabularManifest
+    from spinta.manifests.tabular.helpers import read_tabular_manifest
+    rc: RawConfig = context.get('rc')
+    Manifest_ = detect_manifest_from_path(rc, filename)
+    if issubclass(Manifest_, TabularManifest):
+        schemas = read_tabular_manifest(
+            Manifest_.format,
+            path=filename,
+            file=TextIOWrapper(field.file, encoding='utf-8'),
+        )
+    else:
+        return {
+            'status': 'error',
+            'errors': [{
+                'type': 'manifest',
+                'code': 'ValueError',
+                'message': (
+                    "Can't detect manifest type from given path {filename!r}."
+                ),
+            }],
+        }
 
     try:
         manifest = clone_manifest(context)

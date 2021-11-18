@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import typing
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import collections
@@ -7,6 +8,7 @@ import logging
 import os
 import pathlib
 import enum
+
 import sys
 from typing import NamedTuple
 
@@ -14,9 +16,11 @@ from ruamel.yaml import YAML
 import pkg_resources as pres
 
 from spinta.components import Mode
-from spinta.manifests.components import ManifestUri
 from spinta.utils.imports import importstr
 from spinta.utils.schema import NA
+
+if typing.TYPE_CHECKING:
+    from spinta.manifests.components import ManifestPath
 
 Schema = Dict[str, Any]
 Key = Tuple[str]
@@ -241,7 +245,7 @@ class RawConfig:
         required=False,
         exists=False,
         origin=False,
-    ):
+    ) -> Any:
         env, _ = self._get_config_value(('env',), default=None)
         value, config = self._get_config_value(key, default, env)
 
@@ -509,22 +513,28 @@ class ResourceTuple(NamedTuple):
     prepare: str = None
 
 
-def parse_manifest_uri(uri: Union[str, ManifestUri]) -> ManifestUri:
-    if isinstance(uri, ManifestUri):
-        return uri
-    return ManifestUri(path=uri)
+def _parse_manifest_path(
+    rc: RawConfig,
+    path: Union[str, ManifestPath],
+) -> ManifestPath:
+    from spinta.manifests.components import ManifestPath
+    if isinstance(path, ManifestPath):
+        return path
+    from spinta.manifests.helpers import detect_manifest_from_path
+    Manifest_ = detect_manifest_from_path(rc, path)
+    return ManifestPath(type=Manifest_.type, path=path)
 
 
 def configure_rc(
     rc: RawConfig,
-    manifests: List[Union[str, ManifestUri]] = None,
+    manifests: List[Union[str, ManifestPath]] = None,
     *,
     mode: Mode = Mode.internal,
     backend: str = None,
     resources: List[ResourceTuple] = None,
 ) -> RawConfig:
 
-    config = {}
+    config: Dict[str, Any] = {}
 
     if backend:
         # TODO: Parse backend string to detect type. Currently type is hardcoded
@@ -549,11 +559,11 @@ def configure_rc(
         inline = []
 
         if manifests:
-            for i, uri in enumerate(manifests):
+            for i, path in enumerate(manifests):
                 manifest_name = f'manifest{i}'
-                manifest = parse_manifest_uri(uri)
+                manifest = _parse_manifest_path(rc, path)
                 config[f'manifests.{manifest_name}'] = {
-                    'type': 'tabular',
+                    'type': manifest.type,
                     'path': manifest.path,
                     'file': manifest.file,
                 }

@@ -2,7 +2,7 @@ import sqlalchemy as sa
 
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
-from spinta.testing.tabular import load_tabular_manifest
+from spinta.testing.manifest import load_manifest
 
 
 def test_detect_pii(rc, cli: SpintaCliRunner, tmpdir, sqlite):
@@ -57,7 +57,7 @@ def test_detect_pii(rc, cli: SpintaCliRunner, tmpdir, sqlite):
     ])
 
     # Check what was detected.
-    manifest = load_tabular_manifest(rc, tmpdir / 'pii.csv')
+    manifest = load_manifest(rc, tmpdir / 'pii.csv')
     assert manifest == '''
     d | r | m | property | type   | ref | source | access | uri
                          | prefix | pii |        |        | https://data.gov.lt/pii/

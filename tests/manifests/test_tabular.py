@@ -1,10 +1,10 @@
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.tabular import load_tabular_manifest
+from spinta.testing.manifest import load_manifest
 
 
 def check(tmpdir, rc, table):
     create_tabular_manifest(tmpdir / 'manifest.csv', table)
-    manifest = load_tabular_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
     assert manifest == table
 
 

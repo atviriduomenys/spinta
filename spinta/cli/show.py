@@ -17,7 +17,7 @@ def show(
     """Show manifest as ascii table"""
 
     context: Context = ctx.obj
-    context = context.fork('inspect')
+    context = context.fork('show')
 
     if manifest is not None:
         config = {

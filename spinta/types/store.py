@@ -50,7 +50,7 @@ def load(context: Context, store: Store) -> Store:
     manifest = create_manifest(context, store, manifest)
     store.manifest = manifest
 
-    # Load internal manifest nodes into default manifest instance
+    # Create internal manifest instance
     store.internal = create_internal_manifest(context, store)
 
     # Load accesslog
