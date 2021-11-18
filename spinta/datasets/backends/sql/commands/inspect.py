@@ -155,6 +155,37 @@ def inspect(
     }
 
 
+@commands.inspect.register(Context, Sql, Property, _ForeignKey)
+def inspect(
+    context: Context,
+    backend: Sql,
+    prop: Property,
+    source: _ForeignKey,
+) -> NodeSchema:
+    ref_model_name = source.foreign_key['reference']['resource']
+    if ref_model_name:
+        ref_model_name = to_model_name(ref_model_name)
+    else:
+        # If ref_model_name is empty string, it means, this is a self reference.
+        ref_model_name = to_model_name(source.resource.name)
+    ref_model_name = f'{prop.model.external.dataset.name}/{ref_model_name}'
+    return {
+        'type': 'ref',
+        'model': ref_model_name,
+        'refprops': [
+            to_property_name(ref_field)
+            for ref_field in source.foreign_key['reference']['fields']
+        ],
+        'external': {
+            'name': source.field.name,
+            'prepare': prop.external.prepare,
+        },
+        'access': prop.given.access,
+        'title': prop.title,
+        'description': prop.description,
+    }
+
+
 @commands.inspect.register(Context, Sql, Property, frictionless.Field)
 def inspect(
     context: Context,

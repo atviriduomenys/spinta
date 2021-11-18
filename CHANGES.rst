@@ -6,6 +6,11 @@ Changes
 0.1.23 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fix `spinta inspect` when updating existing manifest and a `property` with
+  the `ref` type has changed.
+
 Refactoring:
 
 - Unify manifest loading and configuration. Now more placed uses unified
