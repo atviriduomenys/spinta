@@ -4,6 +4,7 @@ import tempfile
 from typing import Any
 
 import pytest
+import sqlalchemy as sa
 import sqlalchemy_utils as su
 from responses import RequestsMock
 
@@ -50,13 +51,24 @@ def sqlite():
         yield Sqlite('sqlite:///' + os.path.join(tmpdir, 'db.sqlite'))
 
 
+def _prepare_postgresql(dsn: str) -> None:
+    engine = sa.create_engine(dsn)
+    with engine.connect() as conn:
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
+
+
 @pytest.fixture(scope='session')
 def postgresql(rc) -> str:
     dsn: str = rc.get('backends', 'default', 'dsn', required=True)
     if su.database_exists(dsn):
+        _prepare_postgresql(dsn)
         yield dsn
     else:
         su.create_database(dsn)
+        _prepare_postgresql(dsn)
         yield dsn
         su.drop_database(dsn)
 

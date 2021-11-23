@@ -116,7 +116,7 @@ def test_root(rc: RawConfig, tmpdir: Path):
       |   |   | Country      |        |
       |   |   |   | name     | string |
     ''')
-    app = create_test_client(rc, {
+    app = create_test_client(rc, config={
         'root': 'datasets/gov/vpt',
     })
     app.authorize(['spinta_getall'])
@@ -163,7 +163,7 @@ def test_resource_backends(
       |   |   |   | name     | string  |      | NAME    | open   |
     '''))
 
-    app = create_test_client(rc, {
+    app = create_test_client(rc, config={
         'backends': {
             'default': {
                 'type': 'memory',

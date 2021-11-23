@@ -7,6 +7,8 @@ from typing import Union
 
 import contextlib
 
+from pytest import FixtureRequest
+
 from spinta import commands
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Node
@@ -19,15 +21,18 @@ from spinta.core.config import RawConfig
 
 def create_test_context(
     rc: RawConfig,
-    *args,
+    request: FixtureRequest = None,
+    *,
     name: str = 'pytest',
-    **kwargs,
 ) -> TestContext:
     rc = rc.fork()
     Context_ = rc.get('components', 'core', 'context', cast=importstr)
     Context_ = type('ContextForTests', (ContextForTests, Context_), {})
     context = Context_(name)
-    return create_context(name, rc, context)
+    context = create_context(name, rc, context)
+    if request:
+        request.addfinalizer(context.wipe_all)
+    return context
 
 
 class ContextForTests:

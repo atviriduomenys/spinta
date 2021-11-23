@@ -1,5 +1,7 @@
 import importlib
 import pathlib
+from typing import Type
+from typing import TypeVar
 
 from spinta.components import Context
 from spinta.core.config import RawConfig
@@ -9,21 +11,24 @@ from spinta.core.config import read_config
 from spinta.utils.imports import importstr
 
 
+ContextType = TypeVar('ContextType', bound=Context)
+
+
 def create_context(
     name='spinta',
     rc=None,
-    context=None,
+    context: ContextType = None,
     args=None,
     envfile=None,
-):
+) -> ContextType:
     if rc is None:
         rc = read_config(args, envfile)
 
     load_commands(rc.get('commands', 'modules', cast=list))
 
     if context is None:
-        Context = rc.get('components', 'core', 'context', cast=importstr, required=True)
-        context = Context(name)
+        Context_: Type[Context] = rc.get('components', 'core', 'context', cast=importstr, required=True)
+        context = Context_(name)
 
     context.set('rc', rc)
 

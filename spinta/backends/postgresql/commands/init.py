@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+from geoalchemy2 import Geography
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
@@ -71,6 +72,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         'json': JSONB,
         'spatial': sa.Text,  # unsupported
         'image': sa.Text,  # unsupported
+        # TODO: pass geometry_type and srid.
+        'geometry': Geography(),
     }
 
     try:

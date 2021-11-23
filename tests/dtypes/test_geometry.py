@@ -1,21 +1,23 @@
-import pytest
+from pytest import FixtureRequest
 
-from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
-from spinta.testing.manifest import load_manifest_get_context
+from spinta.testing.manifest import bootstrap_manifest
 
 
-@pytest.mark.skip()
-def test_geometry(rc: RawConfig, postgresql: str):
-    context: Context = load_manifest_get_context(rc, '''
+def test_geometry(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
     d | r | b | m | property          | type     | ref
     backends/postgres/dtypes/geometry |          |
       |   |   | City                  |          |
       |   |   |   | name              | string   |
       |   |   |   | coordinates       | geometry |
-    ''', backend=postgresql)
+    ''', backend=postgresql, request=request)
 
     app = create_test_client(context)
     app.authmodel('backends/postgres/dtypes/geometry/City', [
@@ -26,16 +28,16 @@ def test_geometry(rc: RawConfig, postgresql: str):
     # Write data
     resp = app.post('/backends/postgres/dtypes/geometry/City', json={
         'name': "Vilnius",
-        'coordinates': 'point(54.6870458, 25.2829111)',
+        'coordinates': 'POINT(54.6870458 25.2829111)',
     })
-    assert resp.status_code == 200
+    assert resp.status_code == 201
 
     # Read data
     resp = app.get('/backends/postgres/dtypes/geometry/City')
-    assert listdata(resp) == [
+    assert listdata(resp, full=True) == [
         {
             'name': "Vilnius",
-            'coordinates': 'point(54.6870458, 25.2829111)',
+            'coordinates': 'POINT (54.6870458 25.2829111)',
         }
     ]
 

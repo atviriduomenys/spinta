@@ -14,9 +14,9 @@ import lxml.html
 import pprintpp as pprint
 import requests
 import starlette.testclient
+from pytest import FixtureRequest
 from lxml.etree import _Element
 from requests import PreparedRequest
-from requests import Response
 
 from responses import RequestsMock
 from responses import POST
@@ -35,8 +35,9 @@ from spinta.testing.config import create_config_path
 
 def create_test_client(
     rc_or_context: Union[RawConfig, TestContext],
-    config: Dict[str, Any] = None,
+    request: FixtureRequest = None,
     *,
+    config: Dict[str, Any] = None,
     scope: List[str] = None,
     raise_server_exceptions: bool = True,
 ) -> TestClient:
@@ -44,7 +45,7 @@ def create_test_client(
         rc = rc_or_context
         if config:
             rc = rc.fork(config)
-        context = create_test_context(rc, name='pytest/client')
+        context = create_test_context(rc, request, name='pytest/client')
     else:
         if config is not None:
             raise NotImplementedError()

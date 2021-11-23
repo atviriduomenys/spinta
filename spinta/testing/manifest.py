@@ -3,7 +3,7 @@ from io import StringIO
 from typing import Tuple
 from typing import Union
 
-from _pytest.fixtures import FixtureRequest
+from pytest import FixtureRequest
 from py._path.local import LocalPath
 
 from spinta import commands
@@ -37,6 +37,7 @@ def load_manifest_get_context(
     manifest: Union[pathlib.Path, str],
     *,
     load_internal: bool = False,
+    request: FixtureRequest = None,
     **kwargs,
 ) -> TestContext:
     if isinstance(manifest, (pathlib.Path, LocalPath)):
@@ -50,7 +51,7 @@ def load_manifest_get_context(
         manifests = [manifest]
 
     rc = configure_rc(rc, manifests, **kwargs)
-    context = create_test_context(rc)
+    context = create_test_context(rc, request)
     store = load_store(context, verbose=False, ensure_config_dir=False)
     commands.load(context, store.manifest, load_internal=load_internal)
     commands.link(context, store.manifest)
@@ -77,6 +78,7 @@ def bootstrap_manifest(
 ) -> TestContext:
     context = load_manifest_get_context(
         rc, manifest,
+        request=request,
         load_internal=load_internal,
         **kwargs,
     )
@@ -85,6 +87,4 @@ def bootstrap_manifest(
     commands.prepare(context, store.manifest)
     commands.bootstrap(context, store.manifest)
     context.loaded = True
-    if request is not None:
-        request.addfinalizer(context.wipe_all)
     return context
