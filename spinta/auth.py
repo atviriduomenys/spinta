@@ -367,7 +367,7 @@ def create_access_token(
     return jwt.encode(header, payload, private_key).decode('ascii')
 
 
-def query_client(context: Context, client: str):
+def query_client(context: Context, client: str) -> Client:
     config = context.get('config')
     client_file = config.config_path / 'clients' / f'{client}.yml'
     try:

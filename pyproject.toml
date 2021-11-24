@@ -139,3 +139,9 @@ cssselect = "^1.1.0"
 [build-system]
 requires = ["poetry_core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+# https://mypy.readthedocs.io/en/stable/config_file.html#using-a-pyproject-toml-file
+[tool.mypy]
+disallow_any_unimported = true
+show_error_codes = true
+check_untyped_defs = true

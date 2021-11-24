@@ -1,3 +1,5 @@
+from typing import List
+
 import itertools
 
 
@@ -9,7 +11,7 @@ def build_path_tree(*paths):
 
 
 def add_path_to_tree(tree: dict, path: str):
-    parent = []
+    parent: List[str] = []
     for part in path.split('/'):
         name = '/'.join(parent)
         parent.append(part)

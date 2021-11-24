@@ -1,6 +1,9 @@
+from typing import Dict
 from typing import List
-
+from typing import Optional
+from typing import Set
 import types
+
 import itertools
 
 
@@ -53,8 +56,8 @@ def _flatten(value, sep, key=()):
         return {sep.join(key): value}, []
 
 
-def build_select_tree(select: List[str]):
-    tree = {}
+def build_select_tree(select: List[str]) -> Dict[str, Set[Optional[str]]]:
+    tree: Dict[str, Set[Optional[str]]] = {}
     for name in select:
         split = name, None
         while len(split) == 2:

@@ -93,11 +93,11 @@ def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: di
 
 
 class BaseError(Exception):
-    type = None
-    status_code = 500
-    template = None
-    headers = {}
-    context = {}
+    type: str = None
+    status_code: int = 500
+    template: str = None
+    headers: Dict[str, str] = {}
+    context: Dict[str, Any] = {}
 
     def __init__(self, *args, **kwargs):
         if len(args) == 0:

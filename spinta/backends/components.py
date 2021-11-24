@@ -2,6 +2,7 @@ import enum
 import contextlib
 from typing import Any
 from typing import Dict
+from typing import Set
 
 
 class BackendOrigin(enum.Enum):
@@ -33,7 +34,7 @@ class Backend:
     type: str
     name: str
     origin: BackendOrigin
-    features = set()
+    features: Set[BackendFeatures] = set()
 
     # Original configuration values given in manifest, this is used to restore
     # manifest back to its original form.

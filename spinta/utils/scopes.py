@@ -1,6 +1,8 @@
 import functools
 import hashlib
 import re
+from typing import Any
+from typing import Dict
 
 scope_re = re.compile(r'[^a-z0-9]+', flags=re.IGNORECASE)
 
@@ -15,7 +17,7 @@ def name_to_scope(
     name: str,
     *,
     maxlen: int = None,
-    params: dict = None,
+    params: Dict[str, Any] = None,
 ) -> str:
     """Return scope by given template possibly shortened on name part.
     """
