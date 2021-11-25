@@ -26,6 +26,7 @@ from spinta.manifests.components import NodeSchema
 from spinta.manifests.helpers import entity_to_schema
 from spinta.manifests.helpers import model_to_schema
 from spinta.utils.imports import full_class_name
+from spinta.utils.naming import Deduplicator
 from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
 
@@ -283,7 +284,7 @@ def inspect(
     foreign_keys = _get_foreign_keys_by_field(schema.foreign_keys)
 
     props = {}
-
+    deduplicate = Deduplicator('_{}')
     for field in schema.fields:
         source_props.add(field.name)
 
@@ -291,9 +292,11 @@ def inspect(
             prop = model_props[field.name]
             node = prop
             name = prop.name
+            deduplicate(name)
         else:
             node = model
             name = to_property_name(field.name)
+            name = deduplicate(name)
 
         if field.name in foreign_keys:
             fk = _ForeignKey(source, field, foreign_keys[field.name])
@@ -332,10 +335,12 @@ def inspect(
     resource: Resource,
     source: frictionless.Resource,
 ) -> Iterator[ManifestSchema]:
+    """Add a new model"""
     schema = source.schema
     eid, data = model_to_schema(None)
 
-    data['name'] = to_model_name(source.name)
+    deduplicate: Deduplicator = context.get('deduplicate.model')
+    data['name'] = deduplicate(to_model_name(source.name))
     data['external'] = {
         'name': source.name,
         'pk': [
@@ -347,8 +352,9 @@ def inspect(
     foreign_keys = _get_foreign_keys_by_field(schema.foreign_keys)
 
     props = {}
+    deduplicate = Deduplicator('_{}')
     for field in schema.fields:
-        name = to_property_name(field.name)
+        name = deduplicate(to_property_name(field.name))
         if field.name in foreign_keys:
             fk = _ForeignKey(source, field, foreign_keys[field.name])
             props[name] = commands.inspect(context, backend, resource, fk)
@@ -367,6 +373,7 @@ def inspect(
     model: Model,
     source: None,
 ) -> Iterator[ManifestSchema]:
+    """Keep an existing model that is no longer in the resource"""
     yield model_to_schema(model)
 
 
@@ -375,7 +382,7 @@ def inspect(
     context: Context,
     backend: Sql,
     resource: Resource,
-    source: Literal[None],
+    source: None,
 ) -> Iterator[ManifestSchema]:
     if resource.prepare:
         env = SqlResource(context).init(backend.config['dsn'])
@@ -402,24 +409,27 @@ def inspect(
         engine=engine.create(),
         namespace=engine.schema,
     )
-    for i, source_ in enumerate(package.resources):
-        model = manifest_models.get(source_.name)
-        resource_models.add(source_.name)
-        schemas = commands.inspect(context, backend, model or resource, source_)
-        for eid, schema in schemas:
-            if 'external' not in schema:
-                schema['external'] = {}
-            schema['external']['dataset'] = resource.dataset.name
-            schema['external']['resource'] = resource.name
-            if model is None:
-                schema['name'] = resource.dataset.name + '/' + schema['name']
-            yield eid, schema
+    with context:
+        context.bind('deduplicate.model', Deduplicator)
 
-    for source_, model in manifest_models.items():
-        if source_ not in resource_models:
-            for eid, schema in commands.inspect(context, backend, model, None):
+        for i, source_ in enumerate(package.resources):
+            model = manifest_models.get(source_.name)
+            resource_models.add(source_.name)
+            schemas = commands.inspect(context, backend, model or resource, source_)
+            for eid, schema in schemas:
                 if 'external' not in schema:
                     schema['external'] = {}
                 schema['external']['dataset'] = resource.dataset.name
                 schema['external']['resource'] = resource.name
+                if model is None:
+                    schema['name'] = resource.dataset.name + '/' + schema['name']
                 yield eid, schema
+
+        for source_, model in manifest_models.items():
+            if source_ not in resource_models:
+                for eid, schema in commands.inspect(context, backend, model, None):
+                    if 'external' not in schema:
+                        schema['external'] = {}
+                    schema['external']['dataset'] = resource.dataset.name
+                    schema['external']['resource'] = resource.name
+                    yield eid, schema

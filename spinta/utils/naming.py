@@ -1,4 +1,5 @@
 import re
+from typing import Set
 
 from unidecode import unidecode
 
@@ -34,4 +35,22 @@ def to_code_name(name: str) -> str:
     name = unidecode(name)
     name = camel_cased_words.sub(r' \1', name).strip()
     words = split_words_re.split(name)
+    words = filter(None, words)
     return _cleanup('_'.join(words)).lower()
+
+
+class Deduplicator:
+    _names: Set[str]
+
+    def __init__(self, template: str = '{}'):
+        self._names = set()
+        self._template = template
+
+    def __call__(self, name: str):
+        name_ = name
+        i = 0
+        while name_ in self._names:
+            i += 1
+            name_ = name + self._template.format(i)
+        self._names.add(name_)
+        return name_

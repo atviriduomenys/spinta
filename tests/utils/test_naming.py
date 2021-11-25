@@ -1,5 +1,6 @@
 import pytest
 
+from spinta.utils.naming import Deduplicator
 from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
 
@@ -33,6 +34,28 @@ def test_to_model_name(source: str, target: str):
     ('CountryCode', 'country_code'),
     ('EUCountryCodes', 'eu_country_codes'),
     ('ŠaliųŽemės', 'saliu_zemes'),
+    ('_name', 'name'),
+    ('__name', 'name'),
 ])
 def test_to_property_name(source: str, target: str):
     assert to_property_name(source) == target
+
+
+def test_deduplicate():
+    deduplicate = Deduplicator()
+    assert deduplicate('name') == 'name'
+    assert deduplicate('name') == 'name1'
+    assert deduplicate('name') == 'name2'
+    assert deduplicate('name') == 'name3'
+    assert deduplicate('name1') == 'name11'
+    assert deduplicate('name1') == 'name12'
+
+
+def test_deduplicate_template():
+    deduplicate = Deduplicator('_{}')
+    assert deduplicate('name') == 'name'
+    assert deduplicate('name') == 'name_1'
+    assert deduplicate('name') == 'name_2'
+    assert deduplicate('name') == 'name_3'
+    assert deduplicate('name_1') == 'name_1_1'
+    assert deduplicate('name_1') == 'name_1_2'

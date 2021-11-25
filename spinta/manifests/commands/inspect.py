@@ -35,4 +35,5 @@ def inspect(
     }
     yield eid, schema
     for resource in dataset.resources.values():
+        commands.inspect.print_methods(context, resource.backend, resource, None)
         yield from commands.inspect(context, resource.backend, resource, None)

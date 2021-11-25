@@ -3,6 +3,7 @@ from pathlib import Path
 import sqlalchemy as sa
 
 from spinta.core.config import RawConfig
+from spinta.datasets.components import Dataset
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.datasets import Sqlite
@@ -470,7 +471,6 @@ def test_inspect_update_existing_ref(
     assert a == b
 
 
-
 def test_inspect_with_empty_config_dir(
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -509,4 +509,82 @@ def test_inspect_with_empty_config_dir(
       |   |   | Country            |         | id      | COUNTRY
       |   |   |   | id             | integer |         | ID
       |   |   |   | name           | string  |         | NAME
+    '''
+
+
+def test_inspect_duplicate_table_names(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Prepare source data.
+    sqlite.init({
+        '__COUNTRY': [sa.Column('NAME', sa.Text)],
+        '_COUNTRY': [sa.Column('NAME', sa.Text)],
+        'COUNTRY': [sa.Column('NAME', sa.Text)],
+    })
+
+    result_file_path = tmp_path / 'result.csv'
+    cli.invoke(rc, [
+        'inspect',
+        '-r', 'sql', sqlite.dsn,
+        '-o', result_file_path,
+    ])
+
+    # Check what was detected.
+    manifest = load_manifest(rc, result_file_path)
+    dataset = manifest.datasets['datasets/gov/example/resources']
+    dataset.resources['resource1'].external = 'sqlite://'
+    assert manifest == '''
+    d | r | b | m | property       | type    | ref     | source
+    datasets/gov/example/resources |         |         |
+      | resource1                  | sql     |         | sqlite://
+                                   |         |         |
+      |   |   | Country            |         |         | COUNTRY
+      |   |   |   | name           | string  |         | NAME
+                                   |         |         |
+      |   |   | Country1           |         |         | _COUNTRY
+      |   |   |   | name           | string  |         | NAME
+                                   |         |         |
+      |   |   | Country2           |         |         | __COUNTRY
+      |   |   |   | name           | string  |         | NAME
+    '''
+
+
+def test_inspect_duplicate_column_names(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Prepare source data.
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('__NAME', sa.Text),
+            sa.Column('_NAME', sa.Text),
+            sa.Column('NAME', sa.Text),
+        ],
+    })
+
+    result_file_path = tmp_path / 'result.csv'
+    cli.invoke(rc, [
+        'inspect',
+        '-r', 'sql', sqlite.dsn,
+        '-o', result_file_path,
+    ])
+
+    # Check what was detected.
+    manifest = load_manifest(rc, result_file_path)
+    dataset = manifest.datasets['datasets/gov/example/resources']
+    dataset.resources['resource1'].external = 'sqlite://'
+    assert manifest == '''
+    d | r | b | m | property       | type    | ref     | source
+    datasets/gov/example/resources |         |         |
+      | resource1                  | sql     |         | sqlite://
+                                   |         |         |
+      |   |   | Country            |         |         | COUNTRY
+      |   |   |   | name           | string  |         | __NAME
+      |   |   |   | name_1         | string  |         | _NAME
+      |   |   |   | name_2         | string  |         | NAME
     '''
