@@ -4,7 +4,7 @@ from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import error
 
 
-def test_empty_manifest(rc: RawConfig):
+def test_empty_manifest(rc: RawConfig, postgresql: str):
     rc = rc.fork({
         'default_auth_client': 'default',
     })
@@ -17,7 +17,7 @@ def test_empty_manifest(rc: RawConfig):
     assert error(resp) == 'AuthorizedClientsOnly'
 
 
-def test_manifest_without_open_properties(rc: RawConfig):
+def test_manifest_without_open_properties(rc: RawConfig, postgresql: str):
     rc = rc.fork({
         'default_auth_client': 'default',
     })
@@ -37,7 +37,7 @@ def test_manifest_without_open_properties(rc: RawConfig):
     assert error(resp) == 'AuthorizedClientsOnly'
 
 
-def test_manifest_with_open_properties(rc: RawConfig):
+def test_manifest_with_open_properties(rc: RawConfig, postgresql: str):
     rc = rc.fork({
         'default_auth_client': 'default',
     })

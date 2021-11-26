@@ -134,6 +134,7 @@ sphinxcontrib-httpdomain = "*"
 memory-profiler = "^0.58.0"
 mypy = "^0.812"
 cssselect = "^1.1.0"
+objprint = "^0.1.4"
 
 
 [build-system]

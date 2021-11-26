@@ -13,6 +13,7 @@ from typing import Iterator
 from typing import TextIO
 from typing import Type
 
+import objprint
 import pprintpp
 import sqlparse
 from pygments import highlight
@@ -21,6 +22,9 @@ from pygments.lexers.python import Python3Lexer
 from pygments.lexers.python import Python3TracebackLexer
 from pygments.lexers.sql import PostgresLexer
 from sqlalchemy.sql import ClauseElement
+
+
+objprint.config(honor_existing=False, depth=1)
 
 
 def formatter():
@@ -143,5 +147,6 @@ def pp(
 
 
 builtins.pp = pp
+builtins.op = objprint.op
 
 pytest_plugins = ['spinta.testing.pytest']

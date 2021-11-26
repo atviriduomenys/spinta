@@ -1,5 +1,5 @@
+
 import sqlalchemy as sa
-from geoalchemy2 import Geography
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
@@ -72,16 +72,15 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         'json': JSONB,
         'spatial': sa.Text,  # unsupported
         'image': sa.Text,  # unsupported
-        # TODO: pass geometry_type and srid.
-        'geometry': Geography(),
     }
 
-    try:
-        return sa.Column(name, types[dtype.name], unique=dtype.unique)
-    except KeyError:
+    if dtype.name not in types:
         raise Exception(
             f"Unknown type {dtype.name!r} for property {prop.place!r}."
         )
+
+    column_type = types[dtype.name]
+    return sa.Column(name, column_type, unique=dtype.unique)
 
 
 @commands.get_primary_key_type.register()

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import TYPE_CHECKING, Any, Union
 
 import base64
@@ -145,14 +146,6 @@ class Boolean(DataType):
 
 
 class URL(DataType):
-    pass
-
-
-class Geometry(DataType):
-    pass
-
-
-class Spatial(Geometry):
     pass
 
 

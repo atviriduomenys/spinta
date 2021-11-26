@@ -3,7 +3,7 @@ import re
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
 from spinta.types.datatype import DateTime
-from spinta.types.datatype import Geometry
+from spinta.types.geometry.components import Geometry
 from spinta.types.datatype import Integer
 from spinta.types.datatype import Number
 

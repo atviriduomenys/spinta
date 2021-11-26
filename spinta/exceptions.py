@@ -364,6 +364,16 @@ class UnknownParameter(BaseError):
     }
 
 
+class InvalidParameterValue(BaseError):
+    template = "Invalid parameter {parameter!r} value."
+
+
+class TooManyParameters(BaseError):
+    template = (
+        "Too many parameters, you can only give up to {max_params} parameters."
+    )
+
+
 class FieldNotInResource(UserError):
     template = "Unknown property {property!r}."
     context = {

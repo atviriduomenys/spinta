@@ -665,6 +665,14 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "objprint"
+version = "0.1.4"
+description = "A library that can print Python objects in human readable format"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "openpyxl"
 version = "3.0.7"
 description = "A Python library to read/write Excel 2010 xlsx/xlsm files"
@@ -1576,7 +1584,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "3c21dfecde8ff69ea090d6be452ce12aa20705e788c905ca428ed50630544a0a"
+content-hash = "4fffe4a2c750282e88d273e74836c5a5d4e229afa1a038f4676ff11e4434a066"
 
 [metadata.files]
 aiofiles = [
@@ -2083,6 +2091,10 @@ mypy = [
 mypy-extensions = [
     {file = "mypy_extensions-0.4.3-py2.py3-none-any.whl", hash = "sha256:090fedd75945a69ae91ce1303b5824f428daf5a028d2f6ab8a299250a846f15d"},
     {file = "mypy_extensions-0.4.3.tar.gz", hash = "sha256:2d82818f5bb3e369420cb3c4060a7970edba416647068eb4c5343488a6c604a8"},
+]
+objprint = [
+    {file = "objprint-0.1.4-py3-none-any.whl", hash = "sha256:af46c3b002098db11d9a7340bc728848ec97f3bb278a460169ff9482719a6e9d"},
+    {file = "objprint-0.1.4.tar.gz", hash = "sha256:df237e330ff78b9661a9b84d2ee3aa6fcda56d6f185793e3942e78cea7601ff4"},
 ]
 openpyxl = [
     {file = "openpyxl-3.0.7-py2.py3-none-any.whl", hash = "sha256:46af4eaf201a89b610fcca177eed957635f88770a5462fb6aae4a2a52b0ff516"},

@@ -5,7 +5,7 @@ from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Context
 from spinta.components import Model
-from spinta.types.datatype import Geometry
+from spinta.types.geometry.components import Geometry
 
 
 @commands.prepare_dtype_for_response.register(Context, PostgreSQL, Model, Geometry, WKBElement)

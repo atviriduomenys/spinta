@@ -296,6 +296,7 @@ class Store:
     manifest: Manifest = None
     internal: InternalManifest = None
     accesslog: AccessLog = None
+    backends: Dict[str, Backend]
 
     def __init__(self):
         self.config = None

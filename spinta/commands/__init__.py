@@ -3,8 +3,10 @@ from __future__ import annotations
 from typing import Any
 from typing import Dict
 from typing import Iterator
+from typing import List
 from typing import Optional
 from typing import TYPE_CHECKING
+from typing import TypeVar
 from typing import Union
 from typing import overload
 
@@ -23,6 +25,9 @@ if TYPE_CHECKING:
     from spinta.manifests.components import Manifest
     from spinta.datasets.components import Dataset
     from spinta.datasets.components import Resource
+
+
+T = TypeVar('T')
 
 
 @command()
@@ -227,8 +232,61 @@ def check_unique_constraint():
     """
 
 
+@overload
+def prepare(
+    context: Context,
+    backend: Backend,
+    dtype: Manifest,
+) -> None:
+    """Prepare whole manifest
+
+    Basically this initializes database schema objects, with sqlalchemy it
+    constructs whole metadata schema, like tables and columns.
+
+    This command should call prepare[Context, Backend, Property].
+    """
+
+
+@overload
+def prepare(
+    context: Context,
+    backend: Backend,
+    dtype: Model,
+) -> None:
+    """Prepare model
+
+    This command should call prepare[Context, Backend, Property].
+    """
+
+
+@overload
+def prepare(
+    context: Context,
+    backend: Backend,
+    dtype: Property,
+) -> Union[List[T], T, None]:
+    """Prepare model property
+
+    This command should call prepare[Context, Backend, DataType].
+
+    Returns list of columns, single column or None.
+    """
+
+
+@overload
+def prepare(
+    context: Context,
+    backend: Backend,
+    dtype: DataType,
+) -> Union[List[T], T, None]:
+    """Prepare model property data type
+
+    Returns list of columns, single column or None.
+    """
+
+
 @command()
-def prepare():
+def prepare(*args, **kwargs):
     """Prepare value.
 
     - Prepare database backend:
