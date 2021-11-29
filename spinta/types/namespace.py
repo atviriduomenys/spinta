@@ -114,12 +114,11 @@ def authorize(context: Context, action: Action, ns: Namespace):
     authorized(context, ns, action, throw=True)
 
 
-@commands.getall.register(Context, Request, Namespace, type(None))
+@commands.getall.register(Context, Namespace, Request)
 async def getall(
     context: Context,
-    request: Request,
     ns: Namespace,
-    backend: type(None),
+    request: Request,
     *,
     action: Action,
     params: UrlParams,
@@ -166,7 +165,7 @@ async def getall(
                 'prop_names': prop_names,
             }
         expr = urlparams_to_expr(params)
-        rows = getall(context, ns, backend, action=action, query=expr)
+        rows = getall(context, ns, action=action, query=expr)
         rows = (
             commands.prepare_data_for_response(
                 context,
@@ -183,11 +182,10 @@ async def getall(
         return _get_ns_content(context, request, ns, params, action)
 
 
-@commands.getall.register(Context, Namespace, type(None))
+@commands.getall.register(Context, Namespace)
 def getall(
     context: Context,
     ns: Namespace,
-    backend: type(None),
     *,
     action: Optional[Action] = None,
     dataset_: Optional[str] = None,

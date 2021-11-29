@@ -156,7 +156,7 @@ async def create_http_response(
             if model.keymap:
                 context.attach(f'keymap.{model.keymap.name}', lambda: model.keymap)
 
-            return await commands.getall(context, request, model, backend, action=action, params=params)
+            return await commands.getall(context, model, request, action=action, params=params)
 
     elif request.method == 'DELETE' and params.action == Action.WIPE:
         if params.pk:
