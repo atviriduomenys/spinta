@@ -30,7 +30,7 @@ class Json(Format):
         return data
 
 
-@commands.render.register()  # noqa
+@commands.render.register(Context, Request, Node, Json)
 def render(
     context: Context,
     request: Request,

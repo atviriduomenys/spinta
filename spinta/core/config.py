@@ -181,9 +181,25 @@ class EnvFile(EnvVars):
 
 
 class RawConfig:
+    """A raw configuration reader component
+
+    Reads configuration directly from supported configuration `sources`.
+
+    Currently supported configuration sources are:
+
+    - `PyDict` - python `dict` objects.
+    - `Path` - python module path pointing to a `dict` or YAML file path.
+    - `EnvVars` - environment variables with `SPINTA_` prefix.
+    - `EnvFile` - `.env` files containing variables with `SPINTA_` prefix.
+    - `CliArgs` - `-o` command line arguments with `name=value` values.
+
+    Args:
+        sources: List of sources to read configuration options from.
+
+    """
     sources: List[ConfigSource]
 
-    def __init__(self, sources=None):
+    def __init__(self, sources: Optional[ConfigSource] = None):
         self._locked = False
         self.sources = sources or []
         self._keys: Dict[Tuple[str], Tuple[int, List[str]]] = {}

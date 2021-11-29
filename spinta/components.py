@@ -293,6 +293,11 @@ class _CommandsConfig:
 
 
 class Store:
+    """Data store
+
+    Contains all essential objects like manifest, backends, access log, etc.
+
+    """
     manifest: Manifest = None
     internal: InternalManifest = None
     accesslog: AccessLog = None
@@ -824,6 +829,14 @@ ScopeFormatterFunc = Callable[[
 
 
 class Config:
+    """Spinta configuration
+
+    This is the place, where all Spinta configuration options are stored and
+    used at runtime.
+
+    """
+    # TODO: `rc` should not be here, because `Config` might be initialized from
+    #       different configuration sources.
     rc: RawConfig
     debug: bool = False
     config_path: pathlib.Path

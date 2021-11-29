@@ -59,9 +59,21 @@ Opening and publishing your data has never been so simple!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Manual
 
-   manual/index
+   manual/configuration/index
+   manual/access
+   manual/manifest/index
+   manual/functions
+   manual/migrations
+   manual/accesslog
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Reference
+
+   reference/components
+   reference/commands
 
 
 Indices and tables

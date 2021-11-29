@@ -22,7 +22,7 @@ class JsonLines(Format):
             yield json.dumps(row, ensure_ascii=False) + '\n'
 
 
-@commands.render.register()  # noqa
+@commands.render.register(Context, Request, Model, JsonLines)
 def render(
     context: Context,
     request: Request,
@@ -38,8 +38,8 @@ def render(
     return _render(fmt, data, status_code, headers)
 
 
-@commands.render.register()  # noqa
-def render(  # noqa
+@commands.render.register(Context, Request, Node, JsonLines)
+def render(
     context: Context,
     request: Request,
     node: Node,

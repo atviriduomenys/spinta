@@ -71,7 +71,7 @@ class Ascii(Format):
                 yield from _draw(buffer, name, tnum, width)
 
 
-@commands.render.register()  # noqa
+@commands.render.register(Context, Request, Model, Ascii)
 def render(
     context: Context,
     request: Request,

@@ -3,6 +3,7 @@ import itertools
 from typing import Dict
 
 from starlette.requests import Request
+from starlette.responses import Response
 from starlette.responses import StreamingResponse
 
 from spinta.commands.formats import Format
@@ -50,7 +51,7 @@ class Csv(Format):
             yield from stream
 
 
-@commands.render.register()
+@commands.render.register(Context, Request, Model, Csv)
 def render(
     context: Context,
     request: Request,
@@ -62,7 +63,7 @@ def render(
     data,
     status_code: int = 200,
     headers: Dict[str, str] = None,
-):
+) -> Response:
     headers = headers or {}
     headers['Content-Disposition'] = f'attachment; filename="{model.basename}.csv"'
     return StreamingResponse(

@@ -82,44 +82,6 @@ async def getone(
     raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
 
 
-@commands.getall.register(Context, Request, Model, PostgreSQL)
-async def getall(
-    context: Context,
-    request: Request,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-):
-    commands.authorize(context, action, model)
-    expr = urlparams_to_expr(params)
-
-    accesslog = context.get('accesslog')
-    accesslog.log(
-        model=model.model_type(),
-        action=action.value,
-    )
-
-    rows = getall(context, model, backend, query=expr)
-    if not params.count:
-        select_tree = get_select_tree(context, action, params.select)
-        prop_names = get_select_prop_names(context, model, action, select_tree)
-        rows = (
-            commands.prepare_data_for_response(
-                context,
-                action,
-                model,
-                backend,
-                row,
-                select=select_tree,
-                prop_names=prop_names,
-            )
-            for row in rows
-        )
-    return render(context, request, model, params, rows, action=action)
-
-
 @commands.getall.register(Context, Model, PostgreSQL)
 def getall(
     context: Context,

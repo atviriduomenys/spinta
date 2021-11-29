@@ -12,6 +12,7 @@ from spinta.commands.formats import Format
 from spinta.components import Action
 from spinta.components import Context
 from spinta.components import Node
+from spinta.components import Store
 from spinta.components import UrlParams
 from spinta.exceptions import BaseError
 from spinta.exceptions import NoBackendConfigured
@@ -94,8 +95,12 @@ async def _check(context: Context, request: Request, params: UrlParams):
     return render(context, request, params.model, params, data, action=Action.CHECK)
 
 
-async def create_http_response(context: Context, params: UrlParams, request: Request):
-    store = context.get('store')
+async def create_http_response(
+    context: Context,
+    params: UrlParams,
+    request: Request,
+):
+    store: Store = context.get('store')
     manifest = store.manifest
 
     if manifest.backend is None:

@@ -170,41 +170,6 @@ def getone(
     return commands.cast_backend_to_python(context, prop, backend, result)
 
 
-@commands.getall.register(Context, Request, Model, Mongo)
-async def getall(
-    context: Context,
-    request: Request,
-    model: Model,
-    backend: Mongo,
-    *,
-    action: Action,
-    params: UrlParams,
-):
-    commands.authorize(context, action, model)
-    expr = urlparams_to_expr(params)
-    accesslog = context.get('accesslog')
-    accesslog.log(
-        model=model.model_type(),
-        action=action.value,
-    )
-    data = commands.getall(context, model, model.backend, query=expr)
-    select_tree = get_select_tree(context, action, params.select)
-    prop_names = get_select_prop_names(context, model, action, select_tree)
-    data = (
-        commands.prepare_data_for_response(
-            context,
-            action,
-            model,
-            backend,
-            row,
-            select=select_tree,
-            prop_names=prop_names,
-        )
-        for row in data
-    )
-    return render(context, request, model, params, data, action=action)
-
-
 @commands.getall.register(Context, Model, Mongo)
 def getall(
     context: Context,

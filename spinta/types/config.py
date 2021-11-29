@@ -37,6 +37,7 @@ def load(context: Context, config: Config) -> Config:
     config.executors = ufunc.executor.ufuncs()
 
     # Load components.
+    # TODO: Replace components from dict to classes with type annotations.
     config.components = {}
     for group in rc.keys('components'):
         config.components[group] = {}

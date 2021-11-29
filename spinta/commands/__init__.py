@@ -10,6 +10,10 @@ from typing import TypeVar
 from typing import Union
 from typing import overload
 
+from starlette.requests import Request
+
+from spinta.components import UrlParams
+from spinta.components import Version
 from spinta.dispatcher import command
 from spinta.manifests.components import ManifestSchema
 from spinta.manifests.components import NodeSchema
@@ -283,6 +287,16 @@ def prepare(
 
     Returns list of columns, single column or None.
     """
+
+
+@overload
+def prepare(
+    context: Context,
+    params: UrlParams,
+    version: Version,
+    request: Request,
+) -> UrlParams:
+    """Prepare UrlParams from a Request."""
 
 
 @command()

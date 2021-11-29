@@ -79,7 +79,7 @@ async def homepage(request: Request):
 
     config = context.get('config')
     UrlParams: Type[components.UrlParams] = config.components['urlparams']['component']
-    params = prepare(context, UrlParams(), Version(), request)
+    params: UrlParams = prepare(context, UrlParams(), Version(), request)
 
     context.attach('accesslog', create_accesslog, context, loaders=(
         context.get('store'),

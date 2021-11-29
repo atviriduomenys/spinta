@@ -75,8 +75,7 @@ def _render_check(request: Request, data: Dict[str, Any] = None):
     })
 
 
-
-@commands.render.register()
+@commands.render.register(Context, Request, Namespace, Html)
 def render(
     context: Context,
     request: Request,
@@ -95,7 +94,7 @@ def render(
         return _render_model(context, request, ns, action, params, data, headers)
 
 
-@commands.render.register()  # noqa
+@commands.render.register(Context, Request, Model, Html)
 def render(
     context: Context,
     request: Request,
