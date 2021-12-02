@@ -169,10 +169,10 @@ async def getall(
         rows = (
             commands.prepare_data_for_response(
                 context,
-                action,
                 ns.manifest.models[row['_type']],
-                ns.manifest.models[row['_type']].backend,
+                params.fmt,
                 row,
+                action=action,
                 **prepare_data_for_response_kwargs[row['_type']],
             )
             for row in rows

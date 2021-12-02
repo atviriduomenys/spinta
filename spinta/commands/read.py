@@ -43,10 +43,10 @@ async def getall(
         rows = (
             commands.prepare_data_for_response(
                 context,
-                action,
                 model,
-                backend,
+                params.fmt,
                 row,
+                action=action,
                 select=select_tree,
                 prop_names=prop_names,
             )

@@ -11,6 +11,7 @@ from starlette.requests import Request
 
 from spinta.commands import prepare
 from spinta.components import Action
+from spinta.components import Config
 from spinta.components import Context, Node
 from spinta.components import Model
 from spinta.components import Namespace
@@ -52,6 +53,8 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
     params.format = get_response_type(context, request, params)
+    config: Config = context.get('config')
+    params.fmt = config.exporters[params.format]
 
 
 def _prepare_urlparams_from_path(params: UrlParams):
@@ -253,7 +256,7 @@ def get_response_type(
     context: Context,
     request: Request,
     params: UrlParams = None,
-):
+) -> str:
     config = context.get('config')
 
     if params is not None and params.format:

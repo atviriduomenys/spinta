@@ -12,6 +12,7 @@ from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
+from spinta.commands.formats import Format
 from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
 from spinta.exceptions import ConflictingValue, NoItemRevision
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON, Number
@@ -330,24 +331,24 @@ def is_object_id(context: Context, backend: type(None), model: Namespace, value:
     return False
 
 
-@commands.prepare_data_for_response.register(Context, Action, Model, Backend, dict)
+@commands.prepare_data_for_response.register(Context, Model, Format, dict)
 def prepare_data_for_response(
     context: Context,
-    action: Action,
     model: Model,
-    backend: Backend,
+    fmt: Format,
     value: dict,
     *,
+    action: Action,
     select: SelectTree,
     prop_names: List[str],
 ) -> dict:
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
-            backend,
-            model,
             prop.dtype,
+            fmt,
             val,
+            action=action,
             select=sel,
         )
         for prop, val, sel in _select_model_props(
@@ -360,24 +361,24 @@ def prepare_data_for_response(
     }
 
 
-@commands.prepare_data_for_response.register(Context, Action, Object, Backend, dict)
+@commands.prepare_data_for_response.register(Context, Object, Format, dict)
 def prepare_data_for_response(
     context: Context,
-    action: Action,
     dtype: Object,
-    backend: Backend,
+    fmt: Format,
     value: dict,
     *,
+    action: Action,
     select: List[str] = None,
 ) -> dict:
     select = flat_select_to_nested(select)
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
-            backend,
-            prop.model,
             prop.dtype,
+            fmt,
             value,
+            action=action,
             select=select,
         )
         for prop, value, select in _select_prop_props(
@@ -389,14 +390,14 @@ def prepare_data_for_response(
     }
 
 
-@commands.prepare_data_for_response.register(Context, Action, File, Backend, dict)
+@commands.prepare_data_for_response.register(Context, File, Format, dict)
 def prepare_data_for_response(
     context: Context,
-    action: Action,
     dtype: File,
-    backend: Backend,
+    fmt: Format,
     value: dict,
     *,
+    action: Action,
     select: List[str] = None,
     property_: Property = None,
 ) -> dict:
@@ -411,10 +412,10 @@ def prepare_data_for_response(
     if prop.name in value and value[prop.name]:
         data = commands.prepare_dtype_for_response(
             context,
-            backend,
-            prop.model,
             prop.dtype,
+            fmt,
             value[prop.name],
+            action=action,
             select=select,
         )
     else:
@@ -616,45 +617,45 @@ def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
     return res
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, DataType, object)
+@commands.prepare_dtype_for_response.register(Context, DataType, Format, object)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: DataType,
+    fmt: Format,
     value: object,
     *,
+    action: Action,
     select: dict = None,
 ):
     assert isinstance(value, (str, int, float, bool, type(None))), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
-        f"model={model!r}, dtype={dtype!r}"
+        f"model={dtype.prop.model!r}, dtype={dtype!r}"
     )
     return value
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, DataType, NotAvailable)
+@commands.prepare_dtype_for_response.register(Context, DataType, Format, NotAvailable)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: DataType,
+    fmt: Format,
     value: NotAvailable,
     *,
+    action: Action,
     select: dict = None,
 ):
     return dtype.default
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, File, NotAvailable)
+@commands.prepare_dtype_for_response.register(Context, File, Format, NotAvailable)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: File,
+    fmt: Format,
     value: NotAvailable,
     *,
+    action: Action,
     select: dict = None,
 ):
     return {
@@ -663,14 +664,14 @@ def prepare_dtype_for_response(
     }
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, File, dict)
+@commands.prepare_dtype_for_response.register(Context, File, Format, dict)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: File,
+    fmt: Format,
     value: dict,
     *,
+    action: Action,
     select: dict = None,
 ):
     data = {
@@ -704,27 +705,27 @@ def prepare_dtype_for_response(
     return data
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, DateTime, datetime.datetime)
+@commands.prepare_dtype_for_response.register(Context, DateTime, Format, datetime.datetime)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: DateTime,
+    fmt: Format,
     value: datetime.datetime,
     *,
+    action: Action,
     select: dict = None,
 ):
     return value.isoformat()
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, Date, datetime.date)
+@commands.prepare_dtype_for_response.register(Context, Date, Format, datetime.date)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: Date,
+    fmt: Format,
     value: datetime.date,
     *,
+    action: Action,
     select: dict = None,
 ):
     if isinstance(value, datetime.datetime):
@@ -733,27 +734,27 @@ def prepare_dtype_for_response(
         return value.isoformat()
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, Binary, bytes)
+@commands.prepare_dtype_for_response.register(Context, Binary, Format, bytes)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: Binary,
+    fmt: Format,
     value: bytes,
     *,
+    action: Action,
     select: dict = None,
 ):
     return base64.b64encode(value).decode('ascii')
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, Ref, dict)
+@commands.prepare_dtype_for_response.register(Context, Ref, Format, dict)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: Ref,
+    fmt: Format,
     value: dict,
     *,
+    action: Action,
     select: dict = None,
 ):
     if select is None and value == {'_id': None}:
@@ -761,10 +762,10 @@ def prepare_dtype_for_response(
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
-            backend,
-            prop.model,
             prop.dtype,
+            fmt,
             val,
+            action=action,
             select=sel,
         )
         for prop, val, sel in _select_ref_props(
@@ -798,14 +799,14 @@ def _select_ref_props(
     )
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, Ref, str)
+@commands.prepare_dtype_for_response.register(Context, Ref, Format, str)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: Ref,
+    fmt: Format,
     value: str,
     *,
+    action: Action,
     select: dict = None,
 ):
     # FIXME: Backend should never return references as strings! References
@@ -813,14 +814,14 @@ def prepare_dtype_for_response(
     return {'_id': value}
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, Object, dict)
+@commands.prepare_dtype_for_response.register(Context, Object, Format, dict)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: Object,
+    fmt: Format,
     value: dict,
     *,
+    action: Action,
     select: dict = None,
 ):
     check_unknown_props(dtype, select, set(take(dtype.properties)))
@@ -835,10 +836,10 @@ def prepare_dtype_for_response(
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
-            backend,
-            model,
             prop.dtype,
+            fmt,
             val,
+            action=action,
             select=sel,
         )
         for prop, val, sel in _select_props(
@@ -851,62 +852,62 @@ def prepare_dtype_for_response(
     }
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, Array, list)
+@commands.prepare_dtype_for_response.register(Context, Array, Format, list)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: Array,
+    fmt: Format,
     value: list,
     *,
+    action: Action,
     select: dict = None,
 ) -> list:
     return _prepare_array_for_response(
         context,
-        backend,
-        model,
         dtype,
+        fmt,
         value,
+        action,
         select,
     )
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, Array, tuple)
+@commands.prepare_dtype_for_response.register(Context, Array, Format, tuple)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: Array,
+    fmt: Format,
     value: tuple,
     *,
+    action: Action,
     select: dict = None,
 ) -> list:
     return _prepare_array_for_response(
         context,
-        backend,
-        model,
         dtype,
+        fmt,
         value,
+        action,
         select,
     )
 
 
 def _prepare_array_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: Array,
+    fmt: Format,
     value: Iterable,
+    action: Action,
     select: dict = None,
 ) -> list:
     if dtype.items:
         return [
             commands.prepare_dtype_for_response(
                 context,
-                backend,
-                model,
                 dtype.items.dtype,
+                fmt,
                 v,
+                action=action,
                 select=select,
             )
             for v in value
@@ -915,53 +916,53 @@ def _prepare_array_for_response(
         return [v for v in value]
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, Array, type(None))
+@commands.prepare_dtype_for_response.register(Context, Array, Format, type(None))
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: Array,
+    fmt: Format,
     value: type(None),
     *,
+    action: Action,
     select: dict = None,
 ):
     return []
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, JSON, object)
+@commands.prepare_dtype_for_response.register(Context, JSON, Format, object)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: JSON,
+    fmt: Format,
     value: object,
     *,
+    action: Action,
     select: dict = None,
 ):
     return value
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, JSON, NotAvailable)
+@commands.prepare_dtype_for_response.register(Context, JSON, Format, NotAvailable)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: JSON,
+    fmt: Format,
     value: NotAvailable,
     *,
+    action: Action,
     select: dict = None,
 ):
     return None
 
 
-@commands.prepare_dtype_for_response.register(Context, Backend, Model, Number, decimal.Decimal)
+@commands.prepare_dtype_for_response.register(Context, Number, Format, decimal.Decimal)
 def prepare_dtype_for_response(
     context: Context,
-    backend: Backend,
-    model: Model,
     dtype: Number,
+    fmt: Format,
     value: decimal.Decimal,
     *,
+    action: Action,
     select: dict = None,
 ):
     return float(value)

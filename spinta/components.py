@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from spinta.dimensions.enum.components import EnumValue
     from spinta.core.config import RawConfig
     from spinta.accesslog import AccessLog
+    from spinta.commands.formats import Format
 
 
 class Context:
@@ -671,6 +672,7 @@ class UrlParams:
     changes: bool = False
     changes_offset: Optional[str] = None
 
+    fmt: Format
     format: Optional[str] = None
     formatparams: dict
 
@@ -856,6 +858,7 @@ class Config:
     credentials_file: pathlib.Path
     data_path: pathlib.Path
     AccessLog: Type[AccessLog]
+    exporters: Dict[str, Format]
 
     def __init__(self):
         self.commands = _CommandsConfig()

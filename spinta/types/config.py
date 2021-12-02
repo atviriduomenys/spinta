@@ -1,8 +1,10 @@
 import json
 import pathlib
+from typing import Type
 
 from ruamel.yaml import YAML
 
+from spinta.commands.formats import Format
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.core.config import DEFAULT_DATA_PATH
 from spinta.utils.config import asbool
@@ -48,7 +50,7 @@ def load(context: Context, config: Config) -> Config:
     # Load exporters.
     config.exporters = {}
     for name in rc.keys('exporters'):
-        exporter = rc.get('exporters', name, cast=importstr)
+        exporter: Type[Format] = rc.get('exporters', name, cast=importstr)
         config.exporters[name] = exporter()
 
     # Load accesslog

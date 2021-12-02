@@ -109,7 +109,7 @@ async def push(
     else:
         raise Exception(f"Unknown action {action!r}.")
 
-    status_code, response = await simple_response(context, dstream)
+    status_code, response = await simple_response(context, params.fmt, dstream)
     return render(context, request, prop, params, response, status_code=status_code)
 
 

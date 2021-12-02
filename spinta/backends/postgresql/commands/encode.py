@@ -7,28 +7,29 @@ from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
 from spinta.backends import SelectTree
+from spinta.commands.formats import Format
 from spinta.components import Context, Model, Action
 from spinta.types.datatype import Date, DateTime
 from spinta.backends.postgresql.components import PostgreSQL
 
 
-@commands.prepare_data_for_response.register(Context, Action, Model, PostgreSQL, RowProxy)
+@commands.prepare_data_for_response.register(Context, Model, Format, RowProxy)
 def prepare_data_for_response(
     context: Context,
-    action: Action,
     model: Model,
-    backend: PostgreSQL,
+    fmt: Format,
     value: RowProxy,
     *,
+    action: Action,
     select: SelectTree = None,
     prop_names: List[str] = None,
 ) -> dict:
     return commands.prepare_data_for_response(
         context,
-        action,
         model,
-        backend,
+        fmt,
         dict(value),
+        action=action,
         select=select,
         prop_names=prop_names,
     )

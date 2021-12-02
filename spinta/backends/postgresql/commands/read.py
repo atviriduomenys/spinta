@@ -39,10 +39,10 @@ async def getone(
     prop_names = get_select_prop_names(context, model, action, select_tree)
     data = commands.prepare_data_for_response(
         context,
-        Action.GETONE,
         model,
-        backend,
+        params.fmt,
         data,
+        action=Action.GETONE,
         select=select_tree,
         prop_names=prop_names,
     )

@@ -17,10 +17,8 @@ def render(
     status_code: Optional[int] = 200,
     headers: Optional[dict] = None,
 ):
-    config = context.get('config')
-    fmt = config.exporters[params.format]
     return commands.render(
-        context, request, node, fmt,
+        context, request, node, params.fmt,
         action=action,
         params=params,
         data=data,

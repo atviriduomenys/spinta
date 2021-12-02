@@ -143,13 +143,41 @@ Encode
 cast_backend_to_python(Model, Backend, Any)
 -------------------------------------------
 
-Converts backend types to python-native types.
+Converts backend model data to python-native model data.
 
+- :ref:`cast_backend_to_python_dtype`
+
+
+.. _cast_backend_to_python_prop:
+
+cast_backend_to_python(Property, Backend, Any)
+----------------------------------------------
+
+Converts backend property (subresource) data to python-native data.
+
+This is used for `/ns/Model/<ID>/property` endpoints.
+
+- :ref:`cast_backend_to_python_dtype`
+
+
+.. _cast_backend_to_python_dtype:
+
+cast_backend_to_python(DataType, Backend, Any)
+----------------------------------------------
+
+Converts backend types to python-native types for a data type. Should call
+itself for complex data types like `object` and `array`.
+
+- :ref:`cast_backend_to_python_dtype`
+
+
+Response
+========
 
 .. _prepare_data_for_response_model:
 
-prepare_data_for_response(Action, Model, Backend, Any)
-------------------------------------------------------
+prepare_data_for_response(Model, Format, Any)
+---------------------------------------------
 
 Converts python-native data types to a requested response format. This
 expects to get python-native data, which is prepared using
@@ -158,16 +186,21 @@ expects to get python-native data, which is prepared using
 - :ref:`prepare_dtype_for_response`
 
 
+prepare_data_for_response(DataType, Format, Any)
+------------------------------------------------
+
+Convert python-native data types to a given format, for subresources.
+
+- :ref:`prepare_dtype_for_response`
+
+
 .. _prepare_dtype_for_response:
 
-prepare_dtype_for_response(Backend, Model, DataType, Any)
----------------------------------------------------------
+prepare_dtype_for_response(DataType, Format, Any)
+-------------------------------------------------
 
 Converts python-native data types to a requested response format.
 
-
-Response
-========
 
 .. _render:
 

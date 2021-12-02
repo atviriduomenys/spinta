@@ -88,7 +88,7 @@ async def push(
         context, prop.model, prop.model.backend, dstream=dstream,
     )
 
-    status_code, response = await simple_response(context, dstream)
+    status_code, response = await simple_response(context, params.fmt, dstream)
     return render(context, request, prop, params, response, action=action, status_code=status_code)
 
 

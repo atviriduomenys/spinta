@@ -39,10 +39,10 @@ async def getone(
     data = getone(context, prop, dtype, backend, id_=params.pk)
     data = commands.prepare_data_for_response(
         context,
-        Action.GETONE,
         prop.dtype,
-        backend,
+        params.fmt,
         data,
+        action=Action.GETONE,
     )
     return render(context, request, prop, params, data, action=action)
 

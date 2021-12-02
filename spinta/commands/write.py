@@ -35,6 +35,7 @@ from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
 from spinta.core.ufuncs import asttoexpr
+from spinta.commands.formats import Format
 
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
@@ -84,9 +85,17 @@ async def push(
         status_code, response = await _summary_response(context, dstream)
     elif await is_batch(request, scope):
         batch = True
-        status_code, response = await _batch_response(context, dstream)
+        status_code, response = await _batch_response(
+            context,
+            params.fmt,
+            dstream,
+        )
     else:
-        status_code, response = await simple_response(context, dstream)
+        status_code, response = await simple_response(
+            context,
+            params.fmt,
+            dstream,
+        )
     headers = prepare_headers(context, scope, response, action, is_batch=batch)
     return render(context, request, scope, params, response,
                   action=action, status_code=status_code, headers=headers)
@@ -164,7 +173,16 @@ async def push_stream(
             yield data
 
 
-async def write(context: Context, scope: Node, payload, *, changed=False):
+async def write(
+    context: Context,
+    scope: Node,
+    payload,
+    *,
+    # XXX: This should not be here. Write should return python-native types
+    #      from cast_backend_to_python[DataType, Backend, Any].
+    fmt: Format,
+    changed=False,
+):
     stream = (
         dataitem_from_payload(context, scope, x)
         for x in payload
@@ -172,7 +190,7 @@ async def write(context: Context, scope: Node, payload, *, changed=False):
     stream = push_stream(context, aiter(stream))
     async for data in stream:
         if changed is False or data.patch:
-            yield _get_simple_response(context, data)
+            yield _get_simple_response(context, data, fmt)
 
 
 def _stream_group_key(data: DataItem):
@@ -1054,12 +1072,16 @@ async def _summary_response(context: Context, results: AsyncIterator[DataItem]) 
     }
 
 
-async def _batch_response(context: Context, results: AsyncIterator[DataItem]) -> dict:
+async def _batch_response(
+    context: Context,
+    fmt: Format,
+    results: AsyncIterator[DataItem],
+) -> dict:
     errors = 0
     batch = []
     async for data in results:
         errors += data.error is not None
-        batch.append(_get_simple_response(context, data))
+        batch.append(_get_simple_response(context, data, fmt))
 
     if errors > 0:
         status_code = 400
@@ -1074,7 +1096,11 @@ async def _batch_response(context: Context, results: AsyncIterator[DataItem]) ->
     }
 
 
-async def simple_response(context: Context, results: AsyncIterator[DataItem]) -> dict:
+async def simple_response(
+    context: Context,
+    fmt: Format,
+    results: AsyncIterator[DataItem],
+) -> typing.Tuple[int, Dict[str, Any]]:
     results = await alist(aslice(results, 2))
     assert len(results) == 1
     data = results[0]
@@ -1086,10 +1112,16 @@ async def simple_response(context: Context, results: AsyncIterator[DataItem]) ->
         status_code = 204
     else:
         status_code = 200
-    return status_code, _get_simple_response(context, data)
+    return status_code, _get_simple_response(context, data, fmt)
 
 
-def _get_simple_response(context: Context, data: DataItem) -> dict:
+# XXX: This should be refactored into
+#      prepare_data_for_response[Model, Format, DataItem].
+def _get_simple_response(
+    context: Context,
+    data: DataItem,
+    fmt: Format,
+) -> Dict[str, Any]:
     resp = prepare_response(context, data)
     resp = {k: v for k, v in resp.items() if not k.startswith('_')}
     if data.prop or data.model:
@@ -1120,10 +1152,10 @@ def _get_simple_response(context: Context, data: DataItem) -> dict:
         if data.prop:
             resp = commands.prepare_data_for_response(
                 context,
-                data.action,
                 data.prop.dtype,
-                data.backend,
+                fmt,
                 resp,
+                action=data.action,
             )
         else:
             select_tree = get_select_tree(context, data.action, None)
@@ -1132,10 +1164,10 @@ def _get_simple_response(context: Context, data: DataItem) -> dict:
             )
             resp = commands.prepare_data_for_response(
                 context,
-                data.action,
                 data.model,
-                data.backend,
+                fmt,
                 resp,
+                action=data.action,
                 select=select_tree,
                 prop_names=prop_names,
             )
