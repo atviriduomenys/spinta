@@ -1,5 +1,5 @@
 from typing import Any
-from typing import AsyncIterator, Union, List, Dict, Optional, Iterable, Generator
+from typing import AsyncIterator, Union, List, Dict, Optional, Iterable
 
 import base64
 import datetime
@@ -12,11 +12,10 @@ from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
-from spinta.commands.formats import Format
+from spinta.formats.components import Format
 from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
 from spinta.exceptions import ConflictingValue, NoItemRevision
 from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON, Number
-from spinta.utils.itertools import chunks
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
 from spinta.backends.components import Backend

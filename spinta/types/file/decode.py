@@ -5,8 +5,8 @@ from spinta.utils.schema import NA
 from spinta.components import Context
 from spinta.types.datatype import File
 from spinta.types.helpers import check_no_extra_keys
-from spinta.commands.formats import Format
-from spinta.commands.formats.json import Json
+from spinta.formats.components import Format
+from spinta.formats.json.components import Json
 from spinta.backends.components import Backend
 
 

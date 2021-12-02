@@ -6,11 +6,8 @@ CONFIG = {
     'commands': {
         'modules': [
             'spinta.backends',
-            'spinta.commands.auth',
-            'spinta.commands.read',
-            'spinta.commands.write',
-            'spinta.commands.search',
-            'spinta.commands.version',
+            'spinta.formats',
+            'spinta.commands',
             'spinta.types',
             'spinta.urlparams',
             'spinta.manifests',
@@ -116,11 +113,11 @@ CONFIG = {
         }
     },
     'exporters': {
-        'ascii': 'spinta.commands.formats.ascii:Ascii',
-        'csv': 'spinta.commands.formats.csv:Csv',
-        'json': 'spinta.commands.formats.json:Json',
-        'jsonl': 'spinta.commands.formats.jsonl:JsonLines',
-        'html': 'spinta.commands.formats.html:Html',
+        'ascii': 'spinta.formats.ascii.components:Ascii',
+        'csv': 'spinta.formats.csv.components:Csv',
+        'json': 'spinta.formats.json.components:Json',
+        'jsonl': 'spinta.formats.jsonlines.components:JsonLines',
+        'html': 'spinta.formats.html.components:Html',
     },
     'accesslog': {
         'type': 'file',

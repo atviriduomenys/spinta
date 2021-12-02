@@ -8,7 +8,7 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta import exceptions
-from spinta.commands.formats import Format
+from spinta.formats.components import Format
 from spinta.components import Action
 from spinta.components import Context
 from spinta.components import Node

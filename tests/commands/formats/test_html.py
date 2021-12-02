@@ -7,9 +7,9 @@ from _pytest.fixtures import FixtureRequest
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.commands.formats.html import CurrentLocation
-from spinta.commands.formats.html import get_current_location
-from spinta.commands.formats.html import short_id
+from spinta.formats.html.helpers import CurrentLocation
+from spinta.formats.html.helpers import get_current_location
+from spinta.formats.html.helpers import short_id
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Namespace

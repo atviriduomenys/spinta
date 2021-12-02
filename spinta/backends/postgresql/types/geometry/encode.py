@@ -2,7 +2,7 @@ from geoalchemy2 import WKBElement
 from geoalchemy2.shape import to_shape
 
 from spinta import commands
-from spinta.commands.formats import Format
+from spinta.formats.components import Format
 from spinta.components import Action
 from spinta.components import Context
 from spinta.types.geometry.components import Geometry

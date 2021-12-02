@@ -5,21 +5,9 @@ from typing import Optional
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
-from spinta.commands.formats import Format
 from spinta.components import Context, Action, UrlParams, Model, Node
 from spinta import commands
-
-
-class JsonLines(Format):
-    content_type = 'application/x-json-stream'
-    accept_types = {
-        'application/x-json-stream',
-    }
-    params = {}
-
-    def __call__(self, data):
-        for row in data:
-            yield json.dumps(row, ensure_ascii=False) + '\n'
+from spinta.formats.jsonlines.components import JsonLines
 
 
 @commands.render.register(Context, Request, Model, JsonLines)

@@ -1,33 +1,12 @@
-import ujson as json
-
 from typing import Optional
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
-from spinta.commands.formats import Format
 from spinta.components import Context, Action, UrlParams, Node
 from spinta import commands
+from spinta.formats.json.components import Json
 from spinta.utils.response import aiter, peek_and_stream
-
-
-class Json(Format):
-    content_type = 'application/json'
-    accept_types = {
-        'application/json',
-    }
-    params = {}
-    container_name = '_data'
-
-    def __call__(self, data):
-        yield f'{{"{self.container_name}":['
-        for i, row in enumerate(data):
-            sep = ',' if i > 0 else ''
-            yield sep + json.dumps(self.data(row), ensure_ascii=False)
-        yield ']}'
-
-    def data(self, data: dict) -> dict:
-        return data
 
 
 @commands.render.register(Context, Request, Node, Json)

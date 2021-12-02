@@ -3,7 +3,7 @@ import pathlib
 from spinta import commands
 from spinta.components import Context
 from spinta.types.datatype import File
-from spinta.commands.formats import Format
+from spinta.formats.components import Format
 from spinta.backends.fs.components import FileSystem
 
 

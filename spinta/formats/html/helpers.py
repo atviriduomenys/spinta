@@ -1,216 +1,35 @@
+import datetime
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import NamedTuple
-from typing import Optional, Union, List
-
-import datetime
+from typing import Optional
 from typing import Tuple
 from typing import TypedDict
+from typing import Union
 
-import pkg_resources as pres
-
-from starlette.requests import Request
-from starlette.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 
-from spinta.components import Config
-from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType, Ref
-from spinta.commands.formats import Format
-from spinta.components import Context, Action, UrlParams, Node, Property
-from spinta.types.datatype import File
-from spinta.utils.url import build_url_path
-from spinta import commands
-from spinta.components import Namespace, Model
-from spinta.utils.nestedstruct import flatten
 from spinta.auth import authorized
+from spinta.components import Action
 
-
-class Html(Format):
-    content_type = 'text/html'
-    accept_types = {
-        'text/html',
-    }
-    params = {}
-    streamable = False
-
-
-def _render_check(request: Request, data: Dict[str, Any] = None):
-    if data:
-        if 'errors' in data:
-            result = {
-                'message': "Yra klaidų",
-                'errors': [
-                    err['message']
-                    for err in data['errors']
-                ],
-            }
-        else:
-            result = {
-                'message': "Klaidų nerasta.",
-                'errors': None,
-            }
-    else:
-        result = data
-
-    templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
-    return templates.TemplateResponse('form.html', {
-        'request': request,
-        'title': "Duomenų struktūros aprašo tikrinimas",
-        'description': (
-            "Ši priemonė leidžia patikrinti ar "
-            "<a href=\"https://atviriduomenys.readthedocs.io/dsa/index.html\">"
-            "duomenų struktūros apraše</a> nėra klaidų."
-        ),
-        'name': 'check',
-        'fields': [
-            {
-                'label': "Duomenų struktūros aprašas",
-                'help': "Pateikite duomenų struktūros aprašo failą.",
-                'input': '<input type="file" name="manifest" accept=".csv">'
-            },
-        ],
-        'submit': "Tikrinti",
-        'result': result,
-    })
-
-
-@commands.render.register(Context, Request, Namespace, Html)
-def render(
-    context: Context,
-    request: Request,
-    ns: Namespace,
-    fmt: Html,
-    *,
-    action: Action,
-    params: UrlParams,
-    data,
-    status_code: int = 200,
-    headers: Optional[dict] = None,
-):
-    if action == Action.CHECK:
-        return _render_check(request, data)
-    else:
-        return _render_model(context, request, ns, action, params, data, headers)
-
-
-@commands.render.register(Context, Request, Model, Html)
-def render(
-    context: Context,
-    request: Request,
-    model: Model,
-    fmt: Html,
-    *,
-    action: Action,
-    params: UrlParams,
-    data,
-    status_code: int = 200,
-    headers: Optional[dict] = None,
-):
-    return _render_model(context, request, model, action, params, data, headers)
-
-
-def _render_model(
-    context: Context,
-    request: Request,
-    model: Union[Model, Namespace],
-    action: Action,
-    params: UrlParams,
-    data,
-    http_headers,
-):
-    header = []
-    row = []
-
-    if model.type == 'model:ns' or params.ns:
-        data = get_ns_data(data)
-        header = next(data)
-        data = list(data)
-    elif action == Action.CHANGES:
-        data = get_changes(context, data, model, params)
-        header = next(data)
-        data = list(reversed(list(data)))
-    elif action == Action.GETONE:
-        row = list(get_row(context, data, model))
-        data = []
-    elif action in (Action.GETALL, Action.SEARCH):
-        data = get_data(context, data, model, params, action)
-        header = next(data)
-        data = list(data)
-
-    templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
-    return templates.TemplateResponse(
-        'data.html',
-        {
-            **get_template_context(context, model, params),
-            'request': request,
-            'header': header,
-            'data': data,
-            'row': row,
-            'formats': get_output_formats(params),
-            'limit_enforced': params.limit_enforced,
-            'params': params,
-        },
-        headers=http_headers
-    )
-
-
-def get_output_formats(params: UrlParams):
-    return [
-        # XXX I don't like that, there should be a better way to build links
-        #     from UrlParams instance.
-        ('CSV', '/' + build_url_path(params.changed_parsetree({'format': ['csv']}))),
-        ('JSON', '/' + build_url_path(params.changed_parsetree({'format': ['json']}))),
-        ('JSONL', '/' + build_url_path(params.changed_parsetree({'format': ['jsonl']}))),
-        ('ASCII', '/' + build_url_path(params.changed_parsetree({'format': ['ascii']}))),
-    ]
-
-
-def get_template_context(context: Context, model, params: UrlParams):
-    config: Config = context.get('config')
-    return {
-        'location': get_current_location(config, model, params),
-    }
-
+from spinta.components import Config
+from spinta.components import Context
+from spinta.components import Model
+from spinta.components import Node
+from spinta.components import Property
+from spinta.components import UrlParams
+from spinta.manifests.components import Manifest
+from spinta.types.datatype import DataType
+from spinta.types.datatype import File
+from spinta.types.datatype import Ref
+from spinta.utils.nestedstruct import flatten
+from spinta.utils.url import build_url_path
 
 CurrentLocation = List[Tuple[
     str,            # Link title
     Optional[str],  # Link URL
 ]]
-
-
-class PathInfo(NamedTuple):
-    path: str = ''
-    name: str = ''
-    link: str = ''
-    title: str = ''
-
-
-def _split_path(
-    manifest: Manifest,
-    base: str,
-    orig_path: str,
-) -> List[PathInfo]:
-    parts = orig_path.split('/') if orig_path else []
-    result: List[PathInfo] = []
-    last = len(parts)
-    base = [base] if base else []
-    for i, part in enumerate(parts, 1):
-        path = '/'.join(base + parts[:i])
-        if i == last and path in manifest.models:
-            title = manifest.models[path].title
-        elif path in manifest.namespaces:
-            title = manifest.namespaces[path].title
-        else:
-            title = ''
-        title = title or part
-        result.append(PathInfo(
-            path=path,
-            name=part,
-            link=f'/{path}',
-            title=title,
-        ))
-    return result
 
 
 def get_current_location(
@@ -564,3 +383,55 @@ def get_model_link_params(
 
 def get_model_link(*args, **kwargs):
     return '/' + build_url_path(get_model_link_params(*args, **kwargs))
+
+
+class PathInfo(NamedTuple):
+    path: str = ''
+    name: str = ''
+    link: str = ''
+    title: str = ''
+
+
+def _split_path(
+    manifest: Manifest,
+    base: str,
+    orig_path: str,
+) -> List[PathInfo]:
+    parts = orig_path.split('/') if orig_path else []
+    result: List[PathInfo] = []
+    last = len(parts)
+    base = [base] if base else []
+    for i, part in enumerate(parts, 1):
+        path = '/'.join(base + parts[:i])
+        if i == last and path in manifest.models:
+            title = manifest.models[path].title
+        elif path in manifest.namespaces:
+            title = manifest.namespaces[path].title
+        else:
+            title = ''
+        title = title or part
+        result.append(PathInfo(
+            path=path,
+            name=part,
+            link=f'/{path}',
+            title=title,
+        ))
+    return result
+
+
+def get_template_context(context: Context, model, params: UrlParams):
+    config: Config = context.get('config')
+    return {
+        'location': get_current_location(config, model, params),
+    }
+
+
+def get_output_formats(params: UrlParams):
+    return [
+        # XXX I don't like that, there should be a better way to build links
+        #     from UrlParams instance.
+        ('CSV', '/' + build_url_path(params.changed_parsetree({'format': ['csv']}))),
+        ('JSON', '/' + build_url_path(params.changed_parsetree({'format': ['json']}))),
+        ('JSONL', '/' + build_url_path(params.changed_parsetree({'format': ['jsonl']}))),
+        ('ASCII', '/' + build_url_path(params.changed_parsetree({'format': ['ascii']}))),
+    ]

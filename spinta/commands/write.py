@@ -35,7 +35,7 @@ from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
 from spinta.core.ufuncs import asttoexpr
-from spinta.commands.formats import Format
+from spinta.formats.components import Format
 
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction

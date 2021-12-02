@@ -13,7 +13,7 @@ import tqdm
 
 from spinta import commands
 from spinta import components
-from spinta.commands.formats import Format
+from spinta.formats.components import Format
 from spinta.components import Context
 from spinta.components import DataStream
 from spinta.components import Model

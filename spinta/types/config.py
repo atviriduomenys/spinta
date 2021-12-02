@@ -4,7 +4,7 @@ from typing import Type
 
 from ruamel.yaml import YAML
 
-from spinta.commands.formats import Format
+from spinta.formats.components import Format
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.core.config import DEFAULT_DATA_PATH
 from spinta.utils.config import asbool

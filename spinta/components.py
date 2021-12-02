@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from spinta.dimensions.enum.components import EnumValue
     from spinta.core.config import RawConfig
     from spinta.accesslog import AccessLog
-    from spinta.commands.formats import Format
+    from spinta.formats import Format
 
 
 class Context:
