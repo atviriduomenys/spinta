@@ -1,6 +1,7 @@
 import datetime
 from typing import Any
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import NamedTuple
 from typing import Optional
@@ -19,6 +20,8 @@ from spinta.components import Model
 from spinta.components import Node
 from spinta.components import Property
 from spinta.components import UrlParams
+from spinta.formats.html.components import Cell
+from spinta.formats.html.components import Color
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
@@ -83,19 +86,26 @@ def get_current_location(
     return loc
 
 
-def get_changes(context: Context, rows, model, params: UrlParams):
+def get_changes(
+    context: Context,
+    rows,
+    model: Model,
+    params: UrlParams,
+) -> Iterator[List[Cell]]:
     props = [
         p for p in model.properties.values() if (
             not p.name.startswith('_')
         )
     ]
 
-    yield (
+    header = (
         ['_id', '_revision', '_txn', '_created', '_op', '_rid'] +
         [prop.name for prop in props if prop.name != 'revision']
     )
 
-    # XXX: With large changes sets this will consume a lot of memmory.
+    yield [Cell(h) for h in header]
+
+    # XXX: With large change sets this will consume a lot of memmory.
     current = {}
     for data in rows:
         pk = data['_rid']
@@ -105,18 +115,18 @@ def get_changes(context: Context, rows, model, params: UrlParams):
             k: v for k, v in data.items() if not k.startswith('_')
         })
         row = [
-            {'color': None, 'value': data['_id'], 'link': None},
-            {'color': None, 'value': data['_revision'], 'link': None},
-            {'color': None, 'value': data['_txn'], 'link': None},
-            {'color': None, 'value': data['_created'], 'link': None},
-            {'color': None, 'value': data['_op'], 'link': None},
+            Cell(data['_id']),
+            Cell(data['_revision']),
+            Cell(data['_txn']),
+            Cell(data['_created']),
+            Cell(data['_op']),
             get_cell(context, model.properties['_id'], pk, data, '_rid', shorten=True),
         ]
         for prop in props:
             if prop.name in data:
-                color = 'change'
+                color = Color.change
             elif prop.name not in current:
-                color = 'null'
+                color = Color.null
             else:
                 color = None
             cell = get_cell(
@@ -132,7 +142,7 @@ def get_changes(context: Context, rows, model, params: UrlParams):
         yield row
 
 
-def get_row(context: Context, row, model: Node):
+def get_row(context: Context, row, model: Model) -> Iterator[Tuple[str, Cell]]:
     if row is None:
         raise HTTPException(status_code=404)
     include = {'_type', '_id', '_revision'}
@@ -163,14 +173,10 @@ def get_cell(
     pk: Optional[str],
     row: Dict[str, Any],
     name: Any,
+    *,
     shorten=False,
-    color=None,
-):
-    COLORS = {
-        'change': '#B2E2AD',
-        'null': '#f5f5f5',
-    }
-
+    color: Optional[Color] = None,
+) -> Cell:
     link = None
     model = None
     if prop.dtype.name == 'ref':
@@ -190,7 +196,7 @@ def get_cell(
 
     if prop.name == '_id' and value:
         model = prop.model
-    elif prop.dtype.name == 'ref' and prop.dtype.model and value:
+    elif isinstance(prop.dtype, Ref) and prop.dtype.model and value:
         model = prop.dtype.model
 
     if model:
@@ -209,17 +215,16 @@ def get_cell(
     if value is None:
         value = ''
         if color is None:
-            color = 'null'
+            color = Color.null
 
-    return {
-        'value': value,
-        'link': link,
-        'color': COLORS[color] if color else None,
-    }
+    return Cell(value, link, color)
 
 
-def get_ns_data(rows):
-    yield ['title', 'description']
+def get_ns_data(rows) -> Iterator[List[Cell]]:
+    yield [
+        Cell('title'),
+        Cell('description'),
+    ]
     for row in rows:
         if row['title']:
             title = row['title']
@@ -238,16 +243,8 @@ def get_ns_data(rows):
             suffix = ''
 
         yield [
-            {
-                'value': f'{icon} {title}{suffix}',
-                'link': '/' + row['_id'],
-                'color': None,
-            },
-            {
-                'value': row['description'],
-                'link': None,
-                'color': None,
-            },
+            Cell(f'{icon} {title}{suffix}', link='/' + row['_id']),
+            Cell(row['description']),
         ]
 
 
@@ -257,7 +254,7 @@ def get_data(
     model: Model,
     params: UrlParams,
     action: Action,
-):
+) -> Iterator[List[Cell]]:
     # XXX: For things like aggregations, a dynamic model should be created with
     #      all the properties coming from aggregates.
     if params.count:
@@ -286,7 +283,7 @@ def get_data(
             ]
             header = [p.name for p in props]
 
-    yield header
+    yield [Cell(h) for h in header]
 
     for data in flatten(rows):
         row = []

@@ -1,9 +1,13 @@
 import uuid
 from typing import Any
 from typing import Dict
+from typing import List
+from typing import Tuple
+from typing import cast
 
 import pytest
 
+from spinta.formats.html.components import Cell
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import get_html_tree
@@ -17,15 +21,32 @@ def _cleaned_context(
     data: bool = True,
 ) -> Dict[str, Any]:
     context = resp.context.copy()
+    if 'header' in context:
+        header = [h.value for h in cast(List[Cell], resp.context['header'])]
+        context['header'] = header
+    if 'data' in context:
+        context['data'] = [
+            [cell.as_dict() for cell in row]
+            for row in cast(List[List[Cell]], resp.context['data'])
+        ]
+    if 'row' in context:
+        context['row'] = [
+            (name, cell.as_dict())
+            for name, cell in cast(Tuple[str, Cell], context['row'])
+        ]
+
     if data:
+        header = context['header']
         context['data'] = [
             {
                 k: v['value']
-                for k, v in zip(resp.context['header'], d)
+                for k, v in zip(header, d)
             }
-            for d in resp.context['data']
+            for d in cast(List[List[Dict[str, Any]]], context['data'])
         ]
     del context['params']
+    if 'request' in context:
+        del context['request']
     return context
 
 
@@ -145,12 +166,12 @@ def test_model(model, context, app):
         ],
         'data': [
             [
-                {'color': None, 'link': f"/{model}/%s" % row['_id'], 'value': row['_id'][:8]},
-                {'color': '#f5f5f5', 'link': None, 'value': ''},
-                {'color': None, 'link': None, 'value': 'ok'},
-                {'color': '#f5f5f5', 'link': None, 'value': ''},
-                {'color': '#f5f5f5', 'link': None, 'value': ''},
-                {'color': None, 'link': None, 'value': 42},
+                {'value': row['_id'][:8], 'link': f"/{model}/%s" % row['_id']},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': 'ok'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': 42},
             ],
         ],
         'row': [],
@@ -197,14 +218,14 @@ def test_model_get(model, app):
         'header': [],
         'data': [],
         'row': [
-            ('_type', {'color': None, 'link': None, 'value': model}),
-            ('_id', {'color': None, 'link': f'/{model}/%s' % row['_id'], 'value': row['_id']}),
-            ('_revision', {'color': None, 'link': None, 'value': row['_revision']}),
-            ('report_type', {'color': '#f5f5f5', 'link': None, 'value': ''}),
-            ('status', {'color': None, 'link': None, 'value': 'ok'}),
-            ('valid_from_date', {'color': '#f5f5f5', 'link': None, 'value': ''}),
-            ('update_time', {'color': '#f5f5f5', 'link': None, 'value': ''}),
-            ('count', {'color': None, 'link': None, 'value': 42}),
+            ('_type', {'value': model}),
+            ('_id', {'link': f'/{model}/%s' % row['_id'], 'value': row['_id']}),
+            ('_revision', {'value': row['_revision']}),
+            ('report_type', {'color': '#f5f5f5', 'value': ''}),
+            ('status', {'value': 'ok'}),
+            ('valid_from_date', {'color': '#f5f5f5', 'value': ''}),
+            ('update_time', {'color': '#f5f5f5', 'value': ''}),
+            ('count', {'value': 42}),
         ],
         'formats': [
             ('CSV', f'/{model}/%s/:format/csv' % row['_id']),
@@ -241,9 +262,9 @@ def test_dataset(app):
         'header': ['_id', 'id', 'pavadinimas'],
         'data': [
             [
-                {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': None, 'link': None, 'value': '1'},
-                {'color': None, 'link': None, 'value': 'Rinkimai 1'},
+                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'value': '1'},
+                {'value': 'Rinkimai 1'},
             ],
         ],
         'row': [],
@@ -272,11 +293,11 @@ def test_dataset_with_show(context, app):
     })
     assert resp.status_code == 200
 
-    resp.context.pop('request')
-    assert resp.context['header'] == ['pavadinimas']
-    assert [tuple(y['value'] for y in x) for x in resp.context['data']] == [
-        ('Rinkimai 1',),
-    ]
+    context = _cleaned_context(resp)
+    assert context['header'] == ['pavadinimas']
+    assert context['data'] == [{
+        'pavadinimas': 'Rinkimai 1',
+    }]
 
 
 def test_dataset_url_without_resource(context, app):
@@ -290,11 +311,12 @@ def test_dataset_url_without_resource(context, app):
     assert resp.status_code == 201, data
     resp = app.get('/datasets/json/rinkimai', headers={'accept': 'text/html'})
     assert resp.status_code == 200
-    assert resp.context['header'] == ['_id', 'id', 'pavadinimas']
-    assert resp.context['data'] == [[
-        {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-        {'color': None, 'link': None, 'value': '1'},
-        {'color': None, 'link': None, 'value': 'Rinkimai 1'},
+    context = _cleaned_context(resp, data=False)
+    assert context['header'] == ['_id', 'id', 'pavadinimas']
+    assert context['data'] == [[
+        {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+        {'value': '1'},
+        {'value': 'Rinkimai 1'},
     ]]
 
 
@@ -324,8 +346,8 @@ def test_nested_dataset(app):
         'header': ['_id', 'name'],
         'data': [
             [
-                {'color': None, 'link': f'/datasets/nested/dataset/name/model/{pk}', 'value': pk[:8]},
-                {'color': None, 'link': None, 'value': 'Nested One'},
+                {'link': f'/datasets/nested/dataset/name/model/{pk}', 'value': pk[:8]},
+                {'value': 'Nested One'},
             ],
         ],
         'row': [],
@@ -372,11 +394,11 @@ def test_dataset_key(app):
         'header': [],
         'data': [],
         'row': [
-            ('_type', {'color': None, 'link': None, 'value': 'datasets/json/rinkimai'}),
-            ('_id', {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk}),
-            ('_revision', {'color': None, 'link': None, 'value': rev}),
-            ('id', {'color': None, 'link': None, 'value': '1'}),
-            ('pavadinimas', {'color': None, 'link': None, 'value': 'Rinkimai 1'}),
+            ('_type', {'value': 'datasets/json/rinkimai'}),
+            ('_id', {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk}),
+            ('_revision', {'value': rev}),
+            ('id', {'value': '1'}),
+            ('pavadinimas', {'value': 'Rinkimai 1'}),
         ],
         'limit_enforced': False,
     }
@@ -414,14 +436,7 @@ def test_changes_single_object(app, mocker):
     resp = app.get(f'/datasets/json/rinkimai/{pk}/:changes', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
-    resp.context.pop('request')
-    change = [
-        {
-            k: v['value']
-            for k, v in zip(resp.context['header'], d)
-        }
-        for d in resp.context['data']
-    ]
+    change = _cleaned_context(resp)['data']
     assert _cleaned_context(resp, data=False) == {
         'location': [
             ('🏠', '/'),
@@ -449,24 +464,24 @@ def test_changes_single_object(app, mocker):
         ],
         'data': [
             [
-                {'color': None, 'link': None, 'value': change[0]['_id']},
-                {'color': None, 'link': None, 'value': rev2},
-                {'color': None, 'link': None, 'value': change[0]['_txn']},
-                {'color': None, 'link': None, 'value': change[0]['_created']},
-                {'color': None, 'link': None, 'value': 'upsert'},
-                {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': '#f5f5f5', 'link': None, 'value': '1'},
-                {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
+                {'value': change[0]['_id']},
+                {'value': rev2},
+                {'value': change[0]['_txn']},
+                {'value': change[0]['_created']},
+                {'value': 'upsert'},
+                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'color': '#f5f5f5', 'value': '1'},
+                {'color': '#B2E2AD', 'value': 'Rinkimai 2'},
             ],
             [
-                {'color': None, 'link': None, 'value': change[1]['_id']},
-                {'color': None, 'link': None, 'value': rev1},
-                {'color': None, 'link': None, 'value': change[1]['_txn']},
-                {'color': None, 'link': None, 'value': change[1]['_created']},
-                {'color': None, 'link': None, 'value': 'upsert'},
-                {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': '#B2E2AD', 'link': None, 'value': '1'},
-                {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 1'},
+                {'value': change[1]['_id']},
+                {'value': rev1},
+                {'value': change[1]['_txn']},
+                {'value': change[1]['_created']},
+                {'value': 'upsert'},
+                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'color': '#B2E2AD', 'value': '1'},
+                {'color': '#B2E2AD', 'value': 'Rinkimai 1'},
             ],
         ],
         'row': [],
@@ -501,14 +516,7 @@ def test_changes_object_list(app, mocker):
     resp = app.get('/datasets/json/rinkimai/:changes', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
-    resp.context.pop('request')
-    change = [
-        {
-            k: v['value']
-            for k, v in zip(resp.context['header'], d)
-        }
-        for d in resp.context['data']
-    ]
+    change = _cleaned_context(resp)['data']
     assert _cleaned_context(resp, data=False) == {
         'location': [
             ('🏠', '/'),
@@ -535,24 +543,24 @@ def test_changes_object_list(app, mocker):
         ],
         'data': [
             [
-                {'color': None, 'link': None, 'value': change[0]['_id']},
-                {'color': None, 'link': None, 'value': rev2},
-                {'color': None, 'link': None, 'value': change[0]['_txn']},
-                {'color': None, 'link': None, 'value': change[0]['_created']},
-                {'color': None, 'link': None, 'value': 'upsert'},
-                {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': '#f5f5f5', 'link': None, 'value': '1'},
-                {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 2'},
+                {'value': change[0]['_id']},
+                {'value': rev2},
+                {'value': change[0]['_txn']},
+                {'value': change[0]['_created']},
+                {'value': 'upsert'},
+                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'color': '#f5f5f5', 'value': '1'},
+                {'color': '#B2E2AD', 'value': 'Rinkimai 2'},
             ],
             [
-                {'color': None, 'link': None, 'value': change[1]['_id']},
-                {'color': None, 'link': None, 'value': rev1},
-                {'color': None, 'link': None, 'value': change[1]['_txn']},
-                {'color': None, 'link': None, 'value': change[1]['_created']},
-                {'color': None, 'link': None, 'value': 'upsert'},
-                {'color': None, 'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': '#B2E2AD', 'link': None, 'value': '1'},
-                {'color': '#B2E2AD', 'link': None, 'value': 'Rinkimai 1'},
+                {'value': change[1]['_id']},
+                {'value': rev1},
+                {'value': change[1]['_txn']},
+                {'value': change[1]['_created']},
+                {'value': 'upsert'},
+                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'color': '#B2E2AD', 'value': '1'},
+                {'color': '#B2E2AD', 'value': 'Rinkimai 1'},
             ],
         ],
         'row': [],
@@ -585,9 +593,8 @@ def test_count(app):
     resp = app.get('/datasets/json/rinkimai?count()', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
-    resp.context.pop('request')
-    assert resp.context['header'] == ['count()']
-    assert resp.context['data'] == [[{'color': None, 'link': None, 'value': 2}]]
+    context = _cleaned_context(resp)
+    assert context['data'] == [{'count()': 2}]
 
 
 @pytest.mark.models(

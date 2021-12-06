@@ -1,5 +1,8 @@
 import base64
 import hashlib
+from typing import Any
+from typing import Dict
+from typing import List
 from typing import Tuple
 
 import pytest
@@ -7,6 +10,7 @@ from _pytest.fixtures import FixtureRequest
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.formats.html.components import Cell
 from spinta.formats.html.helpers import CurrentLocation
 from spinta.formats.html.helpers import get_current_location
 from spinta.formats.html.helpers import short_id
@@ -268,6 +272,13 @@ def _prep_file_type(
     return app, _id
 
 
+def _table(data: List[List[Cell]]) -> List[List[Dict[str, Any]]]:
+    return [
+        [cell.as_dict() for cell in row]
+        for row in data
+    ]
+
+
 def test_file_type_list(
     postgresql: str,
     rc: RawConfig,
@@ -277,24 +288,27 @@ def test_file_type_list(
     resp = app.get('/example/html/file/Country', headers={
         'Accept': 'text/html',
     })
-    assert resp.context['data'] == [
+    assert _table(resp.context['data']) == [
         [
             {
-                'color': None,
                 'link': f'/example/html/file/Country/{_id}',
                 'value': short_id(_id),
             },
             {
-                'color': None,
-                'link': None,
                 'value': 'Lithuania',
             },
             {
-                'color': None,
                 'link': f'/example/html/file/Country/{_id}/flag',
                 'value': 'flag.png',
             },
         ]
+    ]
+
+
+def _row(row: List[Tuple[str, Cell]]) -> List[Tuple[str, Dict[str, Any]]]:
+    return [
+        (name, cell.as_dict())
+        for name, cell in row
     ]
 
 
@@ -307,16 +321,13 @@ def test_file_type_details(
     resp = app.get(f'/example/html/file/Country/{_id}', headers={
         'Accept': 'text/html',
     })
-    assert resp.context['row'][3:] == [
+    assert _row(resp.context['row'][3:]) == [
         ('name', {
-            'color': None,
-            'link': None,
             'value': 'Lithuania',
         }),
         ('flag', {
-            'color': None,
-            'link': f'/example/html/file/Country/{_id}/flag',
             'value': 'flag.png',
+            'link': f'/example/html/file/Country/{_id}/flag',
         }),
     ]
 
@@ -330,10 +341,9 @@ def test_file_type_changes(
     resp = app.get(f'/example/html/file/Country/:changes', headers={
         'Accept': 'text/html',
     })
-    assert resp.context['data'][0][6:] == [
+    assert _table(resp.context['data'])[0][6:] == [
         {
             'color': '#B2E2AD',
-            'link': None,
             'value': 'Lithuania',
         },
         {
@@ -353,10 +363,9 @@ def test_file_type_changes_single_object(
     resp = app.get(f'/example/html/file/Country/{_id}/:changes', headers={
         'Accept': 'text/html',
     })
-    assert resp.context['data'][0][6:] == [
+    assert _table(resp.context['data'])[0][6:] == [
         {
             'color': '#B2E2AD',
-            'link': None,
             'value': 'Lithuania',
         },
         {
@@ -376,16 +385,12 @@ def test_file_type_no_pk(
     resp = app.get('/example/html/file/Country?select(name, flag)', headers={
         'Accept': 'text/html',
     })
-    assert resp.context['data'] == [
+    assert _table(resp.context['data']) == [
         [
             {
-                'color': None,
-                'link': None,
                 'value': 'Lithuania',
             },
             {
-                'color': None,
-                'link': None,
                 'value': 'flag.png',
             },
         ]

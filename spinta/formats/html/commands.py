@@ -1,5 +1,7 @@
 from typing import Any
 from typing import Dict
+from typing import Iterator
+from typing import List
 from typing import Optional, Union
 
 import pkg_resources as pres
@@ -7,6 +9,7 @@ import pkg_resources as pres
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates
 
+from spinta.formats.html.components import Cell
 from spinta.formats.html.components import Html
 from spinta.formats.html.helpers import get_changes
 from spinta.formats.html.helpers import get_data
@@ -104,23 +107,24 @@ def _render_model(
     http_headers,
 ):
     header = []
+    rows: Iterator[List[Cell]]
+    data_: List[List[Cell]] = []
     row = []
 
     if model.type == 'model:ns' or params.ns:
-        data = get_ns_data(data)
-        header = next(data)
-        data = list(data)
+        rows = get_ns_data(data)
+        header = next(rows)
+        data_ = list(rows)
     elif action == Action.CHANGES:
-        data = get_changes(context, data, model, params)
-        header = next(data)
-        data = list(reversed(list(data)))
+        rows = get_changes(context, data, model, params)
+        header = next(rows)
+        data_ = list(reversed(list(rows)))
     elif action == Action.GETONE:
         row = list(get_row(context, data, model))
-        data = []
     elif action in (Action.GETALL, Action.SEARCH):
-        data = get_data(context, data, model, params, action)
-        header = next(data)
-        data = list(data)
+        rows = get_data(context, data, model, params, action)
+        header = next(rows)
+        data_ = list(rows)
 
     templates = Jinja2Templates(directory=pres.resource_filename('spinta', 'templates'))
     return templates.TemplateResponse(
@@ -129,7 +133,7 @@ def _render_model(
             **get_template_context(context, model, params),
             'request': request,
             'header': header,
-            'data': data,
+            'data': data_,
             'row': row,
             'formats': get_output_formats(params),
             'limit_enforced': params.limit_enforced,

@@ -5,10 +5,12 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Union
+from typing import cast
 
 import requests
 from pprintpp import pformat
 
+from spinta.formats.html.components import Cell
 from spinta.testing.client import TestClient
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten
@@ -70,10 +72,11 @@ def listdata(
         assert resp.status_code == 200, pformat(data)
         assert 'data' in data, pformat(data)
         assert 'header' in data, pformat(data)
-        keys = keys or [k for k in data['header'] if not k.startswith('_')]
+        header = [h.value for h in cast(List[Cell], data['header'])]
+        keys = keys or [k for k in header if not k.startswith('_')]
         data = [
-            {k: v['value'] for k, v in zip(data['header'], row)}
-            for row in data['data']
+            {k: v.value for k, v in zip(header, row)}
+            for row in cast(List[List[Cell]], data['data'])
         ]
 
     else:
