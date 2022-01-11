@@ -6,6 +6,11 @@ Changes
 0.1.24 (unreleased)
 ===================
 
+New features:
+
+- Add `--dry-run` option to `spinta push`. This will run whole push process,
+  but does not send data to the target location. Useful for testing push.
+
 
 0.1.23 (2021-11-18)
 ===================

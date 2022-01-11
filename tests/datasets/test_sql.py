@@ -521,7 +521,7 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, re
     result = cli.invoke(localrc, [
         'push',
         '-d', 'datasets/gov/example',
-        '-o', 'spinta+' + remote.url,
+        '-o', remote.url,
         '--credentials', remote.credsfile,
     ])
     assert result.exit_code == 0
@@ -574,6 +574,44 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, re
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
     ]
+
+
+def test_push_dry_run(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property| type   | ref     | source       | access
+    datasets/gov/example    |        |         |              |
+      | data                | sql    |         |              |
+      |   |                 |        |         |              |
+      |   |   | Country     |        | code    | salis        |
+      |   |   |   | code    | string |         | kodas        | open
+      |   |   |   | name    | string |         | pavadinimas  | open
+      |   |                 |        |         |              |
+      |   |   | City        |        | name    | miestas      |
+      |   |   |   | name    | string |         | pavadinimas  | open
+      |   |   |   | country | ref    | Country | salis        | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmpdir, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--dry-run',
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('datasets/gov/example/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/Country')
+    assert listdata(resp, 'code', 'name') == []
 
 
 def test_no_primary_key(rc, tmpdir, geodb):

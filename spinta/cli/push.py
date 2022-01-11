@@ -1,6 +1,7 @@
 import datetime
 import hashlib
 import textwrap
+import uuid
 
 import itertools
 import json
@@ -93,6 +94,10 @@ def push(
     mode: Mode = Option('external', help=(
         "Mode of backend operation, default: external"
     )),
+    dry_run: bool = Option(False, '--dry-run', help=(
+        "Read data to be pushed, but do not push or write data to the "
+        "destination."
+    )),
 ):
     """Push data to external data store"""
     if chunk_size:
@@ -171,9 +176,9 @@ def push(
         if stop_row:
             rows = itertools.islice(rows, stop_row)
 
-        rows = _push_to_remote_spinta(rows, creds, chunk_size)
+        rows = _push_to_remote_spinta(rows, creds, chunk_size, dry_run=dry_run)
 
-        if state:
+        if state and not dry_run:
             rows = _save_push_state(context, rows, metadata)
 
         while True:
@@ -187,7 +192,7 @@ def push(
 
 class _PushRow:
     model: Model
-    data: dict
+    data: Dict[str, Any]
     rev: Optional[str]
     saved: bool = False
 
@@ -223,6 +228,8 @@ def _push_to_remote_spinta(
     rows: Iterable[_PushRow],
     creds: RemoteClientCredentials,
     chunk_size: int,
+    *,
+    dry_run: bool = False,
 ) -> Iterator[_PushRow]:
     echo(f"Get access token from {creds.server}")
     token = get_access_token(creds)
@@ -241,14 +248,26 @@ def _push_to_remote_spinta(
         data = fix_data_for_json(row.data)
         data = json.dumps(data, ensure_ascii=False)
         if ready and len(chunk) + len(data) + slen > chunk_size:
-            yield from _send_and_receive(session, creds.server, ready, chunk + suffix)
+            yield from _send_and_receive(
+                session,
+                creds.server,
+                ready,
+                chunk + suffix,
+                dry_run=dry_run,
+            )
             chunk = prefix
             ready = []
         chunk += (',' if ready else '') + data
         ready.append(row)
 
     if ready:
-        yield from _send_and_receive(session, creds.server, ready, chunk + suffix)
+        yield from _send_and_receive(
+            session,
+            creds.server,
+            ready,
+            chunk + suffix,
+            dry_run=dry_run,
+        )
 
 
 def _get_row_for_error(rows: List[_PushRow]) -> str:
@@ -270,7 +289,34 @@ def _send_and_receive(
     target: str,
     rows: List[_PushRow],
     data: str,
-):
+    *,
+    dry_run: bool = False,
+) -> Iterator[_PushRow]:
+    if dry_run:
+        recv = _send_data_dry_run(data)
+    else:
+        recv = _send_data(session, target, rows, data)
+    yield from _map_sent_and_recv(rows, recv)
+
+
+def _send_data_dry_run(
+    data: str,
+) -> Optional[List[Dict[str, Any]]]:
+    """Pretend data has been sent to a target location."""
+    recv = json.loads(data)['_data']
+    for row in recv:
+        if '_id' not in row:
+            row['_id'] = str(uuid.uuid4())
+        row['_rev'] = str(uuid.uuid4())
+    return recv
+
+
+def _send_data(
+    session: requests.Session,
+    target: str,
+    rows: List[_PushRow],
+    data: str,
+) -> Optional[List[Dict[str, Any]]]:
     data = data.encode('utf-8')
 
     try:
@@ -300,16 +346,22 @@ def _send_and_receive(
         )
         return
 
-    data = resp.json()['_data']
+    return resp.json()['_data']
 
-    assert len(rows) == len(data), (
-        f"len(sent) = {len(rows)}, len(received) = {len(data)}"
+
+def _map_sent_and_recv(
+    sent: List[_PushRow],
+    recv: List[Dict[str, Any]],
+) -> Iterator[_PushRow]:
+    assert len(sent) == len(recv), (
+        f"len(sent) = {len(sent)}, len(received) = {len(recv)}"
     )
-    for sent, recv in zip(rows, data):
-        assert sent.data['_id'] == recv['_id'], (
-            f"sent._id = {sent.data['_id']}, received._id = {recv['_id']}"
+    for sent_row, recv_row in zip(sent, recv):
+        assert sent_row.data['_id'] == recv_row['_id'], (
+            f"sent._id = {sent_row.data['_id']}, "
+            f"received._id = {recv_row['_id']}"
         )
-        yield sent
+        yield sent_row
 
 
 def _add_stop_time(rows, stop):
