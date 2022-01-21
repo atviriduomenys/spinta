@@ -23,12 +23,35 @@
     {% endfor %}
 </p>
 
-{% if data %}
+{% if empty %}
+    <div>No data.</div>
+{% elif transpose %}
+    {% for row in data %}
+    <table class="table">
+        <tbody>
+        {% for title, cell in zip(header, row) %}
+            <tr>
+                <th>{{ title }}</th>
+                <td{% if cell.color %} style="background-color: {{ cell.color.value }}"{% endif %}>
+                    {% if column in ('id', 'type') %}
+                        <strong>{{ cell.value }}</strong>
+                    {% elif cell.link %}
+                        <a href="{{ cell.link }}">{{ cell.value }}</a>
+                    {% else %}
+                        {{ cell.value }}
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endfor %}
+{% else %}
     <table class="table">
         <thead>
         <tr>
             {% for cell in header %}
-                <th>{{ cell.value }}</th>
+                <th>{{ cell }}</th>
             {% endfor %}
         </tr>
         </thead>
@@ -49,30 +72,9 @@
         </tbody>
     </table>
 
-    {% if limit_enforced and data|length >= 100 %}
-        <p>Number of rows is limited up to 100 rows.</p>
+    {% if not data.exhausted %}
+        <p>Number of rows is limited up to {{ data.limit }} rows.</p>
     {% endif %}
-{% endif %}
-
-{% if row %}
-    <table class="table">
-        <tbody>
-        {% for column, cell in row %}
-            <tr>
-                <th>{{ column }}</th>
-                <td{% if cell.color %} style="background-color: {{ cell.color.value }}"{% endif %}>
-                    {% if column in ('id', 'type') %}
-                        <strong>{{ cell.value }}</strong>
-                    {% elif cell.link %}
-                        <a href="{{ cell.link }}">{{ cell.value }}</a>
-                    {% else %}
-                        {{ cell.value }}
-                    {% endif %}
-                </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
 {% endif %}
 
 {% endblock %}

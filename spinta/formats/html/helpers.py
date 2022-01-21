@@ -7,12 +7,6 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import TypedDict
-from typing import Union
-
-from starlette.exceptions import HTTPException
-
-from spinta.auth import authorized
-from spinta.components import Action
 
 from spinta.components import Config
 from spinta.components import Context
@@ -23,10 +17,8 @@ from spinta.components import UrlParams
 from spinta.formats.html.components import Cell
 from spinta.formats.html.components import Color
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Ref
-from spinta.utils.nestedstruct import flatten
 from spinta.utils.url import build_url_path
 
 CurrentLocation = List[Tuple[
@@ -57,7 +49,7 @@ def get_current_location(
     loc: CurrentLocation = [('🏠', '/')]
     loc += [(p.title, p.link) for p in parts]
 
-    if model.type == 'model:ns':
+    if model.name == '_ns':
         if last is not None:
             loc += [(last.title, None)]
 
@@ -84,83 +76,6 @@ def get_current_location(
             loc += [('Changes', get_model_link(model, pk=pk, changes=[]))]
 
     return loc
-
-
-def get_changes(
-    context: Context,
-    rows,
-    model: Model,
-    params: UrlParams,
-) -> Iterator[List[Cell]]:
-    props = [
-        p for p in model.properties.values() if (
-            not p.name.startswith('_')
-        )
-    ]
-
-    header = (
-        ['_id', '_revision', '_txn', '_created', '_op', '_rid'] +
-        [prop.name for prop in props if prop.name != 'revision']
-    )
-
-    yield [Cell(h) for h in header]
-
-    # XXX: With large change sets this will consume a lot of memmory.
-    current = {}
-    for data in rows:
-        pk = data['_rid']
-        if pk not in current:
-            current[pk] = {}
-        current[pk].update({
-            k: v for k, v in data.items() if not k.startswith('_')
-        })
-        row = [
-            Cell(data['_id']),
-            Cell(data['_revision']),
-            Cell(data['_txn']),
-            Cell(data['_created']),
-            Cell(data['_op']),
-            get_cell(context, model.properties['_id'], pk, data, '_rid', shorten=True),
-        ]
-        for prop in props:
-            if prop.name in data:
-                color = Color.change
-            elif prop.name not in current:
-                color = Color.null
-            else:
-                color = None
-            cell = get_cell(
-                context,
-                prop,
-                pk,
-                current[pk],
-                prop.name,
-                shorten=True,
-                color=color,
-            )
-            row.append(cell)
-        yield row
-
-
-def get_row(context: Context, row, model: Model) -> Iterator[Tuple[str, Cell]]:
-    if row is None:
-        raise HTTPException(status_code=404)
-    include = {'_type', '_id', '_revision'}
-    pk = row['_id']
-    for prop in model.properties.values():
-        if (
-            not prop.hidden and
-            # TODO: object and array are not supported yet
-            prop.dtype.name not in ('object', 'array') and
-            (prop.name in include or not prop.name.startswith('_'))
-        ):
-            yield prop.name, get_cell(
-                context,
-                prop,
-                pk,
-                row,
-                prop.name,
-            )
 
 
 def short_id(value: str) -> str:
@@ -246,100 +161,6 @@ def get_ns_data(rows) -> Iterator[List[Cell]]:
             Cell(f'{icon} {title}{suffix}', link='/' + row['_id']),
             Cell(row['description']),
         ]
-
-
-def get_data(
-    context: Context,
-    rows,
-    model: Model,
-    params: UrlParams,
-    action: Action,
-) -> Iterator[List[Cell]]:
-    # XXX: For things like aggregations, a dynamic model should be created with
-    #      all the properties coming from aggregates.
-    if params.count:
-        prop = Property()
-        prop.dtype = DataType()
-        prop.dtype.name = 'string'
-        prop.name = 'count()'
-        prop.ref = None
-        prop.model = model
-        props = [prop]
-        header = ['count()']
-    else:
-        if params.select:
-            header = [_expr_to_name(x) for x in params.select]
-            props = _get_props_from_select(context, model, header)
-        else:
-            include = {'_id'}
-            props = [
-                p for p in model.properties.values() if (
-                    authorized(context, p, action) and
-                    not p.hidden and
-                    # TODO: object and array are not supported yet
-                    p.dtype.name not in ('object', 'array') and
-                    (p.name in include or not p.name.startswith('_'))
-                )
-            ]
-            header = [p.name for p in props]
-
-    yield [Cell(h) for h in header]
-
-    for data in flatten(rows):
-        row = []
-        pk = data.get('_id')
-        for name, prop in zip(header, props):
-            row.append(get_cell(context, prop, pk, data, name, shorten=True))
-        yield row
-
-
-def _get_props_from_select(
-    context: Context,
-    model: Model,
-    select: List[str],
-) -> List[Property]:
-    props = []
-    for node in select:
-        name = _expr_to_name(node)
-        if name in model.flatprops:
-            prop = model.flatprops[name]
-        else:
-            parts = name.split('.')
-            prop = _find_linked_prop(context, model, parts[0], parts[1:])
-        props.append(prop)
-    return props
-
-
-def _expr_to_name(node) -> str:
-    if not isinstance(node, dict):
-        return node
-
-    name = node['name']
-
-    if name == 'bind':
-        return node['args'][0]
-
-    if name == 'getattr':
-        obj, key = node['args']
-        return _expr_to_name(obj) + '.' + _expr_to_name(key)
-
-    raise Exception(f"Unknown node {node!r}.")
-
-
-def _find_linked_prop(
-    context: Context,
-    model: Model,
-    name: str,
-    parts: List[str],
-) -> Union[Property, None]:
-    # TODO: Add support for nested properties, now only references are
-    #       supported.
-    prop = model.properties.get(name)
-    if parts and prop and isinstance(prop.dtype, Ref):
-        model = prop.dtype.model
-        return _find_linked_prop(context, model, parts[0], parts[1:])
-    else:
-        return prop
 
 
 class _ParsedNode(TypedDict):

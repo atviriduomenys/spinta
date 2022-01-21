@@ -6,10 +6,30 @@ Changes
 0.1.24 (unreleased)
 ===================
 
+Backwards incompatible changes:
+
+- Some reserved properties were changed in `:changes` endpoint:
+
+  - `_id` -> `_cid`
+  - `_rid` -> `_id`
+
+- `_id` -> `name` was renamed in `:ns` endpoint.
+
+- In `:ns` endpoint `title` is no longer populated with `name` and is empty if
+  not explicitly specified.
+
 New features:
 
 - Add `--dry-run` option to `spinta push`. This will run whole push process,
   but does not send data to the target location. Useful for testing push.
+
+- Add `--stop-on-error` option to `spinta push`. This will stop push process
+  when first error is encountered.
+
+Refactoring:
+
+- Exporting data to variuos formats and specifically HTML format was heavilly
+  refactored. HTML format is mostly rewritten.
 
 
 0.1.23 (2021-11-18)

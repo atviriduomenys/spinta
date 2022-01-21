@@ -20,8 +20,8 @@ from spinta import commands
 from spinta import exceptions
 from spinta.accesslog import AccessLog
 from spinta.auth import check_scope
-from spinta.backends import get_select_prop_names
-from spinta.backends import get_select_tree
+from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render

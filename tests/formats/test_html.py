@@ -10,6 +10,8 @@ from _pytest.fixtures import FixtureRequest
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.components import Store
+from spinta.formats.html.commands import _LimitIter
 from spinta.formats.html.components import Cell
 from spinta.formats.html.helpers import CurrentLocation
 from spinta.formats.html.helpers import get_current_location
@@ -21,9 +23,10 @@ from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.core.config import RawConfig
 from spinta.testing.client import TestClient
+from spinta.testing.client import TestClientResponse
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
-from spinta.types.namespace import get_ns_model
+from spinta.utils.data import take
 
 
 def _get_data_table(context: dict):
@@ -99,7 +102,8 @@ def _get_current_loc(context: Context, path: str):
     })
     params = commands.prepare(context, UrlParams(), Version(), request)
     if isinstance(params.model, Namespace):
-        model = get_ns_model(context, params.model)
+        store: Store = context.get('store')
+        model = store.manifest.models['_ns']
     else:
         model = params.model
     config: Config = context.get('config')
@@ -279,6 +283,16 @@ def _table(data: List[List[Cell]]) -> List[List[Dict[str, Any]]]:
     ]
 
 
+def _table_with_header(
+    resp: TestClientResponse,
+) -> List[Dict[str, Dict[str, Any]]]:
+    header = resp.context['header']
+    return [
+        {key: cell.as_dict() for key, cell in zip(header, row)}
+        for row in resp.context['data']
+    ]
+
+
 def test_file_type_list(
     postgresql: str,
     rc: RawConfig,
@@ -321,14 +335,14 @@ def test_file_type_details(
     resp = app.get(f'/example/html/file/Country/{_id}', headers={
         'Accept': 'text/html',
     })
-    assert _row(resp.context['row'][3:]) == [
-        ('name', {
-            'value': 'Lithuania',
-        }),
-        ('flag', {
-            'value': 'flag.png',
-            'link': f'/example/html/file/Country/{_id}/flag',
-        }),
+    assert list(map(take, _table_with_header(resp))) == [
+        {
+            'name': {'value': 'Lithuania'},
+            'flag': {
+                'value': 'flag.png',
+                'link': f'/example/html/file/Country/{_id}/flag',
+            },
+        },
     ]
 
 
@@ -343,11 +357,9 @@ def test_file_type_changes(
     })
     assert _table(resp.context['data'])[0][6:] == [
         {
-            'color': '#B2E2AD',
             'value': 'Lithuania',
         },
         {
-            'color': '#B2E2AD',
             'link': f'/example/html/file/Country/{_id}/flag',
             'value': 'flag.png',
         },
@@ -365,13 +377,11 @@ def test_file_type_changes_single_object(
     })
     assert _table(resp.context['data'])[0][6:] == [
         {
-            'color': '#B2E2AD',
             'value': 'Lithuania',
         },
         {
-            'color': '#B2E2AD',
-            'link': f'/example/html/file/Country/{_id}/flag',
             'value': 'flag.png',
+            'link': f'/example/html/file/Country/{_id}/flag',
         },
     ]
 
@@ -392,6 +402,21 @@ def test_file_type_no_pk(
             },
             {
                 'value': 'flag.png',
+                'link': f'/example/html/file/Country/{_id}/flag',
             },
         ]
     ]
+
+
+@pytest.mark.parametrize('limit, exhausted, result', [
+    (0, False, []),
+    (1, False, [1]),
+    (2, False, [1, 2]),
+    (3, True, [1, 2, 3]),
+    (4, True, [1, 2, 3]),
+    (5, True, [1, 2, 3]),
+])
+def test_limit_iter(limit, exhausted, result):
+    it = _LimitIter(limit, iter([1, 2, 3]))
+    assert list(it) == result
+    assert it.exhausted is exhausted

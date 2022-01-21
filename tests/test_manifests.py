@@ -75,6 +75,9 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmpdir, request)
                 '_schema': None,
             },
             'model': {
+                '_ns': {
+                    'backend': 'default',
+                },
                 '_schema': {
                     'backend': 'default',
                 },

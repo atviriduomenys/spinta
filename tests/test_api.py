@@ -8,6 +8,7 @@ from typing import cast
 import pytest
 
 from spinta.formats.html.components import Cell
+from spinta.formats.html.helpers import short_id
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import get_html_tree
@@ -21,9 +22,6 @@ def _cleaned_context(
     data: bool = True,
 ) -> Dict[str, Any]:
     context = resp.context.copy()
-    if 'header' in context:
-        header = [h.value for h in cast(List[Cell], resp.context['header'])]
-        context['header'] = header
     if 'data' in context:
         context['data'] = [
             [cell.as_dict() for cell in row]
@@ -72,26 +70,26 @@ def test_app(app):
         'location': [
             ('🏠', '/'),
         ],
-        'header': ['title', 'description'],
+        'empty': False,
+        'header': ['name', 'title', 'description'],
         'data': data['data'],
-        'row': [],
         'formats': [
             ('CSV', '/:format/csv'),
             ('JSON', '/:format/json'),
             ('JSONL', '/:format/jsonl'),
             ('ASCII', '/:format/ascii'),
         ],
-        'limit_enforced': True,
     }
-    assert next(d for d in data['data'] if d['title'] == '📄 Country') == {
-        'title': '📄 Country',
-        'description': None,
+    assert next(d for d in data['data'] if d['title'] == 'Country') == {
+        'name': '📄 country',
+        'title': 'Country',
+        'description': '',
     }
 
     html = get_html_tree(resp)
     rows = html.cssselect('table.table tr td:nth-child(1)')
     rows = [row.text_content().strip() for row in rows]
-    assert '📄 Country' in rows
+    assert '📄 country' in rows
     assert '📁 datasets/' in rows
 
 
@@ -101,28 +99,43 @@ def test_directory(app):
     assert resp.status_code == 200
 
     resp.context.pop('request')
-    assert _cleaned_context(resp) == {
+    assert _cleaned_context(resp, data=False) == {
         'location': [
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('xlsx', '/datasets/xlsx'),
             ('rinkimai', None),
         ],
-        'header': ['title', 'description'],
+        'empty': False,
+        'header': ['name', 'title', 'description'],
         'data': [
-            {'title': '📄 apygarda', 'description': None},
-            {'title': '📄 apylinke', 'description': None},
-            {'title': '📄 kandidatas', 'description': None},
-            {'title': '📄 turas', 'description': None},
+            [
+                {'value': '📄 apygarda', 'link': '/datasets/xlsx/rinkimai/apygarda'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
+            ],
+            [
+                {'value': '📄 apylinke', 'link': '/datasets/xlsx/rinkimai/apylinke'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
+            ],
+            [
+                {'value': '📄 kandidatas', 'link': '/datasets/xlsx/rinkimai/kandidatas'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
+            ],
+            [
+                {'value': '📄 turas', 'link': '/datasets/xlsx/rinkimai/turas'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
+            ]
         ],
-        'row': [],
         'formats': [
             ('CSV', '/datasets/xlsx/rinkimai/:ns/:format/csv'),
             ('JSON', '/datasets/xlsx/rinkimai/:ns/:format/json'),
             ('JSONL', '/datasets/xlsx/rinkimai/:ns/:format/jsonl'),
             ('ASCII', '/datasets/xlsx/rinkimai/:ns/:format/ascii'),
         ],
-        'limit_enforced': True,
     }
 
 
@@ -156,6 +169,7 @@ def test_model(model, context, app):
             ('Report', None),
             ('Changes', f"/{model}/:changes"),
         ],
+        'empty': False,
         'header': [
             '_id',
             'report_type',
@@ -163,6 +177,13 @@ def test_model(model, context, app):
             'valid_from_date',
             'update_time',
             'count',
+            'notes[].note',
+            'notes[].note_type',
+            'notes[].create_date',
+            'operating_licenses[].license_types[]',
+            'sync.sync_revision',
+            'sync.sync_resources[].sync_id',
+            'sync.sync_resources[].sync_source',
         ],
         'data': [
             [
@@ -172,16 +193,21 @@ def test_model(model, context, app):
                 {'value': '', 'color': '#f5f5f5'},
                 {'value': '', 'color': '#f5f5f5'},
                 {'value': 42},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': '', 'color': '#f5f5f5'},
             ],
         ],
-        'row': [],
         'formats': [
             ('CSV', f'/{model}/:format/csv'),
             ('JSON', f'/{model}/:format/json'),
             ('JSONL', f'/{model}/:format/jsonl'),
             ('ASCII', f'/{model}/:format/ascii'),
         ],
-        'limit_enforced': True,
     }
 
 
@@ -201,7 +227,8 @@ def test_model_get(model, app):
     ]})
     row, = resp.json()['_data']
 
-    resp = app.get(f'/{model}/%s' % row['_id'], headers={'accept': 'text/html'})
+    _id = row['_id']
+    resp = app.get(f'/{model}/{_id}', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     resp.context.pop('request')
@@ -212,28 +239,52 @@ def test_model_get(model, app):
             ('backends', '/backends'),
             (backend, f'/backends/{backend}'),
             ('Report', f'/{model}'),
-            (row['_id'][:8], None),
-            ('Changes', f'/{model}/%s/:changes' % row['_id']),
+            (_id[:8], None),
+            ('Changes', f'/{model}/%s/:changes' % _id),
         ],
-        'header': [],
-        'data': [],
-        'row': [
-            ('_type', {'value': model}),
-            ('_id', {'link': f'/{model}/%s' % row['_id'], 'value': row['_id']}),
-            ('_revision', {'value': row['_revision']}),
-            ('report_type', {'color': '#f5f5f5', 'value': ''}),
-            ('status', {'value': 'ok'}),
-            ('valid_from_date', {'color': '#f5f5f5', 'value': ''}),
-            ('update_time', {'color': '#f5f5f5', 'value': ''}),
-            ('count', {'value': 42}),
+        'header': [
+            '_type',
+            '_id',
+            '_revision',
+            'report_type',
+            'status',
+            'valid_from_date',
+            'update_time',
+            'count',
+            'notes[].note',
+            'notes[].note_type',
+            'notes[].create_date',
+            'operating_licenses[].license_types[]',
+            'sync.sync_revision',
+            'sync.sync_resources[].sync_id',
+            'sync.sync_resources[].sync_source',
         ],
+        'data': [
+            {
+                '_type': model,
+                '_id': short_id(_id),
+                '_revision': row['_revision'],
+                'count': 42,
+                'notes[].note': '',
+                'notes[].note_type': '',
+                'notes[].create_date': '',
+                'operating_licenses[].license_types[]': '',
+                'report_type': '',
+                'status': 'ok',
+                'sync.sync_resources[].sync_id': '',
+                'sync.sync_resources[].sync_source': '',
+                'sync.sync_revision': '',
+                'update_time': '',
+                'valid_from_date': '',
+            }
+        ],
+        'empty': False,
         'formats': [
             ('CSV', f'/{model}/%s/:format/csv' % row['_id']),
             ('JSON', f'/{model}/%s/:format/json' % row['_id']),
             ('JSONL', f'/{model}/%s/:format/jsonl' % row['_id']),
             ('ASCII', f'/{model}/%s/:format/ascii' % row['_id']),
         ],
-        'limit_enforced': False,
     }
 
 
@@ -260,6 +311,7 @@ def test_dataset(app):
             ('Changes', '/datasets/json/rinkimai/:changes'),
         ],
         'header': ['_id', 'id', 'pavadinimas'],
+        'empty': False,
         'data': [
             [
                 {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
@@ -267,14 +319,12 @@ def test_dataset(app):
                 {'value': 'Rinkimai 1'},
             ],
         ],
-        'row': [],
         'formats': [
             ('CSV', '/datasets/json/rinkimai/:format/csv'),
             ('JSON', '/datasets/json/rinkimai/:format/json'),
             ('JSONL', '/datasets/json/rinkimai/:format/jsonl'),
             ('ASCII', '/datasets/json/rinkimai/:format/ascii'),
         ],
-        'limit_enforced': True,
     }
 
 
@@ -344,20 +394,19 @@ def test_nested_dataset(app):
             ('Changes', '/datasets/nested/dataset/name/model/:changes'),
         ],
         'header': ['_id', 'name'],
+        'empty': False,
         'data': [
             [
                 {'link': f'/datasets/nested/dataset/name/model/{pk}', 'value': pk[:8]},
                 {'value': 'Nested One'},
             ],
         ],
-        'row': [],
         'formats': [
             ('CSV', '/datasets/nested/dataset/name/model/:format/csv'),
             ('JSON', '/datasets/nested/dataset/name/model/:format/json'),
             ('JSONL', '/datasets/nested/dataset/name/model/:format/jsonl'),
             ('ASCII', '/datasets/nested/dataset/name/model/:format/ascii'),
         ],
-        'limit_enforced': True,
     }
 
 
@@ -382,7 +431,7 @@ def test_dataset_key(app):
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
             ('rinkimai', '/datasets/json/rinkimai'),
-            (pk[:8], None),
+            (short_id(pk), None),
             ('Changes', f'/datasets/json/rinkimai/{pk}/:changes'),
         ],
         'formats': [
@@ -391,20 +440,25 @@ def test_dataset_key(app):
             ('JSONL', f'/datasets/json/rinkimai/{pk}/:format/jsonl'),
             ('ASCII', f'/datasets/json/rinkimai/{pk}/:format/ascii'),
         ],
-        'header': [],
-        'data': [],
-        'row': [
-            ('_type', {'value': 'datasets/json/rinkimai'}),
-            ('_id', {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk}),
-            ('_revision', {'value': rev}),
-            ('id', {'value': '1'}),
-            ('pavadinimas', {'value': 'Rinkimai 1'}),
+        'header': [
+            '_type',
+            '_id',
+            '_revision',
+            'id',
+            'pavadinimas',
         ],
-        'limit_enforced': False,
+        'empty': False,
+        'data': [[
+            {'value': 'datasets/json/rinkimai'},
+            {'value': short_id(pk), 'link': f'/datasets/json/rinkimai/{pk}'},
+            {'value': rev},
+            {'value': '1'},
+            {'value': 'Rinkimai 1'},
+        ]],
     }
 
 
-def test_changes_single_object(app, mocker):
+def test_changes_single_object(app: TestClient, mocker):
     app.authmodel('datasets/json/rinkimai', ['upsert', 'changes'])
     resp = app.post('/datasets/json/rinkimai', json={
         '_op': 'upsert',
@@ -433,7 +487,9 @@ def test_changes_single_object(app, mocker):
         'pavadinimas': 'Rinkimai 2',
     }
 
-    resp = app.get(f'/datasets/json/rinkimai/{pk}/:changes', headers={'accept': 'text/html'})
+    resp = app.get(f'/datasets/json/rinkimai/{pk}/:changes', headers={
+        'accept': 'text/html',
+    })
     assert resp.status_code == 200
 
     change = _cleaned_context(resp)['data']
@@ -443,7 +499,7 @@ def test_changes_single_object(app, mocker):
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
             ('rinkimai', '/datasets/json/rinkimai'),
-            (pk[:8], f'/datasets/json/rinkimai/{pk}'),
+            (short_id(pk), f'/datasets/json/rinkimai/{pk}'),
             ('Changes', None),
         ],
         'formats': [
@@ -453,39 +509,38 @@ def test_changes_single_object(app, mocker):
             ('ASCII', f'/datasets/json/rinkimai/{pk}/:changes/:format/ascii'),
         ],
         'header': [
-            '_id',
-            '_revision',
-            '_txn',
+            '_cid',
             '_created',
             '_op',
-            '_rid',
+            '_id',
+            '_txn',
+            '_revision',
             'id',
             'pavadinimas',
         ],
+        'empty': False,
         'data': [
             [
-                {'value': change[0]['_id']},
-                {'value': rev2},
-                {'value': change[0]['_txn']},
+                {'value': change[0]['_cid']},
                 {'value': change[0]['_created']},
                 {'value': 'upsert'},
-                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': '#f5f5f5', 'value': '1'},
-                {'color': '#B2E2AD', 'value': 'Rinkimai 2'},
+                {'value': short_id(pk), 'link': f'/datasets/json/rinkimai/{pk}'},
+                {'value': change[0]['_txn']},
+                {'value': rev2},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': 'Rinkimai 2'},
             ],
             [
-                {'value': change[1]['_id']},
-                {'value': rev1},
-                {'value': change[1]['_txn']},
+                {'value': change[1]['_cid']},
                 {'value': change[1]['_created']},
                 {'value': 'upsert'},
-                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': '#B2E2AD', 'value': '1'},
-                {'color': '#B2E2AD', 'value': 'Rinkimai 1'},
+                {'value': short_id(pk), 'link': f'/datasets/json/rinkimai/{pk}'},
+                {'value': change[1]['_txn']},
+                {'value': rev1},
+                {'value': '1'},
+                {'value': 'Rinkimai 1'},
             ],
         ],
-        'row': [],
-        'limit_enforced': True,
     }
 
 
@@ -532,39 +587,38 @@ def test_changes_object_list(app, mocker):
             ('ASCII', '/datasets/json/rinkimai/:changes/:format/ascii'),
         ],
         'header': [
-            '_id',
-            '_revision',
-            '_txn',
+            '_cid',
             '_created',
             '_op',
-            '_rid',
+            '_id',
+            '_txn',
+            '_revision',
             'id',
             'pavadinimas',
         ],
+        'empty': False,
         'data': [
             [
-                {'value': change[0]['_id']},
-                {'value': rev2},
-                {'value': change[0]['_txn']},
+                {'value': change[0]['_cid']},
                 {'value': change[0]['_created']},
                 {'value': 'upsert'},
                 {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': '#f5f5f5', 'value': '1'},
-                {'color': '#B2E2AD', 'value': 'Rinkimai 2'},
+                {'value': change[0]['_txn']},
+                {'value': rev2},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': 'Rinkimai 2'},
             ],
             [
-                {'value': change[1]['_id']},
-                {'value': rev1},
-                {'value': change[1]['_txn']},
+                {'value': change[1]['_cid']},
                 {'value': change[1]['_created']},
                 {'value': 'upsert'},
                 {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'color': '#B2E2AD', 'value': '1'},
-                {'color': '#B2E2AD', 'value': 'Rinkimai 1'},
+                {'value': change[1]['_txn']},
+                {'value': rev1},
+                {'value': '1'},
+                {'value': 'Rinkimai 1'},
             ],
         ],
-        'row': [],
-        'limit_enforced': True,
     }
 
 

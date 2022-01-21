@@ -44,7 +44,7 @@ def take(keys, *args):
         key = True
         keys = [keys]
 
-    if not isinstance(keys, list):
+    if not isinstance(keys, (list, tuple)):
         args = (keys,) + args
         keys = []
 

@@ -170,7 +170,12 @@ def load_node(
         return node
 
 
-def load_model_properties(context: Context, model: Node, Prop: Type[Node], data: Optional[dict]) -> None:
+def load_model_properties(
+    context: Context,
+    model: Node,
+    Prop: Type[Node],
+    data: Optional[dict],
+) -> None:
     data = data or {}
 
     # Add build-in properties.
@@ -179,7 +184,9 @@ def load_model_properties(context: Context, model: Node, Prop: Type[Node], data:
         '_type': {'type': 'string'},
         '_id': {'type': 'pk', 'unique': True},
         '_revision': {'type': 'string'},
-        '_transaction': {'type': 'integer'},
+        '_txn': {'type': 'string'},
+        '_cid': {'type': 'integer'},
+        '_created': {'type': 'datetime'},
         '_where': {'type': 'rql'},
         **data,
     }

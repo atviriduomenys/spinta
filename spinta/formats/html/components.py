@@ -2,7 +2,9 @@ import dataclasses
 from enum import Enum
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Optional
+from typing import Union
 
 from spinta.formats.components import Format
 
@@ -38,3 +40,12 @@ class Cell:
             for k, v in data.items()
             if k == 'value' or v is not None
         }
+
+
+ComplexCell = Union[
+    Cell,
+    Dict[str, 'ComplexCell'],
+    List['ComplexCell'],
+]
+
+

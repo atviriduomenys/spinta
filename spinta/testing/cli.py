@@ -61,6 +61,6 @@ class SpintaCliRunner(CliRunner):
             cmd = ' '.join(['spinta'] + (args or []))
             pytest.fail(f"Command `{cmd}` failed, exit code {result.exit_code}.")
         else:
-            if result.stderr:
+            if result.stderr_bytes is not None and result.stderr:
                 print(result.stderr, file=sys.stderr)
         return result

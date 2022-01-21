@@ -2,10 +2,7 @@ from types import AsyncGeneratorType
 
 import sqlalchemy as sa
 
-from starlette.requests import Request
-
 from spinta import commands
-from spinta.renderer import render
 from spinta.utils.json import fix_data_for_json
 from spinta.components import Context, Action, UrlParams, Model, Property
 from spinta.backends.postgresql.constants import TableType
@@ -43,29 +40,7 @@ async def create_changelog_entry(
         yield data
 
 
-@commands.changes.register()
-async def changes(
-    context: Context,
-    request: Request,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-):
-    commands.authorize(context, action, model)
-    data = changes(context, model, backend, id_=params.pk, limit=params.limit, offset=params.offset)
-    data = (
-        {
-            **row,
-            '_created': row['_created'].isoformat(),
-        }
-        for row in data
-    )
-    return render(context, request, model, params, data, action=action)
-
-
-@changes.register()
+@commands.changes.register(Context, Model, PostgreSQL)
 def changes(
     context: Context,
     model: Model,
@@ -78,7 +53,7 @@ def changes(
     connection = context.get('transaction').connection
     table = backend.get_table(model, TableType.CHANGELOG)
 
-    qry = sa.select([table]).order_by(table.c._id)
+    qry = sa.select([table]).order_by(table.c['_id'].desc())
     qry = _changes_id(table, qry, id_)
     qry = _changes_offset(table, qry, offset)
     qry = _changes_limit(qry, limit)
@@ -86,13 +61,13 @@ def changes(
     result = connection.execute(qry)
     for row in result:
         yield {
-            '_id': row[table.c._id],
-            '_revision': row[table.c._revision],
-            '_txn': row[table.c._txn],
-            '_rid': row[table.c._rid],
-            '_created': row[table.c.datetime],
-            '_op': row[table.c.action],
-            **dict(row[table.c.data]),
+            '_cid': row[table.c['_id']],
+            '_created': row[table.c['datetime']],
+            '_op': row[table.c['action']],
+            '_id': row[table.c['_rid']],
+            '_txn': row[table.c['_txn']],
+            '_revision': row[table.c['_revision']],
+            **dict(row[table.c['data']]),
         }
 
 

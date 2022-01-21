@@ -676,12 +676,13 @@ class UrlParams:
     format: Optional[str] = None
     formatparams: dict
 
-    select: Optional[List[dict]] = None
+    select: Optional[List[str]] = None
     sort: List[dict] = None
     limit: Optional[int] = None
     offset: Optional[int] = None
-    # Limit can be enforced even it is is not explicitly given in URL.
+    # Limit can be enforced even if it is not explicitly given in URL.
     limit_enforced: bool = False
+    limit_enforced_to: int = 100
     # XXX: Deprecated, count should be part of `select`.
     count: bool = False
     # In batch requests, return summary of what was done.

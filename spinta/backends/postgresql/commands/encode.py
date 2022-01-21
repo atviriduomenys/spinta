@@ -6,7 +6,7 @@ from typing import Union
 from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
-from spinta.backends import SelectTree
+from spinta.backends.components import SelectTree
 from spinta.formats.components import Format
 from spinta.components import Context, Model, Action
 from spinta.types.datatype import Date, DateTime

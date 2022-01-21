@@ -4,13 +4,12 @@ from typing import Any
 from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
-from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
+from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
@@ -21,6 +20,7 @@ from spinta.exceptions import ValueNotInEnum
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.ufuncs.helpers import merge_formulas
+from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
 
 log = logging.getLogger(__name__)

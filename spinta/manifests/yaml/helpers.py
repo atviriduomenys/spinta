@@ -15,6 +15,7 @@ from ruamel.yaml.scalarstring import walk_tree
 
 from spinta import spyna
 from spinta import exceptions
+from spinta.exceptions import InvalidManifestFile
 from spinta.manifests.yaml.components import InlineManifest
 from spinta.utils.itertools import last
 from spinta.utils.path import is_ignored
@@ -65,6 +66,11 @@ def read_schema_versions(path: pathlib.Path):
             schema['id'] = current['id']
         elif 'id' in schema:
             del schema['id']
+        if 'id' not in version:
+            raise InvalidManifestFile(
+                eid=path,
+                error="Version id is not specified.",
+            )
         schema['version'] = version['id']
         yield {
             **version,

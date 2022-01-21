@@ -98,6 +98,9 @@ def push(
         "Read data to be pushed, but do not push or write data to the "
         "destination."
     )),
+    stop_on_error: bool = Option(False, '--stop-on-error', help=(
+        "Exit immediately on first error."
+    ))
 ):
     """Push data to external data store"""
     if chunk_size:
@@ -156,13 +159,24 @@ def push(
         models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
-        counts = count_rows(context, models, limit)
+        counts = count_rows(
+            context,
+            models,
+            limit,
+            stop_on_error=stop_on_error,
+        )
 
         if state:
             engine, metadata = _init_push_state(state, models)
             context.attach('push.state.conn', engine.begin)
 
-        rows = iter_model_rows(context, models, counts, limit)
+        rows = iter_model_rows(
+            context,
+            models,
+            counts,
+            limit,
+            stop_on_error=stop_on_error,
+        )
         rows = _prepare_rows_for_push(rows)
 
         rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
@@ -187,6 +201,8 @@ def push(
             except StopIteration:
                 break
             except:
+                if stop_on_error:
+                    raise
                 log.exception("Error while reading data.")
 
 
@@ -230,6 +246,7 @@ def _push_to_remote_spinta(
     chunk_size: int,
     *,
     dry_run: bool = False,
+    stop_on_error: bool = False,
 ) -> Iterator[_PushRow]:
     echo(f"Get access token from {creds.server}")
     token = get_access_token(creds)
@@ -254,6 +271,7 @@ def _push_to_remote_spinta(
                 ready,
                 chunk + suffix,
                 dry_run=dry_run,
+                stop_on_error=stop_on_error,
             )
             chunk = prefix
             ready = []
@@ -267,6 +285,7 @@ def _push_to_remote_spinta(
             ready,
             chunk + suffix,
             dry_run=dry_run,
+            stop_on_error=stop_on_error,
         )
 
 
@@ -291,11 +310,18 @@ def _send_and_receive(
     data: str,
     *,
     dry_run: bool = False,
+    stop_on_error: bool = False,
 ) -> Iterator[_PushRow]:
     if dry_run:
         recv = _send_data_dry_run(data)
     else:
-        recv = _send_data(session, target, rows, data)
+        recv = _send_data(
+            session,
+            target,
+            rows,
+            data,
+            stop_on_error=stop_on_error,
+        )
     yield from _map_sent_and_recv(rows, recv)
 
 
@@ -316,12 +342,16 @@ def _send_data(
     target: str,
     rows: List[_PushRow],
     data: str,
+    *,
+    stop_on_error: bool = False,
 ) -> Optional[List[Dict[str, Any]]]:
     data = data.encode('utf-8')
 
     try:
         resp = session.post(target, data=data)
     except IOError as e:
+        if stop_on_error:
+            raise
         log.error(
             (
                 "Error when sending and receiving data.%s\n"
@@ -335,6 +365,8 @@ def _send_data(
     try:
         resp.raise_for_status()
     except HTTPError:
+        if stop_on_error:
+            raise
         log.error(
             (
                 "Error when sending and receiving data.%s\n"

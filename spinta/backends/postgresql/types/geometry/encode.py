@@ -1,3 +1,6 @@
+from typing import Any
+from typing import Dict
+
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import to_shape
 
@@ -15,6 +18,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: WKBElement,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):

@@ -1,8 +1,10 @@
 import os
 import pathlib
 import tempfile
+from difflib import Differ
 from typing import Any
 
+import pprintpp
 import pytest
 import sqlalchemy as sa
 import sqlalchemy_utils as su
@@ -183,8 +185,24 @@ def pytest_generate_tests(metafunc):
     metafunc.parametrize('model', models)
 
 
+def _diff_line(line: str) -> str:
+    if line.startswith('- '):
+        return '< ' + line[2:]
+    if line.startswith('+ '):
+        return '> ' + line[2:]
+    return line
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_assertrepr_compare(op: str, left: Any, right: Any):
     if op == '==' and isinstance(left, Manifest) and isinstance(right, str):
         left, right = compare_manifest(left, right)
         return [f'{left!r} {op} {right!r}']
+    types = (dict, list)
+    if op == '==' and isinstance(left, types) and isinstance(right, types):
+        left = pprintpp.pformat(left, indent=2, width=40).splitlines()
+        right = pprintpp.pformat(right, indent=2, width=40).splitlines()
+        return ['not equal'] + [
+            _diff_line(line)
+            for line in Differ().compare(left, right)
+        ]

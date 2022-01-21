@@ -1,4 +1,7 @@
 import collections
+from typing import NamedTuple
+from typing import Union
+
 import itertools
 from typing import Any
 from typing import Dict
@@ -15,8 +18,8 @@ from toposort import toposort
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
-from spinta.backends import get_select_prop_names
-from spinta.backends import get_select_tree
+from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import BackendFeatures
 from spinta.compat import urlparams_to_expr
 from spinta.components import Action
@@ -25,10 +28,8 @@ from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
-from spinta.components import Property
 from spinta.components import UrlParams
 from spinta.manifests.components import Manifest
-from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
 from spinta.renderer import render
 from spinta.types.datatype import Ref
@@ -61,7 +62,7 @@ def load_namespace_from_name(
             data = {
                 'type': 'ns',
                 'name': name,
-                'title': part,
+                'title': '',
                 'description': '',
             }
             commands.load(context, ns, data, manifest)
@@ -298,42 +299,35 @@ def _get_ns_content(
         data = _get_ns_content_data_recursive(context, ns, action, dataset_, resource)
     else:
         data = _get_ns_content_data(context, ns, action, dataset_, resource)
-    data = sorted(data, key=lambda x: (x['_type'] != 'ns', x['_id']))
-    model = get_ns_model(context, ns)
+
+    data = sorted(data, key=lambda x: (x.data['_type'] != 'ns', x.data['name']))
+
+    model = ns.manifest.models['_ns']
+    select = params.select or ['name', 'title', 'description']
+    select_tree = get_select_tree(context, action, select)
+    prop_names = get_select_prop_names(
+        context, model, action, select_tree,
+        auth=False,
+    )
+    data = (
+        commands.prepare_data_for_response(
+            context,
+            model,
+            params.fmt,
+            row.data,
+            action=action,
+            select=select_tree,
+            prop_names=prop_names,
+        )
+        for row in data
+    )
+
     return render(context, request, model, params, data, action=action)
 
 
-def get_ns_model(context: Context, ns: Namespace) -> Model:
-    schema = {
-        'type': 'model:ns',
-        'name': ns.model_type(),
-        'properties': {
-            '_type': {
-                'type': 'string',
-                'access': ns.access.name,
-            },
-            '_id': {
-                'type': 'pk',
-                'access': ns.access.name,
-            },
-            'title': {
-                'type': 'string',
-                'access': ns.access.name,
-            },
-            'description': {
-                'type': 'string',
-                'access': ns.access.name,
-            },
-        }
-    }
-    model = Model()
-    model.eid = None
-    model.ns = ns
-    model.parent = ns.manifest  # XXX: deprecated
-    model.manifest = ns.manifest
-    load_node(context, model, schema)
-    load_model_properties(context, model, Property, schema['properties'])
-    return model
+class _NodeAndData(NamedTuple):
+    node: Union[Namespace, Model]
+    data: Dict[str, Any]
 
 
 def _get_ns_content_data_recursive(
@@ -342,7 +336,7 @@ def _get_ns_content_data_recursive(
     action: Action,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
-) -> Iterable[dict]:
+) -> Iterable[_NodeAndData]:
     yield from _get_ns_content_data(context, ns, action, dataset_, resource)
     for name in ns.names.values():
         yield from _get_ns_content_data_recursive(context, name, action, dataset_, resource)
@@ -354,20 +348,20 @@ def _get_ns_content_data(
     action: Action,
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
-) -> Iterable[dict]:
-    models = itertools.chain(
+) -> Iterable[_NodeAndData]:
+    items: Iterable[Union[Namespace, Model]] = itertools.chain(
         ns.names.values(),
         ns.models.values(),
     )
 
-    for model in models:
-        if _model_matches_params(context, model, action, dataset_, resource):
-            yield {
-                '_type': model.node_type(),
-                '_id': model.model_type(),
-                'title': model.title,
-                'description': model.description,
-            }
+    for item in items:
+        if _model_matches_params(context, item, action, dataset_, resource):
+            yield _NodeAndData(item, {
+                '_type': item.node_type(),
+                'name': item.model_type(),
+                'title': item.title,
+                'description': item.description,
+            })
 
 
 @commands.getone.register(Context, Request, Namespace)

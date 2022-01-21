@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     from spinta.manifests.components import Manifest
     from spinta.datasets.components import Dataset
     from spinta.datasets.components import Resource
+    from spinta.formats.components import Format
+    from spinta.formats.html.components import ComplexCell
 
 
 T = TypeVar('T')
@@ -583,7 +585,18 @@ def is_object_id():
 
 
 @command()
-def render():
+def render(
+    context: Context,
+    request: Request,
+    model: Model,
+    fmt: Format,
+    *,
+    action: Action,
+    params: UrlParams,
+    data: Iterator[ComplexCell],
+    status_code: int = 200,
+    headers: Optional[dict] = None,
+):
     """Render response to the clinet."""
 
 

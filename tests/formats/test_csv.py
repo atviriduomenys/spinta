@@ -1,3 +1,4 @@
+from spinta.testing.client import TestClient
 from spinta.testing.csv import parse_csv
 
 
@@ -46,25 +47,34 @@ def test_export_csv(app):
     assert resp.status_code == 200
     assert resp.headers['content-disposition'] == 'attachment; filename="country.csv"'
     header, *lines = resp.text.splitlines()
-    assert header.split(',') == [
-        '_id',
-        '_revision',
-        '_txn',
-        '_rid',
+    header = header.split(',')
+    assert header == [
+        '_cid',
         '_created',
         '_op',
+        '_id',
+        '_txn',
+        '_revision',
         'code',
         'title',
     ]
-    lines = [x.split(',')[-2:] for x in lines]
+    lines = (dict(zip(header, line.split(','))) for line in lines)
+    lines = [
+        (
+            x['_op'],
+            x['code'],
+            x['title'],
+        )
+        for x in lines
+    ]
     assert lines == [
-        ['lt', 'Lithuania'],
-        ['lv', 'LATVIA'],
-        ['', 'Latvia'],
+        ('patch', '', 'Latvia'),
+        ('insert', 'lv', 'LATVIA'),
+        ('insert', 'lt', 'Lithuania'),
     ]
 
 
-def test_csv_limit(app):
+def test_csv_limit(app: TestClient):
     app.authmodel('country', ['insert', 'search', ])
     resp = app.post('/country', json={'_data': [
         {'_op': 'insert', '_type': 'country', 'code': 'lt', 'title': 'Lithuania'},

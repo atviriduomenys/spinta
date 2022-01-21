@@ -1,26 +1,53 @@
-from typing import Any
-from typing import AsyncIterator, Union, List, Dict, Optional, Iterable
-
 import base64
 import datetime
 import decimal
 import pathlib
 import uuid
+from typing import Any
+from typing import AsyncIterator
+from typing import Dict
+from typing import Iterable
+from typing import List
 
-from spinta import spyna
 from spinta import commands
 from spinta import exceptions
-from spinta.auth import authorized
-from spinta.commands import load_operator_value, prepare, gen_object_id, is_object_id
-from spinta.formats.components import Format
-from spinta.components import Context, Namespace, Model, Property, Action, Node, DataItem
-from spinta.exceptions import ConflictingValue, NoItemRevision
-from spinta.types.datatype import DataType, DateTime, Date, Object, Array, String, File, PrimaryKey, Binary, Ref, JSON, Number
-from spinta.utils.schema import NotAvailable, NA
-from spinta.utils.data import take
 from spinta.backends.components import Backend
-
-SelectTree = Optional[Dict[str, dict]]
+from spinta.backends.components import SelectTree
+from spinta.backends.helpers import get_model_reserved_props
+from spinta.backends.helpers import select_keys
+from spinta.backends.helpers import select_props
+from spinta.backends.helpers import check_unknown_props
+from spinta.backends.helpers import flat_select_to_nested
+from spinta.backends.helpers import select_model_props
+from spinta.commands import gen_object_id
+from spinta.commands import is_object_id
+from spinta.commands import load_operator_value
+from spinta.commands import prepare
+from spinta.components import Action
+from spinta.components import Context
+from spinta.components import DataItem
+from spinta.components import Model
+from spinta.components import Namespace
+from spinta.components import Node
+from spinta.components import Property
+from spinta.exceptions import ConflictingValue
+from spinta.exceptions import NoItemRevision
+from spinta.formats.components import Format
+from spinta.types.datatype import Array
+from spinta.types.datatype import Binary
+from spinta.types.datatype import DataType
+from spinta.types.datatype import Date
+from spinta.types.datatype import DateTime
+from spinta.types.datatype import File
+from spinta.types.datatype import JSON
+from spinta.types.datatype import Number
+from spinta.types.datatype import Object
+from spinta.types.datatype import PrimaryKey
+from spinta.types.datatype import Ref
+from spinta.types.datatype import String
+from spinta.utils.data import take
+from spinta.utils.schema import NA
+from spinta.utils.schema import NotAvailable
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)
@@ -176,10 +203,10 @@ def simple_data_check(
 def simple_data_check(
     context: Context,
     data: DataItem,
-    dtype: DataType,
+    dtype: Object,
     prop: Property,
     backend: Backend,
-    value: object,
+    value: Dict[str, Any],
 ) -> None:
     for prop in dtype.properties.values():
         v = value.get(prop.name, NA)
@@ -190,7 +217,7 @@ def simple_data_check(
 def simple_data_check(
     context: Context,
     data: DataItem,
-    dtype: DataType,
+    dtype: Array,
     prop: Property,
     backend: Backend,
     value: list,
@@ -330,6 +357,37 @@ def is_object_id(context: Context, backend: type(None), model: Namespace, value:
     return False
 
 
+@commands.prepare_data_for_response.register(Context, Namespace, Format, dict)
+def prepare_data_for_response(
+    context: Context,
+    ns: Namespace,
+    fmt: Format,
+    value: dict,
+    *,
+    action: Action,
+    select: SelectTree,
+    prop_names: List[str],
+) -> dict:
+    return {
+        prop.name: commands.prepare_dtype_for_response(
+            context,
+            prop.dtype,
+            fmt,
+            val,
+            data=value,
+            action=action,
+            select=sel,
+        )
+        for prop, val, sel in select_model_props(
+            ns.manifest.models['_ns'],
+            prop_names,
+            value,
+            select,
+            reserved=['_id'],
+        )
+    }
+
+
 @commands.prepare_data_for_response.register(Context, Model, Format, dict)
 def prepare_data_for_response(
     context: Context,
@@ -347,15 +405,16 @@ def prepare_data_for_response(
             prop.dtype,
             fmt,
             val,
+            data=value,
             action=action,
             select=sel,
         )
-        for prop, val, sel in _select_model_props(
+        for prop, val, sel in select_model_props(
             model,
             prop_names,
             value,
             select,
-            ['_type', '_id', '_revision'],
+            get_model_reserved_props(action),
         )
     }
 
@@ -377,11 +436,12 @@ def prepare_data_for_response(
             prop.dtype,
             fmt,
             value,
+            data=value,
             action=action,
             select=select,
         )
         for prop, value, select in _select_prop_props(
-            dtype.prop,
+            dtype,
             value,
             select,
             ['_type', '_revision'],
@@ -414,102 +474,31 @@ def prepare_data_for_response(
             prop.dtype,
             fmt,
             value[prop.name],
+            data=value,
             action=action,
             select=select,
         )
     else:
         data = {}
 
-    for key, val, sel in _select_props(prop, reserved, None, value, select):
+    for key, val, sel in select_keys(reserved, value, select):
         data[key] = val
 
     return data
 
 
-def _apply_always_show_id(
-    context: Context,
-    action: Action,
-    select: Optional[List[str]],
-) -> Optional[List[str]]:
-    if action in (Action.GETALL, Action.SEARCH):
-        config = context.get('config')
-        if config.always_show_id:
-            if select is None:
-                return ['_id']
-            elif '_id' not in select:
-                return ['_id'] + select
-    return select
-
-
-def get_select_tree(
-    context: Context,
-    action: Action,
-    select: Optional[List[dict]],
-) -> SelectTree:
-    select = _apply_always_show_id(context, action, select)
-    if select is None and action in (Action.GETALL, Action.SEARCH):
-        # If select is not given, select everything.
-        select = {'*': {}}
-    return flat_select_to_nested(select)
-
-
-def get_select_prop_names(
-    context: Context,
-    model: Model,
-    action: Action,
-    select: SelectTree,
-):
-    reserved = {'_type', '_id', '_revision'}
-    check_unknown_props(model, select, reserved | set(take(model.properties)))
-
-    if select is None or '*' in select:
-        return [
-            p.name
-            for p in model.properties.values() if (
-                not p.name.startswith('_') and
-                not p.hidden and
-                authorized(context, p, action)
-            )
-        ]
-    else:
-        return [k for k in select if not k.startswith('_')]
-
-
-def _select_model_props(
-    model: Model,
-    prop_names: List[str],
-    value: dict,
-    select: SelectTree,
-    reserved: List[str],
-):
-    yield from _select_props(
-        model,
-        reserved,
-        model.properties,
-        value,
-        select,
-    )
-    yield from _select_props(
-        model,
-        prop_names,
-        model.properties,
-        value,
-        select,
-        reserved=False,
-    )
-
-
 def _select_prop_props(
-    prop: Property,
+    dtype: Object,
     value: dict,
     select: SelectTree,
     reserved: List[str],
 ):
+    prop = dtype.prop
     if prop.name in value:
         check_unknown_props(prop, select, set(reserved) | set(value[prop.name]))
     else:
         check_unknown_props(prop, select, set(reserved))
-    yield from _select_props(
+    yield from select_props(
         prop,
         reserved,
         prop.model.properties,
@@ -517,103 +506,13 @@ def _select_prop_props(
         select,
     )
     if prop.name in value:
-        yield from _select_props(
+        yield from select_props(
             prop,
             value[prop.name].keys(),
-            prop.dtype.properties,
+            dtype.properties,
             value[prop.name],
             select,
         )
-
-
-def _select_props(
-    node: Union[Namespace, Model, Property],
-    keys: Iterable[str],
-    props: Optional[Dict[str, Property]],
-    value: dict,
-    select: SelectTree,
-    *,
-    reserved: bool = True,
-):
-    for k in keys:
-
-        if select is None and k not in value:
-            # Omit all keys if they are not present in value, this is a common
-            # case in PATCH requests.
-            continue
-
-        if reserved is False and k.startswith('_'):
-            continue
-
-        if select is None:
-            sel = None
-        elif '*' in select:
-            sel = select['*']
-        elif k in select:
-            sel = select[k]
-        else:
-            continue
-
-        if sel is not None and sel == {}:
-            sel = {'*': {}}
-
-        if props is None:
-            prop = k
-        else:
-            if k not in props:
-                # FIXME: We should check select list at the very beginning of
-                #        request, not when returning results.
-                raise exceptions.FieldNotInResource(node, property=k)
-            prop = props[k]
-            if prop.hidden:
-                continue
-
-        if k in value:
-            val = value[k]
-        else:
-            val = None
-
-        yield prop, val, sel
-
-
-# FIXME: We should check select list at the very beginning of
-#        request, not when returning results.
-def check_unknown_props(
-    node: Union[Model, Property, DataType],
-    select: Optional[Iterable[str]],
-    known: Iterable[str],
-):
-    unknown_properties = set(select or []) - set(known) - {'*'}
-    if unknown_properties:
-        raise exceptions.MultipleErrors(
-            exceptions.FieldNotInResource(node, property=prop)
-            for prop in sorted(unknown_properties)
-        )
-
-
-def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
-    """
-    >>> flat_select_to_nested(None)
-
-    >>> flat_select_to_nested(['foo.bar'])
-    {'foo': {'bar': {}}}
-
-    """
-    if select is None:
-        return None
-
-    res = {}
-    for v in select:
-        if isinstance(v, dict):
-            v = spyna.unparse(v)
-        names = v.split('.')
-        vref = res
-        for name in names:
-            if name not in vref:
-                vref[name] = {}
-            vref = vref[name]
-
-    return res
 
 
 @commands.prepare_dtype_for_response.register(Context, DataType, Format, object)
@@ -621,8 +520,9 @@ def prepare_dtype_for_response(
     context: Context,
     dtype: DataType,
     fmt: Format,
-    value: object,
+    value: Any,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -641,6 +541,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: NotAvailable,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -654,6 +555,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: NotAvailable,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -670,15 +572,14 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: dict,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
     data = {
         key: val
-        for key, val, sel in _select_props(
-            dtype.prop,
+        for key, val, sel in select_keys(
             ['_id', '_content_type'],
-            None,
             value,
             select,
         )
@@ -711,6 +612,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: datetime.datetime,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -724,6 +626,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: datetime.date,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -739,6 +642,7 @@ def prepare_dtype_for_response(
     dtype: Binary,
     fmt: Format,
     value: bytes,
+    data: Dict[str, Any],
     *,
     action: Action,
     select: dict = None,
@@ -753,6 +657,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: dict,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -764,6 +669,7 @@ def prepare_dtype_for_response(
             prop.dtype,
             fmt,
             val,
+            data=data,
             action=action,
             select=sel,
         )
@@ -782,14 +688,14 @@ def _select_ref_props(
     select: SelectTree,
     reserved: List[str],
 ):
-    yield from _select_props(
+    yield from select_props(
         dtype.prop,
         reserved,
         dtype.model.properties,
         value,
         select,
     )
-    yield from _select_props(
+    yield from select_props(
         dtype.model,
         value.keys(),
         dtype.model.properties,
@@ -805,6 +711,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: str,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -820,6 +727,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: dict,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -838,10 +746,11 @@ def prepare_dtype_for_response(
             prop.dtype,
             fmt,
             val,
+            data=data,
             action=action,
             select=sel,
         )
-        for prop, val, sel in _select_props(
+        for prop, val, sel in select_props(
             dtype.prop,
             keys,
             dtype.properties,
@@ -858,6 +767,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: list,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ) -> list:
@@ -866,6 +776,7 @@ def prepare_dtype_for_response(
         dtype,
         fmt,
         value,
+        data,
         action,
         select,
     )
@@ -878,6 +789,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: tuple,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ) -> list:
@@ -886,6 +798,7 @@ def prepare_dtype_for_response(
         dtype,
         fmt,
         value,
+        data,
         action,
         select,
     )
@@ -896,6 +809,7 @@ def _prepare_array_for_response(
     dtype: Array,
     fmt: Format,
     value: Iterable,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ) -> list:
@@ -906,6 +820,7 @@ def _prepare_array_for_response(
                 dtype.items.dtype,
                 fmt,
                 v,
+                data=data,
                 action=action,
                 select=select,
             )
@@ -922,6 +837,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: type(None),
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -935,6 +851,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: object,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -948,6 +865,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: NotAvailable,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -961,6 +879,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     value: decimal.Decimal,
     *,
+    data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1135,8 +1054,8 @@ def cast_backend_to_python(
     context: Context,
     dtype: DataType,
     backend: Backend,
-    data: object,
-) -> dict:
+    data: Any,
+) -> Any:
     return data
 
 
@@ -1145,8 +1064,8 @@ def cast_backend_to_python(
     context: Context,
     dtype: Object,
     backend: Backend,
-    data: dict,
-) -> dict:
+    data: Dict[str, Any],
+) -> Dict[str, Any]:
     return {
         k: commands.cast_backend_to_python(
             context,
@@ -1163,8 +1082,8 @@ def cast_backend_to_python(
     context: Context,
     dtype: Array,
     backend: Backend,
-    data: list,
-) -> dict:
+    data: List[Any],
+) -> List[Any]:
     return [
         commands.cast_backend_to_python(
             context,
@@ -1182,5 +1101,5 @@ def cast_backend_to_python(
     dtype: Binary,
     backend: Backend,
     data: str,
-) -> dict:
+) -> bytes:
     return base64.b64decode(data)

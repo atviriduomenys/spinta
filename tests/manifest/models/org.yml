@@ -17,10 +17,9 @@ properties:
   title:
     type: string
 ---
-version:
-  date: 2020-03-12 16:30:35.118407+02:00
-  id: 6618f3b5-caf1-4e12-b007-fbb4a8f65fed
-  parents: []
+id: 6618f3b5-caf1-4e12-b007-fbb4a8f65fed
+date: 2020-03-12 16:30:35.118407+02:00
+parents: []
 changes:
   - {op: add, path: /type, value: model}
   - op: add

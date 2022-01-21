@@ -65,7 +65,7 @@ def test_getall_ns(model, app):
     app.authorize(['spinta_getall'])
 
     resp = app.get('/datasets/backends/postgres/dataset/:ns/:all')
-    assert listdata(resp, '_id') == [
+    assert listdata(resp, 'name') == [
         'datasets/backends/postgres/dataset/capital',
         'datasets/backends/postgres/dataset/continent',
         'datasets/backends/postgres/dataset/country',
@@ -92,10 +92,10 @@ def test_ns_titles(
     assert listdata(app.get('/:ns'), 'title', 'description') == [
         ("All datasets", "All external datasets."),
     ]
-    assert listdata(app.get('/:ns/:all'), '_id', 'title', 'description') == [
+    assert listdata(app.get('/:ns/:all'), 'name', 'title', 'description') == [
         ('datasets/:ns', "All datasets", "All external datasets."),
         ('datasets/gov/:ns', "Government datasets", "All external government datasets."),
-        ('datasets/gov/vpt/:ns', "vpt", ""),
+        ('datasets/gov/vpt/:ns', "", ""),
         ('datasets/gov/vpt/new/:ns', "New data", "Data from a new database."),
         ('datasets/gov/vpt/new/City', "Cities", "All cities."),
         ('datasets/gov/vpt/new/Country', "Countries", "All countries."),
@@ -120,10 +120,10 @@ def test_ns_titles_bare_models(
     assert listdata(app.get('/:ns'), 'title', 'description') == [
         ("All datasets", "All external datasets."),
     ]
-    assert listdata(app.get('/:ns/:all'), '_id', 'title', 'description') == [
+    assert listdata(app.get('/:ns/:all'), 'name', 'title', 'description') == [
         ('datasets/:ns', "All datasets", "All external datasets."),
         ('datasets/gov/:ns', "Government datasets", "All external government datasets."),
-        ('datasets/gov/vpt/:ns', "vpt", ""),
+        ('datasets/gov/vpt/:ns', "", ""),
         ('datasets/gov/vpt/new/:ns', "New data", "Data from a new database."),
         ('datasets/gov/vpt/new/City', "Cities", "All cities."),
         ('datasets/gov/vpt/new/Country', "Countries", "All countries."),

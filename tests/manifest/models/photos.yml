@@ -4,10 +4,11 @@ properties:
   image: {backend: fs, hidden: true, type: file}
   name: {type: string}
 type: model
-version:
-  date: 2020-03-12 16:30:35.120272+02:00
-  id: f1ee78b5-0a1d-4dcf-851b-e2fbaf666ba4
+version: f1ee78b5-0a1d-4dcf-851b-e2fbaf666ba4
 ---
+id: f1ee78b5-0a1d-4dcf-851b-e2fbaf666ba4
+date: 2020-03-12 16:30:35.120272+02:00
+parents: []
 changes:
 - {op: add, path: /type, value: model}
 - {op: add, path: /endpoint, value: photos}
@@ -28,7 +29,3 @@ migrate:
     string()),\n    column('_type', string()),\n    column('_id', pk()),\n    column('_revision',
     string()),\n    column('_transaction', integer()),\n    column('_where', rql()),\n
     \   column('name', string()),\n    column('image', file())\n)"}
-version:
-  date: 2020-03-12 16:30:35.120272+02:00
-  id: f1ee78b5-0a1d-4dcf-851b-e2fbaf666ba4
-  parents: []

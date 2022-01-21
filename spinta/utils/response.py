@@ -114,7 +114,13 @@ async def create_http_response(
 
         if params.changes:
             _enforce_limit(context, params)
-            return await commands.changes(context, request, params.model, params.model.backend, action=Action.CHANGES, params=params)
+            return await commands.changes(
+                context,
+                params.model,
+                request,
+                action=Action.CHANGES,
+                params=params,
+            )
 
         elif params.pk:
             model = params.model
@@ -156,7 +162,13 @@ async def create_http_response(
             if model.keymap:
                 context.attach(f'keymap.{model.keymap.name}', lambda: model.keymap)
 
-            return await commands.getall(context, model, request, action=action, params=params)
+            return await commands.getall(
+                context,
+                model,
+                request,
+                action=action,
+                params=params,
+            )
 
     elif request.method == 'DELETE' and params.action == Action.WIPE:
         if params.pk:
@@ -183,7 +195,7 @@ def _enforce_limit(context: Context, params: UrlParams):
     #      an error should be raised?
     # XXX: Max resource count should be configurable.
     if not fmt.streamable and (params.limit is None or params.limit > 100):
-        params.limit = 100
+        params.limit = params.limit_enforced_to + 1
         params.limit_enforced = True
 
 

@@ -72,7 +72,7 @@ def listdata(
         assert resp.status_code == 200, pformat(data)
         assert 'data' in data, pformat(data)
         assert 'header' in data, pformat(data)
-        header = [h.value for h in cast(List[Cell], data['header'])]
+        header = data['header']
         keys = keys or [k for k in header if not k.startswith('_')]
         data = [
             {k: v.value for k, v in zip(header, row)}

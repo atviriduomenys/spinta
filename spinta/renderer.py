@@ -1,3 +1,5 @@
+from typing import Any
+from typing import Iterator
 from typing import Optional
 
 from starlette.requests import Request
@@ -11,7 +13,7 @@ def render(
     request: Request,
     node: Node,
     params: UrlParams,
-    data,
+    data: Iterator[Any],
     *,
     action: Optional[Action] = None,
     status_code: Optional[int] = 200,

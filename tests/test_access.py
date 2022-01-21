@@ -57,9 +57,8 @@ def test_manifest_with_open_properties(rc: RawConfig, postgresql: str):
     assert resp.json() == {
         '_data': [
             {
-                '_type': 'ns',
-                '_id': 'datasets/:ns',
-                'title': 'datasets',
+                'name': 'datasets/:ns',
+                'title': '',
                 'description': '',
             },
         ]

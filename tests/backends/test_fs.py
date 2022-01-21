@@ -3,6 +3,7 @@ import pathlib
 import pytest
 import requests
 
+from spinta.testing.data import listdata
 from spinta.testing.utils import error, get_error_codes, get_error_context
 
 
@@ -523,12 +524,16 @@ def test_put_file_no_content(context, model, app):
 
 
 @pytest.mark.models(
-    'backends/mongo/photo',
+    # 'backends/mongo/photo',
     'backends/postgres/photo',
 )
 def test_changelog(context, model, app):
-    app.authmodel(model, ['insert', 'image_update', 'image_delete',
-                          'changes'])
+    app.authmodel(model, [
+        'insert',
+        'avatar_update',
+        'avatar_delete',
+        'changes',
+    ])
 
     # Create a new photo resource.
     resp = app.post(f'/{model}', json={
@@ -540,6 +545,51 @@ def test_changelog(context, model, app):
     id_ = data['_id']
     revision = data['_revision']
 
+    # Update image subresource.
+    resp = app.put(f'/{model}/{id_}/avatar', data=b'BINARYDATA', headers={
+        'revision': revision,
+        'content-type': 'image/png',
+        'content-disposition': 'attachment; filename="myimg.png"',
+    })
+    assert resp.status_code == 200, resp.text
+
+    # Delete image subresource.
+    resp = app.delete(f'/{model}/{id_}/avatar')
+    assert resp.status_code == 204, resp.text
+
+    # check changelog
+    resp = app.get(f'/{model}/{id_}/:changes')
+    assert listdata(resp, '_op', 'avatar', full=True) == [
+        {'_op': 'delete', 'avatar': None},
+        {'_op': 'insert', 'avatar': {'_content_type': None, '_id': None}},
+        {'_op': 'update', 'avatar': {'_content_type': 'image/png', '_id': 'myimg.png'}},
+    ]
+
+
+@pytest.mark.skip('NotImplemented')
+@pytest.mark.models(
+    # 'backends/mongo/photo',
+    'backends/postgres/photo',
+)
+def test_changelog_hidden_prop(context, model, app):
+    app.authmodel(model, [
+        'insert',
+        'image_update',
+        'image_delete',
+        'image_changes',
+    ])
+
+    # Create a new photo resource.
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'name': 'myphoto',
+    })
+    assert resp.status_code == 201, resp.text
+    data = resp.json()
+    id_ = data['_id']
+    revision = data['_revision']
+
+    # Update image subresource.
     resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
         'revision': revision,
         'content-type': 'image/png',
@@ -547,32 +597,16 @@ def test_changelog(context, model, app):
     })
     assert resp.status_code == 200, resp.text
 
+    # Delete image subresource.
     resp = app.delete(f'/{model}/{id_}/image')
     assert resp.status_code == 204, resp.text
 
     # check changelog
-    if model == 'backends/mongo/photo':
-        table_name = f'{model}__changelog'
-        store = context.get('store')
-        table = store.backends['mongo'].db[table_name]
-        q = table.find({"$and": [{"__id": id_},
-                                 {"$or": [{"_op": "delete"},
-                                          {"_op": "update"}]}]})
-    else:
-        resp = app.get(f'/{model}/{id_}/:changes')
-        assert resp.status_code == 200, resp.json()
-        q = resp.json()['_data']
-
-    rows = []
-    for row in q:
-        r = dict(row)
-        if r['_op'] in ('update', 'delete'):
-            rows.append({'_op': r['_op'], 'image': r['image']})
-
-    assert sorted(rows, key=lambda r: r['_op']) == [
+    resp = app.get(f'/{model}/{id_}/image/:changes')
+    assert listdata(resp, '_op', 'image', full=True) == [
         {'_op': 'delete', 'image': None},
-        {'_op': 'update', 'image': {'_id': 'myimg.png',
-                                    '_content_type': 'image/png'}}
+        {'_op': 'insert', 'image': {'_content_type': None, '_id': None}},
+        {'_op': 'update', 'image': {'_content_type': 'image/png', '_id': 'myimg.png'}},
     ]
 
 

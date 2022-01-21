@@ -2,6 +2,7 @@ import enum
 import contextlib
 from typing import Any
 from typing import Dict
+from typing import Optional
 from typing import Set
 
 
@@ -52,3 +53,6 @@ class Backend:
 
     def bootstrapped(self):
         raise NotImplementedError
+
+
+SelectTree = Optional[Dict[str, 'SelectTree']]

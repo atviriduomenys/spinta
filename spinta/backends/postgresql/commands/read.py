@@ -2,8 +2,8 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.accesslog import AccessLog
-from spinta.backends import get_select_prop_names
-from spinta.backends import get_select_tree
+from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import get_select_tree
 from spinta.compat import urlparams_to_expr
 from spinta.core.ufuncs import Expr
 from spinta.renderer import render

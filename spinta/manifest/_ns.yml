@@ -1,0 +1,40 @@
+type: model
+name: _ns
+id: 27de2551-58f6-4476-8986-83a752148991
+version: 78231088-94c9-4e09-83d3-5a4e0d13db77
+properties:
+  name:
+    type: string
+  title:
+    type: string
+  description:
+    type: string
+---
+id: 78231088-94c9-4e09-83d3-5a4e0d13db77
+date: 2021-12-16 08:05:44.636133+00:00
+parents: []
+changes:
+  - op: replace
+    path: ''
+    value:
+      type: model
+      name: _ns
+      properties:
+        name:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+migrate:
+  - type: schema
+    upgrade: |-
+      create_table(
+          '_ns',
+          column('_id', pk()),
+          column('_revision', string()),
+          column('name', string()),
+          column('title', string()),
+          column('description', string())
+      )
+    downgrade: drop_table('_ns')

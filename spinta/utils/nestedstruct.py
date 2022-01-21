@@ -1,8 +1,8 @@
 from typing import Dict
+from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Set
-import types
 
 import itertools
 
@@ -39,14 +39,7 @@ def _flatten(value, sep, key=()):
             lists += more
         return data, lists
 
-    elif isinstance(value, (
-        list,
-        types.GeneratorType,
-        itertools.groupby,
-        # _grouper is type of `g` in `k, g = next(itertools.groupby([1, 1]))`
-        itertools._grouper,
-        itertools.chain,
-    )):
+    elif isinstance(value, (list, Iterator)):
         if value:
             return None, [(key, value)]
         else:

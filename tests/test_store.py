@@ -120,7 +120,7 @@ def test_root(rc: RawConfig, tmpdir: Path):
         'root': 'datasets/gov/vpt',
     })
     app.authorize(['spinta_getall'])
-    assert listdata(app.get('/'), '_id') == [
+    assert listdata(app.get('/'), 'name') == [
         'datasets/gov/vpt/new/:ns',
         'datasets/gov/vpt/old/:ns',
     ]

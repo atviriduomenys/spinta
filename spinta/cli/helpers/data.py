@@ -40,13 +40,18 @@ def count_rows(
     context: Context,
     models: List[Model],
     limit: int = None,
+    *,
+    stop_on_error: bool = False,
 ) -> Dict[str, int]:
     counts = {}
     for model in tqdm.tqdm(models, 'Count rows', ascii=True, leave=False):
         try:
             count = _get_row_count(context, model)
         except Exception:
-            log.exception("Error on _get_row_count({model.name}).")
+            if stop_on_error:
+                raise
+            else:
+                log.exception("Error on _get_row_count({model.name}).")
         else:
             if limit:
                 count = min(count, limit)

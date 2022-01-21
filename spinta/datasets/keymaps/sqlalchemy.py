@@ -4,6 +4,7 @@ import datetime
 import uuid
 import hashlib
 import decimal
+from uuid import UUID
 
 import msgpack
 import sqlalchemy as sa
@@ -92,6 +93,8 @@ def _encode_value(value):
         return float(value)
     if isinstance(value, tuple):
         return list(value)
+    if isinstance(value, UUID):
+        return str(value)
     return value
 
 
