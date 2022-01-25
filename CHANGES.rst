@@ -3,7 +3,7 @@
 Changes
 #######
 
-0.1.24 (unreleased)
+0.1.24 (2022-01-25)
 ===================
 
 Backwards incompatible changes:
@@ -19,6 +19,9 @@ Backwards incompatible changes:
   not explicitly specified.
 
 New features:
+
+- Add `geometry` type support with PostGIS. Now it is possible to store
+  spatial data.
 
 - Add `--dry-run` option to `spinta push`. This will run whole push process,
   but does not send data to the target location. Useful for testing push.
