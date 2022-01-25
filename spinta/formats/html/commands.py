@@ -231,6 +231,7 @@ def _render_model(
             'data': rows,
             'formats': get_output_formats(params),
             'params': params,
+            'zip': zip,
         },
         headers=http_headers
     )
@@ -274,7 +275,7 @@ def prepare_data_for_response(
 
     reserved = _get_model_reserved_props(action)
 
-    return {
+    data = {
         prop.name: commands.prepare_dtype_for_response(
             context,
             prop.dtype,
@@ -292,6 +293,8 @@ def prepare_data_for_response(
             reserved,
         )
     }
+
+    return data
 
 
 @commands.prepare_dtype_for_response.register(Context, String, Html, _NamespaceName)

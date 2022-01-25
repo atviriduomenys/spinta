@@ -25,7 +25,7 @@
 
 {% if empty %}
     <div>No data.</div>
-{% elif transpose %}
+{% elif params.pk %}
     {% for row in data %}
     <table class="table">
         <tbody>

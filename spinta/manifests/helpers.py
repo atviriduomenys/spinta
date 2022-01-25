@@ -97,7 +97,7 @@ def _configure_manifest(
     access = rc.get('manifests', name, 'access')
     if access:
         manifest.access = enum_by_name(manifest, 'access', Access, access)
-    keymap = rc.get('manifests', name, 'keymap', default=None)
+    keymap = rc.get('manifests', name, 'keymap', default=None) or 'default'
     if keymap:
         if keymap not in store.keymaps:
             raise UnknownKeyMap(manifest, keymap=keymap)

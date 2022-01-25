@@ -7,7 +7,7 @@ def test_show(rc, cli: SpintaCliRunner, tmpdir):
     manifest = striptable('''
     id | d | r | b | m | property | type   | ref     | source      | prepare | level | access    | uri | title | description
        | datasets/gov/example     |        |         |             |         |       | protected |     |       |
-       |   | data                 | memory | null    |             |         |       | protected |     |       |
+       |   | data                 | memory | default |             |         |       | protected |     |       |
        |                          |        |         |             |         |       |           |     |       |
        |   |   |   | Country      |        | code    | salis       |         |       | open      |     |       |
        |   |   |   |   | code     | string |         | kodas       |         |       | public    |     |       |

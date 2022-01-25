@@ -43,6 +43,7 @@ def _cleaned_context(
             for d in cast(List[List[Dict[str, Any]]], context['data'])
         ]
     del context['params']
+    del context['zip']
     if 'request' in context:
         del context['request']
     return context
