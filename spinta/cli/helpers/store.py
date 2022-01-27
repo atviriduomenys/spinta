@@ -7,6 +7,7 @@ from spinta.auth import auth_server_keys_exists
 from spinta.auth import client_exists
 from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
+from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Store
 from spinta.core.config import DEFAULT_CONFIG_PATH
@@ -51,12 +52,12 @@ def _ensure_config_dir(
         )
 
 
-def load_store(
+def load_config(
     context: Context,
     *,
     verbose: bool = True,
     ensure_config_dir: bool = False,
-) -> Store:
+) -> Config:
     config = context.get('config')
     commands.load(context, config)
     if ensure_config_dir:
@@ -66,6 +67,20 @@ def load_store(
             verbose=verbose,
         )
     commands.check(context, config)
+    return config
+
+
+def load_store(
+    context: Context,
+    *,
+    verbose: bool = True,
+    ensure_config_dir: bool = False,
+) -> Store:
+    load_config(
+        context,
+        verbose=verbose,
+        ensure_config_dir=ensure_config_dir,
+    )
     store = context.get('store')
     commands.load(context, store)
     return store

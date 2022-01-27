@@ -6,6 +6,11 @@ Changes
 0.1.25 (unreleased)
 ===================
 
+New features:
+
+- Add `spinta token get` command to receive access token using credentials
+  from `~/.config/spinta/credentials.cfg` file.
+
 
 0.1.24 (2022-01-25)
 ===================

@@ -5,6 +5,7 @@ import uuid
 
 import click
 from authlib.jose import jwt
+from typer import Argument
 from typer import Context as TyperContext
 from typer import Exit
 from typer import Option
@@ -18,7 +19,11 @@ from spinta.auth import create_client_file
 from spinta.auth import gen_auth_server_keys
 from spinta.auth import load_key
 from spinta.cli.helpers.auth import require_auth
+from spinta.cli.helpers.store import load_config
+from spinta.client import get_access_token
+from spinta.client import get_client_credentials
 from spinta.components import Context
+from spinta.core.context import configure_context
 
 
 def genkeys(
@@ -54,18 +59,54 @@ token = Typer()
 
 
 @token.command('decode', short_help="Decode auth token passed via stdin")
-def token_decode(ctx: TyperContext):
+def token_decode(
+    ctx: TyperContext,
+    token_: str = Argument(None, help=(
+        "Token string to decode, if not given token will be read from stdin"
+    )),
+):
     """Decode auth token passed via stdin
 
     This will decode token given by Auth server via /auth/token API endpoint.
     """
-    context: Context = ctx.obj
-    config = context.get('config')
-    commands.load(context, config)
+    context = configure_context(ctx.obj)
+    load_config(context)
     key = load_key(context, KeyType.public)
-    token_ = sys.stdin.read().strip()
+    token_ = token_ or sys.stdin.read().strip()
     token_ = jwt.decode(token_, key)
     echo(json.dumps(token_, indent='  '))
+
+
+@token.command('get', short_help="Get auth toke from an auth server")
+def token_get(
+    ctx: TyperContext,
+    server: str = Argument(None, help=(
+        "Source manifest files to copy from"
+    )),
+    header: bool = Option(False, '--header', help=(
+        "Return full header (Authorization: Bearer {token})"
+    )),
+    credentials: str = Option(None, '--credentials', help=(
+        "Credentials file, defaults to {config_path}/credentials.cfg"
+    )),
+):
+    """Get auth token from a given authorization server"""
+    context = configure_context(ctx.obj)
+    config = load_config(context)
+    if credentials:
+        credsfile = pathlib.Path(credentials)
+        if not credsfile.exists():
+            echo(f"Credentials file {credsfile} does not exit.")
+            raise Exit(code=1)
+    else:
+        credsfile = config.credentials_file
+    # TODO: Read client credentials only if a Spinta URL is given.
+    creds = get_client_credentials(credsfile, server)
+    token_ = get_access_token(creds)
+    if header:
+        echo(f'Authorization: Bearer {token_}')
+    else:
+        echo(token_)
 
 
 client = Typer()

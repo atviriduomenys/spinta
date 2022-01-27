@@ -30,7 +30,7 @@ def _parse_client_handle(
     if handle.startswith('spinta+'):
         handle = handle[len('spinta+'):]
 
-    if handle.startswith(('https://', 'https://')):
+    if handle.startswith(('https://', 'http://')):
         url = handle
     else:
         url = 'https://' + handle

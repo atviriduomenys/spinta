@@ -520,7 +520,7 @@ class RemoteClientError(UserError):
 
 class RemoteClientCredentialsNotFound(RemoteClientError):
     template = (
-        "Remote client credentials not fount for {name!r}. Make sure, a "
+        "Remote client credentials not found for {name!r}. Make sure, a "
         "section [{section}] exists in {credentials} file. You can use "
         "`spinta remote add {name}` command to add it."
     )
