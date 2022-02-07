@@ -221,12 +221,16 @@ class Selected:
 
 @ufunc.resolver(SqlQueryBuilder, Bind, Bind, name='getattr')
 def getattr_(env: SqlQueryBuilder, field: Bind, attr: Bind):
+    if field.name not in env.model.properties:
+        raise PropertyNotFound(env.model, property=field.name)
     prop = env.model.properties[field.name]
     return env.call('getattr', prop.dtype, attr)
 
 
 @ufunc.resolver(SqlQueryBuilder, Ref, Bind, name='getattr')
 def getattr_(env: SqlQueryBuilder, dtype: Ref, attr: Bind) -> ForeignProperty:
+    if attr.name not in dtype.model.properties:
+        raise PropertyNotFound(dtype.model, property=attr.name)
     prop = dtype.model.properties[attr.name]
     return ForeignProperty(None, dtype, prop.dtype)
 

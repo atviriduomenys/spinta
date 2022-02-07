@@ -5,7 +5,6 @@ from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Optional
-from typing import TextIO
 from typing import TypedDict
 
 import phonenumbers
@@ -30,7 +29,6 @@ from spinta.components import Property
 from spinta.core.config import RawConfig
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
-from spinta.manifests.tabular.helpers import datasets_to_tabular
 from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 from spinta.types.namespace import sort_models_by_refs

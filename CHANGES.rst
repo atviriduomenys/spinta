@@ -11,6 +11,11 @@ New features:
 - Add `spinta token get` command to receive access token using credentials
   from `~/.config/spinta/credentials.cfg` file.
 
+Improvements:
+
+- Show a human readable error message when a property is not found on a sql
+  backend.
+
 
 0.1.24 (2022-01-25)
 ===================
