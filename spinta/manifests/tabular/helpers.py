@@ -1308,6 +1308,7 @@ def _dataset_to_tabular(
         'description': dataset.description,
     })
     yield from _lang_to_tabular(dataset.lang)
+    yield from _prefixes_to_tabular(dataset.prefixes, separator=True)
     yield from _enums_to_tabular(
         dataset.ns.enums,
         external=external,

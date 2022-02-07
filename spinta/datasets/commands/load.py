@@ -10,6 +10,7 @@ from spinta.datasets.components import Attribute
 from spinta.datasets.helpers import load_resource_backend
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
+from spinta.dimensions.prefix.helpers import load_prefixes
 from spinta.exceptions import MultipleErrors
 from spinta.exceptions import PropertyNotFound
 from spinta.nodes import get_node, load_node
@@ -36,6 +37,9 @@ def load(
     if ns.generated:
         ns.title = data.get('title', '')
         ns.description = data.get('description', '')
+    if 'prefixes' in data:
+        prefixes = load_prefixes(context, manifest, dataset, data.pop('prefixes'))
+        dataset.prefixes.update(prefixes)
     if 'enums' in data:
         parents = list(ns.parents())
         ns.enums = load_enums(context, parents, data.pop('enums'))

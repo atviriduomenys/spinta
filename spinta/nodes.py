@@ -126,7 +126,7 @@ def load_node(
     data: dict,
     *,
     mixed: bool = False,
-    parent: Node = None,
+    parent: Union[Node, Manifest] = None,
 ) -> Union[
     Node,
     Tuple[Node, Dict[str, Any]]

@@ -11,6 +11,8 @@ New features:
 - Add `spinta token get` command to receive access token using credentials
   from `~/.config/spinta/credentials.cfg` file.
 
+- Add support for prefixes on dataset dimension.
+
 Improvements:
 
 - Show a human readable error message when a property is not found on a sql

@@ -18,6 +18,7 @@ from spinta.components import Property
 from spinta.core.enums import Access
 from spinta.core.ufuncs import Expr
 from spinta.datasets.enums import Level
+from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
 from spinta.types.owner import Owner
 from spinta.types.project import Project
@@ -46,6 +47,7 @@ class Dataset(MetaData):
     given: DatasetGiven
     lang: LangData = None
     ns: Namespace = None
+    prefixes: Dict[str, UriPrefix]
 
     schema = {
         'type': {'type': 'string', 'required': True},
@@ -84,6 +86,7 @@ class Dataset(MetaData):
 
     def __init__(self):
         self.given = DatasetGiven()
+        self.prefixes = {}
 
 
 class ExternalBackend(Backend):

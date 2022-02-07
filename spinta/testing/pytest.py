@@ -197,7 +197,13 @@ def _diff_line(line: str) -> str:
 def pytest_assertrepr_compare(op: str, left: Any, right: Any):
     if op == '==' and isinstance(left, Manifest) and isinstance(right, str):
         left, right = compare_manifest(left, right)
-        return [f'{left!r} {op} {right!r}']
+        return ['not equal'] + [
+            _diff_line(line)
+            for line in Differ().compare(
+                left.splitlines(),
+                right.splitlines(),
+            )
+        ]
     types = (dict, list)
     if op == '==' and isinstance(left, types) and isinstance(right, types):
         left = pprintpp.pformat(left, indent=2, width=40).splitlines()

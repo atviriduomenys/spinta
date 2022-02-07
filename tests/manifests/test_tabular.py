@@ -5,6 +5,7 @@ from spinta.testing.manifest import load_manifest
 def check(tmpdir, rc, table):
     create_tabular_manifest(tmpdir / 'manifest.csv', table)
     manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+    from spinta.manifests.components import Manifest
     assert manifest == table
 
 
@@ -27,19 +28,19 @@ def test_loading(tmpdir, rc):
 def test_uri(tmpdir, rc):
     check(tmpdir, rc, '''
     d | r | b | m | property | type       | ref     | uri
+    datasets/gov/example     |            |         |
                              | prefix     | locn    | http://www.w3.org/ns/locn#
                              |            | ogc     | http://www.opengis.net/rdf#
                              |            |         |
-    datasets/gov/example     |            |         |
       | data                 | postgresql | default |
                              |            |         |
-      |   |   | country      |            | code    |
+      |   |   | Country      |            | code    |
       |   |   |   | code     | string     |         |
       |   |   |   | name     | string     |         | locn:geographicName
                              |            |         |
-      |   |   | city         |            | name    |
+      |   |   | City         |            | name    |
       |   |   |   | name     | string     |         | locn:geographicName
-      |   |   |   | country  | ref        | country |
+      |   |   |   | country  | ref        | Country |
     ''')
 
 
