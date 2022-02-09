@@ -6,6 +6,14 @@ Changes
 0.1.26 (unreleased)
 ===================
 
+Improvements:
+
+- Do not output resources with `spinta copy --no-source`.
+
+
+0.1.25 (2022-02-08)
+===================
+
 New features:
 
 - Add `spinta token get` command to receive access token using credentials

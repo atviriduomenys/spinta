@@ -41,7 +41,6 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     assert manifest == '''
     d | r | b | m | property | type   | ref     | source | prepare | access
     datasets/gov/example     |        |         |        |         |
-      | data                 | sql    |         |        |         |
                              |        |         |        |         |
       |   |   | Country      |        |         |        |         |
       |   |   |   | name     | string |         |        |         | open
@@ -80,7 +79,6 @@ def test_copy_enum_0(rc, cli: SpintaCliRunner, tmpdir):
     assert manifest == '''
     d | r | b | m | property | type    | ref     | source | prepare | access
     datasets/gov/example     |         |         |        |         |
-      | data                 | sql     |         |        |         |
                              |         |         |        |         |
       |   |   | Country      |         |         |        |         |
       |   |   |   | name     | string  |         |        |         | open
@@ -117,7 +115,6 @@ def test_copy_global_enum(rc, cli: SpintaCliRunner, tmpdir):
     datasets/gov/example     |         |           |        |         |
                              | enum    | direction |        | 0       |
                              |         |           |        | 1       |
-      | data                 | sql     |           |        |         |
                              |         |           |        |         |
       |   |   | Country      |         |           |        |         |
       |   |   |   | name     | string  |           |        |         | open

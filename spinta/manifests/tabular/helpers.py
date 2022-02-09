@@ -1502,7 +1502,7 @@ def datasets_to_tabular(
                         order_by=order_by,
                     )
 
-            if model.external and model.external.resource and (
+            if external and model.external and model.external.resource and (
                 resource is None or
                 resource.name != model.external.resource.name
             ):
