@@ -6,6 +6,10 @@ Changes
 0.1.26 (unreleased)
 ===================
 
+New features:
+
+- Add `cast()` function for sql backend.
+
 Improvements:
 
 - Do not output resources with `spinta copy --no-source`.

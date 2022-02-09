@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import dataclasses
 from typing import Any
 from typing import Dict
 from typing import List
@@ -31,6 +32,7 @@ from spinta.exceptions import UnknownExpr
 from spinta.types.datatype import DataType
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
+from spinta.types.datatype import String
 from spinta.types.file.components import FileData
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
@@ -835,3 +837,23 @@ def file(env: SqlResultBuilder, expr: Expr) -> FileData:
         #       requested in select list.
         '_content': content,
     }
+
+
+@ufunc.resolver(SqlQueryBuilder)
+def cast(env: SqlQueryBuilder) -> Expr:
+    return Expr('cast')
+
+
+@ufunc.resolver(SqlResultBuilder)
+def cast(env: SqlResultBuilder) -> Any:
+    return env.call('cast', env.prop.dtype, env.this)
+
+
+@ufunc.resolver(SqlResultBuilder, String, int)
+def cast(env: SqlResultBuilder, dtype: String, value: int) -> str:
+    return str(value)
+
+
+@ufunc.resolver(SqlResultBuilder, String, type(None))
+def cast(env: SqlResultBuilder, dtype: String, value: Optional[Any]) -> str:
+    return ''

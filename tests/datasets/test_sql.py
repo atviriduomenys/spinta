@@ -2319,3 +2319,34 @@ def test_params(
 
     resp = app.get('/example/self/ref/param/Category?select(name)')
     assert listdata(resp, sort=False) == ['Cat 1', 'Cat 1.1']
+
+
+def test_cast(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmpdir,
+    sqlite: Sqlite,
+):
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | b | m | property | type    | ref      | source   | prepare
+    example/func/cast        |         |          |          |
+      | resource             | sql     | sql      |          |
+      |   |   | Data         |         | id       | DATA     |
+      |   |   |   | id       | string  |          | ID       | cast()
+    ''')
+
+    # Configure local server with SQL backend
+    sqlite.init({
+        'DATA': [
+            sa.Column('ID', sa.Integer),
+        ],
+    })
+    sqlite.write('DATA', [{'ID': 1}])
+
+    app = create_client(rc, tmpdir, sqlite)
+    app.authmodel('example/func/cast', ['getall'])
+
+    resp = app.get('/example/func/cast/Data')
+    assert listdata(resp) == ['1']
