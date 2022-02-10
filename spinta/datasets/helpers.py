@@ -82,10 +82,15 @@ def get_enum_filters(
             (enum := get_prop_enum(prop)) and
             authorized(context, prop, Action.GETALL)
         ):
-            if not all(item.access >= prop.access for item in enum.values()):
+            has_lower_access = any(
+                item.access < prop.access
+                for item in enum.values()
+                if item.access is not None
+            )
+            if has_lower_access:
                 values = []
                 for item in enum.values():
-                    if item.access >= prop.access:
+                    if item.access is not None and item.access >= prop.access:
                         values.append(item.prepare)
 
                 if fpr:

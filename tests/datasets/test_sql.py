@@ -1730,6 +1730,59 @@ def test_implicit_filter_by_enum(rc, tmpdir, sqlite):
     ]
 
 
+def test_implicit_filter_by_enum_empty_access(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | m | property     | type   | ref     | source    | prepare          | access
+    datasets/gov/example     |        |         |           |                  |
+                             | enum   | Side    | 0         | 'l'              |
+                             |        |         | 1         | 'r'              |
+                             |        |         |           |                  |
+      | resource             | sql    |         |           |                  |
+      |   | Country          |        | id      | COUNTRY   | continent = "eu" |     
+      |   |   | id           | string |         | ID        |                  | private
+      |   |   | name         | string |         | NAME      |                  | open
+      |   |   | continent    | string |         | CONTINENT |                  | open
+      |   |   | driving      | string | Side    | DRIVING   |                  | open
+                             |        |         |           |                  |
+      |   | City             |        | name    | CITY      |                  |     
+      |   |   | name         | string |         | NAME      |                  | open
+      |   |   | country      | ref    | Country | COUNTRY   |                  | open
+    '''))
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('ID', sa.Integer),
+            sa.Column('NAME', sa.Text),
+            sa.Column('CONTINENT', sa.Text),
+            sa.Column('DRIVING', sa.Integer),
+        ],
+        'CITY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('COUNTRY', sa.Integer),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {'ID': 1, 'CONTINENT': 'az', 'DRIVING': 0, 'NAME': 'India'},
+        {'ID': 2, 'CONTINENT': 'eu', 'DRIVING': 1, 'NAME': 'Lithuania'},
+        {'ID': 3, 'CONTINENT': 'eu', 'DRIVING': 1, 'NAME': 'Latvia'},
+    ])
+
+    sqlite.write('CITY', [
+        {'COUNTRY': 1, 'NAME': 'Mumbai'},
+        {'COUNTRY': 1, 'NAME': 'Delhi'},
+        {'COUNTRY': 2, 'NAME': 'Vilnius'},
+        {'COUNTRY': 3, 'NAME': 'Ryga'},
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    resp = app.get('/datasets/gov/example/City')
+    assert listdata(resp, 'name') == [
+        'Ryga',
+        'Vilnius',
+    ]
+
+
 def test_file(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', '''
     d | r | m | property  | type   | ref | source    | prepare                                   | access
