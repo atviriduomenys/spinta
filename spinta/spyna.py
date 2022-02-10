@@ -1,4 +1,9 @@
+from __future__ import annotations
+
 import functools
+from typing import List
+from typing import Optional
+from typing import TypedDict
 
 import lark
 
@@ -55,7 +60,12 @@ WS: /[ \t\f\r\n]+/
 _parser = lark.Lark(GRAMMAR, parser='lalr')
 
 
-def parse(rql):
+class SpynaAST(TypedDict):
+    name: str
+    args: List[SpynaAST]
+
+
+def parse(rql) -> Optional[SpynaAST]:
     if not isinstance(rql, str):
         return rql
 

@@ -21,7 +21,7 @@ from typing import cast
 
 import openpyxl
 import xlsxwriter
-from lark import UnexpectedToken
+from lark import ParseError
 
 from spinta import commands
 from spinta import spyna
@@ -69,9 +69,11 @@ from spinta.manifests.tabular.components import TITLE
 from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
+from spinta.spyna import SpynaAST
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
 from spinta.utils.schema import NA
+from spinta.utils.schema import NotAvailable
 
 ParsedRow = Tuple[int, Dict[str, Any]]
 
@@ -139,6 +141,18 @@ def _detect_dimension(
         return row['type']
 
     return ''
+
+
+def _parse_spyna(
+    reader: TabularReader,
+    formula: str,
+) -> Union[SpynaAST, NotAvailable, None]:
+    if formula:
+        try:
+            return spyna.parse(formula)
+        except ParseError as e:
+            reader.error(f"Error while parsing formula {formula!r}:\n{e}")
+    return NA
 
 
 class TabularReader:
@@ -298,10 +312,7 @@ class ResourceReader(TabularReader):
             'type': row['type'],
             'backend': row['ref'],
             'external': row['source'],
-            'prepare': (
-                spyna.parse(row['prepare'])
-                if row['prepare'] else None
-            ),
+            'prepare': _parse_spyna(self, row[PREPARE]),
             'level': row['level'],
             'access': row['access'],
             'title': row['title'],
@@ -395,10 +406,7 @@ class ModelReader(TabularReader):
                     if row['ref'] else []
                 ),
                 'name': row['source'],
-                'prepare': (
-                    spyna.parse(row['prepare'])
-                    if row['prepare'] else None
-                ),
+                'prepare': _parse_spyna(self, row[PREPARE]),
             },
         }
 
@@ -454,16 +462,9 @@ class PropertyReader(TabularReader):
                 f"defined for this {self.state.model.name!r} model."
             )
 
-        prepare = NA
-        if row[PREPARE]:
-            try:
-                prepare = spyna.parse(row[PREPARE])
-            except UnexpectedToken as e:
-                self.error(str(e))
-
         self.data = {
             'type': row['type'],
-            'prepare': prepare,
+            'prepare': _parse_spyna(self, row[PREPARE]),
             'level': row['level'],
             'access': row['access'],
             'uri': row['uri'],
@@ -642,7 +643,7 @@ class ParamReader(TabularReader):
         return {
             'name': name,
             'source': [row[SOURCE]],
-            'prepare': [spyna.parse(row[PREPARE]) if row[PREPARE] else NA],
+            'prepare': [_parse_spyna(self, row[PREPARE])],
             'title': row[TITLE],
             'description': row[DESCRIPTION],
         }
@@ -694,20 +695,6 @@ class ParamReader(TabularReader):
         pass
 
 
-def _read_enum_row(name: str, row: ManifestRow) -> Dict[str, Any]:
-    return {
-        'name': name,
-        'source': row[SOURCE],
-        'prepare': (
-            spyna.parse(row[PREPARE])
-            if row[PREPARE] else NA
-        ),
-        'access': row[ACCESS],
-        'title': row[TITLE],
-        'description': row[DESCRIPTION],
-    }
-
-
 class EnumReader(TabularReader):
     type: str = 'enum'
     data: EnumRow
@@ -734,17 +721,10 @@ class EnumReader(TabularReader):
                 "At least source or prepare must be specified for an enum."
             )
 
-        prepare = NA
-        if row[PREPARE]:
-            try:
-                prepare = spyna.parse(row[PREPARE])
-            except UnexpectedToken as e:
-                self.error(str(e))
-
         self.data = {
             'name': self.name,
             'source': row[SOURCE],
-            'prepare': prepare,
+            'prepare': _parse_spyna(self, row[PREPARE]),
             'access': row[ACCESS],
             'title': row[TITLE],
             'description': row[DESCRIPTION],
