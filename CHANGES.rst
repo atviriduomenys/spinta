@@ -6,6 +6,10 @@ Changes
 0.1.27 (unreleased)
 ===================
 
+New features:
+
+- Add support for comments in tabular manifest files.
+
 
 0.1.26 (2022-02-09)
 ===================

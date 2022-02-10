@@ -24,6 +24,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.enum.helpers import link_enums
@@ -65,6 +66,7 @@ def load(
     model.mode = manifest.mode  # TODO: mode should be inherited from namespace.
     load_node(context, model, data)
     model.lang = load_lang_data(context, model.lang)
+    model.comments = load_comments(model, model.comments)
 
     if model.keymap:
         model.keymap = manifest.store.keymaps[model.keymap]
@@ -203,6 +205,7 @@ def load(
     load_access_param(prop, prop.access, parents)
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
+    prop.comments = load_comments(prop, prop.comments)
 
     # Parse dtype liek geometry(point, 3346)
     dtype_type, dtype_args = _parse_dtype_string(data['type'])

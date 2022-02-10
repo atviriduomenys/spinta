@@ -33,7 +33,8 @@ if TYPE_CHECKING:
     from spinta.dimensions.enum.components import EnumValue
     from spinta.core.config import RawConfig
     from spinta.accesslog import AccessLog
-    from spinta.formats import Format
+    from spinta.formats.components import Format
+    from spinta.dimensions.comments.components import Comment
 
 
 class Context:
@@ -477,6 +478,7 @@ class Model(MetaData):
     mode: Mode = None
     given: ModelGiven
     lang: LangData = None
+    comments: List[Comment] = None
 
     schema = {
         'keymap': {'type': 'string'},
@@ -500,6 +502,7 @@ class Model(MetaData):
         },
         'lang': {'type': 'object'},
         'params': {'type': 'object'},
+        'comments': {},
     }
 
     def __init__(self):
@@ -545,6 +548,7 @@ class Property(Node):
     enums: Enums
     lang: LangData = None
     unit: Unit = None       # Given in ref column.
+    comments: List[Comment] = None
 
     schema = {
         'title': {},
@@ -568,6 +572,7 @@ class Property(Node):
         'enums': {},
         'units': {'type': 'string'},
         'lang': {'type': 'object'},
+        'comments': {},
     }
 
     def __init__(self):

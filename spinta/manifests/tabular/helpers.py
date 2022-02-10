@@ -29,6 +29,7 @@ from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
 from spinta.components import Context
 from spinta.datasets.components import Resource
+from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
 from spinta.components import Model
 from spinta.components import Namespace
@@ -46,6 +47,7 @@ from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.components import ACCESS
 from spinta.manifests.tabular.components import BackendRow
 from spinta.manifests.tabular.components import BaseRow
+from spinta.manifests.tabular.components import CommentData
 from spinta.manifests.tabular.components import DESCRIPTION
 from spinta.manifests.tabular.components import DatasetRow
 from spinta.manifests.tabular.components import ParamRow
@@ -836,6 +838,41 @@ class LangReader(TabularReader):
         pass
 
 
+class CommentReader(TabularReader):
+    type: str = 'comment'
+    data: CommentData
+
+    def read(self, row: ManifestRow) -> None:
+        reader = self.state.stack[-1]
+
+        if 'comments' not in reader.data:
+            reader.data['comments'] = []
+
+        comments = reader.data['comments']
+
+        comments.append({
+            'id': row[ID],
+            'parent': row[REF],
+            'author': row[SOURCE],
+            'access': row[ACCESS],
+            # TODO: parse datetime
+            'created': row[TITLE],
+            'comment': row[DESCRIPTION],
+        })
+
+    def append(self, row: ManifestRow) -> None:
+        self.read(row)
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return not isinstance(reader, AppendReader)
+
+    def enter(self) -> None:
+        pass
+
+    def leave(self) -> None:
+        pass
+
+
 READERS = {
     # Main dimensions
     'dataset': DatasetReader,
@@ -851,6 +888,7 @@ READERS = {
     'param': ParamReader,
     'enum': EnumReader,
     'lang': LangReader,
+    'comment': CommentReader,
 }
 
 
@@ -1292,6 +1330,29 @@ def _lang_to_tabular(
         first = False
 
 
+def _comments_to_tabular(
+    comments: Optional[List[Comment]],
+    *,
+    access: Access = Access.private,
+) -> Iterator[ManifestRow]:
+    if comments is None:
+        return
+    first = True
+    for comment in comments:
+        if comment.access < access:
+            return
+        yield torow(DATASET, {
+            'id': comment.id,
+            'type': 'comment' if first else '',
+            'ref': comment.parent,
+            'source': comment.author,
+            'access': comment.given.access,
+            'title': comment.created,
+            'description': comment.comment,
+        })
+        first = False
+
+
 def _dataset_to_tabular(
     dataset: Dataset,
     *,
@@ -1402,6 +1463,7 @@ def _property_to_tabular(
         data['ref'] = prop.given.unit
 
     yield torow(DATASET, data)
+    yield from _comments_to_tabular(prop.comments, access=access)
     yield from _lang_to_tabular(prop.lang)
     yield from _enums_to_tabular(
         prop.enums,
@@ -1446,6 +1508,7 @@ def _model_to_tabular(
                 p.name for p in model.external.pkeys
             ])
     yield torow(DATASET, data)
+    yield from _comments_to_tabular(model.comments, access=access)
     yield from _lang_to_tabular(model.lang)
 
     props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)

@@ -5,7 +5,6 @@ from spinta.testing.manifest import load_manifest
 def check(tmpdir, rc, table):
     create_tabular_manifest(tmpdir / 'manifest.csv', table)
     manifest = load_manifest(rc, tmpdir / 'manifest.csv')
-    from spinta.manifests.components import Manifest
     assert manifest == table
 
 
@@ -181,4 +180,18 @@ def test_enum_with_unit_name(tmpdir, rc):
                              |         |       |        |
       |   |   | Bool         |         |       |        |
       |   |   |   | value    | integer | m     |        |
+    ''')
+
+
+def test_comment(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property | type    | source | prepare | access  | title      | description
+    datasets/gov/example     |         |        |         |         |            |
+                             | enum    | no     | 0       |         |            |
+                             |         | yes    | 1       |         |            |
+                             |         |        |         |         |            |
+      |   |   | Bool         |         |        |         |         |            |
+                             | comment | Name1  |         | private | 2022-01-01 | Comment 1.
+      |   |   |   | value    | integer |        |         |         |            |
+                             | comment | Name2  |         |         | 2022-01-02 | Comment 2.
     ''')

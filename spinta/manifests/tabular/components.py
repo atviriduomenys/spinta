@@ -231,3 +231,17 @@ class PrefixRow(TypedDict, total=False):
     uri: str
     title: str
     description: str
+
+
+class CommentRow(TypedDict, total=False):
+    id: str
+    parent: str
+    author: str
+    access: str
+    # TODO: should be datetime
+    created: str
+    comment: str
+
+
+class CommentData(TypedDict, total=False):
+    comments: Optional[List[CommentRow]]
