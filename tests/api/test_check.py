@@ -4,6 +4,8 @@ from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.client import get_html_tree
 from spinta.testing.tabular import convert_ascii_manifest_to_csv
+from spinta.testing.utils import error
+from spinta.testing.utils import errors
 
 
 def test_success(rc: RawConfig):
@@ -77,26 +79,11 @@ def test_unknown_type(rc: RawConfig):
     resp = app.post('/:check', files={
         'manifest': ('manifest.csv', csv_manifest, 'text/csv'),
     })
-    assert resp.json() == {
-        'status': 'error',
-        'errors': [
-            {
-                'type': 'system',
-                'code': 'InvalidManifestFile',
-                'message': (
-                    "Error while parsing '3' manifest entry: Unknown component "
-                    "'stringz' in 'types'."
-                ),
-                'template': (
-                    'Error while parsing {eid!r} manifest entry: {error}'
-                ),
-                'context': {
-                    'eid': '3',
-                    'error': "Unknown component 'stringz' in 'types'.",
-                    'manifest': 'manifest',
-                },
-            },
-        ],
+    assert error(resp, ['component', 'error']) == {
+        'context': {
+            'component': 'spinta.components.Property',
+            'error': "Unknown component 'stringz' in 'types'.",
+        },
     }
 
 

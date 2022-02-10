@@ -4,7 +4,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.core.access import link_access_param
 from spinta.datasets.components import Dataset, Resource, Entity, Attribute
-from spinta.exceptions import MissingReferrence
+from spinta.exceptions import MissingReference
 
 
 @commands.link.register(Context, Dataset)
@@ -24,7 +24,7 @@ def link(context: Context, entity: Entity):
     datasets = entity.model.manifest.datasets
     if entity.dataset:
         if entity.dataset not in datasets:
-            raise MissingReferrence(
+            raise MissingReference(
                 entity,
                 param='dataset',
                 ref=entity.dataset,
@@ -36,7 +36,7 @@ def link(context: Context, entity: Entity):
         resources = entity.dataset.resources
         if entity.resource:
             if entity.resource not in resources:
-                raise MissingReferrence(
+                raise MissingReference(
                     entity,
                     param='resource',
                     ref=entity.resource,

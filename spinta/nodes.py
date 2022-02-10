@@ -87,6 +87,7 @@ def get_node(
 
     if ctype not in config.components[group]:
         raise exceptions.InvalidManifestFile(
+            parent,
             manifest=manifest.name,
             eid=eid,
             error=f"Unknown component {ctype!r} in {group!r}.",

@@ -1,3 +1,6 @@
+import pytest
+
+from spinta.exceptions import InvalidManifestFile
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
@@ -195,3 +198,14 @@ def test_comment(tmpdir, rc):
       |   |   |   | value    | integer |        |         |         |            |
                              | comment | Name2  |         |         | 2022-01-02 | Comment 2.
     ''')
+
+
+def test_prop_type_not_given(tmpdir, rc):
+    with pytest.raises(InvalidManifestFile) as e:
+        check(tmpdir, rc, '''
+        d | r | b | m | property | type
+        datasets/gov/example     |
+          |   |   | Bool         |
+          |   |   |   | value    |
+        ''')
+    assert e.value.context['error'] == "Unknown component '' in 'types'."

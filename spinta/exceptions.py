@@ -445,7 +445,7 @@ class UnknownExpr(UserError):
     template = "Unknown expression {expr!r}."
 
 
-class MissingReferrence(UserError):
+class MissingReference(UserError):
     template = "Missing reference {ref!r} referenced from {param!r} parameter."
 
 

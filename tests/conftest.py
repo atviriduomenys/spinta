@@ -47,7 +47,7 @@ def pp(
     *args,
     v: Any = na,
     t: Type = na,
-    on: bool = True,
+    on: bool = True,        # print if on condition is true
     st: bool = False,
     tb: bool = False,
     time: bool = False,

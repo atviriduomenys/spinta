@@ -32,6 +32,7 @@ from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.exceptions import KeymapNotSet
 from spinta.exceptions import UndefinedEnum
+from spinta.exceptions import UnknownPropertyType
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
@@ -207,7 +208,9 @@ def load(
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
 
-    # Parse dtype liek geometry(point, 3346)
+    # Parse dtype like geometry(point, 3346)
+    if data['type'] is None:
+        raise UnknownPropertyType(prop, type=data['type'])
     dtype_type, dtype_args = _parse_dtype_string(data['type'])
     data = {**data, 'type': dtype_type, 'type_args': dtype_args}
 
