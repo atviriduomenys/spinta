@@ -54,7 +54,7 @@ class Expr:
     def __call__(self, *args, **kwargs):
         return type(self)(self.name, *args, **kwargs)
 
-    def resolve(self, env: Env):
+    def resolve(self, env: Env) -> Tuple[List[Any], Dict[str, Any]]:
         args = []
         kwargs = {}
         for arg in self.args:
@@ -271,7 +271,11 @@ def asttoexpr(ast) -> Expr:
         return ast
 
 
-class Bind:
+class Unresolved:
+    pass
+
+
+class Bind(Unresolved):
 
     def __init__(self, name):
         self.name = name
@@ -280,7 +284,7 @@ class Bind:
         return self.name
 
 
-class Pair:
+class Pair(Unresolved):
 
     def __init__(self, name, value):
         self.name = name

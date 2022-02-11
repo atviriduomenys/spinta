@@ -523,6 +523,12 @@ class Model(MetaData):
     def model_type(self):
         return self.name
 
+    def get_name_without_ns(self):
+        if '/' in self.name:
+            return self.name.split('/')[-1]
+        else:
+            return self.name
+
 
 class PropertyGiven:
     access: str = None

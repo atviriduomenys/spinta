@@ -35,6 +35,7 @@ from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.file.components import FileData
 from spinta.ufuncs.components import ForeignProperty
+from spinta.core.ufuncs import Unresolved
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
 from spinta.utils.schema import NA
@@ -155,6 +156,10 @@ class SqlQueryBuilder(Env):
 
         return qry
 
+    def execute(self, expr: Any):
+        expr = self.call('_resolve_unresolved', expr)
+        return super().execute(expr)
+
     def default_resolver(self, expr, *args, **kwargs):
         raise UnknownMethod(name=expr.name, expr=str(expr(*args, **kwargs)))
 
@@ -221,7 +226,7 @@ class Selected:
 
 
 @dataclasses.dataclass
-class GetAttr:
+class GetAttr(Unresolved):
     obj: str
     name: Union[GetAttr, Bind]
 
@@ -442,10 +447,39 @@ def ne(env: SqlQueryBuilder, fpr: ForeignProperty, value: List[Any]):
     return ~column.in_(value)
 
 
+@ufunc.resolver(SqlQueryBuilder, object)
+def _resolve_unresolved(env: SqlQueryBuilder, value: Any) -> Any:
+    if isinstance(value, Unresolved):
+        raise ValueError(f"Unresolved value {value!r}.")
+    else:
+        return value
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind)
+def _resolve_unresolved(env: SqlQueryBuilder, field: Bind) -> sa.Column:
+    prop = env.model.flatprops.get(field.name)
+    if prop:
+        return env.backend.get_column(env.table, prop)
+    else:
+        raise PropertyNotFound(env.model, property=field.name)
+
+
+@ufunc.resolver(SqlQueryBuilder, GetAttr)
+def _resolve_unresolved(env: SqlQueryBuilder, attr: GetAttr) -> sa.Column:
+    fpr = env.call('_resolve_getattr', attr)
+    table = env.joins.get_table(env, fpr)
+    dtype = fpr.right
+    return env.backend.get_column(table, dtype.prop)
+
+
 @ufunc.resolver(SqlQueryBuilder, Expr, name='and')
 def and_(env: SqlQueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
-    args = [a for a in args if a is not None]
+    args = [
+        env.call('_resolve_unresolved', arg)
+        for arg in args
+        if arg is not None
+    ]
     if len(args) > 1:
         return sa.and_(*args)
     elif args:

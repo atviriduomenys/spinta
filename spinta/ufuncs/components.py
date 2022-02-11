@@ -5,12 +5,13 @@ from typing import Optional
 
 from spinta.components import Property
 from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Unresolved
 from spinta.exceptions import IncompatibleForeignProperties
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Ref
 
 
-class ForeignProperty:
+class ForeignProperty(Unresolved):
     """Representation of a reference.
 
     When querying `/City?select(country.code)`, `left` points to `country` and

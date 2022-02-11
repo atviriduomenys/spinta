@@ -8,6 +8,7 @@ from py._path.local import LocalPath
 
 from spinta import commands
 from spinta.cli.helpers.store import load_store
+from spinta.components import Context
 from spinta.components import Store
 from spinta.core.config import RawConfig
 from spinta.core.config import configure_rc
@@ -66,6 +67,16 @@ def load_manifest(
     context = load_manifest_get_context(rc, manifest, **kwargs)
     store: Store = context.get('store')
     return store.manifest
+
+
+def load_manifest_and_context(
+    rc: RawConfig,
+    manifest: Union[pathlib.Path, str],
+    **kwargs,
+) -> Tuple[Context, Manifest]:
+    context = load_manifest_get_context(rc, manifest, **kwargs)
+    store: Store = context.get('store')
+    return context, store.manifest
 
 
 def bootstrap_manifest(
