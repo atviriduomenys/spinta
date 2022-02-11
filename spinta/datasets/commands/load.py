@@ -20,6 +20,7 @@ from spinta.datasets.components import Dataset, Resource, Entity
 from spinta.core.access import load_access_param
 from spinta.types.namespace import load_namespace_from_name
 from spinta.utils.data import take
+from spinta.utils.schema import NA
 
 
 @commands.load.register(Context, Dataset, dict, Manifest)
@@ -124,4 +125,6 @@ def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
 def load(context: Context, attr: Attribute, data: dict, manifest: Manifest):
     if attr.prepare:
         attr.prepare = asttoexpr(attr.prepare)
+    else:
+        attr.prepare = NA
     return attr

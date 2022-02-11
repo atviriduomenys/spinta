@@ -228,7 +228,7 @@ def load(
     if prop.model.external:
         prop.external = _load_property_external(context, manifest, prop, prop.external)
     else:
-        prop.external = None
+        prop.external = NA
     commands.load(context, prop.dtype, data, manifest)
 
     unit: Optional[str] = prop.enum
@@ -301,13 +301,13 @@ def _load_property_external(
     context: Context,
     manifest: Manifest,
     prop: Property,
-    data: Any,
+    data: Any,  # external data
 ) -> Attribute:
     if not isinstance(data, dict):
         return _load_property_external(context, manifest, prop, {'name': data})
 
     config = context.get('config')
-    external = get_node(
+    external: Attribute = get_node(
         config,
         manifest,
         prop.model.eid,

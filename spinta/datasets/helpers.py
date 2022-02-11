@@ -140,6 +140,11 @@ def get_ref_filters(
     seen = seen or []
 
     for prop in take(['_id', all], model.properties).values():
+        if prop.external is None or not prop.external.name:
+            # Do not include properties, that has no external source, we can't
+            # query data if there is no source.
+            continue
+
         ref_key = (model.name, prop.name)
         if (
             isinstance(prop.dtype, Ref) and

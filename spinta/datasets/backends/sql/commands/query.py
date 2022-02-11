@@ -37,6 +37,7 @@ from spinta.types.file.components import FileData
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
 from spinta.utils.itertools import flatten
+from spinta.utils.schema import NA
 
 
 def ensure_list(value: Any) -> List[Any]:
@@ -172,17 +173,15 @@ class Selected:
     item: int = None
     # Model property if a property is selected.
     prop: Property = None
-    # A value or a an Expr for further processing on selected value.
-    # TODO: Probably default `prep` value should be `na`.
-    prep: Any = None
+    # A value or an Expr for further processing on selected value.
+    prep: Any = NA
 
     def __init__(
         self,
         item: int = None,
         prop: Property = None,
         # `prop` can be Expr or any other value.
-        # TODO: Probably default `prep` value should be `na`.
-        prep: Any = None,
+        prep: Any = NA,
     ):
         self.item = item
         self.prop = prop
@@ -555,12 +554,11 @@ def _get_property_for_select(
 def select(env: SqlQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
+            # TODO: Should raise one of spinta.exceptions exception, with
+            #       property as a context.
             raise ValueError("Source can't be a list, use prepare instead.")
-        if prop.external is None:
-            pass
-        # TODO: Probably here we should check if `prepare is not NA`. Because
-        #       prepare could be set to None by user.
-        if prop.external.prepare is not None:
+        if prop.external.prepare is not NA:
+            # If `prepare` formula is given, evaluate formula.
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)
             else:
@@ -572,9 +570,15 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
             #      properties.
             #      tag:resolving_private_properties_in_prepare_context
             result = env.call('select', prop.dtype, result)
-        else:
+        elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
             result = env.call('select', prop.dtype)
+        elif prop.is_reserved():
+            # Reserved properties never have external source.
+            result = env.call('select', prop.dtype)
+        else:
+            # If `source` is not given, return None.
+            result = Selected(prop=prop, prep=None)
         assert isinstance(result, Selected), prop
         env.resolved[prop.place] = result
     return env.resolved[prop.place]
@@ -675,7 +679,7 @@ def select(
     if resolved_key not in env.resolved:
         if isinstance(prop.external, list):
             raise ValueError("Source can't be a list, use prepare instead.")
-        if prop.external.prepare is not None:
+        if prop.external.prepare is not NA:
             if isinstance(prop.external.prepare, Expr):
                 result = env(this=prop).resolve(prop.external.prepare)
             else:
@@ -784,7 +788,7 @@ def select(
 
 @ufunc.resolver(SqlQueryBuilder, Property)
 def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
-    if prop.external.prepare is not None:
+    if prop.external.prepare is not NA:
         if isinstance(prop.external.prepare, Expr):
             result = env.resolve(prop.external.prepare)
         else:
@@ -813,12 +817,14 @@ def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Any:
 
     if len(pkeys) == 1:
         prop = pkeys[0]
-        return env.call('join_table_on', prop)
+        result = env.call('join_table_on', prop)
     else:
-        return [
+        result = [
             env.call('join_table_on', prop)
             for prop in pkeys
         ]
+
+    return result
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType, tuple)

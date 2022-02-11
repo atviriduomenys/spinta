@@ -138,25 +138,25 @@ def test_filter(rc, tmpdir, geodb):
 
 def test_filter_join(rc, tmpdir, geodb):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source      | prepare           | type   | ref     | level | access | uri | title   | description
-       | datasets/gov/example     |             |                   |        |         |       |        |     | Example |
-       |   | data                 |             |                   | sql    |         |       |        |     | Data    |
-       |   |   |                  |             |                   |        |         |       |        |     |         |
-       |   |   |   | country      | salis       |                   |        | code    |       |        |     | Country |
-       |   |   |   |   | code     | kodas       |                   | string |         | 3     | open   |     | Code    |
-       |   |   |   |   | name     | pavadinimas |                   | string |         | 3     | open   |     | Name    |
-       |   |   |                  |             |                   |        |         |       |        |     |         |
-       |   |   |   | city         | miestas     | country.code='lt' |        | name    |       |        |     | City    |
-       |   |   |   |   | name     | pavadinimas |                   | string |         | 3     | open   |     | Name    |
-       |   |   |   |   | country  | salis       |                   | ref    | country | 4     | open   |     | Country |
+    id | d | r | b | m | property | type   | ref     | source      | prepare           | level | access | uri | title   | description
+       | datasets/gov/example     |        |         |             |                   |       |        |     | Example |
+       |   | data                 | sql    |         |             |                   |       |        |     | Data    |
+       |   |   |                  |        |         |             |                   |       |        |     |         |
+       |   |   |   | Country      |        | code    | salis       |                   |       |        |     | Country |
+       |   |   |   |   | code     | string |         | kodas       |                   | 3     | open   |     | Code    |
+       |   |   |   |   | name     | string |         | pavadinimas |                   | 3     | open   |     | Name    |
+       |   |   |                  |        |         |             |                   |       |        |     |         |
+       |   |   |   | City         |        | name    | miestas     | country.code='lt' |       |        |     | City    |
+       |   |   |   |   | name     | string |         | pavadinimas |                   | 3     | open   |     | Name    |
+       |   |   |   |   | country  | ref    | Country | salis       |                   | 4     | open   |     | Country |
     '''))
 
     app = create_client(rc, tmpdir, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
+    resp = app.get('/datasets/gov/example/Country')
     codes = dict(listdata(resp, '_id', 'code'))
 
-    resp = app.get('/datasets/gov/example/city?sort(name)')
+    resp = app.get('/datasets/gov/example/City?sort(name)')
     data = listdata(resp, 'country._id', 'name')
     data = [(codes.get(country), city) for country, city in data]
     assert data == [
@@ -1663,6 +1663,49 @@ def test_implicit_filter(rc, tmpdir, sqlite):
     sqlite.write('CITY', [
         {'COUNTRY': 'in', 'NAME': 'Mumbai'},
         {'COUNTRY': 'in', 'NAME': 'Delhi'},
+        {'COUNTRY': 'lt', 'NAME': 'Vilnius'},
+        {'COUNTRY': 'lv', 'NAME': 'Ryga'},
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    resp = app.get('/datasets/gov/example/City')
+    assert listdata(resp, 'name') == [
+        'Ryga',
+        'Vilnius',
+    ]
+
+
+def test_implicit_filter_no_external_source(rc, tmpdir, sqlite):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | m | property     | type   | ref     | source    | prepare     | access
+    datasets/gov/example     |        |         |           |             |
+      | resource             | sql    |         |           |             |
+      |   | Country          |        | code    | COUNTRY   | code = 'lt' |
+      |   |   | code         | string |         | CODE      |             | open
+      |   |   | name         | string |         | NAME      |             | open
+                             |        |         |           |             |
+      |   | City             |        | name    | CITY      |             |
+      |   |   | name         | string |         | NAME      |             | open
+      |   |   | country      | ref    | Country |           |             | open
+    '''))
+
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('CODE', sa.String),
+            sa.Column('NAME', sa.Text),
+        ],
+        'CITY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('COUNTRY', sa.String),
+        ],
+    })
+
+    sqlite.write('COUNTRY', [
+        {'CODE': 'lt', 'NAME': 'Lithuania'},
+        {'CODE': 'lv', 'NAME': 'Latvia'},
+    ])
+
+    sqlite.write('CITY', [
         {'COUNTRY': 'lt', 'NAME': 'Vilnius'},
         {'COUNTRY': 'lv', 'NAME': 'Ryga'},
     ])

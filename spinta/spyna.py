@@ -265,7 +265,7 @@ class Visitor:
 
 def unparse(rql, *, pretty=False, raw=False):
     if rql is NA:
-        return ''
+        return '<NA>'
     if rql is None:
         return 'null'
     if rql is True:

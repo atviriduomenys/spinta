@@ -39,8 +39,7 @@ def _get_row_value(context: Context, row: RowProxy, sel: Any) -> Any:
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):
             val = _resolve_expr(context, row, sel)
-        # TODO: `sel.prep is not NA`.
-        elif sel.prep is not None:
+        elif sel.prep is not NA:
             val = _get_row_value(context, row, sel.prep)
         else:
             val = row[sel.item]

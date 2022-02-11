@@ -593,6 +593,9 @@ class Property(Node):
     def model_type(self):
         return f'{self.model.name}.{self.place}'
 
+    def is_reserved(self):
+        return self.name.startswith('_')
+
 
 class Command:
 
