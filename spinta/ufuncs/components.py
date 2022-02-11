@@ -13,7 +13,7 @@ from spinta.types.datatype import Ref
 class ForeignProperty:
     """Representation of a reference.
 
-    When querying `/city?select(country.code)`, `left` points to `country` and
+    When querying `/City?select(country.code)`, `left` points to `country` and
     `right` points to `code`. `chain` will be:
 
         [
@@ -22,7 +22,7 @@ class ForeignProperty:
 
     Multiple references can be joined like this:
 
-        /city?select(country.continent.planet.name)
+        /City?select(country.continent.planet.name)
 
     `chain` will look like this:
 
@@ -123,7 +123,7 @@ class ForeignProperty:
             _chain=chain,
         )
 
-    def push(self, right: Optional[Property] = None):
+    def push(self, right: Optional[Property] = None) -> ForeignProperty:
         """Push another property to the chain
 
         Creates new ForeignProperty instance, by pushing another property to the
@@ -140,7 +140,7 @@ class ForeignProperty:
                 f"{type(self.right)}, but it should be a Ref."
             )
 
-    def swap(self, right: Optional[Property] = None):
+    def swap(self, right: Optional[Property] = None) -> ForeignProperty:
         """Swap right with a new property
 
         Creates new ForeignProperty instance, preserving all properties, but

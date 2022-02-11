@@ -28,7 +28,7 @@ from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound
-from spinta.exceptions import UnknownExpr
+from spinta.exceptions import UnknownMethod
 from spinta.types.datatype import DataType
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
@@ -155,7 +155,7 @@ class SqlQueryBuilder(Env):
         return qry
 
     def default_resolver(self, expr, *args, **kwargs):
-        raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
+        raise UnknownMethod(name=expr.name, expr=str(expr(*args, **kwargs)))
 
     def add_column(self, column: Union[sa.Column, Function]) -> int:
         """Returns position in select column list, which is stored in
@@ -221,20 +221,73 @@ class Selected:
             )
 
 
+@dataclasses.dataclass
+class GetAttr:
+    obj: str
+    name: Union[GetAttr, Bind]
+
+
 @ufunc.resolver(SqlQueryBuilder, Bind, Bind, name='getattr')
-def getattr_(env: SqlQueryBuilder, field: Bind, attr: Bind):
-    if field.name not in env.model.properties:
-        raise PropertyNotFound(env.model, property=field.name)
-    prop = env.model.properties[field.name]
-    return env.call('getattr', prop.dtype, attr)
+def getattr_(env: SqlQueryBuilder, obj: Bind, attr: Bind):
+    return GetAttr(obj.name, attr)
 
 
-@ufunc.resolver(SqlQueryBuilder, Ref, Bind, name='getattr')
-def getattr_(env: SqlQueryBuilder, dtype: Ref, attr: Bind) -> ForeignProperty:
-    if attr.name not in dtype.model.properties:
-        raise PropertyNotFound(dtype.model, property=attr.name)
+@ufunc.resolver(SqlQueryBuilder, Bind, GetAttr, name='getattr')
+def getattr_(env: SqlQueryBuilder, obj: Bind, attr: GetAttr):
+    return GetAttr(obj.name, attr)
+
+
+@ufunc.resolver(SqlQueryBuilder, GetAttr)
+def _resolve_getattr(
+    env: SqlQueryBuilder,
+    attr: GetAttr,
+) -> ForeignProperty:
+    prop = env.model.properties[attr.obj]
+    return env.call('_resolve_getattr', prop.dtype, attr.name)
+
+
+@ufunc.resolver(SqlQueryBuilder, Ref, GetAttr)
+def _resolve_getattr(
+    env: SqlQueryBuilder,
+    dtype: Ref,
+    attr: GetAttr,
+) -> ForeignProperty:
+    prop = dtype.model.properties[attr.obj]
+    fpr = ForeignProperty(None, dtype, prop.dtype)
+    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
+
+
+@ufunc.resolver(SqlQueryBuilder, Ref, Bind)
+def _resolve_getattr(
+    env: SqlQueryBuilder,
+    dtype: Ref,
+    attr: Bind,
+) -> ForeignProperty:
     prop = dtype.model.properties[attr.name]
     return ForeignProperty(None, dtype, prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, Ref, GetAttr)
+def _resolve_getattr(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Ref,
+    attr: GetAttr,
+) -> ForeignProperty:
+    prop = dtype.model.properties[attr.obj]
+    fpr = fpr.push(prop)
+    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, Ref, Bind)
+def _resolve_getattr(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Ref,
+    attr: Bind,
+) -> ForeignProperty:
+    prop = dtype.model.properties[attr.name]
+    return fpr.push(prop)
 
 
 @ufunc.resolver(SqlQueryBuilder, str, object, names=['eq', 'ne'])
@@ -295,6 +348,13 @@ def compare(env: SqlQueryBuilder, op: str, field: Bind, value: Any):
     prop = env.model.properties[field.name]
     value = _prepare_value(prop, value)
     return env.call(op, prop.dtype, value)
+
+
+@ufunc.resolver(SqlQueryBuilder, GetAttr, object, names=COMPARE)
+def compare(env: SqlQueryBuilder, op: str, attr: GetAttr, value: Any):
+    fpr: ForeignProperty = env.call('_resolve_getattr', attr)
+    value = _prepare_value(fpr.right.prop, value)
+    return env.call(op, fpr, fpr.right, value)
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, list, names=COMPARE)
@@ -361,6 +421,18 @@ def eq(env: SqlQueryBuilder, fpr: ForeignProperty, dtype: DataType, value: list)
 @ufunc.resolver(SqlQueryBuilder, DataType, list)
 def ne(env: SqlQueryBuilder, dtype: DataType, value: List[Any]):
     column = env.backend.get_column(env.table, dtype.prop)
+    return ~column.in_(value)
+
+
+@ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType, list)
+def ne(
+    env: SqlQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: DataType,
+    value: List[Any],
+):
+    table = env.joins.get_table(env, fpr)
+    column = env.backend.get_column(table, fpr.right.prop)
     return ~column.in_(value)
 
 
@@ -571,6 +643,16 @@ def select(env: SqlQueryBuilder, dtype: Ref, prep: Any) -> Selected:
     fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
     return Selected(
         prop=dtype.prop,
+        prep=env.call('select', fpr, fpr.right.prop),
+    )
+
+
+@ufunc.resolver(SqlQueryBuilder, GetAttr)
+def select(env: SqlQueryBuilder, attr: GetAttr) -> Selected:
+    """For things like select(foo.bar.baz)."""
+    fpr: ForeignProperty = env.call('_resolve_getattr', attr)
+    return Selected(
+        prop=fpr.right.prop,
         prep=env.call('select', fpr, fpr.right.prop),
     )
 

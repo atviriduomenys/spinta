@@ -164,6 +164,61 @@ def test_filter_join(rc, tmpdir, geodb):
     ]
 
 
+def test_filter_join_nested(
+    rc: RawConfig,
+    tmpdir: pathlib.Path,
+    sqlite: Sqlite,
+):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | type   | ref     | source   | prepare   | access
+    example/join/nested      |        |         |          |           |
+      | data                 | sql    |         |          |           |
+      |   |   | Country      |        | code    | COUNTRY  | code='lt' |
+      |   |   |   | code     | string |         | CODE     |           | open
+      |   |   |   | name     | string |         | NAME     |           | open
+      |   |   | City         |        | name    | CITY     |           |
+      |   |   |   | name     | string |         | NAME     |           | open
+      |   |   |   | country  | ref    | Country | COUNTRY  |           | open
+      |   |   | District     |        | name    | DISTRICT |           |
+      |   |   |   | name     | string |         | NAME     |           | open
+      |   |   |   | city     | ref    | City    | CITY     |           | open
+    '''))
+
+    # Configure local server with SQL backend
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('CODE', sa.Text),
+            sa.Column('NAME', sa.Text),
+        ],
+        'CITY': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('COUNTRY', sa.Text),
+        ],
+        'DISTRICT': [
+            sa.Column('NAME', sa.Text),
+            sa.Column('CITY', sa.Text),
+        ],
+    })
+    sqlite.write('COUNTRY', [
+        {'NAME': 'Lithuania', 'CODE': 'lt'},
+    ])
+    sqlite.write('CITY', [
+        {'NAME': 'Vilnius', 'COUNTRY': 'lt'},
+    ])
+    sqlite.write('DISTRICT', [
+        {'NAME': 'Old town', 'CITY': 'Vilnius'},
+        {'NAME': 'New town', 'CITY': 'Vilnius'},
+    ])
+
+    app = create_client(rc, tmpdir, sqlite)
+    app.authmodel('example/join/nested', ['search'])
+    resp = app.get('/example/join/nested/District?select(city.name, name)')
+    assert listdata(resp) == [
+        ('Vilnius', 'New town'),
+        ('Vilnius', 'Old town'),
+    ]
+
+
 def test_filter_join_array_value(rc, tmpdir, geodb):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare                  | type   | ref     | level | access | uri | title   | description
@@ -1099,10 +1154,10 @@ def test_access_private_primary_key(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source  | access
     datasets/ds              |        |         |         |
       | rs                   | sql    |         |         |
-      |   | Country          |        | code    | COUNTRY |     
+      |   | Country          |        | code    | COUNTRY |
       |   |   | name         | string |         | NAME    | open
       |   |   | code         | string |         | CODE    | private
-      |   | City             |        | country | CITY    |     
+      |   | City             |        | country | CITY    |
       |   |   | name         | string |         | NAME    | open
       |   |   | country      | ref    | Country | COUNTRY | open
     '''))
@@ -1170,7 +1225,7 @@ def test_enum(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
-      |   | Country          |        | name    | COUNTRY |         |     
+      |   | Country          |        | name    | COUNTRY |         |
       |   |   | name         | string |         | NAME    |         | open
       |   |   | driving      | string |         | DRIVING |         | open
                              | enum   |         | l       | 'left'  | open
@@ -1204,10 +1259,10 @@ def test_enum_ref(rc, tmpdir, sqlite):
     d | r | m | property | type   | ref  | source  | prepare | access
                          | enum   | side | l       | 'left'  | open
                          |        |      | r       | 'right' | open
-                         |        |      |         |         |     
+                         |        |      |         |         |
     datasets/gov/example |        |      |         |         |
       | resource         | sql    |      |         |         |
-      |   | Country      |        | name | COUNTRY |         |     
+      |   | Country      |        | name | COUNTRY |         |
       |   |   | name     | string |      | NAME    |         | open
       |   |   | driving  | string | side | DRIVING |         | open
     '''))
@@ -1239,7 +1294,7 @@ def test_enum_no_prepare(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
-      |   | Country          |        | name    | COUNTRY |         |     
+      |   | Country          |        | name    | COUNTRY |         |
       |   |   | name         | string |         | NAME    |         | open
       |   |   | driving      | string |         | DRIVING |         | open
                              | enum   |         | l       |         | open
@@ -1273,7 +1328,7 @@ def test_enum_empty_source(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source  | prepare       | access
     datasets/gov/example     |        |         |         |               |
       | resource             | sql    |         |         |               |
-      |   | Country          |        | name    | COUNTRY |               |     
+      |   | Country          |        | name    | COUNTRY |               |
       |   |   | name         | string |         | NAME    |               | open
       |   |   | driving      | string |         | DRIVING | swap('', '-') | open
                              | enum   |         | l       |               | open
@@ -1311,7 +1366,7 @@ def test_enum_ref_empty_source(rc, tmpdir, sqlite):
                              |        |         | -       | null          | open
     datasets/gov/example     |        |         |         |               |
       | resource             | sql    |         |         |               |
-      |   | Country          |        | name    | COUNTRY |               |     
+      |   | Country          |        | name    | COUNTRY |               |
       |   |   | name         | string |         | NAME    |               | open
       |   |   | driving      | string | side    | DRIVING | swap('', '-') | open
     '''))
@@ -1343,7 +1398,7 @@ def test_enum_empty_integer_source(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
-      |   | Country          |        | name    | COUNTRY |         |     
+      |   | Country          |        | name    | COUNTRY |         |
       |   |   | name         | string |         | NAME    |         | open
       |   |   | driving      | string |         | DRIVING |         | open
                              | enum   |         | 0       | 'l'     | open
@@ -1377,7 +1432,7 @@ def test_filter_by_enum_access(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
-      |   | Country          |        | name    | COUNTRY |         |     
+      |   | Country          |        | name    | COUNTRY |         |
       |   |   | name         | string |         | NAME    |         | open
       |   |   | driving      | string |         | DRIVING |         | open
                              | enum   |         | 0       | 'l'     | private
@@ -1412,7 +1467,7 @@ def test_filter_by_ref_enum_access(rc, tmpdir, sqlite):
                              |        |         | 1       | 'r'     | open
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
-      |   | Country          |        | name    | COUNTRY |         |     
+      |   | Country          |        | name    | COUNTRY |         |
       |   |   | name         | string |         | NAME    |         | open
       |   |   | driving      | string | side    | DRIVING |         | open
     '''))
@@ -1443,7 +1498,7 @@ def test_filter_by_enum(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
-      |   | Country          |        | name    | COUNTRY |         |     
+      |   | Country          |        | name    | COUNTRY |         |
       |   |   | name         | string |         | NAME    |         | open
       |   |   | driving      | string |         | DRIVING |         | open
                              | enum   |         | 0       | 'l'     | private
@@ -1478,7 +1533,7 @@ def test_filter_by_ref_enum(rc, tmpdir, sqlite):
                              |        |         | 1       | 'r'     | open
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
-      |   | Country          |        | name    | COUNTRY |         |     
+      |   | Country          |        | name    | COUNTRY |         |
       |   |   | name         | string |         | NAME    |         | open
       |   |   | driving      | string | side    | DRIVING |         | open
     '''))
@@ -1509,7 +1564,7 @@ def test_filter_by_enum_multi_value(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
-      |   | Country          |        | name    | COUNTRY |         |     
+      |   | Country          |        | name    | COUNTRY |         |
       |   |   | name         | string |         | NAME    |         | open
       |   |   | driving      | string |         | DRIVING |         | open
                              | enum   |         | 0       | 'l'     |
@@ -1543,7 +1598,7 @@ def test_filter_by_enum_list_value(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
-      |   | Country          |        | name    | COUNTRY |         |     
+      |   | Country          |        | name    | COUNTRY |         |
       |   |   | name         | string |         | NAME    |         | open
       |   |   | driving      | string |         | DRIVING |         | open
                              | enum   |         | 0       | 'l'     |
@@ -1577,12 +1632,12 @@ def test_implicit_filter(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source    | prepare          | access
     datasets/gov/example     |        |         |           |                  |
       | resource             | sql    |         |           |                  |
-      |   | Country          |        | code    | COUNTRY   | continent = 'eu' |     
+      |   | Country          |        | code    | COUNTRY   | continent = 'eu' |
       |   |   | code         | string |         | CODE      |                  | open
       |   |   | continent    | string |         | CONTINENT |                  | open
       |   |   | name         | string |         | NAME      |                  | open
                              |        |         |           |                  |
-      |   | City             |        | name    | CITY      |                  |     
+      |   | City             |        | name    | CITY      |                  |
       |   |   | name         | string |         | NAME      |                  | open
       |   |   | country      | ref    | Country | COUNTRY   |                  | open
     '''))
@@ -1622,21 +1677,21 @@ def test_implicit_filter(rc, tmpdir, sqlite):
 
 def test_implicit_filter_two_refs(rc, tmpdir, sqlite):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
-    d | r | b | m | property     | type    | ref                | source             | prepare | access 
-    example/standards            |         |                    |                    |         |        
-      | sql                      | sql     |                    | sqlite://          |         |        
-                                 |         |                    |                    |         |        
-      |   |   | StandardDocument |         | standard, document | STANDARD_DOCUMENTS |         |        
-      |   |   |   | standard     | ref     | Standard           | STANDARD_ID        |         | open   
-      |   |   |   | document     | ref     | Document           | DOCUMENT_ID        |         | open   
-                                 |         |                    |                    |         |        
-      |   |   | Standard         |         | id                 | STANDARD           |         |        
+    d | r | b | m | property     | type    | ref                | source             | prepare | access
+    example/standards            |         |                    |                    |         |
+      | sql                      | sql     |                    | sqlite://          |         |
+                                 |         |                    |                    |         |
+      |   |   | StandardDocument |         | standard, document | STANDARD_DOCUMENTS |         |
+      |   |   |   | standard     | ref     | Standard           | STANDARD_ID        |         | open
+      |   |   |   | document     | ref     | Document           | DOCUMENT_ID        |         | open
+                                 |         |                    |                    |         |
+      |   |   | Standard         |         | id                 | STANDARD           |         |
       |   |   |   | id           | integer |                    | STANDARD_ID        |         | private
-      |   |   |   | name         | string  |                    | STANDARD_NAME      |         | open   
-                                 |         |                    |                    |         |        
-      |   |   | Document         |         | id                 | DOCUMENT           | id=2    |        
+      |   |   |   | name         | string  |                    | STANDARD_NAME      |         | open
+                                 |         |                    |                    |         |
+      |   |   | Document         |         | id                 | DOCUMENT           | id=2    |
       |   |   |   | id           | integer |                    | DOCUMENT_ID        |         | private
-      |   |   |   | name         | string  |                    | NAME               |         | open   
+      |   |   |   | name         | string  |                    | NAME               |         | open
     '''))
 
     sqlite.init({
@@ -1685,14 +1740,14 @@ def test_implicit_filter_by_enum(rc, tmpdir, sqlite):
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
-      |   | Country          |        | id      | COUNTRY |         |     
+      |   | Country          |        | id      | COUNTRY |         |
       |   |   | id           | string |         | ID      |         | private
       |   |   | name         | string |         | NAME    |         | open
       |   |   | driving      | string |         | DRIVING |         | open
                              | enum   |         | 0       | 'l'     | protected
                              |        |         | 1       | 'r'     |
                              |        |         |         |         |
-      |   | City             |        | name    | CITY    |         |     
+      |   | City             |        | name    | CITY    |         |
       |   |   | name         | string |         | NAME    |         | open
       |   |   | country      | ref    | Country | COUNTRY |         | open
     '''))
@@ -1738,13 +1793,13 @@ def test_implicit_filter_by_enum_empty_access(rc, tmpdir, sqlite):
                              |        |         | 1         | 'r'              |
                              |        |         |           |                  |
       | resource             | sql    |         |           |                  |
-      |   | Country          |        | id      | COUNTRY   | continent = "eu" |     
+      |   | Country          |        | id      | COUNTRY   | continent = "eu" |
       |   |   | id           | string |         | ID        |                  | private
       |   |   | name         | string |         | NAME      |                  | open
       |   |   | continent    | string |         | CONTINENT |                  | open
       |   |   | driving      | string | Side    | DRIVING   |                  | open
                              |        |         |           |                  |
-      |   | City             |        | name    | CITY      |                  |     
+      |   | City             |        | name    | CITY      |                  |
       |   |   | name         | string |         | NAME      |                  | open
       |   |   | country      | ref    | Country | COUNTRY   |                  | open
     '''))
@@ -1788,7 +1843,7 @@ def test_file(rc, tmpdir, sqlite):
     d | r | m | property  | type   | ref | source    | prepare                                   | access
     datasets/gov/example  |        |     |           |                                           |
       | resource          | sql    |     |           |                                           |
-      |   | Country       |        | id  | COUNTRY   |                                           |     
+      |   | Country       |        | id  | COUNTRY   |                                           |
       |   |   | id        | string |     | ID        |                                           | private
       |   |   | name      | string |     | NAME      |                                           | open
       |   |   | flag_name | string |     | FLAG_FILE |                                           | private
@@ -1838,7 +1893,7 @@ def test_push_file(
     d | r | m | property   | type   | ref | source    | prepare                                   | access
     datasets/gov/push/file |        |     |           |                                           |
       | resource           | sql    | sql |           |                                           |
-      |   | Country        |        | id  | COUNTRY   |                                           |     
+      |   | Country        |        | id  | COUNTRY   |                                           |
       |   |   | id         | string |     | ID        |                                           | private
       |   |   | name       | string |     | NAME      |                                           | open
       |   |   | flag_name  | string |     | FLAG_FILE |                                           | private
@@ -1897,7 +1952,7 @@ def test_image(rc, tmpdir, sqlite):
     d | r | m | property  | type   | ref | source    | prepare                                   | access
     datasets/gov/example  |        |     |           |                                           |
       | resource          | sql    |     |           |                                           |
-      |   | Country       |        | id  | COUNTRY   |                                           |     
+      |   | Country       |        | id  | COUNTRY   |                                           |
       |   |   | id        | string |     | ID        |                                           | private
       |   |   | name      | string |     | NAME      |                                           | open
       |   |   | flag_name | string |     | FLAG_FILE |                                           | private
@@ -1947,7 +2002,7 @@ def test_image_file(
     d | r | m | property   | type   | ref | source    | prepare                                   | access
     datasets/gov/push/file |        |     |           |                                           |
       | resource           | sql    | sql |           |                                           |
-      |   | Country        |        | id  | COUNTRY   |                                           |     
+      |   | Country        |        | id  | COUNTRY   |                                           |
       |   |   | id         | string |     | ID        |                                           | private
       |   |   | name       | string |     | NAME      |                                           | open
       |   |   | flag_name  | string |     | FLAG_FILE |                                           | private

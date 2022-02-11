@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import ARRAY
 
 from spinta.commands import get_primary_key_type
-from spinta.exceptions import UnknownExpr
+from spinta.exceptions import UnknownMethod
 from spinta.core.ufuncs import Env, Expr, Bind, ufunc
 
 
@@ -26,7 +26,7 @@ TYPES = {
 class Alembic(Env):
 
     def default_resolver(self, expr, *args, **kwargs):
-        raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
+        raise UnknownMethod(expr=str(expr(*args, **kwargs)), name=expr.name)
 
 
 @ufunc.resolver(Alembic, Expr)

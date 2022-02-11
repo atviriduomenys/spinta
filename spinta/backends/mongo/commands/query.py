@@ -16,7 +16,7 @@ from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Bind
 from spinta.exceptions import EmptyStringSearch
 from spinta.utils.data import take
-from spinta.exceptions import UnknownExpr
+from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Action, Model, Property
 from spinta.types.datatype import DataType
@@ -74,7 +74,7 @@ class MongoQueryBuilder(Env):
         return cursor
 
     def default_resolver(self, expr, *args, **kwargs):
-        raise UnknownExpr(expr=str(expr(*args, **kwargs)), name=expr.name)
+        raise UnknownMethod(expr=str(expr(*args, **kwargs)), name=expr.name)
 
 
 class ForeignProperty:

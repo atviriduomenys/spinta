@@ -16,7 +16,7 @@ from spinta.core.ufuncs import Env, ufunc
 from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import EmptyStringSearch
-from spinta.exceptions import UnknownExpr
+from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Action, Model, Property
 from spinta.utils.data import take
@@ -87,7 +87,7 @@ class PgQueryBuilder(Env):
         return qry
 
     def default_resolver(self, expr, *args, **kwargs):
-        raise UnknownExpr(expr=repr(expr(*args, **kwargs)), name=expr.name)
+        raise UnknownMethod(expr=repr(expr(*args, **kwargs)), name=expr.name)
 
     def get_joined_table(self, prop: ForeignProperty) -> sa.Table:
         for fpr in prop.chain:

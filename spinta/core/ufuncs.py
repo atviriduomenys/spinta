@@ -10,7 +10,7 @@ from typing import Tuple
 
 from spinta.dispatcher import Command
 from spinta import spyna
-from spinta.exceptions import UnknownExpr
+from spinta.exceptions import UnknownMethod
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
@@ -208,12 +208,12 @@ class Env:
 
     def call(self, name, *args, **kwargs):
         if name not in self._resolvers:
-            raise UnknownExpr(expr=str(Expr(name, *args, **kwargs)), name=name)
+            raise UnknownMethod(expr=str(Expr(name, *args, **kwargs)), name=name)
         ufunc = self._resolvers[name]
         try:
             return ufunc(self, *args, **kwargs)
         except NotImplementedError:
-            raise UnknownExpr(expr=str(Expr(name, *args, **kwargs)), name=name)
+            raise UnknownMethod(expr=str(Expr(name, *args, **kwargs)), name=name)
 
     def resolve(self, expr: Any):
         if not isinstance(expr, Expr):
@@ -244,7 +244,7 @@ class Env:
             return expr
 
         if expr.name not in self._executors:
-            raise UnknownExpr(expr=str(expr), name=expr.name)
+            raise UnknownMethod(expr=str(expr), name=expr.name)
 
         ufunc = self._executors[expr.name]
 
