@@ -136,6 +136,7 @@ mypy = "^0.812"
 cssselect = "^1.1.0"
 objprint = "^0.1.4"
 sphinx-rtd-theme = "^1.0.0"
+sqlalchemy-stubs = "^0.4"
 
 
 [build-system]
@@ -147,3 +148,4 @@ build-backend = "poetry.core.masonry.api"
 disallow_any_unimported = true
 show_error_codes = true
 check_untyped_defs = true
+plugins = "sqlmypy"
