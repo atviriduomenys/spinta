@@ -47,5 +47,3 @@ ComplexCell = Union[
     Dict[str, 'ComplexCell'],
     List['ComplexCell'],
 ]
-
-

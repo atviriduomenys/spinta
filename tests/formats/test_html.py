@@ -10,9 +10,12 @@ from _pytest.fixtures import FixtureRequest
 from starlette.requests import Request
 
 from spinta import commands
+from spinta.components import Action
 from spinta.components import Store
 from spinta.formats.html.commands import _LimitIter
 from spinta.formats.html.components import Cell
+from spinta.formats.html.components import Color
+from spinta.formats.html.components import Html
 from spinta.formats.html.helpers import CurrentLocation
 from spinta.formats.html.helpers import get_current_location
 from spinta.formats.html.helpers import short_id
@@ -27,6 +30,7 @@ from spinta.testing.client import TestClientResponse
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.utils.data import take
+from spinta.testing.manifest import load_manifest_and_context
 
 
 def _get_data_table(context: dict):
@@ -420,3 +424,36 @@ def test_limit_iter(limit, exhausted, result):
     it = _LimitIter(limit, iter([1, 2, 3]))
     assert list(it) == result
     assert it.exhausted is exhausted
+
+
+@pytest.mark.parametrize('value, cell', [
+    (None, Cell('', link=None, color=Color.null)),
+    ({'_id': None}, Cell('', link=None, color=Color.null)),
+    ({'_id': 'c634dbd8-416f-457d-8bda-5a6c35bbd5d6'},
+     Cell('c634dbd8', link='/example/Country/c634dbd8-416f-457d-8bda-5a6c35bbd5d6')),
+])
+def test_prepare_ref_for_response(rc: RawConfig, value, cell):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref     | access
+    example                    |         |         |
+      |   |   | Country        |         | name    |
+      |   |   |   | name       | string  |         | open
+      |   |   | City           |         | name    |
+      |   |   |   | name       | string  |         | open
+      |   |   |   | country    | ref     | Country | open
+    ''')
+    fmt = Html()
+    dtype = manifest.models['example/City'].properties['country'].dtype
+    result = commands.prepare_dtype_for_response(
+        context,
+        fmt,
+        dtype,
+        value,
+        data={},
+        action=Action.GETALL,
+        select=None,
+    )
+    assert isinstance(result, Cell)
+    assert result.value == cell.value
+    assert result.color == cell.color
+    assert result.link == cell.link
