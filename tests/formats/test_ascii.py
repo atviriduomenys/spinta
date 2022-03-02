@@ -1,7 +1,18 @@
+import base64
 import datetime
 import hashlib
 
 import pytest
+from _pytest.fixtures import FixtureRequest
+
+from spinta.auth import AdminToken
+from spinta.components import Action
+from spinta.components import UrlParams
+from spinta.core.config import RawConfig
+from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.data import pushdata
+from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.client import create_test_client
 
 
 def sha1(s):
@@ -61,43 +72,57 @@ def test_export_ascii(app, mocker):
 
 
 @pytest.mark.asyncio
-async def test_export_multiple_types(context):
-    rows = [
-        {'_type': 'a', 'value': 1},
-        {'_type': 'a', 'value': 2},
-        {'_type': 'a', 'value': 3},
-        {'_type': 'b', 'value': 1},
-        {'_type': 'b', 'value': 2},
-        {'_type': 'b', 'value': 3},
-        {'_type': 'c', 'value': 1},
-        {'_type': 'c', 'value': 2},
-        {'_type': 'c', 'value': 3},
-    ]
+async def test_export_multiple_types(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property | type    | ref   | access
+    example                  |         |       |
+      |   |   | A            |         | value |
+      |   |   |   | value    | integer |       | open
+      |   |   | B            |         | value |
+      |   |   |   | value    | integer |       | open
+      |   |   | C            |         | value |
+      |   |   |   | value    | integer |       | open
 
+    ''')
+    rows = [
+        {'_type': 'example/A', 'value': 1},
+        {'_type': 'example/A', 'value': 2},
+        {'_type': 'example/A', 'value': 3},
+        {'_type': 'example/B', 'value': 1},
+        {'_type': 'example/B', 'value': 2},
+        {'_type': 'example/B', 'value': 3},
+        {'_type': 'example/C', 'value': 1},
+        {'_type': 'example/C', 'value': 2},
+        {'_type': 'example/C', 'value': 3},
+    ]
+    context.set('auth.token', AdminToken())
     config = context.get('config')
     exporter = config.exporters['ascii']
-    assert ''.join(exporter(rows)) == (
-        '\n\n'
-        'Table: a\n'
-        'value\n'
-        '=====\n'
-        '1    \n'
-        '2    \n'
-        '3    \n'
+    ns = manifest.namespaces['']
+    params = UrlParams()
+    assert ''.join(exporter(context, ns, Action.GETALL, params, rows)) == (
         '\n'
-        'Table: b\n'
-        'value\n'
-        '=====\n'
-        '1    \n'
-        '2    \n'
-        '3    \n'
         '\n'
-        'Table: c\n'
-        'value\n'
-        '=====\n'
-        '1    \n'
-        '2    \n'
-        '3    '
+        'Table: example/A\n'
+        '  _type     _id    _revision   value\n'
+        '====================================\n'
+        'example/A   None   None        1    \n'
+        'example/A   None   None        2    \n'
+        'example/A   None   None        3    \n'
+        '\n'
+        'Table: example/B\n'
+        '  _type     _id    _revision   value\n'
+        '====================================\n'
+        'example/B   None   None        1    \n'
+        'example/B   None   None        2    \n'
+        'example/B   None   None        3    \n'
+        '\n'
+        'Table: example/C\n'
+        '  _type     _id    _revision   value\n'
+        '====================================\n'
+        'example/C   None   None        1    \n'
+        'example/C   None   None        2    \n'
+        'example/C   None   None        3    '
     )
 
 
@@ -124,4 +149,67 @@ def test_export_ascii_params(app, mocker):
         '================\n'
         'lt     Lithuania\n'
         'lv     Latvia   '
+    )
+
+
+def test_ascii_ref_dtype(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access
+    example/ascii/ref        |        |         |
+      |   |   | Country      |        | name    |
+      |   |   |   | name     | string |         | open
+      |   |   | City         |        | name    |
+      |   |   |   | name     | string |         | open
+      |   |   |   | country  | ref    | Country | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/ascii/ref', ['insert', 'search'])
+
+    # Add data
+    country = pushdata(app, '/example/ascii/ref/Country', {'name': 'Lithuania'})
+    pushdata(app, '/example/ascii/ref/City', {
+        'name': 'Vilnius',
+        'country': {'_id': country['_id']},
+    })
+
+    assert app.get('/example/ascii/ref/City/:format/ascii?select(name, country)').text == (
+        ' name                 country._id             \n'
+        '==============================================\n'
+        f'Vilnius   {country["_id"]}'
+    )
+
+
+def test_ascii_file_dtype(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref  | access
+    example/ascii/file       |        |      |
+      |   |   | Country      |        | name |
+      |   |   |   | name     | string |      | open
+      |   |   |   | flag     | file   |      | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/ascii/file', ['insert', 'search'])
+
+    # Add data
+    pushdata(app, '/example/ascii/file/Country', {
+        'name': 'Lithuania',
+        'flag': {
+            '_id': 'file.txt',
+            '_content_type': 'text/plain',
+            '_content': base64.b64encode(b'DATA').decode(),
+        },
+    })
+
+    assert app.get('/example/ascii/file/Country/:format/ascii?select(name, flag)').text == (
+        '  name      flag._id   flag._content_type\n'
+        '=========================================\n'
+        'Lithuania   file.txt   text/plain        '
     )

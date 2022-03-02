@@ -15,6 +15,8 @@ from spinta.components import UrlParams
 from spinta.types.datatype import Array
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Object
+from spinta.types.datatype import File
+from spinta.types.datatype import Ref
 from spinta.utils.data import take
 
 
@@ -36,6 +38,13 @@ def _get_dtype_header(
     elif isinstance(dtype, Array):
         name_ = name + '[]'
         yield from _get_dtype_header(dtype.items.dtype, select, name_)
+
+    elif isinstance(dtype, File):
+        yield name + '._id'
+        yield name + '._content_type'
+
+    elif isinstance(dtype, Ref):
+        yield name + '._id'
 
     else:
         yield name

@@ -375,11 +375,13 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     if value['_id'] is None:
-        return Cell('', color=Color.null)
-    return Cell(short_id(value['_id']), link=get_model_link(
-        dtype.model,
-        pk=value['_id'],
-    ))
+        _id = Cell('', color=Color.null)
+    else:
+        _id = Cell(short_id(value['_id']), link=get_model_link(
+            dtype.model,
+            pk=value['_id'],
+        ))
+    return {'_id': _id}
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, File, NotAvailable)
@@ -393,7 +395,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    super_ = commands.prepare_dtype_for_response[Context, File, Format, NotAvailable]
+    super_ = commands.prepare_dtype_for_response[Context, Format, File, NotAvailable]
     return super_(context, fmt, dtype, value, data=data, action=action, select=select)
 
 
@@ -409,12 +411,21 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     if value['_id'] is None:
-        return Cell('', color=Color.null)
-    return Cell(value['_id'], link=get_model_link(
-        dtype.prop.model,
-        pk=data['_id'],
-        prop=dtype.prop.name,
-    ))
+        _id = Cell('', color=Color.null)
+    else:
+        _id = Cell(value['_id'], link=get_model_link(
+            dtype.prop.model,
+            pk=data['_id'],
+            prop=dtype.prop.name,
+        ))
+    if value['_content_type'] is None:
+        _content_type = Cell('', color=Color.null)
+    else:
+        _content_type = Cell(value['_content_type'])
+    return {
+        '_id': _id,
+        '_content_type': _content_type,
+    }
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, Object, dict)

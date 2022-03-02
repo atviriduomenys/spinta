@@ -319,6 +319,9 @@ def test_file_type_list(
                 'link': f'/example/html/file/Country/{_id}/flag',
                 'value': 'flag.png',
             },
+            {
+                'value': 'image/png',
+            },
         ]
     ]
 
@@ -342,10 +345,11 @@ def test_file_type_details(
     assert list(map(take, _table_with_header(resp))) == [
         {
             'name': {'value': 'Lithuania'},
-            'flag': {
+            'flag._id': {
                 'value': 'flag.png',
                 'link': f'/example/html/file/Country/{_id}/flag',
             },
+            'flag._content_type': {'value': 'image/png'},
         },
     ]
 
@@ -356,7 +360,7 @@ def test_file_type_changes(
     request: FixtureRequest,
 ):
     app, _id = _prep_file_type(rc, postgresql, request)
-    resp = app.get(f'/example/html/file/Country/:changes', headers={
+    resp = app.get('/example/html/file/Country/:changes', headers={
         'Accept': 'text/html',
     })
     assert _table(resp.context['data'])[0][6:] == [
@@ -366,6 +370,9 @@ def test_file_type_changes(
         {
             'link': f'/example/html/file/Country/{_id}/flag',
             'value': 'flag.png',
+        },
+        {
+            'value': 'image/png',
         },
     ]
 
@@ -386,6 +393,9 @@ def test_file_type_changes_single_object(
         {
             'value': 'flag.png',
             'link': f'/example/html/file/Country/{_id}/flag',
+        },
+        {
+            'value': 'image/png',
         },
     ]
 
@@ -408,6 +418,9 @@ def test_file_type_no_pk(
                 'value': 'flag.png',
                 'link': f'/example/html/file/Country/{_id}/flag',
             },
+            {
+                'value': 'image/png',
+            },
         ]
     ]
 
@@ -427,7 +440,6 @@ def test_limit_iter(limit, exhausted, result):
 
 
 @pytest.mark.parametrize('value, cell', [
-    (None, Cell('', link=None, color=Color.null)),
     ({'_id': None}, Cell('', link=None, color=Color.null)),
     ({'_id': 'c634dbd8-416f-457d-8bda-5a6c35bbd5d6'},
      Cell('c634dbd8', link='/example/Country/c634dbd8-416f-457d-8bda-5a6c35bbd5d6')),
@@ -453,7 +465,8 @@ def test_prepare_ref_for_response(rc: RawConfig, value, cell):
         action=Action.GETALL,
         select=None,
     )
-    assert isinstance(result, Cell)
-    assert result.value == cell.value
-    assert result.color == cell.color
-    assert result.link == cell.link
+    assert list(result) == ['_id']
+    assert isinstance(result['_id'], Cell)
+    assert result['_id'].value == cell.value
+    assert result['_id'].color == cell.color
+    assert result['_id'].link == cell.link

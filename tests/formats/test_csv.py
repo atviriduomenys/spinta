@@ -1,5 +1,13 @@
+import base64
+
+from _pytest.fixtures import FixtureRequest
+
+from spinta.core.config import RawConfig
 from spinta.testing.client import TestClient
+from spinta.testing.client import create_test_client
+from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.csv import parse_csv
+from spinta.testing.data import pushdata
 
 
 def test_export_csv(app):
@@ -89,3 +97,63 @@ def test_csv_limit(app: TestClient):
         ['ee', 'Estonia'],
     ]
 
+
+def test_csv_ref_dtype(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access
+    example/csv/ref          |        |         |
+      |   |   | Country      |        | name    |
+      |   |   |   | name     | string |         | open
+      |   |   | City         |        | name    |
+      |   |   |   | name     | string |         | open
+      |   |   |   | country  | ref    | Country | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/csv/ref', ['insert', 'search'])
+
+    # Add data
+    country = pushdata(app, '/example/csv/ref/Country', {'name': 'Lithuania'})
+    pushdata(app, '/example/csv/ref/City', {
+        'name': 'Vilnius',
+        'country': {'_id': country['_id']},
+    })
+
+    assert parse_csv(app.get('/example/csv/ref/City/:format/csv?select(name, country)')) == [
+        ['name', 'country._id'],
+        ['Vilnius', country['_id']],
+    ]
+
+
+def test_csv_file_dtype(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref  | access
+    example/csv/file         |        |      |
+      |   |   | Country      |        | name |
+      |   |   |   | name     | string |      | open
+      |   |   |   | flag     | file   |      | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/csv/file', ['insert', 'search'])
+
+    # Add data
+    pushdata(app, '/example/csv/file/Country', {
+        'name': 'Lithuania',
+        'flag': {
+            '_id': 'file.txt',
+            '_content_type': 'text/plain',
+            '_content': base64.b64encode(b'DATA').decode(),
+        },
+    })
+
+    assert parse_csv(app.get('/example/csv/file/Country/:format/csv?select(name, flag)')) == [
+        ['name', 'flag._id', 'flag._content_type'],
+        ['Lithuania', 'file.txt', 'text/plain'],
+    ]

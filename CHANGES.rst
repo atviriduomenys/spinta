@@ -16,6 +16,8 @@ Bug fixes:
 
 - Fix ref html rendering with null values.
 
+- Fix ref and file rendering on csv and ascii formats.
+
 
 
 0.1.26 (2022-02-09)

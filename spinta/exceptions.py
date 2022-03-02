@@ -204,7 +204,7 @@ class UnknownOperator(UserError):
 
 class ItemDoesNotExist(UserError):
     status_code = 404
-    template = "Resource {_id!r} not found."
+    template = "Resource {id!r} not found."
 
 
 class ModelNotFound(UserError):
