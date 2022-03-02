@@ -14,13 +14,19 @@ from spinta.manifests.components import Manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Ref
+from spinta.ufuncs.helpers import merge_formulas
+from spinta.datasets.helpers import get_enum_filters
+from spinta.datasets.helpers import get_ref_filters
 
 
 def _qry(qry: Select, indent: int = 4) -> str:
     ln = '\n'
     indent_ = ' ' * indent
     qry = str(qry)
-    qry = qry.replace(' JOIN ', '\nJOIN ')
+    qry = qry.replace('SELECT ', 'SELECT\n  ')
+    qry = qry.replace('", "', '",\n  "')
+    qry = qry.replace(' LEFT OUTER JOIN ', '\nLEFT OUTER JOIN ')
+    qry = qry.replace(' AND ', '\n  AND ')
     qry = '\n'.join([
         line.rstrip()
         for line in qry.splitlines()
@@ -46,7 +52,7 @@ def _meta_from_manifest(manifest: Manifest) -> sa.MetaData:
     meta = sa.MetaData()
     for model in manifest.models.values():
         columns = [
-            sa.Column(name.upper(), _get_sql_type(prop.dtype))
+            sa.Column(prop.external.name, _get_sql_type(prop.dtype))
             for name, prop in model.properties.items()
             if (
                 prop.external and
@@ -68,7 +74,10 @@ def _build(rc: RawConfig, manifest: str, model_name: str) -> str:
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
     env = builder.init(backend, meta.tables[_get_model_db_name(model)])
-    expr = env.resolve(model.external.prepare)
+    query = model.external.prepare
+    query = merge_formulas(query, get_enum_filters(context, model))
+    query = merge_formulas(query, get_ref_filters(context, model))
+    expr = env.resolve(query)
     where = env.execute(expr)
     qry = env.build(where)
     return _qry(qry)
@@ -85,7 +94,9 @@ def test_unresolved(rc: RawConfig):
       |   |   |   | name       | string  |         | NAME       |            | open
       |   |   |   | country    | ref     | Country | COUNTRY    |            | open
     ''', 'example/Country') == '''
-    SELECT "COUNTRY"."NAME", "COUNTRY"."DEMOCRATIC"
+    SELECT
+      "COUNTRY"."NAME",
+      "COUNTRY"."DEMOCRATIC"
     FROM "COUNTRY"
     WHERE "COUNTRY"."DEMOCRATIC"
     '''
@@ -102,8 +113,101 @@ def test_unresolved_getattr(rc: RawConfig):
       |   |   |   | name       | string  |         | NAME       |                    | open
       |   |   |   | country    | ref     | Country | COUNTRY    |                    | open
     ''', 'example/City') == '''
-    SELECT "CITY"."NAME", "CITY"."COUNTRY"
+    SELECT
+      "CITY"."NAME",
+      "CITY"."COUNTRY"
     FROM "CITY"
-    JOIN "COUNTRY" ON "CITY"."COUNTRY" = "COUNTRY"."NAME"
-    WHERE "COUNTRY"."DEMOCRATIC"
+    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_1" ON "CITY"."COUNTRY" = "COUNTRY_1"."NAME"
+    WHERE "COUNTRY_1"."DEMOCRATIC"
+    '''
+
+
+def test_join_aliases(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property | type   | ref     | source     | prepare          | access
+    example                  |        |         |            |                  |
+      | data                 | sql    |         |            |                  |
+      |   |                  |        |         |            |                  |
+      |   |   | Planet       |        | id      | PLANET     | code = 'er'      |
+      |   |   |   | id       | string |         | ID         |                  | open
+      |   |   |   | code     | string |         | CODE       |                  | open
+      |   |   |   | name     | string |         | NAME       |                  | open
+      |   |                  |        |         |            |                  |
+      |   |   | Country      |        | id      | COUNTRY    | code = 'lt'      |
+      |   |   |   | id       | string |         | ID         |                  | open
+      |   |   |   | code     | string |         | CODE       |                  | open
+      |   |   |   | name     | string |         | NAME       |                  | open
+      |   |   |   | planet   | ref    | Planet  | PLANET_ID  |                  | open
+      |   |                  |        |         |            |                  |
+      |   |   | City         |        | id      | CITY       | name = 'Vilnius' |
+      |   |   |   | id       | string |         | ID         |                  | open
+      |   |   |   | name     | string |         | NAME       |                  | open
+      |   |   |   | country  | ref    | Country | COUNTRY_ID |                  | open
+      |   |   |   | planet   | ref    | Planet  | PLANET_ID  |                  | open
+      |   |                  |        |         |            |                  |
+      |   |   | Street       |        | name    | STREET     |                  |
+      |   |   |   | name     | string |         | NAME       |                  | open
+      |   |   |   | city     | ref    | City    | CITY_ID    |                  | open
+      |   |   |   | country  | ref    | Country | COUNTRY_ID |                  | open
+      |   |   |   | planet   | ref    | Planet  | PLANET_ID  |                  | open
+    ''', 'example/Street') == '''
+    SELECT
+      "STREET"."NAME",
+      "STREET"."CITY_ID",
+      "STREET"."COUNTRY_ID",
+      "STREET"."PLANET_ID"
+    FROM "STREET"
+    LEFT OUTER JOIN "CITY" AS "CITY_1" ON "STREET"."CITY_ID" = "CITY_1"."ID"
+    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_1" ON "CITY_1"."COUNTRY_ID" = "COUNTRY_1"."ID"
+    LEFT OUTER JOIN "PLANET" AS "PLANET_1" ON "COUNTRY_1"."PLANET_ID" = "PLANET_1"."ID"
+    LEFT OUTER JOIN "PLANET" AS "PLANET_2" ON "CITY_1"."PLANET_ID" = "PLANET_2"."ID"
+    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_2" ON "STREET"."COUNTRY_ID" = "COUNTRY_2"."ID"
+    LEFT OUTER JOIN "PLANET" AS "PLANET_3" ON "COUNTRY_2"."PLANET_ID" = "PLANET_3"."ID"
+    LEFT OUTER JOIN "PLANET" AS "PLANET_4" ON "STREET"."PLANET_ID" = "PLANET_4"."ID"
+    WHERE ("CITY_1"."NAME" IS NULL OR "CITY_1"."NAME" = :NAME_1)
+      AND ("COUNTRY_1"."CODE" IS NULL OR "COUNTRY_1"."CODE" = :CODE_1)
+      AND ("PLANET_1"."CODE" IS NULL OR "PLANET_1"."CODE" = :CODE_2)
+      AND ("PLANET_2"."CODE" IS NULL OR "PLANET_2"."CODE" = :CODE_3)
+      AND ("COUNTRY_2"."CODE" IS NULL OR "COUNTRY_2"."CODE" = :CODE_4)
+      AND ("PLANET_3"."CODE" IS NULL OR "PLANET_3"."CODE" = :CODE_5)
+      AND ("PLANET_4"."CODE" IS NULL OR "PLANET_4"."CODE" = :CODE_6)
+    '''
+
+
+def test_group(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property | type   | ref | source  | prepare                       | access
+    example                  |        |     |         |                               |
+      | data                 | sql    |     |         |                               |
+      |   |   | Country      |        | id  | COUNTRY | (code = null \\| code = 'lt') |
+      |   |   |   | id       | string |     | ID      |                               | open
+      |   |   |   | code     | string |     | CODE    |                               | open
+      |   |   |   | name     | string |     | NAME    |                               | open
+    ''', 'example/Country') == '''
+    SELECT
+      "COUNTRY"."ID",
+      "COUNTRY"."CODE",
+      "COUNTRY"."NAME"
+    FROM "COUNTRY"
+    WHERE "COUNTRY"."CODE" IS NULL OR "COUNTRY"."CODE" = :CODE_1
+    '''
+
+
+def test_group_2(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property | type   | ref | source  | prepare                                                | access
+    example                  |        |     |         |                                                        |
+      | data                 | sql    |     |         |                                                        |
+      |   |   | Country      |        | id  | COUNTRY | (code = null \\| code = 'lt') & (name = null \\| name) |
+      |   |   |   | id       | string |     | ID      |                                                        | open
+      |   |   |   | code     | string |     | CODE    |                                                        | open
+      |   |   |   | name     | string |     | NAME    |                                                        | open
+    ''', 'example/Country') == '''
+    SELECT
+      "COUNTRY"."ID",
+      "COUNTRY"."CODE",
+      "COUNTRY"."NAME"
+    FROM "COUNTRY"
+    WHERE ("COUNTRY"."CODE" IS NULL OR "COUNTRY"."CODE" = :CODE_1)
+      AND ("COUNTRY"."NAME" IS NULL OR "COUNTRY"."NAME")
     '''

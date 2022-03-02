@@ -33,6 +33,3 @@ def convert_ascii_manifest_to_csv(manifest: str) -> str:
     for row in rows:
         writer.writerow(row)
     return file.getvalue()
-
-
-

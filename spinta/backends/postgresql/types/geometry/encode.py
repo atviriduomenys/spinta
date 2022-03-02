@@ -14,11 +14,11 @@ from spinta.formats.html.components import Html
 from spinta.types.geometry.components import Geometry
 
 
-@commands.prepare_dtype_for_response.register(Context, Geometry, Format, WKBElement)
+@commands.prepare_dtype_for_response.register(Context, Format, Geometry, WKBElement)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Geometry,
     fmt: Format,
+    dtype: Geometry,
     value: WKBElement,
     *,
     data: Dict[str, Any],
@@ -29,11 +29,11 @@ def prepare_dtype_for_response(
     return shape.wkt
 
 
-@commands.prepare_dtype_for_response.register(Context, Geometry, Html, WKBElement)
+@commands.prepare_dtype_for_response.register(Context, Html, Geometry, WKBElement)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Geometry,
     fmt: Html,
+    dtype: Geometry,
     value: WKBElement,
     *,
     data: Dict[str, Any],

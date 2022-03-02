@@ -1,6 +1,8 @@
+from typing import Any
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import Set
 
 from spinta import exceptions
 from spinta.auth import authorized
@@ -116,6 +118,36 @@ def get_enum_filters(
         return None
 
 
+def isexpr(
+    obj: Any,
+    names: Set[str],
+    *,
+    nargs: Optional[int] = None,
+):
+    return (
+        isinstance(obj, Expr) and
+        obj.name in names and
+        (nargs is None or len(obj.args) == nargs)
+    )
+
+
+def add_is_null_checks(expr: Expr) -> Expr:
+    if isexpr(expr, {'eq'}, nargs=2):
+        lhs, rhs = expr.args
+        if isexpr(lhs, {'getattr'}, nargs=2) and rhs is not None:
+            if isexpr(lhs.args[0], {'bind'}):
+                return Expr('group', ShortExpr('or', ShortExpr('eq', lhs, None), expr))
+    if isexpr(expr, {'getattr'}, nargs=2):
+        if isexpr(expr.args[0], {'bind'}):
+            return Expr('group', ShortExpr('or', ShortExpr('eq', expr, None), expr))
+    if isexpr(expr, {'and'}):
+        return ShortExpr('and', *(
+            add_is_null_checks(arg)
+            for arg in expr.args
+        ))
+    return expr
+
+
 def get_ref_filters(
     context: Context,
     model: Model,
@@ -130,7 +162,7 @@ def get_ref_filters(
     if fpr:
         query = merge_formulas(
             query,
-            change_base_model(context, model, fpr),
+            add_is_null_checks(change_base_model(context, model, fpr)),
         )
         query = merge_formulas(
             query,

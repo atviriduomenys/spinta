@@ -42,6 +42,7 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.utils.nestedstruct import flatten
+from spinta.utils.schema import NotAvailable
 
 
 def _get_model_reserved_props(action: Action) -> List[str]:
@@ -278,8 +279,8 @@ def prepare_data_for_response(
     data = {
         prop.name: commands.prepare_dtype_for_response(
             context,
-            prop.dtype,
             fmt,
+            prop.dtype,
             val,
             data=value,
             action=action,
@@ -297,11 +298,11 @@ def prepare_data_for_response(
     return data
 
 
-@commands.prepare_dtype_for_response.register(Context, String, Html, _NamespaceName)
+@commands.prepare_dtype_for_response.register(Context, Html, String, _NamespaceName)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: String,
     fmt: Html,
+    dtype: String,
     value: _NamespaceName,
     *,
     data: Dict[str, Any],
@@ -311,11 +312,11 @@ def prepare_dtype_for_response(
     return Cell(value.render(), link=get_model_link(value))
 
 
-@commands.prepare_dtype_for_response.register(Context, String, Html, _ModelName)
+@commands.prepare_dtype_for_response.register(Context, Html, String, _ModelName)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: String,
     fmt: Html,
+    dtype: String,
     value: _ModelName,
     *,
     data: Dict[str, Any],
@@ -325,11 +326,11 @@ def prepare_dtype_for_response(
     return Cell(value.render(), link=get_model_link(value))
 
 
-@commands.prepare_dtype_for_response.register(Context, DataType, Html, type(None))
+@commands.prepare_dtype_for_response.register(Context, Html, DataType, type(None))
 def prepare_dtype_for_response(
     context: Context,
-    dtype: DataType,
     fmt: Html,
+    dtype: DataType,
     value: None,
     *,
     data: Dict[str, Any],
@@ -339,11 +340,11 @@ def prepare_dtype_for_response(
     return Cell('', color=Color.null)
 
 
-@commands.prepare_dtype_for_response.register(Context, DataType, Html, object)
+@commands.prepare_dtype_for_response.register(Context, Html, DataType, object)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: DataType,
     fmt: Html,
+    dtype: DataType,
     value: Any,
     *,
     data: Dict[str, Any],
@@ -362,34 +363,53 @@ class _RefValue(TypedDict):
     _id: str
 
 
-@commands.prepare_dtype_for_response.register(Context, Ref, Html, dict)
+@commands.prepare_dtype_for_response.register(Context, Html, Ref, dict)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Ref,
     fmt: Html,
+    dtype: Ref,
     value: _RefValue,
     *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
+    if value['_id'] is None:
+        return Cell('', color=Color.null)
     return Cell(short_id(value['_id']), link=get_model_link(
         dtype.model,
         pk=value['_id'],
     ))
 
 
-@commands.prepare_dtype_for_response.register(Context, File, Html, dict)
+@commands.prepare_dtype_for_response.register(Context, Html, File, NotAvailable)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: File,
     fmt: Html,
+    dtype: File,
+    value: NotAvailable,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, File, Format, NotAvailable]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, File, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: File,
     value: Dict[str, Any],
     *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
+    if value['_id'] is None:
+        return Cell('', color=Color.null)
     return Cell(value['_id'], link=get_model_link(
         dtype.prop.model,
         pk=data['_id'],
@@ -397,21 +417,21 @@ def prepare_dtype_for_response(
     ))
 
 
-@commands.prepare_dtype_for_response.register(Context, Object, Html, dict)
+@commands.prepare_dtype_for_response.register(Context, Html, Object, dict)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Object,
     fmt: Html,
+    dtype: Object,
     value: Dict[str, Any],
     *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
-    return commands.prepare_dtype_for_response[Context, Object, Format, dict](
+    return commands.prepare_dtype_for_response[Context, Format, Object, dict](
         context,
-        dtype,
         fmt,
+        dtype,
         value,
         data=data,
         action=action,
@@ -419,21 +439,21 @@ def prepare_dtype_for_response(
     )
 
 
-@commands.prepare_dtype_for_response.register(Context, Array, Html, list)
+@commands.prepare_dtype_for_response.register(Context, Html, Array, list)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Array,
     fmt: Html,
+    dtype: Array,
     value: List[Any],
     *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
-    return commands.prepare_dtype_for_response[Context, Array, Format, list](
+    return commands.prepare_dtype_for_response[Context, Format, Array, list](
         context,
-        dtype,
         fmt,
+        dtype,
         value,
         data=data,
         action=action,

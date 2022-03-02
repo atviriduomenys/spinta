@@ -99,8 +99,10 @@ def unparse(expr: Any):
     if expr is NA:
         return None
     if isinstance(expr, Expr):
-        expr = expr.todict()
-    return spyna.unparse(expr)
+        ast = expr.todict()
+    else:
+        ast = expr
+    return spyna.unparse(ast)
 
 
 class Ufunc(Command):

@@ -159,11 +159,11 @@ def test_fpr_get_bind_expr(rc: RawConfig):
       | resource          | sql    |
       |   | Planet        |        | name
       |   |   | name      | string |
-      
+
       |   | Continent     |        | name
       |   |   | name      | string |
       |   |   | planet    | ref    | Planet
-      
+
       |   | Country       |        | name
       |   |   | name      | string |
       |   |   | continent | ref    | Continent

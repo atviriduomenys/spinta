@@ -715,7 +715,8 @@ class EnumReader(TabularReader):
         ]):
             return
 
-        source = row[SOURCE] or row[PREPARE]
+        # source = row[SOURCE] if row[SOURCE] is not None else row[PREPARE]
+        source = str(row[SOURCE]) or row[PREPARE]
         if not source:
             self.error(
                 "At least source or prepare must be specified for an enum."

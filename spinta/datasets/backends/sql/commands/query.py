@@ -72,14 +72,21 @@ class SqlFrom:
 
             # Left table foreign keys
             lmodel = fpr.left.prop.model
-            lenv = env(model=lmodel)
+            if len(fpr.chain) > 1:
+                # Use table alias of previous join.
+                ltable = self.joins[fpr.chain[-2].name]
+            else:
+                # Use the main table, without alias.
+                ltable = self.backend.get_table(lmodel)
+            lenv = env(model=lmodel, table=ltable)
             lfkeys = lenv.call('join_table_on', fpr.left.prop)
             lfkeys = ensure_list(lfkeys)
 
             # Right table primary keys
             rpkeys = []
             rmodel = fpr.right.prop.model
-            renv = env(model=rmodel)
+            rtable = self.backend.get_table(rmodel).alias()
+            renv = env(model=rmodel, table=rtable)
             for rpk in fpr.left.refprops:
                 rpkeys += ensure_list(
                     renv.call('join_table_on', rpk)
@@ -98,13 +105,10 @@ class SqlFrom:
             else:
                 condition = sa.and_(*condition)
 
-            rtable = self.backend.get_table(rmodel)
-            self.joins[fpr.name] = self.from_.join(rtable, condition)
-            self.from_ = self.joins[fpr.name]
+            self.joins[fpr.name] = rtable
+            self.from_ = self.from_.outerjoin(rtable, condition)
 
-        model = fpr.right.prop.model
-        table = self.backend.get_table(model)
-        return table
+        return self.joins[fpr.name]
 
 
 class SqlQueryBuilder(Env):
@@ -489,7 +493,11 @@ def and_(env: SqlQueryBuilder, expr: Expr):
 @ufunc.resolver(SqlQueryBuilder, Expr, name='or')
 def or_(env: SqlQueryBuilder, expr: Expr):
     args, kwargs = expr.resolve(env)
-    args = [a for a in args if a is not None]
+    args = [
+        env.call('_resolve_unresolved', arg)
+        for arg in args
+        if arg is not None
+    ]
     if len(args) > 1:
         return sa.or_(*args)
     elif args:
@@ -834,8 +842,7 @@ def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
 def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Tuple[Any]:
-    table = env.backend.get_table(dtype.prop.model)
-    column = env.backend.get_column(table, dtype.prop)
+    column = env.backend.get_column(env.table, dtype.prop)
     return column
 
 
@@ -952,7 +959,10 @@ def file(env: SqlResultBuilder, expr: Expr) -> FileData:
     assert len(args) == 0, args
     name = env.data[kwargs['name'].item]
     content = env.data[kwargs['content'].item]
-    content = base64.b64encode(content).decode()
+    if isinstance(content, str):
+        content = content.encode('utf-8')
+    if content is not None:
+        content = base64.b64encode(content).decode()
     return {
         '_id': name,
         # TODO: Content probably should not be returned if not explicitly

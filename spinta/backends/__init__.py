@@ -371,8 +371,8 @@ def prepare_data_for_response(
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
-            prop.dtype,
             fmt,
+            prop.dtype,
             val,
             data=value,
             action=action,
@@ -402,8 +402,8 @@ def prepare_data_for_response(
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
-            prop.dtype,
             fmt,
+            prop.dtype,
             val,
             data=value,
             action=action,
@@ -433,8 +433,8 @@ def prepare_data_for_response(
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
-            prop.dtype,
             fmt,
+            prop.dtype,
             value,
             data=value,
             action=action,
@@ -471,8 +471,8 @@ def prepare_data_for_response(
     if prop.name in value and value[prop.name]:
         data = commands.prepare_dtype_for_response(
             context,
-            prop.dtype,
             fmt,
+            prop.dtype,
             value[prop.name],
             data=value,
             action=action,
@@ -515,11 +515,11 @@ def _select_prop_props(
         )
 
 
-@commands.prepare_dtype_for_response.register(Context, DataType, Format, object)
+@commands.prepare_dtype_for_response.register(Context, Format, DataType, object)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: DataType,
     fmt: Format,
+    dtype: DataType,
     value: Any,
     *,
     data: Dict[str, Any],
@@ -534,11 +534,11 @@ def prepare_dtype_for_response(
     return value
 
 
-@commands.prepare_dtype_for_response.register(Context, DataType, Format, NotAvailable)
+@commands.prepare_dtype_for_response.register(Context, Format, DataType, NotAvailable)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: DataType,
     fmt: Format,
+    dtype: DataType,
     value: NotAvailable,
     *,
     data: Dict[str, Any],
@@ -548,11 +548,11 @@ def prepare_dtype_for_response(
     return dtype.default
 
 
-@commands.prepare_dtype_for_response.register(Context, File, Format, NotAvailable)
+@commands.prepare_dtype_for_response.register(Context, Format, File, NotAvailable)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: File,
     fmt: Format,
+    dtype: File,
     value: NotAvailable,
     *,
     data: Dict[str, Any],
@@ -565,11 +565,11 @@ def prepare_dtype_for_response(
     }
 
 
-@commands.prepare_dtype_for_response.register(Context, File, Format, dict)
+@commands.prepare_dtype_for_response.register(Context, Format, File, dict)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: File,
     fmt: Format,
+    dtype: File,
     value: dict,
     *,
     data: Dict[str, Any],
@@ -605,11 +605,11 @@ def prepare_dtype_for_response(
     return data
 
 
-@commands.prepare_dtype_for_response.register(Context, DateTime, Format, datetime.datetime)
+@commands.prepare_dtype_for_response.register(Context, Format, DateTime, datetime.datetime)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: DateTime,
     fmt: Format,
+    dtype: DateTime,
     value: datetime.datetime,
     *,
     data: Dict[str, Any],
@@ -619,11 +619,11 @@ def prepare_dtype_for_response(
     return value.isoformat()
 
 
-@commands.prepare_dtype_for_response.register(Context, Date, Format, datetime.date)
+@commands.prepare_dtype_for_response.register(Context, Format, Date, datetime.date)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Date,
     fmt: Format,
+    dtype: Date,
     value: datetime.date,
     *,
     data: Dict[str, Any],
@@ -636,11 +636,11 @@ def prepare_dtype_for_response(
         return value.isoformat()
 
 
-@commands.prepare_dtype_for_response.register(Context, Binary, Format, bytes)
+@commands.prepare_dtype_for_response.register(Context, Format, Binary, bytes)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Binary,
     fmt: Format,
+    dtype: Binary,
     value: bytes,
     data: Dict[str, Any],
     *,
@@ -650,11 +650,11 @@ def prepare_dtype_for_response(
     return base64.b64encode(value).decode('ascii')
 
 
-@commands.prepare_dtype_for_response.register(Context, Ref, Format, dict)
+@commands.prepare_dtype_for_response.register(Context, Format, Ref, dict)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Ref,
     fmt: Format,
+    dtype: Ref,
     value: dict,
     *,
     data: Dict[str, Any],
@@ -666,8 +666,8 @@ def prepare_dtype_for_response(
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
-            prop.dtype,
             fmt,
+            prop.dtype,
             val,
             data=data,
             action=action,
@@ -704,11 +704,11 @@ def _select_ref_props(
     )
 
 
-@commands.prepare_dtype_for_response.register(Context, Ref, Format, str)
+@commands.prepare_dtype_for_response.register(Context, Format, Ref, str)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Ref,
     fmt: Format,
+    dtype: Ref,
     value: str,
     *,
     data: Dict[str, Any],
@@ -720,11 +720,11 @@ def prepare_dtype_for_response(
     return {'_id': value}
 
 
-@commands.prepare_dtype_for_response.register(Context, Object, Format, dict)
+@commands.prepare_dtype_for_response.register(Context, Format, Object, dict)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Object,
     fmt: Format,
+    dtype: Object,
     value: dict,
     *,
     data: Dict[str, Any],
@@ -743,8 +743,8 @@ def prepare_dtype_for_response(
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
-            prop.dtype,
             fmt,
+            prop.dtype,
             val,
             data=data,
             action=action,
@@ -760,11 +760,11 @@ def prepare_dtype_for_response(
     }
 
 
-@commands.prepare_dtype_for_response.register(Context, Array, Format, list)
+@commands.prepare_dtype_for_response.register(Context, Format, Array, list)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Array,
     fmt: Format,
+    dtype: Array,
     value: list,
     *,
     data: Dict[str, Any],
@@ -782,11 +782,11 @@ def prepare_dtype_for_response(
     )
 
 
-@commands.prepare_dtype_for_response.register(Context, Array, Format, tuple)
+@commands.prepare_dtype_for_response.register(Context, Format, Array, tuple)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Array,
     fmt: Format,
+    dtype: Array,
     value: tuple,
     *,
     data: Dict[str, Any],
@@ -817,8 +817,8 @@ def _prepare_array_for_response(
         return [
             commands.prepare_dtype_for_response(
                 context,
-                dtype.items.dtype,
                 fmt,
+                dtype.items.dtype,
                 v,
                 data=data,
                 action=action,
@@ -830,11 +830,11 @@ def _prepare_array_for_response(
         return [v for v in value]
 
 
-@commands.prepare_dtype_for_response.register(Context, Array, Format, type(None))
+@commands.prepare_dtype_for_response.register(Context, Format, Array, type(None))
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Array,
     fmt: Format,
+    dtype: Array,
     value: type(None),
     *,
     data: Dict[str, Any],
@@ -844,11 +844,11 @@ def prepare_dtype_for_response(
     return []
 
 
-@commands.prepare_dtype_for_response.register(Context, JSON, Format, object)
+@commands.prepare_dtype_for_response.register(Context, Format, JSON, object)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: JSON,
     fmt: Format,
+    dtype: JSON,
     value: object,
     *,
     data: Dict[str, Any],
@@ -858,11 +858,11 @@ def prepare_dtype_for_response(
     return value
 
 
-@commands.prepare_dtype_for_response.register(Context, JSON, Format, NotAvailable)
+@commands.prepare_dtype_for_response.register(Context, Format, JSON, NotAvailable)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: JSON,
     fmt: Format,
+    dtype: JSON,
     value: NotAvailable,
     *,
     data: Dict[str, Any],
@@ -872,11 +872,11 @@ def prepare_dtype_for_response(
     return None
 
 
-@commands.prepare_dtype_for_response.register(Context, Number, Format, decimal.Decimal)
+@commands.prepare_dtype_for_response.register(Context, Format, Number, decimal.Decimal)
 def prepare_dtype_for_response(
     context: Context,
-    dtype: Number,
     fmt: Format,
+    dtype: Number,
     value: decimal.Decimal,
     *,
     data: Dict[str, Any],

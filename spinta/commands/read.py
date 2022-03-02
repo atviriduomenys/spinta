@@ -61,8 +61,8 @@ async def getall(
             {
                 prop.name: commands.prepare_dtype_for_response(
                     context,
-                    props[key].dtype,
                     params.fmt,
+                    props[key].dtype,
                     val,
                     data=row,
                     action=action,
