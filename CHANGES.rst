@@ -10,6 +10,13 @@ New features:
 
 - Add support for comments in tabular manifest files.
 
+Bug fixes:
+
+- Fix sql backend join issue, when same table is joined multiple times.
+
+- Fix ref html rendering with null values.
+
+
 
 0.1.26 (2022-02-09)
 ===================
