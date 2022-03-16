@@ -4,6 +4,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
+from typing import Optional
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -12,6 +13,9 @@ from starlette.requests import Request
 from spinta import commands
 from spinta.components import Action
 from spinta.components import Store
+from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import get_select_tree
+from spinta.formats.html.commands import _build_template_context
 from spinta.formats.html.commands import _LimitIter
 from spinta.formats.html.components import Cell
 from spinta.formats.html.components import Color
@@ -31,6 +35,7 @@ from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.utils.data import take
 from spinta.testing.manifest import load_manifest_and_context
+from spinta.manifests.components import Manifest
 
 
 def _get_data_table(context: dict):
@@ -470,3 +475,75 @@ def test_prepare_ref_for_response(rc: RawConfig, value, cell):
     assert result['_id'].value == cell.value
     assert result['_id'].color == cell.color
     assert result['_id'].link == cell.link
+
+
+def _build_context(
+    context: Context,
+    manifest: Manifest,
+    url: str,
+    row: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    if '?' in url:
+        model, query = url.split('?', 1)
+    else:
+        model, query = url, None
+
+    model = manifest.models[model]
+
+    request = Request({
+        'type': 'http',
+        'method': 'GET',
+        'path': f'/{model.name}?{query}',
+        'path_params': {'path': f'/{model.name}'},
+        'headers': {},
+    })
+
+    action = Action.GETALL
+    params = commands.prepare(context, UrlParams(), Version(), request)
+
+    select_tree = get_select_tree(context, action, params.select)
+    prop_names = get_select_prop_names(
+        context,
+        model,
+        action,
+        select_tree,
+        reserved=['_type', '_id', '_revision'],
+    )
+    row = commands.prepare_data_for_response(
+        context,
+        model,
+        params.fmt,
+        row,
+        action=action,
+        select=select_tree,
+        prop_names=prop_names,
+    )
+
+    rows = [row]
+
+    ctx = _build_template_context(
+        context, model,
+        action,
+        params,
+        rows,
+    )
+
+    data = next(ctx['data'], None)
+    if data is not None:
+        return dict(zip(ctx['header'], data))
+
+
+def test_select_id(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref     | access
+    example                    |         |         |
+      |   |   | City           |         | name    |
+      |   |   |   | name       | string  |         | open
+    ''')
+    result = _build_context(context, manifest, 'example/City?select(_id)', {
+        '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+        '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+    })
+    assert result == {
+        '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+    }

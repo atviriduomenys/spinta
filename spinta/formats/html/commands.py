@@ -195,14 +195,12 @@ def _get_model_tabular_header(
     )
 
 
-def _render_model(
+def _build_template_context(
     context: Context,
-    request: Request,
     model: Model,
     action: Action,
     params: UrlParams,
     rows: Iterable[Dict[str, Cell]],
-    http_headers,
 ):
     rows = flatten(rows)
 
@@ -215,27 +213,45 @@ def _render_model(
     else:
         rows = _LimitIter(params.limit_enforced_to, rows)
 
+    return {
+        'header': header,
+        'empty': empty,
+        'data': rows,
+        'params': params,
+    }
+
+
+def _render_model(
+    context: Context,
+    request: Request,
+    model: Model,
+    action: Action,
+    params: UrlParams,
+    rows: Iterable[Dict[str, Cell]],
+    http_headers,
+):
+    ctx = _build_template_context(
+        context,
+        model,
+        action,
+        params,
+        rows,
+    )
+    ctx.update(get_template_context(context, model, params))
+    ctx['request'] = request
+    ctx['formats'] = get_output_formats(params)
+
+    # Pass function references
+    ctx['zip'] = zip
+
     # Preserve response data for tests.
     if request.url.hostname == 'testserver':
-        rows = list(rows)
+        ctx['data'] = list(ctx['data'])
 
     templates = Jinja2Templates(
         directory=pres.resource_filename('spinta', 'templates')
     )
-    return templates.TemplateResponse(
-        'data.html',
-        {
-            **get_template_context(context, model, params),
-            'request': request,
-            'header': header,
-            'empty': empty,
-            'data': rows,
-            'formats': get_output_formats(params),
-            'params': params,
-            'zip': zip,
-        },
-        headers=http_headers
-    )
+    return templates.TemplateResponse('data.html', ctx, headers=http_headers)
 
 
 @dataclasses.dataclass
