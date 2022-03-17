@@ -37,6 +37,7 @@ from spinta.backends.postgresql.constants import TableType
 
 
 class PgQueryBuilder(Env):
+    backend: PostgreSQL
 
     def init(self, backend: PostgreSQL, table: sa.Table):
         return self(
@@ -461,7 +462,20 @@ def eq(
     value: type(None),
 ):
     table = env.get_joined_table(fpr)
-    column = table.c[fpr.right.place]
+    column = env.backend.get_column(table, fpr.right)
+    cond = _sa_compare('eq', column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, PrimaryKey, str)
+def eq(
+    env: PgQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: DataType,
+    value: type(None),
+):
+    table = env.backend.get_table(fpr.left.model)
+    column = env.backend.get_column(table, fpr.left)
     cond = _sa_compare('eq', column, value)
     return _prepare_condition(env, dtype.prop, cond)
 

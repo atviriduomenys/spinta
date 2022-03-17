@@ -94,6 +94,7 @@ def get_model_tabular_header(
                 model,
                 action,
                 select,
+                reserved=reserved,
             )
         header = list(_get_model_header(model, names, select, reserved))
     return header

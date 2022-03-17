@@ -6,6 +6,16 @@ Changes
 0.1.28 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fix error on `select(_id_)` (`#207`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/207
+
+- Fix error on `prop._id="..."` (`#206`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/206
+
 
 0.1.27 (2022-03-02)
 ===================
