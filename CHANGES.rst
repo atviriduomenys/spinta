@@ -12,6 +12,10 @@ Bug fixes:
 
   __ https://github.com/atviriduomenys/spinta/issues/211
 
+- Fix `geojson` resource type (`#215`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/215
+
 
 0.1.28 (2022-03-17)
 ===================
