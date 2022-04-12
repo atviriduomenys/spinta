@@ -6,6 +6,12 @@ Changes
 0.1.29 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fix errr on `select(left.right)` when left has multiple references to the same model (`#211`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/211
+
 
 0.1.28 (2022-03-17)
 ===================

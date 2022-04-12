@@ -96,24 +96,13 @@ class PgQueryBuilder(Env):
                 continue
 
             ltable = self.backend.get_table(fpr.left.model)
-            lrkeys = [self.backend.get_column(ltable, fpr.left)]
+            lrkey = self.backend.get_column(ltable, fpr.left)
 
             rmodel = fpr.right.model
             rtable = self.backend.get_table(rmodel)
-            rpkeys = fpr.left.dtype.refprops or rmodel.external.pkeys
-            rpkeys = [self.backend.get_column(rtable, k) for k in rpkeys]
+            rpkey = self.backend.get_column(rtable, rmodel.properties['_id'])
 
-            assert len(lrkeys) == len(rpkeys), (lrkeys, rpkeys)
-            condition = []
-            for lrk, rpk in zip(lrkeys, rpkeys):
-                condition += [lrk == rpk]
-
-            assert len(condition) > 0
-            if len(condition) == 1:
-                condition = condition[0]
-            else:
-                condition = sa.and_(condition)
-
+            condition = lrkey == rpkey
             self.from_ = self.joins[fpr.name] = self.from_.join(rtable, condition)
 
         model = prop.right.model

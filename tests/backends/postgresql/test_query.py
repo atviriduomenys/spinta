@@ -71,3 +71,61 @@ def test_filter_by_ref_id(rc: RawConfig):
     FROM "example/City"
     WHERE "example/City"."country._id" = :country._id_1
     '''
+
+
+def test_join(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property   | type    | ref     | access
+    example                    |         |         |
+      |   |   | Country        |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   | City           |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   |   | country    | ref     | Country | open
+    ''', 'example/City', 'select(name, country.name)') == '''
+    SELECT "example/City"._id,
+           "example/City"._revision,
+           "example/City".name,
+           "example/Country".name AS "country.name"
+    FROM "example/City"
+    JOIN "example/Country" ON "example/City"."country._id" = "example/Country"._id
+    '''
+
+
+def test_join_and_id(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property   | type    | ref     | access
+    example                    |         |         |
+      |   |   | Country        |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   | City           |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   |   | country    | ref     | Country | open
+    ''', 'example/City', 'select(_id, country.name)') == '''
+    SELECT "example/City"._id,
+           "example/City"._revision,
+           "example/Country".name AS "country.name"
+    FROM "example/City"
+    JOIN "example/Country" ON "example/City"."country._id" = "example/Country"._id
+    '''
+
+
+def test_join_two_refs(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property   | type    | ref     | access
+    example                    |         |         |
+      |   |   | Planet         |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   | Country        |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   |   | planet1    | ref     | Planet  | open
+      |   |   |   | planet2    | ref     | Planet  | open
+      |   |   | City           |         |         |
+      |   |   |   | country    | ref     | Country | open
+    ''', 'example/City', 'select(_id, country.name)') == '''
+    SELECT "example/City"._id,
+           "example/City"._revision,
+           "example/Country".name AS "country.name"
+    FROM "example/City"
+    JOIN "example/Country" ON "example/City"."country._id" = "example/Country"._id
+    '''
