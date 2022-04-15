@@ -1,4 +1,6 @@
 import dataclasses
+import datetime
+from decimal import Decimal
 from typing import Any
 from typing import Dict
 from typing import Generic
@@ -7,7 +9,6 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import TypeVar
-from typing import TypedDict
 
 import pkg_resources as pres
 from itertools import chain
@@ -41,6 +42,11 @@ from spinta.types.datatype import File
 from spinta.types.datatype import Object
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.types.datatype import Date
+from spinta.types.datatype import DateTime
+from spinta.types.datatype import Number
+from spinta.types.datatype import Binary
+from spinta.types.datatype import JSON
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.schema import NotAvailable
 
@@ -375,29 +381,119 @@ def prepare_dtype_for_response(
     return Cell(value)
 
 
-class _RefValue(TypedDict):
-    _id: str
-
-
-@commands.prepare_dtype_for_response.register(Context, Html, Ref, dict)
+@commands.prepare_dtype_for_response.register(Context, Html, Date, datetime.date)
 def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
-    dtype: Ref,
-    value: _RefValue,
+    dtype: Date,
+    value: datetime.date,
     *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
-    if value['_id'] is None:
-        _id = Cell('', color=Color.null)
-    else:
-        _id = Cell(short_id(value['_id']), link=get_model_link(
-            dtype.model,
-            pk=value['_id'],
-        ))
-    return {'_id': _id}
+    return Cell(value)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, DateTime, datetime.datetime)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: DateTime,
+    value: datetime.datetime,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return Cell(value)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Number, Decimal)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Number,
+    value: Decimal,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return Cell(value)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Binary, bytes)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Binary,
+    value: bytes,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return Cell(value)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, JSON, (object, NotAvailable, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: JSON,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return Cell(value)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Array, tuple)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Array,
+    value: tuple,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, Array, tuple]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Array, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Array,
+    value: None,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, Array, type(None)]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Ref, (dict, str, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: File,
+    value: NotAvailable,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, Ref, dict]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, File, NotAvailable)

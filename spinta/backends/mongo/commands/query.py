@@ -498,11 +498,6 @@ def any_(env, expr):
     ])
 
 
-@ufunc.resolver(MongoQueryBuilder, object)
-def group(env, arg):
-    return arg
-
-
 @ufunc.resolver(MongoQueryBuilder, Expr)
 def sort(env, expr):
     args, kwargs = expr.resolve(env)

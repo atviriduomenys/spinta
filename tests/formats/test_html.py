@@ -495,16 +495,19 @@ def _build_context(
         'method': 'GET',
         'path': f'/{model.name}?{query}',
         'path_params': {'path': f'/{model.name}'},
-        'headers': {},
+        'headers': [
+            (b'accept', b'text/html'),
+        ],
     })
 
-    action = Action.GETALL
+    action = Action.SEARCH if query else Action.GETALL
     params = commands.prepare(context, UrlParams(), Version(), request)
 
     select_tree = get_select_tree(context, action, params.select)
     prop_names = get_select_prop_names(
         context,
         model,
+        model.properties,
         action,
         select_tree,
         reserved=['_type', '_id', '_revision'],
@@ -545,5 +548,34 @@ def test_select_id(rc: RawConfig):
         '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
     })
     assert result == {
+        '_id': Cell(
+            value='19e4f199',
+            link='/example/City/19e4f199-93c5-40e5-b04e-a575e81ac373',
+            color=None,
+        ),
+    }
+
+
+def test_select_join(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref     | access
+    example                    |         |         |
+      |   |   | Country        |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   | City           |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   |   | country    | ref     | Country | open
+    ''')
+    result = _build_context(context, manifest, 'example/City?select(_id, country.name)', {
         '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+        '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+        'country': {'name': 'Lithuania'},
+    })
+    assert result == {
+        '_id': Cell(
+            value='19e4f199',
+            link='/example/City/19e4f199-93c5-40e5-b04e-a575e81ac373',
+            color=None,
+        ),
+        'country.name': Cell(value='Lithuania', link=None, color=None),
     }

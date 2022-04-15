@@ -79,6 +79,26 @@ def load_manifest_and_context(
     return context, store.manifest
 
 
+def prepare_manifest(
+    rc: RawConfig,
+    manifest: Union[pathlib.Path, str],
+    *,
+    request: FixtureRequest = None,
+    load_internal: bool = True,
+    **kwargs,
+) -> TestContext:
+    context = load_manifest_get_context(
+        rc, manifest,
+        request=request,
+        load_internal=load_internal,
+        **kwargs,
+    )
+    store: Store = context.get('store')
+    commands.check(context, store.manifest)
+    commands.prepare(context, store.manifest)
+    return context, store.manifest
+
+
 def bootstrap_manifest(
     rc: RawConfig,
     manifest: Union[pathlib.Path, str],

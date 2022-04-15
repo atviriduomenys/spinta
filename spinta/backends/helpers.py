@@ -80,7 +80,8 @@ def _apply_always_show_id(
 
 def get_select_prop_names(
     context: Context,
-    model: Model,
+    node: Union[Model, Property, DataType],
+    props: Dict[str, Property],
     action: Action,
     select: SelectTree,
     *,
@@ -89,13 +90,13 @@ def get_select_prop_names(
     # Allowed reserved property names.
     reserved: List[str] = None,
 ) -> List[str]:
-    known = set(reserved or []) | set(take(model.properties))
-    check_unknown_props(model, select, known)
+    known = set(reserved or []) | set(take(props))
+    check_unknown_props(node, select, known)
 
     if select is None or '*' in select:
         return [
             p.name
-            for p in model.properties.values() if (
+            for p in props.values() if (
                 not p.name.startswith('_') and
                 not p.hidden and
                 (not auth or authorized(context, p, action))

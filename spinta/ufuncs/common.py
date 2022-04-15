@@ -23,3 +23,8 @@ def swap(env: Env, this: Any, old: Any, new: Any) -> Any:
 def group(env: Env, expr: Expr) -> Tuple[Any]:
     args, kwargs = expr.resolve(env)
     return args[0]
+
+
+@ufunc.resolver(Env, object)
+def group(env: Env, arg: Any):
+    return arg
