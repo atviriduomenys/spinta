@@ -159,7 +159,11 @@ async def getall(
             commands.authorize(context, action, model)
             select_tree = get_select_tree(context, action, params.select)
             prop_names = get_select_prop_names(
-                context, model, action, select_tree,
+                context,
+                model,
+                model.properties,
+                action,
+                select_tree,
             )
             prepare_data_for_response_kwargs[model.model_type()] = {
                 'select': select_tree,
@@ -306,7 +310,11 @@ def _get_ns_content(
     select = params.select or ['name', 'title', 'description']
     select_tree = get_select_tree(context, action, select)
     prop_names = get_select_prop_names(
-        context, model, action, select_tree,
+        context,
+        model,
+        model.properties,
+        action,
+        select_tree,
         auth=False,
     )
     data = (

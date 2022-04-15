@@ -76,6 +76,7 @@ async def getall(
         prop_names = get_select_prop_names(
             context,
             model,
+            model.properties,
             action,
             select_tree,
             reserved=['_type', '_id', '_revision'],
@@ -134,6 +135,7 @@ async def changes(
     prop_names = get_select_prop_names(
         context,
         model,
+        model.properties,
         action,
         select_tree,
         reserved=[

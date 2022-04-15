@@ -876,11 +876,6 @@ def any_(env, expr):
     ])
 
 
-@ufunc.resolver(PgQueryBuilder, object)
-def group(env, arg):
-    return arg
-
-
 @ufunc.resolver(PgQueryBuilder, Expr)
 def sort(env, expr):
     args, kwargs = expr.resolve(env)

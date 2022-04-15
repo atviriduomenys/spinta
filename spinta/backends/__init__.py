@@ -8,6 +8,7 @@ from typing import AsyncIterator
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import Optional
 
 from spinta import commands
 from spinta import exceptions
@@ -19,6 +20,7 @@ from spinta.backends.helpers import select_props
 from spinta.backends.helpers import check_unknown_props
 from spinta.backends.helpers import flat_select_to_nested
 from spinta.backends.helpers import select_model_props
+from spinta.backends.helpers import get_select_prop_names
 from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
@@ -650,20 +652,33 @@ def prepare_dtype_for_response(
     return base64.b64encode(value).decode('ascii')
 
 
-@commands.prepare_dtype_for_response.register(Context, Format, Ref, dict)
+@commands.prepare_dtype_for_response.register(Context, Format, Ref, (dict, type(None)))
 def prepare_dtype_for_response(
     context: Context,
     fmt: Format,
     dtype: Ref,
-    value: dict,
+    value: Optional[Dict[str, Any]],
     *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
-    if select is None and value == {'_id': None}:
-        return None
-    return {
+    if value is None:
+        value = {'_id': None}
+
+    if select and select != {'*': {}}:
+        names = get_select_prop_names(
+            context,
+            dtype,
+            dtype.model.properties,
+            action,
+            select,
+            reserved=['_id'],
+        )
+    else:
+        names = ['_id']
+
+    data = {
         prop.name: commands.prepare_dtype_for_response(
             context,
             fmt,
@@ -673,35 +688,16 @@ def prepare_dtype_for_response(
             action=action,
             select=sel,
         )
-        for prop, val, sel in _select_ref_props(
-            dtype,
+        for prop, val, sel in select_props(
+            dtype.model,
+            names,
+            dtype.model.properties,
             value,
             select,
-            ['_id'],
         )
     }
 
-
-def _select_ref_props(
-    dtype: Ref,
-    value: dict,
-    select: SelectTree,
-    reserved: List[str],
-):
-    yield from select_props(
-        dtype.prop,
-        reserved,
-        dtype.model.properties,
-        value,
-        select,
-    )
-    yield from select_props(
-        dtype.model,
-        value.keys(),
-        dtype.model.properties,
-        value,
-        select,
-    )
+    return data
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, str)
@@ -731,15 +727,16 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    check_unknown_props(dtype, select, set(take(dtype.properties)))
-
-    if select is None:
-        keys = value.keys()
-    elif '*' in select:
-        keys = take(dtype.properties).keys()
-    else:
-        keys = [k for k in select if not k.startswith('_')]
-
+    names = get_select_prop_names(
+        context,
+        dtype,
+        dtype.properties,
+        action,
+        select,
+        # XXX: Not sure if auth=False should be here. But I'm too tiered to
+        #      check why it does not work.
+        auth=False,
+    )
     return {
         prop.name: commands.prepare_dtype_for_response(
             context,
@@ -752,7 +749,7 @@ def prepare_dtype_for_response(
         )
         for prop, val, sel in select_props(
             dtype.prop,
-            keys,
+            names,
             dtype.properties,
             value,
             select,

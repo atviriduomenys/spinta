@@ -1160,7 +1160,11 @@ def _get_simple_response(
         else:
             select_tree = get_select_tree(context, data.action, None)
             prop_names = get_select_prop_names(
-                context, data.model, data.action, select_tree,
+                context,
+                data.model,
+                data.model.properties,
+                data.action,
+                select_tree,
             )
             resp = commands.prepare_data_for_response(
                 context,

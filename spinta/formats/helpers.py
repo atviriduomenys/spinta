@@ -44,7 +44,17 @@ def _get_dtype_header(
         yield name + '._content_type'
 
     elif isinstance(dtype, Ref):
-        yield name + '._id'
+        if select == {'*': {}}:
+            yield name + '._id'
+        else:
+            for prop, sel in select_only_props(
+                dtype.prop,
+                take(dtype.model.properties).keys(),
+                dtype.model.properties,
+                select,
+            ):
+                name_ = name + '.' + prop.name
+                yield from _get_dtype_header(prop.dtype, sel, name_)
 
     else:
         yield name
@@ -84,6 +94,7 @@ def get_model_tabular_header(
             names = get_select_prop_names(
                 context,
                 model,
+                model.properties,
                 action,
                 select,
                 auth=False,
@@ -92,6 +103,7 @@ def get_model_tabular_header(
             names = get_select_prop_names(
                 context,
                 model,
+                model.properties,
                 action,
                 select,
                 reserved=reserved,
