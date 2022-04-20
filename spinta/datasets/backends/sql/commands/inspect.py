@@ -3,7 +3,6 @@ from typing import Any
 from typing import Dict
 from typing import Iterator
 from typing import List
-from typing import Literal
 from typing import Optional
 from typing import Set
 from typing import TypedDict
@@ -19,6 +18,7 @@ from spinta.components import Property
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import Engine
 from spinta.datasets.backends.sql.ufuncs.components import SqlResource
+from spinta.datasets.backends.sql.frictionless import GeoSqlStorage
 from spinta.datasets.components import Resource
 from spinta.exceptions import UnexpectedFormulaResult
 from spinta.manifests.components import ManifestSchema
@@ -405,10 +405,11 @@ def inspect(
         if model.external and model.external.name
     }
 
-    package = frictionless.Package.from_sql(
+    storage = GeoSqlStorage(
         engine=engine.create(),
         namespace=engine.schema,
     )
+    package = frictionless.Package.from_storage(storage)
     with context:
         context.bind('deduplicate.model', Deduplicator)
 

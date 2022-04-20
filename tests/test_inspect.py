@@ -3,7 +3,6 @@ from pathlib import Path
 import sqlalchemy as sa
 
 from spinta.core.config import RawConfig
-from spinta.datasets.components import Dataset
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.datasets import Sqlite

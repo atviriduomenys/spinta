@@ -35,7 +35,7 @@ def compare_manifest(manifest: Manifest, expected: str) -> Tuple[str, str]:
 
 def load_manifest_get_context(
     rc: RawConfig,
-    manifest: Union[pathlib.Path, str],
+    manifest: Union[pathlib.Path, str] = None,
     *,
     load_internal: bool = False,
     request: FixtureRequest = None,
@@ -48,8 +48,10 @@ def load_manifest_get_context(
             type='ascii',
             file=StringIO(manifest),
         )]
-    else:
+    elif manifest:
         manifests = [manifest]
+    else:
+        manifests = manifest
 
     rc = configure_rc(rc, manifests, **kwargs)
     context = create_test_context(rc, request)
@@ -71,7 +73,7 @@ def load_manifest(
 
 def load_manifest_and_context(
     rc: RawConfig,
-    manifest: Union[pathlib.Path, str],
+    manifest: Union[pathlib.Path, str] = None,
     **kwargs,
 ) -> Tuple[Context, Manifest]:
     context = load_manifest_get_context(rc, manifest, **kwargs)
