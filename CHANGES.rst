@@ -3,6 +3,10 @@
 Changes
 #######
 
+0.1.32 (unreleased)
+===================
+
+
 0.1.31 (2022-04-20)
 ===================
 
@@ -21,7 +25,6 @@ Bug fixes:
 - Fix `KeyError` issue when joining two tables (`#219`__).
 
   __ https://github.com/atviriduomenys/spinta/issues/219
-
 
 
 0.1.29 (2022-04-12)
