@@ -43,6 +43,7 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.datatype import Date
+from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
@@ -392,7 +393,21 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    return Cell(value)
+    return Cell(value.isoformat())
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Time, datetime.time)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Time,
+    value: datetime.time,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return Cell(value.isoformat())
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, DateTime, datetime.datetime)
@@ -406,7 +421,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    return Cell(value)
+    return Cell(value.isoformat())
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, Number, Decimal)

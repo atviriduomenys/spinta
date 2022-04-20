@@ -85,6 +85,7 @@ CONFIG = {
             'any': 'spinta.types.datatype:DataType',
             'pk': 'spinta.types.datatype:PrimaryKey',
             'date': 'spinta.types.datatype:Date',
+            'time': 'spinta.types.datatype:Time',
             'datetime': 'spinta.types.datatype:DateTime',
             'temporal': 'spinta.types.datatype:DateTime',
             'string': 'spinta.types.datatype:String',

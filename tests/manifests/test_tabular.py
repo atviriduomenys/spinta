@@ -209,3 +209,13 @@ def test_prop_type_not_given(tmpdir, rc):
           |   |   |   | value    |
         ''')
     assert e.value.context['error'] == "Unknown component '' in 'types'."
+
+
+def test_time_type(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property | type
+    example                  |
+                             |
+      |   |   | Time         |
+      |   |   |   | prop     | time
+    ''')

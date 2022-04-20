@@ -39,6 +39,7 @@ from spinta.types.datatype import Array
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
+from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import File
 from spinta.types.datatype import JSON
@@ -636,6 +637,20 @@ def prepare_dtype_for_response(
         return value.date().isoformat()
     else:
         return value.isoformat()
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Time, datetime.time)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Time,
+    value: datetime.time,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return value.isoformat()
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Binary, bytes)

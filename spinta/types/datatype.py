@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Union
 
 import base64
 
-from datetime import date, datetime
+from datetime import date, time, datetime
 
 from spinta import spyna
 from spinta import commands
@@ -74,6 +74,21 @@ class Date(DataType):
 
         try:
             return date.fromisoformat(value)
+        except (ValueError, TypeError):
+            raise exceptions.InvalidValue(self)
+
+
+class Time(DataType):
+
+    def load(self, value: Any):
+        if value is None or value is NA or isinstance(value, time):
+            return value
+
+        if value == '':
+            return None
+
+        try:
+            return time.fromisoformat(value)
         except (ValueError, TypeError):
             raise exceptions.InvalidValue(self)
 
