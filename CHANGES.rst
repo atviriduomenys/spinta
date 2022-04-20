@@ -6,6 +6,12 @@ Changes
 0.1.32 (unreleased)
 ===================
 
+New features:
+
+- Add `time` type support (`#223`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/223
+
 
 0.1.31 (2022-04-20)
 ===================
