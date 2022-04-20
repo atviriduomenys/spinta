@@ -64,6 +64,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
     types = {
         'string': sa.Text,
         'date': sa.Date,
+        'time': sa.Time,
         'datetime': sa.DateTime,
         'integer': sa.Integer,
         'number': sa.Float,
