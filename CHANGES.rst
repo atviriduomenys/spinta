@@ -3,7 +3,7 @@
 Changes
 #######
 
-0.1.33 (unreleased)
+0.1.33 (2022-04-22)
 ===================
 
 But fixes:
@@ -11,6 +11,11 @@ But fixes:
 - Fix `select(prop._id)` bug (`#226`__).
 
   __ https://github.com/atviriduomenys/spinta/issues/226
+
+
+- Fix bug when selecting from two refs from the same model (`#227`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/227
 
 
 0.1.32 (2022-04-20)
