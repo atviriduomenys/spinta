@@ -32,6 +32,7 @@ from spinta.core.config import RawConfig
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import create_test_client
+from spinta.testing.request import make_get_request
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.utils.data import take
 from spinta.testing.manifest import load_manifest_and_context
@@ -489,17 +490,7 @@ def _build_context(
         model, query = url, None
 
     model = manifest.models[model]
-
-    request = Request({
-        'type': 'http',
-        'method': 'GET',
-        'path': f'/{model.name}?{query}',
-        'path_params': {'path': f'/{model.name}'},
-        'headers': [
-            (b'accept', b'text/html'),
-        ],
-    })
-
+    request = make_get_request(model.name, query, {'accept': 'text/html'})
     action = Action.SEARCH if query else Action.GETALL
     params = commands.prepare(context, UrlParams(), Version(), request)
 

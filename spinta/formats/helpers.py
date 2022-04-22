@@ -66,7 +66,10 @@ def _get_model_header(
     select: SelectTree,
     reserved: List[str],
 ) -> List[str]:
-    names_ = reserved + names
+    if select is None or select == {'*': {}}:
+        names_ = reserved + names
+    else:
+        names_ = names
     props = model.properties
     props_ = select_only_props(model, names_, props, select, reserved=True)
     for prop, sel in props_:

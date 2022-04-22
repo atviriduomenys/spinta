@@ -6,6 +6,12 @@ Changes
 0.1.34 (unreleased)
 ===================
 
+But fixes:
+
+- Fix bug with duplicate `_id`'s (`#228`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/228
+
 
 0.1.33 (2022-04-22)
 ===================
