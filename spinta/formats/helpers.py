@@ -49,7 +49,7 @@ def _get_dtype_header(
         else:
             for prop, sel in select_only_props(
                 dtype.prop,
-                take(dtype.model.properties).keys(),
+                dtype.model.properties.keys(),
                 dtype.model.properties,
                 select,
             ):

@@ -579,3 +579,40 @@ def test_select_join(rc: RawConfig):
         ),
         'country.name': Cell(value='Lithuania', link=None, color=None),
     }
+
+
+def test_select_join_multiple_props(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref     | access
+    example                    |         |         |
+      |   |   | Country        |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   | City           |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   |   | country    | ref     | Country | open
+    ''')
+    result = _build_context(
+        context, manifest,
+        'example/City?select(_id, country._id, country.name)',
+        {
+            '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+            '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            'country': {
+                '_id': '262f6c72-4284-4d26-b9b0-e282bfe46a46',
+                'name': 'Lithuania',
+            },
+        },
+    )
+    assert result == {
+        '_id': Cell(
+            value='19e4f199',
+            link='/example/City/19e4f199-93c5-40e5-b04e-a575e81ac373',
+            color=None,
+        ),
+        'country._id': Cell(
+            value='262f6c72',
+            link='/example/Country/262f6c72-4284-4d26-b9b0-e282bfe46a46',
+            color=None,
+        ),
+        'country.name': Cell(value='Lithuania', link=None, color=None),
+    }

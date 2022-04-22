@@ -103,7 +103,7 @@ def get_select_prop_names(
             )
         ]
     else:
-        return [k for k in select if not k.startswith('_')]
+        return list(select)
 
 
 def select_model_props(
