@@ -52,11 +52,11 @@ def test_getall(rc: RawConfig):
         'SELECT'
         ' "example/City"._id,'
         ' "example/City"._revision,'
-        ' "example/Country".name AS "country.name" \n'
+        ' "example/Country_1".name AS "country.name" \n'
         'FROM'
         ' "example/City" '
-        'JOIN "example/Country"'
-        ' ON "example/City"."country._id" = "example/Country"._id'
+        'LEFT OUTER JOIN "example/Country" AS "example/Country_1"'
+        ' ON "example/City"."country._id" = "example/Country_1"._id'
     )
 
     assert rows == [

@@ -86,9 +86,9 @@ def test_join(rc: RawConfig):
     SELECT "example/City"._id,
            "example/City"._revision,
            "example/City".name,
-           "example/Country".name AS "country.name"
+           "example/Country_1".name AS "country.name"
     FROM "example/City"
-    JOIN "example/Country" ON "example/City"."country._id" = "example/Country"._id
+    LEFT OUTER JOIN "example/Country" AS "example/Country_1" ON "example/City"."country._id" = "example/Country_1"._id
     '''
 
 
@@ -104,9 +104,9 @@ def test_join_and_id(rc: RawConfig):
     ''', 'example/City', 'select(_id, country.name)') == '''
     SELECT "example/City"._id,
            "example/City"._revision,
-           "example/Country".name AS "country.name"
+           "example/Country_1".name AS "country.name"
     FROM "example/City"
-    JOIN "example/Country" ON "example/City"."country._id" = "example/Country"._id
+    LEFT OUTER JOIN "example/Country" AS "example/Country_1" ON "example/City"."country._id" = "example/Country_1"._id
     '''
 
 
@@ -125,7 +125,28 @@ def test_join_two_refs(rc: RawConfig):
     ''', 'example/City', 'select(_id, country.name)') == '''
     SELECT "example/City"._id,
            "example/City"._revision,
-           "example/Country".name AS "country.name"
+           "example/Country_1".name AS "country.name"
     FROM "example/City"
-    JOIN "example/Country" ON "example/City"."country._id" = "example/Country"._id
+    LEFT OUTER JOIN "example/Country" AS "example/Country_1" ON "example/City"."country._id" = "example/Country_1"._id
+    '''
+
+
+def test_join_two_refs_same_model(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property   | type    | ref     | access
+    example                    |         |         |
+      |   |   | Planet         |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   | Country        |         |         |
+      |   |   |   | name       | string  |         | open
+      |   |   |   | planet1    | ref     | Planet  | open
+      |   |   |   | planet2    | ref     | Planet  | open
+    ''', 'example/Country', 'select(planet1.name, planet2.name)') == '''
+    SELECT "example/Country"._id,
+           "example/Country"._revision,
+           "example/Planet_1".name AS "planet1.name",
+           "example/Planet_2".name AS "planet2.name"
+    FROM "example/Country"
+    LEFT OUTER JOIN "example/Planet" AS "example/Planet_1" ON "example/Country"."planet1._id" = "example/Planet_1"._id
+    LEFT OUTER JOIN "example/Planet" AS "example/Planet_2" ON "example/Country"."planet2._id" = "example/Planet_2"._id
     '''

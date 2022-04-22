@@ -95,19 +95,21 @@ class PgQueryBuilder(Env):
             if fpr.name in self.joins:
                 continue
 
-            ltable = self.backend.get_table(fpr.left.model)
+            if len(fpr.chain) > 1:
+                ltable = self.joins[fpr.chain[-2].name]
+            else:
+                ltable = self.backend.get_table(fpr.left.model)
             lrkey = self.backend.get_column(ltable, fpr.left)
 
             rmodel = fpr.right.model
-            rtable = self.backend.get_table(rmodel)
+            rtable = self.backend.get_table(rmodel).alias()
             rpkey = self.backend.get_column(rtable, rmodel.properties['_id'])
 
             condition = lrkey == rpkey
-            self.from_ = self.joins[fpr.name] = self.from_.join(rtable, condition)
+            self.joins[fpr.name] = rtable
+            self.from_ = self.from_.outerjoin(rtable, condition)
 
-        model = prop.right.model
-        table = self.backend.get_table(model)
-        return table
+        return self.joins[fpr.name]
 
 
 class ForeignProperty:
