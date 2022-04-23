@@ -6,6 +6,12 @@ Changes
 0.1.35 (unreleased)
 ===================
 
+Bug fixes:
+
+- Allow NULL values for properties with enum constraints (`#230`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/230
+
 
 0.1.34 (2022-04-22)
 ===================

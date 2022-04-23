@@ -45,7 +45,9 @@ def _get_row_value(context: Context, row: RowProxy, sel: Any) -> Any:
             val = row[sel.item]
 
         if enum := get_prop_enum(sel.prop):
-            if str(val) in enum:
+            if val is None:
+                pass
+            elif str(val) in enum:
                 item = enum[str(val)]
                 if item.prepare is not NA:
                     val = item.prepare
