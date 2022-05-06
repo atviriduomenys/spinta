@@ -12,6 +12,11 @@ New features:
 
   __ https://github.com/atviriduomenys/spinta/issues/231
 
+- Add non-SI units accepted for use with SI (`#214`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/214
+
+
 Bug fixes:
 
 - Allow NULL values for properties with enum constraints (`#230`__).
