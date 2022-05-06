@@ -57,9 +57,30 @@ def test_configure_with_resource(rc: RawConfig):
     ])
     store = prepare_manifest(context, verbose=False)
     assert store.manifest == '''
-    d | r | b | m | property       | type   | source
-    datasets/gov/example/resources |        |
-      | resource1                  | sql    | sqlite://
+    d | r | b | m | property | type | ref  | source     | prepare
+    datasets/gov/example     |      |      |            |
+      | resource1            | sql  |      | sqlite://  |
+    '''
+
+
+def test_configure_with_resource_backend(rc: RawConfig):
+    rc = rc.fork({
+        'backends': {
+            'mydb': {
+                'type': 'sql',
+                'dsn': 'sqlite://',
+            }
+        }
+    })
+    context: Context = create_test_context(rc)
+    context = configure_context(context, resources=[
+        ResourceTuple('sql', 'mydb'),
+    ])
+    store = prepare_manifest(context, verbose=False)
+    assert store.manifest == '''
+    d | r | b | m | property | type | ref  | source     | prepare
+    datasets/gov/example     |      |      |            |
+      | resource1            | sql  | mydb |            |
     '''
 
 

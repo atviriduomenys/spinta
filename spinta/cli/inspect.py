@@ -10,13 +10,13 @@ from spinta import commands
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.components import Mode
-from spinta.core.config import ResourceTuple
 from spinta.core.context import configure_context
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import init_manifest
 from spinta.manifests.helpers import load_manifest_nodes
 from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
+from spinta.core.config import parse_resource_args
 
 
 def inspect(
@@ -39,20 +39,13 @@ def inspect(
     )),
 ):
     """Update manifest schema from an external data source"""
-    resource = ResourceTuple(*resource, formula)
-    if (
-        resource.type is None and
-        resource.external is None and
-        not resource.prepare
-    ):
-        resource = None
-
+    resources = parse_resource_args(*resource, formula)
     context = configure_context(
         ctx.obj,
         [manifest] if manifest else None,
         mode=Mode.external,
         backend=backend,
-        resources=[resource] if resource else None,
+        resources=resources,
     )
     store = prepare_manifest(context, ensure_config_dir=True)
 
