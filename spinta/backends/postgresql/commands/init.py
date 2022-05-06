@@ -73,6 +73,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         'json': JSONB,
         'spatial': sa.Text,  # unsupported
         'image': sa.Text,  # unsupported
+        'url': sa.String,
+        'uri': sa.String,
     }
 
     if dtype.name not in types:

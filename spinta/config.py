@@ -94,6 +94,7 @@ CONFIG = {
             'number': 'spinta.types.datatype:Number',
             'boolean': 'spinta.types.datatype:Boolean',
             'url': 'spinta.types.datatype:URL',
+            'uri': 'spinta.types.datatype:URI',
             'image': 'spinta.types.datatype:Image',
             'geometry': 'spinta.types.geometry.components:Geometry',
             'spatial': 'spinta.types.geometry.components:Spatial',
