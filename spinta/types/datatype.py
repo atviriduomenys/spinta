@@ -160,7 +160,11 @@ class Boolean(DataType):
     pass
 
 
-class URL(DataType):
+class URL(String):
+    pass
+
+
+class URI(String):
     pass
 
 

@@ -86,11 +86,25 @@ def get_node(
                 )
 
     if ctype not in config.components[group]:
+        from spinta.components import Property
+        if group == 'types' and isinstance(parent, Property):
+            if ctype:
+                error = (
+                    f"Unknown {ctype!r} type of {parent.place!r} property "
+                    f"in {parent.model.name!r} model."
+                )
+            else:
+                error = (
+                    f"Type is not given for {parent.place!r} property "
+                    f"in {parent.model.name!r} model."
+                )
+        else:
+            error = f"Unknown component {ctype!r} in {group!r}."
         raise exceptions.InvalidManifestFile(
             parent,
             manifest=manifest.name,
             eid=eid,
-            error=f"Unknown component {ctype!r} in {group!r}.",
+            error=error,
         )
 
     Node_ = config.components[group][ctype]

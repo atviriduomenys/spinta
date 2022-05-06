@@ -82,7 +82,10 @@ def test_unknown_type(rc: RawConfig):
     assert error(resp, ['component', 'error']) == {
         'context': {
             'component': 'spinta.components.Property',
-            'error': "Unknown component 'stringz' in 'types'.",
+            'error': (
+                "Unknown 'stringz' type of 'name' property in "
+                "'datasets/gov/example/Country' model."
+            ),
         },
     }
 

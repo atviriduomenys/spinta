@@ -16,6 +16,10 @@ New features:
 
   __ https://github.com/atviriduomenys/spinta/issues/214
 
+- Add `uri` type (`#232`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/232
+
 
 Bug fixes:
 

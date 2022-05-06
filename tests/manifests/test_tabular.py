@@ -208,7 +208,10 @@ def test_prop_type_not_given(tmpdir, rc):
           |   |   | Bool         |
           |   |   |   | value    |
         ''')
-    assert e.value.context['error'] == "Unknown component '' in 'types'."
+    assert e.value.context['error'] == (
+        "Type is not given for 'value' property in "
+        "'datasets/gov/example/Bool' model."
+    )
 
 
 def test_time_type(tmpdir, rc):
