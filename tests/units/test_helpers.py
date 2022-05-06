@@ -43,6 +43,17 @@ def test_valid_si_unit(unit: str):
 
 
 @pytest.mark.parametrize('unit', [
+    '%',
+    'ha',
+    'min',
+    'h',
+    'bar',
+])
+def test_valid_non_si_unit(unit: str):
+    assert is_si_unit(unit)
+
+
+@pytest.mark.parametrize('unit', [
     'D',
     '1D',
     'meter',

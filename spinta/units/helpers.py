@@ -16,9 +16,10 @@ def is_time_unit(unit: str) -> bool:
 
 # Borrowed from https://stackoverflow.com/a/3573731/475477
 _prefix = '(Y|Z|E|P|T|G|M|k|h|da|d|c|m|µ|n|p|f|a|z|y)'
-_unit = '(m|g|s|A|K|mol|cd|Hz|N|Pa|J|W|C|V|F|Ω|S|Wb|T|H|lm|lx|Bq|Gy|Sv|kat|l|L|B)'
+_si_unit = '(m|g|s|A|K|mol|cd|Hz|N|Pa|J|W|C|V|F|Ω|S|Wb|T|H|lm|lx|Bq|Gy|Sv|kat|l|L|B)'
+_non_si_unit = '(a|C|h|d|%|°|′|″|l|L|t|u|au|ha|Da|eV|B|dB|pc|atm|bar|min|cal)'
 _power = r'([⁺⁻]?[¹²³⁴⁵⁶⁷⁸⁹][⁰¹²³⁴⁵⁶⁷⁸⁹]*|\^[+-]?[1-9]\d*)'
-_unit_and_prefix = '(' + _prefix + '?' + _unit + _power + '?|1)'
+_unit_and_prefix = '(((' + _prefix + '?' + _si_unit + ')|' + _non_si_unit + ')' + _power + '?|1)'
 _multiplied = _unit_and_prefix + '(?:[⋅·*]' + _unit_and_prefix + ')*'
 _with_denominator = _multiplied + '(?:/' + _multiplied + ')?'
 _si_unit_re = re.compile(r'^\d*' + _with_denominator + '$')
