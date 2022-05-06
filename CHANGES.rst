@@ -6,6 +6,12 @@ Changes
 0.1.35 (unreleased)
 ===================
 
+New features:
+
+- Allow to use existing backend with -r option (`#231`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/231
+
 Bug fixes:
 
 - Allow NULL values for properties with enum constraints (`#230`__).
