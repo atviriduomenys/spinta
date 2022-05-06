@@ -526,7 +526,22 @@ class ResourceTuple(NamedTuple):
     # Resource URI, depends on type.
     external: str
     # Resource prepare formula.
-    prepare: str = None
+    prepare: Optional[str] = None
+
+
+def parse_resource_args(
+    resource_type: str,
+    resource_source: str,
+    formula: Optional[str] = None,
+) -> Optional[ResourceTuple]:
+    resource = ResourceTuple(resource_type, resource_source, formula)
+    if (
+        resource.type is None and
+        resource.external is None and
+        not resource.prepare
+    ):
+        return None
+    return [resource]
 
 
 def _parse_manifest_path(
@@ -539,6 +554,24 @@ def _parse_manifest_path(
     from spinta.manifests.helpers import detect_manifest_from_path
     Manifest_ = detect_manifest_from_path(rc, path)
     return ManifestPath(type=Manifest_.type, path=path)
+
+
+def _get_resource_config(
+    rc: RawConfig,
+    resource: ResourceTuple,
+) -> Dict[str, str]:
+    if resource.external and resource.external in rc.get('backends', default={}):
+        return {
+            'type': resource.type,
+            'backend': resource.external,
+            'prepare': resource.prepare,
+        }
+    else:
+        return {
+            'type': resource.type,
+            'external': resource.external,
+            'prepare': resource.prepare,
+        }
 
 
 def configure_rc(
@@ -586,16 +619,11 @@ def configure_rc(
                 sync.append(manifest_name)
 
         if resources:
-            manifest_name = f'resources'
             inline.append({
                 'type': 'dataset',
-                'name': f'datasets/gov/example/{manifest_name}',
+                'name': 'datasets/gov/example',
                 'resources': {
-                    f'resource{i}': {
-                        'type': resource.type,
-                        'external': resource.external,
-                        'prepare': resource.prepare,
-                    }
+                    f'resource{i}': _get_resource_config(rc, resource)
                     for i, resource in enumerate(resources, 1)
                 },
             })
