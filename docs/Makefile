@@ -9,7 +9,15 @@ SPHINXBUILD   ?= $(VENVDIR)/bin/sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = _build
 
-export PATH := ../env/bin:$(PATH)
+.venv/bin/pip:
+	python -m venv .venv
+	.venv/bin/pip install -r requirements.txt
+
+.venv/bin/pip-compile: env/bin/pip
+	.venv/bin/pip install pip-tools
+
+requirements.txt: .venv/bin/pip-compile requirements.in
+	.venv/bin/pip-compile requirements.in -o requirements.txt
 
 # Put it first so that "make" without argument is like "make help".
 help:
