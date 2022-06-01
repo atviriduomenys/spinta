@@ -1,11 +1,8 @@
-import lxml.html
-
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.client import get_html_tree
 from spinta.testing.tabular import convert_ascii_manifest_to_csv
 from spinta.testing.utils import error
-from spinta.testing.utils import errors
 
 
 def test_success(rc: RawConfig):

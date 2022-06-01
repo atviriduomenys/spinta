@@ -15,7 +15,9 @@ from starlette.routing import Route, Mount
 from starlette.middleware import Middleware
 
 from spinta import components
-from spinta.auth import AuthorizationServer, ResourceProtector, BearerTokenValidator
+from spinta.auth import AuthorizationServer
+from spinta.auth import ResourceProtector
+from spinta.auth import BearerTokenValidator
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
 from spinta.commands import prepare, get_version
@@ -78,7 +80,8 @@ async def homepage(request: Request):
     context.set('auth.token', get_auth_token(context))
 
     config = context.get('config')
-    UrlParams: Type[components.UrlParams] = config.components['urlparams']['component']
+    UrlParams: Type[components.UrlParams]
+    UrlParams = config.components['urlparams']['component']
     params: UrlParams = prepare(context, UrlParams(), Version(), request)
 
     context.attach('accesslog', create_accesslog, context, loaders=(
@@ -101,8 +104,8 @@ async def error(request, exc):
         #       code from error list.
         # XXX:  On the other hand, mixing status code is probably not a good
         #       idea, so instead, MultipleErrors must have one status code for
-        #       all errors. And that should be enforced by MultipleErrors. If an
-        #       exception comes in with a different status code, then this
+        #       all errors. And that should be enforced by MultipleErrors. If
+        #       an exception comes in with a different status code, then this
         #       should be an error.
         status_code = exc.errors[0].status_code
         errors = [error_response(e) for e in exc.errors]
@@ -177,7 +180,13 @@ def init(context: Context):
 
     # This route matches everything, so it must be added last.
     routes += [
-        Route('/{path:path}', homepage, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
+        Route('/{path:path}', homepage, methods=[
+            'GET',
+            'POST',
+            'PUT',
+            'PATCH',
+            'DELETE'
+        ]),
     ]
 
     middleware = [

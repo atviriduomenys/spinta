@@ -1,5 +1,5 @@
 .PHONY: env
-env: .env .venv/pyvenv.cfg var/.done
+env: .venv/pyvenv.cfg var/.done
 
 .venv/pyvenv.cfg: pyproject.toml poetry.toml
 	poetry install
@@ -8,10 +8,6 @@ env: .env .venv/pyvenv.cfg var/.done
 var/.done: Makefile
 	mkdir -p var/files
 	touch var/.done
-
-.env: .env.example
-	cp -n .env.example .env | true
-	touch .env
 
 .PHONY: upgrade
 upgrade: .venv/bin/pip-compile
