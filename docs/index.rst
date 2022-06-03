@@ -75,6 +75,12 @@ Opening and publishing your data has never been so simple!
    reference/components
    reference/commands
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Contributing
+
+   contrib/index
+
 
 Indices and tables
 ==================
