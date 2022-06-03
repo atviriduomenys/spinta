@@ -8,7 +8,9 @@ from spinta.core.ufuncs import Expr
 from spinta.renderer import render
 from spinta.components import Context, Model, Property, Action, UrlParams
 from spinta.types.datatype import DataType
-from spinta.exceptions import NotFoundError, ItemDoesNotExist, UnavailableSubresource
+from spinta.exceptions import NotFoundError
+from spinta.exceptions import ItemDoesNotExist
+from spinta.exceptions import UnavailableSubresource
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.backends.postgresql.commands.query import PgQueryBuilder

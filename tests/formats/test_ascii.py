@@ -1,18 +1,29 @@
 import base64
 import datetime
 import hashlib
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 import pytest
 from _pytest.fixtures import FixtureRequest
 
+from spinta import commands
 from spinta.auth import AdminToken
+from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import get_select_tree
 from spinta.components import Action
+from spinta.components import Context
 from spinta.components import UrlParams
+from spinta.components import Version
 from spinta.core.config import RawConfig
+from spinta.renderer import render
+from spinta.manifests.components import Manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.data import pushdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.client import create_test_client
+from spinta.testing.request import make_get_request
 
 
 def sha1(s):
@@ -213,3 +224,62 @@ def test_ascii_file_dtype(
         '=========================================\n'
         'Lithuania   file.txt   text/plain        '
     )
+
+
+# XXX: Copied from tests/formats/test_html.py
+#      Maybe refactor to spinta.testing.request/response?
+def _build_context(
+    context: Context,
+    manifest: Manifest,
+    url: str,
+    row: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    if '?' in url:
+        model, query = url.split('?', 1)
+    else:
+        model, query = url, None
+
+    model = manifest.models[model]
+    request = make_get_request(model.name, query, {'accept': 'text/html'})
+    action = Action.GETONE
+    params = commands.prepare(context, UrlParams(), Version(), request)
+
+    select_tree = get_select_tree(context, action, params.select)
+    prop_names = get_select_prop_names(
+        context,
+        model,
+        model.properties,
+        action,
+        select_tree,
+        reserved=['_type', '_id', '_revision'],
+    )
+    row = commands.prepare_data_for_response(
+        context,
+        model,
+        params.fmt,
+        row,
+        action=action,
+        select=select_tree,
+        prop_names=prop_names,
+    )
+
+    return render(context, request, model, params, row, action=action)
+
+
+def test_ascii_getone(
+    rc: RawConfig,
+):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property | type   | ref  | access
+    example                  |        |      |
+      |   |   | City         |        | name |
+      |   |   |   | name     | string |      | open
+    ''')
+
+    _id = '19e4f199-93c5-40e5-b04e-a575e81ac373'
+    result = _build_context(context, manifest, f'example/City/{_id}', {
+        '_id': _id,
+        '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+        'name': 'Vilnius',
+    })
+    assert result == ''
