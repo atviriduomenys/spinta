@@ -12,4 +12,5 @@ project.
    :maxdepth: 2
 
    setup
+   tests
    functions
