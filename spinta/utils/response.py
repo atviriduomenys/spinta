@@ -130,15 +130,38 @@ async def create_http_response(
                 prop = params.prop
                 dtype = prop.dtype
                 backend = model.backend
-                return await commands.getone(context, request, prop, dtype, backend, action=action, params=params)
+                return await commands.getone(
+                    context,
+                    request,
+                    prop,
+                    dtype,
+                    backend,
+                    action=action,
+                    params=params,
+                )
             elif params.prop:
                 prop = params.prop
                 dtype = prop.dtype
                 backend = dtype.backend or model.backend
-                return await commands.getone(context, request, prop, dtype, backend, action=action, params=params)
+                return await commands.getone(
+                    context,
+                    request,
+                    prop,
+                    dtype,
+                    backend,
+                    action=action,
+                    params=params,
+                )
             else:
                 backend = model.backend
-                return await commands.getone(context, request, model, backend, action=action, params=params)
+                return await commands.getone(
+                    context,
+                    request,
+                    model,
+                    backend,
+                    action=action,
+                    params=params,
+                )
 
         else:
             search = any((

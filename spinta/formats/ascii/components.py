@@ -31,6 +31,9 @@ class Ascii(Format):
     ):
         manifest: Manifest = context.get('store').manifest
 
+        if action == Action.GETONE:
+            data = [data]
+
         data = iter(data)
         peek = next(data, None)
 

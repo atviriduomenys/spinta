@@ -233,16 +233,23 @@ def _build_context(
     manifest: Manifest,
     url: str,
     row: Dict[str, Any],
+    *,
+    headers: Optional[Dict[str, str]] = None,
 ) -> Optional[Dict[str, Any]]:
-    if '?' in url:
-        model, query = url.split('?', 1)
-    else:
-        model, query = url, None
+    context.set('auth.token', AdminToken())
 
-    model = manifest.models[model]
-    request = make_get_request(model.name, query, {'accept': 'text/html'})
-    action = Action.GETONE
+    if '?' in url:
+        path, query = url.split('?', 1)
+    else:
+        path, query = url, None
+    if headers is None:
+        headers = {
+            'Accept': 'text/html',
+        }
+    request = make_get_request(path, query, headers)
     params = commands.prepare(context, UrlParams(), Version(), request)
+    action = Action.GETONE
+    model = params.model
 
     select_tree = get_select_tree(context, action, params.select)
     prop_names = get_select_prop_names(
@@ -266,7 +273,8 @@ def _build_context(
     return render(context, request, model, params, row, action=action)
 
 
-def test_ascii_getone(
+@pytest.mark.asyncio
+async def test_ascii_getone(
     rc: RawConfig,
 ):
     context, manifest = load_manifest_and_context(rc, '''
@@ -278,8 +286,17 @@ def test_ascii_getone(
 
     _id = '19e4f199-93c5-40e5-b04e-a575e81ac373'
     result = _build_context(context, manifest, f'example/City/{_id}', {
+        '_type': 'example/City',
         '_id': _id,
         '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
         'name': 'Vilnius',
-    })
-    assert result == ''
+    }, headers={'Accept': 'text/plain'})
+    result = ''.join([x async for x in result.body_iterator]).splitlines()
+    assert result == [
+        '',
+        '',
+        'Table: example/City',
+        '   _type                       _id                                 _revision                  name  ',
+        '====================================================================================================',
+        'example/City   19e4f199-93c5-40e5-b04e-a575e81ac373   b6197bb7-3592-4cdb-a61c-5a618f44950c   Vilnius',
+    ]
