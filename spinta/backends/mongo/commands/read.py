@@ -1,9 +1,14 @@
-from starlette.requests import Request
+from typing import Union
+from typing import overload
 
+from starlette.requests import Request
+from starlette.responses import Response
+
+from spinta.typing import ObjectData
+from spinta.typing import FileObjectData
 from spinta.accesslog import AccessLog
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
-from spinta.compat import urlparams_to_expr
 from spinta import commands
 from spinta.components import Context, Model, Property, Action, UrlParams
 from spinta.renderer import render
@@ -14,6 +19,7 @@ from spinta.backends.mongo.components import Mongo
 from spinta.backends.mongo.commands.query import MongoQueryBuilder
 
 
+@overload
 @commands.getone.register(Context, Request, Model, Mongo)
 async def getone(
     context: Context,
@@ -23,7 +29,7 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-):
+) -> Response:
     commands.authorize(context, action, model)
 
     accesslog = context.get('accesslog')
@@ -33,7 +39,7 @@ async def getone(
         id_=params.pk,
     )
 
-    data = getone(context, model, backend, id_=params.pk)
+    data = commands.getone(context, model, backend, id_=params.pk)
     select_tree = get_select_tree(context, action, params.select)
     prop_names = get_select_prop_names(
         context,
@@ -54,6 +60,7 @@ async def getone(
     return render(context, request, model, params, data, action=action)
 
 
+@overload
 @commands.getone.register(Context, Model, Mongo)
 def getone(
     context: Context,
@@ -61,7 +68,7 @@ def getone(
     backend: Mongo,
     *,
     id_: str,
-):
+) -> ObjectData:
     table = backend.db[model.model_type()]
     keys = {k: 1 for k in model.flatprops}
     keys['__id'] = 1
@@ -75,6 +82,7 @@ def getone(
     return commands.cast_backend_to_python(context, model, backend, data)
 
 
+@overload
 @commands.getone.register(Context, Request, Property, DataType, Mongo)
 async def getone(
     context: Context,
@@ -85,21 +93,22 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-):
+) -> Response:
     raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
 
 
+@overload
 @commands.getone.register(Context, Request, Property, (Object, File), Mongo)
 async def getone(
     context: Context,
     request: Request,
     prop: Property,
-    dtype: (Object, File),
+    dtype: Union[Object, File],
     backend: Mongo,
     *,
     action: Action,
     params: UrlParams,
-):
+) -> Response:
     commands.authorize(context, action, prop)
 
     accesslog: AccessLog = context.get('accesslog')
@@ -110,7 +119,7 @@ async def getone(
         id_=params.pk,
     )
 
-    data = getone(context, prop, dtype, backend, id_=params.pk)
+    data = commands.getone(context, prop, dtype, backend, id_=params.pk)
     data = commands.prepare_data_for_response(
         context,
         prop.dtype,
@@ -121,6 +130,7 @@ async def getone(
     return render(context, request, prop, params, data, action=action)
 
 
+@overload
 @commands.getone.register(Context, Property, Object, Mongo)
 def getone(
     context: Context,
@@ -129,7 +139,7 @@ def getone(
     backend: Mongo,
     *,
     id_: str,
-):
+) -> ObjectData:
     table = backend.db[prop.model.model_type()]
     data = table.find_one({'__id': id_}, {
         '__id': 1,
@@ -147,6 +157,7 @@ def getone(
     return commands.cast_backend_to_python(context, prop, backend, result)
 
 
+@overload
 @commands.getone.register(Context, Property, File, Mongo)
 def getone(
     context: Context,
@@ -155,7 +166,7 @@ def getone(
     backend: Mongo,
     *,
     id_: str,
-):
+) -> FileObjectData:
     table = backend.db[prop.model.model_type()]
     data = table.find_one({'__id': id_}, {
         '__id': 1,

@@ -1,18 +1,30 @@
 import base64
 import datetime
 import hashlib
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 import pytest
 from _pytest.fixtures import FixtureRequest
 
+from spinta import commands
 from spinta.auth import AdminToken
+from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import get_select_tree
 from spinta.components import Action
+from spinta.components import Context
 from spinta.components import UrlParams
+from spinta.components import Version
 from spinta.core.config import RawConfig
+from spinta.renderer import render
+from spinta.manifests.components import Manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.data import pushdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.client import create_test_client
+from spinta.testing.request import make_get_request
+from spinta.testing.request import render_data
 
 
 def sha1(s):
@@ -213,3 +225,37 @@ def test_ascii_file_dtype(
         '=========================================\n'
         'Lithuania   file.txt   text/plain        '
     )
+
+
+@pytest.mark.asyncio
+async def test_ascii_getone(
+    rc: RawConfig,
+):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property | type   | ref  | access
+    example                  |        |      |
+      |   |   | City         |        | name |
+      |   |   |   | name     | string |      | open
+    ''')
+
+    _id = '19e4f199-93c5-40e5-b04e-a575e81ac373'
+    result = render_data(
+        context, manifest,
+        f'example/City/{_id}', None,
+        accept='text/plain',
+        data={
+            '_type': 'example/City',
+            '_id': _id,
+            '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            'name': 'Vilnius',
+        }
+    )
+    result = ''.join([x async for x in result.body_iterator]).splitlines()
+    assert result == [
+        '',
+        '',
+        'Table: example/City',
+        '   _type                       _id                                 _revision                  name  ',
+        '====================================================================================================',
+        'example/City   19e4f199-93c5-40e5-b04e-a575e81ac373   b6197bb7-3592-4cdb-a61c-5a618f44950c   Vilnius',
+    ]

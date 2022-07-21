@@ -1,6 +1,7 @@
 import collections
 from typing import NamedTuple
 from typing import Union
+from typing import overload
 
 import itertools
 from typing import Any
@@ -380,10 +381,11 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-):
+) -> Response:
     raise exceptions.ModelNotFound(model=ns.name)
 
 
+@overload
 @commands.in_namespace.register()  # noqa
 def in_namespace(node: Node, ns: Namespace) -> bool:
     return node.name.startswith(ns.name)

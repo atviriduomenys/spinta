@@ -2,7 +2,6 @@ import subprocess
 import sys
 
 from typing import Optional
-from typing import List
 
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
@@ -26,7 +25,16 @@ def render(
     status_code: int = 200,
     headers: Optional[dict] = None,
 ):
-    return _render(context, model, fmt, action, params, data, status_code, headers)
+    return _render(
+        context,
+        model,
+        fmt,
+        action,
+        params,
+        data,
+        status_code,
+        headers,
+    )
 
 
 def _render(
@@ -44,7 +52,8 @@ def _render(
     colwidth = params.formatparams.get('colwidth')
 
     if width is None and colwidth is None and sys.stdin.isatty():
-        _, width = map(int, subprocess.run(['stty', 'size'], capture_output=True).stdout.split())
+        proc = subprocess.run(['stty', 'size'], capture_output=True)
+        _, width = map(int, proc.stdout.split())
     elif width is None and colwidth is None:
         colwidth = 42
 

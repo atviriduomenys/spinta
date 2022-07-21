@@ -1,4 +1,3 @@
-from typing import Iterable
 from typing import List
 
 import cgi
@@ -36,7 +35,39 @@ def prepare(
         parse_url_query(urllib.parse.unquote(request.url.query))
     )
     prepare_urlparams(context, params, request)
+    params.action = get_action(params, request)
     return params
+
+
+METHOD_TO_ACTION = {
+    'POST': Action.INSERT,
+    'PUT': Action.UPDATE,
+    'PATCH': Action.PATCH,
+    'DELETE': Action.DELETE,
+}
+
+
+def get_action(params: UrlParams, request: Request) -> Action:
+    if params.action is not None:
+        # Might be set in _prepare_urlparams_from_path
+        return params.action
+    if request.method == 'GET':
+        if params.changes:
+            return Action.CHANGES
+        elif params.pk:
+            return Action.GETONE
+        else:
+            search = any((
+                params.query,
+                params.select,
+                params.limit is not None,
+                params.offset is not None,
+                params.sort,
+                params.count,
+            ))
+            return Action.SEARCH if search else Action.GETALL
+    else:
+        return METHOD_TO_ACTION[request.method]
 
 
 def parse_url_query(query):

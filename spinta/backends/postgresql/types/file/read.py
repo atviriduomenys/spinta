@@ -1,6 +1,9 @@
+from typing import overload
+
 from starlette.requests import Request
 from starlette.responses import Response
 
+from spinta.typing import FileObjectData
 from spinta import commands
 from spinta.accesslog import AccessLog
 from spinta.renderer import render
@@ -15,6 +18,7 @@ from spinta.backends.postgresql.constants import TableType
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 
 
+@overload
 @commands.getone.register(Context, Request, Property, File, PostgreSQL)
 async def getone(
     context: Context,
@@ -25,7 +29,7 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-):
+) -> Response:
     commands.authorize(context, action, prop)
 
     accesslog: AccessLog = context.get('accesslog')
@@ -35,7 +39,7 @@ async def getone(
         action=action.value,
         id_=params.pk,
     )
-    data = getone(context, prop, dtype, backend, id_=params.pk)
+    data = commands.getone(context, prop, dtype, backend, id_=params.pk)
 
     # Return file metadata
     if params.propref:
@@ -83,6 +87,7 @@ async def getone(
         )
 
 
+@overload
 @commands.getone.register(Context, Property, File, PostgreSQL)
 def getone(
     context: Context,
@@ -91,7 +96,7 @@ def getone(
     backend: PostgreSQL,
     *,
     id_: str,
-):
+) -> FileObjectData:
     table = backend.get_table(prop.model)
     connection = context.get('transaction').connection
     selectlist = [
@@ -131,8 +136,8 @@ def getfile(
     dtype: File,
     backend: PostgreSQL,
     *,
-    data: dict,
-):
+    data: FileObjectData,
+) -> bytes:
     if not data['_blocks']:
         return None
 

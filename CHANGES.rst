@@ -6,6 +6,13 @@ Changes
 0.1.36 (unreleased)
 ===================
 
+Bug fixes:
+
+- Error on getone request with ascii format (`#52`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/52
+
+
 
 0.1.35 (2022-05-16)
 ===================

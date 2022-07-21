@@ -36,6 +36,7 @@ from spinta.testing.request import make_get_request
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.utils.data import take
 from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.request import render_data
 from spinta.manifests.components import Manifest
 
 
@@ -478,55 +479,6 @@ def test_prepare_ref_for_response(rc: RawConfig, value, cell):
     assert result['_id'].link == cell.link
 
 
-def _build_context(
-    context: Context,
-    manifest: Manifest,
-    url: str,
-    row: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
-    if '?' in url:
-        model, query = url.split('?', 1)
-    else:
-        model, query = url, None
-
-    model = manifest.models[model]
-    request = make_get_request(model.name, query, {'accept': 'text/html'})
-    action = Action.SEARCH if query else Action.GETALL
-    params = commands.prepare(context, UrlParams(), Version(), request)
-
-    select_tree = get_select_tree(context, action, params.select)
-    prop_names = get_select_prop_names(
-        context,
-        model,
-        model.properties,
-        action,
-        select_tree,
-        reserved=['_type', '_id', '_revision'],
-    )
-    row = commands.prepare_data_for_response(
-        context,
-        model,
-        params.fmt,
-        row,
-        action=action,
-        select=select_tree,
-        prop_names=prop_names,
-    )
-
-    rows = [row]
-
-    ctx = _build_template_context(
-        context, model,
-        action,
-        params,
-        rows,
-    )
-
-    data = next(ctx['data'], None)
-    if data is not None:
-        return dict(zip(ctx['header'], data))
-
-
 def test_select_id(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property   | type    | ref     | access
@@ -534,10 +486,16 @@ def test_select_id(rc: RawConfig):
       |   |   | City           |         | name    |
       |   |   |   | name       | string  |         | open
     ''')
-    result = _build_context(context, manifest, 'example/City?select(_id)', {
-        '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
-        '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
-    })
+    result = render_data(
+        context, manifest,
+        'example/City',
+        'select(_id)',
+        accept='text/html',
+        data={
+            '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+            '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+        }
+    )
     assert result == {
         '_id': Cell(
             value='19e4f199',
@@ -557,11 +515,17 @@ def test_select_join(rc: RawConfig):
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
     ''')
-    result = _build_context(context, manifest, 'example/City?select(_id, country.name)', {
-        '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
-        '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
-        'country': {'name': 'Lithuania'},
-    })
+    result = render_data(
+        context, manifest,
+        'example/City',
+        'select(_id, country.name)',
+        accept='text/html',
+        data={
+            '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+            '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            'country': {'name': 'Lithuania'},
+        },
+    )
     assert result == {
         '_id': Cell(
             value='19e4f199',
@@ -582,10 +546,12 @@ def test_select_join_multiple_props(rc: RawConfig):
       |   |   |   | name       | string  |         | open
       |   |   |   | country    | ref     | Country | open
     ''')
-    result = _build_context(
+    result = render_data(
         context, manifest,
-        'example/City?select(_id, country._id, country.name)',
-        {
+        'example/City',
+        'select(_id, country._id, country.name)',
+        accept='text/html',
+        data={
             '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
             '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
             'country': {
