@@ -1,6 +1,10 @@
+from typing import overload
+
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
+from spinta.typing import ObjectData
+from spinta.typing import FileObjectData
 from spinta import commands
 from spinta.components import Action
 from spinta.components import Context, Property, UrlParams
@@ -9,6 +13,7 @@ from spinta.types.datatype import DataType, File
 from spinta.exceptions import ItemDoesNotExist
 
 
+@overload
 @commands.getone.register(Context, Request, Property, File, FileSystem)
 async def getone(
     context: Context,
@@ -19,7 +24,7 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-):
+) -> FileResponse:
     commands.authorize(context, action, prop)
 
     accesslog = context.get('accesslog')
@@ -30,7 +35,13 @@ async def getone(
         id_=params.pk,
     )
 
-    data = getone(context, prop, prop.dtype, prop.model.backend, id_=params.pk)
+    data = commands.getone(
+        context,
+        prop,
+        prop.dtype,
+        prop.model.backend,
+        id_=params.pk,
+    )
     value = data[prop.name]
     filename = value['_id']
     if filename is None:
@@ -49,27 +60,29 @@ async def getone(
     )
 
 
+@overload
 @commands.getone.register(Context, Property, DataType, FileSystem)
-def getone(  # noqa
+def getone(
     context: Context,
     prop: Property,
     dtype: DataType,
     backend: FileSystem,
     *,
     id_: str,
-):
+) -> ObjectData:
     raise NotImplementedError
 
 
+@overload
 @commands.getone.register(Context, Property, File, FileSystem)
-def getone(  # noqa
+def getone(
     context: Context,
     prop: Property,
     dtype: File,
     backend: FileSystem,
     *,
     id_: str,
-):
+) -> FileObjectData:
     data = commands.getone(context, prop, prop.model.backend, id_=id_)
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)

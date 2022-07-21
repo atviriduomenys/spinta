@@ -19,13 +19,6 @@ from spinta.exceptions import NoBackendConfigured
 from spinta.exceptions import error_response
 from spinta.renderer import render
 
-METHOD_TO_ACTION = {
-    'POST': Action.INSERT,
-    'PUT': Action.UPDATE,
-    'PATCH': Action.PATCH,
-    'DELETE': Action.DELETE,
-}
-
 
 async def _check_post(context: Context, request: Request, params: UrlParams):
     form = await request.form()
@@ -92,7 +85,14 @@ async def _check(context: Context, request: Request, params: UrlParams):
     else:
         data = None
 
-    return render(context, request, params.model, params, data, action=Action.CHECK)
+    return render(
+        context,
+        request,
+        params.model,
+        params,
+        data,
+        action=Action.CHECK,
+    )
 
 
 async def create_http_response(
@@ -118,13 +118,13 @@ async def create_http_response(
                 context,
                 params.model,
                 request,
-                action=Action.CHANGES,
+                action=params.action,
                 params=params,
             )
 
         elif params.pk:
             model = params.model
-            action = Action.GETONE
+            action = params.action
 
             if params.prop and params.propref:
                 prop = params.prop
@@ -164,17 +164,8 @@ async def create_http_response(
                 )
 
         else:
-            search = any((
-                params.query,
-                params.select,
-                params.limit is not None,
-                params.offset is not None,
-                params.sort,
-                params.count,
-            ))
-            action = Action.SEARCH if search else Action.GETALL
             _enforce_limit(context, params)
-
+            action = params.action
             model = params.model
             backend = model.backend
 
@@ -183,7 +174,10 @@ async def create_http_response(
                 context.attach(f'transaction.{backend.name}', backend.begin)
 
             if model.keymap:
-                context.attach(f'keymap.{model.keymap.name}', lambda: model.keymap)
+                context.attach(
+                    f'keymap.{model.keymap.name}',
+                    lambda: model.keymap,
+                )
 
             return await commands.getall(
                 context,
@@ -197,18 +191,50 @@ async def create_http_response(
         if params.pk:
             raise NotImplementedError
         else:
-            context.attach('transaction', manifest.backend.transaction, write=True)
-            return await commands.wipe(context, request, params.model, params.model.backend, action=Action.WIPE, params=params)
+            context.attach(
+                'transaction',
+                manifest.backend.transaction,
+                write=True,
+            )
+            return await commands.wipe(
+                context,
+                request,
+                params.model,
+                params.model.backend,
+                action=params.action,
+                params=params,
+            )
 
     else:
         context.attach('transaction', manifest.backend.transaction, write=True)
-        action = METHOD_TO_ACTION[request.method]
+        action = params.action
         if params.prop and params.propref:
-            return await commands.push(context, request, params.prop.dtype, params.model.backend, action=action, params=params)
+            return await commands.push(
+                context,
+                request,
+                params.prop.dtype,
+                params.model.backend,
+                action=action,
+                params=params,
+            )
         elif params.prop:
-            return await commands.push(context, request, params.prop.dtype, params.prop.dtype.backend, action=action, params=params)
+            return await commands.push(
+                context,
+                request,
+                params.prop.dtype,
+                params.prop.dtype.backend,
+                action=action,
+                params=params,
+            )
         else:
-            return await commands.push(context, request, params.model, params.model.backend, action=action, params=params)
+            return await commands.push(
+                context,
+                request,
+                params.model,
+                params.model.backend,
+                action=action,
+                params=params,
+            )
 
 
 def _enforce_limit(context: Context, params: UrlParams):

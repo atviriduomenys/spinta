@@ -3,6 +3,7 @@ from typing import Iterator
 from typing import Optional
 
 from starlette.requests import Request
+from starlette.responses import Response
 
 from spinta.components import Context, Action, UrlParams, Node
 from spinta import commands
@@ -18,7 +19,7 @@ def render(
     action: Optional[Action] = None,
     status_code: Optional[int] = 200,
     headers: Optional[dict] = None,
-):
+) -> Response:
     return commands.render(
         context, request, node, params.fmt,
         action=action,

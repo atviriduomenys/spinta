@@ -1,9 +1,11 @@
 from typing import Iterator
+from typing import overload
 
 from multipledispatch import dispatch
 
 from starlette.requests import Request
 
+from spinta.typing import ObjectData
 from spinta import commands
 from spinta.accesslog import AccessLog
 from spinta.renderer import render
@@ -15,6 +17,7 @@ from spinta.backends.postgresql.helpers import get_column_name
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 
 
+@overload
 @commands.getone.register(Context, Request, Property, Object, PostgreSQL)
 async def getone(
     context: Context,
@@ -25,7 +28,7 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-):
+) -> ObjectData:
     commands.authorize(context, action, prop)
 
     accesslog: AccessLog = context.get('accesslog')
@@ -36,7 +39,7 @@ async def getone(
         id_=params.pk,
     )
 
-    data = getone(context, prop, dtype, backend, id_=params.pk)
+    data = commands.getone(context, prop, dtype, backend, id_=params.pk)
     data = commands.prepare_data_for_response(
         context,
         prop.dtype,
@@ -47,6 +50,7 @@ async def getone(
     return render(context, request, prop, params, data, action=action)
 
 
+@overload
 @commands.getone.register(Context, Property, Object, PostgreSQL)
 def getone(
     context: Context,
@@ -55,7 +59,7 @@ def getone(
     backend: PostgreSQL,
     *,
     id_: str,
-):
+) -> ObjectData:
     table = backend.get_table(prop.model)
     connection = context.get('transaction').connection
     selectlist = [

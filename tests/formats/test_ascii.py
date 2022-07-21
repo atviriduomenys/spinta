@@ -24,6 +24,7 @@ from spinta.testing.data import pushdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.client import create_test_client
 from spinta.testing.request import make_get_request
+from spinta.testing.request import render_data
 
 
 def sha1(s):
@@ -226,53 +227,6 @@ def test_ascii_file_dtype(
     )
 
 
-# XXX: Copied from tests/formats/test_html.py
-#      Maybe refactor to spinta.testing.request/response?
-def _build_context(
-    context: Context,
-    manifest: Manifest,
-    url: str,
-    row: Dict[str, Any],
-    *,
-    headers: Optional[Dict[str, str]] = None,
-) -> Optional[Dict[str, Any]]:
-    context.set('auth.token', AdminToken())
-
-    if '?' in url:
-        path, query = url.split('?', 1)
-    else:
-        path, query = url, None
-    if headers is None:
-        headers = {
-            'Accept': 'text/html',
-        }
-    request = make_get_request(path, query, headers)
-    params = commands.prepare(context, UrlParams(), Version(), request)
-    action = Action.GETONE
-    model = params.model
-
-    select_tree = get_select_tree(context, action, params.select)
-    prop_names = get_select_prop_names(
-        context,
-        model,
-        model.properties,
-        action,
-        select_tree,
-        reserved=['_type', '_id', '_revision'],
-    )
-    row = commands.prepare_data_for_response(
-        context,
-        model,
-        params.fmt,
-        row,
-        action=action,
-        select=select_tree,
-        prop_names=prop_names,
-    )
-
-    return render(context, request, model, params, row, action=action)
-
-
 @pytest.mark.asyncio
 async def test_ascii_getone(
     rc: RawConfig,
@@ -285,12 +239,17 @@ async def test_ascii_getone(
     ''')
 
     _id = '19e4f199-93c5-40e5-b04e-a575e81ac373'
-    result = _build_context(context, manifest, f'example/City/{_id}', {
-        '_type': 'example/City',
-        '_id': _id,
-        '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
-        'name': 'Vilnius',
-    }, headers={'Accept': 'text/plain'})
+    result = render_data(
+        context, manifest,
+        f'example/City/{_id}', None,
+        accept='text/plain',
+        data={
+            '_type': 'example/City',
+            '_id': _id,
+            '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            'name': 'Vilnius',
+        }
+    )
     result = ''.join([x async for x in result.body_iterator]).splitlines()
     assert result == [
         '',

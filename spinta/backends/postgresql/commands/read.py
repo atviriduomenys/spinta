@@ -1,5 +1,9 @@
-from starlette.requests import Request
+from typing import overload
 
+from starlette.requests import Request
+from starlette.responses import Response
+
+from spinta.typing import ObjectData
 from spinta import commands
 from spinta.accesslog import AccessLog
 from spinta.backends.helpers import get_select_prop_names
@@ -16,6 +20,7 @@ from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.backends.postgresql.commands.query import PgQueryBuilder
 
 
+@overload
 @commands.getone.register(Context, Request, Model, PostgreSQL)
 async def getone(
     context: Context,
@@ -25,7 +30,7 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-):
+) -> Response:
     commands.authorize(context, action, model)
 
     accesslog: AccessLog = context.get('accesslog')
@@ -56,6 +61,7 @@ async def getone(
     return render(context, request, model, params, data, action=action)
 
 
+@overload
 @commands.getone.register(Context, Model, PostgreSQL)
 def getone(
     context: Context,
@@ -63,7 +69,7 @@ def getone(
     backend: PostgreSQL,
     *,
     id_: str,
-):
+) -> ObjectData:
     connection = context.get('transaction').connection
     table = backend.get_table(model)
     try:
@@ -85,7 +91,7 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-):
+) -> Response:
     raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
 
 

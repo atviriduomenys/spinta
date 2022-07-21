@@ -11,12 +11,16 @@ from typing import Union
 from typing import overload
 
 from starlette.requests import Request
+from starlette.responses import Response
 
+from spinta.typing import ObjectData
+from spinta.components import Node
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.dispatcher import command
 from spinta.manifests.components import ManifestSchema
 from spinta.manifests.components import NodeSchema
+from spinta.components import Namespace
 
 if TYPE_CHECKING:
     from spinta.components import Store
@@ -502,8 +506,70 @@ def delete_many():
     pass
 
 
+@overload
+def getone(
+    context: Context,
+    request: Request,
+    node: Union[Node, Namespace],
+    *,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    pass
+
+
+@overload
+def getone(
+    context: Context,
+    request: Request,
+    model: Model,
+    backend: Backend,
+    *,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    pass
+
+
+@overload
+def getone(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    *,
+    id_: str,
+) -> ObjectData:
+    pass
+
+
+@overload
+def getone(
+    context: Context,
+    request: Request,
+    prop: Property,
+    dtype: DataType,
+    backend: Backend,
+    *,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    pass
+
+
+@overload
+def getone(
+    context: Context,
+    prop: Property,
+    dtype: DataType,
+    backend: Backend,
+    *,
+    id_: str,
+) -> ObjectData:
+    pass
+
+
 @command()
-def getone():
+def getone(*args, **kwargs):
     """Get single record from the databse."""
 
 

@@ -1,4 +1,5 @@
 from starlette.requests import Request
+from starlette.responses import Response
 
 from spinta import commands
 from spinta.backends.helpers import get_select_prop_names
@@ -104,7 +105,7 @@ async def getone(
     *,
     action: Action,
     params: UrlParams,
-):
+) -> Response:
     if params.prop and params.propref:
         return await commands.getone(
             context,
