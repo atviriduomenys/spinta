@@ -1,3 +1,4 @@
+import json
 import uuid
 from typing import Any
 from typing import Dict
@@ -7,13 +8,16 @@ from typing import cast
 
 import pytest
 
+from spinta.core.config import RawConfig
 from spinta.formats.html.components import Cell
 from spinta.formats.html.helpers import short_id
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import get_html_tree
 from spinta.testing.utils import get_error_codes, get_error_context
+from spinta.testing.manifest import prepare_manifest
 from spinta.utils.nestedstruct import flatten
+from spinta.testing.client import create_test_client
 
 
 def _cleaned_context(
@@ -1201,3 +1205,31 @@ def test_robots(app: TestClient):
     resp = app.get('/robots.txt')
     assert resp.status_code == 200
     assert resp.text == 'User-Agent: *\nAllow: /\n'
+
+
+@pytest.mark.asyncio
+async def test_head_method(
+    rc: RawConfig,
+):
+    context, manifest = prepare_manifest(rc, '''
+    d | r | b | m | property | type   | ref  | access
+    example                  |        |      |
+      |   |   | City         |        | name |
+      |   |   |   | name     | string |      | open
+    ''', backend='memory')
+
+    context.loaded = True
+
+    manifest.backend.add({
+        '_type': 'example/City',
+        '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+        '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+        'name': 'Vilnius',
+    })
+
+    app = create_test_client(context, scope=[
+        'spinta_getall',
+    ])
+
+    resp = app.head('/example/City')
+    assert resp == []

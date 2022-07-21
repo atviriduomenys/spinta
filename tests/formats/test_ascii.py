@@ -1,29 +1,18 @@
 import base64
 import datetime
 import hashlib
-from typing import Any
-from typing import Dict
-from typing import Optional
 
 import pytest
 from _pytest.fixtures import FixtureRequest
 
-from spinta import commands
 from spinta.auth import AdminToken
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import get_select_tree
 from spinta.components import Action
-from spinta.components import Context
 from spinta.components import UrlParams
-from spinta.components import Version
 from spinta.core.config import RawConfig
-from spinta.renderer import render
-from spinta.manifests.components import Manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.data import pushdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.client import create_test_client
-from spinta.testing.request import make_get_request
 from spinta.testing.request import render_data
 
 
@@ -33,7 +22,10 @@ def sha1(s):
 
 @pytest.mark.skip('datasets')
 def test_export_ascii(app, mocker):
-    mocker.patch('spinta.backends.postgresql.dataset.utcnow', return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308))
+    mocker.patch(
+        'spinta.backends.postgresql.dataset.utcnow',
+        return_value=datetime.datetime(2019, 3, 6, 16, 15, 0, 816308),
+    )
 
     app.authorize(['spinta_set_meta_fields'])
     app.authmodel('country/:dataset/csv/:resource/countries', ['upsert', 'getall', 'search', 'changes'])

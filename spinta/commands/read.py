@@ -33,13 +33,16 @@ async def getall(
     else:
         expr = urlparams_to_expr(params)
 
-    accesslog = context.get('accesslog')
-    accesslog.log(
-        model=model.model_type(),
-        action=action.value,
-    )
+    if params.head:
+        rows = []
+    else:
+        accesslog = context.get('accesslog')
+        accesslog.log(
+            model=model.model_type(),
+            action=action.value,
+        )
 
-    rows = commands.getall(context, model, backend, query=expr)
+        rows = commands.getall(context, model, backend, query=expr)
 
     if params.count:
         # XXX: Quick and dirty hack. Functions should be handled properly.
@@ -94,6 +97,7 @@ async def getall(
             )
             for row in rows
         )
+
     return render(context, request, model, params, rows, action=action)
 
 

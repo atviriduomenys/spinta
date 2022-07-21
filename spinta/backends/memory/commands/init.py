@@ -6,4 +6,5 @@ from spinta.backends.memory.components import Memory
 
 @commands.prepare.register(Context, Memory, Manifest)
 def prepare(context: Context, backend: Memory, manifest: Manifest):
-    pass
+    for model in manifest.models.values():
+        backend.add_model(model)

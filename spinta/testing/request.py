@@ -25,12 +25,13 @@ def make_get_request(
     path: str,
     query: Optional[str] = None,
     headers: Optional[Dict[str, str]] = None,
+    method: str = 'GET',
 ) -> Request:
     if not path.startswith('/'):
         path = '/' + path
     req = {
         'type': 'http',
-        'method': 'GET',
+        'method': method,
         'path': path,
         'path_params': {'path': path},
         'headers': [
@@ -50,7 +51,8 @@ def render_data(
     query: Optional[str],
     data: ObjectData,
     *,
-    accept: str = 'text/html',
+    method: str = 'GET',
+    accept: str = 'application/json',
     headers: Optional[Dict[str, str]] = None,
 ) -> Optional[Dict[str, Any]]:
     context.set('auth.token', AdminToken())
@@ -58,7 +60,7 @@ def render_data(
     if headers is None:
         headers = {}
     headers['Accept'] = accept
-    request = make_get_request(path, query, headers)
+    request = make_get_request(path, query, headers, method)
     params: UrlParams = commands.prepare(
         context,
         UrlParams(),
@@ -86,6 +88,9 @@ def render_data(
         select=select_tree,
         prop_names=prop_names,
     )
+
+    if params.action in (Action.GETALL, Action.SEARCH):
+        data = [data]
 
     if params.format == 'html':
         resp = _get_html_template_context(context, model, action, params, data)

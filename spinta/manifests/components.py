@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 from builtins import staticmethod
 from typing import Any
-from typing import BinaryIO
 
 from typing import Dict
 from typing import IO
@@ -52,8 +51,8 @@ class Manifest(Component):
     prefixes: Dict[str, UriPrefix]
     enums: Enums
 
-    # {<endpoint>: <model.name>} mapping. There can be multiple model types, but
-    # name and endpoint for all of them should match.
+    # {<endpoint>: <model.name>} mapping. There can be multiple model types,
+    # but name and endpoint for all of them should match.
     endpoints: Dict[str, str] = None
 
     # Backends defined in the manifest.
