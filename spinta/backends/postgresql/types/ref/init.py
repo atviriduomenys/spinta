@@ -7,8 +7,9 @@ from sqlalchemy.sql.type_api import TypeEngine
 from spinta import commands
 from spinta.components import Context, Property
 from spinta.types.datatype import Ref
+from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_name, get_table_name
+from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers import get_column_name
 
 

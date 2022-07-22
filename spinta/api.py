@@ -181,6 +181,7 @@ def init(context: Context):
     # This route matches everything, so it must be added last.
     routes += [
         Route('/{path:path}', homepage, methods=[
+            'HEAD',
             'GET',
             'POST',
             'PUT',

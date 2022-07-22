@@ -35,6 +35,7 @@ def prepare(
         parse_url_query(urllib.parse.unquote(request.url.query))
     )
     prepare_urlparams(context, params, request)
+    params.head = request.method == 'HEAD'
     params.action = get_action(params, request)
     return params
 
@@ -51,7 +52,7 @@ def get_action(params: UrlParams, request: Request) -> Action:
     if params.action is not None:
         # Might be set in _prepare_urlparams_from_path
         return params.action
-    if request.method == 'GET':
+    if request.method in ('GET', 'HEAD'):
         if params.changes:
             return Action.CHANGES
         elif params.pk:

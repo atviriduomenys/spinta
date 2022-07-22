@@ -1,9 +1,10 @@
 from spinta import commands
-from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_column_name, get_table_name
 from spinta.components import Context, Model
+from spinta.backends.helpers import get_table_name
 from spinta.types.datatype import Ref
 from spinta.migrations import SchemaVersion
+from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers import get_column_name
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), Ref)

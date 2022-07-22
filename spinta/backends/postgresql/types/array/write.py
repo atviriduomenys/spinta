@@ -8,7 +8,7 @@ from spinta.utils.data import take
 from spinta.components import Context, Action, Property
 from spinta.types.datatype import DataType, Object, Array
 from spinta.components import Context, Action, Model, DataSubItem
-from spinta.backends.postgresql.constants import TableType
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 
 

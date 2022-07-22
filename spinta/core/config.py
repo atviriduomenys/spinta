@@ -588,10 +588,15 @@ def configure_rc(
     if backend:
         # TODO: Parse backend string to detect type. Currently type is hardcoded
         #       to 'postgresql'.
-        config['backends.default'] = {
-            'type': 'postgresql',
-            'dsn': backend,
-        }
+        if backend == 'memory':
+            config['backends.default'] = {
+                'type': 'memory',
+            }
+        else:
+            config['backends.default'] = {
+                'type': 'postgresql',
+                'dsn': backend,
+            }
     elif 'default' not in rc.get('backends', default={}):
         config['backends.default'] = {
             'type': 'memory',

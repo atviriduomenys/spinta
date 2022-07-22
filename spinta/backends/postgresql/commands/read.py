@@ -1,64 +1,16 @@
 from typing import overload
-
-from starlette.requests import Request
-from starlette.responses import Response
+from typing import Iterator
 
 from spinta.typing import ObjectData
 from spinta import commands
-from spinta.accesslog import AccessLog
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import get_select_tree
 from spinta.core.ufuncs import Expr
-from spinta.renderer import render
-from spinta.components import Context, Model, Property, Action, UrlParams
-from spinta.types.datatype import DataType
+from spinta.components import Context
+from spinta.components import Model
 from spinta.exceptions import NotFoundError
 from spinta.exceptions import ItemDoesNotExist
-from spinta.exceptions import UnavailableSubresource
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.backends.postgresql.commands.query import PgQueryBuilder
-
-
-@overload
-@commands.getone.register(Context, Request, Model, PostgreSQL)
-async def getone(
-    context: Context,
-    request: Request,
-    model: Model,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-) -> Response:
-    commands.authorize(context, action, model)
-
-    accesslog: AccessLog = context.get('accesslog')
-    accesslog.log(
-        model=model.model_type(),
-        action=action.value,
-        id_=params.pk,
-    )
-
-    data = getone(context, model, backend, id_=params.pk)
-    select_tree = get_select_tree(context, action, params.select)
-    prop_names = get_select_prop_names(
-        context,
-        model,
-        model.properties,
-        action,
-        select_tree,
-    )
-    data = commands.prepare_data_for_response(
-        context,
-        model,
-        params.fmt,
-        data,
-        action=Action.GETONE,
-        select=select_tree,
-        prop_names=prop_names,
-    )
-    return render(context, request, model, params, data, action=action)
 
 
 @overload
@@ -81,20 +33,6 @@ def getone(
     return commands.cast_backend_to_python(context, model, backend, data)
 
 
-@commands.getone.register(Context, Request, Property, DataType, PostgreSQL)
-async def getone(
-    context: Context,
-    request: Request,
-    prop: Property,
-    dtype: DataType,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-) -> Response:
-    raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
-
-
 @commands.getall.register(Context, Model, PostgreSQL)
 def getall(
     context: Context,
@@ -102,7 +40,7 @@ def getall(
     backend: PostgreSQL,
     *,
     query: Expr = None,
-):
+) -> Iterator[ObjectData]:
     assert isinstance(query, (Expr, type(None))), query
     connection = context.get('transaction').connection
 

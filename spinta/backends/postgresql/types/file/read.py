@@ -1,90 +1,16 @@
+from typing import Optional
 from typing import overload
-
-from starlette.requests import Request
-from starlette.responses import Response
 
 from spinta.typing import FileObjectData
 from spinta import commands
-from spinta.accesslog import AccessLog
-from spinta.renderer import render
-from spinta.components import Context, Property, Action, UrlParams
+from spinta.components import Context, Property
 from spinta.backends.components import BackendFeatures
 from spinta.backends.postgresql.files import DatabaseFile
-from spinta.utils.data import take
 from spinta.types.datatype import File
 from spinta.exceptions import NotFoundError, ItemDoesNotExist
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.constants import TableType
 from spinta.utils.nestedstruct import flat_dicts_to_nested
-
-
-@overload
-@commands.getone.register(Context, Request, Property, File, PostgreSQL)
-async def getone(
-    context: Context,
-    request: Request,
-    prop: Property,
-    dtype: File,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-) -> Response:
-    commands.authorize(context, action, prop)
-
-    accesslog: AccessLog = context.get('accesslog')
-    accesslog.log(
-        model=prop.model.model_type(),
-        prop=prop.place,
-        action=action.value,
-        id_=params.pk,
-    )
-    data = commands.getone(context, prop, dtype, backend, id_=params.pk)
-
-    # Return file metadata
-    if params.propref:
-        data = commands.prepare_data_for_response(
-            context,
-            prop.dtype,
-            params.fmt,
-            data,
-            action=Action.GETONE,
-        )
-        return render(context, request, prop, params, data, action=action)
-
-    # Return file content
-    else:
-        value = take(prop.place, data)
-
-        if not take('_blocks', value):
-            raise ItemDoesNotExist(dtype, id=params.pk)
-
-        filename = value['_id']
-
-        connection = context.get('transaction').connection
-        table = backend.get_table(prop, TableType.FILE)
-        with DatabaseFile(
-            connection,
-            table,
-            value['_size'],
-            value['_blocks'],
-            value['_bsize'],
-            mode='r',
-        ) as f:
-            content = f.read()
-
-        return Response(
-            content,
-            media_type=value['_content_type'],
-            headers={
-                'Revision': data['_revision'],
-                'Content-Disposition': (
-                    f'attachment; filename="{filename}"'
-                    if filename else
-                    'attachment'
-                )
-            },
-        )
 
 
 @overload
@@ -137,7 +63,7 @@ def getfile(
     backend: PostgreSQL,
     *,
     data: FileObjectData,
-) -> bytes:
+) -> Optional[bytes]:
     if not data['_blocks']:
         return None
 

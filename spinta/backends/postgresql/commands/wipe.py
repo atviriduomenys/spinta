@@ -3,7 +3,7 @@ import logging
 from spinta import commands
 from spinta.components import Context, Model
 from spinta.types.datatype import DataType
-from spinta.backends.postgresql.constants import TableType
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 
 log = logging.getLogger(__name__)

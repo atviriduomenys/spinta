@@ -1,11 +1,11 @@
 from spinta import commands
-from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Context
 from spinta.types.datatype import Array
 from spinta.migrations import SchemaVersion
-from spinta.backends.postgresql.constants import TableType
+from spinta.backends.constants import TableType
+from spinta.backends.helpers import get_table_name
+from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
-from spinta.backends.postgresql.helpers import get_table_name
 
 
 @commands.freeze.register(Context, SchemaVersion, PostgreSQL, type(None), Array)

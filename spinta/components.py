@@ -706,6 +706,10 @@ class UrlParams:
 
     action: Action = None
 
+    # If True, then HTTP HEAD request was made, this means no data must be
+    # returned only headers.
+    head: bool = False
+
     query: List[Dict[str, Any]] = None
 
     def changed_parsetree(self, change):

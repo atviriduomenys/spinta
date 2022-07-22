@@ -1,63 +1,15 @@
+from typing import Optional
 from typing import overload
-
-from starlette.requests import Request
-from starlette.responses import FileResponse
+from pathlib import Path
 
 from spinta.typing import ObjectData
 from spinta.typing import FileObjectData
 from spinta import commands
-from spinta.components import Action
-from spinta.components import Context, Property, UrlParams
+from spinta.components import Context
+from spinta.components import Property
 from spinta.backends.fs.components import FileSystem
 from spinta.types.datatype import DataType, File
 from spinta.exceptions import ItemDoesNotExist
-
-
-@overload
-@commands.getone.register(Context, Request, Property, File, FileSystem)
-async def getone(
-    context: Context,
-    request: Request,
-    prop: Property,
-    dtype: File,
-    backend: FileSystem,
-    *,
-    action: Action,
-    params: UrlParams,
-) -> FileResponse:
-    commands.authorize(context, action, prop)
-
-    accesslog = context.get('accesslog')
-    accesslog.log(
-        model=prop.model.model_type(),
-        prop=prop.place,
-        action=action.value,
-        id_=params.pk,
-    )
-
-    data = commands.getone(
-        context,
-        prop,
-        prop.dtype,
-        prop.model.backend,
-        id_=params.pk,
-    )
-    value = data[prop.name]
-    filename = value['_id']
-    if filename is None:
-        raise ItemDoesNotExist(prop, id=params.pk)
-    return FileResponse(
-        str(dtype.backend.path / filename),
-        media_type=value.get('_content_type'),
-        headers={
-            'Revision': data['_revision'],
-            'Content-Disposition': (
-                f'attachment; filename="{filename}"'
-                if filename else
-                'attachment'
-            )
-        },
-    )
 
 
 @overload
@@ -83,8 +35,24 @@ def getone(
     *,
     id_: str,
 ) -> FileObjectData:
-    data = commands.getone(context, prop, prop.model.backend, id_=id_)
+    data = commands.getone(context, prop, dtype, prop.model.backend, id_=id_)
     if data is None:
         raise ItemDoesNotExist(prop, id=id_)
     data = (dtype.backend.path / data[prop.name]['_id']).read_bytes()
     return commands.cast_backend_to_python(context, prop, backend, data)
+
+
+@commands.getfile.register()
+def getfile(
+    context: Context,
+    prop: Property,
+    dtype: File,
+    backend: FileSystem,
+    *,
+    data: FileObjectData,
+) -> Optional[Path]:
+    filename = data['_id']
+    if filename is None:
+        return None
+    else:
+        return dtype.backend.path / filename

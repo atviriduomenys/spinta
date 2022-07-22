@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+from typing import Iterator
 
 from sqlalchemy.engine.row import RowProxy
 
@@ -7,6 +8,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.typing import ObjectData
 from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
@@ -71,7 +73,7 @@ def getall(
     backend: Sql,
     *,
     query: Expr = None,
-):
+) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
