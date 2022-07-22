@@ -6,6 +6,12 @@ Changes
 0.1.36 (unreleased)
 ===================
 
+New features:
+
+- Add support for HTTP HEAD method (`#240`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/240
+
 Bug fixes:
 
 - Error on getone request with ascii format (`#52`__).
