@@ -1,63 +1,17 @@
-from typing import Union
+from typing import Iterator
 from typing import overload
-
-from starlette.requests import Request
-from starlette.responses import Response
 
 from spinta.typing import ObjectData
 from spinta.typing import FileObjectData
-from spinta.accesslog import AccessLog
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import get_select_tree
 from spinta import commands
-from spinta.components import Context, Model, Property, Action, UrlParams
-from spinta.renderer import render
+from spinta.components import Context
+from spinta.components import Model
+from spinta.components import Property
 from spinta.core.ufuncs import Expr
-from spinta.types.datatype import DataType, File, Object
-from spinta.exceptions import ItemDoesNotExist, UnavailableSubresource
+from spinta.types.datatype import File, Object
+from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.mongo.components import Mongo
 from spinta.backends.mongo.commands.query import MongoQueryBuilder
-
-
-@overload
-@commands.getone.register(Context, Request, Model, Mongo)
-async def getone(
-    context: Context,
-    request: Request,
-    model: Model,
-    backend: Mongo,
-    *,
-    action: Action,
-    params: UrlParams,
-) -> Response:
-    commands.authorize(context, action, model)
-
-    accesslog = context.get('accesslog')
-    accesslog.log(
-        model=model.model_type(),
-        action=action.value,
-        id_=params.pk,
-    )
-
-    data = commands.getone(context, model, backend, id_=params.pk)
-    select_tree = get_select_tree(context, action, params.select)
-    prop_names = get_select_prop_names(
-        context,
-        model,
-        model.properties,
-        action,
-        select_tree,
-    )
-    data = commands.prepare_data_for_response(
-        context,
-        model,
-        params.fmt,
-        data,
-        action=action,
-        select=select_tree,
-        prop_names=prop_names,
-    )
-    return render(context, request, model, params, data, action=action)
 
 
 @overload
@@ -80,54 +34,6 @@ def getone(
     data['_id'] = data['__id']
     data['_type'] = model.model_type()
     return commands.cast_backend_to_python(context, model, backend, data)
-
-
-@overload
-@commands.getone.register(Context, Request, Property, DataType, Mongo)
-async def getone(
-    context: Context,
-    request: Request,
-    prop: Property,
-    dtype: DataType,
-    backend: Mongo,
-    *,
-    action: Action,
-    params: UrlParams,
-) -> Response:
-    raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
-
-
-@overload
-@commands.getone.register(Context, Request, Property, (Object, File), Mongo)
-async def getone(
-    context: Context,
-    request: Request,
-    prop: Property,
-    dtype: Union[Object, File],
-    backend: Mongo,
-    *,
-    action: Action,
-    params: UrlParams,
-) -> Response:
-    commands.authorize(context, action, prop)
-
-    accesslog: AccessLog = context.get('accesslog')
-    accesslog.log(
-        model=prop.model.model_type(),
-        prop=prop.place,
-        action=action.value,
-        id_=params.pk,
-    )
-
-    data = commands.getone(context, prop, dtype, backend, id_=params.pk)
-    data = commands.prepare_data_for_response(
-        context,
-        prop.dtype,
-        params.fmt,
-        data,
-        action=Action.GETONE,
-    )
-    return render(context, request, prop, params, data, action=action)
 
 
 @overload
@@ -200,7 +106,7 @@ def getall(
     backend: Mongo,
     *,
     query: Expr = None,
-):
+) -> Iterator[ObjectData]:
     builder = MongoQueryBuilder(context)
     builder.update(model=model)
     table = backend.db[model.model_type()]

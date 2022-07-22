@@ -1207,9 +1207,13 @@ def test_robots(app: TestClient):
     assert resp.text == 'User-Agent: *\nAllow: /\n'
 
 
-@pytest.mark.asyncio
-async def test_head_method(
+@pytest.mark.parametrize('path', [
+    'example/City',
+    'example/City/19e4f199-93c5-40e5-b04e-a575e81ac373',
+])
+def test_head_method(
     rc: RawConfig,
+    path: str,
 ):
     context, manifest = prepare_manifest(rc, '''
     d | r | b | m | property | type   | ref  | access
@@ -1229,7 +1233,11 @@ async def test_head_method(
 
     app = create_test_client(context, scope=[
         'spinta_getall',
+        'spinta_search',
+        'spinta_getone',
+        'spinta_changes',
     ])
 
-    resp = app.head('/example/City')
-    assert resp == []
+    resp = app.head(f'/{path}')
+    assert resp.status_code == 200
+    assert resp.content == b''

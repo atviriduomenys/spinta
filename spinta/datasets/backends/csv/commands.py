@@ -2,10 +2,12 @@ import uuid
 import csv
 import urllib.parse
 from typing import Dict, Any
+from typing import Iterator
 
 from spinta import commands
 from spinta.fetcher import fetch
 from spinta.core.ufuncs import Expr
+from spinta.typing import ObjectData
 from spinta.components import Context
 from spinta.manifests.components import Manifest
 from spinta.datasets.components import Entity
@@ -35,7 +37,7 @@ def getall(
     backend: Csv,
     *,
     query: Expr = None,
-):
+) -> Iterator[ObjectData]:
     model = external.model
     base = external.resource.external
     props = {

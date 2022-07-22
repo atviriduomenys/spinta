@@ -3,51 +3,18 @@ from typing import overload
 
 from multipledispatch import dispatch
 
-from starlette.requests import Request
-
 from spinta.typing import ObjectData
 from spinta import commands
-from spinta.accesslog import AccessLog
-from spinta.renderer import render
-from spinta.components import Context, Model, Property, Action, UrlParams
-from spinta.types.datatype import DataType, File, Object
+from spinta.components import Context
+from spinta.components import Model
+from spinta.components import Property
+from spinta.types.datatype import DataType
+from spinta.types.datatype import File
+from spinta.types.datatype import Object
 from spinta.exceptions import NotFoundError, ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.utils.nestedstruct import flat_dicts_to_nested
-
-
-@overload
-@commands.getone.register(Context, Request, Property, Object, PostgreSQL)
-async def getone(
-    context: Context,
-    request: Request,
-    prop: Property,
-    dtype: Object,
-    backend: PostgreSQL,
-    *,
-    action: Action,
-    params: UrlParams,
-) -> ObjectData:
-    commands.authorize(context, action, prop)
-
-    accesslog: AccessLog = context.get('accesslog')
-    accesslog.log(
-        model=prop.model.model_type(),
-        prop=prop.place,
-        action=action.value,
-        id_=params.pk,
-    )
-
-    data = commands.getone(context, prop, dtype, backend, id_=params.pk)
-    data = commands.prepare_data_for_response(
-        context,
-        prop.dtype,
-        params.fmt,
-        data,
-        action=Action.GETONE,
-    )
-    return render(context, request, prop, params, data, action=action)
 
 
 @overload

@@ -109,7 +109,7 @@ async def create_http_response(
     if params.action == Action.CHECK:
         return await _check(context, request, params)
 
-    if request.method == 'GET':
+    if request.method in ('GET', 'HEAD'):
         context.attach('transaction', manifest.backend.transaction)
 
         if params.changes:

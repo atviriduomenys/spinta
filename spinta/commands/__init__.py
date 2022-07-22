@@ -33,8 +33,11 @@ if TYPE_CHECKING:
     from spinta.manifests.components import Manifest
     from spinta.datasets.components import Dataset
     from spinta.datasets.components import Resource
+    from spinta.datasets.components import Entity
+    from spinta.datasets.components import ExternalBackend
     from spinta.formats.components import Format
     from spinta.formats.html.components import ComplexCell
+    from spinta.core.ufuncs import Expr
 
 
 T = TypeVar('T')
@@ -583,6 +586,53 @@ def getfile():
     `_content` property if explicitly requested. For small files this is OK, but
     for larger files direct file access via subresource API should be used.
     """
+
+
+@overload
+def getall(
+    context: Context,
+    model: Union[Model, Namespace],
+    request: Request,
+    *,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    *,
+    query: Expr = None,
+) -> Iterator[ObjectData]:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
+    external: Entity,
+    backend: ExternalBackend,
+    *,
+    query: Expr = None,
+) -> Iterator[ObjectData]:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
+    ns: Namespace,
+    *,
+    query: Expr = None,
+    action: Optional[Action] = None,
+    dataset_: Optional[str] = None,
+    resource: Optional[str] = None,
+):
+    pass
 
 
 @command()
