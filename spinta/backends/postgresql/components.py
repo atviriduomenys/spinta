@@ -12,10 +12,10 @@ from spinta.backends.postgresql.helpers import get_column_name
 from spinta.types.datatype import Ref
 from spinta.utils.schema import NA
 from spinta.components import Model, Property
+from spinta.backends.constants import TableType
 from spinta.backends.components import Backend, BackendFeatures
+from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.sqlalchemy import utcnow
-from spinta.backends.postgresql.constants import TableType
-from spinta.backends.postgresql.helpers import get_table_name
 from spinta.exceptions import MultipleRowsFound, NotFoundError
 from spinta.exceptions import PropertyNotFound
 

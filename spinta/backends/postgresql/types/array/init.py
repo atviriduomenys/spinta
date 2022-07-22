@@ -5,9 +5,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from spinta import commands
 from spinta.components import Context
 from spinta.types.datatype import Array
+from spinta.backends.constants import TableType
+from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.constants import TableType
-from spinta.backends.postgresql.helpers import get_pg_name, get_table_name
+from spinta.backends.postgresql.helpers import get_pg_name
 
 
 @commands.prepare.register(Context, PostgreSQL, Array)

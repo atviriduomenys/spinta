@@ -23,6 +23,7 @@ from spinta.components import Namespace
 from spinta.components import Property
 from spinta.types.datatype import DataType
 from spinta.utils.data import take
+from spinta.backends.constants import TableType
 
 
 def load_backend(
@@ -291,3 +292,18 @@ def get_model_reserved_props(action: Action) -> List[str]:
 
 def get_ns_reserved_props(action: Action) -> List[str]:
     return []
+
+
+def get_table_name(
+    node: Union[Model, Property],
+    ttype: TableType = TableType.MAIN,
+) -> str:
+    if isinstance(node, Model):
+        model = node
+    else:
+        model = node.model
+    if ttype in (TableType.LIST, TableType.FILE):
+        name = model.model_type() + ttype.value + '/' + node.place
+    else:
+        name = model.model_type() + ttype.value
+    return name

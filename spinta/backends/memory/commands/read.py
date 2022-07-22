@@ -6,25 +6,43 @@ from spinta.components import Context
 from spinta.components import Model
 from spinta.typing import ObjectData
 from spinta.backends.memory.components import Memory
+from spinta.backends.constants import TableType
+from spinta.backends.helpers import get_table_name
 
 
 @commands.getall.register(Context, Model, Memory)
 def getall(
     context: Context,
     model: Model,
-    backend: Memory,
+    db: Memory,
     *,
     query: Expr = None,
 ) -> Iterator[ObjectData]:
-    return backend.db[model.name].values()
+    table = get_table_name(model)
+    return db.data[table].values()
 
 
 @commands.getone.register(Context, Model, Memory)
 def getone(
     context: Context,
     model: Model,
-    backend: Memory,
+    db: Memory,
     *,
     id_: str,
 ) -> ObjectData:
-    return backend.db[model.name][id_]
+    table = get_table_name(model)
+    return db.data[table][id_]
+
+
+@commands.changes.register(Context, Model, Memory)
+def changes(
+    context: Context,
+    model: Model,
+    db: Memory,
+    *,
+    id_: str = None,
+    limit: int = 100,
+    offset: int = -10,
+):
+    table = get_table_name(model, TableType.CHANGELOG)
+    return db.data[table].values()

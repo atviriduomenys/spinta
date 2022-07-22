@@ -88,7 +88,7 @@ def prepare_manifest(
     request: FixtureRequest = None,
     load_internal: bool = True,
     **kwargs,
-) -> TestContext:
+) -> Tuple[TestContext, Manifest]:
     context = load_manifest_get_context(
         rc, manifest,
         request=request,

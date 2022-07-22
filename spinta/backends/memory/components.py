@@ -3,7 +3,6 @@ from typing import Dict
 import contextlib
 
 from spinta.typing import ObjectData
-from spinta.components import Model
 from spinta.backends.components import Backend
 from spinta.backends.components import BackendFeatures
 
@@ -17,16 +16,16 @@ class Memory(Backend):
         BackendFeatures.WRITE,
     }
 
-    db: Dict[
-        str,                # model
+    data: Dict[
+        str,                # table
         Dict[
-            str,            # _id
+            str,            # id
             ObjectData,     # data
         ]
     ]
 
     def __init__(self):
-        self.db = {}
+        self.data = {}
 
     @contextlib.contextmanager
     def begin(self):
@@ -35,17 +34,17 @@ class Memory(Backend):
     def bootstrapped(self):
         return True
 
-    def add_model(self, model: Model):
-        if model.name not in self.db:
-            self.db[model.name] = {}
+    def create(self, table: str):
+        if table not in self.data:
+            self.data[table] = {}
 
-    def add(self, *objects: ObjectData):
+    def insert(self, *objects: ObjectData):
         for obj in objects:
             obj = obj.copy()
 
-            model = obj['_type']
-            if model not in self.db:
-                raise RuntimeError(f"Model {model} does not exist.")
+            table = obj['_type']
+            if table not in self.data:
+                raise RuntimeError(f"Table {table!r} does not exist.")
 
             pk = obj['_id']
-            self.db[model][pk] = obj
+            self.data[table][pk] = obj

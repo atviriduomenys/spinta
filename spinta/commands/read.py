@@ -340,14 +340,25 @@ async def changes(
     params: UrlParams,
 ):
     commands.authorize(context, action, model)
-    rows = commands.changes(
-        context,
-        model,
-        model.backend,
-        id_=params.pk,
-        limit=params.limit,
-        offset=params.offset,
-    )
+
+    if params.head:
+        rows = []
+    else:
+        accesslog = context.get('accesslog')
+        accesslog.log(
+            model=model.model_type(),
+            action=action.value,
+        )
+
+        rows = commands.changes(
+            context,
+            model,
+            model.backend,
+            id_=params.pk,
+            limit=params.limit,
+            offset=params.offset,
+        )
+
     select_tree = get_select_tree(context, action, params.select)
     prop_names = get_select_prop_names(
         context,
@@ -376,4 +387,5 @@ async def changes(
         )
         for row in rows
     )
+
     return render(context, request, model, params, rows, action=action)

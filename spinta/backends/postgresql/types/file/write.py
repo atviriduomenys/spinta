@@ -14,8 +14,8 @@ from spinta.components import Action, UrlParams, DataItem
 from spinta.types.datatype import DataType, File
 from spinta.commands.write import prepare_patch, simple_response, validate_data
 from spinta.components import Context, DataSubItem
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.files import DatabaseFile
-from spinta.backends.postgresql.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 
 

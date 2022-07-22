@@ -1,6 +1,8 @@
 from spinta.components import Model, Property
-from spinta.backends.postgresql.constants import NAMEDATALEN, TableType
-from spinta.backends.postgresql.helpers import get_table_name, get_pg_name
+from spinta.backends.constants import TableType
+from spinta.backends.helpers import get_table_name
+from spinta.backends.postgresql.constants import NAMEDATALEN
+from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.testing.utils import get_error_codes, get_error_context
 
 

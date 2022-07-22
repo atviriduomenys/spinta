@@ -8,8 +8,8 @@ from spinta.backends.components import BackendFeatures
 from spinta.backends.postgresql.files import DatabaseFile
 from spinta.types.datatype import File
 from spinta.exceptions import NotFoundError, ItemDoesNotExist
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.constants import TableType
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 
 

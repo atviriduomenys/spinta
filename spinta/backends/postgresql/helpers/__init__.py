@@ -1,25 +1,7 @@
-from typing import Union
-
 import hashlib
 
-from spinta.components import Model, Property
-from spinta.backends.postgresql.constants import TableType
+from spinta.components import Property
 from spinta.backends.postgresql.constants import NAMEDATALEN
-
-
-def get_table_name(
-    node: Union[Model, Property],
-    ttype: TableType = TableType.MAIN,
-) -> str:
-    if isinstance(node, Model):
-        model = node
-    else:
-        model = node.model
-    if ttype in (TableType.LIST, TableType.FILE):
-        name = model.model_type() + ttype.value + '/' + node.place
-    else:
-        name = model.model_type() + ttype.value
-    return name
 
 
 def get_column_name(prop: Property) -> str:

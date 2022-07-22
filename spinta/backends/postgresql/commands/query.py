@@ -31,9 +31,9 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Date
 from spinta.types.datatype import PrimaryKey
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.components import BackendFeatures
-from spinta.backends.postgresql.constants import TableType
 
 
 class PgQueryBuilder(Env):

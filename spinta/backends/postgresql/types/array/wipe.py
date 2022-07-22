@@ -1,7 +1,7 @@
 from spinta import commands
 from spinta.components import Context
 from spinta.types.datatype import Array
-from spinta.backends.postgresql.constants import TableType
+from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 
 

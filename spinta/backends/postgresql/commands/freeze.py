@@ -1,10 +1,11 @@
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.constants import TableType
-from spinta.backends.postgresql.helpers import get_column_name, get_table_name, \
-    get_pg_name
+from spinta.backends.constants import TableType
+from spinta.backends.helpers import get_table_name
+from spinta.backends.postgresql.helpers import get_column_name
+from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.components import Context, Model
-from spinta.types.datatype import DataType, Object, Array
+from spinta.types.datatype import DataType
 from spinta.migrations import SchemaVersion
 from spinta.utils.data import take
 
