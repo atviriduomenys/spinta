@@ -2,7 +2,7 @@ import os
 import pathlib
 import tempfile
 from difflib import Differ
-from typing import Any
+from typing import Any, Iterator
 
 import pprintpp
 import pytest
@@ -128,7 +128,7 @@ def context(_context, mocker, tmpdir, request):
 
 
 @pytest.fixture
-def responses():
+def responses() -> Iterator[RequestsMock]:
     with RequestsMock() as mock:
         yield mock
 
