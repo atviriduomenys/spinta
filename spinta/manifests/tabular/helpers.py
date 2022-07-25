@@ -4,6 +4,7 @@ import csv
 import pathlib
 import textwrap
 from operator import itemgetter
+from itertools import zip_longest
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -22,6 +23,7 @@ from typing import cast
 import openpyxl
 import xlsxwriter
 from lark import ParseError
+from texttable import Texttable
 
 from spinta import commands
 from spinta import spyna
@@ -126,7 +128,7 @@ def _detect_dimension(
         return dimensions[0]
 
     if len(dimensions) > 1:
-        dimensions = ', '.join(dimensions)
+        dimensions = ', '.join([f'{k}: {row[k]}' for k in dimensions])
         raise TabularManifestError(
             f"{path}:{line}: In one row only single dimension can be used, "
             f"but found more than one: {dimensions}"
@@ -934,6 +936,7 @@ def _read_tabular_manifest_rows(
     yield from state.release(reader)
 
     for line, row in rows:
+        _check_row_size(path, line, header, row)
         row = dict(zip(header, row))
         row = {**defaults, **row}
         dimension = _detect_dimension(path, line, row)
@@ -943,6 +946,31 @@ def _read_tabular_manifest_rows(
         yield from state.release(reader)
 
     yield from state.release()
+
+
+def _check_row_size(
+    path: Optional[str],
+    line: int,
+    header: List[str],
+    row: List[str],
+):
+    if len(header) != len(row):
+        table = Texttable()
+        table.set_deco(Texttable.HEADER)
+        table.add_rows(
+            [['header', 'row']] +
+            [
+                ['∅' if x is None else x for x in v]
+                for v in zip_longest(header, row)
+            ]
+        )
+        table = table.draw()
+        raise TabularManifestError(
+            f"{path}:{line}: "
+            "Number of row cells do not match table header, see what is "
+            "missing, missing cells marked with ∅ symbol:\n"
+            f"{table}"
+        )
 
 
 def read_tabular_manifest(

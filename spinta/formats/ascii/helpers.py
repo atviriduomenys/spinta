@@ -1,5 +1,4 @@
 from texttable import Texttable
-from texttable import Texttable
 
 
 def draw(buffer, name, tnum, width):
