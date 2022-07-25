@@ -3,7 +3,7 @@
 Changes
 #######
 
-0.1.36 (unreleased)
+0.1.36 (2022-07-25)
 ===================
 
 New features:
@@ -11,6 +11,10 @@ New features:
 - Add support for HTTP HEAD method (`#240`__).
 
   __ https://github.com/atviriduomenys/spinta/issues/240
+
+- Check number of row cells agains header (`#257`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/257
 
 Bug fixes:
 
