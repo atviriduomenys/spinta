@@ -6,6 +6,11 @@ Changes
 0.1.37 (unreleased)
 ===================
 
+New features:
+
+- Check enum value to match property type and make sure, that level is not
+  filled for enums.
+
 
 0.1.36 (2022-07-25)
 ===================

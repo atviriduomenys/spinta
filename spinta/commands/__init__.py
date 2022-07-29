@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from spinta.formats.components import Format
     from spinta.formats.html.components import ComplexCell
     from spinta.core.ufuncs import Expr
+    from spinta.dimensions.enum.components import EnumItem
 
 
 T = TypeVar('T')
@@ -192,8 +193,16 @@ def wait(*args):
     """
 
 
+@overload
+def check(context: Context, item: EnumItem, dtype: DataType, value: Any):
+    """Check enum item of a property with a data type of the property.
+
+    Usually this checks, if enum item value is valid for a given data type.
+    """
+
+
 @command()
-def check():
+def check(*args, **kwargs):
     """Check if input value is correct.
 
     - Check components after load:

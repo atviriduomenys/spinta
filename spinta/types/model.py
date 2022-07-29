@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import overload
 
 import itertools
 from typing import Any
@@ -126,6 +127,7 @@ def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
     pass
 
 
+@overload
 @commands.link.register(Context, Model)
 def link(context: Context, model: Model):
     # Link external source.
@@ -168,6 +170,7 @@ def link(context: Context, model: Model):
         commands.link(context, prop)
 
 
+@overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
     base.model = base.parent.manifest.models[base.model]
@@ -266,6 +269,7 @@ def _link_prop_enum(
         return prop.enums.get('')
 
 
+@overload
 @commands.link.register(Context, Property)
 def link(context: Context, prop: Property):
     commands.link(context, prop.dtype)
@@ -371,6 +375,16 @@ def check(context: Context, model: Model):
     if '_id' not in model.properties:
         raise exceptions.MissingRequiredProperty(model, prop='_id')
 
+    for prop in model.properties.values():
+        commands.check(context, prop)
+
+
+@check.register(Context, Property)
+def check(context: Context, prop: Property):
+    if prop.enum:
+        for value, item in prop.enum.items():
+            commands.check(context, item, prop.dtype, item.prepare)
+
 
 @authorize.register(Context, Action, Model)
 def authorize(context: Context, action: Action, model: Model):
@@ -382,6 +396,7 @@ def authorize(context: Context, action: Action, prop: Property):
     authorized(context, prop, action, throw=True)
 
 
+@overload
 @commands.get_error_context.register(Model)
 def get_error_context(model: Model, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(model.manifest, prefix=f'{prefix}.manifest')
@@ -394,6 +409,7 @@ def get_error_context(model: Model, *, prefix='this') -> Dict[str, str]:
     return context
 
 
+@overload
 @commands.get_error_context.register(Property)
 def get_error_context(prop: Property, *, prefix='this') -> Dict[str, str]:
     context = commands.get_error_context(prop.model, prefix=f'{prefix}.model')
