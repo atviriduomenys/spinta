@@ -44,7 +44,6 @@ from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
-    from spinta.types.datatype import DataType
 
 
 def _load_namespace_from_model(context: Context, manifest: Manifest, model: Model):

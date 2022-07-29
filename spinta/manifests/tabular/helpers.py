@@ -68,6 +68,7 @@ from spinta.manifests.tabular.components import REF
 from spinta.manifests.tabular.components import ResourceRow
 from spinta.manifests.tabular.components import SOURCE
 from spinta.manifests.tabular.components import TITLE
+from spinta.manifests.tabular.components import LEVEL
 from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
@@ -723,6 +724,9 @@ class EnumReader(TabularReader):
             self.error(
                 "At least source or prepare must be specified for an enum."
             )
+
+        if row[LEVEL]:
+            self.error(f"Enum's do not have a level, but level {row[LEVEL]!r} is given.")
 
         self.data = {
             'name': self.name,
