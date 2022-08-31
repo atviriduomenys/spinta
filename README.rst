@@ -1,6 +1,6 @@
 .. default-role:: literal
 
-Spinta is a framework to describe, extract and publish data (DEP Framework). It
+Spinta is a framework to describe, extract, transform and publish data (DETP Framework). It
 supports a great deal of data schemes and formats.
 
 .. image:: https://gitlab.com/atviriduomenys/spinta/badges/master/pipeline.svg
