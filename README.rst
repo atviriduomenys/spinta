@@ -21,6 +21,10 @@ Purpose
   validated and transformed using rules defined in *Manifest* table. Finally,
   data can be stored into internal database in order to provide fast and
   flexible access to data.
+  
+- **Transform your data**: Data transformations are applied in real time, when
+  reading data from source. This puts some limitations on transformation side, but
+  allows data to be streamed in real time.
 
 - **Publish your data**: Once you have your data loaded into internal
   database, you can publish data using API. API is generated automatically using
