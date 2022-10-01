@@ -3,6 +3,12 @@ import hashlib
 
 import pytest
 
+from spinta.cli.push import _PushRow
+from spinta.cli.push import _get_row_for_error
+from spinta.cli.push import _map_sent_and_recv 
+from spinta.core.config import RawConfig
+from spinta.testing.manifest import load_manifest
+
 
 @pytest.mark.skip('datasets')
 @pytest.mark.models(
@@ -56,7 +62,7 @@ def test_push_different_models(app):
     ]
     headers = {'content-type': 'application/x-ndjson'}
     payload = (json.dumps(x) + '\n' for x in data)
-    resp = app.post(f'/', headers=headers, data=payload)
+    resp = app.post('/', headers=headers, data=payload)
     resp = resp.json()
     assert '_data' in resp, resp
     data = resp.pop('_data')
@@ -89,3 +95,47 @@ def test_push_different_models(app):
         'update_time': None,
         'valid_from_date': None,
     }
+
+
+def test__map_sent_and_recv__no_recv(rc: RawConfig):
+    manifest = load_manifest(rc, '''
+    d | r | b | m | property | type   | access
+    datasets/gov/example     |        |
+      |   |   | Country      |        |
+      |   |   |   | name     | string | open
+    ''')
+
+    model = manifest.models['datasets/gov/example/Country']
+    sent = [
+        _PushRow(model, {'name': 'Vilnius'}),
+    ]
+    recv = None
+    assert list(_map_sent_and_recv(sent, recv)) == sent
+
+
+def test__get_row_for_error__errors(rc: RawConfig):
+    manifest = load_manifest(rc, '''
+    d | r | b | m | property | type   | access
+    datasets/gov/example     |        |
+      |   |   | Country      |        |
+      |   |   |   | name     | string | open
+    ''')
+
+    model = manifest.models['datasets/gov/example/Country']
+    rows = [
+        _PushRow(model, {
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        }),
+    ]
+    errors = [
+        {
+            'context': {
+                'id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            }
+        }
+    ]
+    assert _get_row_for_error(rows, errors).splitlines() == [
+        ' Model datasets/gov/example/Country, data:',
+        " {'_id': '4d741843-4e94-4890-81d9-5af7c5b5989a', 'name': 'Vilnius'}",
+    ]

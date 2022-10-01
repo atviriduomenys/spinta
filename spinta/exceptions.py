@@ -112,15 +112,8 @@ class BaseError(Exception):
 
         self.context = resolve_context_vars(self.context, this, kwargs)
 
-        # Remove all unknown values.
-
-        try:
-            self.message = _render_template(self)
-        except KeyError:
-            log.exception("Can't render error message for %s.", self.__class__.__name__)
-            self.message = self.template
-
-        super().__init__(
+    def __str__(self):
+        return (
             self.message + '\n' +
             ('  Context:\n' if self.context else '') +
             ''.join(
@@ -128,6 +121,14 @@ class BaseError(Exception):
                 for k, v in self.context.items()
             )
         )
+
+    @property
+    def message(self):
+        try:
+            return _render_template(self)
+        except KeyError:
+            log.exception("Can't render error message for %s.", self.__class__.__name__)
+            return self.template
 
 
 def error_response(error: BaseError):

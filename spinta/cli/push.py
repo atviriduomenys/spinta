@@ -17,6 +17,7 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import TypedDict
 
 import msgpack
 import requests
@@ -45,7 +46,9 @@ from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
 from spinta.components import Model
+from spinta.components import Store
 from spinta.core.context import configure_context
+from spinta.manifests.components import Manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
 from spinta.utils.json import fix_data_for_json
@@ -137,22 +140,9 @@ def push(
     with context:
         client = auth or config.default_auth_client
         require_auth(context, client)
-        context.attach('transaction', manifest.backend.transaction)
 
-        backends = set()
-        for backend in store.backends.values():
-            backends.add(backend.name)
-            context.attach(f'transaction.{backend.name}', backend.begin)
-        for backend in manifest.backends.values():
-            backends.add(backend.name)
-            context.attach(f'transaction.{backend.name}', backend.begin)
-        for dataset_ in manifest.datasets.values():
-            for resource in dataset_.resources.values():
-                if resource.backend and resource.backend.name not in backends:
-                    backends.add(resource.backend.name)
-                    context.attach(f'transaction.{resource.backend.name}', resource.backend.begin)
-        for keymap in store.keymaps.values():
-            context.attach(f'keymap.{keymap.name}', lambda: keymap)
+        _attach_backends(context, store, manifest)
+        _attach_keymaps(context, store)
 
         from spinta.types.namespace import traverse_ns_models
 
@@ -195,21 +185,15 @@ def push(
         if state and not dry_run:
             rows = _save_push_state(context, rows, metadata)
 
-        while True:
-            try:
-                next(rows)
-            except StopIteration:
-                break
-            except:
-                if stop_on_error:
-                    raise
-                log.exception("Error while reading data.")
+        _push_rows(rows, stop_on_error)
 
 
 class _PushRow:
     model: Model
     data: Dict[str, Any]
+    # SHA1 checksum of data generated with _get_data_rev.
     rev: Optional[str]
+    # True if data has already been sent.
     saved: bool = False
 
     def __init__(self, model: Model, data: Dict[str, Any]):
@@ -217,6 +201,39 @@ class _PushRow:
         self.data = data
         self.rev = None
         self.saved = False
+
+
+def _push_rows(rows: Iterator[_PushRow], stop_on_error: bool = False) -> None:
+    while True:
+        try:
+            next(rows)
+        except StopIteration:
+            break
+        except:
+            if stop_on_error:
+                raise
+            log.exception("Error while reading data.")
+
+
+def _attach_backends(context: Context, store: Store, manifest: Manifest) -> None:
+    context.attach('transaction', manifest.backend.transaction)
+    backends = set()
+    for backend in store.backends.values():
+        backends.add(backend.name)
+        context.attach(f'transaction.{backend.name}', backend.begin)
+    for backend in manifest.backends.values():
+        backends.add(backend.name)
+        context.attach(f'transaction.{backend.name}', backend.begin)
+    for dataset_ in manifest.datasets.values():
+        for resource in dataset_.resources.values():
+            if resource.backend and resource.backend.name not in backends:
+                backends.add(resource.backend.name)
+                context.attach(f'transaction.{resource.backend.name}', resource.backend.begin)
+
+
+def _attach_keymaps(context: Context, store: Store) -> None:
+    for keymap in store.keymaps.values():
+        context.attach(f'keymap.{keymap.name}', lambda: keymap)
 
 
 def _prepare_rows_for_push(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
@@ -259,7 +276,7 @@ def _push_to_remote_spinta(
     suffix = ']}'
     slen = len(suffix)
     chunk = prefix
-    ready = []
+    ready: List[_PushRow] = []
 
     for row in rows:
         data = fix_data_for_json(row.data)
@@ -287,20 +304,6 @@ def _push_to_remote_spinta(
             dry_run=dry_run,
             stop_on_error=stop_on_error,
         )
-
-
-def _get_row_for_error(rows: List[_PushRow]) -> str:
-    size = len(rows)
-    if size > 0:
-        row = rows[0]
-        data = pprintpp.pformat(row.data)
-        return (
-            f" Model {row.model.name},"
-            f" items in chunk: {size},"
-            f" first item in chunk:\n {data}"
-        )
-    else:
-        return ''
 
 
 def _send_and_receive(
@@ -350,8 +353,6 @@ def _send_data(
     try:
         resp = session.post(target, data=data)
     except IOError as e:
-        if stop_on_error:
-            raise
         log.error(
             (
                 "Error when sending and receiving data.%s\n"
@@ -360,40 +361,136 @@ def _send_data(
             _get_row_for_error(rows),
             e,
         )
+        if stop_on_error:
+            raise
         return
 
     try:
         resp.raise_for_status()
     except HTTPError:
-        if stop_on_error:
-            raise
+        recv = resp.json()
+        errors = recv.get('errors')
         log.error(
             (
                 "Error when sending and receiving data.%s\n"
                 "Server response (status=%s):\n%s"
             ),
-            _get_row_for_error(rows),
+            _get_row_for_error(rows, errors),
             resp.status_code,
-            textwrap.indent(pprintpp.pformat(resp.json()), '    '),
+            textwrap.indent(pprintpp.pformat(recv), '    '),
         )
+        if stop_on_error:
+            raise
         return
 
     return resp.json()['_data']
 
 
+class _ErrorContext(TypedDict):
+    # Manifest name
+    manifest: str
+
+    # Dataset name
+    dataset: str
+
+    # Absolute model name (but does not start with /)
+    model: str
+
+    # Property name
+    property: str
+
+    # Property data type
+    type: str
+
+    # Model name in data source
+    entity: str
+
+    # Property name in data source
+    attribute: str
+
+    # Full class path of component involved in the error.
+    component: str
+
+    # Line number or other location (depends on manifest) node in manifest
+    # involved in the error.
+    schema: str
+
+    # External object id
+    id: str
+
+
+class _Error(TypedDict):
+    # Error type
+    type: str
+
+    # Error code (exception class name)
+    code: str
+
+    # Error context.
+    context: _ErrorContext
+
+    # Message template.
+    tempalte: str
+
+    # Message compiled from templates and context.
+    message: str
+
+
+def _get_row_for_error(
+    rows: List[_PushRow],
+    errors: Optional[List[_Error]] = None,
+) -> str:
+    message = []
+    size = len(rows)
+
+    if errors:
+        rows_by_id = {
+            row.data['_id']: row
+            for row in rows
+            if row.data and '_id' in row.data
+        }
+        for error in errors:
+            ctx = error.get('context') or {}
+            if 'id' in ctx and ctx['id'] in rows_by_id:
+                row = rows_by_id[ctx['id']]
+                message += [
+                    f" Model {row.model.name}, data:",
+                    ' ' + pprintpp.pformat(row.data),
+                ]
+
+    if len(message) == 0 and size > 0:
+        row = rows[0]
+        data = pprintpp.pformat(row.data)
+        message += [
+            (
+                f" Model {row.model.name},"
+                f" items in chunk: {size},"
+                f" first item in chunk:"
+            ),
+            data
+        ]
+
+    return '\n'.join(message)
+
+
 def _map_sent_and_recv(
     sent: List[_PushRow],
-    recv: List[Dict[str, Any]],
+    recv: Optional[List[Dict[str, Any]]],
 ) -> Iterator[_PushRow]:
-    assert len(sent) == len(recv), (
-        f"len(sent) = {len(sent)}, len(received) = {len(recv)}"
-    )
-    for sent_row, recv_row in zip(sent, recv):
-        assert sent_row.data['_id'] == recv_row['_id'], (
-            f"sent._id = {sent_row.data['_id']}, "
-            f"received._id = {recv_row['_id']}"
+    if recv is None:
+        # We don't have a response, because there was an error while
+        # communicating with the target server.
+        yield from sent
+    else:
+        assert len(sent) == len(recv), (
+            f"len(sent) = {len(sent)}, len(received) = {len(recv)}"
         )
-        yield sent_row
+        for sent_row, recv_row in zip(sent, recv):
+            assert sent_row.data['_id'] == recv_row['_id'], (
+                f"sent._id = {sent_row.data['_id']}, "
+                f"received._id = {recv_row['_id']}"
+            )
+            yield sent_row
 
 
 def _add_stop_time(rows, stop):
@@ -425,6 +522,15 @@ def _get_model_type(row: _PushRow) -> str:
     return row.data['_type']
 
 
+def _get_data_rev(row: _PushRow):
+    rev = fix_data_for_json(take(row.data))
+    rev = flatten([rev])
+    rev = [[k, v] for x in rev for k, v in sorted(x.items())]
+    rev = msgpack.dumps(rev, strict_types=True)
+    rev = hashlib.sha1(rev).hexdigest()
+    return rev
+
+
 def _check_push_state(
     context: Context,
     rows: Iterable[_PushRow],
@@ -444,13 +550,7 @@ def _check_push_state(
         for row in group:
             _id = row.data['_id']
 
-            rev = fix_data_for_json(take(row.data))
-            rev = flatten([rev])
-            rev = [[k, v] for x in rev for k, v in sorted(x.items())]
-            rev = msgpack.dumps(rev, strict_types=True)
-            rev = hashlib.sha1(rev).hexdigest()
-
-            row.rev = rev
+            row.rev = _get_data_rev(row)
             row.saved = _id in saved
 
             if saved.get(_id) == row.rev:
@@ -463,7 +563,7 @@ def _save_push_state(
     context: Context,
     rows: Iterable[_PushRow],
     metadata: sa.MetaData,
-):
+) -> Iterator[_PushRow]:
     conn = context.get('push.state.conn')
     for row in rows:
         table = metadata.tables[row.data['_type']]

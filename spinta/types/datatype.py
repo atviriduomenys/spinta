@@ -149,7 +149,7 @@ class Integer(DataType):
         if isinstance(value, int) and not isinstance(value, bool):
             return value
         else:
-            raise exceptions.InvalidValue(self)
+            raise exceptions.InvalidValue(self, value=value)
 
 
 class Number(DataType):
