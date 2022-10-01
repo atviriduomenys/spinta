@@ -13,6 +13,7 @@ from typing import cast
 import lxml.html
 import pprintpp as pprint
 import requests
+import httpx
 import starlette.testclient
 from pytest import FixtureRequest
 from lxml.etree import _Element
@@ -84,8 +85,8 @@ def create_remote_server(
         resp = app.request(
             request.method,
             path,
-            headers=request.headers,
-            data=request.body,
+            headers=dict(request.headers),
+            content=request.body,
         )
         return resp.status_code, resp.headers, resp.content
 
@@ -142,7 +143,7 @@ class RemoteServer:
     credsfile: pathlib.Path = None
 
 
-class TestClientResponse(requests.Response):
+class TestClientResponse(httpx.Response):
     template: str
     context: Dict[str, Any]
 
@@ -153,13 +154,7 @@ class TestClient(starlette.testclient.TestClient):
     def __init__(self, context, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.context = context
-        self._requests_session = None
-        self._requests_session_base_url = None
         self._scopes = []
-
-    def start_session(self, base_url):
-        self._requests_session = requests.Session()
-        self._requests_session_base_url = base_url.rstrip('/')
 
     def authmodel(self, model: str, actions: List[str], creds=None):
         scopes = commands.get_model_scopes(self.context, model, actions)
@@ -185,32 +180,9 @@ class TestClient(starlette.testclient.TestClient):
             expires_in = int(datetime.timedelta(days=10).total_seconds())
             token = auth.create_access_token(context, private_key, client, expires_in, scopes=self._scopes)
 
-        if self._requests_session:
-            session = self._requests_session
-        else:
-            session = self
-
-        session.headers.update({
+        self.headers.update({
             'Authorization': f'Bearer {token}'
         })
-
-    def request(
-        self,
-        method: str,
-        url: str,
-        *args,
-        **kwargs,
-    ) -> TestClientResponse:
-        if self._requests_session:
-            url = self._requests_session_base_url + url
-            session = self._requests_session
-            response = session.request(method, url, *args, **kwargs)
-        else:
-            response = super().request(method, url, *args, **kwargs)
-        return cast(TestClientResponse, response)
-
-    def get(self, *args, **kwargs) -> TestClientResponse:
-        return cast(TestClientResponse, super().get(*args, **kwargs))
 
     def getdata(self, *args, **kwargs):
         resp = self.get(*args, **kwargs)

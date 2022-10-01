@@ -60,7 +60,7 @@ async def auth_token(request: Request):
     if auth_server.enabled():
         return auth_server.create_token_response({
             'method': request.method,
-            'url': str(request.url),
+            'url': str(request.url.replace(query='')),
             'body': dict(await request.form()),
             'headers': request.headers,
         })
@@ -73,7 +73,7 @@ async def homepage(request: Request):
 
     context.set('auth.request', get_auth_request({
         'method': request.method,
-        'url': str(request.url),
+        'url': str(request.url.replace(query='')),
         'body': None,
         'headers': request.headers,
     }))

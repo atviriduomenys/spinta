@@ -22,7 +22,7 @@ def create_tabular_manifest(
         write_tabular_manifest(str(path), rows)
 
 
-def convert_ascii_manifest_to_csv(manifest: str) -> str:
+def convert_ascii_manifest_to_csv(manifest: str) -> bytes:
     file = StringIO()
     writer = csv.writer(file)
     rows = read_ascii_tabular_rows(
@@ -32,4 +32,4 @@ def convert_ascii_manifest_to_csv(manifest: str) -> str:
     )
     for row in rows:
         writer.writerow(row)
-    return file.getvalue()
+    return file.getvalue().encode()

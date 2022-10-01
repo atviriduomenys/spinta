@@ -61,7 +61,8 @@ def test_drop_table(engine, ufunc):
     table = sa.Table('_test_table', meta, sa.Column('id', sa.String()))
     table.create()
     ufunc('drop_table("_test_table")')
-    assert not table.exists()
+    insp = sa.inspect(engine)
+    assert not insp.has_table(table.name)
 
 
 def test_add_column(engine, ufunc, request):

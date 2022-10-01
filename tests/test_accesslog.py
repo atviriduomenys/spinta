@@ -18,7 +18,7 @@ def _upload_pdf(model, app):
     id_ = data['_id']
     rev = data['_revision']
 
-    resp = app.put(f'/{model}/{id_}/pdf', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/pdf', content=b'BINARYDATA', headers={
         'revision': rev,
         'content-type': 'application/pdf',
         'content-disposition': 'attachment; filename="test.pdf"',
@@ -715,7 +715,7 @@ def test_stream_write(model, app, context, tmpdir):
     app.authmodel(ns, ['insert'])
 
     headers = {'content-type': 'application/x-ndjson'}
-    resp = app.post(f'/{ns}', headers=headers, data=json.dumps({
+    resp = app.post(f'/{ns}', headers=headers, content=json.dumps({
         '_op': 'insert',
         '_type': model,
         'status': 'ok',

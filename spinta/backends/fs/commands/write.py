@@ -62,7 +62,13 @@ async def push(
         data.given['_revision'] = request.headers.get('revision')
     if 'content-disposition' in request.headers:
         data.given[prop.name]['_id'] = cgi.parse_header(request.headers['content-disposition'])[1]['filename']
-    if 'content-length' not in request.headers:
+    require_content_length = (
+        Action.INSERT,
+        Action.UPSERT,
+        Action.UPDATE,
+        Action.PATCH,
+    )
+    if action in require_content_length and 'content-length' not in request.headers:
         raise HTTPException(status_code=411)
     if not data.given[prop.name]['_id']:
         # XXX: Probably here should be a new UUID.

@@ -154,7 +154,8 @@ def delete(app, model: str, pk: str, rev: str):
     data = nest(model, take(all, {
         '_revision': rev,
     }))
-    resp = app.delete(f'/{model}/{pk}', json=data)
+    # XXX: DELETE method should not include a request body.
+    resp = app.request('DELETE', f'/{model}/{pk}', json=data)
     assert resp.content == b''
     assert resp.status_code == 204
 

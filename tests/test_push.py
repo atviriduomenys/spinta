@@ -24,7 +24,7 @@ def test_push_same_model(model, app):
     ]
     headers = {'content-type': 'application/x-ndjson'}
     payload = (json.dumps(x) + '\n' for x in data)
-    resp = app.post('/', headers=headers, data=payload)
+    resp = app.post('/', headers=headers, content=payload)
     resp = resp.json()
     data = resp.pop('_data')
     assert resp == {
