@@ -143,7 +143,7 @@ def test_subresource_update(model, app, tmpdir):
 
     pk = data['_id']
     rev = data['_revision']
-    resp = app.put(f'/{model}/{pk}/file', data=b'DATA4', headers={
+    resp = app.put(f'/{model}/{pk}/file', content=b'DATA4', headers={
         'Revision': rev,
         'Content-Type': 'text/plain',
         'Content-Disposition': 'attachment; filename="data.txt"',
@@ -176,7 +176,7 @@ def test_subresource_patch(model, app, tmpdir):
 
     pk = data['_id']
     rev = data['_revision']
-    resp = app.patch(f'/{model}/{pk}/file', data=b'DATA5', headers={
+    resp = app.patch(f'/{model}/{pk}/file', content=b'DATA5', headers={
         'Revision': rev,
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'attachment; filename="data_new.txt"',
@@ -601,7 +601,7 @@ def test_path_injection_put(model, filename, app, tmpdir):
         'Revision': rev,
         'Content-Type': 'application/json',
         'Content-Disposition': f'attachment; filename="{filename}"',
-    }, data=b'CONTENT')
+    }, content=b'CONTENT')
     assert resp.status_code == 400, resp.json()
     assert filepath.is_file() is False
 
@@ -632,7 +632,7 @@ def test_path_injection_patch(model, filename, app, tmpdir):
         'Revision': rev,
         'Content-Type': 'application/json',
         'Content-Disposition': f'attachment; filename="{filename}"',
-    }, data=b'CONTENT')
+    }, content=b'CONTENT')
     assert resp.status_code == 400, resp.json()
     assert filepath.is_file() is False
 

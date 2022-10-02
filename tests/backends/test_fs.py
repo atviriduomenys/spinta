@@ -1,7 +1,7 @@
 import pathlib
 
 import pytest
-import requests
+import httpx
 
 from spinta.testing.data import listdata
 from spinta.testing.utils import error, get_error_codes, get_error_context
@@ -34,7 +34,7 @@ def test_crud(model, app, tmpdir):
     revision = data['_revision']
 
     # PUT image to just create photo resource.
-    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', content=b'BINARYDATA', headers={
         'revision': revision,
         'content-type': 'image/png',
         # TODO: with content-disposition header it is possible to specify file
@@ -244,7 +244,7 @@ def test_id_as_filename(model, app, tmpdir):
     id_ = resp.json()['_id']
     revision = resp.json()['_revision']
 
-    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', content=b'BINARYDATA', headers={
         'revision': revision,
         'content-type': 'image/png',
     })
@@ -288,14 +288,14 @@ def test_check_revision_for_file(model, app):
     revision = data['_revision']
 
     # PUT image without revision
-    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', content=b'BINARYDATA', headers={
         'content-type': 'image/png',
     })
     assert resp.status_code == 400
     assert get_error_codes(resp.json()) == ['NoItemRevision']
 
     # PUT image with revision
-    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', content=b'BINARYDATA', headers={
         'revision': revision,
         'content-type': 'image/png',
     })
@@ -387,7 +387,7 @@ def test_put_file_multiple_times(model, app):
     revision = resp.json()['_revision']
 
     # Upload a PDF file.
-    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', content=b'BINARYDATA', headers={
         'revision': revision,
         'content-type': 'application/pdf',
         'content-disposition': f'attachment; filename="{id_}.pdf"',
@@ -396,7 +396,7 @@ def test_put_file_multiple_times(model, app):
     revision = resp.json()['_revision']
 
     # Upload a new PDF file second time.
-    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA2', headers={
+    resp = app.put(f'/{model}/{id_}/image', content=b'BINARYDATA2', headers={
         'revision': revision,
         'content-type': 'application/pdf',
         'content-disposition': f'attachment; filename="{id_}.pdf"',
@@ -424,7 +424,7 @@ def test_file_get_headers(model, app):
     revision = resp.json()['_revision']
 
     # Upload a PDF file.
-    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', content=b'BINARYDATA', headers={
         'revision': revision,
         'content-type': 'application/pdf',
         'content-disposition': f'attachment; filename="{id_}.pdf"',
@@ -455,7 +455,7 @@ def test_rename_non_existing_file(model, app):
     revision = resp.json()['_revision']
 
     # Upload a PDF file.
-    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', content=b'BINARYDATA', headers={
         'revision': revision,
         'content-type': 'application/pdf',
         'content-disposition': f'attachment; filename="{id_}.pdf"',
@@ -504,22 +504,15 @@ def test_put_file_no_content(context, model, app):
     revision = resp.json()['_revision']
 
     # Prepare request without any file
-    req = requests.Request(
-        'PUT',
-        f'{app.base_url}/{model}/{id_}/image',
-        headers={
-            'revision': revision,
-            'content-type': 'image/png',
-        }
-    )
-    prep_req = req.prepare()
+    req = app.build_request('PUT', f'/{model}/{id_}/image', headers={
+        'Revision': revision,
+        'Content-Type': 'image/png',
+    })
     # Make sure content-length does not exist
-    del prep_req.headers['content-length']
-    # Use authorization headers from before
-    prep_req.headers['authorization'] = app.headers['authorization']
+    del req.headers['Content-Length']
 
     # Upload an image, but add no file.
-    resp = app.send(prep_req)
+    resp = app.send(req)
     assert resp.status_code == 411
 
 
@@ -546,7 +539,7 @@ def test_changelog(context, model, app):
     revision = data['_revision']
 
     # Update image subresource.
-    resp = app.put(f'/{model}/{id_}/avatar', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/avatar', content=b'BINARYDATA', headers={
         'revision': revision,
         'content-type': 'image/png',
         'content-disposition': 'attachment; filename="myimg.png"',
@@ -590,7 +583,7 @@ def test_changelog_hidden_prop(context, model, app):
     revision = data['_revision']
 
     # Update image subresource.
-    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', content=b'BINARYDATA', headers={
         'revision': revision,
         'content-type': 'image/png',
         'content-disposition': 'attachment; filename="myimg.png"',
@@ -636,7 +629,7 @@ def test_wipe(tmpdir, model, app):
     revision = data['_revision']
 
     # PUT image to just create photo resource.
-    resp = app.put(f'/{model}/{id_}/image', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/image', content=b'BINARYDATA', headers={
         'revision': revision,
         'content-type': 'image/png',
         'content-disposition': 'attachment; filename="myimg.png"',

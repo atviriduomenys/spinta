@@ -11,6 +11,18 @@ New features:
 - Check enum value to match property type and make sure, that level is not
   filled for enums.
 
+Bug fixes:
+
+- Correctly handle situation, when no is received from server (`#301`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/301
+
+Improvements:
+
+- More informative error message by showing exact failing item (`#301`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/301
+
 
 0.1.36 (2022-07-25)
 ===================

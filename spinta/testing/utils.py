@@ -4,6 +4,7 @@ from pathlib import Path
 
 import jsonpatch
 import requests
+import httpx
 
 from ruamel.yaml import YAML
 
@@ -149,7 +150,7 @@ class RowIds:
         return self.idsr[i]
 
     def _cast(self, ids):
-        if isinstance(ids, requests.models.Response):
+        if isinstance(ids, (requests.models.Response, httpx.Response)):
             resp = ids
             assert resp.status_code == 200, resp.json()
             ids = resp.json()

@@ -1,5 +1,6 @@
 import pytest
 import requests
+import httpx
 
 from spinta.utils.data import take
 from spinta.testing.utils import error
@@ -705,7 +706,7 @@ def test_search_nested_startswith(model, context, app):
 
 
 def ids(resources):
-    if isinstance(resources, requests.models.Response):
+    if isinstance(resources, (requests.models.Response, httpx.Response)):
         resp = resources
         assert resp.status_code == 200, resp.json()
         resources = resp.json()['_data']

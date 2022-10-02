@@ -718,7 +718,7 @@ def test_post_invalid_json(model, context, app):
     # tests 400 response on invalid json
     app.authmodel(model, ['insert'])
     headers = {"content-type": "application/json"}
-    resp = app.post(f'/{model}', headers=headers, data="""{
+    resp = app.post(f'/{model}', headers=headers, content="""{
         "status": "ok",
         "count": 42
     ]""")

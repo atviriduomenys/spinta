@@ -359,7 +359,7 @@ async def _read_request_stream(
             payload = json.loads(line.strip())
         except json.decoder.JSONDecodeError as e:
             error = exceptions.JSONError(scope, error=str(e), transaction=transaction.id)
-            report_error(error, stop_on_error)
+            report_error(error, stop_on_error=stop_on_error)
             yield DataItem(error=error)
             continue
         yield dataitem_from_payload(context, scope, payload, stop_on_error)
@@ -390,7 +390,7 @@ def dataitem_from_payload(
             transaction=transaction.id,
             error=f"Expected dict, got {type(payload).__name__}.",
         )
-        report_error(error, stop_on_error)
+        report_error(error, stop_on_error=stop_on_error)
         return DataItem(error=error)
 
     if '_type' in payload:
@@ -410,7 +410,7 @@ def dataitem_from_payload(
         try:
             model = get_model_by_name(context, scope.manifest, model)
         except exceptions.UserError as error:
-            report_error(error, stop_on_error)
+            report_error(error, stop_on_error=stop_on_error)
             return DataItem(model, payload=payload, error=error)
 
     elif isinstance(scope, Model):
@@ -427,7 +427,7 @@ def dataitem_from_payload(
             prop = model.flatprops[prop]
         else:
             error = exceptions.FieldNotInResource(model, property=prop)
-            report_error(error, stop_on_error)
+            report_error(error, stop_on_error=stop_on_error)
             return DataItem(model, payload=payload, error=error)
 
     if prop and not propref:
@@ -437,16 +437,19 @@ def dataitem_from_payload(
 
     if not commands.in_namespace(model, scope):
         error = exceptions.OutOfScope(model, scope=scope)
-        report_error(error, stop_on_error)
+        report_error(error, stop_on_error=stop_on_error)
         return DataItem(model, prop, propref, backend, payload=payload, error=error)
 
     if '_op' not in payload:
         error = exceptions.MissingRequiredProperty(scope, prop='_op')
+        report_error(error, stop_on_error=stop_on_error)
         return DataItem(payload=payload, error=error)
 
     action = _action_from_op(scope, payload, stop_on_error)
     if isinstance(action, exceptions.UserError):
-        return DataItem(model, prop, propref, backend, payload=payload, error=action)
+        error = action
+        report_error(error, stop_on_error=stop_on_error)
+        return DataItem(model, prop, propref, backend, payload=payload, error=error)
 
     if '_where' in payload:
         payload['_where'] = spyna.parse(payload['_where'])
@@ -466,7 +469,7 @@ def _action_from_op(
             action=action,
             supported_actions=Action.values(),
         )
-        report_error(error, stop_on_error)
+        report_error(error, stop_on_error=stop_on_error)
         return error
     return Action.by_value(action)
 
@@ -489,7 +492,7 @@ async def prepare_data(
                 data.given = commands.load(context, data.model, data.payload)
                 commands.simple_data_check(context, data, data.model, data.model.backend)
         except (exceptions.UserError, InsufficientScopeError) as error:
-            report_error(error, stop_on_error)
+            report_error(error, data.payload, stop_on_error=stop_on_error)
         yield data
 
 
@@ -538,10 +541,10 @@ async def read_existing_data(
                 data.saved['_type'] = data.model.model_type()
             elif len(rows) > 1:
                 data.error = exceptions.MultipleRowsFound(data.model, _id=rows[0]['_id'])
-                report_error(data.error, stop_on_error)
+                report_error(data.error, data.given, stop_on_error=stop_on_error)
             elif data.action != Action.UPSERT:
                 data.error = exceptions.ItemDoesNotExist(data.model, id=data.given['_where']['args'][1])
-                report_error(data.error, stop_on_error)
+                report_error(data.error, data.given, stop_on_error=stop_on_error)
             yield data
             continue
 
@@ -558,7 +561,7 @@ def _cast_row_to_python(
     data: DataItem,
     rows: Dict[str, Any],
 ) -> Iterator[Dict[str, Any]]:
-    for row in  rows:
+    for row in rows:
         if data.prop:
             yield commands.cast_backend_to_python(
                 context,

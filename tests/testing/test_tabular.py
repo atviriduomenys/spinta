@@ -7,7 +7,7 @@ def test_convert_ascii_manifest_to_csv():
        | datasets/gov/example     |
        |           | Country      |
        |               | name     | string
-    ''').splitlines() == [
+    ''').decode().splitlines() == [
         'id,dataset,resource,base,model,property,type',
         ',datasets/gov/example,,,,,',
         ',,Country,,,,',

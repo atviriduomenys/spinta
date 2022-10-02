@@ -64,7 +64,8 @@ def test_delete(context, app):
     assert ids[0] in data
     assert ids[1] in data
 
-    resp = app.delete(f'/country/{ids[0]}', json={
+    # XXX: DELETE method should not include a request body.
+    resp = app.request('DELETE', f'/country/{ids[0]}', json={
         '_revision': revs[0],
     })
     assert resp.status_code == 204

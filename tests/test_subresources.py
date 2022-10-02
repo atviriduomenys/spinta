@@ -548,7 +548,7 @@ def test_file_without_content_type(model, app):
     revision = resp.json()['_revision']
 
     # Upload a PDF file without setting content_type
-    resp = app.put(f'/{model}/{id_}/pdf', data=b'BINARYDATA', headers={
+    resp = app.put(f'/{model}/{id_}/pdf', content=b'BINARYDATA', headers={
         'revision': revision,
         'content-disposition': f'attachment; filename="{id_}.pdf"',
     })
