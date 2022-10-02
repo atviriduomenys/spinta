@@ -23,6 +23,14 @@ Improvements:
 
   __ https://github.com/atviriduomenys/spinta/issues/301
 
+- Upgrade versions of all packages. All tests pass, but this might introduce
+  new bugs.
+
+- Improve unit detection (`#292`__). There was an idea to disable unit checks,
+  but decided to give it another try.
+
+  __ https://github.com/atviriduomenys/spinta/issues/292
+
 
 0.1.36 (2022-07-25)
 ===================
