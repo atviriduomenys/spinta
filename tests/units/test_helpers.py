@@ -37,19 +37,28 @@ def test_invalid_time_unit(unit: str):
     'kg⋅m²⋅s⁻³⋅A⁻¹',
     'kg*m^2*s^-3⋅A^-1',
     '8kg⋅m²⋅s⁻³⋅A⁻¹',
-])
-def test_valid_si_unit(unit: str):
-    assert is_si_unit(unit)
-
-
-@pytest.mark.parametrize('unit', [
+    'mg/l',
+    'g/m^2',
+    'mg/m^3',
+    'mm',
+    'U/m^2',
+    'U/m^3',
     '%',
     'ha',
     'min',
     'h',
     'bar',
+    'U',
+    '10^6s',
+    '10⁶s',
+    'μ/m³',
+    'yr',
+    '3mo',
+    'yr 2mo 4wk',
+    '°C',
+    '°',
 ])
-def test_valid_non_si_unit(unit: str):
+def test_valid_unit(unit: str):
     assert is_si_unit(unit)
 
 
