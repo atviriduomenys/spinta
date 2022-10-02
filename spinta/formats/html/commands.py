@@ -202,7 +202,7 @@ def _get_model_tabular_header(
     )
 
 
-def _build_template_context(
+def build_template_context(
     context: Context,
     model: Model,
     action: Action,
@@ -237,7 +237,7 @@ def _render_model(
     rows: Iterable[Dict[str, Cell]],
     http_headers,
 ):
-    ctx = _build_template_context(
+    ctx = build_template_context(
         context,
         model,
         action,

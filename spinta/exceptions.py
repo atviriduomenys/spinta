@@ -161,8 +161,6 @@ def _render_template(error: BaseError):
         return error.template.format(**context)
 
 
-
-
 class MultipleErrors(Exception):
 
     def __init__(self, errors: Iterable[BaseError]):
@@ -228,6 +226,10 @@ class JSONError(UserError):
 
 class InvalidValue(UserError):
     template = "Invalid value."
+
+
+class InvalidPropertyType(UserError):
+    template = "Invalid property type, expected {expected}, got {type}.."
 
 
 class ValueNotInEnum(UserError):
@@ -539,3 +541,7 @@ class RemoteClientScopesNotGiven(RemoteClientError):
         "Make sure at least one scope is given for [{section}] in "
         "{credentials} file."
     )
+
+
+class DupicateProperty(UserError):
+    template = "Duplicate property {name}."

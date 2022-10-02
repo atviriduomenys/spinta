@@ -64,6 +64,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
     name = get_column_name(prop)
     types = {
         'string': sa.Text,
+        'text': JSONB,
         'date': sa.Date,
         'time': sa.Time,
         'datetime': sa.DateTime,

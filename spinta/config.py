@@ -89,6 +89,7 @@ CONFIG = {
             'datetime': 'spinta.types.datatype:DateTime',
             'temporal': 'spinta.types.datatype:DateTime',
             'string': 'spinta.types.datatype:String',
+            'text': 'spinta.types.text.components:Text',
             'binary': 'spinta.types.datatype:Binary',
             'integer': 'spinta.types.datatype:Integer',
             'number': 'spinta.types.datatype:Number',

@@ -31,6 +31,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Date
 from spinta.types.datatype import PrimaryKey
+from spinta.types.text.components import Text
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.components import BackendFeatures
@@ -338,6 +339,13 @@ def select(env, dtype, leaf):
 def select(env, dtype):
     table = env.backend.get_table(env.model)
     column = table.c[dtype.prop.place + '._id']
+    return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, Text)
+def select(env, dtype):
+    table = env.backend.get_table(env.model)
+    column = table.c[dtype.prop.place]
     return Selected(column, dtype.prop)
 
 

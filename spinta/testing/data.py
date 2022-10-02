@@ -7,6 +7,7 @@ from typing import List
 from typing import Union
 from typing import cast
 
+import httpx
 import requests
 from pprintpp import pformat
 
@@ -17,17 +18,28 @@ from spinta.utils.nestedstruct import flatten
 
 
 def listdata(
-    resp: Union[requests.Response, List[Dict[str, Any]]],
+    resp: Union[httpx.Response, List[Dict[str, Any]]],
     *keys: Union[str, Callable[[], bool]],
     sort: Union[bool, str] = True,
     full: bool = False,  # returns dicts instead of tuples
 ) -> List[tuple]:
-    """Return data from a given requests.Response object.
+    """Return data from a given Response object.
 
     Only non reserved fields are returned.
 
-    By default data are converted to List[Tuple[Any]], but if `full` is True,
-    then List[Dict[str, Any] is returned.
+    This function returns:
+
+        List[Tuple[Any]]
+            This is returned by default.
+
+        List[Any]
+            This is returned if one `keys` key is given.
+
+        List[Dict[str, Any]]
+            This is returned if `full` is True.
+
+        List[Dict[str, Any]] (flattened)
+            This is returned if `full` is True and `keys` are given.
 
     Usage:
 
@@ -84,12 +96,13 @@ def listdata(
         assert resp.status_code == 200, pformat(data)
         assert '_data' in data, pformat(data)
         data = data['_data']
-        keys = keys or sorted({
-            k
-            for d in flatten(data)
-            for k in d
-            if not k.startswith('_')
-        })
+        if not full:
+            keys = keys or sorted({
+                k
+                for d in (data if full else flatten(data))
+                for k in d
+                if not k.startswith('_')
+            })
 
     # Clean data
     if full:

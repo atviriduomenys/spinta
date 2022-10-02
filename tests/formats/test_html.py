@@ -4,7 +4,6 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
-from typing import Optional
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -13,9 +12,6 @@ from starlette.requests import Request
 from spinta import commands
 from spinta.components import Action
 from spinta.components import Store
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import get_select_tree
-from spinta.formats.html.commands import _build_template_context
 from spinta.formats.html.commands import _LimitIter
 from spinta.formats.html.components import Cell
 from spinta.formats.html.components import Color
@@ -32,12 +28,10 @@ from spinta.core.config import RawConfig
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import create_test_client
-from spinta.testing.request import make_get_request
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.utils.data import take
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
-from spinta.manifests.components import Manifest
 
 
 def _get_data_table(context: dict):

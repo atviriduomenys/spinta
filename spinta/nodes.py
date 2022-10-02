@@ -5,7 +5,11 @@ from typing import Optional
 from typing import Tuple
 from typing import Type
 from typing import Union
+from typing import TypeVar
+from typing import Iterator
+from typing import NamedTuple
 from typing import overload
+from collections import defaultdict
 
 from spinta import commands
 from spinta import exceptions
@@ -14,6 +18,7 @@ from spinta.components import Config
 from spinta.components import Context
 from spinta.components import EntryId
 from spinta.components import Node
+from spinta.components import Model
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA
 from spinta.utils.schema import resolve_schema
@@ -206,6 +211,8 @@ def load_model_properties(
         **data,
     }
 
+    data = split_complex_props(model, data)
+
     model.flatprops = {}
     model.leafprops = {}
     model.properties = {}
@@ -218,3 +225,61 @@ def load_model_properties(
         prop = commands.load(context, prop, params, model.manifest)
         model.properties[name] = prop
         model.flatprops[name] = prop
+
+
+class _SplitProp(NamedTuple):
+    type: str   # text, object, array
+    name: str   # base part of the name
+    tail: str   # tail part of the name
+    data: str   # property data dict
+
+
+def split_complex_props(node: Node, data: Dict[str, Any]):
+    props = {}
+    split = defaultdict(list)
+    for name, params in data.items():
+        if '@' in name:
+            name, lang = name.split('@', 1)
+            split[name].append(_SplitProp(
+                type='text',
+                name=name,
+                tail=lang,
+                data=params,
+            ))
+        else:
+            props[name] = params
+
+    handlers = {
+        'text': _add_text_prop,
+    }
+    for sprops in split.values():
+        for sprop in sprops:
+            handlers[sprop.type](node, props, sprop)
+
+    return props
+
+
+def _add_text_prop(
+    node: Node,
+    props: Dict[str, Any],
+    sprop: _SplitProp,
+) -> None:
+    if sprop.name not in props:
+        props[sprop.name] = {
+            'type': 'text',
+            'langs': {},
+        }
+
+    prop = props[sprop.name]
+
+    if prop.get('type') != 'text':
+        raise exceptions.InvalidPropertyType(
+            node,
+            type=prop.get('type'),
+            expected='text',
+        )
+
+    if 'langs' not in prop:
+        prop['langs'] = {}
+
+    prop['langs'][sprop.tail] = sprop.data
