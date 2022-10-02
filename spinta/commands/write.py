@@ -442,11 +442,14 @@ def dataitem_from_payload(
 
     if '_op' not in payload:
         error = exceptions.MissingRequiredProperty(scope, prop='_op')
+        report_error(error, stop_on_error=stop_on_error)
         return DataItem(payload=payload, error=error)
 
     action = _action_from_op(scope, payload, stop_on_error)
     if isinstance(action, exceptions.UserError):
-        return DataItem(model, prop, propref, backend, payload=payload, error=action)
+        error = action
+        report_error(error, stop_on_error=stop_on_error)
+        return DataItem(model, prop, propref, backend, payload=payload, error=error)
 
     if '_where' in payload:
         payload['_where'] = spyna.parse(payload['_where'])

@@ -1,3 +1,5 @@
+import datetime
+import uuid
 from typing import Dict
 
 import contextlib
@@ -28,6 +30,20 @@ class Memory(Backend):
         self.data = {}
 
     @contextlib.contextmanager
+    def transaction(self, write=False):
+        if write:
+            obj = self.insert({
+                '_type': '_txn',
+                'datetime': datetime.datetime.utcnow(),
+                'client_type': '',
+                'client_id': '',
+                'errors': 0,
+            })
+            yield WriteTransaction(self, obj['_id'])
+        else:
+            yield ReadTransaction(self)
+
+    @contextlib.contextmanager
     def begin(self):
         yield self
 
@@ -38,13 +54,34 @@ class Memory(Backend):
         if table not in self.data:
             self.data[table] = {}
 
-    def insert(self, *objects: ObjectData):
-        for obj in objects:
-            obj = obj.copy()
+    def insert(self, obj: ObjectData):
+        obj = obj.copy()
 
-            table = obj['_type']
-            if table not in self.data:
-                raise RuntimeError(f"Table {table!r} does not exist.")
+        table = obj['_type']
+        if table not in self.data:
+            raise RuntimeError(f"Table {table!r} does not exist.")
 
-            pk = obj['_id']
-            self.data[table][pk] = obj
+        if '_id' not in obj:
+            obj['_id'] = str(uuid.uuid4())
+
+        pk = obj['_id']
+        self.data[table][pk] = obj
+
+        return obj
+
+
+class ReadTransaction:
+    id: str
+    errors: int
+    connection: Memory
+
+    def __init__(self, connection: Memory):
+        self.connection = connection
+
+
+class WriteTransaction(ReadTransaction):
+
+    def __init__(self, connection: Memory, id_: str):
+        super().__init__(connection)
+        self.id = id_
+        self.errors = 0
