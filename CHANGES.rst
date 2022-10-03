@@ -3,8 +3,14 @@
 Changes
 #######
 
-0.1.38 (unreleased)
+0.1.38 (2022-10-03)
 ===================
+
+Bug fixes:
+
+- Incorrect enum type checking (`#305`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/305
 
 
 0.1.37 (2022-10-02)
