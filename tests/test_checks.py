@@ -35,8 +35,8 @@ def test_enum_type_integer(tmpdir, rc):
     with pytest.raises(InvalidValue) as e:
         commands.check(context, manifest)
     assert str(e.value.context['error']) == (
-        "Given enum value 1 does not match property type, "
-        "which is 'integer'."
+        "Given enum value 1 of <class 'str'> type does not match property "
+        "type, which is 'integer'."
     )
 
 
@@ -53,8 +53,8 @@ def test_enum_type_string(tmpdir, rc):
     with pytest.raises(InvalidValue) as e:
         commands.check(context, manifest)
     assert str(e.value.context['error']) == (
-        "Given enum value 1 does not match property type, "
-        "which is 'string'."
+        "Given enum value 1 of <class 'int'> type does not match property "
+        "type, which is 'string'."
     )
 
 
@@ -67,5 +67,29 @@ def test_enum_type_none(tmpdir, rc):
       |   |   |   | value    | string  |
                              | enum    | 1
                              |         | 2
+    ''')
+    commands.check(context, manifest)
+
+
+def test_enum_type_integer_negative(tmpdir, rc):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property | type    | prepare
+    datasets/gov/example     |         |
+      |   |   | Data         |         |
+      |   |   |   | value    | integer |
+                             | enum    | 1
+                             |         | -2
+    ''')
+    commands.check(context, manifest)
+
+
+def test_enum_type_boolean(tmpdir, rc):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property | type    | prepare
+    datasets/gov/example     |         |
+      |   |   | Data         |         |
+      |   |   |   | value    | boolean |
+                             | enum    | true
+                             |         | false
     ''')
     commands.check(context, manifest)
