@@ -6,6 +6,7 @@ from spinta.components import Context
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Integer
 from spinta.types.datatype import String
+from spinta.types.datatype import Boolean
 from spinta.dimensions.enum.components import EnumItem
 from spinta.exceptions import InvalidValue
 from spinta.utils.schema import NotAvailable
@@ -20,8 +21,8 @@ def check(
     value: Any,
 ):
     raise InvalidValue(dtype, error=(
-        f"Given enum value {value} does not match property type, "
-        f"which is {dtype.name!r}."
+        f"Given enum value {value} of {type(value)} type does not match "
+        f"property type, which is {dtype.name!r}."
     ))
 
 
@@ -54,6 +55,17 @@ def check(
     item: EnumItem,
     dtype: Integer,
     value: int,
+):
+    pass
+
+
+@overload
+@commands.check.register(Context, EnumItem, Boolean, bool)
+def check(
+    context: Context,
+    item: EnumItem,
+    dtype: Boolean,
+    value: bool,
 ):
     pass
 
