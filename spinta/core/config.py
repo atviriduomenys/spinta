@@ -8,6 +8,7 @@ import logging
 import os
 import pathlib
 import enum
+import io
 
 import sys
 from typing import NamedTuple
@@ -552,8 +553,15 @@ def _parse_manifest_path(
     if isinstance(path, ManifestPath):
         return path
     from spinta.manifests.helpers import detect_manifest_from_path
-    Manifest_ = detect_manifest_from_path(rc, path)
-    return ManifestPath(type=Manifest_.type, path=path)
+
+    if isinstance(path, str) and '|' in path:
+        return ManifestPath(
+            type='ascii',
+            file=io.StringIO(path),
+        )
+    else:
+        Manifest_ = detect_manifest_from_path(rc, path)
+        return ManifestPath(type=Manifest_.type, path=path)
 
 
 def _get_resource_config(

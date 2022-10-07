@@ -24,6 +24,7 @@ from spinta.cli import server
 from spinta.cli.init import init
 from spinta.cli.show import show
 from spinta.cli.helpers.typer import add
+from spinta.cli.grep import grep
 from spinta.core.context import create_context
 
 log = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ add(app, 'pii', pii.app, short_help="Manage Person Identifying Information")
 
 add(app, 'copy', manifest.copy, short_help="Copy only specified metadata from a manifest")
 add(app, 'show', show, short_help="Show manifest as ascii table")
+add(app, 'grep', grep, short_help="Grep specified columsn from a manifest")
 
 add(app, 'bootstrap', migrate.bootstrap, short_help="Initialize backends")
 add(app, 'sync', migrate.sync, short_help="Sync source manifests into main manifest")

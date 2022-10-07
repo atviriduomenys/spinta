@@ -94,6 +94,7 @@ def load_manifest(
     ensure_config_dir: bool = False,
     rename_duplicates: bool = False,
     load_internal: bool = True,
+    check: bool = True,
 ) -> Store:
     if store is None:
         store = load_store(
@@ -119,7 +120,8 @@ def load_manifest(
         load_internal=load_internal,
     )
     commands.link(context, store.manifest)
-    commands.check(context, store.manifest)
+    if check:
+        commands.check(context, store.manifest)
     return store
 
 

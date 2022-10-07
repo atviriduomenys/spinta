@@ -15,3 +15,11 @@ DATASET = [
     'title',
     'description',
 ]
+
+DIMENSIONS = [
+    'dataset',
+    'resource',
+    'base',
+    'model',
+    'property',
+]
