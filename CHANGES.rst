@@ -3,8 +3,17 @@
 Changes
 #######
 
-0.1.39 (unreleased)
+0.1.39 (2022-10-12)
 ===================
+
+Bug fixes:
+
+- Correctly handle invalid JSON responses on push command (`#307`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/307
+
+- Fix freezing, when XLSX file has large number of empty rows.
+
 
 
 0.1.38 (2022-10-03)
