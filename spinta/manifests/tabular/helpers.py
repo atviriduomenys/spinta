@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import pathlib
+import logging
 import textwrap
 from operator import itemgetter
 from itertools import zip_longest
@@ -77,6 +78,8 @@ from spinta.types.datatype import Ref
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
+
+log = logging.getLogger(__name__)
 
 ParsedRow = Tuple[int, Dict[str, Any]]
 
@@ -1028,6 +1031,20 @@ def _read_csv_manifest(
                 yield str(i), row
 
 
+def _empty_rows_counter():
+    empty_rows = 0
+
+    def _counter(row):
+        nonlocal empty_rows
+        if any(row):
+            empty_rows = 0
+        else:
+            empty_rows += 1
+        return empty_rows
+
+    return _counter
+
+
 def _read_xlsx_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
     wb = openpyxl.load_workbook(path)
 
@@ -1041,9 +1058,17 @@ def _read_xlsx_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
         cols = normalizes_columns(cols)
         cols = [cols.index(c) if c in cols else None for c in DATASET]
 
+        empty_rows = _empty_rows_counter()
         for i, row in enumerate(rows, 2):
             row = [row[c] if c is not None else None for c in cols]
             yield f'{sheet.title}:{i}', row
+
+            if empty_rows(row) > 100:
+                log.warning(
+                    f"Too many consequent empty rows, stop reading {path} "
+                    f"at {i} row."
+                )
+                break
 
 
 def striptable(table):
