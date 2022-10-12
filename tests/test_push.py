@@ -2,10 +2,14 @@ import json
 import hashlib
 
 import pytest
+import requests
+from responses import POST
+from responses import RequestsMock
 
 from spinta.cli.push import _PushRow
 from spinta.cli.push import _get_row_for_error
-from spinta.cli.push import _map_sent_and_recv 
+from spinta.cli.push import _map_sent_and_recv
+from spinta.cli.push import _send_data
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest
 
@@ -139,3 +143,15 @@ def test__get_row_for_error__errors(rc: RawConfig):
         ' Model datasets/gov/example/Country, data:',
         " {'_id': '4d741843-4e94-4890-81d9-5af7c5b5989a', 'name': 'Vilnius'}",
     ]
+
+
+def test__send_data__json_error(rc: RawConfig, responses: RequestsMock):
+    model = 'example/City'
+    url = f'https://example.com/{model}'
+    responses.add(POST, url, status=500, body='{INVALID JSON}')
+    rows = [
+        _PushRow(model, {'name': 'Vilnius'}),
+    ]
+    data = '{"name": "Vilnius"}'
+    session = requests.Session()
+    assert _send_data(session, url, rows, data) is None

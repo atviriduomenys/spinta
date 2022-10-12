@@ -368,17 +368,30 @@ def _send_data(
     try:
         resp.raise_for_status()
     except HTTPError:
-        recv = resp.json()
-        errors = recv.get('errors')
-        log.error(
-            (
-                "Error when sending and receiving data.%s\n"
-                "Server response (status=%s):\n%s"
-            ),
-            _get_row_for_error(rows, errors),
-            resp.status_code,
-            textwrap.indent(pprintpp.pformat(recv), '    '),
-        )
+        try:
+            recv = resp.json()
+        except requests.JSONDecodeError:
+            log.error(
+                (
+                    "Error when sending and receiving data.\n"
+                    "Server response (status=%s):\n%s"
+                ),
+                resp.status_code,
+                textwrap.indent(resp.text, '    '),
+            )
+            if stop_on_error:
+                raise
+        else:
+            errors = recv.get('errors')
+            log.error(
+                (
+                    "Error when sending and receiving data.%s\n"
+                    "Server response (status=%s):\n%s"
+                ),
+                _get_row_for_error(rows, errors),
+                resp.status_code,
+                textwrap.indent(pprintpp.pformat(recv), '    '),
+            )
         if stop_on_error:
             raise
         return
