@@ -18,6 +18,7 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import TypedDict
+from typing import NamedTuple
 
 import msgpack
 import requests
@@ -129,6 +130,7 @@ def push(
     if not state:
         ensure_data_dir(config.data_path / 'push')
         state = config.data_path / 'push' / f'{creds.remote}.db'
+    state = f'sqlite:///{state}'
 
     manifest = store.manifest
     if dataset and dataset not in manifest.datasets:
@@ -136,6 +138,13 @@ def push(
         raise Exit(code=1)
 
     ns = manifest.namespaces['']
+
+    echo(f"Get access token from {creds.server}")
+    token = get_access_token(creds)
+
+    client = requests.Session()
+    client.headers['Content-Type'] = 'application/json'
+    client.headers['Authorization'] = f'Bearer {token}'
 
     with context:
         client = auth or config.default_auth_client
@@ -156,10 +165,6 @@ def push(
             stop_on_error=stop_on_error,
         )
 
-        if state:
-            engine, metadata = _init_push_state(state, models)
-            context.attach('push.state.conn', engine.begin)
-
         rows = iter_model_rows(
             context,
             models,
@@ -167,25 +172,70 @@ def push(
             limit,
             stop_on_error=stop_on_error,
         )
-        rows = _prepare_rows_for_push(rows)
 
         rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
 
-        if stop_time:
-            rows = _add_stop_time(rows, stop_time)
-
         if state:
-            rows = _check_push_state(context, rows, metadata)
+            state = _State(*_init_push_state(state, models))
+            context.attach('push.state.conn', state.engine.begin)
 
-        if stop_row:
-            rows = itertools.islice(rows, stop_row)
+        _push(
+            context,
+            client,
+            creds.server,
+            rows,
+            models,
+            state=state,
+            stop_time=stop_time,
+            stop_row=stop_row,
+            chunk_size=chunk_size,
+            dry_run=dry_run,
+            stop_on_error=stop_on_error,
+        )
 
-        rows = _push_to_remote_spinta(rows, creds, chunk_size, dry_run=dry_run)
 
-        if state and not dry_run:
-            rows = _save_push_state(context, rows, metadata)
+class _State(NamedTuple):
+    engine: sa.engine.Engine
+    metadata: sa.MetaData
 
-        _push_rows(rows, stop_on_error)
+
+def _push(
+    context: Context,
+    client: requests.Session,
+    server: str,  # https://example.com/
+    models: List[Model],
+    rows: Iterable[ModelRow],
+    *,
+    state: Optional[_State] = None,
+    stop_time: Optional[int] = None,    # seconds
+    stop_row: Optional[int] = None,     # stop aftern given number of rows
+    chunk_size: Optional[int] = None,   # split into chunks of given size in bytes
+    dry_run: bool = False,              # do not send or write anything
+    stop_on_error: bool = False,        # raise error immediately
+) -> None:
+    rows = _prepare_rows_for_push(rows)
+
+    if stop_time:
+        rows = _add_stop_time(rows, stop_time)
+
+    if state:
+        rows = _check_push_state(context, rows, state.metadata)
+
+    if stop_row:
+        rows = itertools.islice(rows, stop_row)
+
+    rows = _push_to_remote_spinta(
+        client,
+        server,
+        rows,
+        chunk_size,
+        dry_run=dry_run,
+    )
+
+    if state and not dry_run:
+        rows = _save_push_state(context, rows, state.metadata)
+
+    _push_rows(rows, stop_on_error)
 
 
 class _PushRow:
@@ -195,6 +245,8 @@ class _PushRow:
     rev: Optional[str]
     # True if data has already been sent.
     saved: bool = False
+    # If push request received an error
+    error: bool = False
 
     def __init__(self, model: Model, data: Dict[str, Any]):
         self.model = model
@@ -258,20 +310,14 @@ def _prepare_rows_for_push(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
 
 
 def _push_to_remote_spinta(
+    client: requests.Session,
+    server: str,
     rows: Iterable[_PushRow],
-    creds: RemoteClientCredentials,
     chunk_size: int,
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
 ) -> Iterator[_PushRow]:
-    echo(f"Get access token from {creds.server}")
-    token = get_access_token(creds)
-
-    session = requests.Session()
-    session.headers['Content-Type'] = 'application/json'
-    session.headers['Authorization'] = f'Bearer {token}'
-
     prefix = '{"_data":['
     suffix = ']}'
     slen = len(suffix)
@@ -283,8 +329,8 @@ def _push_to_remote_spinta(
         data = json.dumps(data, ensure_ascii=False)
         if ready and len(chunk) + len(data) + slen > chunk_size:
             yield from _send_and_receive(
-                session,
-                creds.server,
+                client,
+                server,
                 ready,
                 chunk + suffix,
                 dry_run=dry_run,
@@ -297,8 +343,8 @@ def _push_to_remote_spinta(
 
     if ready:
         yield from _send_and_receive(
-            session,
-            creds.server,
+            client,
+            server,
             ready,
             chunk + suffix,
             dry_run=dry_run,
@@ -307,8 +353,8 @@ def _push_to_remote_spinta(
 
 
 def _send_and_receive(
-    session: requests.Session,
-    target: str,
+    client: requests.Session,
+    server: str,
     rows: List[_PushRow],
     data: str,
     *,
@@ -319,8 +365,8 @@ def _send_and_receive(
         recv = _send_data_dry_run(data)
     else:
         recv = _send_data(
-            session,
-            target,
+            client,
+            server,
             rows,
             data,
             stop_on_error=stop_on_error,
@@ -341,7 +387,7 @@ def _send_data_dry_run(
 
 
 def _send_data(
-    session: requests.Session,
+    client: requests.Session,
     target: str,
     rows: List[_PushRow],
     data: str,
@@ -351,7 +397,7 @@ def _send_data(
     data = data.encode('utf-8')
 
     try:
-        resp = session.post(target, data=data)
+        resp = client.post(target, data=data)
     except IOError as e:
         log.error(
             (
@@ -493,7 +539,9 @@ def _map_sent_and_recv(
     if recv is None:
         # We don't have a response, because there was an error while
         # communicating with the target server.
-        yield from sent
+        for row in sent:
+            row.error = True
+            yield row
     else:
         assert len(sent) == len(recv), (
             f"len(sent) = {len(sent)}, len(received) = {len(recv)}"
@@ -506,7 +554,10 @@ def _map_sent_and_recv(
             yield sent_row
 
 
-def _add_stop_time(rows, stop):
+def _add_stop_time(
+    rows: Iterable[_PushRow],
+    stop: int,  # seconds
+) -> Iterator[_PushRow]:
     start = time.time()
     for row in rows:
         yield row
@@ -515,10 +566,10 @@ def _add_stop_time(rows, stop):
 
 
 def _init_push_state(
-    file: pathlib.Path,
+    dburi: str,
     models: List[Model],
 ) -> Tuple[sa.engine.Engine, sa.MetaData]:
-    engine = sa.create_engine(f'sqlite:///{file}')
+    engine = sa.create_engine(dburi)
     metadata = sa.MetaData(engine)
     for model in models:
         table = sa.Table(
@@ -526,6 +577,7 @@ def _init_push_state(
             sa.Column('id', sa.Unicode, primary_key=True),
             sa.Column('rev', sa.Unicode),
             sa.Column('pushed', sa.DateTime),
+            sa.Column('error', sa.Boolean),
         )
         table.create(checkfirst=True)
     return engine, metadata
@@ -588,6 +640,7 @@ def _save_push_state(
                     id=row.data['_id'],
                     rev=row.rev,
                     pushed=datetime.datetime.now(),
+                    error=row.error,
                 )
             )
         else:
@@ -597,6 +650,7 @@ def _save_push_state(
                     id=row.data['_id'],
                     rev=row.rev,
                     pushed=datetime.datetime.now(),
+                    error=row.error,
                 )
             )
         yield row

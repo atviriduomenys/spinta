@@ -3,15 +3,22 @@ import hashlib
 
 import pytest
 import requests
+import sqlalchemy as sa
 from responses import POST
 from responses import RequestsMock
 
 from spinta.cli.push import _PushRow
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
+from spinta.cli.push import _init_push_state
 from spinta.cli.push import _send_data
+from spinta.cli.push import _check_push_state
+from spinta.cli.push import _save_push_state
+from spinta.cli.push import _push
+from spinta.cli.push import _State
 from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import load_manifest_and_context
 
 
 @pytest.mark.skip('datasets')
@@ -155,3 +162,94 @@ def test__send_data__json_error(rc: RawConfig, responses: RequestsMock):
     data = '{"name": "Vilnius"}'
     session = requests.Session()
     assert _send_data(session, url, rows, data) is None
+
+
+def test_push_state__create(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    rows = [
+        (model, {
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        }),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(POST, server, json={
+        '_data': [{
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            '_revision': 'f91adeea-3bb8-41b0-8049-ce47c7530bdc',
+            'name': 'Vilnius',
+        }],
+    })
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+    )
+
+    table = state.metadata.tables[model.name]
+    query = sa.select([table.c.id, table.c.error])
+    assert list(conn.execute(query)) == [
+        ('4d741843-4e94-4890-81d9-5af7c5b5989a', False),
+    ]
+
+
+def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    rows = [
+        (model, {
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        })
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(POST, server, status=500, body='ERROR!')
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+    )
+
+    table = state.metadata.tables[model.name]
+    query = sa.select([table.c.id, table.c.error])
+    assert list(conn.execute(query)) == [
+        ('4d741843-4e94-4890-81d9-5af7c5b5989a', True),
+    ]
