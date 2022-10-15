@@ -1,9 +1,17 @@
-import json
+import datetime
 import hashlib
+import json
+import textwrap
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Tuple
 
 import pytest
 import requests
 import sqlalchemy as sa
+from pprintpp import pformat
+from requests import PreparedRequest
 from responses import POST
 from responses import RequestsMock
 
@@ -12,8 +20,6 @@ from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
 from spinta.cli.push import _send_data
-from spinta.cli.push import _check_push_state
-from spinta.cli.push import _save_push_state
 from spinta.cli.push import _push
 from spinta.cli.push import _State
 from spinta.core.config import RawConfig
@@ -164,6 +170,44 @@ def test__send_data__json_error(rc: RawConfig, responses: RequestsMock):
     assert _send_data(session, url, rows, data) is None
 
 
+def _match_dict(d: Dict[str, Any], m: Dict[str, Any]) -> bool:
+    for k, v in m.items():
+        if k not in d or d[k] != v:
+            return False
+    return True
+
+
+def _matcher(match: Dict[str, Any]) -> Callable[..., Any]:
+    def _match(request: PreparedRequest) -> Tuple[bool, str]:
+        reason = ""
+        body = request.body
+        try:
+            if isinstance(body, bytes):
+                body = body.decode("utf-8")
+            data = json.loads(body) if body else {}
+            if '_data' in data:
+                valid = all(_match_dict(d, match) for d in data['_data'])
+            else:
+                valid = False
+            if not valid:
+                expected = textwrap.indent(pformat(match), '    ')
+                received = textwrap.indent(pformat(data), '    ')
+                reason = (
+                    "request.body:\n"
+                    f"{received}\n"
+                    "  doesn't match\n"
+                    f"{expected}"
+                )
+        except json.JSONDecodeError:
+            valid = False
+            reason = (
+                "request.body doesn't match: JSONDecodeError: "
+                "Cannot parse request.body"
+            )
+        return valid, reason
+    return _match
+
+
 def test_push_state__create(rc: RawConfig, responses: RequestsMock):
     context, manifest = load_manifest_and_context(rc, '''
     m | property | type   | access
@@ -188,14 +232,22 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
 
     client = requests.Session()
     server = 'https://example.com/'
-    responses.add(POST, server, json={
-        '_data': [{
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+                '_revision': 'f91adeea-3bb8-41b0-8049-ce47c7530bdc',
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'insert',
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
-            '_revision': 'f91adeea-3bb8-41b0-8049-ce47c7530bdc',
-            'name': 'Vilnius',
-        }],
-    })
+        })],
+    )
 
     _push(
         context,
@@ -207,10 +259,12 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
     )
 
     table = state.metadata.tables[model.name]
-    query = sa.select([table.c.id, table.c.error])
-    assert list(conn.execute(query)) == [
-        ('4d741843-4e94-4890-81d9-5af7c5b5989a', False),
-    ]
+    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    assert list(conn.execute(query)) == [(
+        '4d741843-4e94-4890-81d9-5af7c5b5989a',
+        'f91adeea-3bb8-41b0-8049-ce47c7530bdc',
+        False,
+    )]
 
 
 def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
@@ -253,3 +307,128 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
     assert list(conn.execute(query)) == [
         ('4d741843-4e94-4890-81d9-5af7c5b5989a', True),
     ]
+
+
+def test_push_state__update(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    rev_before = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    rev_after = '45e8d4d6-bb6c-42cd-8ad8-09049bbed6bd'
+
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id='4d741843-4e94-4890-81d9-5af7c5b5989a',
+        revision=rev_before,
+        checksum='CHANGED',
+        pushed=datetime.datetime.now(),
+        error=False,
+    ))
+
+    rows = [
+        (model, {
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        }),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+                '_revision': rev_after,
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'patch',
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            '_revision': rev_before,
+        })],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+    )
+
+    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    assert list(conn.execute(query)) == [(
+        '4d741843-4e94-4890-81d9-5af7c5b5989a',
+        rev_after,
+        False,
+    )]
+
+
+def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    rev_before = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id='4d741843-4e94-4890-81d9-5af7c5b5989a',
+        revision=rev_before,
+        checksum='CHANGED',
+        pushed=datetime.datetime.now(),
+        error=False,
+    ))
+
+    rows = [
+        (model, {
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        }),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(POST, server, status=500, body='ERROR!')
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+    )
+
+    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    assert list(conn.execute(query)) == [(
+        '4d741843-4e94-4890-81d9-5af7c5b5989a',
+        rev_before,
+        True,
+    )]

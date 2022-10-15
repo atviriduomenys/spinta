@@ -147,8 +147,8 @@ def push(
     client.headers['Authorization'] = f'Bearer {token}'
 
     with context:
-        client = auth or config.default_auth_client
-        require_auth(context, client)
+        auth_client = auth or config.default_auth_client
+        require_auth(context, auth_client)
 
         _attach_backends(context, store, manifest)
         _attach_keymaps(context, store)
@@ -183,8 +183,8 @@ def push(
             context,
             client,
             creds.server,
-            rows,
             models,
+            rows,
             state=state,
             stop_time=stop_time,
             stop_row=stop_row,
@@ -213,13 +213,15 @@ def _push(
     dry_run: bool = False,              # do not send or write anything
     stop_on_error: bool = False,        # raise error immediately
 ) -> None:
-    rows = _prepare_rows_for_push(rows)
+    rows = _rows_to_push_rows(rows)
 
     if stop_time:
         rows = _add_stop_time(rows, stop_time)
 
     if state:
         rows = _check_push_state(context, rows, state.metadata)
+
+    rows = _prepare_rows_for_push(rows)
 
     if stop_row:
         rows = itertools.islice(rows, stop_row)
@@ -242,7 +244,7 @@ class _PushRow:
     model: Model
     data: Dict[str, Any]
     # SHA1 checksum of data generated with _get_data_rev.
-    rev: Optional[str]
+    checksum: Optional[str]
     # True if data has already been sent.
     saved: bool = False
     # If push request received an error
@@ -251,7 +253,7 @@ class _PushRow:
     def __init__(self, model: Model, data: Dict[str, Any]):
         self.model = model
         self.data = data
-        self.rev = None
+        self.checksum = None
         self.saved = False
 
 
@@ -288,25 +290,18 @@ def _attach_keymaps(context: Context, store: Store) -> None:
         context.attach(f'keymap.{keymap.name}', lambda: keymap)
 
 
-def _prepare_rows_for_push(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
+def _rows_to_push_rows(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
     for model, row in rows:
-        _id = row['_id']
-        _type = row['_type']
-        where = {
-            'name': 'eq',
-            'args': [
-                {'name': 'bind', 'args': ['_id']},
-                _id,
-            ]
-        }
-        payload = {
-            '_op': 'upsert',
-            '_type': _type,
-            '_id': _id,
-            '_where': spyna.unparse(where),
-            **{k: v for k, v in row.items() if not k.startswith('_')}
-        }
-        yield _PushRow(model, payload)
+        yield _PushRow(model, row)
+
+
+def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
+    for row in rows:
+        if row.saved:
+            row.data['_op'] = 'patch'
+        else:
+            row.data['_op'] = 'insert'
+        yield row
 
 
 def _push_to_remote_spinta(
@@ -388,7 +383,7 @@ def _send_data_dry_run(
 
 def _send_data(
     client: requests.Session,
-    target: str,
+    server: str,
     rows: List[_PushRow],
     data: str,
     *,
@@ -397,7 +392,7 @@ def _send_data(
     data = data.encode('utf-8')
 
     try:
-        resp = client.post(target, data=data)
+        resp = client.post(server, data=data)
     except IOError as e:
         log.error(
             (
@@ -551,6 +546,7 @@ def _map_sent_and_recv(
                 f"sent._id = {sent_row.data['_id']}, "
                 f"received._id = {recv_row['_id']}"
             )
+            sent_row.data['_revision'] = recv_row['_revision']
             yield sent_row
 
 
@@ -575,11 +571,15 @@ def _init_push_state(
         table = sa.Table(
             model.name, metadata,
             sa.Column('id', sa.Unicode, primary_key=True),
-            sa.Column('rev', sa.Unicode),
+            sa.Column('revision', sa.Unicode),
+            sa.Column('checksum', sa.Unicode),
             sa.Column('pushed', sa.DateTime),
             sa.Column('error', sa.Boolean),
         )
         table.create(checkfirst=True)
+        # TODO: add error
+        # TODO: add revision
+        # TODO: rename rev to checksum
     return engine, metadata
 
 
@@ -587,13 +587,18 @@ def _get_model_type(row: _PushRow) -> str:
     return row.data['_type']
 
 
-def _get_data_rev(row: _PushRow):
-    rev = fix_data_for_json(take(row.data))
-    rev = flatten([rev])
-    rev = [[k, v] for x in rev for k, v in sorted(x.items())]
-    rev = msgpack.dumps(rev, strict_types=True)
-    rev = hashlib.sha1(rev).hexdigest()
-    return rev
+def _get_data_checksum(row: _PushRow):
+    data = fix_data_for_json(take(row.data))
+    data = flatten([data])
+    data = [[k, v] for x in data for k, v in sorted(x.items())]
+    data = msgpack.dumps(data, strict_types=True)
+    checksum = hashlib.sha1(data).hexdigest()
+    return checksum
+
+
+class _Saved(NamedTuple):
+    revision: str
+    checksum: str
 
 
 def _check_push_state(
@@ -606,20 +611,26 @@ def _check_push_state(
     for model_type, group in itertools.groupby(rows, key=_get_model_type):
         table = metadata.tables[model_type]
 
-        query = sa.select([table.c.id, table.c.rev])
-        saved = {
-            state[table.c.id]: state[table.c.rev]
+        query = sa.select([table.c.id, table.c.revision, table.c.checksum])
+        saved_rows = {
+            state[table.c.id]: _Saved(
+                state[table.c.revision],
+                state[table.c.checksum],
+            )
             for state in conn.execute(query)
         }
 
         for row in group:
             _id = row.data['_id']
-
-            row.rev = _get_data_rev(row)
-            row.saved = _id in saved
-
-            if saved.get(_id) == row.rev:
-                continue  # Nothing has changed.
+            row.checksum = _get_data_checksum(row)
+            saved = saved_rows.get(_id)
+            if saved is None:
+                row.saved = False
+            else:
+                row.saved = True
+                row.data['_revision'] = saved.revision
+                if saved.checksum == row.checksum:
+                    continue  # Nothing has changed.
 
             yield row
 
@@ -638,7 +649,8 @@ def _save_push_state(
                 where(table.c.id == row.data['_id']).
                 values(
                     id=row.data['_id'],
-                    rev=row.rev,
+                    revision=row.data['_revision'],
+                    checksum=row.checksum,
                     pushed=datetime.datetime.now(),
                     error=row.error,
                 )
@@ -648,7 +660,8 @@ def _save_push_state(
                 table.insert().
                 values(
                     id=row.data['_id'],
-                    rev=row.rev,
+                    revision=row.data.get('_revision'),
+                    checksum=row.checksum,
                     pushed=datetime.datetime.now(),
                     error=row.error,
                 )
