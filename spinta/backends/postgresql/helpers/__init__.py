@@ -22,3 +22,13 @@ def get_pg_name(name: str) -> str:
         j = NAMEDATALEN - i - hs - 2
         name = name[:i] + '_' + h + '_' + name[-j:]
     return name
+
+
+def get_pg_sequence_name(name: str) -> str:
+    suffix = '__id_seq'
+    slen = len(suffix)
+    nlen = len(name)
+    if nlen + slen > NAMEDATALEN:
+        trim = (nlen + slen) - NAMEDATALEN
+        name = name[:-trim]
+    return name + suffix

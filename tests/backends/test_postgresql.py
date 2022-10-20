@@ -1,8 +1,11 @@
+import pytest
+
 from spinta.components import Model, Property
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import NAMEDATALEN
 from spinta.backends.postgresql.helpers import get_pg_name
+from spinta.backends.postgresql.helpers import get_pg_sequence_name
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
@@ -37,6 +40,16 @@ def test_get_table_name():
 def test_get_table_name_lists():
     assert _get_table_name('org', 'names', TableType.LIST) == 'org/:list/names'
     assert _get_table_name('org', 'names.note', TableType.LIST) == 'org/:list/names.note'
+
+
+@pytest.mark.parametrize('name,result', [
+    ('datasets/gov/example/City/:changelog',
+     'datasets/gov/example/City/:changelog__id_seq'),
+    ('datasets/gov/example_with_long_name/VeryLong_name/:changelog',
+     'datasets/gov/example_with_long_name/VeryLong_name/:chan__id_seq'),
+])
+def test_get_pg_sequence_name(name: str, result: str):
+    assert get_pg_sequence_name(name) == result
 
 
 def test_changes(app):

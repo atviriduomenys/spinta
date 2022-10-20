@@ -18,6 +18,7 @@ from spinta.testing.manifest import prepare_manifest
 from spinta.utils.nestedstruct import flatten
 from spinta.testing.client import create_test_client
 from spinta.backends.memory.components import Memory
+from spinta.testing.data import send
 
 
 def _cleaned_context(
@@ -172,7 +173,7 @@ def test_model(model, context, app):
             ('backends', '/backends'),
             (backend, f'/backends/{backend}'),
             ('Report', None),
-            ('Changes', f"/{model}/:changes"),
+            ('Changes', f"/{model}/:changes/-10"),
         ],
         'empty': False,
         'header': [
@@ -245,7 +246,7 @@ def test_model_get(model, app):
             (backend, f'/backends/{backend}'),
             ('Report', f'/{model}'),
             (_id[:8], None),
-            ('Changes', f'/{model}/%s/:changes' % _id),
+            ('Changes', f'/{model}/%s/:changes/-10' % _id),
         ],
         'header': [
             '_type',
@@ -313,7 +314,7 @@ def test_dataset(app):
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
             ('rinkimai', None),
-            ('Changes', '/datasets/json/rinkimai/:changes'),
+            ('Changes', '/datasets/json/rinkimai/:changes/-10'),
         ],
         'header': ['_id', 'id', 'pavadinimas'],
         'empty': False,
@@ -396,7 +397,7 @@ def test_nested_dataset(app):
             ('dataset', '/datasets/nested/dataset'),
             ('name', '/datasets/nested/dataset/name'),
             ('model', None),
-            ('Changes', '/datasets/nested/dataset/name/model/:changes'),
+            ('Changes', '/datasets/nested/dataset/name/model/:changes/-10'),
         ],
         'header': ['_id', 'name'],
         'empty': False,
@@ -437,7 +438,7 @@ def test_dataset_key(app):
             ('json', '/datasets/json'),
             ('rinkimai', '/datasets/json/rinkimai'),
             (short_id(pk), None),
-            ('Changes', f'/datasets/json/rinkimai/{pk}/:changes'),
+            ('Changes', f'/datasets/json/rinkimai/{pk}/:changes/-10'),
         ],
         'formats': [
             ('CSV', f'/datasets/json/rinkimai/{pk}/:format/csv'),
@@ -464,35 +465,20 @@ def test_dataset_key(app):
 
 
 def test_changes_single_object(app: TestClient, mocker):
-    app.authmodel('datasets/json/rinkimai', ['upsert', 'changes'])
-    resp = app.post('/datasets/json/rinkimai', json={
-        '_op': 'upsert',
-        '_where': f'id="1"',
+    app.authmodel('datasets/json/rinkimai', ['insert', 'patch', 'changes'])
+
+    model = 'datasets/json/rinkimai'
+
+    obj = send(app, model, 'insert', {
         'id': '1',
         'pavadinimas': 'Rinkimai 1',
     })
-    data = resp.json()
-    assert resp.status_code == 201, data
-    pk = data['_id']
-    rev1 = data['_revision']
-    resp = app.post('/datasets/json/rinkimai', json={
-        '_op': 'upsert',
-        '_where': f'id="1"',
+    obj1 = send(app, model, 'patch', obj, {
         'id': '1',
         'pavadinimas': 'Rinkimai 2',
     })
-    assert resp.status_code == 200, resp.json()
-    data = resp.json()
-    rev2 = data['_revision']
-    assert rev1 != rev2
-    assert data == {
-        '_id': pk,
-        '_revision': rev2,
-        '_type': 'datasets/json/rinkimai',
-        'pavadinimas': 'Rinkimai 2',
-    }
 
-    resp = app.get(f'/datasets/json/rinkimai/{pk}/:changes', headers={
+    resp = app.get(f'/datasets/json/rinkimai/{obj.id}/:changes/-10', headers={
         'accept': 'text/html',
     })
     assert resp.status_code == 200
@@ -504,14 +490,14 @@ def test_changes_single_object(app: TestClient, mocker):
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
             ('rinkimai', '/datasets/json/rinkimai'),
-            (short_id(pk), f'/datasets/json/rinkimai/{pk}'),
+            (obj1.sid, f'/datasets/json/rinkimai/{obj.id}'),
             ('Changes', None),
         ],
         'formats': [
-            ('CSV', f'/datasets/json/rinkimai/{pk}/:changes/:format/csv'),
-            ('JSON', f'/datasets/json/rinkimai/{pk}/:changes/:format/json'),
-            ('JSONL', f'/datasets/json/rinkimai/{pk}/:changes/:format/jsonl'),
-            ('ASCII', f'/datasets/json/rinkimai/{pk}/:changes/:format/ascii'),
+            ('CSV', f'/{model}/{obj.id}/:changes/-10/:format/csv?limit(100)'),
+            ('JSON', f'/{model}/{obj.id}/:changes/-10/:format/json?limit(100)'),
+            ('JSONL', f'/{model}/{obj.id}/:changes/-10/:format/jsonl?limit(100)'),
+            ('ASCII', f'/{model}/{obj.id}/:changes/-10/:format/ascii?limit(100)'),
         ],
         'header': [
             '_cid',
@@ -526,54 +512,44 @@ def test_changes_single_object(app: TestClient, mocker):
         'empty': False,
         'data': [
             [
-                {'value': change[0]['_cid']},
+                {'value': 1},
                 {'value': change[0]['_created']},
-                {'value': 'upsert'},
-                {'value': short_id(pk), 'link': f'/datasets/json/rinkimai/{pk}'},
+                {'value': 'insert'},
+                {'value': obj.sid, 'link': f'/{model}/{obj.id}'},
                 {'value': change[0]['_txn']},
-                {'value': rev2},
-                {'value': '', 'color': '#f5f5f5'},
-                {'value': 'Rinkimai 2'},
-            ],
-            [
-                {'value': change[1]['_cid']},
-                {'value': change[1]['_created']},
-                {'value': 'upsert'},
-                {'value': short_id(pk), 'link': f'/datasets/json/rinkimai/{pk}'},
-                {'value': change[1]['_txn']},
-                {'value': rev1},
+                {'value': obj.rev},
                 {'value': '1'},
                 {'value': 'Rinkimai 1'},
+            ],
+            [
+                {'value': 2},
+                {'value': change[1]['_created']},
+                {'value': 'patch'},
+                {'value': obj.sid, 'link': f'/datasets/json/rinkimai/{obj.id}'},
+                {'value': change[1]['_txn']},
+                {'value': obj1.rev},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': 'Rinkimai 2'},
             ],
         ],
     }
 
 
 def test_changes_object_list(app, mocker):
-    app.authmodel('datasets/json/rinkimai', ['upsert', 'changes'])
+    app.authmodel('datasets/json/rinkimai', ['insert', 'patch', 'changes'])
 
-    resp = app.post('/datasets/json/rinkimai', json={
-        '_op': 'upsert',
-        '_where': f'id="1"',
+    model = 'datasets/json/rinkimai'
+
+    obj = send(app, model, 'insert', {
         'id': '1',
         'pavadinimas': 'Rinkimai 1',
     })
-    data = resp.json()
-    assert resp.status_code == 201, data
-    pk = data['_id']
-    rev1 = data['_revision']
-    resp = app.post('/datasets/json/rinkimai', json={
-        '_op': 'upsert',
-        '_where': f'id="1"',
+    obj1 = send(app, model, 'patch', obj, {
         'id': '1',
         'pavadinimas': 'Rinkimai 2',
     })
-    data = resp.json()
-    assert resp.status_code == 200, data
-    rev2 = data['_revision']
-    assert rev1 != rev2
 
-    resp = app.get('/datasets/json/rinkimai/:changes', headers={'accept': 'text/html'})
+    resp = app.get('/datasets/json/rinkimai/:changes/-10', headers={'accept': 'text/html'})
     assert resp.status_code == 200
 
     change = _cleaned_context(resp)['data']
@@ -582,14 +558,14 @@ def test_changes_object_list(app, mocker):
             ('🏠', '/'),
             ('datasets', '/datasets'),
             ('json', '/datasets/json'),
-            ('rinkimai', '/datasets/json/rinkimai'),
+            ('rinkimai', f'/{model}'),
             ('Changes', None),
         ],
         'formats': [
-            ('CSV', '/datasets/json/rinkimai/:changes/:format/csv'),
-            ('JSON', '/datasets/json/rinkimai/:changes/:format/json'),
-            ('JSONL', '/datasets/json/rinkimai/:changes/:format/jsonl'),
-            ('ASCII', '/datasets/json/rinkimai/:changes/:format/ascii'),
+            ('CSV', f'/{model}/:changes/-10/:format/csv?limit(100)'),
+            ('JSON', f'/{model}/:changes/-10/:format/json?limit(100)'),
+            ('JSONL', f'/{model}/:changes/-10/:format/jsonl?limit(100)'),
+            ('ASCII', f'/{model}/:changes/-10/:format/ascii?limit(100)'),
         ],
         'header': [
             '_cid',
@@ -604,24 +580,24 @@ def test_changes_object_list(app, mocker):
         'empty': False,
         'data': [
             [
-                {'value': change[0]['_cid']},
+                {'value': 1},
                 {'value': change[0]['_created']},
-                {'value': 'upsert'},
-                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
+                {'value': 'insert'},
+                {'link': f'/{model}/{obj.id}', 'value': obj.sid},
                 {'value': change[0]['_txn']},
-                {'value': rev2},
-                {'value': '', 'color': '#f5f5f5'},
-                {'value': 'Rinkimai 2'},
-            ],
-            [
-                {'value': change[1]['_cid']},
-                {'value': change[1]['_created']},
-                {'value': 'upsert'},
-                {'link': f'/datasets/json/rinkimai/{pk}', 'value': pk[:8]},
-                {'value': change[1]['_txn']},
-                {'value': rev1},
+                {'value': obj.rev},
                 {'value': '1'},
                 {'value': 'Rinkimai 1'},
+            ],
+            [
+                {'value': 2},
+                {'value': change[1]['_created']},
+                {'value': 'patch'},
+                {'link': f'/{model}/{obj.id}', 'value': obj.sid},
+                {'value': change[1]['_txn']},
+                {'value': obj1.rev},
+                {'value': '', 'color': '#f5f5f5'},
+                {'value': 'Rinkimai 2'},
             ],
         ],
     }

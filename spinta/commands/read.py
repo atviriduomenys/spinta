@@ -356,7 +356,7 @@ async def changes(
             model.backend,
             id_=params.pk,
             limit=params.limit,
-            offset=params.offset,
+            offset=params.changes_offset,
         )
 
     select_tree = get_select_tree(context, action, params.select)
