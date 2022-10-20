@@ -432,3 +432,67 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
         rev_before,
         True,
     )]
+
+
+def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    rev_before = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    rev_after = '45e8d4d6-bb6c-42cd-8ad8-09049bbed6bd'
+
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id='4d741843-4e94-4890-81d9-5af7c5b5989a',
+        revision=rev_before,
+        checksum='DELETED',
+        pushed=datetime.datetime.now(),
+        error=False,
+    ))
+
+    rows = []
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+                '_revision': rev_after,
+            }],
+        },
+        match=[_matcher({
+            '_op': 'delete',
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            '_revision': rev_before,
+        })],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+    )
+
+    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    assert list(conn.execute(query)) == [(
+        '4d741843-4e94-4890-81d9-5af7c5b5989a',
+        rev_after,
+        False,
+    )]
