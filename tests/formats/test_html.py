@@ -167,7 +167,7 @@ def context_current_location(rc: RawConfig) -> Context:
         ('vpt', '/datasets/gov/vpt'),
         ('New data', '/datasets/gov/vpt/new'),
         ('Cities', None),
-        ('Changes', '/datasets/gov/vpt/new/City/:changes'),
+        ('Changes', '/datasets/gov/vpt/new/City/:changes/-10'),
     ]),
     ('/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08', [
         ('🏠', '/'),
@@ -177,7 +177,7 @@ def context_current_location(rc: RawConfig) -> Context:
         ('New data', '/datasets/gov/vpt/new'),
         ('Cities', '/datasets/gov/vpt/new/City'),
         ('0edc2281', None),
-        ('Changes', '/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08/:changes'),
+        ('Changes', '/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08/:changes/-10'),
     ]),
 ])
 def test_current_location(
@@ -230,14 +230,14 @@ def context_current_location_with_root(rc: RawConfig):
         ('🏠', '/'),
         ('New data', '/datasets/gov/vpt/new'),
         ('Cities', None),
-        ('Changes', '/datasets/gov/vpt/new/City/:changes'),
+        ('Changes', '/datasets/gov/vpt/new/City/:changes/-10'),
     ]),
     ('/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08', [
         ('🏠', '/'),
         ('New data', '/datasets/gov/vpt/new'),
         ('Cities', '/datasets/gov/vpt/new/City'),
         ('0edc2281', None),
-        ('Changes', '/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08/:changes'),
+        ('Changes', '/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08/:changes/-10'),
     ]),
 ])
 def test_current_location_with_root(

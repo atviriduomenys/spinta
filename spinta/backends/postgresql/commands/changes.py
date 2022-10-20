@@ -1,10 +1,11 @@
 from types import AsyncGeneratorType
+from typing import Optional
 
 import sqlalchemy as sa
 
 from spinta import commands
 from spinta.utils.json import fix_data_for_json
-from spinta.components import Context, Action, UrlParams, Model, Property
+from spinta.components import Context, Action, Model, Property
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
@@ -22,6 +23,11 @@ async def create_changelog_entry(
     connection = transaction.connection
     table = backend.get_table(node, TableType.CHANGELOG)
     async for data in dstream:
+
+        if not data.patch:
+            yield data
+            continue
+
         qry = table.insert().values(
             _txn=transaction.id,
             datetime=utcnow(),
@@ -48,12 +54,12 @@ def changes(
     *,
     id_: str = None,
     limit: int = 100,
-    offset: int = -10,
+    offset: Optional[int] = -100,
 ):
     connection = context.get('transaction').connection
     table = backend.get_table(model, TableType.CHANGELOG)
 
-    qry = sa.select([table]).order_by(table.c['_id'].desc())
+    qry = sa.select([table]).order_by(table.c['_id'].asc())
     qry = _changes_id(table, qry, id_)
     qry = _changes_offset(table, qry, offset)
     qry = _changes_limit(qry, limit)
@@ -73,23 +79,23 @@ def changes(
 
 def _changes_id(table, qry, id_):
     if id_:
-        return qry.where(table.c._rid == id_)
+        return qry.where(table.c['_rid'] == id_)
     else:
         return qry
 
 
 def _changes_offset(table, qry, offset):
-    if offset:
-        if offset > 0:
-            offset = offset
+    if offset is not None:
+        if offset >= 0:
+            return qry.where(table.c['_id'] >= offset)
         else:
             offset = (
                 qry.with_only_columns([
-                    sa.func.max(table.c.change) - abs(offset),
+                    sa.func.max(table.c['_id']) - abs(offset),
                 ]).
                 order_by(None).alias()
             )
-        return qry.where(table.c.change > offset)
+            return qry.where(table.c['_id'] > offset)
     else:
         return qry
 

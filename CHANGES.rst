@@ -6,6 +6,16 @@ Changes
 0.1.40 (unreleased)
 ===================
 
+Bug fixes:
+
+- Changes loads indefinitely (`#307`__). Cleaned empty patches, fixed
+  `:/changes/<offset>` API call, now it actually works. Also empty patches now
+  are not saved into the changelog.
+
+  __ https://github.com/atviriduomenys/spinta/issues/291
+
+- `wipe` action, now also resets changelog change id.
+
 
 0.1.39 (2022-10-12)
 ===================
