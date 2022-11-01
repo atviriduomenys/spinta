@@ -3,8 +3,14 @@
 Changes
 #######
 
-0.1.40 (unreleased)
+0.1.40 (2022-11-01)
 ===================
+
+Improvements:
+
+- Add memory usage logging in order to find memory leaks (`#171`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/171
 
 Bug fixes:
 
