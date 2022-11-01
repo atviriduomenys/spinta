@@ -97,6 +97,7 @@ Shapely = "^1.8.0"
 aiohttp = "^3.8.1"
 fsspec = "^2022.5.0"
 dask = {extras = ["dataframe"], version = "^2022.7.1"}
+psutil = "^5.9.3"
 
 
 [tool.poetry.group.dev.dependencies]

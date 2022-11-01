@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 import json
 
@@ -10,8 +10,7 @@ from spinta.components import Context, Store
 class PythonAccessLog(AccessLog):
     stream: list
 
-    def log(self, **kwargs):
-        message = self.create_message(**kwargs)
+    def log(self, message: Dict[str, Any]) -> None:
         # `message` must be JSON serializable.
         json.dumps(message)
         self.stream.append(message)

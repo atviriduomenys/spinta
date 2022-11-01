@@ -38,19 +38,30 @@ def test_post_accesslog(model, app, context):
     assert resp.status_code == 201, resp.json()
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 1
-    assert accesslog[-1] == {
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'method': 'POST',
-        'url': f'https://testserver/{model}',
-        'agent': 'testclient',
-        'rctype': 'application/json',
-        'format': 'json',
-        'action': 'insert',
-        'model': model,
-    }
+    assert len(accesslog) == 2
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'client': 'test-client',
+            'method': 'POST',
+            'url': f'https://testserver/{model}',
+            'agent': 'testclient',
+            'rctype': 'application/json',
+            'format': 'json',
+            'action': 'insert',
+            'model': model,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -68,19 +79,30 @@ def test_post_array_accesslog(model, app, context):
     assert resp.status_code == 201
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 1
-    assert accesslog[-1] == {
-        'method': 'POST',
-        'agent': 'testclient',
-        'rctype': 'application/json',
-        'format': 'json',
-        'action': 'insert',
-        'url': f'https://testserver/{model}',
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-    }
+    assert len(accesslog) == 2
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'method': 'POST',
+            'agent': 'testclient',
+            'rctype': 'application/json',
+            'format': 'json',
+            'action': 'insert',
+            'url': f'https://testserver/{model}',
+            'client': 'test-client',
+            'model': model,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -103,21 +125,32 @@ def test_put_accesslog(model, app, context):
     assert resp.status_code == 200
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 2
-    assert accesslog[-1] == {
-        'method': 'PUT',
-        'agent': 'testclient',
-        'rctype': 'application/json',
-        'format': 'json',
-        'action': 'update',
-        'url': f'https://testserver/{model}/{id_}',
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client':  'test-client',
-        'model': model,
-        'id': id_,
-        'rev': rev,
-    }
+    assert len(accesslog) == 4
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'method': 'PUT',
+            'agent': 'testclient',
+            'rctype': 'application/json',
+            'format': 'json',
+            'action': 'update',
+            'url': f'https://testserver/{model}/{id_}',
+            'client': 'test-client',
+            'model': model,
+            'id': id_,
+            'rev': rev,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -129,22 +162,33 @@ def test_pdf_put_accesslog(model, app, context):
     id_, rev, resp = _upload_pdf(model, app)
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 2  # 2 accesses overall: POST and PUT
-    assert accesslog[-1] == {
-        'action': 'update',
-        'agent': 'testclient',
-        'rctype': 'application/pdf',
-        'format': 'json',
-        'method': 'PUT',
-        'url': f'https://testserver/{model}/{id_}/pdf',
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client':  'test-client',
-        'model': model,
-        'prop': 'pdf',
-        'id': id_,
-        'rev': rev,
-    }
+    assert len(accesslog) == 4  # 2 accesses overall: POST and PUT
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'action': 'update',
+            'agent': 'testclient',
+            'rctype': 'application/pdf',
+            'format': 'json',
+            'method': 'PUT',
+            'url': f'https://testserver/{model}/{id_}/pdf',
+            'client': 'test-client',
+            'model': model,
+            'prop': 'pdf',
+            'id': id_,
+            'rev': rev,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -166,21 +210,32 @@ def test_patch_accesslog(model, app, context):
     assert resp.status_code == 200
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 2
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'rctype': 'application/json',
-        'format': 'json',
-        'action': 'patch',
-        'method': 'PATCH',
-        'url': f'https://testserver/{model}/{id_}',
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-        'id': id_,
-        'rev': rev,
-    }
+    assert len(accesslog) == 4
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'rctype': 'application/json',
+            'format': 'json',
+            'action': 'patch',
+            'method': 'PATCH',
+            'url': f'https://testserver/{model}/{id_}',
+            'client': 'test-client',
+            'model': model,
+            'id': id_,
+            'rev': rev,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -198,18 +253,30 @@ def test_get_accesslog(app, model, context):
     assert resp.status_code == 200
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 2
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'format': 'json',
-        'action': 'getone',
-        'method': 'GET',
-        'url': f'https://testserver/{model}/{id_}',
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-        'id': id_,
-    }
+    assert len(accesslog) == 4
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'getone',
+            'method': 'GET',
+            'url': f'https://testserver/{model}/{id_}',
+            'client': 'test-client',
+            'model': model,
+            'id': id_,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -230,18 +297,30 @@ def test_get_array_accesslog(model, app, context):
 
     app.get(f'/{model}/{id_}')
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 2
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'format': 'json',
-        'action': 'getone',
-        'method': 'GET',
-        'url': f'https://testserver/{model}/{id_}',
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-        'id': id_,
-    }
+    assert len(accesslog) == 4
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'getone',
+            'method': 'GET',
+            'url': f'https://testserver/{model}/{id_}',
+            'client': 'test-client',
+            'model': model,
+            'id': id_,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -254,19 +333,31 @@ def test_pdf_get_accesslog(model, app, context):
 
     app.get(f'/{model}/{id_}/pdf')
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 3  # 3 accesses overall: POST, PUT, GET
-    assert accesslog[-1] == {
-        'format': 'json',
-        'agent': 'testclient',
-        'action': 'getone',
-        'method': 'GET',
-        'url': f'https://testserver/{model}/{id_}/pdf',
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-        'prop': 'pdf',
-        'id': id_,
-    }
+    assert len(accesslog) == 6  # 3 accesses overall: POST, PUT, GET
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'format': 'json',
+            'agent': 'testclient',
+            'action': 'getone',
+            'method': 'GET',
+            'url': f'https://testserver/{model}/{id_}/pdf',
+            'client': 'test-client',
+            'model': model,
+            'prop': 'pdf',
+            'id': id_,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -284,19 +375,31 @@ def test_get_prop_accesslog(app, model, context):
     assert resp.status_code == 200
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 2
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'format': 'json',
-        'action': 'getone',
-        'method': 'GET',
-        'url': f'https://testserver/{model}/{pk}/sync',
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-        'prop': 'sync',
-        'id': pk,
-    }
+    assert len(accesslog) == 4
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'getone',
+            'method': 'GET',
+            'url': f'https://testserver/{model}/{pk}/sync',
+            'client': 'test-client',
+            'model': model,
+            'prop': 'sync',
+            'id': pk,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -314,17 +417,29 @@ def test_get_w_select_accesslog(app, model, context):
     assert resp.status_code == 200
 
     accesslog = context.get('accesslog.stream')
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'format': 'json',
-        'action': 'getone',
-        'method': 'GET',
-        'url': f'https://testserver/{model}/{pk}?select(status)',
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-        'id': pk,
-    }
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'getone',
+            'method': 'GET',
+            'url': f'https://testserver/{model}/{pk}?select(status)',
+            'client': 'test-client',
+            'model': model,
+            'id': pk,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -341,17 +456,29 @@ def test_getall_accesslog(app, model, context):
     assert resp.status_code == 200
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 2
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'format': 'json',
-        'action': 'getall',
-        'method': 'GET',
-        'url': f'https://testserver/{model}',
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-    }
+    assert len(accesslog) == 4
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'getall',
+            'method': 'GET',
+            'url': f'https://testserver/{model}',
+            'client': 'test-client',
+            'model': model,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -367,17 +494,29 @@ def test_getall_w_select_accesslog(app, model, context):
     assert resp.status_code == 200
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 2
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'format': 'json',
-        'action': 'search',
-        'method': 'GET',
-        'url': f'https://testserver/{model}?select(status)',
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-    }
+    assert len(accesslog) == 4
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'search',
+            'method': 'GET',
+            'url': f'https://testserver/{model}?select(status)',
+            'client': 'test-client',
+            'model': model,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -402,19 +541,30 @@ def test_accesslog_file(model, postgresql, rc, request, tmpdir):
     assert resp.status_code == 201
 
     accesslog = [json.loads(line) for line in logfile.read_text().splitlines()]
-    assert len(accesslog) == 1
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'rctype': 'application/json',
-        'format': 'json',
-        'action': 'insert',
-        'method': 'POST',
-        'url': f'https://testserver/{model}',
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-    }
+    assert len(accesslog) == 2
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'rctype': 'application/json',
+            'format': 'json',
+            'action': 'insert',
+            'method': 'POST',
+            'url': f'https://testserver/{model}',
+            'client': 'test-client',
+            'model': model,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -500,19 +650,30 @@ def test_accesslog_file_stdin(
         # Skip other lines from stdout that are not json
         if line.startswith('{')
     ]
-    assert len(accesslog) == 1
-    assert accesslog[-1] == {
-        'action': 'insert',
-        'agent': 'testclient',
-        'client': 'test-client',
-        'format': 'json',
-        'method': 'POST',
-        'model': 'backends/postgres/report',
-        'rctype': 'application/json',
-        'time': accesslog[-1]['time'],
-        'txn': accesslog[-1]['txn'],
-        'url': 'https://testserver/backends/postgres/report'
-    }
+    assert len(accesslog) == 2
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'action': 'insert',
+            'agent': 'testclient',
+            'client': 'test-client',
+            'format': 'json',
+            'method': 'POST',
+            'model': 'backends/postgres/report',
+            'rctype': 'application/json',
+            'url': 'https://testserver/backends/postgres/report'
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -550,19 +711,30 @@ def test_accesslog_file_stderr(
         # Skip other lines from stdout that are not json
         if line.startswith('{')
     ]
-    assert len(accesslog) == 1
-    assert accesslog[-1] == {
-        'action': 'insert',
-        'agent': 'testclient',
-        'client': 'test-client',
-        'format': 'json',
-        'method': 'POST',
-        'model': 'backends/postgres/report',
-        'rctype': 'application/json',
-        'time': accesslog[-1]['time'],
-        'txn': accesslog[-1]['txn'],
-        'url': 'https://testserver/backends/postgres/report'
-    }
+    assert len(accesslog) == 2
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'action': 'insert',
+            'agent': 'testclient',
+            'client': 'test-client',
+            'format': 'json',
+            'method': 'POST',
+            'model': 'backends/postgres/report',
+            'rctype': 'application/json',
+            'url': 'https://testserver/backends/postgres/report',
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -581,19 +753,30 @@ def test_delete_accesslog(model, app, context):
     assert resp.content == b''
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 2
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'format': 'json',
-        'action': 'delete',
-        'method': 'DELETE',
-        'url': f'https://testserver/{model}/{id_}',
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-        'id': data['_id'],
-    }
+    assert len(accesslog) == 4
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'delete',
+            'method': 'DELETE',
+            'url': f'https://testserver/{model}/{id_}',
+            'client': 'test-client',
+            'model': model,
+            'id': data['_id'],
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -609,20 +792,31 @@ def test_pdf_delete_accesslog(model, app, context):
     assert resp.content == b''
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 3  # 3 accesses overall: POST, PUT, DELETE
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'format': 'json',
-        'action': 'delete',
-        'method': 'DELETE',
-        'url': f'https://testserver/{model}/{id_}/pdf',
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-        'prop': 'pdf',
-        'id': id_,
-    }
+    assert len(accesslog) == 6  # 3 accesses overall: POST, PUT, DELETE
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'delete',
+            'method': 'DELETE',
+            'url': f'https://testserver/{model}/{id_}/pdf',
+            'client': 'test-client',
+            'model': model,
+            'prop': 'pdf',
+            'id': id_,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 def _get_object_rev(app, model: str, id_: str) -> str:
@@ -638,35 +832,60 @@ def _get_object_rev(app, model: str, id_: str) -> str:
 )
 def test_pdf_ref_update_accesslog(model, app, context, tmpdir):
     app.authmodel(model, ['insert', 'update', 'getone', 'pdf_getone', 'pdf_update', 'pdf_delete'])
-    id_, rev, resp = _upload_pdf(model, app)
+    _id, rev, resp = _upload_pdf(model, app)
 
     image = pathlib.Path(tmpdir) / 'image.png'
     image.write_bytes(b'IMAGEDATA')
 
-    rev = _get_object_rev(app, model, id_)
-    resp = app.put(f'/{model}/{id_}/pdf:ref', json={
+    rev = _get_object_rev(app, model, _id)
+    resp = app.put(f'/{model}/{_id}/pdf:ref', json={
         '_id': 'image.png',
         '_revision': rev
     })
     assert resp.status_code == 200
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 4  # 4 accesses overall: POST, PUT, GET, PUT
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'rctype': 'application/json',
-        'format': 'json',
-        'action': 'update',
-        'method': 'PUT',
-        'url': f'https://testserver/{model}/{id_}/pdf:ref',
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'model': model,
-        'prop': 'pdf',
-        'id': id_,
-        'rev': rev,
-    }
+    srv = 'https://testserver'
+    assert [(
+        a['type'],
+        a.get('method'),
+        a.get('url'),
+    ) for a in accesslog] == [
+        ('request', 'POST', f'{srv}/{model}'),
+        ('response', None, None),
+        ('request', 'PUT', f'{srv}/{model}/{_id}/pdf'),
+        ('response', None, None),
+        ('request', 'GET', f'{srv}/{model}/{_id}'),
+        ('response', None, None),
+        ('request', 'PUT', f'{srv}/{model}/{_id}/pdf:ref'),
+        ('response', None, None),
+    ]
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'rctype': 'application/json',
+            'format': 'json',
+            'action': 'update',
+            'method': 'PUT',
+            'url': f'https://testserver/{model}/{_id}/pdf:ref',
+            'client': 'test-client',
+            'model': model,
+            'prop': 'pdf',
+            'id': _id,
+            'rev': rev,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -690,19 +909,30 @@ def test_batch_write(model, app, context, tmpdir):
     resp.raise_for_status()
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 1
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'rctype': 'application/json',
-        'format': 'json',
-        'action': 'insert',
-        'method': 'POST',
-        'url': f'https://testserver/{ns}',
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'ns': ns,
-    }
+    assert len(accesslog) == 2
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'rctype': 'application/json',
+            'format': 'json',
+            'action': 'insert',
+            'method': 'POST',
+            'url': f'https://testserver/{ns}',
+            'client': 'test-client',
+            'ns': ns,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -723,19 +953,30 @@ def test_stream_write(model, app, context, tmpdir):
     resp.raise_for_status()
 
     accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 1
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'rctype': 'application/x-ndjson',
-        'format': 'json',
-        'action': 'insert',
-        'method': 'POST',
-        'url': f'https://testserver/{ns}',
-        'txn': accesslog[-1]['txn'],
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'ns': ns,
-    }
+    assert len(accesslog) == 2
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'rctype': 'application/x-ndjson',
+            'format': 'json',
+            'action': 'insert',
+            'method': 'POST',
+            'url': f'https://testserver/{ns}',
+            'client': 'test-client',
+            'ns': ns,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': 1,
+        },
+    ]
 
 
 @pytest.mark.models(
@@ -750,25 +991,42 @@ def test_ns_read(model, app, context, tmpdir):
     resp = app.get(f'/{ns}/:ns/:all')
     assert resp.status_code == 200, resp.json()
 
-    accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 1
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'format': 'json',
-        'action': 'getall',
-        'method': 'GET',
-        'url': f'https://testserver/{ns}/:ns/:all',
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'ns': ns,
+    objects = {
+        'backends/mongo/report': 20,
+        'backends/postgres/report': 21,
     }
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 2
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'format': 'json',
+            'action': 'getall',
+            'method': 'GET',
+            'url': f'https://testserver/{ns}/:ns/:all',
+            'client': 'test-client',
+            'ns': ns,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': objects[model],
+        },
+    ]
 
 
 @pytest.mark.models(
     'backends/mongo/report',
     'backends/postgres/report',
 )
-def test_ns_read(model, app, context, tmpdir):
+def test_ns_read_csv(model, app, context, tmpdir):
     ns = model[:-len('/report')]
 
     app.authmodel(ns, ['getall'])
@@ -776,15 +1034,32 @@ def test_ns_read(model, app, context, tmpdir):
     resp = app.get(f'/{ns}/:ns/:all/:format/csv')
     assert resp.status_code == 200
 
-    accesslog = context.get('accesslog.stream')
-    assert len(accesslog) == 1
-    assert accesslog[-1] == {
-        'agent': 'testclient',
-        'format': 'csv',
-        'action': 'getall',
-        'method': 'GET',
-        'url': f'https://testserver/{ns}/:ns/:all/:format/csv',
-        'time': accesslog[-1]['time'],
-        'client': 'test-client',
-        'ns': ns,
+    objects = {
+        'backends/mongo/report': 20,
+        'backends/postgres/report': 21,
     }
+
+    accesslog = context.get('accesslog.stream')
+    assert len(accesslog) == 2
+    assert accesslog[-2:] == [
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'request',
+            'time': accesslog[-2]['time'],
+            'agent': 'testclient',
+            'format': 'csv',
+            'action': 'getall',
+            'method': 'GET',
+            'url': f'https://testserver/{ns}/:ns/:all/:format/csv',
+            'client': 'test-client',
+            'ns': ns,
+        },
+        {
+            'txn': accesslog[-2]['txn'],
+            'type': 'response',
+            'time': accesslog[-1]['time'],
+            'delta': accesslog[-1]['delta'],
+            'memory': accesslog[-1]['memory'],
+            'objects': objects[model],
+        },
+    ]
