@@ -2,6 +2,7 @@ import cgi
 import typing
 from typing import Any
 from typing import AsyncIterator, Union, Optional
+from typing import overload
 
 import itertools
 import json
@@ -19,6 +20,7 @@ from spinta import spyna
 from spinta import commands
 from spinta import exceptions
 from spinta.accesslog import AccessLog
+from spinta.accesslog import log_async_response
 from spinta.auth import check_scope
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
@@ -47,6 +49,7 @@ STREAMING_CONTENT_TYPES = [
 ]
 
 
+@overload
 @commands.push.register()
 async def push(
     context: Context,
@@ -80,6 +83,9 @@ async def push(
                           stop_on_error=stop_on_error,
                           url=request.url,
                           headers=request.headers)
+
+    dstream = log_async_response(context, dstream)
+
     batch = False
     if params.summary:
         status_code, response = await _summary_response(context, dstream)
@@ -101,6 +107,7 @@ async def push(
                   action=action, status_code=status_code, headers=headers)
 
 
+@overload
 @commands.push.register()  # noqa
 async def push(  # noqa
     context: Context,
@@ -112,7 +119,13 @@ async def push(  # noqa
     params: UrlParams,
 ) -> Response:
     if params.propref:
-        return await push[type(context), Request, DataType, type(backend)](
+        command = commands.push[
+            type(context),
+            Request,
+            DataType,
+            type(backend),
+        ]
+        return await command(
             context, request, scope, backend,
             action=action,
             params=params,
@@ -319,7 +332,7 @@ def _log_write(
     else:
         message['model'] = model.model_type()
 
-    accesslog.log(**message)
+    accesslog.request(**message)
 
 
 def _add_where(params: UrlParams, payload: dict):
@@ -354,7 +367,9 @@ async def _read_request_stream(
 ) -> AsyncIterator[DataItem]:
     transaction = context.get('transaction')
     _log_write(context, scope, None, action, None, {})
+    objects = 0
     async for line in splitlines(request.stream()):
+        objects += 1
         try:
             payload = json.loads(line.strip())
         except json.decoder.JSONDecodeError as e:

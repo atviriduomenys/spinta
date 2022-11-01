@@ -8,7 +8,6 @@ import dataclasses
 import datetime
 import pathlib
 import re
-from typing import cast
 
 import lxml.html
 import pprintpp as pprint

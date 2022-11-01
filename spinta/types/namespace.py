@@ -1,3 +1,4 @@
+import uuid
 import collections
 from typing import NamedTuple
 from typing import Union
@@ -34,6 +35,7 @@ from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.renderer import render
 from spinta.types.datatype import Ref
+from spinta.accesslog import log_response
 
 
 class NamespaceData(TypedDict):
@@ -131,12 +133,16 @@ async def getall(
 
     commands.authorize(context, action, ns)
 
+    accesslog = context.get('accesslog')
+    accesslog.request(
+        # XXX: Read operations does not have a transaction, but it
+        #      is needed for loging.
+        txn=str(uuid.uuid4()),
+        ns=ns.name,
+        action=action.value,
+    )
+
     if params.all and params.ns:
-        accesslog = context.get('accesslog')
-        accesslog.log(
-            ns=ns.name,
-            action=action.value,
-        )
 
         for model in traverse_ns_models(context, ns, action, internal=True):
             commands.authorize(context, action, model)
@@ -150,10 +156,6 @@ async def getall(
         )
     elif params.all:
         accesslog = context.get('accesslog')
-        accesslog.log(
-            ns=ns.name,
-            action=action.value,
-        )
 
         prepare_data_for_response_kwargs = {}
         for model in traverse_ns_models(context, ns, action, internal=True):
@@ -183,6 +185,7 @@ async def getall(
             )
             for row in rows
         )
+        rows = log_response(context, rows)
         return render(context, request, ns, params, rows, action=action)
     else:
         return _get_ns_content(context, request, ns, params, action)
@@ -318,7 +321,7 @@ def _get_ns_content(
         select_tree,
         auth=False,
     )
-    data = (
+    rows = (
         commands.prepare_data_for_response(
             context,
             model,
@@ -331,7 +334,9 @@ def _get_ns_content(
         for row in data
     )
 
-    return render(context, request, model, params, data, action=action)
+    rows = log_response(context, rows)
+
+    return render(context, request, model, params, rows, action=action)
 
 
 class _NodeAndData(NamedTuple):

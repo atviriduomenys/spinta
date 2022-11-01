@@ -46,7 +46,7 @@ async def push(
 
     transaction: WriteTransaction = context.get('transaction')
     accesslog: AccessLog = context.get('accesslog')
-    accesslog.log(
+    accesslog.request(
         model=prop.model.model_type(),
         prop=prop.place,
         action=action.value,

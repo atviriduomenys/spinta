@@ -1,3 +1,4 @@
+from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
 from spinta.testing.utils import create_manifest_files, read_manifest_files, readable_manifest_files
@@ -35,7 +36,13 @@ def configure(rc, path):
     })
 
 
-def test_create_model(postgresql, rc, cli: SpintaCliRunner, tmpdir, request):
+def test_create_model(
+    postgresql: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmpdir,
+    request,
+):
     rc = configure(rc, tmpdir)
 
     cli.invoke(rc, ['bootstrap'])

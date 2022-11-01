@@ -93,7 +93,8 @@ def _changes_offset(table, qry, offset):
                 qry.with_only_columns([
                     sa.func.max(table.c['_id']) - abs(offset),
                 ]).
-                order_by(None).alias()
+                order_by(None).
+                scalar_subquery()
             )
             return qry.where(table.c['_id'] > offset)
     else:
