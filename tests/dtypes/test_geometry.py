@@ -6,9 +6,11 @@ from pytest import FixtureRequest
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Store
 from spinta.core.config import RawConfig
+from spinta.formats.html.components import Cell
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
-from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
+from spinta.testing.request import render_data
 
 
 def test_geometry(
@@ -135,3 +137,42 @@ def test_geometry_params_srid(
             'coordinates': 'POINT (582710 6061887)',
         }
     ]
+
+
+def test_geometry_html(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property                   | type           | ref
+    example                                    |                |
+      |   |   | City                           |                |
+      |   |   |   | name                       | string         |
+      |   |   |   | coordinates                | geometry(3346) |
+    ''')
+    result = render_data(
+        context, manifest,
+        'example/City',
+        None,
+        accept='text/html',
+        data={
+            '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+            '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            'name': 'Vilnius',
+            'coordinates': 'POLYGON ((395799.2067999998 6191723.1116))',
+        },
+    )
+    assert result == {
+        '_id': Cell(
+            value='19e4f199',
+            link='/example/City/19e4f199-93c5-40e5-b04e-a575e81ac373',
+            color=None,
+        ),
+        'name': Cell(
+            value='Vilnius',
+        ),
+        'coordinates': Cell(
+            value='POLYGON',
+            link=None,
+            color=None,
+        ),
+    }
+
+

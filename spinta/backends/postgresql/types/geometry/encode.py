@@ -5,6 +5,8 @@ from urllib.parse import urlencode
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import to_shape
 
+from pyproj import Transformer
+
 from spinta import commands
 from spinta.formats.components import Format
 from spinta.components import Action
@@ -42,6 +44,14 @@ def prepare_dtype_for_response(
 ):
     shape = to_shape(value)
     point = shape.centroid
-    params = urlencode({'mlat': point.x, 'mlon': point.y})
-    link = f'https://www.openstreetmap.org/?{params}#map=19/{point.x}/{point.y}'
-    return Cell(shape.wkt, link=link)
+
+    if WKBElement.srid in [4326, -1]:
+        x, y = point.x, point.y
+    else:
+        proj = Transformer.from_proj(WKBElement.srid, 4326, always_xy=True)
+        x, y = proj.transform(point.x, point.y)
+
+    params = urlencode({'mlat': x, 'mlon': y})
+    link = f'https://www.openstreetmap.org/?{params}#map=19/{x}/{y}'
+
+    return Cell(shape.type == 'Point' and shape.wkt or shape.type.upper(), link=link)
