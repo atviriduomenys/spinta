@@ -932,3 +932,8 @@ def inspect(*args) -> Iterator[ManifestSchema]:
     comparing source names.
 
     """
+
+
+@command()
+def merge(context: Context, old: Any, new: Any) -> None:
+    """Merge new manifest into old."""

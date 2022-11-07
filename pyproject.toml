@@ -129,6 +129,10 @@ objprint = "^0.1.4"
 sphinx-rtd-theme = "^1.0.0"
 sqlalchemy-stubs = "^0.4"
 
+
+[tool.poetry.group.soap.dependencies]
+zeep = "^4.2.0"
+
 [_tool.poetry.extras]
 # Backends
 postgresql = [

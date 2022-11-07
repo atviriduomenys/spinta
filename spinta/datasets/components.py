@@ -42,6 +42,7 @@ class Dataset(MetaData):
     website: str = None
     projects: List[Project] = None
     resources: Dict[str, Resource] = None
+    source: Optional[str] = None  # metadata source
     title: str
     description: str
     given: DatasetGiven
@@ -82,6 +83,7 @@ class Dataset(MetaData):
                 'ctype': 'resource',
             }
         },
+        'source': {'type': 'string'},
     }
 
     def __init__(self):
