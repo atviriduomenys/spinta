@@ -30,31 +30,24 @@ def test_inspect(
         ],
     })
 
-    # Configure Spinta.
-    rc = configure(rc, None, tmpdir / 'manifest.csv', f'''
-    d | r | m | property     | type   | ref | source       | access
-    dataset                  |        |     |              |
-      | rs                   | sql    |     | {sqlite.dsn} |
-    ''')
-
-    cli.invoke(rc, ['inspect', '-o', tmpdir / 'result.csv'])
+    cli.invoke(rc, ['inspect', sqlite.dsn, '-o', tmpdir / 'result.csv'])
 
     # Check what was detected.
     manifest = load_manifest(rc, tmpdir / 'result.csv')
-    manifest.datasets['dataset'].resources['rs'].external = 'sqlite'
+    manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == '''
     d | r | b | m | property   | type    | ref     | source     | prepare
-    dataset                    |         |         |            |
-      | rs                     | sql     |         | sqlite     |
-                               |         |         |            |
-      |   |   | Country        |         | id      | COUNTRY    |
-      |   |   |   | id         | integer |         | ID         |
-      |   |   |   | code       | string  |         | CODE       |
-      |   |   |   | name       | string  |         | NAME       |
+    dbsqlite                   |         |         |            |
+      | resource1              | sql     |         | sqlite     |
                                |         |         |            |
       |   |   | City           |         |         | CITY       |
-      |   |   |   | name       | string  |         | NAME       |
       |   |   |   | country_id | ref     | Country | COUNTRY_ID |
+      |   |   |   | name       | string  |         | NAME       |
+                               |         |         |            |
+      |   |   | Country        |         | id      | COUNTRY    |
+      |   |   |   | code       | string  |         | CODE       |
+      |   |   |   | id         | integer |         | ID         |
+      |   |   |   | name       | string  |         | NAME       |
     '''
 
 
@@ -72,14 +65,15 @@ def test_inspect_from_manifest_table(
         ],
     })
 
-    create_tabular_manifest(tmpdir / 'manifest.csv', f'''
-    d | r | m | property     | type   | ref | source       | access
-    dataset                  |        |     |              |
-      | rs                   | sql    |     | {sqlite.dsn} |
+    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+    d | r | m | property     | type   | ref | source | access
+    dataset                  |        |     |        |
+      | rs                   | sql    |     |        |
     ''')
 
     cli.invoke(rc, [
         'inspect', tmpdir / 'manifest.csv',
+        '-r', 'sql', sqlite.dsn,
         '-o', tmpdir / 'result.csv',
     ])
 

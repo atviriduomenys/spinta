@@ -1,3 +1,4 @@
+import pathlib
 from typing import Any
 from typing import Dict
 from typing import List, Iterable, Optional
@@ -15,6 +16,7 @@ from spinta.datasets.components import Entity
 from spinta.datasets.components import Resource
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.prefix.helpers import load_prefixes
+from spinta.exceptions import ManifestFileDoesNotExist
 from spinta.exceptions import UnknownKeyMap
 from spinta.manifests.components import ManifestSchema
 from spinta.nodes import get_node
@@ -303,11 +305,34 @@ def dataset_to_schema(dataset: Dataset) -> ManifestSchema:
 
 
 def detect_manifest_from_path(rc: RawConfig, path: str) -> Type[Manifest]:
-    for type_ in rc.keys('components', 'manifests'):
+    for name in rc.keys('components', 'manifests'):
         Manifest_: Type[Manifest] = rc.get(
-            'components', 'manifests', type_,
+            'components', 'manifests', name,
             cast=importstr,
         )
         if Manifest_.detect_from_path(path):
             return Manifest_
-    raise ValueError(f"Can't find manifest type matching given path {path!r}")
+    raise ValueError(
+        f"Can't find manifest type matching given path {path!r}"
+    )
+
+
+def get_manifest_from_type(rc: RawConfig, type_: str) -> Type[Manifest]:
+    for name in rc.keys('components', 'manifests'):
+        Manifest_: Type[Manifest] = rc.get(
+            'components', 'manifests', name,
+            cast=importstr,
+        )
+        if Manifest_.type == type_:
+            return Manifest_
+    raise ValueError(
+        f"Can't find manifest component matching given type {type_!r}"
+    )
+
+
+def check_manifest_path(manifest: Manifest, path: str) -> None:
+    if (
+        not path.startswith(('http://', 'https://')) and
+        not pathlib.Path(path).exists()
+    ):
+        raise ManifestFileDoesNotExist(manifest, path=path)
