@@ -192,6 +192,8 @@ def test_comment(tmpdir, rc):
     datasets/gov/example     |         |        |         |         |            |
                              | enum    | no     | 0       |         |            |
                              |         | yes    | 1       |         |            |
+      | resource1            | sql     |        |         |         |            |
+                             | comment | Name1  |         | private | 2022-01-01 | Comment 1.
                              |         |        |         |         |            |
       |   |   | Bool         |         |        |         |         |            |
                              | comment | Name1  |         | private | 2022-01-01 | Comment 1.

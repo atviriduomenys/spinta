@@ -6,6 +6,10 @@ Changes
 0.1.42 (unreleased)
 ===================
 
+Improvements:
+
+- Add support for comments in resources..
+
 
 0.1.41 (2022-11-08)
 ===================
