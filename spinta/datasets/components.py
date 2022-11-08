@@ -115,6 +115,7 @@ class Resource(External):
     models: Dict[str, Model]
     given: ResourceGiven
     lang: LangData = None
+    comments: List[Comment] = None
 
     schema = {
         'type': {'type': 'string'},
@@ -147,6 +148,7 @@ class Resource(External):
         },
         'title': {'type': 'string'},
         'description': {'type': 'string'},
+        'comments': {},
     }
 
     def __init__(self):

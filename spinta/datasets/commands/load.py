@@ -1,6 +1,7 @@
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import overload
 
 from spinta import commands
 from spinta import spyna
@@ -21,8 +22,10 @@ from spinta.core.access import load_access_param
 from spinta.types.namespace import load_namespace_from_name
 from spinta.utils.data import take
 from spinta.utils.schema import NA
+from spinta.dimensions.comments.helpers import load_comments
 
 
+@overload
 @commands.load.register(Context, Dataset, dict, Manifest)
 def load(
     context: Context,
@@ -59,11 +62,17 @@ def load(
         resource.type = params.get('type')
         resource.name = name
         resource.dataset = dataset
-        dataset.resources[name] = load(context, resource, params, manifest)
+        dataset.resources[name] = commands.load(
+            context,
+            resource,
+            params,
+            manifest,
+        )
 
     return dataset
 
 
+@overload
 @commands.load.register(Context, Resource, dict, Manifest)
 def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     load_node(context, resource, data, parent=resource.dataset)
@@ -76,6 +85,7 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
         resource.prepare = asttoexpr(formula)
     load_access_param(resource, data.get('access'), (resource.dataset,))
     resource.lang = load_lang_data(context, resource.lang)
+    resource.comments = load_comments(resource, resource.comments)
     resource.backend = load_resource_backend(
         context,
         resource,
@@ -102,6 +112,7 @@ def _check_unknown_keys(
         )
 
 
+@overload
 @commands.load.register(Context, Entity, dict, Manifest)
 def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
     # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
@@ -121,6 +132,7 @@ def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
     return entity
 
 
+@overload
 @commands.load.register(Context, Attribute, dict, Manifest)
 def load(context: Context, attr: Attribute, data: dict, manifest: Manifest):
     if attr.prepare:

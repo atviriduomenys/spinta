@@ -1420,6 +1420,7 @@ def _resource_to_tabular(
     resource: Resource,
     *,
     external: bool = True,
+    access: Access = Access.private,
 ) -> Iterator[ManifestRow]:
     backend = resource.backend
     yield torow(DATASET, {
@@ -1441,6 +1442,7 @@ def _resource_to_tabular(
         'title': resource.title,
         'description': resource.description,
     })
+    yield from _comments_to_tabular(resource.comments, access=access)
     yield from _lang_to_tabular(resource.lang)
 
 
@@ -1610,7 +1612,11 @@ def datasets_to_tabular(
                 resource = model.external.resource
                 if resource:
                     separator = True
-                    yield from _resource_to_tabular(resource, external=external)
+                    yield from _resource_to_tabular(
+                        resource,
+                        external=external,
+                        access=access,
+                    )
 
         if separator:
             yield torow(DATASET, {})
