@@ -6,6 +6,13 @@ Changes
 0.1.41 (unreleased)
 ===================
 
+Improvements:
+
+- Add support for HTML format in manifest files, without actual backend
+  implementing it. (`#318`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/318
+
 
 0.1.40 (2022-11-01)
 ===================
