@@ -145,7 +145,7 @@ def test_geometry_html(rc: RawConfig):
     example                                    |                |
       |   |   | City                           |                |
       |   |   |   | name                       | string         |
-      |   |   |   | coordinates                | geometry(3346) |
+      |   |   |   | coordinates                | geometry(4326) |
     ''')
     result = render_data(
         context, manifest,
@@ -156,7 +156,7 @@ def test_geometry_html(rc: RawConfig):
             '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
             '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
             'name': 'Vilnius',
-            'coordinates': 'POLYGON ((395799.2067999998 6191723.1116))',
+            'coordinates': 'POLYGON',
         },
     )
     assert result == {
