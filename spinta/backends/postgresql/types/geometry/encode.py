@@ -2,10 +2,12 @@ from typing import Any
 from typing import Dict
 from urllib.parse import urlencode
 
+from pyproj import CRS, Transformer
+from shapely.ops import transform
+
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import to_shape
 
-from pyproj import Transformer
 
 from spinta import commands
 from spinta.formats.components import Format
@@ -42,16 +44,17 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    shape = to_shape(value)
-    point = shape.centroid
-
-    if WKBElement.srid in [4326, -1]:
-        x, y = point.x, point.y
+    if WKBElement.srid not in [4326, -1]:
+        wgs_crs = CRS('EPSG:4326')
+        srid_crs = CRS(f'EPSG:{WKBElement.srid}')
+        project = Transformer.from_crs(crs_from=srid_crs, crs_to=wgs_crs, always_xy=True).transform
+        shape = transform(project, to_shape(value))
     else:
-        proj = Transformer.from_proj(WKBElement.srid, 4326, always_xy=True)
-        x, y = proj.transform(point.x, point.y)
+        shape = to_shape(value)
 
+    point = shape.centroid
+    x, y = point.x, point.y
     params = urlencode({'mlat': x, 'mlon': y})
     link = f'https://www.openstreetmap.org/?{params}#map=19/{x}/{y}'
-
-    return Cell(shape.type == 'Point' and shape.wkt or shape.type.upper(), link=link)
+    shape_type = shape.type == 'Point' and shape.wkt or shape.type.upper()
+    return Cell(shape_type, link=link)

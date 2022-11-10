@@ -176,3 +176,92 @@ def test_geometry_html(rc: RawConfig):
     }
 
 
+def test_geometry_coordinates_in_wgs(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                   | type           | ref
+        backends/postgres/dtypes/geometry/srid     |                |
+          |   |   | City                           |                |
+          |   |   |   | name                       | string         |
+          |   |   |   | coordinates                | geometry(4326) | WGS
+        ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/srid'
+    model: str = f'{ns}/City'
+
+    store: Store = context.get('store')
+    backend = cast(PostgreSQL, store.backends['default'])
+    coordinates = cast(sa.Column, backend.tables[model].columns['coordinates'])
+    assert coordinates.type.srid == 4326
+    assert coordinates.type.geometry_type == 'POINT'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+        'getall',
+    ])
+
+    # Write data
+    resp = app.post(f'/{model}', json={
+        'name': "Vilnius",
+        'coordinates': 'SRID=4326;POINT(582710 6061887)',
+    })
+    assert resp.status_code == 201
+
+    # Read data
+    resp = app.get(f'/{model}')
+    assert listdata(resp, full=True) == [
+        {
+            'name': "Vilnius",
+            'coordinates': 'POINT (582710 6061887)',
+        }
+    ]
+
+
+def test_geometry_coordinates_transform_in_lks(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                   | type           | ref
+        backends/postgres/dtypes/geometry/srid     |                |
+          |   |   | City                           |                |
+          |   |   |   | name                       | string         |
+          |   |   |   | coordinates                | geometry(3346) | LKS
+        ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/srid'
+    model: str = f'{ns}/City'
+
+    store: Store = context.get('store')
+    backend = cast(PostgreSQL, store.backends['default'])
+    coordinates = cast(sa.Column, backend.tables[model].columns['coordinates'])
+    assert coordinates.type.srid == 3346
+    assert coordinates.type.geometry_type == 'POINT'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+        'getall',
+    ])
+
+    # Write data
+    resp = app.post(f'/{model}', json={
+        'name': "Vilnius",
+        'coordinates': 'SRID=3346;POINT(582710 6061887)',
+    })
+    assert resp.status_code == 201
+
+    # Read data
+    resp = app.get(f'/{model}')
+    assert listdata(resp, full=True) == [
+        {
+            'name': "Vilnius",
+            'coordinates': 'POINT (25.282777879597916 54.68661318326901)',
+        }
+    ]
+
