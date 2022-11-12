@@ -1,12 +1,19 @@
 from typing import cast
 
 import sqlalchemy as sa
+
+import pytest
 from pytest import FixtureRequest
 
+import shapely.geometry as geom
+from geoalchemy2 import shape
+
+from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Store
+from spinta.components import Action
 from spinta.core.config import RawConfig
-from spinta.formats.html.components import Cell
+from spinta.formats.html.components import Cell, Html
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
@@ -176,92 +183,74 @@ def test_geometry_html(rc: RawConfig):
     }
 
 
-def test_geometry_coordinates_in_wgs(
-    rc: RawConfig,
-    postgresql: str,
-    request: FixtureRequest,
-):
-    context = bootstrap_manifest(rc, f'''
-        d | r | b | m | property                   | type           | ref
-        backends/postgres/dtypes/geometry/srid     |                |
-          |   |   | City                           |                |
-          |   |   |   | name                       | string         |
-          |   |   |   | coordinates                | geometry(4326) | WGS
-        ''', backend=postgresql, request=request)
+@pytest.mark.parametrize('value, cell', [
+    ({'geom_type': 'Point', 'geom_value': [582710, 6061887], 'srid': 4326},
+     Cell(value='POINT (582710 6061887)',
+          link='https://www.openstreetmap.org/?mlat=582710.0&mlon=6061887.0#map=19/582710.0/6061887.0')),
+    ({'geom_type': 'Polygon', 'geom_value': [[[502640, 6035299], [502633, 6035297], [502631, 6035305]]], 'srid': 4326},
+     Cell(value='POLYGON', link='https://www.openstreetmap.org/?mlat=502634.6666666667&mlon=6035300.333333333'
+                                '#map=19/502634.6666666667/6035300.333333333')),
+])
+def test_geometry_coordinates_in_wgs_html(rc: RawConfig, value, cell):
+    context, manifest = load_manifest_and_context(rc, f'''
+        d | r | b | m | property                   | type           | ref   | description
+        example                                    |                |       |
+          |   |   | City                           |                |       |
+          |   |   |   | name                       | string         |       |
+          |   |   |   | coordinates                | geometry(4326) |       | WGS
+        ''')
+    fmt = Html()
+    dtype = manifest.models['example/City'].properties['coordinates'].dtype
+    geom_func = getattr(geom, value['geom_type'])
+    geometry = geom_func(*value['geom_value'])
+    wkb_element = shape.from_shape(shape=geometry, srid=value['srid'])
 
-    ns: str = 'backends/postgres/dtypes/geometry/srid'
-    model: str = f'{ns}/City'
-
-    store: Store = context.get('store')
-    backend = cast(PostgreSQL, store.backends['default'])
-    coordinates = cast(sa.Column, backend.tables[model].columns['coordinates'])
-    assert coordinates.type.srid == 4326
-    assert coordinates.type.geometry_type == 'POINT'
-
-    app = create_test_client(context)
-    app.authmodel(model, [
-        'insert',
-        'getall',
-    ])
-
-    # Write data
-    resp = app.post(f'/{model}', json={
-        'name': "Vilnius",
-        'coordinates': 'SRID=4326;POINT(582710 6061887)',
-    })
-    assert resp.status_code == 201
-
-    # Read data
-    resp = app.get(f'/{model}')
-    assert listdata(resp, full=True) == [
-        {
-            'name': "Vilnius",
-            'coordinates': 'POINT (582710 6061887)',
-        }
-    ]
+    result = commands.prepare_dtype_for_response(
+        context,
+        fmt,
+        dtype,
+        wkb_element,
+        data={},
+        action=Action.GETALL,
+        select=None,
+    )
+    assert result.value == cell.value
+    assert result.link == cell.link
+    assert result.color == cell.color
 
 
-def test_geometry_coordinates_transform_in_lks(
-    rc: RawConfig,
-    postgresql: str,
-    request: FixtureRequest,
-):
-    context = bootstrap_manifest(rc, f'''
-        d | r | b | m | property                   | type           | ref
-        backends/postgres/dtypes/geometry/srid     |                |
-          |   |   | City                           |                |
-          |   |   |   | name                       | string         |
-          |   |   |   | coordinates                | geometry(3346) | LKS
-        ''', backend=postgresql, request=request)
+@pytest.mark.parametrize('value, cell', [
+    ({'geom_type': 'Point', 'geom_value': [582710, 6061887], 'srid': 3346},
+     Cell(value='POINT (25.282777879597916 54.68661318326901)',
+          link='https://www.openstreetmap.org/?mlat=25.282777879597916&mlon=54.68661318326901'
+               '#map=19/25.282777879597916/54.68661318326901')),
+    ({'geom_type': 'Polygon', 'geom_value': [[[502640, 6035299], [502633, 6035297], [502631, 6035305]]], 'srid': 3346},
+     Cell(value='POLYGON', link='https://www.openstreetmap.org/?mlat=24.04062933993993&mlon=54.45450719714709'
+                                '#map=19/24.04062933993993/54.45450719714709')),
+])
+def test_geometry_coordinates_in_lks_html(rc: RawConfig, value, cell):
+    context, manifest = load_manifest_and_context(rc, f'''
+        d | r | b | m | property                   | type           | ref   | description
+        example                                    |                |       |
+          |   |   | City                           |                |       |
+          |   |   |   | name                       | string         |       |
+          |   |   |   | coordinates                | geometry(3346) |       | LKS
+        ''')
+    fmt = Html()
+    dtype = manifest.models['example/City'].properties['coordinates'].dtype
+    geom_func = getattr(geom, value['geom_type'])
+    geometry = geom_func(*value['geom_value'])
+    wkb_element = shape.from_shape(shape=geometry, srid=value['srid'])
 
-    ns: str = 'backends/postgres/dtypes/geometry/srid'
-    model: str = f'{ns}/City'
-
-    store: Store = context.get('store')
-    backend = cast(PostgreSQL, store.backends['default'])
-    coordinates = cast(sa.Column, backend.tables[model].columns['coordinates'])
-    assert coordinates.type.srid == 3346
-    assert coordinates.type.geometry_type == 'POINT'
-
-    app = create_test_client(context)
-    app.authmodel(model, [
-        'insert',
-        'getall',
-    ])
-
-    # Write data
-    resp = app.post(f'/{model}', json={
-        'name': "Vilnius",
-        'coordinates': 'SRID=3346;POINT(582710 6061887)',
-    })
-    assert resp.status_code == 201
-
-    # Read data
-    resp = app.get(f'/{model}')
-    assert listdata(resp, full=True) == [
-        {
-            'name': "Vilnius",
-            'coordinates': 'POINT (25.282777879597916 54.68661318326901)',
-        }
-    ]
-
+    result = commands.prepare_dtype_for_response(
+        context,
+        fmt,
+        dtype,
+        wkb_element,
+        data={},
+        action=Action.GETALL,
+        select=None,
+    )
+    assert result.value == cell.value
+    assert result.link == cell.link
+    assert result.color == cell.color

@@ -44,9 +44,9 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if WKBElement.srid not in [4326, -1]:
+    if value.srid not in [4326, -1]:
         wgs_crs = CRS('EPSG:4326')
-        srid_crs = CRS(f'EPSG:{WKBElement.srid}')
+        srid_crs = CRS(f'EPSG:{value.srid}')
         project = Transformer.from_crs(crs_from=srid_crs, crs_to=wgs_crs, always_xy=True).transform
         shape = transform(project, to_shape(value))
     else:
