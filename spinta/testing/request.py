@@ -17,7 +17,7 @@ from spinta.auth import AdminToken
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.renderer import render
-from spinta.formats.html.commands import _build_template_context
+from spinta.formats.html.commands import build_template_context
 from spinta.formats.html.components import Cell
 
 
@@ -107,7 +107,7 @@ def _get_html_template_context(
     params: UrlParams,
     rows: Iterable[Dict[str, Cell]],
 ):
-    ctx = _build_template_context(context, model, action, params, rows)
+    ctx = build_template_context(context, model, action, params, rows)
     resp = next(ctx['data'], None)
     if resp is not None:
         resp = dict(zip(ctx['header'], resp))
