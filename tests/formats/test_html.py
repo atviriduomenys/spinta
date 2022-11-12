@@ -567,3 +567,51 @@ def test_select_join_multiple_props(rc: RawConfig):
         ),
         'country.name': Cell(value='Lithuania', link=None, color=None),
     }
+
+
+def test_recursive_refs(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property | type    | ref      | access
+    example                  |         |          |
+      |   |   | Category     |         |          |
+      |   |   |   | name     | string  |          | open
+      |   |   |   | parent   | ref     | Category | open
+    ''')
+    result = render_data(
+        context, manifest,
+        'example/Category/262f6c72-4284-4d26-b9b0-e282bfe46a46',
+        query=None,
+        accept='text/html',
+        data={
+            '_id': '262f6c72-4284-4d26-b9b0-e282bfe46a46',
+            '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            '_type': 'example/Category',
+            'name': 'Leaf',
+            'parent': {
+                '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+            },
+        },
+    )
+    assert result == {
+        '_id': Cell(
+            value='262f6c72',
+            link='/example/Category/262f6c72-4284-4d26-b9b0-e282bfe46a46',
+            color=None,
+        ),
+        '_revision': Cell(
+            value='b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            link=None,
+            color=None,
+        ),
+        '_type': Cell(
+            value='example/Category',
+            link=None,
+            color=None,
+        ),
+        'name': Cell(value='Leaf', link=None, color=None),
+        'parent._id': Cell(
+            value='19e4f199',
+            link='/example/Category/19e4f199-93c5-40e5-b04e-a575e81ac373',
+            color=None,
+        ),
+    }

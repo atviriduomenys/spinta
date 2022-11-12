@@ -6,6 +6,12 @@ Changes
 0.1.43 (unreleased)
 ===================
 
+Bug fixes:
+
+- Fix recursion error on getone (`#255`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/255
+
 
 0.1.42 (2022-11-08)
 ===================
