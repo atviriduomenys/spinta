@@ -224,9 +224,9 @@ def test_geometry_coordinates_in_wgs_html(rc: RawConfig, value, cell):
      Cell(value='POINT (25.282777879597916 54.68661318326901)',
           link='https://www.openstreetmap.org/?mlat=25.282777879597916&mlon=54.68661318326901'
                '#map=19/25.282777879597916/54.68661318326901')),
-    ({'geom_type': 'Polygon', 'geom_value': [[[502640, 6035299], [502633, 6035297], [502631, 6035305]]], 'srid': 3346},
-     Cell(value='POLYGON', link='https://www.openstreetmap.org/?mlat=24.04062933993993&mlon=54.45450719714709'
-                                '#map=19/24.04062933993993/54.45450719714709')),
+    ({'geom_type': 'Polygon', 'geom_value': [[[502640, 6035290], [502630, 6035290], [502630, 6035300]]], 'srid': 3346},
+     Cell(value='POLYGON', link='https://www.openstreetmap.org/?mlat=24.040608716271&mlon=54.454444306004426'
+                                '#map=19/24.040608716271/54.454444306004426')),
 ])
 def test_geometry_coordinates_in_lks_html(rc: RawConfig, value, cell):
     context, manifest = load_manifest_and_context(rc, f'''
