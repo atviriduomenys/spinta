@@ -1,11 +1,11 @@
 import datetime
+import os
 import time
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
-from typing import Optional
 from typing import TypeVar
 from typing import AsyncIterator
 from typing import overload
@@ -59,6 +59,7 @@ class AccessLog:
         self.memory = self._get_memory()
         message = {
             'time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'pid': os.getpid(),
             'type': 'request',
             'method': method or self.method,
             'action': action,

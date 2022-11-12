@@ -6,6 +6,10 @@ Changes
 0.1.43 (unreleased)
 ===================
 
+Improvements:
+
+- Add `pid` (process id) to `request` messages in access log.
+
 Bug fixes:
 
 - Fix recursion error on getone (`#255`__).
