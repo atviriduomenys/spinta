@@ -99,6 +99,7 @@ CONFIG = {
             'image': 'spinta.types.datatype:Image',
             'geometry': 'spinta.types.geometry.components:Geometry',
             'spatial': 'spinta.types.geometry.components:Spatial',
+            'money': 'spinta.types.money.components:Money',
             'ref': 'spinta.types.datatype:Ref',
             'backref': 'spinta.types.datatype:BackRef',
             'generic': 'spinta.types.datatype:Generic',
