@@ -15,7 +15,7 @@ def test_money(
     backends/postgres/dtypes/money             |                |
       |   |   | City                           |                |
       |   |   |   | name                       | string         |
-      |   |   |   | salary                     | money          |
+      |   |   |   | salary                     | money          | EUR
     ''', backend=postgresql, request=request)
 
     model: str = 'backends/postgres/dtypes/money/City'
@@ -29,10 +29,7 @@ def test_money(
     # Write data
     resp = app.post(f'/{model}', json={
         'name': "Vilnius",
-        'salary': {
-            '_amount': 100,
-            '_currency': 'EUR',
-        }
+        'salary': 100
     })
     assert resp.status_code == 201
 
@@ -41,9 +38,6 @@ def test_money(
     assert listdata(resp, full=True) == [
         {
             'name': "Vilnius",
-            'salary': {
-                '_amount': 100,
-                '_currency': 'EUR',
-            }
+            'salary': 100
         }
     ]
