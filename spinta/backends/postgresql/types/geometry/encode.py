@@ -8,6 +8,7 @@ from shapely.ops import transform
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import to_shape
 
+from shapely.geometry import Point
 
 from spinta import commands
 from spinta.formats.components import Format
@@ -16,6 +17,7 @@ from spinta.components import Context
 from spinta.formats.html.components import Cell
 from spinta.formats.html.components import Html
 from spinta.types.geometry.components import Geometry
+from spinta.backends.postgresql.constants import WGS84
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Geometry, WKBElement)
@@ -44,10 +46,10 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value.srid not in [4326, -1]:
-        wgs_crs = CRS('EPSG:4326')
-        srid_crs = CRS(f'EPSG:{value.srid}')
-        project = Transformer.from_crs(crs_from=srid_crs, crs_to=wgs_crs, always_xy=True).transform
+    if value.srid not in [WGS84, -1]:
+        wgs_crs = CRS(f'EPSG:{WGS84}')
+        value_crs = CRS(f'EPSG:{value.srid}')
+        project = Transformer.from_crs(crs_from=value_crs, crs_to=wgs_crs, always_xy=True).transform
         shape = transform(project, to_shape(value))
     else:
         shape = to_shape(value)
@@ -56,5 +58,9 @@ def prepare_dtype_for_response(
     x, y = point.x, point.y
     params = urlencode({'mlat': x, 'mlon': y})
     link = f'https://www.openstreetmap.org/?{params}#map=19/{x}/{y}'
-    shape_type = shape.type == 'Point' and shape.wkt or shape.type.upper()
-    return Cell(shape_type, link=link)
+    if isinstance(shape, Point):
+        value = shape.wkt
+    else:
+        # Shorten possibly long WKT values by reducing it to shape type.
+        value = shape.type.upper()
+    return Cell(value, link=link)

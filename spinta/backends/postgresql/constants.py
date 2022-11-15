@@ -8,3 +8,6 @@ UNSUPPORTED_TYPES = [
     'generic',
     'rql',
 ]
+
+WGS84 = 4326
+LKS94 = 3346

@@ -18,6 +18,7 @@ from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.testing.request import render_data
+from spinta.backends.postgresql.constants import WGS84, LKS94
 
 
 def test_geometry(
@@ -184,20 +185,53 @@ def test_geometry_html(rc: RawConfig):
 
 
 @pytest.mark.parametrize('value, cell', [
-    ({'geom_type': 'Point', 'geom_value': [582710, 6061887], 'srid': 4326},
-     Cell(value='POINT (582710 6061887)',
-          link='https://www.openstreetmap.org/?mlat=582710.0&mlon=6061887.0#map=19/582710.0/6061887.0')),
-    ({'geom_type': 'Polygon', 'geom_value': [[[502640, 6035299], [502633, 6035297], [502631, 6035305]]], 'srid': 4326},
-     Cell(value='POLYGON', link='https://www.openstreetmap.org/?mlat=502634.6666666667&mlon=6035300.333333333'
-                                '#map=19/502634.6666666667/6035300.333333333')),
+    (
+        {
+            'geom_type': 'Point',
+            'geom_value': [582710, 6061887],
+            'srid': WGS84
+        },
+        Cell(value='POINT (582710 6061887)',
+             link='https://www.openstreetmap.org/?mlat=582710.0&mlon=6061887.0#map=19/582710.0/6061887.0')
+    ),
+    (
+        {
+            'geom_type': 'Point',
+            'geom_value': [582710, 6061887],
+            'srid': LKS94
+        },
+        Cell(value='POINT (25.282777879597916 54.68661318326901)',
+             link='https://www.openstreetmap.org/?mlat=25.282777879597916&mlon=54.68661318326901'
+                  '#map=19/25.282777879597916/54.68661318326901')
+    ),
+    (
+        {
+            'geom_type': 'Polygon',
+            'geom_value': [[[502640, 6035290], [502630, 6035290], [502630, 6035300]]],
+            'srid': WGS84
+        },
+        Cell(value='POLYGON',
+             link='https://www.openstreetmap.org/?mlat=502633.3333333334&mlon=6035293.333333334'
+                  '#map=19/502633.3333333334/6035293.333333334')
+    ),
+    (
+        {
+            'geom_type': 'Polygon',
+            'geom_value': [[[502640, 6035290], [502630, 6035290], [502630, 6035300]]],
+            'srid': LKS94
+        },
+        Cell(value='POLYGON',
+             link='https://www.openstreetmap.org/?mlat=24.040608716271&mlon=54.454444306004426'
+                  '#map=19/24.040608716271/54.454444306004426')
+    ),
 ])
-def test_geometry_coordinates_in_wgs_html(rc: RawConfig, value, cell):
+def test_geometry_coordinate_tansformation(rc: RawConfig, value, cell):
     context, manifest = load_manifest_and_context(rc, f'''
         d | r | b | m | property                   | type           | ref   | description
         example                                    |                |       |
           |   |   | City                           |                |       |
           |   |   |   | name                       | string         |       |
-          |   |   |   | coordinates                | geometry(4326) |       | WGS
+          |   |   |   | coordinates                | geometry       |       | WGS(LKS)
         ''')
     fmt = Html()
     dtype = manifest.models['example/City'].properties['coordinates'].dtype
@@ -220,21 +254,30 @@ def test_geometry_coordinates_in_wgs_html(rc: RawConfig, value, cell):
 
 
 @pytest.mark.parametrize('value, cell', [
-    ({'geom_type': 'Point', 'geom_value': [582710, 6061887], 'srid': 3346},
-     Cell(value='POINT (25.282777879597916 54.68661318326901)',
-          link='https://www.openstreetmap.org/?mlat=25.282777879597916&mlon=54.68661318326901'
-               '#map=19/25.282777879597916/54.68661318326901')),
-    ({'geom_type': 'Polygon', 'geom_value': [[[502640, 6035290], [502630, 6035290], [502630, 6035300]]], 'srid': 3346},
-     Cell(value='POLYGON', link='https://www.openstreetmap.org/?mlat=24.040608716271&mlon=54.454444306004426'
-                                '#map=19/24.040608716271/54.454444306004426')),
+    (
+        {
+            'geom_type': 'Point',
+            'geom_value': [582710, 6061887],
+            'srid': WGS84
+        },
+        Cell(value='POINT (582710 6061887)', link=None)
+    ),
+    (
+        {
+            'geom_type': 'Polygon',
+            'geom_value': [[[502640, 6035290], [502630, 6035290], [502630, 6035300]]],
+            'srid': WGS84
+        },
+        Cell(value='POLYGON', link=None)
+    ),
 ])
-def test_geometry_coordinates_in_lks_html(rc: RawConfig, value, cell):
+def test_geometry_wkt_value_shortening(rc: RawConfig, value, cell):
     context, manifest = load_manifest_and_context(rc, f'''
         d | r | b | m | property                   | type           | ref   | description
         example                                    |                |       |
           |   |   | City                           |                |       |
           |   |   |   | name                       | string         |       |
-          |   |   |   | coordinates                | geometry(3346) |       | LKS
+          |   |   |   | coordinates                | geometry       |       | WGS
         ''')
     fmt = Html()
     dtype = manifest.models['example/City'].properties['coordinates'].dtype
@@ -252,5 +295,3 @@ def test_geometry_coordinates_in_lks_html(rc: RawConfig, value, cell):
         select=None,
     )
     assert result.value == cell.value
-    assert result.link == cell.link
-    assert result.color == cell.color
