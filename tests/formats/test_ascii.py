@@ -108,25 +108,28 @@ async def test_export_multiple_types(rc: RawConfig):
         '\n'
         '\n'
         'Table: example/A\n'
-        '  _type     _id    _revision   value\n'
-        '====================================\n'
-        'example/A   None   None        1    \n'
-        'example/A   None   None        2    \n'
-        'example/A   None   None        3    \n'
+        '---------  ---  ---------  -----\n'
+        '_type      _id  _revision  value\n'
+        'example/A  ∅    ∅          1\n'
+        'example/A  ∅    ∅          2\n'
+        'example/A  ∅    ∅          3\n'
+        '---------  ---  ---------  -----\n'
         '\n'
         'Table: example/B\n'
-        '  _type     _id    _revision   value\n'
-        '====================================\n'
-        'example/B   None   None        1    \n'
-        'example/B   None   None        2    \n'
-        'example/B   None   None        3    \n'
+        '---------  ---  ---------  -----\n'
+        '_type      _id  _revision  value\n'
+        'example/B  ∅    ∅          1\n'
+        'example/B  ∅    ∅          2\n'
+        'example/B  ∅    ∅          3\n'
+        '---------  ---  ---------  -----\n'
         '\n'
         'Table: example/C\n'
-        '  _type     _id    _revision   value\n'
-        '====================================\n'
-        'example/C   None   None        1    \n'
-        'example/C   None   None        2    \n'
-        'example/C   None   None        3    '
+        '---------  ---  ---------  -----\n'
+        '_type      _id  _revision  value\n'
+        'example/C  ∅    ∅          1\n'
+        'example/C  ∅    ∅          2\n'
+        'example/C  ∅    ∅          3\n'
+        '---------  ---  ---------  -----'
     )
 
 
@@ -181,9 +184,10 @@ def test_ascii_ref_dtype(
     })
 
     assert app.get('/example/ascii/ref/City/:format/ascii?select(name, country)').text == (
-        ' name                 country._id             \n'
-        '==============================================\n'
-        f'Vilnius   {country["_id"]}'
+        '-------  ------------------------------------\n'
+        'name     country._id\n'
+        f'Vilnius  {country["_id"]}\n'
+        '-------  ------------------------------------'
     )
 
 
@@ -213,9 +217,10 @@ def test_ascii_file_dtype(
     })
 
     assert app.get('/example/ascii/file/Country/:format/ascii?select(name, flag)').text == (
-        '  name      flag._id   flag._content_type\n'
-        '=========================================\n'
-        'Lithuania   file.txt   text/plain        '
+        '---------  --------  ------------------\n'
+        'name       flag._id  flag._content_type\n'
+        'Lithuania  file.txt  text/plain\n'
+        '---------  --------  ------------------'
     )
 
 
@@ -247,7 +252,8 @@ async def test_ascii_getone(
         '',
         '',
         'Table: example/City',
-        '   _type                       _id                                 _revision                  name  ',
-        '====================================================================================================',
-        'example/City   19e4f199-93c5-40e5-b04e-a575e81ac373   b6197bb7-3592-4cdb-a61c-5a618f44950c   Vilnius',
+        '------------  ------------------------------------  ------------------------------------  -------',
+        '_type         _id                                   _revision                             name',
+        'example/City  19e4f199-93c5-40e5-b04e-a575e81ac373  b6197bb7-3592-4cdb-a61c-5a618f44950c  Vilnius',
+        '------------  ------------------------------------  ------------------------------------  -------',
     ]
