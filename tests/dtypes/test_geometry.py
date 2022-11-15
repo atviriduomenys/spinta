@@ -18,7 +18,7 @@ from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.testing.request import render_data
-from spinta.backends.postgresql.constants import WGS84, LKS94
+from spinta.types.geometry.constants import WGS84, LKS94
 
 
 def test_geometry(
@@ -149,11 +149,11 @@ def test_geometry_params_srid(
 
 def test_geometry_html(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
-    d | r | b | m | property                   | type           | ref
-    example                                    |                |
-      |   |   | City                           |                |
-      |   |   |   | name                       | string         |
-      |   |   |   | coordinates                | geometry(4326) |
+    d | r | b | m | property                   | type           | ref   | description
+    example                                    |                |       |
+      |   |   | City                           |                |       |
+      |   |   |   | name                       | string         |       |
+      |   |   |   | coordinates                | geometry(4326) |       | WGS
     ''')
     result = render_data(
         context, manifest,
@@ -188,50 +188,30 @@ def test_geometry_html(rc: RawConfig):
     (
         {
             'geom_type': 'Point',
-            'geom_value': [582710, 6061887],
+            'geom_value': [25.28277, 54.68661],
             'srid': WGS84
         },
-        Cell(value='POINT (582710 6061887)',
-             link='https://www.openstreetmap.org/?mlat=582710.0&mlon=6061887.0#map=19/582710.0/6061887.0')
+        Cell(value='POINT (25.28277 54.68661)',
+             link='https://www.openstreetmap.org/?mlat=25.28277&mlon=54.68661#map=19/25.28277/54.68661')
     ),
     (
         {
             'geom_type': 'Point',
-            'geom_value': [582710, 6061887],
+            'geom_value': [25.28277, 54.68661],
             'srid': LKS94
         },
-        Cell(value='POINT (25.282777879597916 54.68661318326901)',
-             link='https://www.openstreetmap.org/?mlat=25.282777879597916&mlon=54.68661318326901'
-                  '#map=19/25.282777879597916/54.68661318326901')
-    ),
-    (
-        {
-            'geom_type': 'Polygon',
-            'geom_value': [[[502640, 6035290], [502630, 6035290], [502630, 6035300]]],
-            'srid': WGS84
-        },
-        Cell(value='POLYGON',
-             link='https://www.openstreetmap.org/?mlat=502633.3333333334&mlon=6035293.333333334'
-                  '#map=19/502633.3333333334/6035293.333333334')
-    ),
-    (
-        {
-            'geom_type': 'Polygon',
-            'geom_value': [[[502640, 6035290], [502630, 6035290], [502630, 6035300]]],
-            'srid': LKS94
-        },
-        Cell(value='POLYGON',
-             link='https://www.openstreetmap.org/?mlat=24.040608716271&mlon=54.454444306004426'
-                  '#map=19/24.040608716271/54.454444306004426')
+        Cell(value='POINT (25.28277 54.68661)',
+             link='https://www.openstreetmap.org/?mlat=19.512378658142158&mlon=0.0004931411833217765'
+                  '#map=19/19.512378658142158/0.0004931411833217765')
     ),
 ])
 def test_geometry_coordinate_tansformation(rc: RawConfig, value, cell):
     context, manifest = load_manifest_and_context(rc, f'''
-        d | r | b | m | property                   | type           | ref   | description
-        example                                    |                |       |
-          |   |   | City                           |                |       |
-          |   |   |   | name                       | string         |       |
-          |   |   |   | coordinates                | geometry       |       | WGS(LKS)
+        d | r | b | m | property                   | type            | ref   | description
+        example                                    |                 |       |
+          |   |   | City                           |                 |       |
+          |   |   |   | name                       | string          |       |
+          |   |   |   | coordinates                | geometry(point) |       |
         ''')
     fmt = Html()
     dtype = manifest.models['example/City'].properties['coordinates'].dtype
@@ -257,18 +237,21 @@ def test_geometry_coordinate_tansformation(rc: RawConfig, value, cell):
     (
         {
             'geom_type': 'Point',
-            'geom_value': [582710, 6061887],
+            'geom_value': [25.28277, 54.68661],
             'srid': WGS84
         },
-        Cell(value='POINT (582710 6061887)', link=None)
+        Cell(value='POINT (25.28277 54.68661)',
+             link='https://www.openstreetmap.org/?mlat=25.28277&mlon=54.68661#map=19/25.28277/54.68661')
     ),
     (
         {
             'geom_type': 'Polygon',
-            'geom_value': [[[502640, 6035290], [502630, 6035290], [502630, 6035300]]],
+            'geom_value': [[[328347.9835, 6225873.07022], [328325.8328, 6225821.6992], [328240.0575, 6225747.2349]]],
             'srid': WGS84
         },
-        Cell(value='POLYGON', link=None)
+        Cell(value='POLYGON',
+             link='https://www.openstreetmap.org/?mlat=328304.6245999999&mlon=6225814.00144'
+                  '#map=19/328304.6245999999/6225814.00144')
     ),
 ])
 def test_geometry_wkt_value_shortening(rc: RawConfig, value, cell):
@@ -277,7 +260,7 @@ def test_geometry_wkt_value_shortening(rc: RawConfig, value, cell):
         example                                    |                |       |
           |   |   | City                           |                |       |
           |   |   |   | name                       | string         |       |
-          |   |   |   | coordinates                | geometry       |       | WGS
+          |   |   |   | coordinates                | geometry(4326) |       | WGS
         ''')
     fmt = Html()
     dtype = manifest.models['example/City'].properties['coordinates'].dtype
@@ -295,3 +278,5 @@ def test_geometry_wkt_value_shortening(rc: RawConfig, value, cell):
         select=None,
     )
     assert result.value == cell.value
+    assert result.link == cell.link
+    assert result.color == cell.color
