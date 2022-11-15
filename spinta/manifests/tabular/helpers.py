@@ -24,7 +24,7 @@ from typing import cast
 import openpyxl
 import xlsxwriter
 from lark import ParseError
-from texttable import Texttable
+from tabulate import tabulate
 
 from spinta import commands
 from spinta import spyna
@@ -962,16 +962,12 @@ def _check_row_size(
     row: List[str],
 ):
     if len(header) != len(row):
-        table = Texttable()
-        table.set_deco(Texttable.HEADER)
-        table.add_rows(
-            [['header', 'row']] +
-            [
-                ['∅' if x is None else x for x in v]
-                for v in zip_longest(header, row)
-            ]
-        )
-        table = table.draw()
+        header = ['header', 'row']
+        table = [
+            ['∅' if x is None else x for x in v]
+            for v in zip_longest(header, row)
+        ]
+        table = tabulate(table, headers=['header', 'row'])
         raise TabularManifestError(
             f"{path}:{line}: "
             "Number of row cells do not match table header, see what is "

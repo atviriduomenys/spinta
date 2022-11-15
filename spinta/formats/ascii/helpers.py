@@ -1,4 +1,4 @@
-from texttable import Texttable
+from tabulate import tabulate
 
 
 def draw(buffer, name, tnum, width):
@@ -8,7 +8,4 @@ def draw(buffer, name, tnum, width):
         else:
             yield f"\n\nTable #{tnum}:\n"
 
-    table = Texttable(width)
-    table.set_deco(Texttable.HEADER)
-    table.add_rows(buffer)
-    yield table.draw()
+    yield tabulate(buffer, missingval='∅')
