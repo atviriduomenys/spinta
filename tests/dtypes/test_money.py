@@ -15,7 +15,7 @@ def test_money(
     backends/postgres/dtypes/money             |                |
       |   |   | City                           |                |
       |   |   |   | name                       | string         |
-      |   |   |   | amount                     | money          | 
+      |   |   |   | amount                     | integer        | 
     ''', backend=postgresql, request=request)
 
     model: str = 'backends/postgres/dtypes/money/City'
