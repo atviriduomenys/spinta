@@ -17,7 +17,6 @@ def prepare(
     name = get_column_name(prop)
 
     columns = [
-        sa.Column(f'{name}.amount', sa.Integer),
-        sa.Column(f'{name}.currency', sa.String),
+        sa.Column(name, sa.Numeric),
     ]
     return columns
