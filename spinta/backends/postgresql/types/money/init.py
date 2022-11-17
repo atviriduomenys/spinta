@@ -18,5 +18,6 @@ def prepare(
 
     columns = [
         sa.Column(name, sa.Numeric),
+        sa.Column(f'{name}.currency', sa.String)
     ]
     return columns
