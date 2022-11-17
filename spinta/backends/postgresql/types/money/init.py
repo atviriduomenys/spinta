@@ -14,10 +14,11 @@ def prepare(
     dtype: Money,
 ):
     prop = dtype.prop
+
     name = get_column_name(prop)
 
     columns = [
         sa.Column(name, sa.Numeric),
-        sa.Column(f'{name}.currency', sa.String)
+        sa.Column('currency', sa.String)
     ]
     return columns
