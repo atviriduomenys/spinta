@@ -1,8 +1,19 @@
+from typing import cast
+
 from pytest import FixtureRequest
+
+from spinta.backends.postgresql.components import PostgreSQL
+from spinta.commands.write import dataitem_from_payload
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest
+
+import pytest
+
+from spinta import commands
+from spinta.manifests.components import Manifest
+from spinta.components import Store
 
 
 def test_money(
@@ -82,3 +93,36 @@ def test_money_currency(
             'currency': 'EUR',
         }
     ]
+
+
+@pytest.mark.parametrize('value', [
+    'EUR',
+    'EEUR',
+])
+def test_currency_value(rc: RawConfig, postgresql: str, value: str):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property                   | type           | ref
+    backends/postgres/dtypes/money             |                |
+      |   |   | City                           |                |
+      |   |   |   | name                       | string         |
+      |   |   |   | amount                     | money          | 
+      |   |   |   | currency                   | string         | 
+    ''', backend=postgresql)
+
+    store: Store = context.get('store')
+    manifest: Manifest = store.manifest
+
+    model = manifest.models['backends/postgres/dtypes/money/City']
+    backend = model.backend
+
+    load_data_for_payload = {
+        '_op': 'insert',
+        'currency': value,
+    }
+
+    context.set('transaction', backend.transaction(write=True))
+
+    data = dataitem_from_payload(context, model, load_data_for_payload)
+    data.given = commands.load(context, model, data.payload)
+
+    commands.simple_data_check(context, data, model, backend)
