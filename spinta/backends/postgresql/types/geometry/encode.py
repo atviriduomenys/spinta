@@ -46,24 +46,27 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    shape_origin = to_shape(value)
+    shape = to_shape(value)
+    value = _get_display_value()
+    return Cell(value, link=_get_osm_link())
+
+
+def _get_osm_link(value: WKBElement):
     if value.srid not in [WGS84, -1]:
         wgs_crs = CRS(f'EPSG:{WGS84}')
         value_crs = CRS(f'EPSG:{value.srid}')
         project = Transformer.from_crs(crs_from=value_crs, crs_to=wgs_crs, always_xy=True).transform
-        shape = transform(project, shape_origin)
+        centroid = transform(project, shape_origin).centroid
     else:
-        shape = shape_origin
-
-    point = shape.centroid
-    x, y = point.x, point.y
-
+        centroid = shape
+    x, y = centroid.x, centroid.y
     params = urlencode({'mlat': x, 'mlon': y})
-    link = f'https://www.openstreetmap.org/?{params}#map=19/{x}/{y}'
+    return f'https://www.openstreetmap.org/?{params}#map=19/{x}/{y}'
 
+    
+def _get_display_value():
     if isinstance(shape_origin, Point):
         value = shape_origin.wkt
     else:
         # Shorten possibly long WKT values by reducing it to shape type.
         value = shape_origin.type.upper()
-    return Cell(value, link=link)
