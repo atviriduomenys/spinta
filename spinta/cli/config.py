@@ -29,7 +29,7 @@ def check(
         "Manifest files to load"
     )),
     mode: Mode = Option('internal', help="Mode of backend operation"),
-    names: Optional[str] = Option(None, '--names', help="To check dataset, model and property names"),
+    names: bool = Option(False, '--names', help="To check dataset, model and property names"),
 ):
     """Check configuration and manifests"""
     context = configure_context(ctx.obj, manifests, mode=mode, names=names)
