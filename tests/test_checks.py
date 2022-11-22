@@ -1,6 +1,7 @@
 import pytest
 
 from spinta import commands
+from spinta.core.config import configure_rc
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.manifests.tabular.helpers import TabularManifestError
 from spinta.exceptions import InvalidValue
@@ -93,3 +94,22 @@ def test_enum_type_boolean(tmp_path, rc):
                              |         | false
     ''')
     commands.check(context, manifest)
+
+
+def test_filename(tmpdir, rc):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property | type    | prepare
+    datasets/gov/example     |         |
+      |   |   | Data         |         |
+      |   |   |   | value    | string  | 
+    ''')
+
+    rc = context.get('rc')
+    context = context.fork('configure')
+    context.set('rc', configure_rc(rc, ['hidrologija.csv'], filename=True))
+
+    with pytest.raises(Exception) as e:
+        commands.check(context, manifest)
+    assert str(e.value) == (
+        "Dataset namespace datasets/gov/example not match the csv filename hidrologija."
+    )
