@@ -6,6 +6,14 @@ Changes
 0.1.44 (unreleased)
 ===================
 
+Bug fixes:
+
+- Convert a non-WGS coordinates into WGS, before giving link to OSM if SRID is
+  not given, then link to OSM is not added too. Also long WKT expressions like
+  polygons now are shortened in HTML output (`#298`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/298
+
 
 0.1.43 (2022-11-15)
 ===================

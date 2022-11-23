@@ -1,10 +1,12 @@
 from typing import cast
+from typing import Optional
 
 import sqlalchemy as sa
 
 import pytest
 from pytest import FixtureRequest
 
+import shapely.wkt
 import shapely.geometry as geom
 from geoalchemy2 import shape
 
@@ -18,6 +20,8 @@ from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 from spinta.testing.request import render_data
+from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.manifest import load_manifest
 from spinta.types.geometry.constants import WGS84, LKS94
 
 
@@ -184,99 +188,102 @@ def test_geometry_html(rc: RawConfig):
     }
 
 
-@pytest.mark.parametrize('value, cell', [
-    (
-        {
-            'geom_type': 'Point',
-            'geom_value': [25.28277, 54.68661],
-            'srid': WGS84
-        },
-        Cell(value='POINT (25.28277 54.68661)',
-             link='https://www.openstreetmap.org/?mlat=25.28277&mlon=54.68661#map=19/25.28277/54.68661')
-    ),
-    (
-        {
-            'geom_type': 'Point',
-            'geom_value': [25.28277, 54.68661],
-            'srid': LKS94
-        },
-        Cell(value='POINT (25.28277 54.68661)',
-             link='https://www.openstreetmap.org/?mlat=19.512378658142158&mlon=0.0004931411833217765'
-                  '#map=19/19.512378658142158/0.0004931411833217765')
-    ),
+osm_url = (
+    'https://www.openstreetmap.org/?'
+    'mlat=54.662851967609136&'
+    'mlon=25.273658402751387'
+    '#map=19/54.662851967609136/25.273658402751387'
+)
+
+
+@pytest.mark.parametrize('wkt, srid, link', [
+    ('POINT (582170 6059232)', LKS94, osm_url),
+    ('POINT (25.273658402751387 54.662851967609136)', WGS84, osm_url),
+    ('POINT (582170 6059232)', None, None),
+    ('POINT (25.273658402751387 54.662851967609136)', None, None),
 ])
-def test_geometry_coordinate_tansformation(rc: RawConfig, value, cell):
+def test_geometry_coordinate_tansformation(
+    rc: RawConfig,
+    wkt: str,
+    srid: Optional[int],
+    link: Optional[str],
+):
+    if srid:
+        dtype = f'geometry(point, {srid})'
+    else:
+        dtype = 'geometry(point)'
+
     context, manifest = load_manifest_and_context(rc, f'''
-        d | r | b | m | property                   | type            | ref   | description
-        example                                    |                 |       |
-          |   |   | City                           |                 |       |
-          |   |   |   | name                       | string          |       |
-          |   |   |   | coordinates                | geometry(point) |       |
+        d | r | b | m | property                   | type    | ref   | description
+        example                                    |         |       |
+          |   |   | City                           |         |       |
+          |   |   |   | name                       | string  |       |
+          |   |   |   | coordinates                | {dtype} |       |
         ''')
-    fmt = Html()
-    dtype = manifest.models['example/City'].properties['coordinates'].dtype
-    geom_func = getattr(geom, value['geom_type'])
-    geometry = geom_func(*value['geom_value'])
-    wkb_element = shape.from_shape(shape=geometry, srid=value['srid'])
+
+    model = manifest.models['example/City']
+    prop = model.properties['coordinates']
+
+    value = shapely.wkt.loads(wkt)
+    value = shape.from_shape(shape=value, srid=srid or -1)
 
     result = commands.prepare_dtype_for_response(
         context,
-        fmt,
-        dtype,
-        wkb_element,
+        Html(),
+        prop.dtype,
+        value,
         data={},
         action=Action.GETALL,
         select=None,
     )
-    assert result.value == cell.value
-    assert result.link == cell.link
-    assert result.color == cell.color
+    assert result.value == wkt
+    assert result.link == link
 
 
-@pytest.mark.parametrize('value, cell', [
-    (
-        {
-            'geom_type': 'Point',
-            'geom_value': [25.28277, 54.68661],
-            'srid': WGS84
-        },
-        Cell(value='POINT (25.28277 54.68661)',
-             link='https://www.openstreetmap.org/?mlat=25.28277&mlon=54.68661#map=19/25.28277/54.68661')
-    ),
-    (
-        {
-            'geom_type': 'Polygon',
-            'geom_value': [[[328347.9835, 6225873.07022], [328325.8328, 6225821.6992], [328240.0575, 6225747.2349]]],
-            'srid': WGS84
-        },
-        Cell(value='POLYGON',
-             link='https://www.openstreetmap.org/?mlat=328304.6245999999&mlon=6225814.00144'
-                  '#map=19/328304.6245999999/6225814.00144')
-    ),
+@pytest.mark.parametrize('wkt, display', [
+    ('POINT (25.282 54.681)', 'POINT (25.282 54.681)'),
+    ('POLYGON ((25.28 54.68, 25.29 54.69, 25.38 54.64, 25.28 54.68))', 'POLYGON'),
+    ('LINESTRING (25.28 54.68, 25.29 54.69)', 'LINESTRING'),
 ])
-def test_geometry_wkt_value_shortening(rc: RawConfig, value, cell):
-    context, manifest = load_manifest_and_context(rc, f'''
-        d | r | b | m | property                   | type           | ref   | description
-        example                                    |                |       |
-          |   |   | City                           |                |       |
-          |   |   |   | name                       | string         |       |
-          |   |   |   | coordinates                | geometry(4326) |       | WGS
-        ''')
-    fmt = Html()
-    dtype = manifest.models['example/City'].properties['coordinates'].dtype
-    geom_func = getattr(geom, value['geom_type'])
-    geometry = geom_func(*value['geom_value'])
-    wkb_element = shape.from_shape(shape=geometry, srid=value['srid'])
+def test_geometry_wkt_value_shortening(
+    rc: RawConfig,
+    wkt: str,
+    display: str,
+):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property    | type           | ref | description
+    example                     |                |     |
+      |   |   | City            |                |     |
+      |   |   |   | name        | string         |     |
+      |   |   |   | coordinates | geometry(4326) |     | WGS
+    ''')
+    model = manifest.models['example/City']
+    prop = model.properties['coordinates']
+
+    value = shapely.wkt.loads(wkt)
+    value = shape.from_shape(shape=value)
 
     result = commands.prepare_dtype_for_response(
         context,
-        fmt,
-        dtype,
-        wkb_element,
+        Html(),
+        prop.dtype,
+        value,
         data={},
         action=Action.GETALL,
         select=None,
     )
-    assert result.value == cell.value
-    assert result.link == cell.link
-    assert result.color == cell.color
+    assert result.value == display
+
+
+def test_loading(tmpdir, rc):
+    table = '''
+    d | r | b | m | property | type                  | ref  | access
+    datasets/gov/example     |                       |      | open
+                             |                       |      |
+      |   |   | City         |                       | name | open
+      |   |   |   | name     | string                |      | open
+      |   |   |   | country  | geometry(point, 3346) |      | open
+    '''
+    create_tabular_manifest(tmpdir / 'manifest.csv', table)
+    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+    assert manifest == table
