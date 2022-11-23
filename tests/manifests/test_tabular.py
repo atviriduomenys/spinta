@@ -5,14 +5,14 @@ from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
 
-def check(tmpdir, rc, table):
-    create_tabular_manifest(tmpdir / 'manifest.csv', table)
-    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+def check(tmp_path, rc, table):
+    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     assert manifest == table
 
 
-def test_loading(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_loading(tmp_path, rc):
+    check(tmp_path, rc, '''
     id | d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |           |            |         |       | open   |     | Example |
        |   | data                 |             |           | postgresql | default |       | open   |     | Data    |
@@ -27,8 +27,8 @@ def test_loading(tmpdir, rc):
     ''')
 
 
-def test_uri(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_uri(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type       | ref     | uri
     datasets/gov/example     |            |         |
                              | prefix     | locn    | http://www.w3.org/ns/locn#
@@ -46,18 +46,18 @@ def test_uri(tmpdir, rc):
     ''')
 
 
-def test_backends(tmpdir, rc):
-    check(tmpdir, rc, f'''
+def test_backends(tmp_path, rc):
+    check(tmp_path, rc, f'''
     d | r | b | m | property | type | ref | source
-      | default              | sql  |     | sqlite:///{tmpdir}/db
+      | default              | sql  |     | sqlite:///{tmp_path}/db
                              |      |     |
     ''')
 
 
-def test_backends_with_models(tmpdir, rc):
-    check(tmpdir, rc, f'''
+def test_backends_with_models(tmp_path, rc):
+    check(tmp_path, rc, f'''
     d | r | b | m | property | type   | ref | source
-      | default              | sql    |     | sqlite:///{tmpdir}/db
+      | default              | sql    |     | sqlite:///{tmp_path}/db
                              |        |     |
       |   |   | country      |        |     | code
       |   |   |   | code     | string |     |
@@ -65,8 +65,8 @@ def test_backends_with_models(tmpdir, rc):
     ''')
 
 
-def test_ns(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_ns(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type | ref                  | title               | description
                              | ns   | datasets             | All datasets        | All external datasets.
                              |      | datasets/gov         | Government datasets | All government datasets.
@@ -75,8 +75,8 @@ def test_ns(tmpdir, rc):
     ''')
 
 
-def test_ns_with_models(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_ns_with_models(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type   | ref                  | title               | description
                              | ns     | datasets             | All datasets        | All external datasets.
                              |        | datasets/gov         | Government datasets | All government datasets.
@@ -90,8 +90,8 @@ def test_ns_with_models(tmpdir, rc):
     ''')
 
 
-def test_enum(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_enum(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property     | type   | source | prepare | access  | title | description
     datasets/gov/example         |        |        |         |         |       |
       | data                     |        |        |         |         |       |
@@ -104,8 +104,8 @@ def test_enum(tmpdir, rc):
     ''')
 
 
-def test_enum_ref(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_enum_ref(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property     | type   | ref     | source | prepare | access  | title | description
                                  | enum   | side    | l      | 'left'  | open    | Left  | Left side.
                                  |        |         | r      | 'right' | private | Right | Right side.
@@ -119,8 +119,8 @@ def test_enum_ref(tmpdir, rc):
     ''')
 
 
-def test_lang(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_lang(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type   | ref     | prepare | title       | description
     datasets/gov/example     |        |         |         | Example     | Example dataset.
                              | lang   | lt      |         | Pavyzdys    | Pavyzdinis duomenų rinkinys.
@@ -139,8 +139,8 @@ def test_lang(tmpdir, rc):
     ''')
 
 
-def test_enum_negative(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_enum_negative(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type    | prepare | title
     datasets/gov/example     |         |         |
                              |         |         |
@@ -151,8 +151,8 @@ def test_enum_negative(tmpdir, rc):
     ''')
 
 
-def test_units(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_units(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type    | ref
     datasets/gov/example     |         |
                              |         |
@@ -161,8 +161,8 @@ def test_units(tmpdir, rc):
     ''')
 
 
-def test_boolean_enum(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_boolean_enum(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type    | ref   | source | prepare
     datasets/gov/example     |         |       |        |
                              | enum    | bool  |        | null
@@ -174,8 +174,8 @@ def test_boolean_enum(tmpdir, rc):
     ''')
 
 
-def test_enum_with_unit_name(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_enum_with_unit_name(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type    | ref   | source | prepare
     datasets/gov/example     |         |       |        |
                              | enum    | m     | no     | 0
@@ -186,8 +186,8 @@ def test_enum_with_unit_name(tmpdir, rc):
     ''')
 
 
-def test_comment(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_comment(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type    | source | prepare | access  | title      | description
     datasets/gov/example     |         |        |         |         |            |
                              | enum    | no     | 0       |         |            |
@@ -202,9 +202,9 @@ def test_comment(tmpdir, rc):
     ''')
 
 
-def test_prop_type_not_given(tmpdir, rc):
+def test_prop_type_not_given(tmp_path, rc):
     with pytest.raises(InvalidManifestFile) as e:
-        check(tmpdir, rc, '''
+        check(tmp_path, rc, '''
         d | r | b | m | property | type
         datasets/gov/example     |
           |   |   | Bool         |
@@ -216,8 +216,8 @@ def test_prop_type_not_given(tmpdir, rc):
     )
 
 
-def test_time_type(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_time_type(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property | type
     example                  |
                              |

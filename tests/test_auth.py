@@ -48,20 +48,20 @@ def test_app(context, app):
     }
 
 
-def test_genkeys(rc, cli: SpintaCliRunner, tmpdir):
-    result = cli.invoke(rc, ['genkeys', '-p', tmpdir])
+def test_genkeys(rc, cli: SpintaCliRunner, tmp_path):
+    result = cli.invoke(rc, ['genkeys', '-p', tmp_path])
     assert result.output == (
-        f'Private key saved to {tmpdir}/keys/private.json.\n'
-        f'Public key saved to {tmpdir}/keys/public.json.\n'
+        f'Private key saved to {tmp_path}/keys/private.json.\n'
+        f'Public key saved to {tmp_path}/keys/public.json.\n'
     )
-    jwk.loads(json.loads(tmpdir.join('keys/private.json').read()))
-    jwk.loads(json.loads(tmpdir.join('keys/public.json').read()))
+    jwk.loads(json.loads((tmp_path / 'keys/private.json').read_text()))
+    jwk.loads(json.loads((tmp_path / 'keys/public.json').read_text()))
 
 
-def test_client_add(rc, cli: SpintaCliRunner, tmpdir):
-    result = cli.invoke(rc, ['client', 'add', '-p', tmpdir])
+def test_client_add(rc, cli: SpintaCliRunner, tmp_path):
+    result = cli.invoke(rc, ['client', 'add', '-p', tmp_path])
 
-    client_file = pathlib.Path(str(tmpdir.listdir()[0]))
+    client_file = pathlib.Path(str(next(tmp_path.iterdir())))
     assert f'client created and saved to:\n\n    {client_file}' in result.output
 
     yaml = ruamel.yaml.YAML(typ='safe')
@@ -73,16 +73,16 @@ def test_client_add(rc, cli: SpintaCliRunner, tmpdir):
     }
 
 
-def test_client_add_with_scope(rc, cli: SpintaCliRunner, tmpdir):
+def test_client_add_with_scope(rc, cli: SpintaCliRunner, tmp_path):
     cli.invoke(rc, [
         'client', 'add',
-        '--path', tmpdir,
+        '--path', tmp_path,
         '--name', 'test',
         '--scope', 'spinta_getall spinta_getone',
     ])
 
     yaml = ruamel.yaml.YAML(typ='safe')
-    client = yaml.load(pathlib.Path(tmpdir) / 'test.yml')
+    client = yaml.load(tmp_path / 'test.yml')
     assert client == {
         'client_id': 'test',
         'client_secret_hash': client['client_secret_hash'],
@@ -93,20 +93,20 @@ def test_client_add_with_scope(rc, cli: SpintaCliRunner, tmpdir):
     }
 
 
-def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmpdir):
+def test_client_add_with_scope_via_stdin(rc, cli: SpintaCliRunner, tmp_path):
     stdin = io.BytesIO(
         b'spinta_getall\n'
         b'spinta_getone\n'
     )
     cli.invoke(rc, [
         'client', 'add',
-        '--path', tmpdir,
+        '--path', tmp_path,
         '--name', 'test',
         '--scope', '-',
     ], input=stdin)
 
     yaml = ruamel.yaml.YAML(typ='safe')
-    client = yaml.load(pathlib.Path(tmpdir) / 'test.yml')
+    client = yaml.load(tmp_path / 'test.yml')
     assert client == {
         'client_id': 'test',
         'client_secret_hash': client['client_secret_hash'],
@@ -203,13 +203,13 @@ def test_invalid_access_token(app):
     assert get_error_codes(resp.json()) == ["InvalidToken"]
 
 
-def test_token_validation_key_config(backends, rc, tmpdir, request):
+def test_token_validation_key_config(backends, rc, tmp_path, request):
     confdir = pathlib.Path(__file__).parent
     prvkey = json.loads((confdir / 'config/keys/private.json').read_text())
     pubkey = json.loads((confdir / 'config/keys/public.json').read_text())
 
     rc = rc.fork({
-        'config_path': str(tmpdir),
+        'config_path': str(tmp_path),
         'default_auth_client': None,
         'token_validation_key': json.dumps(pubkey),
     })
@@ -228,13 +228,13 @@ def test_token_validation_key_config(backends, rc, tmpdir, request):
 
 
 @pytest.fixture()
-def basic_auth(backends, rc, tmpdir, request):
+def basic_auth(backends, rc, tmp_path, request):
     confdir = pathlib.Path(__file__).parent / 'config'
-    shutil.copytree(str(confdir / 'keys'), str(tmpdir / 'keys'))
+    shutil.copytree(str(confdir / 'keys'), str(tmp_path / 'keys'))
 
-    (tmpdir / 'clients').mkdir()
+    (tmp_path / 'clients').mkdir()
     auth.create_client_file(
-        pathlib.Path(tmpdir / 'clients'),
+        tmp_path / 'clients',
         client='default',
         secret='secret',
         scopes=['spinta_getall'],
@@ -242,7 +242,7 @@ def basic_auth(backends, rc, tmpdir, request):
     )
 
     rc = rc.fork({
-        'config_path': str(tmpdir),
+        'config_path': str(tmp_path),
         'default_auth_client': None,
         'http_basic_auth': True,
     })

@@ -13,12 +13,12 @@ from spinta.utils.schema import NA
 yaml = YAML(typ='safe')
 
 
-def create_manifest_files(tmpdir, manifest):
+def create_manifest_files(tmp_path, manifest):
     for file, data in manifest.items():
         if data is None:
             data = Path('tests/manifest') / file
             data = next(yaml.load_all(data.read_text()))
-        path = Path(tmpdir) / file
+        path = tmp_path / file
         path.parent.mkdir(parents=True, exist_ok=True)
         if isinstance(data, dict):
             yaml.dump(data, path)
@@ -26,9 +26,9 @@ def create_manifest_files(tmpdir, manifest):
             yaml.dump_all(data, path)
 
 
-def update_manifest_files(tmpdir, manifest):
+def update_manifest_files(tmp_path, manifest):
     for file, patch in manifest.items():
-        path = Path(tmpdir) / file
+        path = tmp_path / file
         versions = list(yaml.load_all(path.read_text()))
         patch = jsonpatch.JsonPatch(patch)
         versions[0] = patch.apply(versions[0])
@@ -36,13 +36,13 @@ def update_manifest_files(tmpdir, manifest):
             yaml.dump_all(versions, f)
 
 
-def read_manifest_files(tmpdir):
-    path = Path(tmpdir)
+def read_manifest_files(tmp_path):
+    path = tmp_path
     yaml = YAML(typ='safe')
     manifests = {}
     for fp in path.glob('**/*.yml'):
         data = list(yaml.load_all(fp.read_text()))
-        manifest_file = str(fp)[len(str(tmpdir)) + 1:]
+        manifest_file = str(fp)[len(str(tmp_path)) + 1:]
         manifests[manifest_file] = data
     return manifests
 

@@ -118,9 +118,9 @@ def test_update_config_from_env():
     ]
 
 
-def test_update_config_from_env_file(tmpdir):
-    envfile = tmpdir.join('.env')
-    envfile.write(
+def test_update_config_from_env_file(tmp_path):
+    envfile = tmp_path / '.env'
+    envfile.write_text(
         '# comment line\n'
         '\n'
         'SPINTA_BACKENDS__DEFAULT__TYPE=foo\n'
@@ -228,9 +228,9 @@ def test_custom_env_different_env_name():
     assert rc.get('backends', 'default', 'dsn') == 'bar'
 
 
-def test_custom_env_from_envfile(tmpdir):
-    envfile = tmpdir.join('.env')
-    envfile.write(
+def test_custom_env_from_envfile(tmp_path):
+    envfile = tmp_path / '.env'
+    envfile.write_text(
         'SPINTA_ENV=testing\n'
         'SPINTA_BACKENDS__DEFAULT__DSN=foo\n'
         'SPINTA_TESTING__BACKENDS__DEFAULT__DSN=bar\n'
@@ -243,9 +243,9 @@ def test_custom_env_from_envfile(tmpdir):
     assert rc.get('backends', 'default', 'dsn') == 'bar'
 
 
-def test_custom_env_from_envfile_only(tmpdir):
-    envfile = tmpdir.join('.env')
-    envfile.write(
+def test_custom_env_from_envfile_only(tmp_path):
+    envfile = tmp_path / '.env'
+    envfile.write_text(
         'SPINTA_ENV=testing\n'
         'SPINTA_TESTING__BACKENDS__DEFAULT__DSN=bar\n'
     )
@@ -257,9 +257,9 @@ def test_custom_env_from_envfile_only(tmpdir):
     assert rc.get('backends', 'default', 'dsn') == 'bar'
 
 
-def test_custom_env_from_envfile_fallback(tmpdir):
-    envfile = tmpdir.join('.env')
-    envfile.write(
+def test_custom_env_from_envfile_fallback(tmp_path):
+    envfile = tmp_path / '.env'
+    envfile.write_text(
         'SPINTA_ENV=testing\n'
         'SPINTA_BACKENDS__DEFAULT__DSN=bar\n'
     )
@@ -290,14 +290,14 @@ def test_custom_config():
     assert rc.get('backends', 'custom', 'dsn') == 'config'
 
 
-def test_yaml_config(tmpdir):
-    tmpdir.join('a.yml').write('wait: 1\nbackends: {default: {dsn: test}}')
-    tmpdir.join('b.yml').write('wait: 2\ndebug: true')
+def test_yaml_config(tmp_path):
+    (tmp_path / 'a.yml').write_text('wait: 1\nbackends: {default: {dsn: test}}')
+    (tmp_path / 'b.yml').write_text('wait: 2\ndebug: true')
     rc = RawConfig()
     rc.read([
         Path('defaults', 'spinta.config:CONFIG'),
         EnvVars('envvars', {
-            'SPINTA_CONFIG': f'{tmpdir}/a.yml,{tmpdir}/b.yml',
+            'SPINTA_CONFIG': f'{tmp_path}/a.yml,{tmp_path}/b.yml',
             'SPINTA_DEBUG': False,
         })
     ])

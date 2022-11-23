@@ -6,7 +6,7 @@ from spinta.manifests.tabular.helpers import TabularManifestError
 from spinta.exceptions import InvalidValue
 
 
-def test_enum_level(tmpdir, rc):
+def test_enum_level(tmp_path, rc):
     with pytest.raises(TabularManifestError) as e:
         context, manifest = load_manifest_and_context(rc, '''
         d | r | b | m | property | type    | prepare | level | title
@@ -22,7 +22,7 @@ def test_enum_level(tmpdir, rc):
     )
 
 
-def test_enum_type_integer(tmpdir, rc):
+def test_enum_type_integer(tmp_path, rc):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type    | prepare
     datasets/gov/example     |         |
@@ -40,7 +40,7 @@ def test_enum_type_integer(tmpdir, rc):
     )
 
 
-def test_enum_type_string(tmpdir, rc):
+def test_enum_type_string(tmp_path, rc):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type    | prepare
     datasets/gov/example     |         |
@@ -58,7 +58,7 @@ def test_enum_type_string(tmpdir, rc):
     )
 
 
-def test_enum_type_none(tmpdir, rc):
+def test_enum_type_none(tmp_path, rc):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type    | source
     datasets/gov/example     |         |
@@ -71,7 +71,7 @@ def test_enum_type_none(tmpdir, rc):
     commands.check(context, manifest)
 
 
-def test_enum_type_integer_negative(tmpdir, rc):
+def test_enum_type_integer_negative(tmp_path, rc):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type    | prepare
     datasets/gov/example     |         |
@@ -83,7 +83,7 @@ def test_enum_type_integer_negative(tmpdir, rc):
     commands.check(context, manifest)
 
 
-def test_enum_type_boolean(tmpdir, rc):
+def test_enum_type_boolean(tmp_path, rc):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property | type    | prepare
     datasets/gov/example     |         |

@@ -25,7 +25,7 @@ def show(c: Manifest):
         }
 
 
-def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmpdir, request):
+def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, request):
     rc = rc.fork({
         'manifest': 'default',
         'manifests': {
@@ -35,13 +35,13 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmpdir, request)
             },
             'yaml': {
                 'type': 'yaml',
-                'path': str(tmpdir),
+                'path': str(tmp_path),
             }
         },
         'backends': ['default'],
     })
 
-    create_manifest_files(tmpdir, {
+    create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
             'name': 'country',

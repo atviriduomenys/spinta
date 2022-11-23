@@ -5,7 +5,7 @@ from spinta.testing.config import configure
 from spinta.testing.manifest import load_manifest
 
 
-def test_detect_pii(rc, cli: SpintaCliRunner, tmpdir, sqlite):
+def test_detect_pii(rc, cli: SpintaCliRunner, tmp_path, sqlite):
     # Prepare source data.
     sqlite.init({
         'PERSON': [
@@ -38,7 +38,7 @@ def test_detect_pii(rc, cli: SpintaCliRunner, tmpdir, sqlite):
     ])
 
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmpdir / 'manifest.csv', '''
+    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', '''
     d | r | m | property     | type   | ref     | source  | access
     datasets/ds              |        |         |         |
       | rs                   | sql    | sql     |         |
@@ -51,13 +51,13 @@ def test_detect_pii(rc, cli: SpintaCliRunner, tmpdir, sqlite):
 
     # Detect person identifying information.
     cli.invoke(rc, [
-        'pii', 'detect', tmpdir / 'manifest.csv',
-        '-o', tmpdir / 'pii.csv',
+        'pii', 'detect', tmp_path / 'manifest.csv',
+        '-o', tmp_path / 'pii.csv',
         '--stop-on-error',
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'pii.csv')
+    manifest = load_manifest(rc, tmp_path / 'pii.csv')
     assert manifest == '''
     d | r | m | property | type   | ref | source | access | uri
                          | prefix | pii |        |        | https://data.gov.lt/pii/

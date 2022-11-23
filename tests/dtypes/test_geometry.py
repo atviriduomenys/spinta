@@ -1,14 +1,28 @@
 from typing import cast
+from typing import Optional
+from pathlib import Path
 
 import sqlalchemy as sa
+
+import pytest
 from pytest import FixtureRequest
 
+import shapely.wkt
+from geoalchemy2 import shape
+
+from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.components import Store
+from spinta.components import Action
 from spinta.core.config import RawConfig
+from spinta.formats.html.components import Cell, Html
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
-from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
+from spinta.testing.request import render_data
+from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.manifest import load_manifest
+from spinta.types.geometry.constants import WGS84, LKS94
 
 
 def test_geometry(
@@ -135,3 +149,141 @@ def test_geometry_params_srid(
             'coordinates': 'POINT (582710 6061887)',
         }
     ]
+
+
+def test_geometry_html(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property                   | type           | ref   | description
+    example                                    |                |       |
+      |   |   | City                           |                |       |
+      |   |   |   | name                       | string         |       |
+      |   |   |   | coordinates                | geometry(4326) |       | WGS
+    ''')
+    result = render_data(
+        context, manifest,
+        'example/City',
+        None,
+        accept='text/html',
+        data={
+            '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+            '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            'name': 'Vilnius',
+            'coordinates': 'POLYGON',
+        },
+    )
+    assert result == {
+        '_id': Cell(
+            value='19e4f199',
+            link='/example/City/19e4f199-93c5-40e5-b04e-a575e81ac373',
+            color=None,
+        ),
+        'name': Cell(
+            value='Vilnius',
+        ),
+        'coordinates': Cell(
+            value='POLYGON',
+            link=None,
+            color=None,
+        ),
+    }
+
+
+osm_url = (
+    'https://www.openstreetmap.org/?'
+    'mlat=54.662851967609136&'
+    'mlon=25.273658402751387'
+    '#map=19/54.662851967609136/25.273658402751387'
+)
+
+
+@pytest.mark.parametrize('wkt, srid, link', [
+    ('POINT (582170 6059232)', LKS94, osm_url),
+    ('POINT (25.273658402751387 54.662851967609136)', WGS84, osm_url),
+    ('POINT (582170 6059232)', None, None),
+    ('POINT (25.273658402751387 54.662851967609136)', None, None),
+])
+def test_geometry_coordinate_tansformation(
+    rc: RawConfig,
+    wkt: str,
+    srid: Optional[int],
+    link: Optional[str],
+):
+    if srid:
+        dtype = f'geometry(point, {srid})'
+    else:
+        dtype = 'geometry(point)'
+
+    context, manifest = load_manifest_and_context(rc, f'''
+        d | r | b | m | property                   | type    | ref   | description
+        example                                    |         |       |
+          |   |   | City                           |         |       |
+          |   |   |   | name                       | string  |       |
+          |   |   |   | coordinates                | {dtype} |       |
+        ''')
+
+    model = manifest.models['example/City']
+    prop = model.properties['coordinates']
+
+    value = shapely.wkt.loads(wkt)
+    value = shape.from_shape(shape=value, srid=srid or -1)
+
+    result = commands.prepare_dtype_for_response(
+        context,
+        Html(),
+        prop.dtype,
+        value,
+        data={},
+        action=Action.GETALL,
+        select=None,
+    )
+    assert result.value == wkt
+    assert result.link == link
+
+
+@pytest.mark.parametrize('wkt, display', [
+    ('POINT (25.282 54.681)', 'POINT (25.282 54.681)'),
+    ('POLYGON ((25.28 54.68, 25.29 54.69, 25.38 54.64, 25.28 54.68))', 'POLYGON'),
+    ('LINESTRING (25.28 54.68, 25.29 54.69)', 'LINESTRING'),
+])
+def test_geometry_wkt_value_shortening(
+    rc: RawConfig,
+    wkt: str,
+    display: str,
+):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property    | type           | ref | description
+    example                     |                |     |
+      |   |   | City            |                |     |
+      |   |   |   | name        | string         |     |
+      |   |   |   | coordinates | geometry(4326) |     | WGS
+    ''')
+    model = manifest.models['example/City']
+    prop = model.properties['coordinates']
+
+    value = shapely.wkt.loads(wkt)
+    value = shape.from_shape(shape=value)
+
+    result = commands.prepare_dtype_for_response(
+        context,
+        Html(),
+        prop.dtype,
+        value,
+        data={},
+        action=Action.GETALL,
+        select=None,
+    )
+    assert result.value == display
+
+
+def test_loading(tmp_path: Path, rc: RawConfig):
+    table = '''
+    d | r | b | m | property | type                  | ref  | access
+    datasets/gov/example     |                       |      | open
+                             |                       |      |
+      |   |   | City         |                       | name | open
+      |   |   |   | name     | string                |      | open
+      |   |   |   | country  | geometry(point, 3346) |      | open
+    '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    assert manifest == table

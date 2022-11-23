@@ -1457,7 +1457,7 @@ def _property_to_tabular(
 
     data = {
         'property': prop.place,
-        'type': prop.dtype.name,
+        'type': prop.dtype.get_type_repr(),
         'level': prop.level,
         'access': prop.given.access,
         'uri': prop.uri,
