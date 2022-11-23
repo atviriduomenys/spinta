@@ -10,14 +10,14 @@ from spinta.testing.utils import readable_manifest_files
 
 
 @pytest.fixture()
-def rc(rc, tmpdir):
+def rc(rc, tmp_path: pathlib.Path):
     return rc.fork().add('test', {
         'manifests.default': {
             'type': 'backend',
             'backend': 'default',
             'sync': 'yaml',
         },
-        'manifests.yaml.path': str(tmpdir),
+        'manifests.yaml.path': str(tmp_path),
     })
 
 

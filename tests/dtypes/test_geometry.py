@@ -1,5 +1,6 @@
 from typing import cast
 from typing import Optional
+from pathlib import Path
 
 import sqlalchemy as sa
 
@@ -7,7 +8,6 @@ import pytest
 from pytest import FixtureRequest
 
 import shapely.wkt
-import shapely.geometry as geom
 from geoalchemy2 import shape
 
 from spinta import commands
@@ -275,7 +275,7 @@ def test_geometry_wkt_value_shortening(
     assert result.value == display
 
 
-def test_loading(tmpdir, rc):
+def test_loading(tmp_path: Path, rc: RawConfig):
     table = '''
     d | r | b | m | property | type                  | ref  | access
     datasets/gov/example     |                       |      | open
@@ -284,6 +284,6 @@ def test_loading(tmpdir, rc):
       |   |   |   | name     | string                |      | open
       |   |   |   | country  | geometry(point, 3346) |      | open
     '''
-    create_tabular_manifest(tmpdir / 'manifest.csv', table)
-    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     assert manifest == table

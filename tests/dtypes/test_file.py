@@ -59,7 +59,7 @@ def test_insert(model, app):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_update(model, app, tmpdir):
+def test_update(model, app, tmp_path):
     app.authmodel(model, ['insert', 'update', 'getone'])
 
     resp = _create_file(app, model)
@@ -98,7 +98,7 @@ def test_update(model, app, tmpdir):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_patch(model, app, tmpdir):
+def test_patch(model, app, tmp_path):
     app.authmodel(model, ['insert', 'patch', 'getone'])
 
     resp = _create_file(app, model)
@@ -135,7 +135,7 @@ def test_patch(model, app, tmpdir):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_subresource_update(model, app, tmpdir):
+def test_subresource_update(model, app, tmp_path):
     app.authmodel(model, ['insert', 'update', 'getone'])
 
     resp = _create_file(app, model)
@@ -168,7 +168,7 @@ def test_subresource_update(model, app, tmpdir):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_subresource_patch(model, app, tmpdir):
+def test_subresource_patch(model, app, tmp_path):
     app.authmodel(model, ['insert', 'patch', 'getone'])
 
     resp = _create_file(app, model)
@@ -202,7 +202,7 @@ def test_subresource_patch(model, app, tmpdir):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_subresource_update_ref(model, app, tmpdir):
+def test_subresource_update_ref(model, app, tmp_path):
     app.authmodel(model, ['insert', 'update', 'getone'])
 
     resp = _create_file(app, model)
@@ -236,7 +236,7 @@ def test_subresource_update_ref(model, app, tmpdir):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_subresource_patch_ref(model, app, tmpdir):
+def test_subresource_patch_ref(model, app, tmp_path):
     app.authmodel(model, ['insert', 'patch', 'getone'])
 
     resp = _create_file(app, model)
@@ -268,7 +268,7 @@ def test_subresource_patch_ref(model, app, tmpdir):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_subresource_get_ref(model, app, tmpdir):
+def test_subresource_get_ref(model, app, tmp_path):
     app.authmodel(model, ['insert', 'getone'])
 
     resp = _create_file(app, model)
@@ -290,7 +290,7 @@ def test_subresource_get_ref(model, app, tmpdir):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_subresource_delete(model, app, tmpdir):
+def test_subresource_delete(model, app, tmp_path):
     app.authmodel(model, ['insert', 'delete', 'getone'])
 
     resp = _create_file(app, model)
@@ -327,7 +327,7 @@ def test_subresource_delete(model, app, tmpdir):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_select(model, app, tmpdir):
+def test_select(model, app, tmp_path):
     app.authmodel(model, ['insert', 'search'])
     _create_file(app, model)
     resp = app.get(f'/{model}?select(file._id)')
@@ -347,7 +347,7 @@ def test_select(model, app, tmpdir):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_select_content(model, app, tmpdir):
+def test_select_content(model, app, tmp_path):
     app.authmodel(model, ['insert', 'search'])
     _create_file(app, model)
     resp = app.get(f'/{model}?select(file._id,file._content)')
@@ -368,7 +368,7 @@ def test_select_content(model, app, tmpdir):
     # TODO 'backends/mongo/dtypes/postgres/file',
     'backends/postgres/dtypes/file',
 )
-def test_select_all(model, app, tmpdir):
+def test_select_all(model, app, tmp_path):
     app.authmodel(model, ['insert', 'search'])
     _create_file(app, model)
     resp = app.get(f'/{model}?select(file)')
@@ -423,10 +423,10 @@ def test_insert_fs_file(model, app):
     '/tmp/etc/passwd',
     '../../etc/passwd',
 ])
-def test_insert_fs_file_with_injection(model, filename, app, tmpdir):
+def test_insert_fs_file_with_injection(model, filename, app, tmp_path):
     app.authmodel(model, ['insert'])
     resp = _create_file(app, model, name=filename, status=400)
-    filepath = pathlib.PosixPath(tmpdir) / filename
+    filepath = tmp_path / filename
     assert filepath.is_file() is False
     assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
@@ -482,7 +482,7 @@ def test_upload_fs_file(model, app):
     '/tmp/etc/passwd',
     '../../etc/passwd',
 ])
-def test_upload_fs_file_with_path_injection(model, app, filename, tmpdir):
+def test_upload_fs_file_with_path_injection(model, app, filename, tmp_path):
     app.authmodel(model, ['insert', 'update', 'getone'])
 
     resp = _create_file(app, model)
@@ -499,7 +499,7 @@ def test_upload_fs_file_with_path_injection(model, app, filename, tmpdir):
         },
     })
     assert resp.status_code == 400, resp.json()
-    filepath = pathlib.PosixPath(tmpdir) / filename
+    filepath = tmp_path / filename
     assert filepath.is_file() is False
     assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
@@ -555,7 +555,7 @@ def test_patch_fs_file(model, app):
     '/tmp/etc/passwd',
     '../../etc/passwd',
 ])
-def test_patch_fs_file_with_path_injection(model, app, filename, tmpdir):
+def test_patch_fs_file_with_path_injection(model, app, filename, tmp_path):
     app.authmodel(model, ['insert', 'patch', 'getone'])
 
     resp = _create_file(app, model)
@@ -572,7 +572,7 @@ def test_patch_fs_file_with_path_injection(model, app, filename, tmpdir):
         },
     })
     assert resp.status_code == 400, resp.json()
-    filepath = pathlib.PosixPath(tmpdir) / filename
+    filepath = tmp_path / filename
     assert filepath.is_file() is False
     assert error(resp, 'code', 'template', ['file']) == {
         'code': 'UnacceptableFileName',
@@ -589,12 +589,12 @@ def test_patch_fs_file_with_path_injection(model, app, filename, tmpdir):
     '../../passwd',
     '/tmp/etc/passwd',
 ])
-def test_path_injection_put(model, filename, app, tmpdir):
+def test_path_injection_put(model, filename, app, tmp_path):
     app.authmodel(model, ['insert', 'file_update'])
     resp = _create_file(app, model)
     id_ = resp.json()['_id']
     rev = resp.json()['_revision']
-    filepath = pathlib.PosixPath(tmpdir) / filename
+    filepath = tmp_path / filename
     assert filepath.is_file() is False
 
     resp = app.put(f'/{model}/{id_}/file', headers={
@@ -620,12 +620,12 @@ def test_path_injection_put(model, filename, app, tmpdir):
     '../../passwd',
     '/tmp/etc/passwd',
 ])
-def test_path_injection_patch(model, filename, app, tmpdir):
+def test_path_injection_patch(model, filename, app, tmp_path):
     app.authmodel(model, ['insert', 'file_patch'])
     resp = _create_file(app, model)
     id_ = resp.json()['_id']
     rev = resp.json()['_revision']
-    filepath = pathlib.PosixPath(tmpdir) / filename
+    filepath = tmp_path / filename
     assert filepath.is_file() is False
 
     resp = app.patch(f'/{model}/{id_}/file', headers={

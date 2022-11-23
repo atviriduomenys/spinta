@@ -102,12 +102,12 @@ def _context(rc: RawConfig, postgresql, mongo):
 
 
 @pytest.fixture
-def context(_context, mocker, tmpdir, request):
+def context(_context, mocker, tmp_path, request):
     with _context.fork('test') as context:
         store = context.get('store')
         if 'fs' in store.backends:
             # XXX: There must be a better way to provide tmpdir to fs backend.
-            mocker.patch.object(store.backends['fs'], 'path', pathlib.Path(tmpdir))
+            mocker.patch.object(store.backends['fs'], 'path', tmp_path)
 
         # In-memory accesslog used with spinta.accesslog.python.
         context.set('accesslog.stream', [])

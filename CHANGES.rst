@@ -1122,8 +1122,8 @@ Internal changes:
     from spinta.testing.client import create_test_client
     from spinta.testing.context import create_test_context
 
-    def test(rc, cli, tmpdir, request):
-        create_manifest_files(tmpdir, {
+    def test(rc, cli, tmp_path, request):
+        create_manifest_files(tmp_path, {
             'country.yml': {
                 'type': 'model',
                 'name': 'country',
@@ -1133,7 +1133,7 @@ Internal changes:
             },
         })
 
-        rc = rc.fork().add('test', {'manifests.yaml.path': str(tmpdir)})
+        rc = rc.fork().add('test', {'manifests.yaml.path': str(tmp_path)})
 
         cli.invoke(rc, freeze)
 

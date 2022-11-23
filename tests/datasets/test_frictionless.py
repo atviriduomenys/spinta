@@ -5,8 +5,8 @@ from spinta.testing.manifest import load_manifest
 
 
 @pytest.mark.skip
-def test_filter(rc, tmpdir):
-    load_manifest(rc, tmpdir / 'manifest.csv', '''
+def test_filter(rc, tmp_path):
+    load_manifest(rc, tmp_path / 'manifest.csv', '''
     d | r | b | m | property | source      | prepare   | type   | ref     | level | access | uri | title   | description
     datasets/gov/example     |             |           |        |         |       |        |     | Example |
       | data                 |             |           | sql    |         |       |        |     | Data    |
@@ -15,7 +15,6 @@ def test_filter(rc, tmpdir):
       |   |   |   | code     | kodas       |           | string |         | 3     | open   |     | Code    |
       |   |   |   | name     | pavadinimas |           | string |         | 3     | open   |     | Name    |
     ''')
-
 
     context = create_test_context(rc)
     app = create_test_client(context)

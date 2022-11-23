@@ -11,7 +11,7 @@ from spinta.testing.utils import error, get_error_codes, get_error_context
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_crud(model, app, tmpdir):
+def test_crud(model, app, tmp_path):
     app.authmodel(model, [
         'insert',
         'update',
@@ -43,7 +43,7 @@ def test_crud(model, app, tmpdir):
         'content-disposition': 'attachment; filename="myimg.png"',
     })
     assert resp.status_code == 200, resp.text
-    img = pathlib.Path(tmpdir) / 'myimg.png'
+    img = tmp_path / 'myimg.png'
     assert img.is_file() is True
 
     resp = app.get(f'/{model}/{id_}')
@@ -107,10 +107,10 @@ def test_crud(model, app, tmpdir):
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_add_existing_file(model, app, tmpdir):
+def test_add_existing_file(model, app, tmp_path):
     app.authmodel(model, ['insert', 'image_getone', 'image_patch'])
 
-    image = pathlib.Path(tmpdir) / 'image.png'
+    image = tmp_path / 'image.png'
     image.write_bytes(b'IMAGEDATA')
 
     resp = app.post(f'/{model}', json={
@@ -144,10 +144,10 @@ def test_add_existing_file(model, app, tmpdir):
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_add_missing_file(model, app, tmpdir):
+def test_add_missing_file(model, app, tmp_path):
     app.authmodel(model, ['insert', 'getone', 'image_patch'])
 
-    avatar = pathlib.Path(tmpdir) / 'missing.png'
+    avatar = tmp_path / 'missing.png'
 
     resp = app.post(f'/{model}', json={
         '_type': model,
@@ -174,10 +174,10 @@ def test_add_missing_file(model, app, tmpdir):
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_create_hidden_image_on_insert(model, app, tmpdir):
+def test_create_hidden_image_on_insert(model, app, tmp_path):
     app.authmodel(model, ['insert', 'image_getone', 'image_patch'])
 
-    image = pathlib.Path(tmpdir) / 'image.png'
+    image = tmp_path / 'image.png'
     image.write_bytes(b'IMAGEDATA')
 
     resp = app.post(f'/{model}', json={
@@ -201,7 +201,7 @@ def test_create_hidden_image_on_insert(model, app, tmpdir):
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_add_missing_file_as_prop(model, app, tmpdir):
+def test_add_missing_file_as_prop(model, app, tmp_path):
     app.authmodel(model, ['insert', 'getone', 'image_update'])
 
     resp = app.post(f'/{model}', json={
@@ -234,7 +234,7 @@ def test_add_missing_file_as_prop(model, app, tmpdir):
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_id_as_filename(model, app, tmpdir):
+def test_id_as_filename(model, app, tmp_path):
     app.authmodel(model, ['insert', 'getone', 'image_update', 'image_getone'])
 
     resp = app.post(f'/{model}', json={
@@ -309,10 +309,10 @@ def test_check_revision_for_file(model, app):
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_check_revision_for_file_ref(model, app, tmpdir):
+def test_check_revision_for_file_ref(model, app, tmp_path):
     app.authmodel(model, ['insert', 'image_patch'])
 
-    image = pathlib.Path(tmpdir) / 'image.png'
+    image = tmp_path / 'image.png'
     image.write_bytes(b'IMAGEDATA')
 
     resp = app.post(f'/{model}', json={
@@ -346,10 +346,10 @@ def test_check_revision_for_file_ref(model, app, tmpdir):
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_check_extra_field(model, app, tmpdir):
+def test_check_extra_field(model, app, tmp_path):
     app.authmodel(model, ['insert', 'image_patch'])
 
-    image = pathlib.Path(tmpdir) / 'image.png'
+    image = tmp_path / 'image.png'
     image.write_bytes(b'IMAGEDATA')
 
     resp = app.post(f'/{model}', json={
@@ -607,7 +607,7 @@ def test_changelog_hidden_prop(context, model, app):
     'backends/mongo/photo',
     'backends/postgres/photo',
 )
-def test_wipe(tmpdir, model, app):
+def test_wipe(tmp_path, model, app):
     app.authmodel(model, [
         'insert',
         'image_update',
@@ -615,7 +615,7 @@ def test_wipe(tmpdir, model, app):
         'wipe'
     ])
     # Create file which should not be deleted after wipe
-    new_file = pathlib.Path(tmpdir) / 'new.file'
+    new_file = tmp_path / 'new.file'
     new_file.write_bytes(b'DATA')
 
     # Create a new photo resource.
@@ -635,7 +635,7 @@ def test_wipe(tmpdir, model, app):
         'content-disposition': 'attachment; filename="myimg.png"',
     })
     assert resp.status_code == 200, resp.text
-    img = pathlib.Path(tmpdir) / 'myimg.png'
+    img = tmp_path / 'myimg.png'
     assert img.is_file() is True
 
     resp = app.delete(f'/{model}/:wipe')

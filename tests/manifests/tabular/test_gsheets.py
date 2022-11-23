@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import py.path
 from responses import GET
 from responses import RequestsMock
 
@@ -9,8 +8,8 @@ from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
 
-def test_gsheets(rc: RawConfig, tmpdir: py.path.local, responses: RequestsMock):
-    path = Path(tmpdir) / 'manifest.csv'
+def test_gsheets(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
+    path = tmp_path / 'manifest.csv'
     table = '''
     d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
     datasets/gov/example     |             |           |            |         |       | open   |     | Example |

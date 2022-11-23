@@ -534,8 +534,8 @@ def test_getall_w_select_accesslog(app, model, context):
 @pytest.mark.models(
     'backends/postgres/report',
 )
-def test_accesslog_file(model, postgresql, rc, request, tmpdir):
-    logfile = pathlib.Path(tmpdir / 'accesslog.log')
+def test_accesslog_file(model, postgresql, rc, request, tmp_path):
+    logfile = tmp_path / 'accesslog.log'
 
     rc = rc.fork({
         'accesslog': {
@@ -847,11 +847,11 @@ def _get_object_rev(app, model: str, id_: str) -> str:
     'backends/mongo/report',
     'backends/postgres/report',
 )
-def test_pdf_ref_update_accesslog(model, app, context, tmpdir):
+def test_pdf_ref_update_accesslog(model, app, context, tmp_path):
     app.authmodel(model, ['insert', 'update', 'getone', 'pdf_getone', 'pdf_update', 'pdf_delete'])
     _id, rev, resp = _upload_pdf(model, app)
 
-    image = pathlib.Path(tmpdir) / 'image.png'
+    image = tmp_path / 'image.png'
     image.write_bytes(b'IMAGEDATA')
 
     rev = _get_object_rev(app, model, _id)
@@ -910,7 +910,7 @@ def test_pdf_ref_update_accesslog(model, app, context, tmpdir):
     'backends/mongo/report',
     'backends/postgres/report',
 )
-def test_batch_write(model, app, context, tmpdir):
+def test_batch_write(model, app, context, tmp_path):
     ns = model[:-len('/report')]
 
     app.authmodel(ns, ['insert'])
@@ -958,7 +958,7 @@ def test_batch_write(model, app, context, tmpdir):
     'backends/mongo/report',
     'backends/postgres/report',
 )
-def test_stream_write(model, app, context, tmpdir):
+def test_stream_write(model, app, context, tmp_path):
     ns = model[:-len('/report')]
 
     app.authmodel(ns, ['insert'])
@@ -1003,7 +1003,7 @@ def test_stream_write(model, app, context, tmpdir):
     'backends/mongo/report',
     'backends/postgres/report',
 )
-def test_ns_read(model, app, context, tmpdir):
+def test_ns_read(model, app, context, tmp_path):
     ns = model[:-len('/report')]
 
     app.authmodel(ns, ['getall'])
@@ -1047,7 +1047,7 @@ def test_ns_read(model, app, context, tmpdir):
     'backends/mongo/report',
     'backends/postgres/report',
 )
-def test_ns_read_csv(model, app, context, tmpdir):
+def test_ns_read_csv(model, app, context, tmp_path):
     ns = model[:-len('/report')]
 
     app.authmodel(ns, ['getall'])

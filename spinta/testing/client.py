@@ -69,7 +69,7 @@ def create_test_client(
 
 def create_remote_server(
     rc: RawConfig,
-    tmpdir: pathlib.Path,
+    tmp_path: pathlib.Path,
     responses: RequestsMock,
     *,
     url: str = 'https://example.com/',
@@ -89,7 +89,7 @@ def create_remote_server(
         )
         return resp.status_code, resp.headers, resp.content
 
-    confdir = create_config_path(tmpdir / 'config')
+    confdir = create_config_path(tmp_path / 'config')
     rc = rc.fork({
         'config_path': confdir,
         'default_auth_client': None,
@@ -110,7 +110,7 @@ def create_remote_server(
 
     if credsfile:
         if credsfile is True:
-            credsfile = tmpdir / 'credentials.cfg'
+            credsfile = tmp_path / 'credentials.cfg'
         add_client_credentials(
             credsfile, url,
             client=client,
