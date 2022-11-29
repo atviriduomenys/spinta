@@ -579,7 +579,7 @@ def configure_rc(
     manifests: List[Union[str, ManifestPath]] = None,
     *,
     mode: Mode = Mode.internal,
-    filename: bool = False,
+    check_filename: bool = False,
     backend: str = None,
     resources: List[ResourceTuple] = None,
 ) -> RawConfig:
@@ -644,10 +644,9 @@ def configure_rc(
         }
         config['manifest'] = 'default'
 
-        if filename:
-            config['filename'] = manifests
+        if check_filename:
+            config['check.filename'] = manifests
 
     if config:
         rc = rc.fork(config)
-
     return rc

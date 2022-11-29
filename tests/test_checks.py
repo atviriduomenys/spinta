@@ -1,10 +1,14 @@
 import pytest
 
+from pathlib import Path
+
 from spinta import commands
-from spinta.core.config import configure_rc
+from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.manifest import load_manifest_get_context
 from spinta.manifests.tabular.helpers import TabularManifestError
-from spinta.exceptions import InvalidValue
+from spinta.exceptions import InvalidValue, InvalidFileName
+from spinta.testing.tabular import create_tabular_manifest
 
 
 def test_enum_level(tmp_path, rc):
@@ -96,20 +100,26 @@ def test_enum_type_boolean(tmp_path, rc):
     commands.check(context, manifest)
 
 
-def test_filename(tmpdir, rc):
-    context, manifest = load_manifest_and_context(rc, '''
-    d | r | b | m | property | type    | prepare
-    datasets/gov/example     |         |
-      |   |   | Data         |         |
-      |   |   |   | value    | string  | 
-    ''')
+def test_filename(tmp_path: Path, rc: RawConfig):
+    with pytest.raises(InvalidFileName) as e:
+        create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
+        d | r | b | m | property | type    | source
+        datasets/gov/example     |         |
+                                 |         |
+          |   |   | Data         |         |
+          |   |   |   | value    | string  |
+        ''')
 
-    rc = context.get('rc')
-    context = context.fork('configure')
-    context.set('rc', configure_rc(rc, ['hidrologija.csv'], filename=True))
+        context = load_manifest_get_context(rc, tmp_path / 'hidrologija.csv')
 
-    with pytest.raises(Exception) as e:
+        config = context.get('config')
+        config.check_filename = ['hidrologija.csv']
+
+        store = context.get('store')
+        manifest = store.manifest
+
         commands.check(context, manifest)
-    assert str(e.value) == (
+
+    assert e.value.message == (
         "Dataset namespace datasets/gov/example not match the csv filename hidrologija."
     )

@@ -539,3 +539,13 @@ class RemoteClientScopesNotGiven(RemoteClientError):
         "Make sure at least one scope is given for [{section}] in "
         "{credentials} file."
     )
+
+
+class MultipleDatasetsError(UserError):
+    template = "File contains more than one dataset."
+
+
+class InvalidFileName(UserError):
+    template = "Dataset namespace {dataset} not match the csv filename {name}."
+
+
