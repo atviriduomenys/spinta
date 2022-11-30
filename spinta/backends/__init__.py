@@ -42,6 +42,7 @@ from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import File
+from spinta.types.money.components import Money
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Number
 from spinta.types.datatype import Object
@@ -529,7 +530,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    assert isinstance(value, (str, int, float, bool, type(None), type(decimal.Decimal()))), (
+    assert isinstance(value, (str, int, float, bool, type(None))), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
         f"model={dtype.prop.model!r}, dtype={dtype!r}"
@@ -549,6 +550,22 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     return dtype.default
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Money, decimal.Decimal)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Money,
+    value: decimal.Decimal,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if isinstance(value, decimal.Decimal):
+        return float(value)
+    return value
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, File, NotAvailable)

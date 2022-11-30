@@ -266,8 +266,7 @@ def _link_prop_enum(
             if enums_ and prop.given.enum in enums_:
                 return enums_[prop.given.enum]
         if isinstance(prop.dtype, Money):
-            if len(prop.given.enum) == 3:
-                return
+            return
         if not is_unit(prop.dtype, prop.given.enum):
             raise UndefinedEnum(prop, name=prop.given.enum)
     elif prop.enums:
