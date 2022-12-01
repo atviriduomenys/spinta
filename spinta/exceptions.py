@@ -734,4 +734,4 @@ class DuplicateRdfPrefixMissmatch(UserError):
 
 
 class InvalidName(UserError):
-    template = 'Dataset name {name} is not correct.'
+    template = '{class_name} name {name} is not correct.'

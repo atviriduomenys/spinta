@@ -19,26 +19,10 @@ def check(context: Context, dataset: Dataset):
 
         # Dataset name check
         if is_lowercase.match(name) is None or name.startswith('/') or name.endswith('/') or name.count('//'):
-            raise InvalidName(name=name)
-
-        store = context.get('store')
-        models = store.manifest.models
-
-        for name, model in models.items():
-            if not name.startswith('_'):
-                name = name.rsplit('/', 1)[-1]
-                is_lowercase = name.lower() == name
-                is_uppercase = name.upper() == name
-
-                # Model name check
-                if not re.findall(r'^[A-Za-z]\w*$', name) or is_lowercase or is_uppercase:
-                    raise Exception(f'Model name {name} is not correct.')
-
-            for prop_name, prop in model.properties.items():
-
-                # Property name check
-                if re.findall(r'^[A-Z]\w*$', prop_name):
-                    raise Exception(f'Property name {prop_name} is not correct.')
+            raise InvalidName(
+                class_name=dataset.__class__.__name__,
+                name=name
+            )
 
 
 @commands.check.register()

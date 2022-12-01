@@ -44,6 +44,8 @@ from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
+from spinta.types.helpers import check_model_name
+from spinta.types.helpers import check_property_name
 from spinta.types.namespace import load_namespace_from_name
 from spinta.ufuncs.basequerybuilder.components import LoadBuilder
 from spinta.units.helpers import is_unit
@@ -62,7 +64,6 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     ns = load_namespace_from_name(context, manifest, model.name)
     ns.models[model.model_type()] = model
     model.ns = ns
-
 
 @load.register(Context, Model, dict, Manifest)
 def load(
@@ -455,6 +456,7 @@ def _prepare_prop_data(name: str, data: dict):
 
 @check.register(Context, Model)
 def check(context: Context, model: Model):
+    check_model_name(context, model)
     if '_id' not in model.properties:
         raise exceptions.MissingRequiredProperty(model, prop='_id')
 
@@ -464,6 +466,7 @@ def check(context: Context, model: Model):
 
 @check.register(Context, Property)
 def check(context: Context, prop: Property):
+    check_property_name(context, prop)
     if prop.enum:
         for value, item in prop.enum.items():
             commands.check(context, item, prop.dtype, item.prepare)
