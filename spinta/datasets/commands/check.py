@@ -1,7 +1,9 @@
-from spinta import commands
-from spinta.components import Context
-from spinta.datasets.components import Dataset, Resource
 import re
+
+from spinta import commands
+from spinta.components import Context, Config
+from spinta.datasets.components import Dataset, Resource
+from spinta.exceptions import InvalidName
 
 
 @commands.check.register()
@@ -9,15 +11,15 @@ def check(context: Context, dataset: Dataset):
     for resource in dataset.resources.values():
         commands.check(context, resource)
 
-    rc = context.get('rc')
+    config: Config = context.get('config')
 
-    if rc.get('names'):
+    if config.check_names:
         name = dataset.name
-        is_lowercase = len([i for i in name if i.islower()] + re.findall('/', name)) == len(name)
+        is_lowercase = re.compile(r'^[a-z0-1_]*(/[a-z0-1_]*)+$')
 
         # Dataset name check
-        if not is_lowercase or name.startswith('/') or name.endswith('/') or re.findall('//', name):
-            raise Exception(f'Dataset name {name} is not correct.')
+        if is_lowercase.match(name) is None or name.startswith('/') or name.endswith('/') or name.count('//'):
+            raise InvalidName(name=name)
 
         store = context.get('store')
         models = store.manifest.models

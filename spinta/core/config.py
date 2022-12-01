@@ -586,7 +586,7 @@ def configure_rc(
     manifests: List[Union[str, ManifestPath, ResourceTuple]] = None,
     *,
     mode: Mode = Mode.internal,
-    names: bool = False,
+    check_names: bool = False,
     backend: str = None,
     resources: List[ResourceTuple] = None,
 ) -> RawConfig:
@@ -654,7 +654,7 @@ def configure_rc(
             'manifest': inline,
         }
         config['manifest'] = 'default'
-        config['names'] = names
+        config['check.names'] = check_names
 
     if config:
         rc = rc.fork(config)
