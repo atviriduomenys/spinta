@@ -1,7 +1,9 @@
 from spinta import commands
 from spinta.components import Context, Config, Store
 from spinta.datasets.components import Dataset, Resource
-from spinta.exceptions import MultipleDatasetsError, InvalidFileName
+from spinta.exceptions import MultipleDatasetsError
+from spinta.exceptions import InvalidFileName
+
 
 
 @commands.check.register()

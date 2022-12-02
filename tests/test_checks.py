@@ -100,26 +100,43 @@ def test_enum_type_boolean(tmp_path, rc):
     commands.check(context, manifest)
 
 
-def test_filename(tmp_path: Path, rc: RawConfig):
+def test_check_filename_incorrect_name(tmp_path: Path, rc: RawConfig):
+    create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
+    d | r | b | m | property | type    | source
+    datasets/gov/example     |         |
+                             |         |
+      |   |   | Data         |         |
+      |   |   |   | value    | string  |
+    ''')
+
+    context = load_manifest_get_context(rc, tmp_path / 'hidrologija.csv', check_filename=True)
+
+    store = context.get('store')
+    manifest = store.manifest
+
     with pytest.raises(InvalidFileName) as e:
-        create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
-        d | r | b | m | property | type    | source
-        datasets/gov/example     |         |
-                                 |         |
-          |   |   | Data         |         |
-          |   |   |   | value    | string  |
-        ''')
-
-        context = load_manifest_get_context(rc, tmp_path / 'hidrologija.csv')
-
-        config = context.get('config')
-        config.check_filename = ['hidrologija.csv']
-
-        store = context.get('store')
-        manifest = store.manifest
-
         commands.check(context, manifest)
 
     assert e.value.message == (
-        "Dataset namespace datasets/gov/example not match the csv filename hidrologija."
+        f'Dataset namespace datasets/gov/example not match the csv filename {tmp_path}/hidrologija.'
     )
+
+
+def test_check_filename_correct_name(tmp_path: Path, rc: RawConfig):
+    create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
+    d | r | b | m | property | type    | source
+    datasets/gov/hidrologija |         |
+                             |         |
+      |   |   | Data         |         |
+      |   |   |   | value    | string  |
+    ''')
+
+    context = load_manifest_get_context(rc, tmp_path / 'hidrologija.csv')
+
+    config = context.get('config')
+    config.check_filename = ['hidrologija.csv']
+
+    store = context.get('store')
+    manifest = store.manifest
+    commands.check(context, manifest)
+

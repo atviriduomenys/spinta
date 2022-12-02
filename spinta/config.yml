@@ -175,10 +175,10 @@ default_auth_client:
   type: string
 
 check:
-  type: bool
+  type: object
   items:
-    filename:
-      type: list
+    check_filename:
+      type: boolean
 
 root:
   type: string
