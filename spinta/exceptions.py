@@ -542,7 +542,7 @@ class RemoteClientScopesNotGiven(RemoteClientError):
 
 
 class MultipleDatasetsError(UserError):
-    template = "File contains more than one dataset."
+    template = "Manifest file contains more than one dataset."
 
 
 class InvalidFileName(UserError):

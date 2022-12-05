@@ -177,7 +177,7 @@ default_auth_client:
 check:
   type: object
   items:
-    check_filename:
+    filename:
       type: boolean
 
 root:

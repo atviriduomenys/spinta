@@ -1,9 +1,10 @@
+import pathlib
+
 from spinta import commands
 from spinta.components import Context, Config, Store
 from spinta.datasets.components import Dataset, Resource
 from spinta.exceptions import MultipleDatasetsError
 from spinta.exceptions import InvalidFileName
-
 
 
 @commands.check.register()
@@ -12,17 +13,17 @@ def check(context: Context, dataset: Dataset):
     store: Store = context.get('store')
 
     filename = config.check_filename
-
     if filename:
         if len(store.manifest.datasets) > 1:
-            raise MultipleDatasetsError()
+            raise MultipleDatasetsError(manifest=store.manifest)
         for name in filename:
-            if 'csv' in name:
-                file_name = name[:name.find('csv') - 1]
-                if file_name not in dataset.ns.name:
+            if name.endswith('.csv'):
+                path = pathlib.Path(name)
+                file_path = str(path.with_suffix(''))
+                if file_path not in dataset.ns.name:
                     raise InvalidFileName(
                         dataset=dataset.ns.name,
-                        name=file_name
+                        name=file_path
                     )
 
     for resource in dataset.resources.values():

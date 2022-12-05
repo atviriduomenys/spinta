@@ -579,7 +579,7 @@ def configure_rc(
     manifests: List[Union[str, ManifestPath]] = None,
     *,
     mode: Mode = Mode.internal,
-    check_filename: bool = False,
+    check_filename: bool = None,
     backend: str = None,
     resources: List[ResourceTuple] = None,
 ) -> RawConfig:
