@@ -1,9 +1,15 @@
 import pytest
 
+from pathlib import Path
+
 from spinta import commands
+from spinta.core.config import RawConfig
 from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.manifest import load_manifest_get_context
 from spinta.manifests.tabular.helpers import TabularManifestError
 from spinta.exceptions import InvalidValue
+from spinta.exceptions import InvalidName
+from spinta.testing.tabular import create_tabular_manifest
 
 
 def test_enum_level(tmp_path, rc):
@@ -93,3 +99,47 @@ def test_enum_type_boolean(tmp_path, rc):
                              |         | false
     ''')
     commands.check(context, manifest)
+
+
+def test_check_names_model(tmp_path: Path, rc: RawConfig):
+    create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
+    d | r | b | m | property | type    | source
+    datasets/gov/example     |         |
+                             |         |
+      |   |   | data         |         |
+      |   |   |   | value    | string  |
+    ''')
+
+    context = load_manifest_get_context(rc, tmp_path / 'hidrologija.csv', check_names=True)
+
+    store = context.get('store')
+    manifest = store.manifest
+
+    with pytest.raises(InvalidName) as e:
+        commands.check(context, manifest)
+
+    assert e.value.message == (
+        'Model name datasets/gov/example/data is not correct.'
+    )
+
+
+def test_check_names_property(tmp_path: Path, rc: RawConfig):
+    create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
+    d | r | b | m | property    | type    | source
+    datasets/gov/example        |         |
+                                |         |
+      |   |   | Data            |         |
+      |   |   |   | value_Value | string  |
+    ''')
+
+    context = load_manifest_get_context(rc, tmp_path / 'hidrologija.csv', check_names=True)
+
+    store = context.get('store')
+    manifest = store.manifest
+
+    with pytest.raises(InvalidName) as e:
+        commands.check(context, manifest)
+
+    assert e.value.message == (
+        'Property name value_Value is not correct.'
+    )
