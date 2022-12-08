@@ -563,9 +563,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if isinstance(value, decimal.Decimal):
-        return float(value)
-    return value
+    return float(value)
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, File, NotAvailable)
