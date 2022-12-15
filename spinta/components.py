@@ -886,7 +886,7 @@ class Config:
     data_path: pathlib.Path
     AccessLog: Type[AccessLog]
     exporters: Dict[str, Format]
-    check_filename: List[str] = None
+    check_filename: Optional[bool] = None
 
     def __init__(self):
         self.commands = _CommandsConfig()

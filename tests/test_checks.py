@@ -122,19 +122,19 @@ def test_check_filename_incorrect_name(tmp_path: Path, rc: RawConfig):
     )
 
 
-def test_check_filename_correct_name(tmp_path: Path, rc: RawConfig):
+def test_check_filename_false(tmp_path: Path, rc: RawConfig):
     create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
     d | r | b | m | property | type    | source
-    datasets/gov/hidrologija |         |
+    datasets/gov/example     |         |
                              |         |
       |   |   | Data         |         |
       |   |   |   | value    | string  |
     ''')
 
-    context = load_manifest_get_context(rc, tmp_path / 'hidrologija.csv')
+    context = load_manifest_get_context(rc, tmp_path / 'hidrologija.csv', check_filename=False)
 
     config = context.get('config')
-    config.check_filename = ['hidrologija.csv']
+    config.manifests = ['hidrologija.csv']
 
     store = context.get('store')
     manifest = store.manifest

@@ -16,15 +16,14 @@ def check(context: Context, dataset: Dataset):
     if filename:
         if len(store.manifest.datasets) > 1:
             raise MultipleDatasetsError(manifest=store.manifest)
-        for name in filename:
-            if name.endswith('.csv'):
-                path = pathlib.Path(name)
-                file_path = str(path.with_suffix(''))
-                if file_path not in dataset.ns.name:
-                    raise InvalidFileName(
-                        dataset=dataset.ns.name,
-                        name=file_path
-                    )
+        for name in config.manifests:
+            path = pathlib.Path(name)
+            file_path = str(path.with_suffix(''))
+            if file_path not in dataset.ns.name:
+                raise InvalidFileName(
+                    dataset=dataset.ns.name,
+                    name=file_path
+                )
 
     for resource in dataset.resources.values():
         commands.check(context, resource)
