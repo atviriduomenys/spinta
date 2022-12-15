@@ -118,7 +118,7 @@ def test_check_filename_incorrect_name(tmp_path: Path, rc: RawConfig):
         commands.check(context, manifest)
 
     assert e.value.message == (
-        f'Dataset namespace datasets/gov/example not match the csv filename {tmp_path}/hidrologija.'
+        f'Dataset namespace datasets/gov/example not match the filename {tmp_path}/hidrologija.'
     )
 
 
