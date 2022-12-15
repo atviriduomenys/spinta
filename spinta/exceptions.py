@@ -546,6 +546,6 @@ class MultipleDatasetsError(UserError):
 
 
 class InvalidFileName(UserError):
-    template = "Dataset namespace {dataset} not match the csv filename {name}."
+    template = "Dataset namespace {dataset} not match the filename {name}."
 
 
