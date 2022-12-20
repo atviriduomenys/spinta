@@ -643,7 +643,8 @@ def configure_rc(
             'manifest': inline,
         }
         config['manifest'] = 'default'
-        config['manifests.filename'] = manifests
+
+        config['check.manifests'] = manifests
 
         if check_filename is not None:
             config['check.filename'] = check_filename

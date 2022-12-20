@@ -887,6 +887,7 @@ class Config:
     AccessLog: Type[AccessLog]
     exporters: Dict[str, Format]
     check_filename: Optional[bool] = None
+    check_manifests: list = None
 
     def __init__(self):
         self.commands = _CommandsConfig()

@@ -179,6 +179,8 @@ check:
   items:
     filename:
       type: boolean
+    manifests:
+      type: list
 
 root:
   type: string
