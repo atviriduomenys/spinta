@@ -15,7 +15,7 @@ from spinta.exceptions import InvalidName
 if TYPE_CHECKING:
     from spinta.types.datatype import DataType
 
-upper_camel_case = re.compile(r'^[a-z][a-z0-9]+(/[a-z][a-z0-9]*)+(/([A-Z][a-z0-9]+)*)$')
+upper_camel_case = re.compile(r'^.*(/([A-Z][a-z0-9]+)*)$')
 snake_case = re.compile(r'^[a-z][a-z0-9]+(_[a-z0-9]+)*$')
 
 

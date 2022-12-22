@@ -143,3 +143,25 @@ def test_check_names_property(tmp_path: Path, rc: RawConfig):
     assert e.value.message == (
         'Property name value_Value is not correct.'
     )
+
+
+def test_check_names_dataset(tmp_path: Path, rc: RawConfig):
+    create_tabular_manifest(tmp_path / 'hidrologija.csv', '''
+    d | r | b | m | property    | type    | source
+    datasets/gov/Example        |         |
+                                |         |
+      |   |   | Data            |         |
+      |   |   |   | value       | string  |
+    ''')
+
+    context = load_manifest_get_context(rc, tmp_path / 'hidrologija.csv', check_names=True)
+
+    store = context.get('store')
+    manifest = store.manifest
+
+    with pytest.raises(InvalidName) as e:
+        commands.check(context, manifest)
+
+    assert e.value.message == (
+        'Dataset name datasets/gov/Example is not correct.'
+    )

@@ -6,7 +6,7 @@ from spinta.components import Config
 from spinta.datasets.components import Dataset, Resource
 from spinta.exceptions import InvalidName
 
-is_lowercase = re.compile(r'^[a-z][a-z0-9]+(/[a-z][a-z0-9]*)+$')
+model_is_lowercase = re.compile(r'^([a-z][a-z0-9]*)+(/[a-z][a-z0-9]*)+$')
 
 
 @commands.check.register()
@@ -18,8 +18,7 @@ def check(context: Context, dataset: Dataset):
 
     if config.check_names:
         name = dataset.name
-
-        if is_lowercase.match(name) is None:
+        if model_is_lowercase.match(name) is None:
             raise InvalidName(
                 class_name=dataset.__class__.__name__,
                 name=name
