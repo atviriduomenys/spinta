@@ -121,6 +121,7 @@ CONFIG = {
         'json': 'spinta.formats.json.components:Json',
         'jsonl': 'spinta.formats.jsonlines.components:JsonLines',
         'html': 'spinta.formats.html.components:Html',
+        'rdf': 'spinta.formats.rdf.components:Rdf',
     },
     'accesslog': {
         'type': 'file',
