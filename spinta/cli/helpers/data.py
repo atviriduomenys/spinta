@@ -95,6 +95,7 @@ def iter_model_rows(
 ) -> Iterator[ModelRow]:
     for model in models:
         rows = _read_model_data(context, model, limit, stop_on_error)
+        # count may be None if --no-progress-bar is used
         count = counts.get(model.name)
         rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
         for row in rows:

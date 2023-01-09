@@ -103,6 +103,9 @@ def push(
     )),
     stop_on_error: bool = Option(False, '--stop-on-error', help=(
         "Exit immediately on first error."
+    )),
+    no_progress_bar: bool = Option(False, '--no-progress-bar', help=(
+        "Skip counting total rows to improve performance."
     ))
 ):
     """Push data to external data store"""
@@ -149,11 +152,15 @@ def push(
         models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
-        counts = count_rows(
-            context,
-            models,
-            limit,
-            stop_on_error=stop_on_error,
+        counts = (
+            count_rows(
+                context,
+                models,
+                limit,
+                stop_on_error=stop_on_error,
+            )
+            if not no_progress_bar
+            else {}
         )
 
         if state:
@@ -169,7 +176,8 @@ def push(
         )
         rows = _prepare_rows_for_push(rows)
 
-        rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
+        rows = tqdm.tqdm(rows, 'PUSH', ascii=True,
+                         total=sum(counts.values()) if not no_progress_bar else None)
 
         if stop_time:
             rows = _add_stop_time(rows, stop_time)
