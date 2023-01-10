@@ -1,6 +1,6 @@
 import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Union, Tuple
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -49,7 +49,7 @@ def _get_attribute_name(
     name: str,
     prefix: str,
     available_prefixes: dict
-) -> (str | QName):
+) -> Union[str, QName]:
     if prefix and available_prefixes.get(prefix):
         attribute_name = QName(available_prefixes.get(prefix), name)
     else:
@@ -60,9 +60,9 @@ def _get_attribute_name(
 def _get_about_and_type_attributes(
     model: Model,
     data: dict,
-    about_name: str | QName,
-    type_name: str | QName
-) -> (dict, dict):
+    about_name: Union[str, QName],
+    type_name: Union[str, QName]
+) -> Tuple[dict, dict]:
     attributes = {}
     if '_id' in data:
         _id = data.pop('_id')
@@ -75,7 +75,7 @@ def _get_about_and_type_attributes(
     return data, attributes
 
 
-def _get_prefix_and_name(uri: str) -> (str, str):
+def _get_prefix_and_name(uri: str) -> Tuple[str, str]:
     prefix = name = None
     if uri and ':' in uri:
         prefix = uri.split(':')[0]
@@ -84,7 +84,7 @@ def _get_prefix_and_name(uri: str) -> (str, str):
 
 
 def _create_element(
-    name: str | QName,
+    name: Union[str, QName],
     text: str = None,
     base: str = None,
     nsmap: dict = None,
@@ -115,7 +115,7 @@ def _create_element(
 def _create_model_element(
     model: Model,
     data: dict
-):
+) -> Element:
     prefixes = _get_available_prefixes(model)
     about_name = _get_attribute_name('about', RDF, prefixes)
     type_name = _get_attribute_name('type', RDF, prefixes)
