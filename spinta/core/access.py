@@ -63,11 +63,13 @@ def link_access_param(
         Model,
         Property,
     ]] = (),
+    use_given: bool = True,
 ) -> None:
     if component.access is None:
         for parent in parents:
-            if parent.access and parent.given.access:
-                component.access = parent.access
+            candidate = parent.given.access if use_given else parent.access
+            if candidate:
+                component.access = candidate
                 break
         else:
             component.access = Access.protected
