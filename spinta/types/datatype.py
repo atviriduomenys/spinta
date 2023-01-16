@@ -265,6 +265,10 @@ class JSON(DataType):
     pass
 
 
+class Denorm(DataType):
+    pass
+
+
 @load.register(Context, DataType, dict, Manifest)
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
     _add_leaf_props(dtype.prop)

@@ -495,6 +495,10 @@ class PropertyReader(TabularReader):
                 'prepare': self.data.pop('prepare'),
             }
 
+        # Denormalized form
+        if "." in self.name and not self.data['type']:
+            self.data['type'] = 'denorm'
+
         self.state.model.data['properties'][row['property']] = self.data
 
     def release(self, reader: TabularReader = None) -> bool:

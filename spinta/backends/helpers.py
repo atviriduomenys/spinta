@@ -21,7 +21,7 @@ from spinta.components import Context
 from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Denorm
 from spinta.utils.data import take
 from spinta.backends.constants import TableType
 
@@ -90,6 +90,8 @@ def get_select_prop_names(
     auth: bool = True,
     # Allowed reserved property names.
     reserved: List[str] = None,
+    # If False, do not include Denorm type props
+    include_denorm_props: bool = True
 ) -> List[str]:
     known = set(reserved or []) | set(take(props))
     check_unknown_props(node, select, known)
@@ -100,7 +102,8 @@ def get_select_prop_names(
             for p in props.values() if (
                 not p.name.startswith('_') and
                 not p.hidden and
-                (not auth or authorized(context, p, action))
+                (not auth or authorized(context, p, action)) and
+                (include_denorm_props or not isinstance(p.dtype, Denorm))
             )
         ]
     else:
