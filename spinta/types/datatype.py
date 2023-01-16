@@ -266,7 +266,8 @@ class JSON(DataType):
 
 
 class Denorm(DataType):
-    pass
+    def get_type_repr(self):
+        return ""
 
 
 @load.register(Context, DataType, dict, Manifest)

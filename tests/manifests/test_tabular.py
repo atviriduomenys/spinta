@@ -224,3 +224,23 @@ def test_time_type(tmp_path, rc):
       |   |   | Time         |
       |   |   |   | prop     | time
     ''')
+
+
+def test_with_denormalized_data(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property               | type   | ref       | access
+    example                                |        |           |
+                                           |        |           |
+      |   |   | Continent                  |        |           |
+      |   |   |   | name                   | string |           | open
+                                           |        |           |
+      |   |   | Country                    |        |           |
+      |   |   |   | name                   | string |           | open
+      |   |   |   | continent              | ref    | Continent | open
+                                           |        |           |
+      |   |   | City                       |        |           |
+      |   |   |   | name                   | string |           | open
+      |   |   |   | country                | ref    | Country   | open
+      |   |   |   | country.name           |        |           | open
+      |   |   |   | country.continent.name |        |           | open
+    ''')
