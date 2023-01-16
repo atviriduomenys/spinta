@@ -22,6 +22,7 @@ from spinta import exceptions
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_async_response
 from spinta.auth import check_scope
+from spinta.backends import check_type_value
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
@@ -621,6 +622,8 @@ async def validate_data(
                 if '_revision' in data.given:
                     raise exceptions.ManagedProperty(data.model, property='_revision')
             if data.prop:
+                if data.action == Action.UPSERT and data.saved.get(data.prop.name) is NA:
+                    check_type_value(data.prop.dtype, data.given.get(data.prop.name))
                 commands.complex_data_check(
                     context,
                     data,

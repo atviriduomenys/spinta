@@ -192,7 +192,8 @@ def simple_data_check(
     backend: Backend,
     value: object,
 ) -> None:
-    check_type_value(dtype, value)
+    if data.action in (Action.UPDATE, Action.INSERT):
+        check_type_value(dtype, value)
 
     # Action.DELETE is ignore for qvarn compatibility reasons.
     # XXX: make `spinta` check for revision on Action.DELETE,
@@ -275,6 +276,8 @@ def complex_model_properties_check(
                     data.backend,
                     given,
                 )
+            if data.action == Action.UPSERT and data.saved is NA:
+                check_type_value(prop.dtype, given)
             complex_data_check(
                 context,
                 data,

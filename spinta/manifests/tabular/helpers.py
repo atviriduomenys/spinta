@@ -468,6 +468,11 @@ class PropertyReader(TabularReader):
                 f"defined for this {self.state.model.name!r} model."
             )
 
+        required = False
+        if 'required' in row['type']:
+            required = True
+            row['type'] = row['type'].replace('required', '').strip()
+
         self.data = {
             'type': row['type'],
             'prepare': _parse_spyna(self, row[PREPARE]),
@@ -476,6 +481,7 @@ class PropertyReader(TabularReader):
             'uri': row['uri'],
             'title': row['title'],
             'description': row['description'],
+            'required': required,
         }
 
         dataset = self.state.dataset.data if self.state.dataset else None
