@@ -58,11 +58,14 @@ class DataType(Component):
         return Expr('bind', self.prop.name)
 
     def get_type_repr(self):
+        name = self.name
+        if self.required:
+            name = f'{self.name} required'
         if self.type_args:
             args = ', '.join(self.type_args)
-            return f'{self.name}({args})'
+            return f'{name}({args})'
         else:
-            return self.name
+            return name
 
 
 class PrimaryKey(DataType):
