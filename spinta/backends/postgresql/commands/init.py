@@ -54,12 +54,10 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
 
-
 @commands.prepare.register(Context, PostgreSQL, DataType)
 def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
     if dtype.name in UNSUPPORTED_TYPES:
         return
-
     prop = dtype.prop
     name = get_column_name(prop)
     types = {
@@ -78,13 +76,15 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         'uri': sa.String,
     }
 
-    if dtype.name not in types:
+    if (dtype.name not in types) and (dtype.name not in [str(_type)+'_unique' for _type in types]):
         raise Exception(
             f"Unknown type {dtype.name!r} for property {prop.place!r}."
         )
-
-    column_type = types[dtype.name]
-    return sa.Column(name, column_type, unique=dtype.unique)
+    column_type = types[dtype.name.split("_unique")[0]]
+    if '_unique' in dtype.name:
+        return sa.Column(name, column_type, unique=dtype.unique)
+    else:
+        return sa.Column(name, column_type)
 
 
 @commands.get_primary_key_type.register()

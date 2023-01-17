@@ -224,3 +224,26 @@ def test_time_type(tmp_path, rc):
       |   |   | Time         |
       |   |   |   | prop     | time
     ''')
+
+
+def test_property_unique_add(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property            | type
+    example                             |
+                                        |
+      |   |   | City                    |
+      |   |   |   | prop_with_unique    | string_unique
+      |   |   |   | prop_not_unique     | string
+    ''')
+
+def test_property_unique_add_wrong_type(tmp_path, rc):
+    with pytest.raises(InvalidManifestFile) as e:
+        check(tmp_path, rc, '''
+        d | r | b | m | property | type
+        datasets/gov/example     |
+          |   |   | City         |
+          |   |   |   | value    | str_unique
+        ''')
+    assert e.value.context['error'] == (
+        "Unknown 'str_unique' type of 'value' property in 'datasets/gov/example/City' model."
+    )

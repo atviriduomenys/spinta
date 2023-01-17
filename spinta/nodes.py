@@ -100,12 +100,15 @@ def get_node(
                 )
         else:
             error = f"Unknown component {ctype!r} in {group!r}."
-        raise exceptions.InvalidManifestFile(
-            parent,
-            manifest=manifest.name,
-            eid=eid,
-            error=error,
-        )
+        if ctype not in [_type+'_unique' for _type in config.components[group]]:
+            raise exceptions.InvalidManifestFile(
+                parent,
+                manifest=manifest.name,
+                eid=eid,
+                error=error,
+            )
+        else:
+            ctype = str(ctype.split("_unique")[0])
 
     Node_ = config.components[group][ctype]
     return Node_()

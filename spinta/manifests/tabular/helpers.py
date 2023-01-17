@@ -74,7 +74,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Ref, DataType
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -213,7 +213,6 @@ class TabularReader:
 
     def error(self, message: str) -> None:
         raise TabularManifestError(f"{self.path}:{self.line}: {message}")
-
 
 class ManifestReader(TabularReader):
     type: str = 'manifest'
@@ -415,7 +414,6 @@ class ModelReader(TabularReader):
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
         }
-
         if resource and not dataset:
             self.data['backend'] = resource.name
 
@@ -446,7 +444,6 @@ def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
         ref_props = []
     return ref_model, ref_props
 
-
 class PropertyReader(TabularReader):
     type: str = 'property'
     data: PropertyRow
@@ -454,7 +451,6 @@ class PropertyReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['property']
-
         if self.state.model is None:
             context = self.state.stack[-1]
             self.error(
@@ -467,7 +463,6 @@ class PropertyReader(TabularReader):
                 f"Property {self.name!r} with the same name is already "
                 f"defined for this {self.state.model.name!r} model."
             )
-
         self.data = {
             'type': row['type'],
             'prepare': _parse_spyna(self, row[PREPARE]),
@@ -477,9 +472,7 @@ class PropertyReader(TabularReader):
             'title': row['title'],
             'description': row['description'],
         }
-
         dataset = self.state.dataset.data if self.state.dataset else None
-
         if row['ref']:
             if row['type'] in ('ref', 'backref', 'generic'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
@@ -488,7 +481,6 @@ class PropertyReader(TabularReader):
             else:
                 # TODO: Detect if ref is a unit or an enum.
                 self.data['enum'] = row['ref']
-
         if dataset or row['source']:
             self.data['external'] = {
                 'name': row['source'],
@@ -496,7 +488,10 @@ class PropertyReader(TabularReader):
             }
 
         self.state.model.data['properties'][row['property']] = self.data
-
+        # Decide if unique constrains for column are needed
+        # Needs to have in column name _unique
+        if '_unique' in row['type']:
+            DataType.schema['unique']['default'] = True
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
             ManifestReader,
@@ -920,7 +915,6 @@ class State:
         if reader:
             reader.enter()
             self.stack.append(reader)
-
 
 def _read_tabular_manifest_rows(
     path: Optional[str],
@@ -1478,7 +1472,6 @@ def _property_to_tabular(
         elif prop.external:
             data['source'] = prop.external.name
             data['prepare'] = unparse(prop.external.prepare or NA)
-
     if isinstance(prop.dtype, Ref):
         model = prop.model
         if model.external and model.external.dataset:
@@ -1780,7 +1773,6 @@ def write_tabular_manifest(
         rows = datasets_to_tabular(rows)
 
     rows = ({c: row[c] for c in cols} for row in rows)
-
     if path.endswith('.csv'):
         _write_csv(pathlib.Path(path), rows, cols)
     elif path.endswith('.xlsx'):
@@ -1794,7 +1786,7 @@ def _write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w') as f:
+    with path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)
