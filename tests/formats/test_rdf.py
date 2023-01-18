@@ -17,6 +17,7 @@ def test_rdf_get_all_without_uri(
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf              |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
+      |   |   |   |          |        | pav     |         | http://purl.org/pav/
       |   |   | Country      |        | name    |         | 
       |   |   |   | name     | string |         | open    | 
       |   |   | City         |        | name    |         | 
@@ -37,14 +38,18 @@ def test_rdf_get_all_without_uri(
     })
 
     res = app.get("/example/rdf/City/:format/rdf").text
-    assert res == f'<rdf:Rdf xmlns:rdf="http://www.rdf.com" xml:base="https://testserver/" >\n'\
-                  f'<rdf:Description rdf:about="/example/rdf/City/{city1["_id"]}" rdf:type="example/rdf/City">\n' \
-                  f'  <_revision>{city1["_revision"]}</_revision>\n' \
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+                  f'<rdf:Rdf\n' \
+                  f'xmlns:rdf="http://www.rdf.com"\n' \
+                  f'xmlns:pav="http://purl.org/pav/"\n' \
+                  f'xml:base="https://testserver/">\n'\
+                  f'<rdf:Description rdf:about="/example/rdf/City/{city1["_id"]}" rdf:type="example/rdf/City" ' \
+                  f'pav:version="{city1["_revision"]}">\n' \
                   f'  <name>{city1["name"]}</name>\n' \
                   f'  <country rdf:resource="/example/rdf/Country/{country["_id"]}"/>\n' \
                   f'</rdf:Description>\n'\
-                  f'<rdf:Description rdf:about="/example/rdf/City/{city2["_id"]}" rdf:type="example/rdf/City">\n' \
-                  f'  <_revision>{city2["_revision"]}</_revision>\n' \
+                  f'<rdf:Description rdf:about="/example/rdf/City/{city2["_id"]}" rdf:type="example/rdf/City" ' \
+                  f'pav:version="{city2["_revision"]}">\n' \
                   f'  <name>{city2["name"]}</name>\n' \
                   f'  <country rdf:resource="/example/rdf/Country/{country["_id"]}"/>\n' \
                   f'</rdf:Description>\n'\
@@ -60,6 +65,7 @@ def test_rdf_get_all_with_uri(
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf              |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
+      |   |   |   |          |        | pav     |         | http://purl.org/pav/
       |   |   |   |          |        | dcat    |         | http://www.dcat.com
       |   |   |   |          |        | dct     |         | http://dct.com
       |   |   | Country      |        | name    |         | dcat:country
@@ -82,15 +88,20 @@ def test_rdf_get_all_with_uri(
     })
 
     res = app.get("/example/rdf/City/:format/rdf").text
-    assert res == f'<rdf:Rdf xmlns:rdf="http://www.rdf.com" xmlns:dcat="http://www.dcat.com" ' \
-                  f'xmlns:dct="http://dct.com" xml:base="https://testserver/" >\n'\
-                  f'<dcat:city rdf:about="/example/rdf/City/{city1["_id"]}" rdf:type="example/rdf/City">\n'\
-                  f'  <_revision>{city1["_revision"]}</_revision>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+                  f'<rdf:Rdf\n' \
+                  f'xmlns:rdf="http://www.rdf.com"\n' \
+                  f'xmlns:pav="http://purl.org/pav/"\n' \
+                  f'xmlns:dcat="http://www.dcat.com"\n' \
+                  f'xmlns:dct="http://dct.com"\n' \
+                  f'xml:base="https://testserver/">\n' \
+                  f'<dcat:city rdf:about="/example/rdf/City/{city1["_id"]}" rdf:type="example/rdf/City" ' \
+                  f'pav:version="{city1["_revision"]}">\n' \
                   f'  <dct:name>{city1["name"]}</dct:name>\n'\
                   f'  <dct:country rdf:resource="/example/rdf/Country/{country["_id"]}"/>\n' \
                   f'</dcat:city>\n'\
-                  f'<dcat:city rdf:about="/example/rdf/City/{city2["_id"]}" rdf:type="example/rdf/City">\n'\
-                  f'  <_revision>{city2["_revision"]}</_revision>\n'\
+                  f'<dcat:city rdf:about="/example/rdf/City/{city2["_id"]}" rdf:type="example/rdf/City" ' \
+                  f'pav:version="{city2["_revision"]}">\n' \
                   f'  <dct:name>{city2["name"]}</dct:name>\n' \
                   f'  <dct:country rdf:resource="/example/rdf/Country/{country["_id"]}"/>\n' \
                   f'</dcat:city>\n'\
@@ -106,6 +117,7 @@ def test_rdf_get_one(
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf              |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
+      |   |   |   |          |        | pav     |         | http://purl.org/pav/
       |   |   |   |          |        | dcat    |         | http://www.dcat.com
       |   |   |   |          |        | dct     |         | http://dct.com
       |   |   | Country      |        | name    |         | dcat:country
@@ -124,10 +136,15 @@ def test_rdf_get_one(
     })
 
     res = app.get(f"/example/rdf/City/{city['_id']}/:format/rdf").text
-    assert res == f'<rdf:Rdf xmlns:rdf="http://www.rdf.com" xmlns:dcat="http://www.dcat.com" ' \
-                  f'xmlns:dct="http://dct.com" xml:base="https://testserver/" >\n'\
-                  f'<dcat:city rdf:about="/example/rdf/City/{city["_id"]}" rdf:type="example/rdf/City">\n'\
-                  f'  <_revision>{city["_revision"]}</_revision>\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+                  f'<rdf:Rdf\n' \
+                  f'xmlns:rdf="http://www.rdf.com"\n' \
+                  f'xmlns:pav="http://purl.org/pav/"\n' \
+                  f'xmlns:dcat="http://www.dcat.com"\n' \
+                  f'xmlns:dct="http://dct.com"\n' \
+                  f'xml:base="https://testserver/">\n' \
+                  f'<dcat:city rdf:about="/example/rdf/City/{city["_id"]}" rdf:type="example/rdf/City" ' \
+                  f'pav:version="{city["_revision"]}">\n' \
                   f'  <dct:name>{city["name"]}</dct:name>\n'\
                   f'  <dct:country rdf:resource="/example/rdf/Country/{country["_id"]}"/>\n' \
                   f'</dcat:city>\n'\
@@ -143,6 +160,7 @@ def test_rdf_with_file(
     d | r | b | m | property | type   | ref     | access  | uri
     example/rdf/file         |        |         |         |
       |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
+      |   |   |   |          |        | pav     |         | http://purl.org/pav/
       |   |   |   |          |        | dcat    |         | http://www.dcat.com
       |   |   |   |          |        | dct     |         | http://dct.com
       |   |   | Country      |        | name    |         | dcat:country
@@ -162,11 +180,16 @@ def test_rdf_with_file(
     })
 
     res = app.get(f"/example/rdf/file/Country/{country['_id']}/:format/rdf").text
-    assert res == f'<rdf:Rdf xmlns:rdf="http://www.rdf.com" xmlns:dcat="http://www.dcat.com" ' \
-                  f'xmlns:dct="http://dct.com" xml:base="https://testserver/" >\n'\
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+                  f'<rdf:Rdf\n' \
+                  f'xmlns:rdf="http://www.rdf.com"\n' \
+                  f'xmlns:pav="http://purl.org/pav/"\n' \
+                  f'xmlns:dcat="http://www.dcat.com"\n' \
+                  f'xmlns:dct="http://dct.com"\n' \
+                  f'xml:base="https://testserver/">\n' \
                   f'<dcat:country rdf:about="/example/rdf/file/Country/{country["_id"]}" ' \
-                  f'rdf:type="example/rdf/file/Country">\n'\
-                  f'  <_revision>{country["_revision"]}</_revision>\n'\
+                  f'rdf:type="example/rdf/file/Country" ' \
+                  f'pav:version="{country["_revision"]}">\n' \
                   f'  <dct:name>{country["name"]}</dct:name>\n'\
                   f'  <dct:flag rdf:about="/example/rdf/file/Country/{country["_id"]}/flag"/>\n' \
                   f'</dcat:country>\n'\

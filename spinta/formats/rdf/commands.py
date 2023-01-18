@@ -32,6 +32,7 @@ from spinta.types.datatype import Number
 from spinta.utils.schema import NotAvailable
 
 RDF = "rdf"
+PAV = "pav"
 DESCRIPTION = "Description"
 
 
@@ -57,21 +58,26 @@ def _get_attribute_name(
     return attribute_name
 
 
-def _get_about_and_type_attributes(
+def _get_attributes(
     model: Model,
     data: dict,
     about_name: Union[str, QName],
-    type_name: Union[str, QName]
+    type_name: Union[str, QName],
+    revision_name: Union[str, QName],
 ) -> Tuple[dict, dict]:
     attributes = {}
     if '_id' in data:
         _id = data.pop('_id')
-        if _id.text:
+        if _id is not None and _id.text:
             attributes[about_name] = get_model_link(model, pk=_id.text)
     if '_type' in data:
         _type = data.pop('_type')
-        if _type.text:
+        if _type is not None and _type.text:
             attributes[type_name] = _type.text
+    if '_revision' in data:
+        _revision = data.pop('_revision')
+        if _revision is not None and _revision.text:
+            attributes[revision_name] = _revision.text
     return data, attributes
 
 
@@ -108,7 +114,8 @@ def _create_element(
     for key, value in attributes.items():
         elem.attrib[key] = value
     for child in children:
-        elem.append(child)
+        if child is not None:
+            elem.append(child)
     return elem
 
 
@@ -119,13 +126,15 @@ def _create_model_element(
     prefixes = _get_available_prefixes(model)
     about_name = _get_attribute_name('about', RDF, prefixes)
     type_name = _get_attribute_name('type', RDF, prefixes)
+    revision_name = _get_attribute_name('version', PAV, prefixes)
     model_prefix, model_name = _get_prefix_and_name(model.uri)
 
-    data, attributes = _get_about_and_type_attributes(
+    data, attributes = _get_attributes(
         model,
         data,
         about_name,
-        type_name
+        type_name,
+        revision_name
     )
     if model_name:
         name = _get_attribute_name(model_name, model_prefix, prefixes)
@@ -158,6 +167,26 @@ def render(
     headers = headers or {}
     headers['Content-Disposition'] = f'attachment; filename="{model.basename}.rdf"'
 
+    return StreamingResponse(
+        _stream(
+            request,
+            model,
+            action,
+            data
+        ),
+        status_code=status_code,
+        media_type=fmt.content_type,
+        headers=headers,
+    )
+
+
+async def _stream(
+    request: Request,
+    model: Model,
+    action: Action,
+    data
+):
+    namespaces = []
     prefixes = _get_available_prefixes(model)
     root_name = _get_attribute_name(RDF.capitalize(), RDF, prefixes)
     root = _create_element(
@@ -165,6 +194,7 @@ def render(
         base=str(request.base_url),
         nsmap=prefixes
     )
+
     if action == Action.GETONE:
         elem = _create_model_element(model, data)
         root.append(elem)
@@ -173,29 +203,21 @@ def render(
             elem = _create_model_element(model, row)
             root.append(elem)
 
-    return StreamingResponse(
-        _stream(root, root_name),
-        status_code=status_code,
-        media_type=fmt.content_type,
-        headers=headers,
-    )
-
-
-async def _stream(root, name):
-    namespaces = ""
     for key, val in root.nsmap.items():
-        namespaces += f'xmlns:{key}="{val}" '
+        namespaces.append(f'xmlns:{key}="{val}"')
     if root.base:
-        namespaces += f'xml:base="{root.base}" '
-    if isinstance(name, QName):
-        name = f"{root.prefix}:{name.localname}"
-    yield f"<{name} {namespaces}>\n"
+        namespaces.append(f'xml:base="{root.base}"')
+    if isinstance(root_name, QName):
+        root_name = f"{root.prefix}:{root_name.localname}"
+    namespaces = "\n".join(namespaces)
+
+    yield f'<?xml version="1.0" encoding="UTF-8"?>\n<{root_name}\n{namespaces}>\n'
     for elem in root:
         row = etree.tostring(elem, encoding="unicode", pretty_print=True)
         for key, val in elem.nsmap.items():
             row = row.replace(f'xmlns:{key}="{val}" ', "")
         yield row
-    yield f"</{name}>\n"
+    yield f"</{root_name}>\n"
 
 
 @commands.prepare_data_for_response.register(Context, Model, Rdf, dict)
@@ -218,6 +240,7 @@ def prepare_data_for_response(
     value['_about_name'] = _get_attribute_name('about', RDF, available_prefixes)
     value['_resource_name'] = _get_attribute_name('resource', RDF, available_prefixes)
     value['_type_name'] = _get_attribute_name('type', RDF, available_prefixes)
+    value['_revision_name'] = _get_attribute_name('version', PAV, available_prefixes)
 
     data = {}
     for prop, val, sel in select_model_props(
@@ -257,9 +280,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
-    return _create_element(
-        name=data['_elem_name']
-    )
+    return None
 
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, DataType, object)
@@ -365,7 +386,7 @@ def prepare_dtype_for_response(
     children = []
 
     if len(data_dict) == 1 and '_id' in data_dict:
-        if data_dict['_id'].text:
+        if data_dict['_id'] is not None and data_dict['_id'].text:
             attributes[data['_resource_name']] = get_model_link(
                 dtype.model,
                 pk=data_dict['_id'].text
@@ -379,11 +400,12 @@ def prepare_dtype_for_response(
                 ref_model_name = _get_attribute_name(name, prefix, prefixes)
             else:
                 ref_model_name = _get_attribute_name(dtype.model.basename, prefix, prefixes)
-            data_dict, ref_model_attrs = _get_about_and_type_attributes(
+            data_dict, ref_model_attrs = _get_attributes(
                 dtype.model,
                 data_dict,
                 data['_about_name'],
-                data['_type_name']
+                data['_type_name'],
+                data['_revision_name'],
             )
             ref_model_elem = _create_element(
                 name=ref_model_name,
@@ -396,11 +418,12 @@ def prepare_dtype_for_response(
                 name='_type',
                 text=dtype.model.model_type()
             )
-            data_dict, description_attrs = _get_about_and_type_attributes(
+            data_dict, description_attrs = _get_attributes(
                 dtype.model,
                 data_dict,
                 data['_about_name'],
-                data['_type_name']
+                data['_type_name'],
+                data['_revision_name'],
             )
             description_elem = _create_element(
                 name=_get_attribute_name(DESCRIPTION, RDF, prefixes),
@@ -409,11 +432,14 @@ def prepare_dtype_for_response(
             )
             children.append(description_elem)
 
-    return _create_element(
-        name=data['_elem_name'],
-        attributes=attributes,
-        children=children
-    )
+    if attributes or children:
+        return _create_element(
+            name=data['_elem_name'],
+            attributes=attributes,
+            children=children
+        )
+    else:
+        return None
 
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, File, NotAvailable)
@@ -427,9 +453,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None
 ):
-    return _create_element(
-        name=data['_elem_name']
-    )
+    return None
 
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, File, dict)
@@ -451,10 +475,9 @@ def prepare_dtype_for_response(
                 prop=dtype.prop.name
             )
         }
-        elem = _create_element(
+        return _create_element(
             name=data['_elem_name'],
             attributes=attributes
         )
     else:
-        elem = _create_element(name=data['_elem_name'])
-    return elem
+        return None
