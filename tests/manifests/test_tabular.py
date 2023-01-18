@@ -224,3 +224,20 @@ def test_time_type(tmp_path, rc):
       |   |   | Time         |
       |   |   |   | prop     | time
     ''')
+
+
+def test_explicit_ref(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type       | ref
+    datasets/gov/example     |            |
+      | data                 | postgresql | default
+                             |            |
+      |   |   | Country      |            | id
+      |   |   |   | id       | integer    |
+      |   |   |   | code     | string     |
+      |   |   |   | name     | string     |
+                             |            |
+      |   |   | City         |            | name
+      |   |   |   | name     | string     |
+      |   |   |   | country  | ref        | Country[code]
+    ''')

@@ -37,6 +37,8 @@ def _qry(qry: Select, indent: int = 4) -> str:
 def _get_sql_type(dtype: DataType) -> Type[TypeEngine]:
     if isinstance(dtype, Ref):
         return _get_sql_type(dtype.refprops[0].dtype)
+    if dtype.name == 'integer':
+        return sa.Integer
     if dtype.name == 'string':
         return sa.Text
     if dtype.name == 'boolean':
@@ -210,4 +212,22 @@ def test_group_2(rc: RawConfig):
     FROM "COUNTRY"
     WHERE ("COUNTRY"."CODE" IS NULL OR "COUNTRY"."CODE" = :CODE_1)
       AND ("COUNTRY"."NAME" IS NULL OR "COUNTRY"."NAME")
+    '''
+
+
+def test_explicit_ref(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property   | type    | ref           | source     | access
+    example                    |         |               |            |
+      |   |   | Country        |         | id            | COUNTRY    |
+      |   |   |   | id         | integer |               | ID         | open
+      |   |   |   | code       | string  |               | NAME       | open
+      |   |   | City           |         | name          | CITY       |
+      |   |   |   | name       | string  |               | NAME       | open
+      |   |   |   | country    | ref     | Country[code] | COUNTRY_ID | open
+    ''', 'example/City') == '''
+    SELECT
+      "CITY"."NAME",
+      "CITY"."COUNTRY_ID"
+    FROM "CITY"
     '''
