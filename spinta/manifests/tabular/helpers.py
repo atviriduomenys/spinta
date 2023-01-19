@@ -75,6 +75,7 @@ from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
 from spinta.types.datatype import Ref
+from spinta.types.model import _parse_dtype_string
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -468,20 +469,19 @@ class PropertyReader(TabularReader):
                 f"defined for this {self.state.model.name!r} model."
             )
 
-        required = False
-        if 'required' in row['type']:
-            required = True
-            row['type'] = row['type'].replace('required', '').strip()
+        dtype = _parse_dtype_string(row['type'])
 
         self.data = {
-            'type': row['type'],
+            'type': dtype['type'],
+            'type_args': dtype['type_args'],
             'prepare': _parse_spyna(self, row[PREPARE]),
             'level': row['level'],
             'access': row['access'],
             'uri': row['uri'],
             'title': row['title'],
             'description': row['description'],
-            'required': required,
+            'required': dtype['required'],
+            'unique': dtype['unique'],
         }
 
         dataset = self.state.dataset.data if self.state.dataset else None
@@ -1800,7 +1800,7 @@ def _write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w') as f:
+    with path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)
