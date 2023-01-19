@@ -147,8 +147,20 @@ def _create_model_element(
     return _create_element(
         name=name,
         attributes=attributes,
-        children=list(data.values())
+        children=list(data.values()),
+        nsmap=prefixes
     )
+
+
+def _prepare_for_print(
+    model: Model,
+    data: dict
+) -> str:
+    elem = _create_model_element(model, data)
+    res = etree.tostring(elem, encoding="unicode", pretty_print=True)
+    for key, val in elem.nsmap.items():
+        res = res.replace(f'xmlns:{key}="{val}" ', "")
+    return res
 
 
 @commands.render.register(Context, Request, Model, Rdf)
@@ -189,34 +201,20 @@ async def _stream(
     namespaces = []
     prefixes = _get_available_prefixes(model)
     root_name = _get_attribute_name(RDF.capitalize(), RDF, prefixes)
-    root = _create_element(
-        name=root_name,
-        base=str(request.base_url),
-        nsmap=prefixes
-    )
+    for key, val in prefixes.items():
+        namespaces.append(f'xmlns:{key}="{val}"')
+    if request.base_url:
+        namespaces.append(f'xml:base="{str(request.base_url)}"')
+    if isinstance(root_name, QName):
+        root_name = f"{RDF}:{root_name.localname}"
+    namespaces = "\n ".join(namespaces)
 
+    yield f'<?xml version="1.0" encoding="UTF-8"?>\n<{root_name}\n {namespaces}>\n'
     if action == Action.GETONE:
-        elem = _create_model_element(model, data)
-        root.append(elem)
+        yield _prepare_for_print(model, data)
     else:
         for row in data:
-            elem = _create_model_element(model, row)
-            root.append(elem)
-
-    for key, val in root.nsmap.items():
-        namespaces.append(f'xmlns:{key}="{val}"')
-    if root.base:
-        namespaces.append(f'xml:base="{root.base}"')
-    if isinstance(root_name, QName):
-        root_name = f"{root.prefix}:{root_name.localname}"
-    namespaces = "\n".join(namespaces)
-
-    yield f'<?xml version="1.0" encoding="UTF-8"?>\n<{root_name}\n{namespaces}>\n'
-    for elem in root:
-        row = etree.tostring(elem, encoding="unicode", pretty_print=True)
-        for key, val in elem.nsmap.items():
-            row = row.replace(f'xmlns:{key}="{val}" ', "")
-        yield row
+            yield _prepare_for_print(model, row)
     yield f"</{root_name}>\n"
 
 
