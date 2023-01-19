@@ -691,7 +691,7 @@ def prepare_dtype_for_response(
             reserved=['_id'],
         )
     else:
-        names = ['_id']
+        names = value.keys()
 
     data = {
         prop.name: commands.prepare_dtype_for_response(
