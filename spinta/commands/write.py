@@ -622,8 +622,6 @@ async def validate_data(
                 if '_revision' in data.given:
                     raise exceptions.ManagedProperty(data.model, property='_revision')
             if data.prop:
-                if data.action == Action.UPSERT and data.saved.get(data.prop.name) is NA:
-                    check_type_value(data.prop.dtype, data.given.get(data.prop.name))
                 commands.complex_data_check(
                     context,
                     data,

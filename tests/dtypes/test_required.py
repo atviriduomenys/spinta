@@ -1,12 +1,12 @@
 import uuid
 
-import pytest
 from pytest import FixtureRequest
 
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.utils import get_error_codes, get_error_context
 
 
 def test_insert_with_required_property(
@@ -28,13 +28,19 @@ def test_insert_with_required_property(
         'getall'
     ])
 
-    with pytest.raises(Exception) as e:
-        app.post('/example/City', json={
-            'description': 'Test city',
-        })
-    assert e.value.args[0] == (
-        "'name' is required for 'example/City'."
-    )
+    resp = app.post('/example/City', json={
+        'description': 'Test city',
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["RequiredProperty"]
+    assert get_error_context(
+        resp.json(),
+        "RequiredProperty",
+        ["prop", "model"]
+    ) == {
+        'prop': 'name',
+        'model': 'example/City',
+    }
     resp = app.post('/example/City', json={
         'name': 'City',
         'description': 'Test city',
@@ -75,14 +81,20 @@ def test_update_with_required_property(
     })
     city = resp.json()
 
-    with pytest.raises(Exception) as e:
-        app.put(f'/example/City/{city["_id"]}', json={
-            '_revision': city["_revision"],
-            'description': 'Test city updated',
-        })
-    assert e.value.args[0] == (
-        "'name' is required for 'example/City'."
-    )
+    resp = app.put(f'/example/City/{city["_id"]}', json={
+        '_revision': city["_revision"],
+        'description': 'Test city updated',
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["RequiredProperty"]
+    assert get_error_context(
+        resp.json(),
+        "RequiredProperty",
+        ["prop", "model"]
+    ) == {
+        'prop': 'name',
+        'model': 'example/City',
+    }
     resp = app.put(f'/example/City/{city["_id"]}', json={
         '_revision': city["_revision"],
         'name': 'City',
@@ -126,6 +138,22 @@ def test_patch_with_required_property(
 
     resp = app.patch(f'/example/City/{city["_id"]}', json={
         '_revision': city["_revision"],
+        'name': None,
+        'description': 'Test city updated',
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["RequiredProperty"]
+    assert get_error_context(
+        resp.json(),
+        "RequiredProperty",
+        ["prop", "model"]
+    ) == {
+        'prop': 'name',
+        'model': 'example/City',
+    }
+
+    resp = app.patch(f'/example/City/{city["_id"]}', json={
+        '_revision': city["_revision"],
         'description': 'Test city updated',
     })
     assert resp.status_code == 200
@@ -158,15 +186,21 @@ def test_upsert_insert_with_required_property(
         'getall'
     ])
 
-    with pytest.raises(Exception) as e:
-        app.post('/example/City', json={
-            '_op': 'upsert',
-            '_where': f"_id='{str(uuid.uuid4())}'",
-            'description': 'Test city',
-        })
-    assert e.value.args[0] == (
-        "'name' is required for 'example/City'."
-    )
+    resp = app.post('/example/City', json={
+        '_op': 'upsert',
+        '_where': f"_id='{str(uuid.uuid4())}'",
+        'description': 'Test city',
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["RequiredProperty"]
+    assert get_error_context(
+        resp.json(),
+        "RequiredProperty",
+        ["prop", "model"]
+    ) == {
+        'prop': 'name',
+        'model': 'example/City',
+    }
     resp = app.post('/example/City', json={
         '_op': 'upsert',
         '_where': f"_id='{str(uuid.uuid4())}'",
@@ -209,9 +243,25 @@ def test_upsert_patch_with_required_property(
     })
     city = resp.json()
 
-    resp = app.post(f'/example/City', json={
+    resp = app.post('/example/City', json={
         '_op': 'upsert',
         '_where': f"_id='{city['_id']}'",
+        'description': 'Test city',
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ["RequiredProperty"]
+    assert get_error_context(
+        resp.json(),
+        "RequiredProperty",
+        ["prop", "model"]
+    ) == {
+        'prop': 'name',
+        'model': 'example/City',
+    }
+    resp = app.post('/example/City', json={
+        '_op': 'upsert',
+        '_where': f"_id='{city['_id']}'",
+        'name': 'City',
         'description': 'Test city updated',
     })
     assert resp.status_code == 200

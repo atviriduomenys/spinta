@@ -223,6 +223,7 @@ def test_prop_type_required(tmp_path, rc):
                              |
       |   |   | City         |
       |   |   |   | name     | string required
+      |   |   |   | place    | geometry(point) required
     ''')
 
 

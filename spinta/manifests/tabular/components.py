@@ -217,6 +217,7 @@ class PropertyRow(TypedDict, total=False):
     lang: LangData
     units: str
     required: bool
+    unique: bool
 
 
 class PropertyExternalRow(TypedDict, total=False):
