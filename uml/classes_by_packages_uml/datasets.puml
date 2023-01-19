@@ -1,0 +1,155 @@
+@startuml
+package datasets <<Rectangle>> {
+
+    package csv <<Rectangle>> {
+        object Csv {
+            +type: str = 'csv'
+        }
+    }
+
+    package frictionless <<Rectangle>> {
+        object FrictionlessBackend {
+
+        }
+    }
+
+    package notimpl <<Rectangle>> {
+        object BackendNotImplemented {
+
+        }
+    }
+
+    package sql <<Rectangle>> {
+        object Sql {
+            +type: str = 'sql'
+            +engine: Engine = None
+            +schema: sa.MetaData = None
+            +dbschema: str = None
+        }
+
+        object Engine {
+            +dsn: str
+            +schema: str = None
+            +encoding: str = NA
+        }
+
+        object SqlResource {
+            +dsn: str
+        }
+        object SqlResultBuilder {
+            +this: Any
+            +prop: Property
+            +data: RowProxy
+        }
+    }
+
+    package sqldump <<Rectangle>> {
+
+        object PrepareFileResource {
+            +path: Path
+        }
+
+        object File {
+            +path: Path = None
+            +encoding: str = 'utf-8'
+        }
+    }
+
+    package keymaps <<Rectangle>> {
+
+        object KeyMap {
+            +name: str = None
+        }
+
+        object SqlAlchemyKeyMap {
+            +dsn: str = None
+        }
+
+    }
+
+    object DatasetGiven {
+            +access: str = None
+    }
+
+    object Dataset {
+            +id: str
+            +manifest: Manifest
+            +owner: Owner = None
+            +level: Level = 3
+            +access: Access = Access.private
+            +website: str = None
+            +projects: List[Project] = None
+            +resources: Dict[str, Resource] = None
+            +title: str
+            +description: str
+            +given: DatasetGiven
+            +lang: LangData = None
+            +ns: Namespace = None
+            +prefixes: Dict[str, UriPrefix]
+    }
+
+    object ExternalBackend {
+            +engine: Engine = None
+            +schema: sa.MetaData = None
+    }
+
+    object External {
+
+    }
+
+    object ResourceGiven {
+            +access: Access = None
+    }
+
+    object Resource {
+            +eid: EntryId = None
+            +title: str
+            +description: str
+            +dataset: Dataset
+            +backend: ExternalBackend = None
+            +level: Level
+            +access: Access
+            +external: str
+            +prepare: str
+            +models: Dict[str, Model]
+            +given: ResourceGiven
+            +lang: LangData = None
+            +comments: List[Comment] = None
+    }
+
+    object Param {
+            +name: str
+            +sources: List[str]
+            +formulas: List[Expr]
+    }
+
+    object Entity {
+            +dataset: Dataset
+            +resource: Optional[Resource]
+            +model: Model
+            +pkeys: List[Property]
+            +unknown_primary_key: bool = False
+            +name: str
+            +prepare: Expr
+            +params: List[Param]
+    }
+
+    object Attribute {
+            +prop: Property
+            +name: str
+            +prepare: Expr = None
+    }
+
+}
+
+
+KeyMap *-- SqlAlchemyKeyMap
+External <|-- Resource
+External <|-- Entity
+External <|-- Attribute
+ExternalBackend <|-- Csv
+ExternalBackend <|-- FrictionlessBackend
+ExternalBackend <|-- BackendNotImplemented
+ExternalBackend *--  Sql
+
+@enduml

@@ -1,0 +1,218 @@
+@startuml
+object Context {
+    +_name: str
+    +_parent: Optional[Context]
+    +_exitstack: List[Optional[contextlib.ExitStack]]
+    +_local_names: List[Set[str]]
+}
+
+object _CommandsConfig {
+
+}
+
+object Store {
+    +manifest: Manifest = None
+    +internal: InternalManifest = None
+    +accesslog: AccessLog = None
+    +backends: Dict[str, Backend]
+}
+
+object Component {
+
+}
+
+object Node {
+    +type: str = None
+    +name: str = None
+    +parent: Node = None
+    +manifest: Manifest = None
+    +path: pathlib.Path = None
+}
+
+object MetaData {
+
+}
+
+object NamespaceGiven {
+    +access: str = None
+}
+
+object Namespace {
+    +access: Access
+    +keymap: KeyMap = None
+    +names: Dict[str, Namespace]
+    +models: Dict[str, Model]
+    +backend: Backend = None
+    +parent: Union[Namespace, Manifest]
+    +title: str
+    +description: str
+    +generated: bool = False
+    +given: NamespaceGiven
+    +lang: LangData = None
+    +enums: Enums = None
+}
+
+object Base {
+    +model: Model
+    +parent: Model
+    +pk: List[Property]
+    +lang: LangData = None
+}
+
+object ModelGiven {
+    +access: str = None
+}
+
+object Model {
+    +id: str
+    +level: Level
+    +access: Access
+    +title: str
+    +description: str
+    +ns: Namespace
+    +endpoint: str = None
+    +external: Entity = None
+    +properties: Dict[str, Property]
+    +mode: Mode = None
+    +given: ModelGiven
+    +lang: LangData = None
+    +comments: List[Comment] = None
+}
+
+object PropertyGiven {
+    +access: str = None
+    +enum: str = None
+    +unit: str = None
+}
+
+object Property {
+    +place: str = None
+    +title: str = None
+    +description: str = None
+    +link: str = None
+    +hidden: bool = False
+    +access: Access
+    +level: Level
+    +dtype: DataType = None
+    +external: Attribute
+    +list: Property = None
+    +model: Model = None
+    +uri: str = None
+    +given: PropertyGiven
+    +enum: EnumValue = None
+    +enums: Enums
+    +lang: LangData = None
+    +unit: Unit = None
+    +comments: List[Comment] = None
+}
+
+object Command {
+
+}
+
+object CommandList {
+
+}
+
+object Attachment {
+    +content_type: str
+    +filename: str
+    +data: bytes
+}
+
+object Action {
+
+}
+
+object UrlParseNode {
+
+}
+
+object UrlParams {
+
+    parsetree: List[UrlParseNode]
+
+    path_parts: List[str] = None
+    path: Optional[str] = None
+    model: Optional[Model] = None
+    pk: Optional[str] = None
+    prop: Optional[Property] = None
+    propref: bool = False
+    ns: bool = False
+    all: bool = False
+    external: bool = False
+    changes: bool = False
+    changes_offset: Optional[str] = None
+    fmt: Format
+    format: Optional[str] = None
+    formatparams: dict
+    select: Optional[List[str]] = None
+    sort: List[dict] = None
+    limit: Optional[int] = None
+    offset: Optional[int] = None
+    limit_enforced: bool = False
+    limit_enforced_to: int = 100
+    count: bool = False
+    summary: bool = False
+    fault_tolerant: bool = False
+    action: Action = None
+    head: bool = False
+    query: List[Dict[str, Any]] = None
+}
+
+object Version {
+    +version: str
+}
+
+object DataItem {
+    +model: Optional[Model] = None
+    +prop: Optional[Property] = None
+    +propref: bool = False
+    +backend: Optional[Backend] = None
+    +action: Optional[Action] = None
+    +payload: Optional[dict] = None
+    +given: Optional[dict] = None
+    +saved: Optional[dict] = None
+    +patch: Optional[dict] = None
+    +error: Optional[exceptions.UserError] = None
+}
+
+object DataSubItem {
+
+}
+
+object Mode {
+
+}
+
+object Config {
+    rc: RawConfig
+    debug: bool = False
+    config_path: pathlib.Path
+    server_url: str
+    scope_prefix: str
+    scope_formatter: ScopeFormatterFunc
+    scope_max_length: int
+    default_auth_client: str
+    http_basic_auth: bool
+    token_validation_key: dict = None
+    datasets: dict
+    env: str
+    docs_path: pathlib.Path
+    always_show_id: bool = False
+    # Limit access to specified namespace root.
+    root: str = None
+    credentials_file: pathlib.Path
+    data_path: pathlib.Path
+    AccessLog: Type[AccessLog]
+    exporters: Dict[str, Format]
+}
+
+Component *-- Node
+Node *-- MetaData
+MetaData *-- Namespace
+Node *-- Base
+MetaData <|-- Model
+Node *-- Property
+
+@enduml

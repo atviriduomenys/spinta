@@ -1,0 +1,140 @@
+@startuml
+package types <<Rectangle>> {
+    object DataType {
+        +type: str
+        +type_args: List[str]
+        +name: str
+        +unique: bool = False
+        +nullable: bool = False
+        +required: bool = False
+        +default: Any = None
+        +prepare: Expr = None
+        +choices: dict = None
+        +backend: Backend = None
+        +prop: Property = None
+    }
+
+    object PrimaryKey {
+
+    }
+
+    object Date {
+
+    }
+
+    object Time {
+
+    }
+
+    object DateTime {
+
+    }
+
+    object String {
+
+    }
+
+    object Binary {
+
+    }
+
+    object Integer {
+
+    }
+
+    object Number {
+
+    }
+
+    object Boolean {
+
+    }
+
+    object URL {
+
+    }
+
+    object Ref {
+        +model: Model
+        +refprops: List[Property]
+    }
+
+    object BackRef {
+
+    }
+
+    object Generic {
+
+    }
+
+    object Array {
+        +items: Property = None
+    }
+
+    object Object {
+        +properties: Dict[str, Property] = None
+    }
+
+    object File {
+
+    }
+
+    object Image {
+
+    }
+
+    object RQL {
+
+    }
+
+    object JSON {
+
+    }
+
+    object NamespaceData {
+        +title: str
+        +description: str
+    }
+
+    object Owner {
+
+    }
+
+    object Project {
+
+    }
+
+    object Impact {
+
+    }
+
+    object types.Model {
+
+    }
+
+    object Property {
+
+    }
+
+}
+
+DataType *-- PrimaryKey
+DataType *-- Date
+DataType *-- Time
+DataType *-- DateTime
+DataType *-- String
+DataType *-- Binary
+DataType *-- Integer
+DataType *-- Number
+DataType *-- Boolean
+DataType *-- URL
+DataType *-- Ref
+DataType *-- BackRef
+DataType *-- Generic
+DataType *-- Array
+DataType *-- Object
+DataType *-- File
+DataType *-- Image
+DataType *-- RQL
+DataType *-- JSON
+@enduml
