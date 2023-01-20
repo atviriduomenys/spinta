@@ -6,7 +6,6 @@ from typing import Tuple
 from typing import Type
 from typing import Union
 from typing import overload
-
 from spinta import commands
 from spinta import exceptions
 from spinta.components import Component
@@ -42,7 +41,6 @@ def get_node(
             eid=eid,
             error=f"Expected dict got {type(data).__name__}.",
         )
-
     if ctype is None:
         if 'type' not in data:
             raise exceptions.InvalidManifestFile(
@@ -100,15 +98,12 @@ def get_node(
                 )
         else:
             error = f"Unknown component {ctype!r} in {group!r}."
-        if ctype not in [_type+'_unique' for _type in config.components[group]]:
-            raise exceptions.InvalidManifestFile(
-                parent,
-                manifest=manifest.name,
-                eid=eid,
-                error=error,
+        raise exceptions.InvalidManifestFile(
+            parent,
+            manifest=manifest.name,
+            eid=eid,
+            error=error,
             )
-        else:
-            ctype = str(ctype.split("_unique")[0])
 
     Node_ = config.components[group][ctype]
     return Node_()

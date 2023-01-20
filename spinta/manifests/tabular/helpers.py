@@ -75,6 +75,7 @@ from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
 from spinta.types.datatype import Ref, DataType
+from spinta.types.model import _parse_dtype_string
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -458,23 +459,29 @@ class PropertyReader(TabularReader):
                 f"Now it is defined in {context.name!r} {context.type} context."
             )
 
+        dtype = _parse_dtype_string(row['type'])
+
         if row['property'] in self.state.model.data['properties']:
             self.error(
                 f"Property {self.name!r} with the same name is already "
                 f"defined for this {self.state.model.name!r} model."
             )
         self.data = {
-            'type': row['type'],
+            'type': dtype['type'],
+            'type_args': dtype['type_args'],
             'prepare': _parse_spyna(self, row[PREPARE]),
             'level': row['level'],
             'access': row['access'],
             'uri': row['uri'],
             'title': row['title'],
             'description': row['description'],
+            'required': dtype['required'],
+            'unique': dtype['unique'],
+            'ref_unique': dtype['ref_unique']
         }
         dataset = self.state.dataset.data if self.state.dataset else None
         if row['ref']:
-            if row['type'] in ('ref', 'backref', 'generic'):
+            if dtype['type'] in ('ref', 'backref', 'generic'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
                 self.data['model'] = get_relative_model_name(dataset, ref_model)
                 self.data['refprops'] = ref_props
@@ -486,12 +493,8 @@ class PropertyReader(TabularReader):
                 'name': row['source'],
                 'prepare': self.data.pop('prepare'),
             }
-
         self.state.model.data['properties'][row['property']] = self.data
-        # Decide if unique constrains for column are needed
-        # Needs to have in column name _unique
-        if '_unique' in row['type']:
-            DataType.schema['unique']['default'] = True
+
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
             ManifestReader,

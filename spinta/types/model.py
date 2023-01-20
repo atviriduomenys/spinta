@@ -180,15 +180,31 @@ def link(context: Context, base: Base):
     ]
 
 
-def _parse_dtype_string(dtype: str) -> Tuple[str, List[str]]:
+def _parse_dtype_string(dtype: str) -> dict:
+    args = []
+    required = unique = False
+    ref_unique = False
+    if 'required' in dtype:
+        required = True
+        dtype = dtype.replace('required', '').strip()
+    if 'unique' in dtype:
+        unique = True
+        if 'ref' in dtype and 'unique' in dtype:
+            print(dtype)
+            ref_unique = True
+        dtype = dtype.replace('unique', '').strip()
     if '(' in dtype:
         name, args = dtype.split('(', 1)
+        dtype, args = dtype.split('(', 1)
         args = args.strip().rstrip(')')
         args = [a.strip() for a in args.split(',')]
-        return name, args
-    else:
-        return dtype, []
-
+    return {
+        'type': dtype,
+        'type_args': args,
+        'required': required,
+        'unique': unique,
+        'ref_unique': ref_unique
+    }
 
 @load.register(Context, Property, dict, Manifest)
 def load(
@@ -213,8 +229,6 @@ def load(
     # Parse dtype like geometry(point, 3346)
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
-    dtype_type, dtype_args = _parse_dtype_string(data['type'])
-    data = {**data, 'type': dtype_type, 'type_args': dtype_args}
 
     prop.dtype = get_node(
         config,

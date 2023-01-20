@@ -76,15 +76,12 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         'uri': sa.String,
     }
 
-    if (dtype.name not in types) and (dtype.name not in [str(_type)+'_unique' for _type in types]):
+    if dtype.name not in types:
         raise Exception(
             f"Unknown type {dtype.name!r} for property {prop.place!r}."
         )
-    column_type = types[dtype.name.split("_unique")[0]]
-    if '_unique' in dtype.name:
-        return sa.Column(name, column_type, unique=dtype.unique)
-    else:
-        return sa.Column(name, column_type)
+    column_type = types[dtype.name]
+    return sa.Column(name, column_type, unique=dtype.unique)
 
 
 @commands.get_primary_key_type.register()
