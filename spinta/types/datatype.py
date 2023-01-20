@@ -193,7 +193,7 @@ class Ref(DataType):
         },
         'refprops': {
             'type': 'array',
-            'items': {'type': 'string', 'unique': False},
+            'items': {'type': 'string'},
         },
         'enum': {'type': 'array'},
     }
