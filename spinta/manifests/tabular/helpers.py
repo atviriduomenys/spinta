@@ -487,7 +487,7 @@ class PropertyReader(TabularReader):
         dataset = self.state.dataset.data if self.state.dataset else None
 
         if row['ref']:
-            if row['type'] in ('ref', 'backref', 'generic'):
+            if dtype['type'] in ('ref', 'backref', 'generic'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
                 self.data['model'] = get_relative_model_name(dataset, ref_model)
                 self.data['refprops'] = ref_props
