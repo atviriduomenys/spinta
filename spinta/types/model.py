@@ -190,7 +190,6 @@ def _parse_dtype_string(dtype: str) -> dict:
     if 'unique' in dtype:
         unique = True
         if 'ref' in dtype and 'unique' in dtype:
-            print(dtype)
             ref_unique = True
         dtype = dtype.replace('unique', '').strip()
     if '(' in dtype:

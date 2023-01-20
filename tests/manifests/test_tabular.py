@@ -232,7 +232,7 @@ def test_property_unique_add(tmp_path, rc):
     example                             |
                                         |
       |   |   | City                    |
-      |   |   |   | prop_with_unique    | string_unique
+      |   |   |   | prop_with_unique    | string unique
       |   |   |   | prop_not_unique     | string
     ''')
 
@@ -242,8 +242,45 @@ def test_property_unique_add_wrong_type(tmp_path, rc):
         d | r | b | m | property | type
         datasets/gov/example     |
           |   |   | City         |
-          |   |   |   | value    | str_unique
+          |   |   |   | value    | string unikue
         ''')
     assert e.value.context['error'] == (
-        "Unknown 'str_unique' type of 'value' property in 'datasets/gov/example/City' model."
+        "Unknown 'string unikue' type of 'value' property in 'datasets/gov/example/City' model."
     )
+
+def test_property_with_ref_unique(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type               | ref     | uri
+    datasets/gov/example     |                    |         |
+                             | prefix             | locn    | http://www.w3.org/ns/locn#
+                             |                    | ogc     | http://www.opengis.net/rdf#
+                             |                    |         |
+      | data                 | postgresql         | default |
+                             |                    |         |
+      |   |   | Country      |                    | code    |
+      |   |   |   | code     | string             |         |
+      |   |   |   | name     | string             |         | locn:geographicName
+                             |                    |         |
+      |   |   | City         |                    | name    |
+      |   |   |   | name     | string unique      |         | locn:geographicName
+      |   |   |   | country  | ref unique         | Country |
+    ''')
+
+def test_with_denormalized_data(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property               | type   | ref       | access
+    example                                |        |           |
+                                           |        |           |
+      |   |   | Continent                  |        |           |
+      |   |   |   | name                   | string |           | open
+                                           |        |           |
+      |   |   | Country                    |        |           |
+      |   |   |   | name                   | string |           | open
+      |   |   |   | continent              | ref    | Continent | open
+                                           |        |           |
+      |   |   | City                       |        |           |
+      |   |   |   | name                   | string |           | open
+      |   |   |   | country                | ref    | Country   | open
+      |   |   |   | country.name           |        |           | open
+      |   |   |   | country.continent.name |        |           | open
+    ''')
