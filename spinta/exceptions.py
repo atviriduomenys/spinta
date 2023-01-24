@@ -515,6 +515,20 @@ class KeymapNotSet(UserError):
     )
 
 
+class NoRefPropertyForDenormProperty(UserError):
+    template = (
+        "Property {ref!r} with type 'ref' or 'object' must be defined "
+        "before defining property {prop!r} in {model!r} model."
+    )
+
+
+class UndefinedPropertyInDenormProperty(UserError):
+    template = (
+        "Property {denorm_prop!r} cannot be defined in {denorm_model!r}, "
+        "because property {ref_prop!r} is not defined in {ref_model!r} model."
+    )
+
+
 class RemoteClientError(UserError):
     pass
 
