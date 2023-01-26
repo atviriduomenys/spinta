@@ -358,7 +358,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
         match=[_matcher({
             '_op': 'patch',
             '_type': model.name,
-            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
             '_revision': rev_before,
         })],
     )
@@ -458,6 +458,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         checksum='DELETED',
         pushed=datetime.datetime.now(),
         error=False,
+        deleted=False,
     ))
 
     rows = []
@@ -476,8 +477,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         match=[_matcher({
             '_op': 'delete',
             '_type': model.name,
-            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
-            '_revision': rev_before,
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')"
         })],
     )
 
@@ -490,9 +490,10 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         state=state,
     )
 
-    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c.deleted])
     assert list(conn.execute(query)) == [(
         '4d741843-4e94-4890-81d9-5af7c5b5989a',
         rev_after,
         False,
+        True,
     )]

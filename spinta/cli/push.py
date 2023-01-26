@@ -219,6 +219,7 @@ def _push(
         rows = _add_stop_time(rows, stop_time)
 
     if state:
+        _reset_pushed(context, models, state.metadata)
         rows = _check_push_state(context, rows, state.metadata)
 
     rows = _prepare_rows_for_push(rows)
@@ -239,6 +240,28 @@ def _push(
 
     _push_rows(rows, stop_on_error)
 
+    if state:
+        deleted_rows = _get_deleted_rows(
+            models,
+            context,
+            state.metadata
+        )
+        deleted_rows = _push_to_remote_spinta(
+            client,
+            server,
+            deleted_rows,
+            chunk_size,
+            dry_run=dry_run,
+        )
+
+        deleted_rows = _save_state_after_delete(
+            deleted_rows,
+            context,
+            state.metadata
+        )
+
+        _push_rows(deleted_rows, stop_on_error)
+
 
 class _PushRow:
     model: Model
@@ -249,6 +272,8 @@ class _PushRow:
     saved: bool = False
     # If push request received an error
     error: bool = False
+    # True if object has been deleted
+    deleted: bool = False
 
     def __init__(self, model: Model, data: Dict[str, Any]):
         self.model = model
@@ -299,8 +324,21 @@ def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
     for row in rows:
         if row.saved:
             row.data['_op'] = 'patch'
+
+            where = {
+                'name': 'eq',
+                'args': [
+                    {'name': 'bind', 'args': ['_id']},
+                    row.data['_id'],
+                ]
+            }
+            row.data['_where'] = spyna.unparse(where)
         else:
             row.data['_op'] = 'insert'
+
+            # if _revision is passed insert action gives ManagedProperty error
+            if '_revision' in row.data:
+                row.data.pop('_revision')
         yield row
 
 
@@ -542,8 +580,15 @@ def _map_sent_and_recv(
             f"len(sent) = {len(sent)}, len(received) = {len(recv)}"
         )
         for sent_row, recv_row in zip(sent, recv):
-            assert sent_row.data['_id'] == recv_row['_id'], (
-                f"sent._id = {sent_row.data['_id']}, "
+            if '_id' in sent_row.data:
+                _id = sent_row.data['_id']
+            else:
+                # after delete
+                _id = spyna.parse(sent_row.data['_where'])['args'][1]
+                sent_row.deleted = True
+
+            assert _id == recv_row['_id'], (
+                f"sent._id = {_id}, "
                 f"received._id = {recv_row['_id']}"
             )
             sent_row.data['_revision'] = recv_row['_revision']
@@ -574,6 +619,7 @@ def _init_push_state(
             sa.Column('revision', sa.Unicode),
             sa.Column('checksum', sa.Unicode),
             sa.Column('pushed', sa.DateTime),
+            sa.Column('deleted', sa.Boolean),
             sa.Column('error', sa.Boolean),
         )
         table.create(checkfirst=True)
@@ -599,6 +645,23 @@ def _get_data_checksum(row: _PushRow):
 class _Saved(NamedTuple):
     revision: str
     checksum: str
+
+
+def _reset_pushed(
+    context: Context,
+    models: List[Model],
+    metadata: sa.MetaData,
+):
+    conn = context.get('push.state.conn')
+    for model in models:
+        table = metadata.tables[model.name]
+
+        # reset pushed so we could see which objects were deleted
+        conn.execute(
+            table.update().
+            where(table.c.deleted.is_(False)).
+            values(pushed=None)
+        )
 
 
 def _check_push_state(
@@ -630,6 +693,13 @@ def _check_push_state(
                 row.saved = True
                 row.data['_revision'] = saved.revision
                 if saved.checksum == row.checksum:
+                    conn.execute(
+                        table.update().
+                        where(table.c.id == _id).
+                        values(
+                            pushed=datetime.datetime.now()
+                        )
+                    )
                     continue  # Nothing has changed.
 
             yield row
@@ -653,6 +723,7 @@ def _save_push_state(
                     checksum=row.checksum,
                     pushed=datetime.datetime.now(),
                     error=row.error,
+                    deleted=row.deleted,
                 )
             )
         else:
@@ -664,6 +735,77 @@ def _save_push_state(
                     checksum=row.checksum,
                     pushed=datetime.datetime.now(),
                     error=row.error,
+                    deleted=row.deleted,
+                )
+            )
+        yield row
+
+
+def _prepare_deleted_rows(
+    rows,
+    model: Model,
+    table
+) -> Iterable[_PushRow]:
+    for row in rows:
+        where = {
+            'name': 'eq',
+            'args': [
+                {'name': 'bind', 'args': ['_id']},
+                row[table.c.id],
+            ]
+        }
+        yield _PushRow(model, {
+            '_op': 'delete',
+            '_type': model.name,
+            '_where': spyna.unparse(where)
+        })
+
+
+def _get_deleted_rows(
+    models: List[Model],
+    context: Context,
+    metadata: sa.MetaData,
+) -> Iterable[_PushRow]:
+    conn = context.get('push.state.conn')
+    for model in models:
+        table = metadata.tables[model.name]
+        deleted_rows = conn.execute(
+            sa.select([table.c.id]).
+            where(
+                table.c.pushed.is_(None) &
+                table.c.deleted.is_(False)
+            )
+        )
+        yield from _prepare_deleted_rows(deleted_rows, model, table)
+
+
+def _save_state_after_delete(
+    rows: Iterable[_PushRow],
+    context: Context,
+    metadata: sa.MetaData,
+) -> Iterator[_PushRow]:
+    conn = context.get('push.state.conn')
+    for row in rows:
+        table = metadata.tables[row.data['_type']]
+        _id = spyna.parse(row.data['_where'])['args'][1]
+        if row.error:
+            conn.execute(
+                table.update().
+                where(table.c.id == _id).
+                values(
+                    pushed=datetime.datetime.now(),
+                    error=row.error,
+                )
+            )
+        else:
+            conn.execute(
+                table.update().
+                where(table.c.id == _id).
+                values(
+                    revision=row.data['_revision'],
+                    pushed=datetime.datetime.now(),
+                    error=row.error,
+                    deleted=row.deleted,
                 )
             )
         yield row
