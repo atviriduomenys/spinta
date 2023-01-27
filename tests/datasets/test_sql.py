@@ -291,18 +291,16 @@ def test_filter_multi_column_pk(rc, tmp_path, geodb):
        |   |   |   |   | name     | pavadinimas |                    | string  |               | 3     | open   |     | Name    |
        |   |   |   |   | country  | salis       |                    | ref     | Country[code] | 4     | open   |     | Country |
     '''))
-
     app = create_client(rc, tmp_path, geodb)
 
     resp = app.get('/datasets/gov/example/Country')
     codes = dict(listdata(resp, '_id', 'code'))
-
     resp = app.get('/datasets/gov/example/City?sort(name)')
     data = listdata(resp, 'country._id', 'name', sort='name')
     data = [(codes.get(country), city) for country, city in data]
     assert data == [
-        ('lv', 'Ryga'),
-        ('lt', 'Vilnius'),
+         ('lv', 'Ryga'),
+         ('lt', 'Vilnius'),
     ]
 
 

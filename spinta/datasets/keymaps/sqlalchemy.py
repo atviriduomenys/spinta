@@ -36,6 +36,7 @@ class SqlAlchemyKeyMap(KeyMap):
         self.conn.close()
         self.conn = None
 
+
     def get_table(self, name):
         if name not in self.metadata.tables:
             table = sa.Table(
@@ -47,7 +48,7 @@ class SqlAlchemyKeyMap(KeyMap):
             table.create(checkfirst=True)
         return self.metadata.tables[name]
 
-    def encode(self, name: str, value: object) -> Optional[str]:
+    def encode(self, name: str, value: object, primary_key, parent_table) -> Optional[str]:
         # Make value msgpack serializable.
         if isinstance(value, (list, tuple)):
             value = [_encode_value(k) for k in value if k is not None]
@@ -57,24 +58,31 @@ class SqlAlchemyKeyMap(KeyMap):
             if value is None:
                 return None
             value = _encode_value(value)
-
-        # Get value hash.
-        value = msgpack.dumps(value, strict_types=True)
-        hash = hashlib.sha1(value).hexdigest()
-
-        # Try to find key by value hash.
         table = self.get_table(name)
+        value_msg = msgpack.dumps(value, strict_types=True)
+        primary_key = msgpack.dumps(primary_key, strict_types=True)
+        hash = hashlib.sha1(value_msg).hexdigest()
         query = sa.select([table.c.key]).where(table.c.hash == hash)
         key = self.conn.execute(query).scalar()
-        if key is None:
+        if primary_key and parent_table:
+            _query_parent_table = sa.select([self.metadata.tables[parent_table]])
+            result = self.conn.execute(_query_parent_table)
+            for r in result:
+                if str(r.value[-1]) == str(primary_key[-1]):
+                    self.conn.execute(table.insert(), {
+                        'key': r.key,
+                        'hash': hash,
+                        'value': primary_key,
+                    })
+                    return r.key
 
-            # Create new key.
+        if key is None:
             key = str(uuid.uuid4())
             self.conn.execute(table.insert(), {
                 'key': key,
                 'hash': hash,
-                'value': value,
-            })
+                'value': value_msg,
+                })
 
         return key
 

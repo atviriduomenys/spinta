@@ -77,14 +77,11 @@ def getall(
     conn = context.get(f'transaction.{backend.name}')
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
-
     # Merge user passed query with query set in manifest.
     query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
-
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
-
     for params in iterparams(context, model):
         table = model.external.name.format(**params)
         table = backend.get_table(model, table)
@@ -103,12 +100,17 @@ def getall(
                 val = _get_row_value(context, row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = keymap.encode(sel.prop.model.model_type(), val)
+                        val = keymap.encode(sel.prop.model.model_type(), [val[0], val[1]], None, None)
                     elif isinstance(sel.prop.dtype, Ref):
-                        val = keymap.encode(sel.prop.dtype.model.model_type(), val)
+                        parent_table = sel.prop.name
+                        current_table = sel.prop.model.name
+                        parent_table = current_table.replace(current_table.split("/")[-1], parent_table.title())
+                        val = keymap.encode(sel.prop.model.model_type(), str(row[0]), str(row[1]),
+                                            parent_table)
                         val = {'_id': val}
-                res[key] = val
 
+                res[key] = val
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res
+
