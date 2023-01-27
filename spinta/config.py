@@ -107,6 +107,7 @@ CONFIG = {
             'file': 'spinta.types.datatype:File',
             'rql': 'spinta.types.datatype:RQL',
             'json': 'spinta.types.datatype:JSON',
+            'denorm': 'spinta.types.datatype:Denorm',
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
