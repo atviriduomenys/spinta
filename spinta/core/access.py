@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from typing import Union
 
 from spinta.core.enums import Access
-from spinta.utils.enums import enum_by_name
+from spinta.utils.enums import enum_by_name, get_enum_by_name
 
 if TYPE_CHECKING:
     from spinta.dimensions.enum.components import EnumItem
@@ -63,12 +63,15 @@ def link_access_param(
         Model,
         Property,
     ]] = (),
+    *,
     use_given: bool = True,
 ) -> None:
     if component.access is None:
         for parent in parents:
             candidate = parent.given.access if use_given else parent.access
             if candidate:
+                if isinstance(candidate, str):
+                    candidate = get_enum_by_name(Access, candidate)
                 component.access = candidate
                 break
         else:
