@@ -606,6 +606,41 @@ def _add_stop_time(
             break
 
 
+def _add_column(
+    engine: sa.engine.Engine,
+    table_name: str,
+    column: sa.Column,
+):
+    column_name = column.compile(dialect=engine.dialect)
+    column_type = column.type.compile(engine.dialect)
+    try:
+        engine.execute('ALTER TABLE "%s" ADD COLUMN "%s" %s' % (
+            table_name,
+            column_name,
+            column_type
+        ))
+    except sa.exc.SQLAlchemyError:
+        # column already exists, so we ignore the error
+        pass
+
+
+def _rename_column(
+    engine: sa.engine.Engine,
+    table_name: str,
+    old_column_name: str,
+    new_column_name: str
+):
+    try:
+        engine.execute('ALTER TABLE "%s" RENAME COLUMN "%s" TO "%s"' % (
+            table_name,
+            old_column_name,
+            new_column_name
+        ))
+    except sa.exc.SQLAlchemyError:
+        # column was already renamed before, so we ignore the error
+        pass
+
+
 def _init_push_state(
     dburi: str,
     models: List[Model],
@@ -616,16 +651,17 @@ def _init_push_state(
         table = sa.Table(
             model.name, metadata,
             sa.Column('id', sa.Unicode, primary_key=True),
-            sa.Column('revision', sa.Unicode),
-            sa.Column('checksum', sa.Unicode),
-            sa.Column('pushed', sa.DateTime),
-            sa.Column('deleted', sa.Boolean),
-            sa.Column('error', sa.Boolean),
         )
         table.create(checkfirst=True)
-        # TODO: add error
-        # TODO: add revision
-        # TODO: rename rev to checksum
+
+        _rename_column(engine, table.name, 'rev', 'checksum')
+        _add_column(engine, table.name, sa.Column('revision', sa.Unicode))
+        _add_column(engine, table.name, sa.Column('checksum', sa.Unicode))
+        _add_column(engine, table.name, sa.Column('pushed', sa.DateTime))
+        _add_column(engine, table.name, sa.Column('deleted', sa.Boolean))
+        _add_column(engine, table.name, sa.Column('error', sa.Boolean))
+        metadata.reflect(only=[table.name], extend_existing=True)
+
     return engine, metadata
 
 
