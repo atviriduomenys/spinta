@@ -275,7 +275,7 @@ def test_filter_join_ne_array_value(rc, tmp_path, geodb):
     ]
 
 
-# @pytest.mark.skip('todo')
+#@pytest.mark.skip('todo')
 def test_filter_multi_column_pk(rc, tmp_path, geodb):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     id | d | r | b | m | property | source      | prepare            | type    | ref           | level | access | uri | title   | description

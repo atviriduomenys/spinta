@@ -100,16 +100,19 @@ def getall(
                 val = _get_row_value(context, row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = keymap.encode(sel.prop.model.model_type(), [val[0], val[1]] if isinstance(val, (list, str))
-                                            else val, None, None)
+                        val = keymap.encode(sel.prop.model.model_type(), val)
+                        xkey = keymap.encode(sel.prop.model.model_type()+'.code', row[1], val)
                     elif isinstance(sel.prop.dtype, Ref):
                         parent_table = sel.prop.name
                         current_table = sel.prop.model.name
-                        parent_table = current_table.replace(current_table.split("/")[-1], parent_table.title())
-                        val = keymap.encode(sel.prop.model.model_type(), str(row[0]), str(row[1]),
+                        if current_table.split("/")[-1].islower():
+                            help = sel.prop.place
+                        else:
+                            help = parent_table.title()
+                        parent_table = current_table.replace(current_table.split("/")[-1], help)
+                        val = keymap.encode(sel.prop.model.model_type()+'.code', row[0], row[1],
                                             parent_table)
                         val = {'_id': val}
-
                 res[key] = val
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
