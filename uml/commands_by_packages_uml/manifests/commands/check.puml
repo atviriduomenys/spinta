@@ -1,0 +1,14 @@
+@startuml
+package check <<Rectangle>> {
+
+    object check {
+        +context: Context,
+        +manifest: Manifest
+    }
+}
+
+check *-- Context
+check *-- BackendManifest
+
+
+@enduml

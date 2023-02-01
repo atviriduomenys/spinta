@@ -1,0 +1,54 @@
+@startuml
+package helpers <<Rectangle>> {
+
+    object replace {
+        +context: Context
+        + *
+        +source: dict
+        +data
+    }
+
+    object hint {
+
+    }
+
+    object chain {
+
+    }
+
+    object all_ {
+
+    }
+
+    object denormalize_ {
+
+    }
+
+    object allunstack {
+
+    }
+
+    object list_ {
+        +context: Context
+        + *
+        +commands
+        +**kwargs
+    }
+
+    object url {
+
+    }
+
+    object range_ {
+        +context: Context
+        + *
+        +commands
+        +start: int = 0
+        +stop: int = 0
+    }
+
+}
+
+replace *-- Context
+range_ *-- Context
+@enduml

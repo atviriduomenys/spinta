@@ -1,0 +1,25 @@
+@startuml
+package encode <<Rectangle>> {
+
+    object prepare_for_write {
+        +context: Context,
+        +dtype: Date,
+        +backend: Mongo,
+        +value: datetime.date,
+
+    }
+
+    object cast_backend_to_python {
+        +context: Context,
+        +dtype: Date,
+        +backend: Mongo,
+    }
+}
+
+prepare_for_write *-- Context
+prepare_for_write *-- DataType
+prepare_for_write *-- Mongo
+cast_backend_to_python *-- Context
+cast_backend_to_python *-- DataType
+cast_backend_to_python *-- Mongo
+@enduml

@@ -1,0 +1,17 @@
+@startuml
+package commands <<Rectangle>> {
+
+    object check {
+        +context: Context,
+        +item: EnumItem,
+        +dtype: DataType,
+        +value: Any,
+    }
+}
+
+check *-- Context
+check *-- EnumItem
+check *-- DataType
+check *-- Any
+
+@enduml

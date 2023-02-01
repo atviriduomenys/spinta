@@ -1,0 +1,16 @@
+@startuml
+package freeze <<Rectangle>> {
+
+    object freeze {
+        +context: Context,
+        +version: SchemaVersion,
+        +backend: Mongo,
+        +old: object,
+        +new: object,
+    }
+}
+
+freeze *-- Context
+freeze *-- SchemaVersion
+freeze *-- Mongo
+@enduml

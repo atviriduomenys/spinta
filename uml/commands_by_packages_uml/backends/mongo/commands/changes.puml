@@ -1,0 +1,18 @@
+@startuml
+package changes <<Rectangle>> {
+
+    object changes {
+        +context: Context,
+        +model: (Model, Property),
+        +backend: Mongo,
+        +*,
+        +dstream: types.AsyncGeneratorType,
+
+    }
+}
+
+changes *-- Context
+changes *-- Model
+changes *-- Property
+changes *-- Mongo
+@enduml

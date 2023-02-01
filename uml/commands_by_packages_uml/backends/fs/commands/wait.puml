@@ -1,0 +1,15 @@
+@startuml
+package wait <<Rectangle>> {
+
+    object wait {
+        +context: Context,
+        +backend: FileSystem,
+        + *,
+        +fail: bool = False
+
+    }
+}
+
+wait *-- Context
+wait *-- FileSystem
+@enduml

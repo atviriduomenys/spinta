@@ -1,0 +1,14 @@
+@startuml
+package bootstrap <<Rectangle>> {
+
+    object bootstrap {
+        +context: Context
+        +manifest: BackendManifest
+    }
+}
+
+bootstrap *-- Context
+bootstrap *-- BackendManifest
+
+
+@enduml

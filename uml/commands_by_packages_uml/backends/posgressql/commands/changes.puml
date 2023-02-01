@@ -1,0 +1,33 @@
+@startuml
+package changes <<Rectangle>> {
+
+    object create_changelog_entry {
+        +context: Context,
+        +node: (Model, Property),
+        +backend: PostgreSQL,
+        +*,
+        +dstream: AsyncGeneratorType,
+    }
+
+    object changes {
+        +context: Context,
+        +model: Model,
+        +backend: PostgreSQL,
+        +*,
+        +id_: str = None,
+        +limit: int = 100,
+        +offset: Optional[int] = -100,
+    }
+
+}
+
+create_changelog_entry *-- Context
+create_changelog_entry *-- Model
+create_changelog_entry *-- Property
+create_changelog_entry *-- PostgreSQL
+create_changelog_entry *-- AsyncGeneratorType
+changes *-- Context
+changes *-- Model
+changes *-- PostgreSQL
+@enduml
+

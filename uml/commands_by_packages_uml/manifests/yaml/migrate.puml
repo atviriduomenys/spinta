@@ -1,0 +1,13 @@
+@startuml
+package sync <<Rectangle>> {
+
+    object sync {
+        +context: Context,
+        +current: YamlManifest,
+
+    }
+}
+
+sync *-- Context
+sync *-- YamlManifest
+@enduml

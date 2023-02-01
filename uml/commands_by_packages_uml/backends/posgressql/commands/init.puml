@@ -1,0 +1,24 @@
+@startuml
+package init <<Rectangle>> {
+
+    object prepare {
+        +context: Context,
+        +backend: PostgreSQL,
+        +manifest: Manifest,
+    }
+
+    object get_primary_key_type {
+        +context: Context,
+        +backend: PostgreSQL,
+    }
+
+}
+
+prepare *-- Context
+prepare *-- PostgreSQL
+prepare *-- Manifest
+get_primary_key_type *-- Context
+get_primary_key_type *-- PostgreSQL
+
+@enduml
+

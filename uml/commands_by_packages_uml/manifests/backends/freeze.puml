@@ -1,0 +1,14 @@
+@startuml
+package freeze <<Rectangle>> {
+
+    object freeze {
+        +context: Context
+        +current: BackendManifest
+    }
+}
+
+freeze *-- Context
+freeze *-- BackendManifest
+
+
+@enduml

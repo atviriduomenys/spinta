@@ -1,0 +1,30 @@
+@startuml
+package init <<Rectangle>> {
+
+    object getone {
+        +context: Context,
+        +model: Model,
+        +backend: PostgreSQL,
+        +*,
+        +id_: str,
+    }
+
+    object getall {
+        +context: Context,
+        +model: Model,
+        +backend: PostgreSQL,
+        +*,
+        +query: Expr = None,
+    }
+
+}
+
+getone *-- Context
+getone *-- PostgreSQL
+getone *-- Model
+getall *-- Context
+getall *-- Model
+getall *-- PostgreSQL
+
+@enduml
+

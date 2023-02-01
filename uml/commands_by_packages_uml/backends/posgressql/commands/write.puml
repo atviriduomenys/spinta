@@ -1,0 +1,68 @@
+@startuml
+package write <<Rectangle>> {
+
+    object insert {
+        +context: Context,
+        +model: Model,
+        +backend: PostgreSQL,
+        +*,
+        +dstream: AsyncIterator[DataItem],
+        +stop_on_error: bool = True,
+    }
+
+    object update {
+        +context: Context,
+        +model: Model,
+        +backend: PostgreSQL,
+        +*,
+        +dstream: AsyncIterator[DataItem],
+        +stop_on_error: bool = True,
+    }
+
+    object delete {
+        +context: Context,
+        +model: Model,
+        +backend: PostgreSQL,
+        +*,
+        +dstream: dict,
+        +stop_on_error: bool = True,
+    }
+
+    object before_write {
+        +context: Context,
+        +model: Model,
+        +backend: PostgreSQL,
+        +*,
+        +data: DataSubItem,
+    }
+
+    object after_write {
+        +context: Context,
+        +model: Model,
+        +backend: PostgreSQL,
+        +*,
+        +data: DataSubItem,
+    }
+
+}
+
+insert *-- Context
+insert *-- Model
+insert *-- PostgreSQL
+insert *-- AsyncIterator
+update *-- Context
+update *-- Model
+update *-- Context
+delete *-- Model
+delete *-- PostgreSQL
+before_write *-- Context
+before_write *-- Model
+before_write *-- PostgreSQL
+before_write *-- DataSubItem
+after_write *-- Context
+after_write *-- Model
+after_write *-- PostgreSQL
+after_write *-- DataSubItem
+
+@enduml
+

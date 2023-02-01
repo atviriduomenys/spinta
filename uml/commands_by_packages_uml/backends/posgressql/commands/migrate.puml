@@ -1,0 +1,15 @@
+@startuml
+package migrate <<Rectangle>> {
+
+    object migrate {
+        +context: Context,
+        +backend: PostgreSQL,
+        +manifest: Manifest,
+    }
+}
+
+migrate *-- Context
+migrate *-- PostgreSQL
+migrate *-- Manifest
+@enduml
+

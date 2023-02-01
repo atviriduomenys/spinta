@@ -1,0 +1,20 @@
+@startuml
+package encode <<Rectangle>> {
+
+    object build_data_patch_for_write {
+        +context: Context,
+        +backend: FileSystem
+        +dtype: DataType,
+        + *,
+        +given: Optional[dict],
+        +saved: Optional[dict],
+        +insert_action: bool = False,
+        +update_action: bool = False,
+
+    }
+}
+
+build_data_patch_for_write *-- Context
+build_data_patch_for_write *-- DataType
+
+@enduml

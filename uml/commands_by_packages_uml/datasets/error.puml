@@ -1,0 +1,16 @@
+@startuml
+package error <<Rectangle>> {
+
+    object get_error_context {
+        +resource: Resource,
+        + *
+        + prefix='this'
+    }
+}
+
+get_error_context *-- Resource
+get_error_context *-- Entity
+get_error_context *-- Attribute
+
+
+@enduml
