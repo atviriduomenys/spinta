@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
 from spinta.backends.postgresql.helpers import get_column_name
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Ref, Inherit
 from spinta.utils.schema import NA
 from spinta.components import Model, Property
 from spinta.backends.constants import TableType
@@ -115,6 +115,8 @@ class PostgreSQL(Backend):
         if isinstance(prop.dtype, Ref):
             # TODO: Move this into a command.
             column += '._id'
+        if isinstance(prop.dtype, Inherit) and prop.model.base:
+            table = self.get_table(prop.model.base.parent)
         if column not in table.c:
             raise PropertyNotFound(prop.dtype)
         return table.c[column]

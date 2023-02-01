@@ -30,7 +30,7 @@ from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
-from spinta.components import Context
+from spinta.components import Context, Base
 from spinta.datasets.components import Resource
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
@@ -349,10 +349,14 @@ class BaseReader(TabularReader):
         self.name = row['base']
 
         dataset = self.state.dataset.data if self.state.dataset else None
-        self.data = {
-            'model': get_relative_model_name(dataset, row['base']),
-            'pk': row['ref'],
-        }
+        if self.name == '/':
+            self.data = {}
+        else:
+            self.data = {
+                'name': self.name,
+                'model': get_relative_model_name(dataset, row['base']),
+                'pk': row['ref'],
+            }
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
@@ -360,7 +364,7 @@ class BaseReader(TabularReader):
             DatasetReader,
             ResourceReader,
             BaseReader,
-        ))
+        )) or (isinstance(reader, ModelReader) and self.name == '/')
 
     def enter(self) -> None:
         self.state.base = self
@@ -398,7 +402,11 @@ class ModelReader(TabularReader):
             'type': 'model',
             'id': row['id'],
             'name': name,
-            'base': base.name if base else None,
+            'base': {
+                'name': base.name,
+                'parent': base.data['model'],
+                'pk': base.data['pk'],
+            } if base and base.data else None,
             'level': row['level'],
             'access': row['access'],
             'title': row['title'],
@@ -467,6 +475,9 @@ class PropertyReader(TabularReader):
                 f"Property {self.name!r} with the same name is already "
                 f"defined for this {self.state.model.name!r} model."
             )
+
+        if self.state.base and not row['type']:
+            row['type'] = 'inherit'
 
         self.data = {
             'type': row['type'],
@@ -1442,6 +1453,22 @@ def _resource_to_tabular(
     yield from _lang_to_tabular(resource.lang)
 
 
+def _base_to_tabular(
+    base: Base,
+    *,
+    end_of_base: bool = False
+) -> Iterator[ManifestRow]:
+    if end_of_base:
+        yield torow(DATASET, {
+            'base': '/',
+        })
+    else:
+        yield torow(DATASET, {
+            'base': base.name,
+        })
+        yield from _lang_to_tabular(base.lang)
+
+
 def _property_to_tabular(
     prop: Property,
     *,
@@ -1583,6 +1610,7 @@ def datasets_to_tabular(
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 
     separator = False
+    base = None
     for model in models:
         if model.access < access:
             continue
@@ -1619,6 +1647,12 @@ def datasets_to_tabular(
         else:
             separator = False
 
+        if not base and model.base:
+            base = model.base
+            yield from _base_to_tabular(model.base)
+        elif base and not model.base:
+            base = None
+            yield from _base_to_tabular(model.base, end_of_base=True)
         yield from _model_to_tabular(
             model,
             external=external,
@@ -1794,7 +1828,7 @@ def _write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w') as f:
+    with path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)

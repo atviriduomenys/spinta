@@ -98,8 +98,10 @@ def load(
             ctype='model',
             parent=model,
         )
-        model.base.parent = model
         load_node(context, model.base, base, parent=model)
+        model.base.model = model
+        if 'parent' in base and base['parent'] in manifest.models:
+            model.base.parent = manifest.models[base['parent']]
         commands.load(context, model.base, base, manifest)
 
     if model.external:

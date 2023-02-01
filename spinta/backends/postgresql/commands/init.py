@@ -95,4 +95,12 @@ def get_primary_key_type(context: Context, backend: PostgreSQL):
 @commands.prepare.register(Context, PostgreSQL, PrimaryKey)
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
     pkey_type = commands.get_primary_key_type(context, backend)
+    if dtype.prop.model.base:
+        return [
+            sa.Column('_id', pkey_type, primary_key=True),
+            sa.ForeignKeyConstraint(
+                ['_id'], [f'{get_pg_name(get_table_name(dtype.prop.model.base.parent))}._id'],
+                name=get_pg_name(f'fk_{dtype.prop.model.base.parent.name}_id'),
+            )
+        ]
     return sa.Column('_id', pkey_type, primary_key=True)

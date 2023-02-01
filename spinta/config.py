@@ -107,13 +107,17 @@ CONFIG = {
             'file': 'spinta.types.datatype:File',
             'rql': 'spinta.types.datatype:RQL',
             'json': 'spinta.types.datatype:JSON',
+            'inherit': 'spinta.types.datatype:Inherit',
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
         },
         'dimensions': {
             'prefix': 'spinta.dimensions.prefix.components:UriPrefix',
-        }
+        },
+        'bases': {
+            'model': 'spinta.components:Base',
+        },
     },
     'exporters': {
         'ascii': 'spinta.formats.ascii.components:Ascii',

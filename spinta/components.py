@@ -455,7 +455,9 @@ class Base(Node):
     lang: LangData = None
 
     schema = {
+        'name': {},
         'model': {'type': 'string'},
+        'parent': {'type': 'string'},
         'pk': {'type': 'string'},
         'lang': {'type': 'object'},
     }
@@ -479,6 +481,7 @@ class Model(MetaData):
     given: ModelGiven
     lang: LangData = None
     comments: List[Comment] = None
+    base: Base = None
 
     schema = {
         'keymap': {'type': 'string'},

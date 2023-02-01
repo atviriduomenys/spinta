@@ -224,3 +224,29 @@ def test_time_type(tmpdir, rc):
       |   |   | Time         |
       |   |   |   | prop     | time
     ''')
+
+
+def test_with_base(tmpdir, rc):
+    check(tmpdir, rc, '''
+    d | r | b | m | property   | type    | ref
+    datasets/gov/example       |         |
+                               |         |
+      |   |   | Location       |         |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+                               |         |
+      |   | Location           |         |
+      |   |   | City           |         |
+      |   |   |   | name       |         |
+      |   |   |   | population |         |
+                               |         |
+      |   |   | Village        |         |
+      |   |   |   | name       |         |
+      |   |   |   | population |         |
+      |   |   |   | region     |         |
+                               |         |
+      |   | /                  |         |
+      |   |   | Country        |         |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+    ''')
