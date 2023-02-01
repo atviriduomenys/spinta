@@ -19,10 +19,10 @@ def configure(rc, path):
     })
 
 
-def test_create_table(rc, cli: SpintaCliRunner, tmpdir):
-    rc = configure(rc, tmpdir)
+def test_create_table(rc, cli: SpintaCliRunner, tmp_path):
+    rc = configure(rc, tmp_path)
 
-    create_manifest_files(tmpdir, {
+    create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
             'name': 'country',
@@ -34,7 +34,7 @@ def test_create_table(rc, cli: SpintaCliRunner, tmpdir):
 
     cli.invoke(rc, ['freeze'])
 
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     freezed = manifest['country.yml'][-1]
     assert freezed == {
         'id': freezed['id'],
@@ -58,8 +58,8 @@ def test_create_table(rc, cli: SpintaCliRunner, tmpdir):
 
 
 @pytest.mark.skip('TODO')
-def test_add_column(rc, cli: SpintaCliRunner, tmpdir):
-    create_manifest_files(tmpdir, {
+def test_add_column(rc, cli: SpintaCliRunner, tmp_path):
+    create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
             'name': 'country',
@@ -68,10 +68,10 @@ def test_add_column(rc, cli: SpintaCliRunner, tmpdir):
             },
         },
     })
-    rc = configure(rc, tmpdir)
+    rc = configure(rc, tmp_path)
     cli.invoke(rc, ['freeze'])
 
-    update_manifest_files(tmpdir, {
+    update_manifest_files(tmp_path, {
         'country.yml': [
             {'op': 'add', 'path': '/properties/code', 'value': {
                 'type': 'string',
@@ -80,7 +80,7 @@ def test_add_column(rc, cli: SpintaCliRunner, tmpdir):
     })
     cli.invoke(rc, ['freeze'])
 
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     freezed = manifest['country.yml'][-1]
     assert freezed == {
         'version': {
@@ -104,8 +104,8 @@ def test_add_column(rc, cli: SpintaCliRunner, tmpdir):
 
 
 @pytest.mark.skip('TODO')
-def test_alter_column(rc, cli: SpintaCliRunner, tmpdir):
-    create_manifest_files(tmpdir, {
+def test_alter_column(rc, cli: SpintaCliRunner, tmp_path):
+    create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
             'name': 'country',
@@ -115,29 +115,29 @@ def test_alter_column(rc, cli: SpintaCliRunner, tmpdir):
             },
         },
     })
-    rc = configure(rc, tmpdir)
+    rc = configure(rc, tmp_path)
     cli.invoke(rc, ['freeze'])
 
-    update_manifest_files(tmpdir, {
+    update_manifest_files(tmp_path, {
         'country.yml': [
             {'op': 'replace', 'path': '/properties/area/type', 'value': 'number'},
         ],
     })
     cli.invoke(rc, ['freeze'])
 
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     assert manifest['country.yml'][-1] == {
     }
 
 
 @pytest.mark.skip('TODO')
-def test_schema_with_multiple_head_nodes(rc, cli: SpintaCliRunner, tmpdir):
+def test_schema_with_multiple_head_nodes(rc, cli: SpintaCliRunner, tmp_path):
     # test schema creator when resource has a diverging scheme version history
     # i.e. 1st (root) schema migration has 2 diverging branches
     #
     # have model with 3 schema versions, with 2nd and 3rd diverging from 1st:
     # 1st version: create table with title: string and area: integer
-    create_manifest_files(tmpdir, {
+    create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
             'name': 'country',
@@ -148,13 +148,13 @@ def test_schema_with_multiple_head_nodes(rc, cli: SpintaCliRunner, tmpdir):
             }
         },
     })
-    rc = configure(rc, tmpdir)
+    rc = configure(rc, tmp_path)
     cli.invoke(rc, ['freeze'])
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     version = manifest['country.yml'][-1]['version']['id']
 
     # 2nd version (parent 1st): add column - code: string
-    update_manifest_files(tmpdir, {
+    update_manifest_files(tmp_path, {
         'country.yml': [
             {'op': 'add', 'path': '/properties/code', 'value': {
                 'type': 'string',
@@ -164,22 +164,22 @@ def test_schema_with_multiple_head_nodes(rc, cli: SpintaCliRunner, tmpdir):
     cli.invoke(rc, ['freeze'])
 
     # 3rd version (parent 1st): alter column - area: number
-    update_manifest_files(tmpdir, {
+    update_manifest_files(tmp_path, {
         'country.yml': [
             {'op': 'replace', 'path': '/properties/area/type', 'value': 'number'},
         ],
     })
     cli.invoke(rc, ['freeze', '-p', version])
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     assert manifest['country.yml'][-1]['version']['id'] == version
 
     cli.invoke(rc, ['migrate'])
 
 
 @pytest.mark.skip('TODO')
-def test_build_schema_relation_graph(rc, cli: SpintaCliRunner, tmpdir):
+def test_build_schema_relation_graph(rc, cli: SpintaCliRunner, tmp_path):
     # test new schema version, when multiple models have no foreign keys
-    create_manifest_files(tmpdir, {
+    create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
             'name': 'country',
@@ -204,10 +204,10 @@ def test_build_schema_relation_graph(rc, cli: SpintaCliRunner, tmpdir):
             },
         }
     })
-    rc = configure(rc, tmpdir)
+    rc = configure(rc, tmp_path)
     cli.invoke(rc, ['freeze'])
 
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     version = {
         'country': manifest['country.yml'][-1]['version'],
         'org': manifest['org.yml'][-1]['version'],

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Dict
 from typing import List
-from typing import Optional
 from typing import TYPE_CHECKING, Any, Union
 
 import base64
@@ -57,6 +56,13 @@ class DataType(Component):
 
     def get_bind_expr(self):
         return Expr('bind', self.prop.name)
+
+    def get_type_repr(self):
+        if self.type_args:
+            args = ', '.join(self.type_args)
+            return f'{self.name}({args})'
+        else:
+            return self.name
 
 
 class PrimaryKey(DataType):
@@ -257,6 +263,11 @@ class RQL(DataType):
 
 class JSON(DataType):
     pass
+
+
+class Denorm(DataType):
+    def get_type_repr(self):
+        return ""
 
 
 class Inherit(DataType):

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
@@ -40,14 +42,14 @@ def test_create_model(
     postgresql: str,
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir,
+    tmp_path: Path,
     request,
 ):
-    rc = configure(rc, tmpdir)
+    rc = configure(rc, tmp_path)
 
     cli.invoke(rc, ['bootstrap'])
 
-    create_manifest_files(tmpdir, {
+    create_manifest_files(tmp_path, {
         'country.yml': {
             'type': 'model',
             'name': 'country',
@@ -59,7 +61,7 @@ def test_create_model(
 
     cli.invoke(rc, ['freeze'])
 
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     assert readable_manifest_files(manifest) == {
         'country.yml': [
             {

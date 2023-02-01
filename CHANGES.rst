@@ -3,8 +3,20 @@
 Changes
 #######
 
-0.1.44 (unreleased)
+0.1.45 (unreleased)
 ===================
+
+
+0.1.44 (2022-11-23)
+===================
+
+Bug fixes:
+
+- Convert a non-WGS coordinates into WGS, before giving link to OSM if SRID is
+  not given, then link to OSM is not added too. Also long WKT expressions like
+  polygons now are shortened in HTML output (`#298`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/298
 
 
 0.1.43 (2022-11-15)
@@ -1114,8 +1126,8 @@ Internal changes:
     from spinta.testing.client import create_test_client
     from spinta.testing.context import create_test_context
 
-    def test(rc, cli, tmpdir, request):
-        create_manifest_files(tmpdir, {
+    def test(rc, cli, tmp_path, request):
+        create_manifest_files(tmp_path, {
             'country.yml': {
                 'type': 'model',
                 'name': 'country',
@@ -1125,7 +1137,7 @@ Internal changes:
             },
         })
 
-        rc = rc.fork().add('test', {'manifests.yaml.path': str(tmpdir)})
+        rc = rc.fork().add('test', {'manifests.yaml.path': str(tmp_path)})
 
         cli.invoke(rc, freeze)
 

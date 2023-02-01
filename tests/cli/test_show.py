@@ -3,7 +3,7 @@ from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 
 
-def test_show(rc, cli: SpintaCliRunner, tmpdir):
+def test_show(rc, cli: SpintaCliRunner, tmp_path):
     manifest = striptable('''
     id | d | r | b | m | property | type   | ref     | source      | prepare | level | access    | uri | title | description
        | datasets/gov/example     |        |         |             |         |       | protected |     |       |
@@ -22,8 +22,8 @@ def test_show(rc, cli: SpintaCliRunner, tmpdir):
        |   |   |   |   | country  | ref    | Country | salis       |         |       | protected |     |       |
     ''')
 
-    create_tabular_manifest(tmpdir / 'manifest.csv', manifest)
+    create_tabular_manifest(tmp_path / 'manifest.csv', manifest)
 
-    result = cli.invoke(rc, ['show', tmpdir / 'manifest.csv'])
+    result = cli.invoke(rc, ['show', tmp_path / 'manifest.csv'])
 
     assert striptable(result.stdout) == manifest

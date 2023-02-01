@@ -76,6 +76,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         'image': sa.Text,  # unsupported
         'url': sa.String,
         'uri': sa.String,
+        'denorm': sa.String,
     }
 
     if dtype.name not in types:

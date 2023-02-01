@@ -10,8 +10,8 @@ from spinta.testing.context import create_test_context
 from spinta.testing.tabular import create_tabular_manifest
 
 
-def test_configure(tmpdir: Path, rc: RawConfig):
-    create_tabular_manifest(tmpdir / 'm1.csv', striptable('''
+def test_configure(tmp_path: Path, rc: RawConfig):
+    create_tabular_manifest(tmp_path / 'm1.csv', striptable('''
     d | r | b | m | property | type   | source
     datasets/1               |        | 
       | data                 | sql    | 
@@ -20,7 +20,7 @@ def test_configure(tmpdir: Path, rc: RawConfig):
       |   |   |   | name     | string | PAVADINIMAS
     '''))
 
-    create_tabular_manifest(tmpdir / 'm2.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'm2.csv', striptable('''
     d | r | b | m | property | type   | source
     datasets/2               |        | 
       | data                 | sql    | 
@@ -31,8 +31,8 @@ def test_configure(tmpdir: Path, rc: RawConfig):
 
     context: Context = create_test_context(rc)
     context = configure_context(context, [
-        str(tmpdir / 'm1.csv'),
-        str(tmpdir / 'm2.csv'),
+        str(tmp_path / 'm1.csv'),
+        str(tmp_path / 'm2.csv'),
     ])
     store = prepare_manifest(context, verbose=False)
     assert store.manifest == '''
@@ -84,7 +84,7 @@ def test_configure_with_resource_backend(rc: RawConfig):
     '''
 
 
-def test_ascii_manifest(tmpdir: Path, rc: RawConfig):
+def test_ascii_manifest(tmp_path: Path, rc: RawConfig):
     manifest = '''
     d | r | b | m | property | type   | source
     datasets/1               |        |
@@ -93,7 +93,7 @@ def test_ascii_manifest(tmpdir: Path, rc: RawConfig):
       |   |   | Country      |        | SALIS
       |   |   |   | name     | string | PAVADINIMAS
     '''
-    manifest_file = tmpdir / 'ascii.txt'
+    manifest_file = tmp_path / 'ascii.txt'
     manifest_file.write_text(striptable(manifest), encoding='utf-8')
     context: Context = create_test_context(rc)
     context = configure_context(context, [str(manifest_file)])
