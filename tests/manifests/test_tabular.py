@@ -246,8 +246,8 @@ def test_with_denormalized_data(tmp_path, rc):
     ''')
 
 
-def test_with_base(tmpdir, rc):
-    check(tmpdir, rc, '''
+def test_with_base(tmp_path, rc):
+    check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref
     datasets/gov/example       |         |
                                |         |
