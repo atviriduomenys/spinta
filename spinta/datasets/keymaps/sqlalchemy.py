@@ -57,7 +57,7 @@ class SqlAlchemyKeyMap(KeyMap):
             if value is None:
                 return None
             value = _encode_value(value)
-        table = self.get_table(name, value)
+        table = self.get_table(name)
         value = msgpack.dumps(value, strict_types=True)
         hash = hashlib.sha1(value).hexdigest()
         query = sa.select([table.c.key]).where(table.c.hash == hash)

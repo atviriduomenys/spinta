@@ -101,7 +101,6 @@ def getall(
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = keymap.encode(sel.prop.model.model_type(), val)
-                        xkey = keymap.encode(sel.prop.model.model_type()+'.code', row[1], val)
                     elif isinstance(sel.prop.dtype, Ref):
                         parent_table = sel.prop.name
                         current_table = sel.prop.model.name
@@ -110,10 +109,11 @@ def getall(
                         else:
                             help = parent_table.title()
                         parent_table = current_table.replace(current_table.split("/")[-1], help)
-                        val = keymap.encode(sel.prop.model.model_type()+'.code', row[0], row[1],
+                        val = keymap.encode(sel.prop.model.model_type()+'.'+val, row[0],val,
                                             parent_table)
                         val = {'_id': val}
                 res[key] = val
+            print(val)
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res
