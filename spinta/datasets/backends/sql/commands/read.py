@@ -109,11 +109,10 @@ def getall(
                         else:
                             help = parent_table.title()
                         parent_table = current_table.replace(current_table.split("/")[-1], help)
-                        val = keymap.encode(sel.prop.model.model_type()+'.'+val, row[0],val,
+                        val = keymap.encode(sel.prop.model.model_type()+'.'+str(val), row[0], row[1],
                                             parent_table)
                         val = {'_id': val}
                 res[key] = val
-            print(val)
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res
