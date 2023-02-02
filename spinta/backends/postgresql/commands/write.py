@@ -1,6 +1,6 @@
-from typing import AsyncIterator
+from typing import AsyncIterator, cast
 
-
+import sqlalchemy as sa
 from spinta import commands
 from spinta.utils.data import take
 from spinta.components import Context, Model, DataItem, DataSubItem
@@ -22,7 +22,11 @@ async def insert(
     table = backend.get_table(model)
     async for data in dstream:
         patch = commands.before_write(context, model, backend, data=data)
-
+        if 'coordinates' in patch.keys():
+            if 'SRID' not in patch['coordinates']:
+                coordinates = cast(sa.Column, backend.tables[model.name].columns['coordinates'])
+                srid = coordinates.type.srid
+                patch['coordinates'] = 'SRID='+str(srid)+';'+str(patch['coordinates'])
         # TODO: Refactor this to insert batches with single query.
         qry = table.insert().values(
             _id=patch['_id'],

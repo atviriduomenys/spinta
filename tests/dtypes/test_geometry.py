@@ -121,7 +121,6 @@ def test_geometry_params_srid(
 
     ns: str = 'backends/postgres/dtypes/geometry/srid'
     model: str = f'{ns}/City'
-
     store: Store = context.get('store')
     backend = cast(PostgreSQL, store.backends['default'])
     coordinates = cast(sa.Column, backend.tables[model].columns['coordinates'])
@@ -137,13 +136,32 @@ def test_geometry_params_srid(
     # Write data
     resp = app.post(f'/{model}', json={
         'name': "Vilnius",
-        'coordinates': 'SRID=3346;POINT(582710 6061887)',
+        'coordinates': 'POINT(582710 6061887)',
     })
     assert resp.status_code == 201
 
     # Read data
     resp = app.get(f'/{model}')
     assert listdata(resp, full=True) == [
+        {
+            'name': "Vilnius",
+            'coordinates': 'POINT (582710 6061887)',
+        }
+    ]
+
+    resp = app.post(f'/{model}', json={
+        'name': "Vilnius",
+        'coordinates': 'SRID=3346;POINT(582710 6061887)',
+    })
+    assert resp.status_code == 201
+
+    resp = app.get(f'/{model}')
+
+    assert listdata(resp, full=True) == [
+        {
+            'name': "Vilnius",
+            'coordinates': 'POINT (582710 6061887)',
+        },
         {
             'name': "Vilnius",
             'coordinates': 'POINT (582710 6061887)',
