@@ -173,11 +173,12 @@ def push(
             counts,
             limit,
             stop_on_error=stop_on_error,
+            no_progress_bar=no_progress_bar,
         )
         rows = _prepare_rows_for_push(rows)
 
-        rows = tqdm.tqdm(rows, 'PUSH', ascii=True,
-                         total=sum(counts.values()) if not no_progress_bar else None)
+        if not no_progress_bar:
+            rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
 
         if stop_time:
             rows = _add_stop_time(rows, stop_time)

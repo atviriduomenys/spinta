@@ -92,12 +92,13 @@ def iter_model_rows(
     limit: int = None,
     *,
     stop_on_error: bool = False,
+    no_progress_bar: bool = False,
 ) -> Iterator[ModelRow]:
     for model in models:
         rows = _read_model_data(context, model, limit, stop_on_error)
-        # count may be None if --no-progress-bar is used
-        count = counts.get(model.name)
-        rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
+        if not no_progress_bar:
+            count = counts.get(model.name)
+            rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
         for row in rows:
             yield model, row
 

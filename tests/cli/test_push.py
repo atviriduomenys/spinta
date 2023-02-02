@@ -101,7 +101,4 @@ def test_push_without_progress_bar(
         '--no-progress-bar',
     ])
     assert result.exit_code == 0
-    assert "Count rows:   0%" not in result.stderr
-    assert "PUSH:   0%|          | 0/3" not in result.stderr
-    assert "PUSH:  33%|###3      | 1/3" not in result.stderr
-    assert "PUSH: 100%|##########| 3/3" not in result.stderr
+    assert result.stderr == ""
