@@ -251,22 +251,30 @@ def test_with_base(tmp_path, rc):
     d | r | b | m | property   | type    | ref
     datasets/gov/example       |         |
                                |         |
+      |   |   | Base           |         |
+      |   |   |   | id         | integer |
+                               |         |
+      |   | Base               |         |
       |   |   | Location       |         |
+      |   |   |   | id         | integer |
       |   |   |   | name       | string  |
       |   |   |   | population | integer |
                                |         |
       |   | Location           |         |
       |   |   | City           |         |
+      |   |   |   | id         | integer |
       |   |   |   | name       |         |
       |   |   |   | population |         |
                                |         |
       |   |   | Village        |         |
+      |   |   |   | id         | integer |
       |   |   |   | name       |         |
       |   |   |   | population |         |
       |   |   |   | region     |         |
                                |         |
       |   | /                  |         |
       |   |   | Country        |         |
+      |   |   |   | id         | integer |
       |   |   |   | name       | string  |
       |   |   |   | population | integer |
     ''')

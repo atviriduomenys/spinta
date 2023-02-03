@@ -1651,7 +1651,7 @@ def datasets_to_tabular(
         else:
             separator = False
 
-        if not base and model.base:
+        if model.base and (not base or model.base.name != base.name):
             base = model.base
             yield from _base_to_tabular(model.base)
         elif base and not model.base:

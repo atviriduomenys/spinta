@@ -35,7 +35,7 @@ from spinta.components import Property
 from spinta.exceptions import ConflictingValue
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
-from spinta.types.datatype import Array
+from spinta.types.datatype import Array, Inherit
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -896,6 +896,46 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     return float(value)
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Inherit, object)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: DataType,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    base_model = _get_property_base_model(dtype.prop)
+    if base_model:
+        prop = base_model.properties[dtype.prop.name]
+        return commands.prepare_dtype_for_response(
+            context,
+            fmt,
+            prop.dtype,
+            value,
+            data=data,
+            action=action,
+            select=select
+        )
+    return None
+
+
+def _get_property_base_model(prop: Property):
+    model = prop.model
+    base_model = None
+    while model.base and model.base.parent:
+        model = model.base.parent
+        if prop.name in model.properties and not isinstance(
+            model.properties[prop.name],
+            Inherit
+        ):
+            base_model = model
+            break
+    return base_model
 
 
 @commands.unload_backend.register(Context, Backend)
