@@ -3,7 +3,7 @@ import pytest
 from spinta.exceptions import InvalidManifestFile
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
-
+from spinta.testing.manifest import bootstrap_manifest
 
 def check(tmp_path, rc, table):
     create_tabular_manifest(tmp_path / 'manifest.csv', table)
@@ -244,3 +244,86 @@ def test_with_denormalized_data(tmp_path, rc):
       |   |   |   | country.name           |        |           | open
       |   |   |   | country.continent.name |        |           | open
     ''')
+
+
+def test_property_with_ref_unique(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type               | ref     | uri
+    datasets/gov/example     |                    |         |
+                             | prefix             | locn    | http://www.w3.org/ns/locn#
+                             |                    | ogc     | http://www.opengis.net/rdf#
+                             |                    |         |
+      | data                 | postgresql         | default |
+                             |                    |         |
+      |   |   | Country      |                    | code    |
+      |   |   |   | code     | string             |         |
+      |   |   |   | name     | string             |         | locn:geographicName
+                             |                    |         |
+      |   |   | City         |                    | name    |
+      |   |   |   | name     | string unique      |         | locn:geographicName
+      |   |   |   | country  | ref unique         | Country |
+    ''')
+
+def test_prop_array(rc):
+    rc = rc.fork({
+        'default_auth_client': 'default',
+    })
+    bootstrap_manifest(rc, '''
+        d | r | b | m | property      | type      | ref
+        example                       |           |
+                                      |           |
+          |   |   | Language          |           |
+          |   |   |   | name          | string    |
+          |   |   |   | countries[]   | backref   | Country
+                                      |           |
+          |   |   | Country           |           |
+          |   |   |   | name          | string    |
+          |   |   |   | languages[]   | ref       | Language
+    ''')
+
+def test_prop_array_with_custom(rc):
+    rc = rc.fork({
+        'default_auth_client': 'default',
+    })
+    bootstrap_manifest(rc, '''
+        d | r | b | m | property    | type                                       | ref
+        example                     |                                            |
+                                    |                                            |
+          |   |   | Language        |                                            |
+          |   |   |   | name        | string                                     |
+          |   |   |   | countries[] | backref                                    | Country
+                                    |                                            |
+          |   |   | Country         |                                            |
+          |   |   |   | name        | string                                     |
+          |   |   |   | languages   | array                                      | CountryLanguage[country, language]
+          |   |   |   | languages[] | ref                                        | Language
+                                    |                                            |
+          |   |   | CountryLanguage |                                            |
+          |   |   |   | language    | ref                                        | Language
+          |   |   |   | country     | ref                                        | Country  
+    ''')
+
+
+def test_prop_array_with_custom_without_properties(rc):
+    rc = rc.fork({
+        'default_auth_client': 'default',
+    })
+    bootstrap_manifest(rc, '''
+        d | r | b | m | property    | type    | ref
+        example                     |         |
+                                    |         |
+          |   |   | Language        |         |
+          |   |   |   | name        | string  |
+          |   |   |   | countries[] | backref | Country
+                                    |         |
+          |   |   | Country         |         |
+          |   |   |   | name        | string  |
+          |   |   |   | languages   | array   | CountryLanguage
+          |   |   |   | languages[] | ref     | Language
+                                    |         |
+          |   |   | CountryLanguage |         |
+          |   |   |   | language    | ref     | Language
+          |   |   |   | country     | ref     | Country    
+    ''')
+
+

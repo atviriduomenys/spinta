@@ -26,8 +26,27 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
 
 @commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model):
+    def get_columns_for_many_to_many_table(_name):
+        return _name.split("/:list/")
+
     columns = []
     for prop in model.properties.values():
+        if prop.dtype.name in ['backref'] :
+            name = get_pg_name(get_table_name(prop, TableType.LIST))
+            main_table_name = get_pg_name(get_table_name(prop.model))
+            pkey_type = commands.get_primary_key_type(context, backend)
+            temp_columns = get_columns_for_many_to_many_table(name)
+            table_for_many_to_many_relation = sa.Table(
+                name, backend.schema,
+                sa.Column('_txn', pkey_type, index=True),
+                sa.Column(temp_columns[0]+"._id", pkey_type, sa.ForeignKey(
+                    f'{main_table_name}._id', ondelete='CASCADE',
+                )),
+                sa.Column(temp_columns[1]+"._id", pkey_type, sa.ForeignKey(
+                    f'{model.backref_model}._id', ondelete='CASCADE'
+                ))
+            )
+
         # FIXME: _revision should has its own type and on database column type
         #        should bet received from get_primary_key_type() command.
         if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):

@@ -479,6 +479,7 @@ class Model(MetaData):
     given: ModelGiven
     lang: LangData = None
     comments: List[Comment] = None
+    backref_model: str = None
 
     schema = {
         'keymap': {'type': 'string'},

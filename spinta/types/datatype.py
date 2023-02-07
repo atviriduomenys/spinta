@@ -34,6 +34,11 @@ class DataType(Component):
         'default': {'default': None},
         'prepare': {'type': 'spyna', 'default': None},
         'choices': {},
+        'refprops': {
+            'type': 'array',
+            'items': {'type': 'string'},
+        },
+        'ref': {'type': 'string'}
     }
 
     type: str

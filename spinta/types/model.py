@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -42,6 +43,7 @@ from spinta.nodes import load_node
 from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
 from spinta.utils.schema import NA
+from spinta.types.datatype import Array
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -52,6 +54,13 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     ns.models[model.model_type()] = model
     model.ns = ns
 
+def _parse_backref_model(data):
+    for property in data['properties']:
+        if '[]' in property:
+            for m in data['properties'][property]:
+                if data['properties'][property][m] == "backref":
+                    return data['properties'][property]['model']
+    pass
 
 @load.register(Context, Model, dict, Manifest)
 def load(
@@ -68,11 +77,13 @@ def load(
     load_node(context, model, data)
     model.lang = load_lang_data(context, model.lang)
     model.comments = load_comments(model, model.comments)
-
     if model.keymap:
         model.keymap = manifest.store.keymaps[model.keymap]
     else:
         model.keymap = manifest.keymap
+
+
+    model.backref_model = _parse_backref_model(data)
 
     manifest.add_model_endpoint(model)
     _load_namespace_from_model(context, manifest, model)
@@ -81,7 +92,6 @@ def load(
         model.ns.parents(),
     ))
     load_model_properties(context, model, Property, data.get('properties'))
-
     # XXX: Maybe it is worth to leave possibility to override _id access?
     model.properties['_id'].access = model.access
 
@@ -209,13 +219,11 @@ def load(
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
-
     # Parse dtype like geometry(point, 3346)
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
     dtype_type, dtype_args = _parse_dtype_string(data['type'])
     data = {**data, 'type': dtype_type, 'type_args': dtype_args}
-
     prop.dtype = get_node(
         config,
         manifest,
@@ -246,7 +254,12 @@ def load(
         prop.unit = unit
     else:
         prop.given.enum = unit
-
+    if isinstance(prop.dtype, Array):
+        rel_models = is_unit(prop.dtype, data['ref'])[2]
+        print(rel_models, prop)
+        split_model_row_to_list = re.findall('[A-Z][a-z]*', rel_models)
+        for model in split_model_row_to_list:
+            dtype_args.append(prop.model.external['dataset']+"/"+str(model))
     return prop
 
 

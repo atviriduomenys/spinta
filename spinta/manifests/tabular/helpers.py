@@ -476,6 +476,7 @@ class PropertyReader(TabularReader):
             'uri': row['uri'],
             'title': row['title'],
             'description': row['description'],
+            'ref': row['ref']
         }
 
         dataset = self.state.dataset.data if self.state.dataset else None
@@ -1798,7 +1799,7 @@ def _write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w') as f:
+    with path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)

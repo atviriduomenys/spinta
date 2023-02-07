@@ -6,6 +6,7 @@ from spinta.types.datatype import DateTime
 from spinta.types.geometry.components import Geometry
 from spinta.types.datatype import Integer
 from spinta.types.datatype import Number
+from spinta.types.datatype import Array
 
 _time_unit_re = re.compile(r'^\d*[YMQWDHTSLUN]$')
 
@@ -154,10 +155,18 @@ _si_unit_re = re.compile('^' + _expr + r'(?:\ ' + _expr + ')*$', flags=re.VERBOS
 def is_si_unit(unit: str) -> bool:
     return _si_unit_re.match(unit) is not None
 
+def is_property_list(unit):
+    temp_rel = unit.split('[')
+    temp = temp_rel[-1].split(',')
+    temp = ''.join(temp).replace(']', '').split()
+    if isinstance(temp, list):
+        return True, temp, temp_rel[0]
 
 def is_unit(dtype: DataType, unit: str) -> bool:
     if isinstance(dtype, (Date, DateTime)):
         return is_time_unit(unit)
     if isinstance(dtype, (Integer, Number, Geometry)):
         return is_si_unit(unit)
+    if isinstance(dtype, Array):
+        return is_property_list(unit)
     return False
