@@ -104,7 +104,10 @@ def push(
     )),
     stop_on_error: bool = Option(False, '--stop-on-error', help=(
         "Exit immediately on first error."
-    ))
+    )),
+    repeat_count: int = Option(5, '--repeat-count', help=(
+        "Repeat push until this count if there are errors."
+    )),
 ):
     """Push data to external data store"""
     if chunk_size:
@@ -165,29 +168,52 @@ def push(
             stop_on_error=stop_on_error,
         )
 
-        rows = iter_model_rows(
-            context,
-            models,
-            counts,
-            limit,
-            stop_on_error=stop_on_error,
-        )
+        repeat = repeat_count
+        while repeat:
+            rows = iter_model_rows(
+                context,
+                models,
+                counts,
+                limit,
+                stop_on_error=stop_on_error,
+            )
+            if repeat < repeat_count:
+                rows = _get_rows_with_errors(
+                    client,
+                    creds.server,
+                    context,
+                    state.metadata,
+                    rows
+                )
 
-        rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
+            rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
 
-        if state:
-            state = _State(*_init_push_state(state, models))
-            context.attach('push.state.conn', state.engine.begin)
+            if state and repeat == repeat_count:
+                state = _State(*_init_push_state(state, models))
+                context.attach('push.state.conn', state.engine.begin)
+                _reset_pushed(context, models, state.metadata)
 
-        _push(
+            _push(
+                context,
+                client,
+                creds.server,
+                models,
+                rows,
+                state=state,
+                stop_time=stop_time,
+                stop_row=stop_row,
+                chunk_size=chunk_size,
+                dry_run=dry_run,
+                stop_on_error=stop_on_error,
+            )
+            repeat -= 1
+
+        _clean_up(
             context,
             client,
             creds.server,
             models,
-            rows,
             state=state,
-            stop_time=stop_time,
-            stop_row=stop_row,
             chunk_size=chunk_size,
             dry_run=dry_run,
             stop_on_error=stop_on_error,
@@ -219,7 +245,6 @@ def _push(
         rows = _add_stop_time(rows, stop_time)
 
     if state:
-        _reset_pushed(context, models, state.metadata)
         rows = _check_push_state(context, rows, state.metadata)
 
     rows = _prepare_rows_for_push(rows)
@@ -240,27 +265,38 @@ def _push(
 
     _push_rows(rows, stop_on_error)
 
-    if state:
-        deleted_rows = _get_deleted_rows(
-            models,
-            context,
-            state.metadata
-        )
-        deleted_rows = _push_to_remote_spinta(
-            client,
-            server,
-            deleted_rows,
-            chunk_size,
-            dry_run=dry_run,
-        )
 
-        deleted_rows = _save_state_after_delete(
-            deleted_rows,
-            context,
-            state.metadata
-        )
+def _clean_up(
+    context: Context,
+    client: requests.Session,
+    server: str,
+    models: List[Model],
+    *,
+    state: Optional[_State] = None,
+    chunk_size: Optional[int] = None,
+    dry_run: bool = False,
+    stop_on_error: bool = False,
+):
+    deleted_rows = _get_deleted_rows(
+        models,
+        context,
+        state.metadata
+    )
+    deleted_rows = _push_to_remote_spinta(
+        client,
+        server,
+        deleted_rows,
+        chunk_size,
+        dry_run=dry_run,
+    )
 
-        _push_rows(deleted_rows, stop_on_error)
+    deleted_rows = _save_state_after_delete(
+        deleted_rows,
+        context,
+        state.metadata
+    )
+
+    _push_rows(deleted_rows, stop_on_error)
 
 
 class _PushRow:
@@ -313,6 +349,46 @@ def _attach_backends(context: Context, store: Store, manifest: Manifest) -> None
 def _attach_keymaps(context: Context, store: Store) -> None:
     for keymap in store.keymaps.values():
         context.attach(f'keymap.{keymap.name}', lambda: keymap)
+
+
+def _get_rows_with_errors(
+    client: requests.Session,
+    server: str,
+    context: Context,
+    metadata: sa.MetaData,
+    rows: Iterable[ModelRow]
+) -> Iterable[ModelRow]:
+    conn = context.get('push.state.conn')
+    for model, row in rows:
+        table = metadata.tables[row['_type']]
+        row_with_errors = conn.execute(
+            sa.select([table.c.id]).
+            where(
+                table.c.error.is_(True) &
+                (table.c.id == row['_id'])
+            )
+        )
+        if len(row_with_errors.all()) > 0:
+            resp = client.get(f'{server}/{row["_type"]}/{row["_id"]}')
+            # if we get response with status_code 200,
+            # it means that row is already saved in target server
+            # and there was actually no error
+            if resp.status_code == 200:
+                conn.execute(
+                    table.update().
+                    where(
+                        (table.c.id == row['_id'])
+                    ).
+                    values(
+                        revision=resp.json()['_revision'],
+                        error=False
+                    )
+                )
+            # if we get response with status_code 404,
+            # it means that row is not saved in target server
+            # and we need to push it again
+            elif resp.status_code == 404:
+                yield model, row
 
 
 def _rows_to_push_rows(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
@@ -606,41 +682,6 @@ def _add_stop_time(
             break
 
 
-def _add_column(
-    engine: sa.engine.Engine,
-    table_name: str,
-    column: sa.Column,
-):
-    column_name = column.compile(dialect=engine.dialect)
-    column_type = column.type.compile(engine.dialect)
-    try:
-        engine.execute('ALTER TABLE "%s" ADD COLUMN "%s" %s' % (
-            table_name,
-            column_name,
-            column_type
-        ))
-    except sa.exc.SQLAlchemyError:
-        # column already exists, so we ignore the error
-        pass
-
-
-def _rename_column(
-    engine: sa.engine.Engine,
-    table_name: str,
-    old_column_name: str,
-    new_column_name: str
-):
-    try:
-        engine.execute('ALTER TABLE "%s" RENAME COLUMN "%s" TO "%s"' % (
-            table_name,
-            old_column_name,
-            new_column_name
-        ))
-    except sa.exc.SQLAlchemyError:
-        # column was already renamed before, so we ignore the error
-        pass
-
-
 def _init_push_state(
     dburi: str,
     models: List[Model],
@@ -653,16 +694,48 @@ def _init_push_state(
             sa.Column('id', sa.Unicode, primary_key=True),
         )
         table.create(checkfirst=True)
+        metadata.reflect(only=[model.name], extend_existing=True)
 
-        _rename_column(engine, table.name, 'rev', 'checksum')
-        _add_column(engine, table.name, sa.Column('revision', sa.Unicode))
-        _add_column(engine, table.name, sa.Column('checksum', sa.Unicode))
-        _add_column(engine, table.name, sa.Column('pushed', sa.DateTime))
-        _add_column(engine, table.name, sa.Column('deleted', sa.Boolean))
-        _add_column(engine, table.name, sa.Column('error', sa.Boolean))
+        renamed = _rename_column(engine, table, 'rev', 'checksum')
+        if not renamed:
+            _add_column(engine, table, sa.Column('checksum', sa.Unicode))
+        _add_column(engine, table, sa.Column('revision', sa.Unicode))
+        _add_column(engine, table, sa.Column('pushed', sa.DateTime))
+        _add_column(engine, table, sa.Column('deleted', sa.Boolean))
+        _add_column(engine, table, sa.Column('error', sa.Boolean))
         metadata.reflect(only=[table.name], extend_existing=True)
 
     return engine, metadata
+
+
+def _add_column(
+    engine: sa.engine.Engine,
+    table: sa.Table,
+    column: sa.Column,
+):
+    column_type = column.type.compile(engine.dialect)
+    if column.name not in table.c:
+        engine.execute('ALTER TABLE "%s" ADD COLUMN "%s" %s' % (
+            table.name,
+            column.name,
+            column_type
+        ))
+
+
+def _rename_column(
+    engine: sa.engine.Engine,
+    table: sa.Table,
+    old_column_name: str,
+    new_column_name: str
+) -> bool:  # return True if column was renamed
+    if old_column_name in table.c and new_column_name not in table.c:
+        engine.execute('ALTER TABLE "%s" RENAME COLUMN "%s" TO "%s"' % (
+            table.name,
+            old_column_name,
+            new_column_name
+        ))
+        return True
+    return False
 
 
 def _get_model_type(row: _PushRow) -> str:

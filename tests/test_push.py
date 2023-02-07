@@ -15,7 +15,7 @@ from requests import PreparedRequest
 from responses import POST
 from responses import RequestsMock
 
-from spinta.cli.push import _PushRow
+from spinta.cli.push import _PushRow, _clean_up, _reset_pushed
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
@@ -481,12 +481,22 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         })],
     )
 
+    _reset_pushed(context, models, state.metadata)
+
     _push(
         context,
         client,
         server,
         models,
         rows,
+        state=state,
+    )
+
+    _clean_up(
+        context,
+        client,
+        server,
+        models,
         state=state,
     )
 
