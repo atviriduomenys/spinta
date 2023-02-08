@@ -199,6 +199,14 @@ def _parse_dtype_string(dtype: str) -> Tuple[str, List[str]]:
     else:
         return dtype, []
 
+def _parse_intermiadate_realation(prop, data, dtype_args):
+    if data.get('ref', None) is None:
+        return dtype_args
+    rel_models = is_unit(prop.dtype, data['ref'])[2]
+    split_model_row_to_list = re.findall('[A-Z][a-z]*', rel_models)
+    for model in split_model_row_to_list:
+        dtype_args.append(prop.model.external['dataset'] + "/" + str(model))
+    return dtype_args
 
 @load.register(Context, Property, dict, Manifest)
 def load(
@@ -255,11 +263,8 @@ def load(
     else:
         prop.given.enum = unit
     if isinstance(prop.dtype, Array):
-        rel_models = is_unit(prop.dtype, data['ref'])[2]
-        print(rel_models, prop)
-        split_model_row_to_list = re.findall('[A-Z][a-z]*', rel_models)
-        for model in split_model_row_to_list:
-            dtype_args.append(prop.model.external['dataset']+"/"+str(model))
+        # data = {'type': 'array', 'type_args':[]}
+        dtype_args = _parse_intermiadate_realation(prop, data, dtype_args)
     return prop
 
 
