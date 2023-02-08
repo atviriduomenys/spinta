@@ -263,7 +263,6 @@ def load(
     else:
         prop.given.enum = unit
     if isinstance(prop.dtype, Array):
-        # data = {'type': 'array', 'type_args':[]}
         dtype_args = _parse_intermiadate_realation(prop, data, dtype_args)
     return prop
 
