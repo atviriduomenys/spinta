@@ -53,7 +53,6 @@ def geodb():
         ])
         yield db
 
-
 def create_rc(rc: RawConfig, tmpdir: pathlib.Path, db: Sqlite) -> RawConfig:
     return rc.fork({
         'manifests': {
@@ -2509,3 +2508,132 @@ def test_cast(
 
     resp = app.get('/example/func/cast/Data')
     assert listdata(resp) == ['1']
+
+
+def test_type_text_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+        d | r | b | m | property| type   | ref     | source       | access
+        datasets/gov/example    |        |         |              |
+          | data                | sql    |         |              |
+          |   |                 |        |         |              |
+          |   |   | Country     |        | code    | salis        |
+          |   |   |   | code    | string |         | kodas        | open
+          |   |   |   | name    | text   |         | pavadinimas  | open
+          |   |                 |        |         |              |
+          |   |   | City        |        | name    | miestas      |
+          |   |   |   | name    | string |         | pavadinimas  | open
+          |   |   |   | country | ref    | Country | salis        | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmpdir, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--dry-run',
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('datasets/gov/example/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/Country')
+    assert listdata(resp, 'code', 'name') == []
+
+
+def test_text_type_push_chunks(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmpdir,
+    geodb,
+    request,
+):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | source      | type   | ref     | access
+    datasets/gov/example     |             |        |         |
+      | data                 |             | sql    |         |
+      |   |                  |             |        |         |
+      |   |   | country      | salis       |        | code    |
+      |   |   |   | code     | kodas       | string |         | open
+      |   |   |   | name@lt  | pavadinimas | text   |         | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmpdir, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/example',
+        '-o', 'spinta+' + remote.url,
+        '--credentials', remote.credsfile,
+        '--chunk-size=1',
+    ])
+
+    remote.app.authmodel('datasets/gov/example/country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('ee', 'Estija'),
+        ('lt', 'Lietuva'),
+        ('lv', 'Latvija')
+    ]
+
+
+def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    d | r | b | m | property | source      | type   | ref     | access
+    datasets/gov/example     |             |        |         |
+      | data                 |             | sql    |         |
+      |   |                  |             |        |         |
+      |   |   | country      | salis       |        | code    |
+      |   |   |   | code     | kodas       | string |         | open
+      |   |   |   | name@lt  | pavadinimas | text   |         | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmpdir, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmpdir, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push one row, save state and stop.
+    cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--chunk-size', '1k',
+        '--stop-time', '1h',
+        '--stop-row', '1',
+        '--state', tmpdir / 'state.db',
+    ])
+
+    remote.app.authmodel('datasets/gov/example/country', ['getall'])
+    resp = remote.app.get('/datasets/gov/example/country')
+    assert len(listdata(resp)) == 1
+
+    cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--stop-row', '1',
+        '--state', tmpdir / 'state.db',
+    ])
+
+    resp = remote.app.get('/datasets/gov/example/country')
+    assert len(listdata(resp)) == 2
