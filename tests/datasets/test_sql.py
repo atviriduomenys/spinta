@@ -2518,7 +2518,7 @@ def test_type_text_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir,
           |   |                 |        |         |              |
           |   |   | Country     |        | code    | salis        |
           |   |   |   | code    | string |         | kodas        | open
-          |   |   |   | name    | text   |         | pavadinimas  | open
+          |   |   |   | name@lt | text   |         | pavadinimas  | open
           |   |                 |        |         |              |
           |   |   | City        |        | name    | miestas      |
           |   |   |   | name    | string |         | pavadinimas  | open
