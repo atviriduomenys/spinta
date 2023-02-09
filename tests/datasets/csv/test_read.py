@@ -114,3 +114,26 @@ def test_read_refs(rc: RawConfig, fs: AbstractFileSystem):
         (countries['lv'], 'Ryga'),
         (countries['ee'], 'Talin'),
     ]
+
+
+def test_text_read_from_external_source(
+    rc: RawConfig, fs: AbstractFileSystem
+):
+    fs.pipe('countries.csv', (
+        'šalislt\n'
+        'lietuva\n'
+    ).encode('utf-8'))
+
+    context, manifest = prepare_manifest(rc, '''
+    d | r | b | m | property    | type    | ref  | source                 | prepare | access
+    example/countries           |         |      |                        |         |
+      | csv                     | csv     |      | memory://countries.csv |         |
+      |   |   | Country         |         | name |                        |         |
+      |   |   |   | name@lt     | text    |      | šalislt                |         | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/countries', ['getall'])
+
+    resp = app.get('example/countries/Country')
+    assert listdata(resp, sort=False) == ['lietuva']
