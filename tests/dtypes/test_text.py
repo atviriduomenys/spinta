@@ -1,5 +1,5 @@
 from pytest import FixtureRequest
-
+import pytest
 from spinta.core.config import RawConfig
 from spinta.formats.html.components import Cell
 from spinta.testing.client import create_test_client
@@ -134,3 +134,56 @@ def test_html(rc: RawConfig):
         'name.lt': Cell(value='Lietuva', link=None, color=None),
         'name.en': Cell(value='Lithuania', link=None, color=None),
     }
+
+
+@pytest.mark.models(
+    'backends/postgres/country_text',
+)
+def test_text_changelog(context, model, app):
+    app.authmodel(model, [
+        'insert',
+        'update',
+        'delete',
+        'changes',
+    ])
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'title': {'lt': 'lietuva', 'en': 'lithuania'},
+    })
+
+    assert resp.status_code == 201
+
+    data = resp.json()
+    id_ = data['_id']
+    revision = data['_revision']
+
+    resp_changes = app.get(f'/{model}/{id_}/:changes')
+
+    assert len(resp_changes.json()['_data']) == 1
+    assert resp_changes.json()['_data'][-1]['_op'] == 'insert'
+    assert resp_changes.json()['_data'][-1]['title'] == data['title']
+
+    send_data = {
+        '_revision': revision,
+        'title': {'lt': 'lietuva1', 'en': 'lithuania1'}
+    }
+
+    resp = app.put(f'/{model}/{id_}', json=send_data)
+
+    assert resp.status_code == 200
+
+    resp_changes = app.get(f'/{model}/{id_}/:changes')
+
+    assert len(resp_changes.json()['_data']) == 2
+    assert resp_changes.json()['_data'][0]['_op'] == 'update'
+    assert resp_changes.json()['_data'][0]['title'] == resp.json()['title']
+
+    resp = app.delete(f'/{model}/{id_}')
+
+    assert resp.status_code == 204
+
+    resp_changes = app.get(f'/{model}/{id_}/:changes')
+
+    assert len(resp_changes.json()['_data']) == 3
+    assert resp_changes.json()['_data'][0]['_op'] == 'delete'
+
