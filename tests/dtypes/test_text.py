@@ -187,3 +187,40 @@ def test_text_changelog(context, model, app):
     assert len(resp_changes.json()['_data']) == 3
     assert resp_changes.json()['_data'][0]['_op'] == 'delete'
 
+@pytest.mark.models(
+    'backends/postgres/country_text',
+)
+def test_text_select_by_prop(context, model, app):
+    app.authmodel(model, [
+        'insert',
+        'getone',
+        'getall',
+        'search'
+    ])
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'title': {'lt': 'lietuva', 'en': 'lithuania'},
+    })
+
+    assert resp.status_code == 201
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'title': {'lt': 'latvija', 'en': 'latvia'},
+    })
+
+    assert resp.status_code == 201
+
+    # Test if select(prop @ lang) works
+    select_by_prop = app.get(f'/{model}/?select(title@lt)')
+
+    # assert select_by_prop = select_by_prop
+    assert select_by_prop.status_code == 200
+    assert len(select_by_prop.json()['_data']) == 2
+    #Test if prop @ lang = value works.
+    select_by_prop_value = app.get(f'/{model}?select(title@lt)=lietuva')
+    assert select_by_prop_value.status_code == 200
+    assert len(select_by_prop_value.json()['_data']) == 1
+    # Test if sort(prop @ lang) works
+    sort_by_prop = app.get(f'/{model}/?sort(title@lt)')
+    assert sort_by_prop.status_code == 200
