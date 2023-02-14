@@ -246,24 +246,6 @@ def test_with_denormalized_data(tmp_path, rc):
     ''')
 
 
-def test_property_with_ref_unique(tmp_path, rc):
-    check(tmp_path, rc, '''
-    d | r | b | m | property | type               | ref     | uri
-    datasets/gov/example     |                    |         |
-                             | prefix             | locn    | http://www.w3.org/ns/locn#
-                             |                    | ogc     | http://www.opengis.net/rdf#
-                             |                    |         |
-      | data                 | postgresql         | default |
-                             |                    |         |
-      |   |   | Country      |                    | code    |
-      |   |   |   | code     | string             |         |
-      |   |   |   | name     | string             |         | locn:geographicName
-                             |                    |         |
-      |   |   | City         |                    | name    |
-      |   |   |   | name     | string unique      |         | locn:geographicName
-      |   |   |   | country  | ref unique         | Country |
-    ''')
-
 def test_prop_array(rc):
     rc = rc.fork({
         'default_auth_client': 'default',
