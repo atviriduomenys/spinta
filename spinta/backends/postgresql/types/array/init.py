@@ -16,8 +16,10 @@ from spinta.units.helpers import is_unit
 @commands.prepare.register(Context, PostgreSQL, Array)
 def prepare(context: Context, backend: PostgreSQL, dtype: Array):
     prop = dtype.prop
-    columns = is_unit(dtype, prop.unit)[1]
-    #columns = commands.prepare(context, backend, dtype.items)
+    if dtype.items is None:
+        columns = is_unit(dtype, prop.unit)[1]
+    else:
+        columns = commands.prepare(context, backend, dtype.items)
     assert columns is not None
     if not isinstance(columns, list):
         columns = [columns]
@@ -35,9 +37,11 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array):
     #         )),
     #     ]
     rel_columns = []
-    for column, ref_model in zip(columns if len(columns) > 1 else dtype.type_args, dtype.type_args):
-        rel_columns.append(sa.Column(column, pkey_type, sa.ForeignKey(ref_model+'._id', ondelete='CASCADE')))
-
+    if dtype.items is None:
+        for column, ref_model in zip(columns if len(columns) > 1 else dtype.type_args, dtype.type_args):
+            rel_columns.append(sa.Column(column, pkey_type, sa.ForeignKey(ref_model+'._id', ondelete='CASCADE')))
+    else:
+        rel_columns = columns
     name = get_pg_name(get_table_name(prop, TableType.LIST))
     main_table_name = get_pg_name(get_table_name(prop.model))
     table = sa.Table(
@@ -46,6 +50,9 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array):
         #       identify list item.
         # sa.Column('_id', pkey_type, primary_key=True),
         sa.Column('_txn', pkey_type, index=True),
+        sa.Column('_rid', pkey_type, sa.ForeignKey(
+            f'{main_table_name}._id', ondelete='CASCADE',
+        )),
         # Main table id (resource id).
         *rel_columns,
     )

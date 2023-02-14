@@ -47,6 +47,8 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
                 ))
             )
 
+            backend.tables[name] = table_for_many_to_many_relation
+
         # FIXME: _revision should has its own type and on database column type
         #        should bet received from get_primary_key_type() command.
         if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):
@@ -72,7 +74,6 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
-
 
 @commands.prepare.register(Context, PostgreSQL, DataType)
 def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
