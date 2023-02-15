@@ -55,13 +55,13 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     model.ns = ns
 
 def _parse_backref_model(data):
-    for property in data['properties']:
-        if '[]' in property:
-            for m in data['properties'][property]:
-                if data['properties'][property][m] == "backref":
-                    return data['properties'][property]['model']
-    pass
-
+    properties = data.get('properties')
+    if properties is not None:
+        for prop in properties:
+            if '[]' in prop:
+                _type = properties[prop].get('type')
+                if _type == 'backref':
+                    return properties[prop]['model']
 @load.register(Context, Model, dict, Manifest)
 def load(
     context: Context,
@@ -84,7 +84,6 @@ def load(
 
 
     model.backref_model = _parse_backref_model(data)
-
     manifest.add_model_endpoint(model)
     _load_namespace_from_model(context, manifest, model)
     load_access_param(model, data.get('access'), itertools.chain(
