@@ -104,4 +104,5 @@ def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
                 name=get_pg_name(f'fk_{dtype.prop.model.base.parent.name}_id'),
             )
         ]
-    return sa.Column('_id', pkey_type, primary_key=True)
+    else:
+        return sa.Column('_id', pkey_type, primary_key=True)
