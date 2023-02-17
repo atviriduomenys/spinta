@@ -38,6 +38,13 @@ http POST "$SERVER/$DATASET/Person" $AUTH \
     name="John" \
     age:=42
 
+http GET "$SERVER/$DATASET/Person?format(ascii)" $AUTH
+#| Table: access/public/Person
+#| ------------------------------------  ----  ---
+#| _id                                   name  age
+#| 051603af-30a9-4c88-8bc2-f0817dc2c65d  John  42
+#| ------------------------------------  ----  ---
+
 http GET "$SERVER/$DATASET/Person?format(ascii)"
 #| Table: access/public/Person
 #| ------------------------------------  ---
