@@ -479,6 +479,7 @@ class Model(MetaData):
     given: ModelGiven
     lang: LangData = None
     comments: List[Comment] = None
+    uri: str = None
 
     schema = {
         'keymap': {'type': 'string'},
@@ -503,6 +504,7 @@ class Model(MetaData):
         'lang': {'type': 'object'},
         'params': {'type': 'object'},
         'comments': {},
+        'uri': {'type': 'string'},
     }
 
     def __init__(self):
