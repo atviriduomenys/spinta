@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from spinta import commands
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType, PrimaryKey
+from spinta.types.datatype import DataType, PrimaryKey, BackRef
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
@@ -26,29 +26,8 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
 
 @commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model):
-    def get_columns_for_many_to_many_table(_name):
-        return _name.split("/:list/")
-
     columns = []
     for prop in model.properties.values():
-        if prop.dtype.name in ['backref'] :
-            name = get_pg_name(get_table_name(prop, TableType.LIST))
-            main_table_name = get_pg_name(get_table_name(prop.model))
-            pkey_type = commands.get_primary_key_type(context, backend)
-            temp_columns = get_columns_for_many_to_many_table(name)
-            table_for_many_to_many_relation = sa.Table(
-                name, backend.schema,
-                sa.Column('_txn', pkey_type, index=True),
-                sa.Column(temp_columns[0]+"._id", pkey_type, sa.ForeignKey(
-                    f'{main_table_name}._id', ondelete='CASCADE',
-                )),
-                sa.Column(temp_columns[1]+"._id", pkey_type, sa.ForeignKey(
-                    f'{model.backref_model}._id', ondelete='CASCADE'
-                ))
-            )
-
-            backend.tables[name] = table_for_many_to_many_relation
-
         # FIXME: _revision should has its own type and on database column type
         #        should bet received from get_primary_key_type() command.
         if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):
@@ -117,3 +96,24 @@ def get_primary_key_type(context: Context, backend: PostgreSQL):
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
     pkey_type = commands.get_primary_key_type(context, backend)
     return sa.Column('_id', pkey_type, primary_key=True)
+
+@commands.prepare.register(Context, PostgreSQL, BackRef)
+def prepare(context: Context, backend: PostgreSQL, dtype: BackRef):
+    def get_columns_for_many_to_many_table(_name):
+        return _name.split("/:list/")
+    name = get_pg_name(get_table_name(dtype.prop, TableType.LIST))
+    main_table_name = get_pg_name(get_table_name(dtype.prop.model))
+    pkey_type = commands.get_primary_key_type(context, backend)
+    temp_columns = get_columns_for_many_to_many_table(name)
+    table_for_many_to_many_relation = sa.Table(
+        name, backend.schema,
+        sa.Column('_txn', pkey_type, index=True),
+        sa.Column(temp_columns[0]+"._id", pkey_type, sa.ForeignKey(
+            f'{main_table_name}._id', ondelete='CASCADE',
+        )),
+        sa.Column(temp_columns[1]+"._id", pkey_type, sa.ForeignKey(
+            f'{dtype.prop.model.backref_model}._id', ondelete='CASCADE'
+        ))
+    )
+
+    backend.tables[name] = table_for_many_to_many_relation
