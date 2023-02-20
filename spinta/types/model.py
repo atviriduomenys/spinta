@@ -17,7 +17,6 @@ from spinta import exceptions
 from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
-from spinta.commands import load
 from spinta.components import Action
 from spinta.components import Base
 from spinta.components import Context
@@ -54,6 +53,7 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     ns.models[model.model_type()] = model
     model.ns = ns
 
+
 def _parse_backref_model(data):
     properties = data.get('properties')
     if properties is not None:
@@ -62,7 +62,10 @@ def _parse_backref_model(data):
                 _type = properties[prop].get('type')
                 if _type == 'backref':
                     return properties[prop]['model']
-@load.register(Context, Model, dict, Manifest)
+
+
+@overload
+@commands.load.register(Context, Model, dict, Manifest)
 def load(
     context: Context,
     model: Model,
@@ -81,7 +84,6 @@ def load(
         model.keymap = manifest.store.keymaps[model.keymap]
     else:
         model.keymap = manifest.keymap
-
 
     model.backref_model = _parse_backref_model(data)
     manifest.add_model_endpoint(model)
@@ -131,7 +133,8 @@ def load(
     return model
 
 
-@load.register(Context, Base, dict, Manifest)
+@overload
+@commands.load.register(Context, Base, dict, Manifest)
 def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
     pass
 
@@ -198,6 +201,7 @@ def _parse_dtype_string(dtype: str) -> Tuple[str, List[str]]:
     else:
         return dtype, []
 
+
 def _parse_intermiadate_realation(prop, data, dtype_args):
     if data.get('ref', None) is None:
         return dtype_args
@@ -207,7 +211,9 @@ def _parse_intermiadate_realation(prop, data, dtype_args):
         dtype_args.append(prop.model.external['dataset'] + "/" + str(model))
     return dtype_args
 
-@load.register(Context, Property, dict, Manifest)
+
+@overload
+@commands.load.register(Context, Property, dict, Manifest)
 def load(
     context: Context,
     prop: Property,
@@ -340,7 +346,8 @@ def _load_property_external(
     return external
 
 
-@load.register(Context, Model, dict)
+@overload
+@commands.load.register(Context, Model, dict)
 def load(context: Context, model: Model, data: dict) -> dict:
     # check that given data does not have more keys, than model's schema
     non_hidden_keys = []
@@ -358,16 +365,17 @@ def load(context: Context, model: Model, data: dict) -> dict:
     result = {}
     for name, prop in model.properties.items():
         value = data.get(name, NA)
-        value = load(context, prop.dtype, value)
+        value = commands.load(context, prop.dtype, value)
         if value is not NA:
             result[name] = value
     return result
 
 
-@load.register(Context, Property, object)
+@overload
+@commands.load.register(Context, Property, object)
 def load(context: Context, prop: Property, value: object) -> object:
     value = _prepare_prop_data(prop.name, value)
-    value[prop.name] = load(context, prop.dtype, value[prop.name])
+    value[prop.name] = commands.load(context, prop.dtype, value[prop.name])
     return value
 
 
