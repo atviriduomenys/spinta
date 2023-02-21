@@ -73,6 +73,7 @@ CONFIG = {
             'owner': 'spinta.types.owner:Owner',
             'project': 'spinta.types.project:Project',
             'dataset': 'spinta.datasets.components:Dataset',
+            'base': 'spinta.components:Base',
         },
         'datasets': {
             'resource': 'spinta.datasets.components:Resource',
@@ -115,9 +116,6 @@ CONFIG = {
         },
         'dimensions': {
             'prefix': 'spinta.dimensions.prefix.components:UriPrefix',
-        },
-        'bases': {
-            'model': 'spinta.components:Base',
         },
     },
     'exporters': {

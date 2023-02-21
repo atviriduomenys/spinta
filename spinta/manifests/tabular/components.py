@@ -151,7 +151,7 @@ class BackendRow(TypedDict, total=False):
 class BaseRow(TypedDict, total=False):
     name: str
     model: str
-    pk: str
+    pk: List[str]
     lang: LangData
 
 

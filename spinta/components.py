@@ -458,7 +458,10 @@ class Base(Node):
         'name': {},
         'model': {'type': 'string'},
         'parent': {'type': 'string'},
-        'pk': {'type': 'string'},
+        'pk': {
+            'type': 'array',
+            'items': {'type': 'object'},
+        },
         'lang': {'type': 'object'},
     }
 

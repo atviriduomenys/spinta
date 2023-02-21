@@ -256,23 +256,55 @@ def test_with_base(tmp_path, rc):
                                |         |
       |   | Base               |         |
       |   |   | Location       |         |
+      |   |   |   | id         |         |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+                               |         |
+      |   | Location           |         | name
+      |   |   | City           |         | name
+      |   |   |   | id         |         |
+      |   |   |   | name       |         |
+      |   |   |   | population |         |
+                               |         |
+      |   |   | Village        |         | name
+      |   |   |   | id         |         |
+      |   |   |   | name       |         |
+      |   |   |   | population |         |
+      |   |   |   | region     | ref     | Location
+                               |         |
+      |   | /                  |         |
+      |   |   | Country        |         |
+      |   |   |   | id         | integer |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+    ''')
+
+
+def test_end_marker(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref
+    datasets/gov/example       |         |
+      | resource1              | sql     |
+                               |         |
+      |   |   | Location       |         |
       |   |   |   | id         | integer |
       |   |   |   | name       | string  |
       |   |   |   | population | integer |
                                |         |
       |   | Location           |         |
       |   |   | City           |         |
-      |   |   |   | id         | integer |
+      |   |   |   | id         |         |
       |   |   |   | name       |         |
       |   |   |   | population |         |
+      | /                      |         |
                                |         |
       |   |   | Village        |         |
       |   |   |   | id         | integer |
-      |   |   |   | name       |         |
-      |   |   |   | population |         |
-      |   |   |   | region     |         |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+      |   |   |   | region     | ref     | Location
+    /                          |         |
                                |         |
-      |   | /                  |         |
       |   |   | Country        |         |
       |   |   |   | id         | integer |
       |   |   |   | name       | string  |

@@ -88,20 +88,18 @@ def load(
     config = context.get('config')
 
     if model.base:
-        base = model.base
+        base: dict = model.base
         model.base = get_node(
             config,
             manifest,
             model.eid,
             base,
-            group='bases',
-            ctype='model',
+            group='nodes',
+            ctype='base',
             parent=model,
         )
-        load_node(context, model.base, base, parent=model)
+        load_node(context, model.base, base)
         model.base.model = model
-        if 'parent' in base and base['parent'] in manifest.models:
-            model.base.parent = manifest.models[base['parent']]
         commands.load(context, model.base, base, manifest)
 
     if model.external:
@@ -167,6 +165,10 @@ def link(context: Context, model: Model):
             model.ns.parents(),
         ))
 
+    # Link base
+    if model.base:
+        commands.link(context, model.base)
+
     # Link model properties.
     for prop in model.properties.values():
         commands.link(context, prop)
@@ -175,7 +177,7 @@ def link(context: Context, model: Model):
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
-    base.model = base.parent.manifest.models[base.model]
+    base.parent = base.model.manifest.models[base.parent]
     base.pk = [
         base.parent.properties[pk]
         for pk in base.pk
