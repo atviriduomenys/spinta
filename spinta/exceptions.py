@@ -365,6 +365,10 @@ class UnknownParameter(BaseError):
     }
 
 
+class InvalidPropertyLevel(BaseError):
+    template = "Level for property {prop!r} can't be more than 3 if reference model is external"
+
+
 class InvalidParameterValue(BaseError):
     template = "Invalid parameter {parameter!r} value."
 

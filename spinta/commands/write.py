@@ -27,7 +27,7 @@ from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
-from spinta.types.datatype import DataType, Object, Array, File, Ref
+from spinta.types.datatype import DataType, Object, Array, File, Ref, ExternalRef
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
@@ -1067,6 +1067,20 @@ def before_write(
     data: DataSubItem,
 ) -> dict:
     patch = take(['_id'], data.patch)
+    return {
+        f'{dtype.prop.place}.{k}': v for k, v in patch.items()
+    }
+
+
+@commands.before_write.register(Context, ExternalRef, Backend)
+def before_write(
+    context: Context,
+    dtype: ExternalRef,
+    backend: Backend,
+    *,
+    data: DataSubItem,
+) -> dict:
+    patch = take([prop.place for prop in dtype.refprops], data.patch)
     return {
         f'{dtype.prop.place}.{k}': v for k, v in patch.items()
     }

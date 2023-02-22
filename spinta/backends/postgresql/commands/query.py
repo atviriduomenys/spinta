@@ -20,7 +20,7 @@ from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Action, Model, Property
 from spinta.utils.data import take
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, ExternalRef
 from spinta.types.datatype import Array
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -226,6 +226,11 @@ def getattr_(env, fpr, attr):
     return ForeignProperty(fpr, fpr.right, prop)
 
 
+@ufunc.resolver(PgQueryBuilder, ExternalRef, Bind, name='getattr')
+def getattr_(env, dtype, attr):
+    return dtype
+
+
 @ufunc.resolver(PgQueryBuilder, Expr)
 def select(env, expr):
     keys = [str(k) for k in expr.args]
@@ -339,6 +344,16 @@ def select(env, dtype):
     table = env.backend.get_table(env.model)
     column = table.c[dtype.prop.place + '._id']
     return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, ExternalRef)
+def select(env, dtype):
+    table = env.backend.get_table(env.model)
+    columns = []
+    for prop in dtype.refprops:
+        column = table.c[f"{dtype.prop.place}.{prop.place}"]
+        columns.append(column)
+    return Selected(columns, dtype.prop)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)

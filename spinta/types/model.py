@@ -39,6 +39,7 @@ from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
+from spinta.types.datatype import DataType, Ref
 from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
 from spinta.utils.schema import NA
@@ -215,6 +216,8 @@ def load(
         raise UnknownPropertyType(prop, type=data['type'])
     dtype_type, dtype_args = _parse_dtype_string(data['type'])
     data = {**data, 'type': dtype_type, 'type_args': dtype_args}
+    if data['type'] == 'ref' and prop.level and int(prop.level) < 4:
+        data['type'] = '_external_ref'
 
     prop.dtype = get_node(
         config,
@@ -381,9 +384,28 @@ def check(context: Context, model: Model):
 
 @check.register(Context, Property)
 def check(context: Context, prop: Property):
+    commands.check(context, prop.dtype)
     if prop.enum:
         for value, item in prop.enum.items():
             commands.check(context, item, prop.dtype, item.prepare)
+
+
+@check.register(Context, DataType)
+def check(context: Context, dtype: DataType):
+    pass
+
+
+@check.register(Context, Ref)
+def check(context: Context, dtype: Ref):
+    if dtype.prop.level:
+        level = int(dtype.prop.level)
+        ref_external = dtype.model.external
+        external = dtype.prop.model.external
+        if ref_external and external and \
+                ref_external.resource and \
+                ref_external.resource != external.resource and \
+                level > 3:
+            raise exceptions.InvalidPropertyLevel(dtype.prop.model, prop=dtype.prop.name)
 
 
 @authorize.register(Context, Action, Model)

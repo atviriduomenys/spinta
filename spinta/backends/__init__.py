@@ -35,7 +35,7 @@ from spinta.components import Property
 from spinta.exceptions import ConflictingValue
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
-from spinta.types.datatype import Array
+from spinta.types.datatype import Array, ExternalRef
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -729,6 +729,51 @@ def prepare_dtype_for_response(
     # FIXME: Backend should never return references as strings! References
     #        should always be dicts.
     return {'_id': value}
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, ExternalRef, (dict, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: ExternalRef,
+    value: Optional[Dict[str, Any]],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if value is None:
+        return {}
+
+    if select and select != {'*': {}}:
+        names = get_select_prop_names(
+            context,
+            dtype,
+            dtype.model.properties,
+            action,
+            select,
+        )
+    else:
+        names = value.keys()
+
+    data = {}
+    for prop, val, sel in select_props(
+        dtype.model,
+        names,
+        dtype.model.properties,
+        value,
+        select,
+    ):
+        data[prop.name] = commands.prepare_dtype_for_response(
+            context,
+            fmt,
+            prop.dtype,
+            val,
+            data=data,
+            action=action,
+            select=sel,
+        )
+    return data
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Object, dict)

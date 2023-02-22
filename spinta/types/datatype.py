@@ -270,6 +270,11 @@ class Denorm(DataType):
         return ""
 
 
+class ExternalRef(Ref):
+    def get_type_repr(self):
+        return "ref"
+
+
 @load.register(Context, DataType, dict, Manifest)
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
     _add_leaf_props(dtype.prop)
