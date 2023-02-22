@@ -54,16 +54,6 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     model.ns = ns
 
 
-def _parse_backref_model(data):
-    properties = data.get('properties')
-    if properties is not None:
-        for prop in properties:
-            if '[]' in prop:
-                _type = properties[prop].get('type')
-                if _type == 'backref':
-                    return properties[prop]['model']
-
-
 @overload
 @commands.load.register(Context, Model, dict, Manifest)
 def load(
@@ -84,8 +74,6 @@ def load(
         model.keymap = manifest.store.keymaps[model.keymap]
     else:
         model.keymap = manifest.keymap
-
-    model.backref_model = _parse_backref_model(data)
     manifest.add_model_endpoint(model)
     _load_namespace_from_model(context, manifest, model)
     load_access_param(model, data.get('access'), itertools.chain(
@@ -202,16 +190,6 @@ def _parse_dtype_string(dtype: str) -> Tuple[str, List[str]]:
         return dtype, []
 
 
-def _parse_intermiadate_realation(prop, data, dtype_args):
-    if data.get('ref', None) is None:
-        return dtype_args
-    rel_models = is_unit(prop.dtype, data['ref'])[2]
-    split_model_row_to_list = re.findall('[A-Z][a-z]*', rel_models)
-    for model in split_model_row_to_list:
-        dtype_args.append(prop.model.external['dataset'] + "/" + str(model))
-    return dtype_args
-
-
 @overload
 @commands.load.register(Context, Property, dict, Manifest)
 def load(
@@ -267,8 +245,6 @@ def load(
         prop.unit = unit
     else:
         prop.given.enum = unit
-    if isinstance(prop.dtype, Array):
-        dtype_args = _parse_intermiadate_realation(prop, data, dtype_args)
     return prop
 
 

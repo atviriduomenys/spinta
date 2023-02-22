@@ -11,15 +11,15 @@ from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
-from spinta.units.helpers import is_unit
 
 @commands.prepare.register(Context, PostgreSQL, Array)
 def prepare(context: Context, backend: PostgreSQL, dtype: Array):
     prop = dtype.prop
-    if dtype.items is None:
-        columns = is_unit(dtype, prop.unit)[1]
-    else:
+    if dtype.items is not None:
         columns = commands.prepare(context, backend, dtype.items)
+    else:
+        return
+
     assert columns is not None
     if not isinstance(columns, list):
         columns = [columns]
@@ -36,12 +36,6 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array):
     #             f'{parent_list_table_name}._id', ondelete='CASCADE',
     #         )),
     #     ]
-    rel_columns = []
-    if dtype.items is None:
-        for column, ref_model in zip(columns if len(columns) > 1 else dtype.type_args, dtype.type_args):
-            rel_columns.append(sa.Column(column, pkey_type, sa.ForeignKey(ref_model+'._id', ondelete='CASCADE')))
-    else:
-        rel_columns = columns
     name = get_pg_name(get_table_name(prop, TableType.LIST))
     main_table_name = get_pg_name(get_table_name(prop.model))
     table = sa.Table(
@@ -54,7 +48,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array):
             f'{main_table_name}._id', ondelete='CASCADE',
         )),
         # Main table id (resource id).
-        *rel_columns,
+        *columns,
     )
     backend.add_table(table, prop, TableType.LIST)
 

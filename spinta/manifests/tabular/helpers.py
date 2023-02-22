@@ -245,7 +245,6 @@ class DatasetReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['dataset']
-
         if row['dataset'] in self.state.manifest.datasets:
             self.error("Dataset already defined.")
 
@@ -476,13 +475,12 @@ class PropertyReader(TabularReader):
             'uri': row['uri'],
             'title': row['title'],
             'description': row['description'],
-            'ref': row['ref']
         }
 
         dataset = self.state.dataset.data if self.state.dataset else None
 
         if row['ref']:
-            if row['type'] in ('ref', 'backref', 'generic'):
+            if row['type'] in ('ref', 'backref', 'generic', 'array'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
                 self.data['model'] = get_relative_model_name(dataset, ref_model)
                 self.data['refprops'] = ref_props
