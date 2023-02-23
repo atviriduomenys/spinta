@@ -74,7 +74,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Ref, BackRef, Array
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -1496,6 +1496,11 @@ def _property_to_tabular(
                 data['ref'] += f'[{rkeys}]'
         else:
             data['ref'] = prop.dtype.model.name
+    elif isinstance(prop.dtype, BackRef) or (isinstance(prop.dtype, Array) and not prop.dtype.refprops):
+        data['ref'] = prop.dtype.model.replace(prop.model.external.dataset.name + '/','')
+    elif isinstance(prop.dtype, Array):
+        data['ref'] = prop.dtype.model.replace(prop.model.external.dataset.name + '/', '') + str(
+            prop.dtype.refprops).replace("'", '')
     elif prop.enum is not None:
         data['ref'] = prop.given.enum
     elif prop.unit is not None:
