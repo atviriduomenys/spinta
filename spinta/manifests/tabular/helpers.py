@@ -403,6 +403,7 @@ class ModelReader(TabularReader):
             'title': row['title'],
             'description': row['description'],
             'properties': {},
+            'uri': row['uri'],
             'external': {
                 'dataset': dataset.name if dataset else '',
                 'resource': resource.name if dataset and resource else '',
