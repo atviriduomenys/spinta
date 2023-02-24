@@ -1,5 +1,5 @@
 cat ~/.sqliterc
 cat > ~/.sqliterc <<'EOF'
 .headers ON
-.mode box
+.mode table
 EOF
