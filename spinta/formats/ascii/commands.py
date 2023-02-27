@@ -47,18 +47,30 @@ def _render(
     status_code,
     headers,
 ):
-    # Format params ar given in RQL query `?format(width(1),colwidth(1))`.
+    # Format params ar given in RQL query `?format(width(1),max_col_width(1))`.
     width = params.formatparams.get('width')
-    colwidth = params.formatparams.get('colwidth')
+    max_col_width = params.formatparams.get('max_col_width')
+    max_value_length = params.formatparams.get('max_value_length', 100)
+    rows_to_read = params.formatparams.get('rows_to_read', 200)
 
-    if width is None and colwidth is None and sys.stdin.isatty():
+    if width is None and max_col_width is None and sys.stdin.isatty():
         proc = subprocess.run(['stty', 'size'], capture_output=True)
         _, width = map(int, proc.stdout.split())
-    elif width is None and colwidth is None:
-        colwidth = 42
+    elif width is None and max_col_width is None:
+        max_col_width = 42
 
     return StreamingResponse(
-        aiter(fmt(context, model, action, params, data, width, colwidth)),
+        aiter(fmt(
+            context,
+            model,
+            action,
+            params,
+            data,
+            width,
+            max_col_width,
+            max_value_length,
+            rows_to_read
+        )),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,

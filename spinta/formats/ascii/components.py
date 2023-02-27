@@ -2,9 +2,9 @@ import operator
 import itertools
 
 from spinta.components import Context, Action, UrlParams, Model
+from spinta.formats.ascii.helpers import get_widths, get_displayed_cols, draw_border, draw_header, draw_row
 from spinta.manifests.components import Manifest
 from spinta.formats.components import Format
-from spinta.formats.ascii.helpers import draw
 from spinta.utils.nestedstruct import flatten
 from spinta.formats.helpers import get_model_tabular_header
 
@@ -27,7 +27,10 @@ class Ascii(Format):
         params: UrlParams,
         data,
         width=None,
-        colwidth=42,
+        max_col_width=None,
+        max_value_length=100,
+        rows_to_check=200,
+        separator="  ",
     ):
         manifest: Manifest = context.get('store').manifest
 
@@ -54,19 +57,29 @@ class Ascii(Format):
 
             rows = flatten(group)
             cols = get_model_tabular_header(context, model, action, params)
+            read_rows, widths = get_widths(
+                rows,
+                cols,
+                max_value_length,
+                max_col_width,
+                rows_to_check
+            )
+            rows = itertools.chain(read_rows, rows)
+            if width:
+                displayed_cols = get_displayed_cols(widths, width, separator)
+            else:
+                displayed_cols = cols
 
-            if colwidth:
-                width = len(cols) * colwidth
-
-            buffer = [cols]
-            tnum = 1
+            yield draw_border(widths, displayed_cols, separator)
+            yield draw_header(widths, displayed_cols, separator)
 
             for row in rows:
-                buffer.append([row.get(c) for c in cols])
-                if len(buffer) > 100:
-                    yield from draw(buffer, name, tnum, width)
-                    buffer = [cols]
-                    tnum += 1
+                yield draw_row(
+                    row,
+                    widths,
+                    displayed_cols,
+                    max_value_length,
+                    separator
+                )
 
-            if buffer:
-                yield from draw(buffer, name, tnum, width)
+            yield draw_border(widths, displayed_cols, separator)
