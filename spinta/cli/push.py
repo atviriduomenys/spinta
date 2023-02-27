@@ -39,7 +39,6 @@ from spinta.cli.helpers.data import count_rows
 from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.data import iter_model_rows
 from spinta.cli.helpers.store import prepare_manifest
-from spinta.client import RemoteClientCredentials
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.components import Action
