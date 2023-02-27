@@ -58,8 +58,9 @@ cat $BASEDIR/manifest.csv
 poetry run spinta show
 
 # Run server with external mode (read from db.sqlite directly)
-kill $(grep -Po 'server process \[\K\d+' $BASEDIR/spinta.log | tail -1)
+test -n "$PID" && kill $PID
 poetry run spinta run --mode external $BASEDIR/manifest.csv &>> $BASEDIR/spinta.log &
+PID=$!
 tail -50 $BASEDIR/spinta.log
 
 # notes/spinta/client.sh    Configure client
@@ -78,16 +79,16 @@ http GET "$SERVER/$DATASET/City?format(ascii)"
 # notes/spinta/server.sh    Add client
 
 # Run server with internal mode
-kill $(grep -Po 'server process \[\K\d+' $BASEDIR/spinta.log | tail -1)
+test -n "$PID" && kill $PID
 poetry run spinta run &>> $BASEDIR/spinta.log &
+PID=$!
 tail -50 $BASEDIR/spinta.log
 
 # notes/spinta/client.sh    Configure client
 # notes/spinta/push.sh      Configure client
 
 rm $BASEDIR/push/localhost.db
-http DELETE "$SERVER/$DATASET/City/:wipe" $AUTH
-http DELETE "$SERVER/$DATASET/Country/:wipe" $AUTH
+http DELETE "$SERVER/$DATASET/:wipe" $AUTH
 
 http GET "$SERVER/$DATASET/Country?format(ascii)"
 http GET "$SERVER/$DATASET/City?format(ascii)"
@@ -171,7 +172,7 @@ http GET "$SERVER/$DATASET/Country?format(ascii)"
 #| ===============================================================================================================
 #| cli/push/Country   f2c62384-1591-416c-8ed6-40a89c682e0f   cdcbe598-cacb-41a8-acc1-f4955f5a8b70   1    Lithuania
 http GET "$SERVER/$DATASET/City?format(ascii)"
-# Vilnius was delted, indeed.
+# Vilnius was deleted, indeed.
 
 http GET "$SERVER/$DATASET/City/:changes?select(_op,_created,_id,name)&format(ascii)"
 #|  _op              _created                            _id                     name  
@@ -265,7 +266,7 @@ http GET "$SERVER/$DATASET/City/:changes?select(_op,_created,_id,name)&format(as
 # TODO: Second insert operation should appear in changelog
 
 
-kill $(grep -Po 'server process \[\K\d+' $BASEDIR/spinta.log | tail -1)
+test -n "$PID" && kill $PID
 poetry run pip install bottle
 poetry run python &>> $BASEDIR/bottle.log <<'EOF' &
 from bottle import route, request, response, run
@@ -287,14 +288,32 @@ EOF
 PID=$!
 tail -50 $BASEDIR/bottle.log
 
-http :8000/test/
-http :8000/test/ key=val
-http -f :8000/test/ key=val
-
 sqlite3 $BASEDIR/db.sqlite "INSERT INTO cities VALUES (3, 'Klaipėda', 1);"
 sqlite3 $BASEDIR/db.sqlite "SELECT * FROM cities;"
 
+# Try to push with a 404 response code
 poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
+#| ERROR: Error when sending and receiving data.                                                                                                                                
+#| Server response (status=404):
+#| 
+#|         <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+#|         <html>
+#|             <head>
+#|                 <title>Error: 404 Not Found</title>
+#|                 <style type="text/css">
+#|                   html {background-color: #eee; font-family: sans;}
+#|                   body {background-color: #fff; border: 1px solid #ddd;
+#|                         padding: 15px; margin: 15px;}
+#|                   pre {background-color: #eee; border: 1px solid #ddd; padding: 5px;}
+#|                 </style>
+#|             </head>
+#|             <body>
+#|                 <h1>Error: 404 Not Found</h1>
+#|                 <p>Sorry, the requested URL <tt>&#039;http://localhost:8000/&#039;</tt>
+#|                    caused an error:</p>
+#|                 <pre>Not found: &#039;/&#039;</pre>
+#|             </body>
+#|         </html>
 
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
 #| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
@@ -305,4 +324,40 @@ sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
 #| | c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971 | 3d2d16d530de2a80018ef76248d8cb6c6481f50b |                                      | 2023-02-24 08:24:49.130477 | 0       | 1     |
 #| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
 
-kill $PID
+# Bring a functioning server back online
+test -n "$PID" && kill $PID
+poetry run spinta run &>> $BASEDIR/spinta.log &
+PID=$!
+tail -50 $BASEDIR/spinta.log
+
+# Try to push and check if errored row is retried
+poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
+
+sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+#| |                  id                  |                 checksum                 |               revision               |           pushed           | deleted | error |
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | bec7318a-bf3d-4cea-8ed6-98e6c90580ee | 2023-02-27 14:27:35.148487 | 1       | 0     |
+#| | 2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd | b7c794dde2891313b297207300e951d2056c4463 | 52c73040-3d14-4ab4-83e2-df66ad714b7f | 2023-02-27 14:27:35.149036 | 0       | 0     |
+#| | c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971 | 3d2d16d530de2a80018ef76248d8cb6c6481f50b |                                      | 2023-02-27 14:27:35.182293 | 0       | 1     |
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+# FIXME: It seems, that nothing has changed.
+
+tail -50 $BASEDIR/spinta.log
+#| spinta.exceptions.ItemDoesNotExist: Resource 'c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971' not found.
+#|   Context:
+#|     component: spinta.components.Model
+#|     manifest: default
+#|     schema: 9
+#|     dataset: cli/push
+#|     resource: db
+#|     model: cli/push/City
+#|     entity: cities
+#|     resource.backend: cli/push/db
+#|     id: c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971
+
+http GET "$SERVER/$DATASET/City?format(ascii)"
+#|     _type                       _id                                 _revision                 id    name                country._id             
+#| ================================================================================================================================================
+#| cli/push/City   2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd   52c73040-3d14-4ab4-83e2-df66ad714b7f   2    Kaunas   f2c62384-1591-416c-8ed6-40a89c682e0f
+# FIXME: Klaipėda should be in the list of cieties, but is is not.
