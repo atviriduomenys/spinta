@@ -38,7 +38,10 @@ poetry run spinta genkeys
 
 
 # Check configuration
-SPINTA_CONFIG=$BASEDIR/config.yml
+export SPINTA_CONFIG=$BASEDIR/config.yml
+poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
+cat $BASEDIR/manifest.csv
+poetry run spinta show
 poetry run spinta config backends manifests
 poetry run spinta show
 poetry run spinta check

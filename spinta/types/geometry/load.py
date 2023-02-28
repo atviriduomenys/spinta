@@ -15,6 +15,7 @@ GEOMETRY_TYPES = {
     'point',
     'linestring',
     'polygon',
+    'geometry',
 }
 GEOMETRY_TYPES |= {
     f'multi{x}'
