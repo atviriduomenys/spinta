@@ -15,7 +15,7 @@ from requests import PreparedRequest
 from responses import POST
 from responses import RequestsMock
 
-from spinta.cli.push import _PushRow, _clean_up, _reset_pushed
+from spinta.cli.push import _PushRow, _reset_pushed, _get_deleted_rows
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
@@ -458,10 +458,7 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         checksum='DELETED',
         pushed=datetime.datetime.now(),
         error=False,
-        deleted=False,
     ))
-
-    rows = []
 
     client = requests.Session()
     server = 'https://example.com/'
@@ -481,7 +478,22 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         })],
     )
 
+    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    assert list(conn.execute(query)) == [(
+        '4d741843-4e94-4890-81d9-5af7c5b5989a',
+        rev_before,
+        False,
+    )]
+
     _reset_pushed(context, models, state.metadata)
+
+    rows = [
+        (model, {
+            '_op': 'delete',
+            '_type': 'City',
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
+        }),
+    ]
 
     _push(
         context,
@@ -492,18 +504,76 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         state=state,
     )
 
-    _clean_up(
-        context,
-        client,
-        server,
-        models,
-        state=state,
-    )
+    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    assert list(conn.execute(query)) == []
 
-    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c.deleted])
-    assert list(conn.execute(query)) == [(
-        '4d741843-4e94-4890-81d9-5af7c5b5989a',
-        rev_after,
-        False,
-        True,
-    )]
+
+# def test_push_state__repeat(rc: RawConfig, responses: RequestsMock):
+#     context, manifest = load_manifest_and_context(rc, '''
+#        m | property | type   | access
+#        City         |        |
+#          | name     | string | open
+#        ''')
+#
+#     model = manifest.models['City']
+#     models = [model]
+#
+#     state = _State(*_init_push_state('sqlite://', models))
+#     conn = state.engine.connect()
+#     context.set('push.state.conn', conn)
+#
+#     rev_before = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+#     rev_after = '45e8d4d6-bb6c-42cd-8ad8-09049bbed6bd'
+#
+#     table = state.metadata.tables[model.name]
+#     conn.execute(table.insert().values(
+#         id='4d741843-4e94-4890-81d9-5af7c5b5989a',
+#         revision=rev_before,
+#         checksum='CHANGED',
+#         pushed=datetime.datetime.now(),
+#         error=False,
+#     ))
+#
+#     _id = '4d741843-4e94-4890-81d9-5af7c5b5989a'
+#     rows = [
+#         (model, {
+#             '_type': model.name,
+#             '_id': _id,
+#             'name': 'Vilnius',
+#         }),
+#     ]
+#
+#     client = requests.Session()
+#     server = 'https://example.com/'
+#     responses.add(
+#         POST, server,
+#         json={
+#             '_data': [{
+#                 '_type': model.name,
+#                 '_id': _id,
+#                 '_revision': 'f91adeea-3bb8-41b0-8049-ce47c7530bdc',
+#                 'name': 'Vilnius',
+#             }],
+#         },
+#         match=[_matcher({
+#             '_op': 'insert',
+#             '_type': model.name,
+#             '_id': _id,
+#         })],
+#     )
+#
+#     _push(
+#         context,
+#         client,
+#         server,
+#         models,
+#         rows,
+#         state=state,
+#     )
+#
+#     query = sa.select([table.c.id, table.c.revision, table.c.error])
+#     assert list(conn.execute(query)) == [(
+#         '4d741843-4e94-4890-81d9-5af7c5b5989a',
+#         rev_after,
+#         False,
+#     )]

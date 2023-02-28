@@ -167,52 +167,31 @@ def push(
             stop_on_error=stop_on_error,
         )
 
-        repeat = repeat_count
-        while repeat:
-            rows = iter_model_rows(
-                context,
-                models,
-                counts,
-                limit,
-                stop_on_error=stop_on_error,
-            )
-            if repeat < repeat_count:
-                rows = _get_rows_with_errors(
-                    client,
-                    creds.server,
-                    context,
-                    state.metadata,
-                    rows
-                )
+        if state:
+            state = _State(*_init_push_state(state, models))
+            context.attach('push.state.conn', state.engine.begin)
+            _reset_pushed(context, models, state.metadata)
 
-            rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
+        rows = _read_rows(
+            context,
+            models,
+            state,
+            counts,
+            limit,
+            stop_on_error=stop_on_error
+        )
 
-            if state and repeat == repeat_count:
-                state = _State(*_init_push_state(state, models))
-                context.attach('push.state.conn', state.engine.begin)
-                _reset_pushed(context, models, state.metadata)
+        rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
 
-            _push(
-                context,
-                client,
-                creds.server,
-                models,
-                rows,
-                state=state,
-                stop_time=stop_time,
-                stop_row=stop_row,
-                chunk_size=chunk_size,
-                dry_run=dry_run,
-                stop_on_error=stop_on_error,
-            )
-            repeat -= 1
-
-        _clean_up(
+        _push(
             context,
             client,
             creds.server,
             models,
+            rows,
             state=state,
+            stop_time=stop_time,
+            stop_row=stop_row,
             chunk_size=chunk_size,
             dry_run=dry_run,
             stop_on_error=stop_on_error,
@@ -265,37 +244,29 @@ def _push(
     _push_rows(rows, stop_on_error)
 
 
-def _clean_up(
+def _read_rows(
     context: Context,
-    client: requests.Session,
-    server: str,
     models: List[Model],
+    state: _State,
+    counts: Dict[str, int],
+    limit: int = None,
     *,
-    state: Optional[_State] = None,
-    chunk_size: Optional[int] = None,
-    dry_run: bool = False,
     stop_on_error: bool = False,
-):
-    deleted_rows = _get_deleted_rows(
+) -> Iterator[ModelRow]:
+
+    yield from iter_model_rows(
+        context,
+        models,
+        counts,
+        limit,
+        stop_on_error=stop_on_error
+    )
+
+    yield from _get_deleted_rows(
         models,
         context,
         state.metadata
     )
-    deleted_rows = _push_to_remote_spinta(
-        client,
-        server,
-        deleted_rows,
-        chunk_size,
-        dry_run=dry_run,
-    )
-
-    deleted_rows = _save_state_after_delete(
-        deleted_rows,
-        context,
-        state.metadata
-    )
-
-    _push_rows(deleted_rows, stop_on_error)
 
 
 class _PushRow:
@@ -387,7 +358,7 @@ def _get_rows_with_errors(
             # it means that row is not saved in target server
             # and we need to push it again
             elif resp.status_code == 404:
-                yield model, row
+                yield row
 
 
 def _rows_to_push_rows(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
@@ -397,23 +368,24 @@ def _rows_to_push_rows(rows: Iterable[ModelRow]) -> Iterator[_PushRow]:
 
 def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
     for row in rows:
-        if row.saved:
-            row.data['_op'] = 'patch'
+        if not row.deleted:
+            if row.saved:
+                row.data['_op'] = 'patch'
 
-            where = {
-                'name': 'eq',
-                'args': [
-                    {'name': 'bind', 'args': ['_id']},
-                    row.data['_id'],
-                ]
-            }
-            row.data['_where'] = spyna.unparse(where)
-        else:
-            row.data['_op'] = 'insert'
+                where = {
+                    'name': 'eq',
+                    'args': [
+                        {'name': 'bind', 'args': ['_id']},
+                        row.data['_id'],
+                    ]
+                }
+                row.data['_where'] = spyna.unparse(where)
+            else:
+                row.data['_op'] = 'insert'
 
-            # if _revision is passed insert action gives ManagedProperty error
-            if '_revision' in row.data:
-                row.data.pop('_revision')
+                # if _revision is passed insert action gives ManagedProperty error
+                if '_revision' in row.data:
+                    row.data.pop('_revision')
         yield row
 
 
@@ -660,7 +632,6 @@ def _map_sent_and_recv(
             else:
                 # after delete
                 _id = spyna.parse(sent_row.data['_where'])['args'][1]
-                sent_row.deleted = True
 
             assert _id == recv_row['_id'], (
                 f"sent._id = {_id}, "
@@ -700,7 +671,6 @@ def _init_push_state(
             _add_column(engine, table, sa.Column('checksum', sa.Unicode))
         _add_column(engine, table, sa.Column('revision', sa.Unicode))
         _add_column(engine, table, sa.Column('pushed', sa.DateTime))
-        _add_column(engine, table, sa.Column('deleted', sa.Boolean))
         _add_column(engine, table, sa.Column('error', sa.Boolean))
         metadata.reflect(only=[table.name], extend_existing=True)
 
@@ -767,7 +737,6 @@ def _reset_pushed(
         # reset pushed so we could see which objects were deleted
         conn.execute(
             table.update().
-            where(table.c.deleted.is_(False)).
             values(pushed=None)
         )
 
@@ -792,23 +761,26 @@ def _check_push_state(
         }
 
         for row in group:
-            _id = row.data['_id']
-            row.checksum = _get_data_checksum(row)
-            saved = saved_rows.get(_id)
-            if saved is None:
-                row.saved = False
+            if '_op' in row.data and row.data['_op'] == 'delete':
+                row.deleted = True
             else:
-                row.saved = True
-                row.data['_revision'] = saved.revision
-                if saved.checksum == row.checksum:
-                    conn.execute(
-                        table.update().
-                        where(table.c.id == _id).
-                        values(
-                            pushed=datetime.datetime.now()
+                _id = row.data['_id']
+                row.checksum = _get_data_checksum(row)
+                saved = saved_rows.get(_id)
+                if saved is None:
+                    row.saved = False
+                else:
+                    row.saved = True
+                    row.data['_revision'] = saved.revision
+                    if saved.checksum == row.checksum:
+                        conn.execute(
+                            table.update().
+                            where(table.c.id == _id).
+                            values(
+                                pushed=datetime.datetime.now()
+                            )
                         )
-                    )
-                    continue  # Nothing has changed.
+                        continue  # Nothing has changed.
 
             yield row
 
@@ -831,8 +803,13 @@ def _save_push_state(
                     checksum=row.checksum,
                     pushed=datetime.datetime.now(),
                     error=row.error,
-                    deleted=row.deleted,
                 )
+            )
+        elif row.deleted:
+            _id = spyna.parse(row.data['_where'])['args'][1]
+            conn.execute(
+                table.delete().
+                where(table.c.id == _id)
             )
         else:
             conn.execute(
@@ -843,7 +820,6 @@ def _save_push_state(
                     checksum=row.checksum,
                     pushed=datetime.datetime.now(),
                     error=row.error,
-                    deleted=row.deleted,
                 )
             )
         yield row
@@ -852,8 +828,8 @@ def _save_push_state(
 def _prepare_deleted_rows(
     rows,
     model: Model,
-    table
-) -> Iterable[_PushRow]:
+    table: sa.Table
+) -> Iterable[ModelRow]:
     for row in rows:
         where = {
             'name': 'eq',
@@ -862,11 +838,11 @@ def _prepare_deleted_rows(
                 row[table.c.id],
             ]
         }
-        yield _PushRow(model, {
+        yield model, {
             '_op': 'delete',
             '_type': model.name,
             '_where': spyna.unparse(where)
-        })
+        }
 
 
 def _get_deleted_rows(
@@ -881,39 +857,7 @@ def _get_deleted_rows(
             sa.select([table.c.id]).
             where(
                 table.c.pushed.is_(None) &
-                table.c.deleted.is_(False)
+                table.c.error.is_(False)
             )
         )
         yield from _prepare_deleted_rows(deleted_rows, model, table)
-
-
-def _save_state_after_delete(
-    rows: Iterable[_PushRow],
-    context: Context,
-    metadata: sa.MetaData,
-) -> Iterator[_PushRow]:
-    conn = context.get('push.state.conn')
-    for row in rows:
-        table = metadata.tables[row.data['_type']]
-        _id = spyna.parse(row.data['_where'])['args'][1]
-        if row.error:
-            conn.execute(
-                table.update().
-                where(table.c.id == _id).
-                values(
-                    pushed=datetime.datetime.now(),
-                    error=row.error,
-                )
-            )
-        else:
-            conn.execute(
-                table.update().
-                where(table.c.id == _id).
-                values(
-                    revision=row.data['_revision'],
-                    pushed=datetime.datetime.now(),
-                    error=row.error,
-                    deleted=row.deleted,
-                )
-            )
-        yield row
