@@ -77,6 +77,7 @@ from spinta.types.datatype import Ref
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
+from spinta.types.text.components import Text
 
 ParsedRow = Tuple[int, Dict[str, Any]]
 
@@ -1470,11 +1471,14 @@ def _property_to_tabular(
                 data['ref'] += f'[{rkeys}]'
         else:
             data['ref'] = prop.dtype.model.name
+    elif isinstance(prop.dtype, Text):
+        data['property'] = prop.name
+        lang_key = data['property'].split("@")
+        data['access'] = prop.dtype.langs[lang_key[1]]['access']
     elif prop.enum is not None:
         data['ref'] = prop.given.enum
     elif prop.unit is not None:
         data['ref'] = prop.given.unit
-
     yield torow(DATASET, data)
     yield from _comments_to_tabular(prop.comments, access=access)
     yield from _lang_to_tabular(prop.lang)
@@ -1523,15 +1527,27 @@ def _model_to_tabular(
     yield torow(DATASET, data)
     yield from _comments_to_tabular(model.comments, access=access)
     yield from _lang_to_tabular(model.lang)
-
     props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)
     for prop in props:
-        yield from _property_to_tabular(
-            prop,
-            external=external,
-            access=access,
-            order_by=order_by,
-        )
+        if prop.dtype.name == 'text':
+            lang = [*prop.dtype.langs.keys()]
+            for l in lang:
+                temp = prop.name
+                prop.name = prop.name + '@' + str(l)
+                yield from _property_to_tabular(
+                    prop,
+                    external=external,
+                    access=access,
+                    order_by=order_by,
+                )
+                prop.name = temp
+        else:
+            yield from _property_to_tabular(
+                prop,
+                external=external,
+                access=access,
+                order_by=order_by,
+            )
 
 
 def datasets_to_tabular(
@@ -1767,7 +1783,7 @@ def _write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w') as f:
+    with path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)

@@ -211,16 +211,12 @@ def test_text_select_by_prop(context, model, app):
 
     assert resp.status_code == 201
 
-    # Test if select(prop @ lang) works
     select_by_prop = app.get(f'/{model}/?select(title@lt)')
 
-    # assert select_by_prop = select_by_prop
     assert select_by_prop.status_code == 200
     assert len(select_by_prop.json()['_data']) == 2
-    #Test if prop @ lang = value works.
     select_by_prop_value = app.get(f'/{model}?select(title@lt)=lietuva')
     assert select_by_prop_value.status_code == 200
     assert len(select_by_prop_value.json()['_data']) == 1
-    # Test if sort(prop @ lang) works
     sort_by_prop = app.get(f'/{model}/?sort(title@lt)')
     assert sort_by_prop.status_code == 200
