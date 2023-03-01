@@ -6,6 +6,11 @@ Changes
 0.1.45 (unreleased)
 ===================
 
+Improvements:
+
+- Add possibility to specify `geometry(geometry)` and `geometry(geometryz)`
+  types.
+
 
 0.1.44 (2022-11-23)
 ===================
