@@ -1,6 +1,9 @@
+import uuid
+
 import pytest
 import requests
 import httpx
+from spinta.testing.manifest import bootstrap_manifest
 
 from spinta.utils.data import take
 from spinta.testing.utils import error
@@ -1139,3 +1142,47 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
     data = resp.json()
     assert resp.status_code == 200, data
     assert take(data) == {'code': 'lt'}
+
+
+def test_base_select(rc, postgresql, request):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property   | type    | ref
+    datasets/gov/example/base  |         |
+                               |         |
+      |   |   | Location       |         |
+      |   |   |   | id         | integer |
+      |   |   |   | name       | string  |
+                               |         |
+      |   | Location           |         |
+      |   |   | City           |         |
+      |   |   |   | id         |         |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('datasets/gov/example/base/Location', ['insert', 'delete'])
+    app.authmodel('datasets/gov/example/base/City', ['insert', 'delete', 'getall', 'search'])
+
+    _id = str(uuid.uuid4())
+    app.post('/datasets/gov/example/base/Location', json={
+        '_id': _id,
+        'id': 1,
+        'name': 'Base location',
+    })
+    app.post('/datasets/gov/example/base/City', json={
+        '_id': _id,
+        'name': 'City',
+        'population': 100
+    })
+
+    resp = app.get('/datasets/gov/example/base/City?select(id,name,_base.name,population)')
+    assert resp.json()['_data'] == [
+        {
+            '_base': {'name': 'Base location'},
+            'id': 1,
+            'name': 'City',
+            'population': 100
+        }
+    ]

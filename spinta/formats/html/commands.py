@@ -48,13 +48,16 @@ from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
+from spinta.types.datatype import Inherit
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.schema import NotAvailable
 
 
 def _get_model_reserved_props(action: Action) -> List[str]:
-    if action in (Action.GETALL, Action.SEARCH):
+    if action == Action.GETALL:
         return ['_id']
+    elif action == action.SEARCH:
+        return ['_id', '_base']
     else:
         return get_model_reserved_props(action)
 
@@ -597,3 +600,26 @@ def prepare_dtype_for_response(
         action=action,
         select=select,
     )
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, Inherit, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Inherit,
+    value: List[Any],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    res = commands.prepare_dtype_for_response[Context, Format, Inherit, dict](
+        context,
+        fmt,
+        dtype,
+        value,
+        data=data,
+        action=action,
+        select=select,
+    )
+    return res
