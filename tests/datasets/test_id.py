@@ -11,8 +11,8 @@ def test_scalar():
         # val = 42
         # key = kmap.encode('test', val, None)
         # assert kmap.decode('test', key) == 42
-        pkey = kmap.encode('datasets/gov/example/Country', [1, 'lt'], None, None)
-        xkey = kmap.encode('datasets/gov/example/Country.code', 1, 'lt', 'datasets/gov/example/Country')
+        pkey = kmap.encode('datasets/gov/example/Country', [1, 'lt'])
+        xkey = kmap.encode('datasets/gov/example/Country.code', 'lt', pkey)
         assert pkey == xkey
         assert kmap.decode('datasets/gov/example/Country', pkey) == [1, 'lt']
         assert kmap.decode('datasets/gov/example/Country.code', pkey) == 'lt'
@@ -23,5 +23,5 @@ def test_list():
     commands.prepare(context, kmap)
     with kmap:
         val = [42, 'foo', 'bar']
-        key = kmap.encode('test', val, None, None)
+        key = kmap.encode('test', val)
         assert kmap.decode('test', key) == val

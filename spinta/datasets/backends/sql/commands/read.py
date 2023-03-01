@@ -102,15 +102,15 @@ def getall(
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = keymap.encode(sel.prop.model.model_type(), val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        parent_table = sel.prop.name
-                        current_table = sel.prop.model.name
-                        if current_table.split("/")[-1].islower():
-                            help = sel.prop.place
+                        if sel.prop.dtype.refprops == sel.prop.dtype.model.external.pkeys or len(
+                            sel.prop.dtype.model.external.pkeys) == 1:
+                            val = keymap.encode(sel.prop.dtype.model.model_type(), val)
                         else:
-                            help = parent_table.title()
-                        parent_table = current_table.replace(current_table.split("/")[-1], help)
-                        val = keymap.encode(sel.prop.model.model_type()+'.'+str(val), row[0], row[1],
-                                            parent_table)
+                            pkey = keymap.encode(sel.prop.model.model_type(),
+                                                 sel.prop.dtype.model.external.pkeys[-1].name)
+                            val = keymap.encode(
+                                f'{sel.prop.dtype.model.model_type()}.{sel.prop.dtype.model.external.pkeys[-1].name}',
+                                val, pkey)
                         val = {'_id': val}
                 res[key] = val
             res = flat_dicts_to_nested(res)

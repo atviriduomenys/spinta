@@ -47,7 +47,7 @@ class SqlAlchemyKeyMap(KeyMap):
             )
             table.create(checkfirst=True)
         return self.metadata.tables[name]
-    def encode(self, name: str, value: object, primary_key=None, parent_table=None) -> Optional[str]:
+    def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
         # Make value msgpack serializable.
         if isinstance(value, (list, tuple)):
             value = [_encode_value(k) for k in value if k is not None]
@@ -63,13 +63,26 @@ class SqlAlchemyKeyMap(KeyMap):
         query = sa.select([table.c.key]).where(table.c.hash == hash)
         key = self.conn.execute(query).scalar()
         if primary_key is not None:
-            if parent_table is not None:
-                _query_parent_table = sa.select((self.metadata.tables[parent_table]))
-                result = self.conn.execute(_query_parent_table)
-                for n in result:
-                    if isinstance(msgpack.loads(n.value, raw=False), (list, str)):
-                        if primary_key in msgpack.loads(n.value, raw=False):
-                            return n.key
+            parent_table = name.split(".")
+            _query_parent_table = sa.select((self.metadata.tables[parent_table[0]]))
+            result = self.conn.execute(_query_parent_table)
+            for n in result:
+                if isinstance(msgpack.loads(n.value, raw=False), (list, str)):
+                    if msgpack.loads(value, raw=False) in msgpack.loads(n.value, raw=False):
+                        self.conn.execute(table.insert(), {
+                            'key': n.key,
+                            'hash': hash,
+                            'value': value,
+                        })
+                        return n.key
+                elif isinstance(msgpack.loads(n.value, raw=False), int):
+                    if msgpack.loads(value, raw=False) == msgpack.loads(n.value, raw=False):
+                        self.conn.execute(table.insert(), {
+                            'key': n.key,
+                            'hash': hash,
+                            'value': value,
+                        })
+                        return n.key
 
         if key is None:
             key = str(uuid.uuid4())
@@ -85,6 +98,7 @@ class SqlAlchemyKeyMap(KeyMap):
         table = self.get_table(name)
         query = sa.select([table.c.value]).where(table.c.key == key)
         value = self.conn.execute(query).scalar()
+        print(value, "????")
         value = msgpack.loads(value, raw=False)
         return value
 
