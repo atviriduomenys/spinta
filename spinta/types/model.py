@@ -42,7 +42,6 @@ from spinta.nodes import load_node
 from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
 from spinta.utils.schema import NA
-from spinta.types.datatype import Array
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute

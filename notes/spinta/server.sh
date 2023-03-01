@@ -78,7 +78,8 @@ EOF
 
 
 # Run server
-poetry run spinta run &>> $BASEDIR/spinta.log &
+kill $PID
+poetry run spinta run &>> $BASEDIR/spinta.log &; PID=$!
 
 
 # Check logs
