@@ -187,14 +187,12 @@ def test_geometry_html(rc: RawConfig):
         ),
     }
 
-
 osm_url = (
     'https://www.openstreetmap.org/?'
-    'mlat=54.662851967609136&'
-    'mlon=25.273658402751387'
-    '#map=19/54.662851967609136/25.273658402751387'
+    'mlat=25.273658402751387&'
+    'mlon=54.662851967609136'
+    '#map=19/25.273658402751387/54.662851967609136'
 )
-
 
 @pytest.mark.parametrize('wkt, srid, link', [
     ('POINT (582170 6059232)', LKS94, osm_url),
