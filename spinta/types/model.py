@@ -31,7 +31,7 @@ from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
-from spinta.exceptions import KeymapNotSet, NoRefPropertyForDenormProperty, UndefinedPropertyInDenormProperty
+from spinta.exceptions import KeymapNotSet
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
 from spinta.manifests.components import Manifest
@@ -39,7 +39,6 @@ from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
-from spinta.types.datatype import Object, Ref
 from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
 from spinta.utils.schema import NA
@@ -191,45 +190,6 @@ def _parse_dtype_string(dtype: str) -> Tuple[str, List[str]]:
         return dtype, []
 
 
-def _check_denorm_prop(
-    name: str,
-    prop: Property,
-    model: Model,
-    manifest: Manifest,
-):
-    models = manifest.models
-    name_parts = name.split('.', 1)
-    name = name_parts[0]
-    properties = model.properties
-    if len(name_parts) > 1:
-        if name not in properties or not isinstance(properties[name].dtype, (Ref, Object)):
-            if prop.model == model:
-                raise NoRefPropertyForDenormProperty(
-                    ref=name,
-                    prop=prop.name,
-                    model=prop.model.name,
-                )
-            else:
-                raise UndefinedPropertyInDenormProperty(
-                    denorm_prop=prop.name,
-                    denorm_model=prop.model.name,
-                    ref_prop=name,
-                    ref_model=model.name,
-                )
-        else:
-            ref_prop = properties[name]
-            model = models[ref_prop.dtype.model]
-            _check_denorm_prop(name_parts[1], prop, model, manifest)
-    else:
-        if name not in properties:
-            raise UndefinedPropertyInDenormProperty(
-                denorm_prop=prop.name,
-                denorm_model=prop.model.name,
-                ref_prop=name,
-                ref_model=model.name,
-            )
-
-
 @load.register(Context, Property, dict, Manifest)
 def load(
     context: Context,
@@ -249,9 +209,6 @@ def load(
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
-
-    if data['type'] == 'denorm':
-        _check_denorm_prop(prop.name, prop, prop.model, manifest)
 
     # Parse dtype like geometry(point, 3346)
     if data['type'] is None:

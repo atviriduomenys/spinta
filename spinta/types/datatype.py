@@ -266,6 +266,8 @@ class JSON(DataType):
 
 
 class Denorm(DataType):
+    rel_prop: Property
+
     def get_type_repr(self):
         return ""
 

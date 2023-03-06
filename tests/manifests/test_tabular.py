@@ -1,6 +1,6 @@
 import pytest
 
-from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, UndefinedPropertyInDenormProperty
+from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, ReferencedPropertyNotFound
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
@@ -261,12 +261,12 @@ def test_with_denormalized_data_ref_error(tmp_path, rc):
         ''')
     assert e.value.message == (
         "Property 'country' with type 'ref' or 'object' must be defined "
-        "before defining property 'country.name' in 'example/City' model."
+        "before defining property 'country.name'."
     )
 
 
 def test_with_denormalized_data_undefined_error(tmp_path, rc):
-    with pytest.raises(UndefinedPropertyInDenormProperty) as e:
+    with pytest.raises(ReferencedPropertyNotFound) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property               | type   | ref       | access
         example                                |        |           |
@@ -285,6 +285,6 @@ def test_with_denormalized_data_undefined_error(tmp_path, rc):
           |   |   |   | country.continent.size |        |           | open
         ''')
     assert e.value.message == (
-        "Property 'country.continent.size' cannot be defined in 'example/City', "
-        "because property 'size' is not defined in 'example/Continent' model."
+        "Property 'country.continent.size' not found."
     )
+    assert e.value.context['ref'] == "{'property': 'size', 'model': 'example/Continent'}"
