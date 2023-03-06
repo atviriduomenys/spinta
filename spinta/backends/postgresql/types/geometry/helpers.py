@@ -32,7 +32,7 @@ def get_osm_link(value: WKBElement, srid: Optional[int]) -> Optional[str]:
     centroid = shape.centroid
     lat, lon = centroid.x, centroid.y
     params = urlencode({'mlat': lat, 'mlon': lon})
-    print(f'https://www.openstreetmap.org/?{params}#map=19/{lat}/{lon}')
+
     return f'https://www.openstreetmap.org/?{params}#map=19/{lat}/{lon}'
 
 
