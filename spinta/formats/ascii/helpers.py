@@ -25,8 +25,8 @@ def get_widths(
                     if len(value) > max_value_length:
                         value = value[:max_value_length] + "..."
 
-                    if '\n' in value:
-                        value_width = max([len(part) for part in value.split('\n')])
+                    if len(value.splitlines()) > 1:
+                        value_width = max([len(part) for part in value.splitlines()])
                     else:
                         value_width = len(value)
 
@@ -56,49 +56,53 @@ def get_displayed_cols(
     widths: dict,
     max_width: int,
     separator: str = "  "
-) -> List[str]:
+) -> Tuple[bool, List[str]]:
     total_width = 0
     cols = []
+    shortened = False
     for col, width in widths.items():
         total_width += width + len(separator)
         if total_width > max_width:
+            shortened = True
             break
         else:
             cols.append(col)
-    return cols
+    return shortened, cols
 
 
 def draw_border(
     widths: dict,
     displayed_cols: List[str],
-    separator: str = "  "
+    separator: str = "  ",
+    shortened: bool = False,
 ) -> str:
-    result = ""
-    for col, width in widths.items():
+    borders = []
+    for col in displayed_cols:
+        width = widths.get(col)
         border = '-' * width
-        if col in displayed_cols:
-            result += border + separator
-        else:
-            result += "..."
-            break
+        borders.append(border)
+    result = separator.join(borders)
+    if shortened:
+        result += separator + "..."
     return result + "\n"
 
 
 def draw_header(
     widths: dict,
     displayed_cols: List[str],
-    separator: str = "  "
+    separator: str = "  ",
+    shortened: bool = False,
 ) -> str:
-    result = ""
-    for col, width in widths.items():
-        if col in displayed_cols:
-            if width > len(col):
-                offset = width - len(col)
-                col += ' ' * offset
-            result += col + separator
-        else:
-            result += "..."
-            break
+    headers = []
+    for col in displayed_cols:
+        width = widths.get(col)
+        if width > len(col):
+            offset = width - len(col)
+            col += ' ' * offset
+        headers.append(col)
+    result = separator.join(headers)
+    if shortened:
+        result += separator + "..."
     return result + "\n"
 
 
@@ -107,27 +111,24 @@ def draw_row(
     widths: dict,
     displayed_cols: List[str],
     max_value_length: int = 100,
-    separator: str = "  "
+    separator: str = "  ",
+    shortened: bool = False
 ) -> str:
     lines = {}
     line_count = 1
     lines[line_count] = prepare_line(widths, displayed_cols)
-    shortened = False
 
-    for col, width in widths.items():
-        if col not in displayed_cols:
-            shortened = True
-            break
-
+    for col in displayed_cols:
+        width = widths.get(col)
         value = data.get(col)
-        value = str(value) if value else "∅"
+        value = str(value) if value is not None else "∅"
         line_count = 1
 
         if len(value) > max_value_length:
             value = value[:max_value_length] + "..."
 
-        if '\n' in value:
-            split_value = value.split('\n')
+        if len(value.splitlines()) > 1:
+            split_value = value.splitlines()
             for i, part in enumerate(split_value):
                 part = part.strip()
                 lines, line_count = get_row_lines(
@@ -162,8 +163,13 @@ def draw_row(
             ending += separator + "..."
         if i < (len(lines.values()) - 1):
             ending += "\\"
+
+        if not ending:
+            row = separator.join(row.values()).rstrip()
+        else:
+            row = separator.join(row.values())
         ending += '\n'
-        result += separator.join(row.values()) + ending
+        result += row + ending
 
     return result
 

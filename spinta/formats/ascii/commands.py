@@ -9,7 +9,7 @@ from starlette.responses import StreamingResponse
 from spinta.formats.ascii.components import Ascii
 from spinta.components import Context, Action, UrlParams, Model
 from spinta import commands
-from spinta.utils.response import aiter
+from spinta.utils.response import aiter, peek_and_stream
 
 
 @commands.render.register(Context, Request, Model, Ascii)
@@ -49,9 +49,8 @@ def _render(
 ):
     # Format params ar given in RQL query `?format(width(1),max_col_width(1))`.
     width = params.formatparams.get('width')
-    max_col_width = params.formatparams.get('max_col_width')
-    max_value_length = params.formatparams.get('max_value_length', 100)
-    rows_to_read = params.formatparams.get('rows_to_read', 200)
+    max_col_width = params.formatparams.get('colwidth')
+    max_value_length = params.formatparams.get('vlen', 100)
 
     if width is None and max_col_width is None and sys.stdin.isatty():
         proc = subprocess.run(['stty', 'size'], capture_output=True)
@@ -60,7 +59,7 @@ def _render(
         max_col_width = 42
 
     return StreamingResponse(
-        aiter(fmt(
+        aiter(peek_and_stream(fmt(
             context,
             model,
             action,
@@ -69,8 +68,7 @@ def _render(
             width,
             max_col_width,
             max_value_length,
-            rows_to_read
-        )),
+        ))),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,

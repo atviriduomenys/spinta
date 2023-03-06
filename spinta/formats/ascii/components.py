@@ -66,12 +66,12 @@ class Ascii(Format):
             )
             rows = itertools.chain(read_rows, rows)
             if width:
-                displayed_cols = get_displayed_cols(widths, width, separator)
+                shortened, displayed_cols = get_displayed_cols(widths, width, separator)
             else:
-                displayed_cols = cols
+                shortened, displayed_cols = False, cols
 
-            yield draw_border(widths, displayed_cols, separator)
-            yield draw_header(widths, displayed_cols, separator)
+            yield draw_border(widths, displayed_cols, separator, shortened)
+            yield draw_header(widths, displayed_cols, separator, shortened)
 
             for row in rows:
                 yield draw_row(
@@ -79,7 +79,8 @@ class Ascii(Format):
                     widths,
                     displayed_cols,
                     max_value_length,
-                    separator
+                    separator,
+                    shortened
                 )
 
-            yield draw_border(widths, displayed_cols, separator)
+            yield draw_border(widths, displayed_cols, separator, shortened)
