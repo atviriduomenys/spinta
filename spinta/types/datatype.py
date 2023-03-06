@@ -272,6 +272,11 @@ class Denorm(DataType):
         return ""
 
 
+class Inherit(DataType):
+    def get_type_repr(self):
+        return ""
+
+
 @load.register(Context, DataType, dict, Manifest)
 def load(context: Context, dtype: DataType, data: dict, manifest: Manifest) -> DataType:
     _add_leaf_props(dtype.prop)

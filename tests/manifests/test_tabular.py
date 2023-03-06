@@ -244,8 +244,8 @@ def test_with_denormalized_data(tmp_path, rc):
       |   |   |   | country.name           |        |           | open
       |   |   |   | country.continent.name |        |           | open
     ''')
-
-
+    
+    
 def test_with_denormalized_data_ref_error(tmp_path, rc):
     with pytest.raises(NoRefPropertyForDenormProperty) as e:
         check(tmp_path, rc, '''
@@ -288,3 +288,69 @@ def test_with_denormalized_data_undefined_error(tmp_path, rc):
         "Property 'country.continent.size' not found."
     )
     assert e.value.context['ref'] == "{'property': 'size', 'model': 'example/Continent'}"
+
+
+def test_with_base(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref
+    datasets/gov/example       |         |
+                               |         |
+      |   |   | Base           |         |
+      |   |   |   | id         | integer |
+                               |         |
+      |   | Base               |         |
+      |   |   | Location       |         |
+      |   |   |   | id         |         |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+                               |         |
+      |   | Location           |         | name
+      |   |   | City           |         | name
+      |   |   |   | id         |         |
+      |   |   |   | name       |         |
+      |   |   |   | population |         |
+                               |         |
+      |   |   | Village        |         | name
+      |   |   |   | id         |         |
+      |   |   |   | name       |         |
+      |   |   |   | population |         |
+      |   |   |   | region     | ref     | Location
+                               |         |
+      |   | /                  |         |
+      |   |   | Country        |         |
+      |   |   |   | id         | integer |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+    ''')
+
+
+def test_end_marker(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref
+    datasets/gov/example       |         |
+      | resource1              | sql     |
+                               |         |
+      |   |   | Location       |         |
+      |   |   |   | id         | integer |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+                               |         |
+      |   | Location           |         |
+      |   |   | City           |         |
+      |   |   |   | id         |         |
+      |   |   |   | name       |         |
+      |   |   |   | population |         |
+      | /                      |         |
+                               |         |
+      |   |   | Village        |         |
+      |   |   |   | id         | integer |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+      |   |   |   | region     | ref     | Location
+    /                          |         |
+                               |         |
+      |   |   | Country        |         |
+      |   |   |   | id         | integer |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+    ''')
