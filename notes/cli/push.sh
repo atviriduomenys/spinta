@@ -424,3 +424,36 @@ http GET "$SERVER/$DATASET/City?format(ascii)"
 #| cli/push/City  820f9c83-8654-4a72-9c71-7958a492b41f  3cf8ec5b-1ab8-4787-a55e-5c8734930238  1   Vilniu  f2c62384-1591-416c-8ed6-40a89c682e0f\
 #|                                                                                                s
 # FIXME: Klaipėda should be in the list of cieties, but is not.
+
+
+# Try to update a record.
+sqlite3 $BASEDIR/db.sqlite "UPDATE cities SET name = 'Kaunas (updated)' WHERE id = 2;"
+sqlite3 $BASEDIR/db.sqlite "SELECT * FROM cities;"
+#| +----+------------------+------------+
+#| | id |       name       | country_id |
+#| +----+------------------+------------+
+#| | 1  | Vilnius          | 1          |
+#| | 2  | Kaunas (updated) | 1          |
+#| | 3  | Klaipėda         | 1          |
+#| +----+------------------+------------+
+
+poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
+
+http GET "$SERVER/$DATASET/City?format(ascii)"
+#| _type          _id                                   _revision                             id  name        country._id                         
+#| -------------  ------------------------------------  ------------------------------------  --  ----------  ------------------------------------
+#| cli/push/City  820f9c83-8654-4a72-9c71-7958a492b41f  ceb956a0-4985-40ef-8978-87f516e6cb02  1   Vilnius     f2c62384-1591-416c-8ed6-40a89c682e0f
+#| cli/push/City  2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd  d37c375d-1c3b-46db-92d9-825bfa2e05ec  2   Kaunas (up  f2c62384-1591-416c-8ed6-40a89c682e0f\
+#|                                                                                                dated)
+
+http GET "$SERVER/$DATASET/City/:changes?select(_op,_created,_id,name)&format(ascii)"
+#| _op     _created                    _id                                   name      
+#| ------  --------------------------  ------------------------------------  ----------
+#| insert  2023-03-07T15:01:53.463447  820f9c83-8654-4a72-9c71-7958a492b41f  Vilnius
+#| delete  2023-03-07T15:42:47.472209  820f9c83-8654-4a72-9c71-7958a492b41f  ∅
+#| insert  2023-03-07T15:51:19.596261  2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd  Kaunas
+#| insert  2023-03-07T15:56:01.811462  820f9c83-8654-4a72-9c71-7958a492b41f  Vilnius
+#| patch   2023-03-07T16:35:41.219320  2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd  Kaunas (up\
+#|                                                                           dated)
+# TODO: Last line should not be wrapped.
+#       https://github.com/atviriduomenys/spinta/issues/389
