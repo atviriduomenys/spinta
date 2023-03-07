@@ -982,10 +982,11 @@ def _prepare_rows_with_errors(
                 continue
             # Need to push again
             else:
+                data['_revision'] = resp.json()['_revision']
                 yield _PushRow(
                     model,
-                    resp.json(),
-                    checksum=_get_data_checksum(resp.json()),
+                    data,
+                    checksum=_get_data_checksum(data),
                     saved=True,
                     op="patch",
                     error=True
