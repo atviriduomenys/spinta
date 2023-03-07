@@ -36,8 +36,8 @@ def configure(rc, path):
     })
 
 
-def test_new_version_new_manifest(rc, cli: SpintaCliRunner, tmpdir):
-    create_manifest_files(tmpdir, {
+def test_new_version_new_manifest(rc, cli: SpintaCliRunner, tmp_path):
+    create_manifest_files(tmp_path, {
         'models/report.yml': {
             'type': 'model',
             'name': 'report',
@@ -50,20 +50,20 @@ def test_new_version_new_manifest(rc, cli: SpintaCliRunner, tmpdir):
             },
         },
     })
-    rc = configure(rc, tmpdir)
+    rc = configure(rc, tmp_path)
     cli.invoke(rc, ['freeze'])
 
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     assert len(manifest['models/report.yml']) == 2
 
     current, freezed = manifest['models/report.yml']
     assert current['version'] == freezed['id']
 
 
-def test_new_version_no_changes(rc, cli: SpintaCliRunner, tmpdir):
-    rc = configure(rc, tmpdir)
+def test_new_version_no_changes(rc, cli: SpintaCliRunner, tmp_path):
+    rc = configure(rc, tmp_path)
 
-    create_manifest_files(tmpdir, {
+    create_manifest_files(tmp_path, {
         'models/report.yml': {
             'type': 'model',
             'name': 'report',
@@ -74,12 +74,12 @@ def test_new_version_no_changes(rc, cli: SpintaCliRunner, tmpdir):
     })
 
     cli.invoke(rc, ['freeze'])
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     assert len(manifest['models/report.yml']) == 2
     current = manifest['models/report.yml'][0]
 
     cli.invoke(rc, ['freeze'])
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     assert len(manifest['models/report.yml']) == 2
     freezed = manifest['models/report.yml'][1]
 
@@ -87,10 +87,10 @@ def test_new_version_no_changes(rc, cli: SpintaCliRunner, tmpdir):
     assert current['version'] == freezed['id']
 
 
-def test_new_version_with_changes(rc, cli: SpintaCliRunner, tmpdir):
-    rc = configure(rc, tmpdir)
+def test_new_version_with_changes(rc, cli: SpintaCliRunner, tmp_path):
+    rc = configure(rc, tmp_path)
 
-    create_manifest_files(tmpdir, {
+    create_manifest_files(tmp_path, {
         'models/report.yml': {
             'type': 'model',
             'name': 'report',
@@ -102,7 +102,7 @@ def test_new_version_with_changes(rc, cli: SpintaCliRunner, tmpdir):
 
     cli.invoke(rc, ['freeze'])
 
-    update_manifest_files(tmpdir, {
+    update_manifest_files(tmp_path, {
         'models/report.yml': [
             {'op': 'add', 'path': '/properties/status', 'value': {
                 'type': 'integer',
@@ -112,7 +112,7 @@ def test_new_version_with_changes(rc, cli: SpintaCliRunner, tmpdir):
 
     cli.invoke(rc, ['freeze'])
 
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     assert len(manifest['models/report.yml']) == 3
 
     current, previous, freezed = manifest['models/report.yml']
@@ -132,7 +132,7 @@ def test_new_version_with_changes(rc, cli: SpintaCliRunner, tmpdir):
 
 
 @pytest.mark.skip('TODO')
-def test_new_version_branching_versions(rc, cli: SpintaCliRunner, tmpdir):
+def test_new_version_branching_versions(rc, cli: SpintaCliRunner, tmp_path):
     # tests manifest with 3 versions, where 2 versions branch from the first
     # one.
     schema = [
@@ -242,18 +242,18 @@ def test_new_version_branching_versions(rc, cli: SpintaCliRunner, tmpdir):
         },
     ]
 
-    create_manifest_files(tmpdir, {
+    create_manifest_files(tmp_path, {
         'models/report.yml': schema,
     })
-    rc = configure(rc, tmpdir)
+    rc = configure(rc, tmp_path)
     with pytest.raises(MultipleParentsError):
         cli.invoke(rc, ['freeze'])
 
 
 @pytest.mark.skip('TODO')
-def test_new_version_w_foreign_key(rc, cli: SpintaCliRunner, tmpdir):
+def test_new_version_w_foreign_key(rc, cli: SpintaCliRunner, tmp_path):
     # test new schema version, when model has foreign keys
-    create_manifest_files(tmpdir, {
+    create_manifest_files(tmp_path, {
         'models/org.yml': [
             {
                 'type': 'model',
@@ -282,9 +282,9 @@ def test_new_version_w_foreign_key(rc, cli: SpintaCliRunner, tmpdir):
             }
         ],
     })
-    rc = configure(rc, tmpdir)
+    rc = configure(rc, tmp_path)
     cli.invoke(rc, ['freeze'])
-    manifest = read_manifest_files(tmpdir)
+    manifest = read_manifest_files(tmp_path)
     freezed = manifest['models/org.yml'][-1]
     assert freezed['version']['parents'] == [
         manifest['models/country.yml'][-1]['version']['id'],

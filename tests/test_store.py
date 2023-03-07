@@ -104,8 +104,8 @@ def test_nested(model, app):
     }]
 
 
-def test_root(rc: RawConfig, tmpdir: Path):
-    rc = configure(rc, None, tmpdir / 'manifest.csv', '''
+def test_root(rc: RawConfig, tmp_path: Path):
+    rc = configure(rc, None, tmp_path / 'manifest.csv', '''
     d | r | b | m | property | type   | title
     datasets/gov/vpt/old     |        | Old data
       | sql                  | sql    |
@@ -128,7 +128,7 @@ def test_root(rc: RawConfig, tmpdir: Path):
 
 def test_resource_backends(
     rc: RawConfig,
-    tmpdir: Path,
+    tmp_path: Path,
     sqlite: Sqlite,
 ):
 
@@ -145,7 +145,7 @@ def test_resource_backends(
         {'ID': 2, 'NAME': 'Latvia'},
     ])
 
-    create_tabular_manifest(tmpdir / 'old.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'old.csv', striptable('''
     d | r | b | m | property | type    | ref | source  | access | title
     datasets/gov/vpt/old     |         |     |         |        | Old data
       | sql                  |         | old |         |        |
@@ -154,7 +154,7 @@ def test_resource_backends(
       |   |   |   | name     | string  |     | NAME    | open   |
     '''))
 
-    create_tabular_manifest(tmpdir / 'new.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'new.csv', striptable('''
     d | r | b | m | property | type    | ref  | source  | access | title
     datasets/gov/vpt/new     |         |      |         |        | New data
       | sql                  |         | new  |         |        |
@@ -186,12 +186,12 @@ def test_resource_backends(
             },
             'old': {
                 'type': 'tabular',
-                'path': str(tmpdir / 'old.csv'),
+                'path': str(tmp_path / 'old.csv'),
                 'backend': 'old',
             },
             'new': {
                 'type': 'tabular',
-                'path': str(tmpdir / 'new.csv'),
+                'path': str(tmp_path / 'new.csv'),
                 'backend': 'new',
             },
         },

@@ -58,10 +58,11 @@ def test_export_ascii(app, mocker):
     ]})
     assert resp.status_code == 200, resp.json()
     assert app.get('/country/:dataset/csv/:resource/countries/:format/ascii?select(code,title)&sort(+code)&format(colwidth(42))').text == (
-        'code     title  \n'
-        '================\n'
-        'lt     Lithuania\n'
-        'lv     Latvia   '
+        '----  ---------\n'
+        'code  title    \n'
+        'lt    Lithuania\n'
+        'lv    Latvia\n'
+        '----  ---------\n'
     )
 
     resp = app.get('/country/:dataset/csv/:resource/countries/:changes')
@@ -108,25 +109,30 @@ async def test_export_multiple_types(rc: RawConfig):
         '\n'
         '\n'
         'Table: example/A\n'
-        '  _type     _id    _revision   value\n'
-        '====================================\n'
-        'example/A   None   None        1    \n'
-        'example/A   None   None        2    \n'
-        'example/A   None   None        3    \n'
+        '---------  ---  ---------  -----\n'
+        '_type      _id  _revision  value\n'
+        'example/A  ∅    ∅          1\n'
+        'example/A  ∅    ∅          2\n'
+        'example/A  ∅    ∅          3\n'
+        '---------  ---  ---------  -----\n'
+        '\n'
         '\n'
         'Table: example/B\n'
-        '  _type     _id    _revision   value\n'
-        '====================================\n'
-        'example/B   None   None        1    \n'
-        'example/B   None   None        2    \n'
-        'example/B   None   None        3    \n'
+        '---------  ---  ---------  -----\n'
+        '_type      _id  _revision  value\n'
+        'example/B  ∅    ∅          1\n'
+        'example/B  ∅    ∅          2\n'
+        'example/B  ∅    ∅          3\n'
+        '---------  ---  ---------  -----\n'
+        '\n'
         '\n'
         'Table: example/C\n'
-        '  _type     _id    _revision   value\n'
-        '====================================\n'
-        'example/C   None   None        1    \n'
-        'example/C   None   None        2    \n'
-        'example/C   None   None        3    '
+        '---------  ---  ---------  -----\n'
+        '_type      _id  _revision  value\n'
+        'example/C  ∅    ∅          1\n'
+        'example/C  ∅    ∅          2\n'
+        'example/C  ∅    ∅          3\n'
+        '---------  ---  ---------  -----\n'
     )
 
 
@@ -149,10 +155,11 @@ def test_export_ascii_params(app, mocker):
     ]})
     assert resp.status_code == 200, resp.json()
     assert app.get('/country/:dataset/csv/:resource/countries/:format/ascii?select(code,title)&sort(+code)&format(width(50))').text == (
-        'code     title  \n'
-        '================\n'
-        'lt     Lithuania\n'
-        'lv     Latvia   '
+        '----  ---------\n'
+        'code  title    \n'
+        'lt    Lithuania\n'
+        'lv    Latvia\n'
+        '----  ---------\n'
     )
 
 
@@ -181,9 +188,10 @@ def test_ascii_ref_dtype(
     })
 
     assert app.get('/example/ascii/ref/City/:format/ascii?select(name, country)').text == (
-        ' name                 country._id             \n'
-        '==============================================\n'
-        f'Vilnius   {country["_id"]}'
+        '-------  ------------------------------------\n'
+        'name     country._id                         \n'
+        f'Vilnius  {country["_id"]}\n'
+        '-------  ------------------------------------\n'
     )
 
 
@@ -213,9 +221,10 @@ def test_ascii_file_dtype(
     })
 
     assert app.get('/example/ascii/file/Country/:format/ascii?select(name, flag)').text == (
-        '  name      flag._id   flag._content_type\n'
-        '=========================================\n'
-        'Lithuania   file.txt   text/plain        '
+        '---------  --------  ------------------\n'
+        'name       flag._id  flag._content_type\n'
+        'Lithuania  file.txt  text/plain\n'
+        '---------  --------  ------------------\n'
     )
 
 
@@ -247,7 +256,85 @@ async def test_ascii_getone(
         '',
         '',
         'Table: example/City',
-        '   _type                       _id                                 _revision                  name  ',
-        '====================================================================================================',
-        'example/City   19e4f199-93c5-40e5-b04e-a575e81ac373   b6197bb7-3592-4cdb-a61c-5a618f44950c   Vilnius',
+        '------------  ------------------------------------  ------------------------------------  -------',
+        '_type         _id                                   _revision                             name   ',
+        'example/City  19e4f199-93c5-40e5-b04e-a575e81ac373  b6197bb7-3592-4cdb-a61c-5a618f44950c  Vilnius',
+        '------------  ------------------------------------  ------------------------------------  -------',
     ]
+
+
+def test_ascii_params(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property   | type    | ref  | access
+    example/ascii/params       |         |      |
+      |   |   | Country        |         | name |
+      |   |   |   | name       | string  |      | open
+      |   |   |   | capital    | string  |      | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/ascii/params', ['insert', 'search'])
+
+    # Add data
+    pushdata(app, '/example/ascii/params/Country', {
+        'name': 'Lithuania',
+        'capital': 'Vilnius'
+    })
+
+    assert app.get('/example/ascii/params/Country/:format/ascii?select(name,capital)&format(width(15))').text == (
+        '---------  ...\n'
+        'name       ...\n'
+        'Lithuania  ...\n'
+        '---------  ...\n'
+    )
+
+    assert app.get('/example/ascii/params/Country/:format/ascii?select(name,capital)&format(colwidth(7))').text == (
+        '-------  -------\n'
+        'name     capital\n'
+        'Lithuan  Vilnius\\\n'
+        'ia\n'
+        '-------  -------\n'
+    )
+
+    assert app.get('/example/ascii/params/Country/:format/ascii?select(name,capital)&format(vlen(7))').text == (
+        '----------  -------\n'
+        'name        capital\n'
+        'Lithuan...  Vilnius\n'
+        '----------  -------\n'
+    )
+
+
+def test_ascii_multiline(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property   | type    | ref  | access
+    example/ascii/params       |         |      |
+      |   |   | Country        |         | name |
+      |   |   |   | name       | string  |      | open
+      |   |   |   | capital    | string  |      | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/ascii/params', ['insert', 'search'])
+
+    # Add data
+    pushdata(app, '/example/ascii/params/Country', {
+        'name': 'Lithuania',
+        'capital': 'Current capital - Vilnius.\nPrevious - Kernave.'
+    })
+
+    assert app.get('/example/ascii/params/Country/:format/ascii?select(name,capital)&format(colwidth(20))').text == (
+        '---------  ----------------\n'
+        'name       capital         \n'
+        'Lithuania  Current capital \\\n'
+        '           - Vilnius.      \\\n'
+        '           Previous - Kerna\\\n'
+        '           ve.\n'
+        '---------  ----------------\n'
+    )
+

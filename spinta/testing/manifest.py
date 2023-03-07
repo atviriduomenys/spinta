@@ -4,7 +4,6 @@ from typing import Tuple
 from typing import Union
 
 from pytest import FixtureRequest
-from py._path.local import LocalPath
 
 from spinta import commands
 from spinta.cli.helpers.store import load_store
@@ -41,7 +40,7 @@ def load_manifest_get_context(
     request: FixtureRequest = None,
     **kwargs,
 ) -> TestContext:
-    if isinstance(manifest, (pathlib.Path, LocalPath)):
+    if isinstance(manifest, pathlib.Path):
         manifests = [str(manifest)]
     elif isinstance(manifest, str) and '|' in manifest:
         manifests = [ManifestPath(

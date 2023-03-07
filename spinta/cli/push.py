@@ -107,6 +107,9 @@ def push(
     stop_on_error: bool = Option(False, '--stop-on-error', help=(
         "Exit immediately on first error."
     )),
+    no_progress_bar: bool = Option(False, '--no-progress-bar', help=(
+        "Skip counting total rows to improve performance."
+    )),
     retry_count: int = Option(5, '--retry-count', help=(
         "Repeat push until this count if there are errors."
     )),
@@ -166,11 +169,15 @@ def push(
         models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
-        counts = count_rows(
-            context,
-            models,
-            limit,
-            stop_on_error=stop_on_error,
+        counts = (
+            count_rows(
+                context,
+                models,
+                limit,
+                stop_on_error=stop_on_error,
+            )
+            if not no_progress_bar
+            else {}
         )
 
         if state:
@@ -188,9 +195,11 @@ def push(
             limit,
             stop_on_error=stop_on_error,
             retry_count=retry_count,
+            no_progress_bar=no_progress_bar,
         )
 
-        rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
+        if not no_progress_bar:
+            rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
 
         _push(
             context,
@@ -291,13 +300,15 @@ def _read_rows(
     *,
     stop_on_error: bool = False,
     retry_count: int = 5,
+    no_progress_bar: bool = False,
 ) -> Iterator[_PushRow]:
     yield from _rows_to_push_rows(iter_model_rows(
         context,
         models,
         counts,
         limit,
-        stop_on_error=stop_on_error
+        stop_on_error=stop_on_error,
+        no_progress_bar=no_progress_bar,
     ))
 
     yield _get_signal_row()

@@ -1,3 +1,5 @@
+import json
+
 import pytest
 import requests
 import httpx
@@ -1039,18 +1041,18 @@ def test_search_not_null(model, app):
 
 
 @pytest.mark.parametrize('backend', ['default', 'mongo'])
-def test_extra_fields(postgresql, mongo, backend, rc, tmpdir, request):
+def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
     rc = rc.fork({
         'backends': [backend],
         'manifests.default': {
             'type': 'tabular',
-            'path': str(tmpdir / 'manifest.csv'),
+            'path': str(tmp_path / 'manifest.csv'),
             'backend': backend,
         },
     })
 
     # Create data into a extrafields model with code and name properties.
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     m | property | type
     extrafields  |
       | code     | string
@@ -1068,7 +1070,7 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmpdir, request):
     assert resp.status_code == 200, resp.json()
 
     # Now try to read from same model, but loaded with just one property.
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     m | property | type
     extrafields  |
       | name     | string
@@ -1091,18 +1093,18 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmpdir, request):
 
 
 @pytest.mark.parametrize('backend', ['mongo'])
-def test_missing_fields(postgresql, mongo, backend, rc, tmpdir):
+def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
     rc = rc.fork({
         'backends': [backend],
         'manifests.default': {
             'type': 'tabular',
-            'path': str(tmpdir / 'manifest.csv'),
+            'path': str(tmp_path / 'manifest.csv'),
             'backend': backend,
         },
     })
 
     # Create data into a extrafields model with code and name properties.
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     m | property  | type
     missingfields |
       | code      | string
@@ -1118,7 +1120,7 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmpdir):
     assert resp.status_code == 200, resp.json()
 
     # Now try to read from same model, but loaded with just one property.
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     m | property  | type
     missingfields |
       | code      | string
@@ -1139,3 +1141,19 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmpdir):
     data = resp.json()
     assert resp.status_code == 200, data
     assert take(data) == {'code': 'lt'}
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_select_revision(model, app):
+    app.authmodel(model, ['search', 'getone', 'getall'])
+    ids = RowIds(_push_test_data(app, model))
+    id0 = ids[0]
+    resp = app.get(f'/{model}/{id0}')
+    revision = resp.json()['_revision']
+    resp = app.get(f'/{model}/:format/jsonl?limit(1)&select(_revision)')
+    assert json.loads(resp.content) == {
+        '_revision': revision
+    }

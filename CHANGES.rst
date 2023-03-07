@@ -3,8 +3,78 @@
 Changes
 #######
 
-0.1.40 (unreleased)
+0.1.45 (unreleased)
 ===================
+
+Improvements:
+
+- Add possibility to specify `geometry(geometry)` and `geometry(geometryz)`
+  types.
+
+
+0.1.44 (2022-11-23)
+===================
+
+Bug fixes:
+
+- Convert a non-WGS coordinates into WGS, before giving link to OSM if SRID is
+  not given, then link to OSM is not added too. Also long WKT expressions like
+  polygons now are shortened in HTML output (`#298`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/298
+
+
+0.1.43 (2022-11-15)
+===================
+
+Improvements:
+
+- Add `pid` (process id) to `request` messages in access log.
+
+Bug fixes:
+
+- Fix recursion error on getone (`#255`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/255
+
+
+0.1.42 (2022-11-08)
+===================
+
+Improvements:
+
+- Add support for comments in resources..
+
+
+0.1.41 (2022-11-08)
+===================
+
+Improvements:
+
+- Add support for HTML format in manifest files, without actual backend
+  implementing it. (`#318`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/318
+
+
+0.1.40 (2022-11-01)
+===================
+
+Improvements:
+
+- Add memory usage logging in order to find memory leaks (`#171`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/171
+
+Bug fixes:
+
+- Changes loads indefinitely (`#307`__). Cleaned empty patches, fixed
+  `:/changes/<offset>` API call, now it actually works. Also empty patches now
+  are not saved into the changelog.
+
+  __ https://github.com/atviriduomenys/spinta/issues/291
+
+- `wipe` action, now also resets changelog change id.
 
 
 0.1.39 (2022-10-12)
@@ -1061,8 +1131,8 @@ Internal changes:
     from spinta.testing.client import create_test_client
     from spinta.testing.context import create_test_context
 
-    def test(rc, cli, tmpdir, request):
-        create_manifest_files(tmpdir, {
+    def test(rc, cli, tmp_path, request):
+        create_manifest_files(tmp_path, {
             'country.yml': {
                 'type': 'model',
                 'name': 'country',
@@ -1072,7 +1142,7 @@ Internal changes:
             },
         })
 
-        rc = rc.fork().add('test', {'manifests.yaml.path': str(tmpdir)})
+        rc = rc.fork().add('test', {'manifests.yaml.path': str(tmp_path)})
 
         cli.invoke(rc, freeze)
 

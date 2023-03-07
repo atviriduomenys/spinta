@@ -44,7 +44,7 @@ def _get_dtype_header(
         yield name + '._content_type'
 
     elif isinstance(dtype, Ref):
-        if select == {'*': {}}:
+        if select is None or select == {'*': {}}:
             yield name + '._id'
         else:
             for prop, sel in select_only_props(
@@ -67,11 +67,17 @@ def _get_model_header(
     reserved: List[str],
 ) -> List[str]:
     if select is None or select == {'*': {}}:
-        names_ = reserved + names
+        keys = reserved + names
     else:
-        names_ = names
+        keys = names
     props = model.properties
-    props_ = select_only_props(model, names_, props, select, reserved=True)
+    props_ = select_only_props(
+        model,
+        keys,
+        props,
+        select,
+        reserved=True,
+    )
     for prop, sel in props_:
         yield from _get_dtype_header(prop.dtype, sel, prop.name)
 

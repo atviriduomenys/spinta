@@ -7,4 +7,5 @@ UNSUPPORTED_TYPES = [
     'backref',
     'generic',
     'rql',
+    'inherit'
 ]

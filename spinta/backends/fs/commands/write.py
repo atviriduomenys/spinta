@@ -7,6 +7,7 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.accesslog import AccessLog
+from spinta.accesslog import log_async_response
 
 from spinta.renderer import render
 from spinta.utils.aiotools import aiter
@@ -35,7 +36,7 @@ async def push(
 
     transaction: WriteTransaction = context.get('transaction')
     accesslog: AccessLog = context.get('accesslog')
-    accesslog.log(
+    accesslog.request(
         model=prop.model.model_type(),
         prop=prop.place,
         action=action.value,
@@ -94,6 +95,8 @@ async def push(
         context, prop.model, prop.model.backend, dstream=dstream,
     )
 
+    dstream = log_async_response(context, dstream)
+
     status_code, response = await simple_response(context, params.fmt, dstream)
     return render(context, request, prop, params, response, action=action, status_code=status_code)
 
@@ -101,7 +104,7 @@ async def push(
 async def create_file(
     filepath: pathlib.PosixPath,
     dstream: typing.AsyncIterator[DataItem],
-    fstream: typing.AsyncIterator[bytes]
+    fstream: typing.AsyncIterator[bytes],
 ) -> typing.AsyncGenerator[DataItem, None]:
     # we know that dstream contains one DataItem element
     async for d in dstream:

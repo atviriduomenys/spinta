@@ -14,7 +14,7 @@ from spinta.testing.manifest import load_manifest
 def test_inspect(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
@@ -31,16 +31,16 @@ def test_inspect(
     })
 
     # Configure Spinta.
-    rc = configure(rc, None, tmpdir / 'manifest.csv', f'''
+    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
     d | r | m | property     | type   | ref | source       | access
     dataset                  |        |     |              |
       | rs                   | sql    |     | {sqlite.dsn} |
     ''')
 
-    cli.invoke(rc, ['inspect', '-o', tmpdir / 'result.csv'])
+    cli.invoke(rc, ['inspect', '-o', tmp_path / 'result.csv'])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     manifest.datasets['dataset'].resources['rs'].external = 'sqlite'
     assert manifest == '''
     d | r | b | m | property   | type    | ref     | source     | prepare
@@ -61,7 +61,7 @@ def test_inspect(
 def test_inspect_from_manifest_table(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
@@ -72,19 +72,19 @@ def test_inspect_from_manifest_table(
         ],
     })
 
-    create_tabular_manifest(tmpdir / 'manifest.csv', f'''
+    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
     d | r | m | property     | type   | ref | source       | access
     dataset                  |        |     |              |
       | rs                   | sql    |     | {sqlite.dsn} |
     ''')
 
     cli.invoke(rc, [
-        'inspect', tmpdir / 'manifest.csv',
-        '-o', tmpdir / 'result.csv',
+        'inspect', tmp_path / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     manifest.datasets['dataset'].resources['rs'].external = 'sqlite'
     assert manifest == '''
     d | r | b | m | property | type    | ref | source  | prepare
@@ -100,7 +100,7 @@ def test_inspect_from_manifest_table(
 def test_inspect_format(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
@@ -119,11 +119,11 @@ def test_inspect_format(
     cli.invoke(rc, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
-        '-o', tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'manifest.csv',
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     dataset = manifest.datasets['datasets/gov/example']
     dataset.resources['resource1'].external = 'sqlite'
     assert manifest == '''
@@ -145,7 +145,7 @@ def test_inspect_format(
 def test_inspect_cyclic_refs(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
@@ -165,11 +165,11 @@ def test_inspect_cyclic_refs(
     cli.invoke(rc, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
-        '-o', tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'manifest.csv',
               ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     dataset = manifest.datasets['datasets/gov/example']
     dataset.resources['resource1'].external = 'sqlite'
     assert manifest == '''
@@ -192,7 +192,7 @@ def test_inspect_cyclic_refs(
 def test_inspect_self_refs(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
@@ -207,11 +207,11 @@ def test_inspect_self_refs(
     cli.invoke(rc, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
-        '-o', tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'manifest.csv',
               ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     dataset = manifest.datasets['datasets/gov/example']
     dataset.resources['resource1'].external = 'sqlite'
     assert manifest == '''
@@ -229,12 +229,12 @@ def test_inspect_self_refs(
 def test_inspect_oracle_sqldump_stdin(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
 ):
     cli.invoke(rc, [
         'inspect',
         '-r', 'sqldump', '-',
-        '-o', tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'manifest.csv',
     ], input='''
     --------------------------------------------------------
     --  DDL for Table COUNTRY
@@ -273,7 +273,7 @@ def test_inspect_oracle_sqldump_stdin(
     ''')
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     assert manifest == '''
     id | d | r | b | m | property | type    | ref | source  | prepare | level | access | uri | title | description
        | datasets/gov/example     |         |     |         |         |       |        |     |       |
@@ -288,9 +288,9 @@ def test_inspect_oracle_sqldump_stdin(
 def test_inspect_oracle_sqldump_file_with_formula(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
 ):
-    (tmpdir / 'dump.sql').write_text('''
+    (tmp_path / 'dump.sql').write_text('''
     -- Šalys
     CREATE TABLE "GEO"."COUNTRY" (
       "ID" NUMBER(19,0), 
@@ -299,13 +299,13 @@ def test_inspect_oracle_sqldump_file_with_formula(
     ''', encoding='iso-8859-4')
     cli.invoke(rc, [
         'inspect',
-        '-r', 'sqldump', tmpdir / 'dump.sql',
+        '-r', 'sqldump', tmp_path / 'dump.sql',
         '-f', 'file(self, encoding: "iso-8859-4")',
-        '-o', tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'manifest.csv',
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     dataset = manifest.datasets['datasets/gov/example']
     dataset.resources['resource1'].external = 'dump.sql'
     assert manifest == '''
@@ -320,7 +320,7 @@ def test_inspect_oracle_sqldump_file_with_formula(
 def test_inspect_with_schema(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
@@ -332,16 +332,16 @@ def test_inspect_with_schema(
     })
 
     # Configure Spinta.
-    rc = configure(rc, None, tmpdir / 'manifest.csv', f'''
+    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type | source       | prepare
     dataset              |      |              |
       | schema           | sql  | {sqlite.dsn} | connect(self, schema: null)
     ''')
 
-    cli.invoke(rc, ['inspect', '-o', tmpdir / 'result.csv'])
+    cli.invoke(rc, ['inspect', '-o', tmp_path / 'result.csv'])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     manifest.datasets['dataset'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref | source | prepare
@@ -358,7 +358,7 @@ def test_inspect_with_schema(
 def test_inspect_update_existing_manifest(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
@@ -375,7 +375,7 @@ def test_inspect_update_existing_manifest(
     })
 
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmpdir / 'manifest.csv', f'''
+    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source | prepare | access  | title
     datasets/gov/example |         |     |        |         |         | Example
       | schema           | sql     | sql |        |         |         | 
@@ -387,12 +387,12 @@ def test_inspect_update_existing_manifest(
 
     cli.invoke(rc, [
         'inspect',
-        tmpdir / 'manifest.csv',
-        '-o', tmpdir / 'result.csv',
+        tmp_path / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
@@ -413,7 +413,7 @@ def test_inspect_update_existing_manifest(
 def test_inspect_update_existing_ref(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
@@ -430,7 +430,7 @@ def test_inspect_update_existing_ref(
     })
 
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmpdir / 'manifest.csv', f'''
+    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source  | prepare | access  | title
     datasets/gov/example |         |     |         |         |         | Example
       | schema           | sql     | sql |         |         |         | 
@@ -447,12 +447,12 @@ def test_inspect_update_existing_ref(
 
     cli.invoke(rc, [
         'inspect',
-        tmpdir / 'manifest.csv',
-        '-o', tmpdir / 'result.csv',
+        tmp_path / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
         ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     a, b = compare_manifest(manifest, '''
     d | r | b | m | property | type    | ref     | source  | prepare | access  | title
     datasets/gov/example     |         |         |         |         |         | Example
@@ -473,7 +473,7 @@ def test_inspect_update_existing_ref(
 def test_inspect_with_empty_config_dir(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
     sqlite: Sqlite,
 ):
     # Prepare source data.
@@ -485,19 +485,19 @@ def test_inspect_with_empty_config_dir(
     })
 
     # Change config dir
-    (tmpdir / 'config').mkdir()
+    (tmp_path / 'config').mkdir()
     rc = rc.fork({
-        'config_path': tmpdir / 'config',
+        'config_path': tmp_path / 'config',
     })
 
     cli.invoke(rc, [
         'inspect',
         '-r', 'sql', sqlite.dsn,
-        '-o', tmpdir / 'result.csv',
+        '-o', tmp_path / 'result.csv',
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     dataset = manifest.datasets['datasets/gov/example']
     dataset.resources['resource1'].external = 'sqlite://'
     assert manifest == '''
