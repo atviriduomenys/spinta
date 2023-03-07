@@ -223,7 +223,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
     context.set('push.state.conn', conn)
 
     rows = [
-        (model, {
+        _PushRow(model, {
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
@@ -282,7 +282,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
     context.set('push.state.conn', conn)
 
     rows = [
-        (model, {
+        _PushRow(model, {
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
@@ -336,7 +336,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
     ))
 
     rows = [
-        (model, {
+        _PushRow(model, {
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
@@ -406,7 +406,7 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     ))
 
     rows = [
-        (model, {
+        _PushRow(model, {
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
@@ -488,11 +488,11 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
     _reset_pushed(context, models, state.metadata)
 
     rows = [
-        (model, {
+        _PushRow(model, {
             '_op': 'delete',
             '_type': 'City',
             '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
-        }),
+        }, op="delete", saved=True),
     ]
 
     _push(
@@ -508,72 +508,68 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
     assert list(conn.execute(query)) == []
 
 
-# def test_push_state__repeat(rc: RawConfig, responses: RequestsMock):
-#     context, manifest = load_manifest_and_context(rc, '''
-#        m | property | type   | access
-#        City         |        |
-#          | name     | string | open
-#        ''')
-#
-#     model = manifest.models['City']
-#     models = [model]
-#
-#     state = _State(*_init_push_state('sqlite://', models))
-#     conn = state.engine.connect()
-#     context.set('push.state.conn', conn)
-#
-#     rev_before = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
-#     rev_after = '45e8d4d6-bb6c-42cd-8ad8-09049bbed6bd'
-#
-#     table = state.metadata.tables[model.name]
-#     conn.execute(table.insert().values(
-#         id='4d741843-4e94-4890-81d9-5af7c5b5989a',
-#         revision=rev_before,
-#         checksum='CHANGED',
-#         pushed=datetime.datetime.now(),
-#         error=False,
-#     ))
-#
-#     _id = '4d741843-4e94-4890-81d9-5af7c5b5989a'
-#     rows = [
-#         (model, {
-#             '_type': model.name,
-#             '_id': _id,
-#             'name': 'Vilnius',
-#         }),
-#     ]
-#
-#     client = requests.Session()
-#     server = 'https://example.com/'
-#     responses.add(
-#         POST, server,
-#         json={
-#             '_data': [{
-#                 '_type': model.name,
-#                 '_id': _id,
-#                 '_revision': 'f91adeea-3bb8-41b0-8049-ce47c7530bdc',
-#                 'name': 'Vilnius',
-#             }],
-#         },
-#         match=[_matcher({
-#             '_op': 'insert',
-#             '_type': model.name,
-#             '_id': _id,
-#         })],
-#     )
-#
-#     _push(
-#         context,
-#         client,
-#         server,
-#         models,
-#         rows,
-#         state=state,
-#     )
-#
-#     query = sa.select([table.c.id, table.c.revision, table.c.error])
-#     assert list(conn.execute(query)) == [(
-#         '4d741843-4e94-4890-81d9-5af7c5b5989a',
-#         rev_after,
-#         False,
-#     )]
+def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+       m | property | type   | access
+       City         |        |
+         | name     | string | open
+       ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    rev = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    _id = '4d741843-4e94-4890-81d9-5af7c5b5989a'
+
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id=_id,
+        revision=None,
+        checksum='CREATED',
+        pushed=datetime.datetime.now(),
+        error=True,
+    ))
+
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_id': _id,
+            'name': 'Vilnius',
+        }, op="insert", error=True, saved=True),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': _id,
+                '_revision': rev,
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'insert',
+            '_type': model.name,
+            '_id': _id,
+            'name': 'Vilnius',
+        })],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+    )
+
+    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    assert list(conn.execute(query)) == [(_id, rev, False)]
