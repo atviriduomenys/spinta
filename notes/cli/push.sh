@@ -1,8 +1,5 @@
 # 2023-02-21 14:23
 
-git log -1 --oneline
-#| fe9155c (HEAD -> 311-push-does-not-repeat-errored-chunks, origin/311-push-does-not-repeat-errored-chunks) 311 add repeat count to push command
-
 # notes/sqlite.sh           Configure SQLite
 # notes/docker.sh           Start docker compose
 # notes/postgres.sh         Reset database
@@ -59,8 +56,7 @@ poetry run spinta show
 
 # Run server with external mode (read from db.sqlite directly)
 test -n "$PID" && kill $PID
-poetry run spinta run --mode external $BASEDIR/manifest.csv &>> $BASEDIR/spinta.log &
-PID=$!
+poetry run spinta run --mode external $BASEDIR/manifest.csv &>> $BASEDIR/spinta.log &; PID=$!
 tail -50 $BASEDIR/spinta.log
 
 # notes/spinta/client.sh    Configure client
@@ -80,14 +76,29 @@ http GET "$SERVER/$DATASET/City?format(ascii)"
 
 # Run server with internal mode
 test -n "$PID" && kill $PID
-poetry run spinta run &>> $BASEDIR/spinta.log &
-PID=$!
+poetry run spinta run &>> $BASEDIR/spinta.log &; PID=$!
 tail -50 $BASEDIR/spinta.log
 
 # notes/spinta/client.sh    Configure client
 # notes/spinta/push.sh      Configure client
 
+# Create push state table using an old schema
 rm $BASEDIR/push/localhost.db
+sqlite3 $BASEDIR/push/localhost.db <<EOF
+CREATE TABLE IF NOT EXISTS "$DATASET/Country" (
+    id          VARCHAR NOT NULL PRIMARY KEY,
+    rev         VARCHAR,
+    pushed      DATETIME
+);
+CREATE TABLE IF NOT EXISTS "$DATASET/City" (
+    id          VARCHAR NOT NULL PRIMARY KEY,
+    rev         VARCHAR,
+    pushed      DATETIME
+);
+EOF
+sqlite3 $BASEDIR/push/localhost.db '.schema'
+
+# Delete all data from internal database, to start with a clean state.
 http DELETE "$SERVER/$DATASET/:wipe" $AUTH
 
 http GET "$SERVER/$DATASET/Country?format(ascii)"
@@ -96,14 +107,32 @@ http GET "$SERVER/$DATASET/City?format(ascii)"
 poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
 #| PUSH: 100%|######| 2/2 [00:00<00:00, 21.41it/s]
 
+# Push state database tables should be updates to a new schema
+sqlite3 $BASEDIR/push/localhost.db '.schema'
+#| CREATE TABLE IF NOT EXISTS "cli/push/Country" (
+#|     "id"            VARCHAR NOT NULL PRIMARY KEY,
+#|     "checksum"      VARCHAR,
+#|     "pushed"        DATETIME,
+#|     "revision"      VARCHAR,
+#|     "error"         BOOLEAN
+#| );
+#| CREATE TABLE IF NOT EXISTS "cli/push/City" (
+#|     "id"            VARCHAR NOT NULL PRIMARY KEY,
+#|     "checksum"      VARCHAR,
+#|     "pushed"        DATETIME,
+#|     "revision"      VARCHAR,
+#|     "error"         BOOLEAN
+#| );
+
 http GET "$SERVER/$DATASET/Country?format(ascii)"
-#|      _type                         _id                                 _revision                 id     name   
-#| ===============================================================================================================
-#| cli/push/Country   f2c62384-1591-416c-8ed6-40a89c682e0f   cdcbe598-cacb-41a8-acc1-f4955f5a8b70   1    Lithuania
+#| _type             _id                                   _revision                             id  name     
+#| ----------------  ------------------------------------  ------------------------------------  --  ---------
+#| cli/push/Country  f2c62384-1591-416c-8ed6-40a89c682e0f  ea77fc88-3aa5-4aa0-8c13-56c8359b504d  1   Lithuania
+
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#|     _type                       _id                                 _revision                 id    name                 country._id             
-#| =================================================================================================================================================
-#| cli/push/City   820f9c83-8654-4a72-9c71-7958a492b41f   5ab09c39-80ed-4cf3-97e8-a59631271dcf   1    Vilnius   f2c62384-1591-416c-8ed6-40a89c682e0f
+#| _type          _id                                   _revision                             id  name     country._id                         
+#| -------------  ------------------------------------  ------------------------------------  --  -------  ------------------------------------
+#| cli/push/City  820f9c83-8654-4a72-9c71-7958a492b41f  58d7d711-acef-4760-95c9-c453c2587815  1   Vilnius  f2c62384-1591-416c-8ed6-40a89c682e0f
 
 sqlite3 $BASEDIR/keymap.db .tables
 sqlite3 $BASEDIR/keymap.db 'SELECT *, hex(value) FROM "cli/push/Country";'
@@ -121,17 +150,17 @@ sqlite3 $BASEDIR/keymap.db 'SELECT *, hex(value) FROM "cli/push/City";'
 
 sqlite3 $BASEDIR/push/localhost.db .tables
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| |                  id                  |                 checksum                 |               revision               |           pushed           | deleted | error |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | 197a04e0-4a5c-4598-b365-d9feafedd633 | 2023-02-23 15:11:14.030026 | 0       | 0     |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
+#| |                  id                  |                 checksum                 |           pushed           |               revision               | error |
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
+#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | 2023-03-07 17:01:53.475036 | 58d7d711-acef-4760-95c9-c453c2587815 | 0     |
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/Country";'
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| |                  id                  |                 checksum                 |               revision               |           pushed           | deleted | error |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| | f2c62384-1591-416c-8ed6-40a89c682e0f | cdf4be3a371852d382fdf88a6fdfcba1c75e9c29 | 38666f55-bcf8-4c62-bf29-c9d5f081cc82 | 2023-02-23 15:11:14.029174 | 0       | 0     |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
+#| |                  id                  |                 checksum                 |           pushed           |               revision               | error |
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
+#| | f2c62384-1591-416c-8ed6-40a89c682e0f | cdf4be3a371852d382fdf88a6fdfcba1c75e9c29 | 2023-03-07 17:01:53.474127 | ea77fc88-3aa5-4aa0-8c13-56c8359b504d | 0     |
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
 
 # Delete Vilnius from source database
 sqlite3 $BASEDIR/db.sqlite "DELETE FROM cities WHERE id = 1;"
@@ -155,30 +184,26 @@ sqlite3 $BASEDIR/keymap.db 'SELECT *, hex(value) FROM "cli/push/City";'
 #| +--------------------------------------+------------------------------------------+-------+------------+
 
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| |                  id                  |                 checksum                 |               revision               |           pushed           | deleted | error |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | 100347f8-2ff0-4add-b75c-9936d56075d1 | 2023-02-23 15:17:45.345100 | 1       | 0     |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+# (empty table)
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/Country";'
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| |                  id                  |                 checksum                 |               revision               |           pushed           | deleted | error |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| | f2c62384-1591-416c-8ed6-40a89c682e0f | cdf4be3a371852d382fdf88a6fdfcba1c75e9c29 | 38666f55-bcf8-4c62-bf29-c9d5f081cc82 | 2023-02-23 15:17:45.330112 | 0       | 0     |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
+#| |                  id                  |                 checksum                 |           pushed           |               revision               | error |
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
+#| | f2c62384-1591-416c-8ed6-40a89c682e0f | cdf4be3a371852d382fdf88a6fdfcba1c75e9c29 | 2023-03-07 17:42:47.467519 | ea77fc88-3aa5-4aa0-8c13-56c8359b504d | 0     |
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
 
 http GET "$SERVER/$DATASET/Country?format(ascii)"
-#|      _type                         _id                                 _revision                 id     name   
-#| ===============================================================================================================
-#| cli/push/Country   f2c62384-1591-416c-8ed6-40a89c682e0f   cdcbe598-cacb-41a8-acc1-f4955f5a8b70   1    Lithuania
+#| _type             _id                                   _revision                             id  name     
+#| ----------------  ------------------------------------  ------------------------------------  --  ---------
+#| cli/push/Country  f2c62384-1591-416c-8ed6-40a89c682e0f  ea77fc88-3aa5-4aa0-8c13-56c8359b504d  1   Lithuania
 http GET "$SERVER/$DATASET/City?format(ascii)"
 # Vilnius was deleted, indeed.
 
 http GET "$SERVER/$DATASET/City/:changes?select(_op,_created,_id,name)&format(ascii)"
-#|  _op              _created                            _id                     name  
-#| ====================================================================================
-#| delete   2023-02-23T13:36:00.213711   820f9c83-8654-4a72-9c71-7958a492b41f   None   
-#| insert   2023-02-23T13:32:59.423251   820f9c83-8654-4a72-9c71-7958a492b41f   Vilnius
+#| _op     _created                    _id                                   name   
+#| ------  --------------------------  ------------------------------------  -------
+#| insert  2023-03-07T15:01:53.463447  820f9c83-8654-4a72-9c71-7958a492b41f  Vilnius
+#| delete  2023-03-07T15:42:47.472209  820f9c83-8654-4a72-9c71-7958a492b41f  ∅
 
 # Add new record to the source database.
 sqlite3 $BASEDIR/db.sqlite "INSERT INTO cities VALUES (2, 'Kaunas', 1);"
@@ -207,27 +232,26 @@ sqlite3 $BASEDIR/keymap.db 'SELECT *, hex(value) FROM "cli/push/City";'
 #| +--------------------------------------+------------------------------------------+-------+------------+
 
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| |                  id                  |                 checksum                 |               revision               |           pushed           | deleted | error |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | 100347f8-2ff0-4add-b75c-9936d56075d1 | 2023-02-23 15:17:45.345100 | 1       | 0     |
-#| | 2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd | b7c794dde2891313b297207300e951d2056c4463 | 6bf5ebfc-f05f-4f30-8a40-1fa1b7ca0a21 | 2023-02-23 15:20:12.495686 | 0       | 0     |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
+#| |                  id                  |                 checksum                 |           pushed           |               revision               | error |
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
+#| | 2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd | b7c794dde2891313b297207300e951d2056c4463 | 2023-03-07 17:51:19.610534 | 857cd064-6232-4573-bf5a-220fc39da09a | 0     |
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/Country";'
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| |                  id                  |                 checksum                 |               revision               |           pushed           | deleted | error |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| | f2c62384-1591-416c-8ed6-40a89c682e0f | cdf4be3a371852d382fdf88a6fdfcba1c75e9c29 | 38666f55-bcf8-4c62-bf29-c9d5f081cc82 | 2023-02-23 15:20:12.479892 | 0       | 0     |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
+#| |                  id                  |                 checksum                 |           pushed           |               revision               | error |
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
+#| | f2c62384-1591-416c-8ed6-40a89c682e0f | cdf4be3a371852d382fdf88a6fdfcba1c75e9c29 | 2023-03-07 17:51:19.591352 | ea77fc88-3aa5-4aa0-8c13-56c8359b504d | 0     |
+#| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+
 
 http GET "$SERVER/$DATASET/Country?format(ascii)"
-#|      _type                         _id                                 _revision                 id     name   
-#| ===============================================================================================================
-#| cli/push/Country   f2c62384-1591-416c-8ed6-40a89c682e0f   cdcbe598-cacb-41a8-acc1-f4955f5a8b70   1    Lithuania
+#| _type             _id                                   _revision                             id  name     
+#| ----------------  ------------------------------------  ------------------------------------  --  ---------
+#| cli/push/Country  f2c62384-1591-416c-8ed6-40a89c682e0f  ea77fc88-3aa5-4aa0-8c13-56c8359b504d  1   Lithuania
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#|     _type                       _id                                 _revision                 id    name                country._id             
-#| ================================================================================================================================================
-#| cli/push/City   2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd   2349c1c0-e612-4151-b7c5-a9ee8b8f137d   2    Kaunas   f2c62384-1591-416c-8ed6-40a89c682e0f
+#|_type          _id                                   _revision                             id  name    country._id                         
+#|-------------  ------------------------------------  ------------------------------------  --  ------  ------------------------------------
+#|cli/push/City  2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd  857cd064-6232-4573-bf5a-220fc39da09a  2   Kaunas  f2c62384-1591-416c-8ed6-40a89c682e0f
 
 # Reindtoruce Vilnius object back to source database.
 sqlite3 $BASEDIR/db.sqlite "INSERT INTO cities VALUES (1, 'Vilnius', 1);"
@@ -243,29 +267,31 @@ poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
 #| PUSH: 100%|######| 3/3 [00:00<00:00, 264.17it/s]
 
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| |                  id                  |                 checksum                 |               revision               |           pushed           | deleted | error |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | 61299eff-cf8a-47bf-a94b-b00c2073b990 | 2023-02-23 16:02:34.949586 | 1       | 0     |
-#| | 2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd | b7c794dde2891313b297207300e951d2056c4463 | 2349c1c0-e612-4151-b7c5-a9ee8b8f137d | 2023-02-23 16:02:34.950118 | 0       | 0     |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-# TODO: Vilnius is still marked as deleted, even if this object was reintroduced.
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+-------+
+#| |                  id                  |                 checksum                 |               revision               |           pushed           | error |
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+-------+
+#| | 2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd | b7c794dde2891313b297207300e951d2056c4463 | 68dded8b-ecd5-49d3-ab44-6ce82b565904 | 2023-03-07 15:43:24.300810 | 0     |
+#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | 3cf8ec5b-1ab8-4787-a55e-5c8734930238 | 2023-03-07 15:43:24.308148 | 0     |
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+-------+
 
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#|     _type                       _id                                 _revision                 id    name                country._id             
-#| ================================================================================================================================================
-#| cli/push/City   2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd   2349c1c0-e612-4151-b7c5-a9ee8b8f137d   2    Kaunas   f2c62384-1591-416c-8ed6-40a89c682e0f
-# TODO: Yes, Vilnius should be added back.
+#| _type          _id                                   _revision                             id  name    country._id                         
+#| -------------  ------------------------------------  ------------------------------------  --  ------  ------------------------------------
+#| cli/push/City  2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd  68dded8b-ecd5-49d3-ab44-6ce82b565904  2   Kaunas  f2c62384-1591-416c-8ed6-40a89c682e0f
+#| cli/push/City  820f9c83-8654-4a72-9c71-7958a492b41f  3cf8ec5b-1ab8-4787-a55e-5c8734930238  1   Vilniu  f2c62384-1591-416c-8ed6-40a89c682e0f\
+#|                                                                                                s
 
 http GET "$SERVER/$DATASET/City/:changes?select(_op,_created,_id,name)&format(ascii)"
-#|  _op              _created                            _id                     name  
-#| ====================================================================================
-#| insert   2023-02-23T13:59:13.545899   2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd   Kaunas 
-#| delete   2023-02-23T13:36:00.213711   820f9c83-8654-4a72-9c71-7958a492b41f   None   
-#| insert   2023-02-23T13:32:59.423251   820f9c83-8654-4a72-9c71-7958a492b41f   Vilnius
-# TODO: Second insert operation should appear in changelog
+#| _op     _created                    _id                                   name   
+#| ------  --------------------------  ------------------------------------  -------
+#| insert  2023-03-07T13:20:38.558093  820f9c83-8654-4a72-9c71-7958a492b41f  Vilnius
+#| delete  2023-03-07T13:23:51.432334  820f9c83-8654-4a72-9c71-7958a492b41f  ∅
+#| insert  2023-03-07T13:40:18.198174  2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd  Kaunas
+#| insert  2023-03-07T13:43:24.304510  820f9c83-8654-4a72-9c71-7958a492b41f  Vilnius
+# Vilnius was reintroduced correctly
 
 
+# Run server that response with error to every request except /auth/token
 test -n "$PID" && kill $PID
 poetry run pip install bottle
 poetry run python &>> $BASEDIR/bottle.log <<'EOF' &
@@ -314,50 +340,87 @@ poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
 #|                 <pre>Not found: &#039;/&#039;</pre>
 #|             </body>
 #|         </html>
+#| Traceback (most recent call last):
+#|   File "spinta/cli/push.py", line 343, in _push_rows
+#|     next(rows)
+#|   File "spinta/cli/push.py", line 807, in _save_push_state
+#|     for row in rows:
+#|   File "spinta/cli/push.py", line 412, in _push_to_remote_spinta
+#|     for row in rows:
+#|   File "spinta/cli/push.py", line 379, in _prepare_rows_for_push
+#|     for row in rows:
+#|   File "spinta/cli/push.py", line 776, in _check_push_state
+#|     for row in group:
+#|   File "tqdm/std.py", line 1195, in __iter__
+#|     for obj in iterable:
+#|   File "spinta/cli/push.py", line 323, in _read_rows
+#|     yield from _get_rows_with_errors(
+#|   File "spinta/cli/push.py", line 914, in _get_rows_with_errors
+#|     yield from _prepare_rows_with_errors(
+#|   File "spinta/cli/push.py", line 938, in _prepare_rows_with_errors
+#|     data = commands.getone(context, model, model.backend, id_=_id)
+#|   File "multipledispatch/dispatcher.py", line 273, in __call__
+#|     raise NotImplementedError(
+#| NotImplementedError: Could not find signature for getone: <Context, Model, Sql>
+# FIXME: It seems, that we need to save whole object in the push state in case
+#        of error, because not all dataset backends will support getone.
 
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| |                  id                  |                 checksum                 |               revision               |           pushed           | deleted | error |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | 61299eff-cf8a-47bf-a94b-b00c2073b990 | 2023-02-24 08:24:49.097943 | 1       | 0     |
-#| | 2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd | b7c794dde2891313b297207300e951d2056c4463 | 2349c1c0-e612-4151-b7c5-a9ee8b8f137d | 2023-02-24 08:24:49.098478 | 0       | 0     |
-#| | c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971 | 3d2d16d530de2a80018ef76248d8cb6c6481f50b |                                      | 2023-02-24 08:24:49.130477 | 0       | 1     |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+-------+
+#| |                  id                  |                 checksum                 |               revision               |           pushed           | error |
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+-------+
+#| | 2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd | b7c794dde2891313b297207300e951d2056c4463 | 68dded8b-ecd5-49d3-ab44-6ce82b565904 | 2023-03-07 15:52:32.224942 | 0     |
+#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | 3cf8ec5b-1ab8-4787-a55e-5c8734930238 | 2023-03-07 15:52:32.224348 | 0     |
+#| | c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971 | 3d2d16d530de2a80018ef76248d8cb6c6481f50b |                                      | 2023-03-07 15:52:32.228806 | 1     |
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+-------+
 
 # Bring a functioning server back online
 test -n "$PID" && kill $PID
-poetry run spinta run &>> $BASEDIR/spinta.log &
-PID=$!
+poetry run spinta run &>> $BASEDIR/spinta.log &; PID=$!
 tail -50 $BASEDIR/spinta.log
 
 # Try to push and check if errored row is retried
 poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
+#| Traceback (most recent call last):
+#|   File "spinta/cli/push.py", line 343, in _push_rows
+#|     next(rows)
+#|   File "spinta/cli/push.py", line 807, in _save_push_state
+#|     for row in rows:
+#|   File "spinta/cli/push.py", line 412, in _push_to_remote_spinta
+#|     for row in rows:
+#|   File "spinta/cli/push.py", line 379, in _prepare_rows_for_push
+#|     for row in rows:
+#|   File "spinta/cli/push.py", line 776, in _check_push_state
+#|     for row in group:
+#|   File "tqdm/std.py", line 1195, in __iter__
+#|     for obj in iterable:
+#|   File "spinta/cli/push.py", line 323, in _read_rows
+#|     yield from _get_rows_with_errors(
+#|   File "spinta/cli/push.py", line 914, in _get_rows_with_errors
+#|     yield from _prepare_rows_with_errors(
+#|   File "spinta/cli/push.py", line 938, in _prepare_rows_with_errors
+#|     data = commands.getone(context, model, model.backend, id_=_id)
+#|   File "multipledispatch/dispatcher.py", line 273, in __call__
+#|     raise NotImplementedError(
+#| NotImplementedError: Could not find signature for getone: <Context, Model, Sql>
+# FIXME: Yes, same error as above, we need to save objects on errors in order
+#        to be able to retry them later. After each retry object should be
+#        deleted and error flag cleard.
 
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| |                  id                  |                 checksum                 |               revision               |           pushed           | deleted | error |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
-#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | bec7318a-bf3d-4cea-8ed6-98e6c90580ee | 2023-02-27 14:27:35.148487 | 1       | 0     |
-#| | 2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd | b7c794dde2891313b297207300e951d2056c4463 | 52c73040-3d14-4ab4-83e2-df66ad714b7f | 2023-02-27 14:27:35.149036 | 0       | 0     |
-#| | c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971 | 3d2d16d530de2a80018ef76248d8cb6c6481f50b |                                      | 2023-02-27 14:27:35.182293 | 0       | 1     |
-#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+---------+-------+
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+-------+
+#| |                  id                  |                 checksum                 |               revision               |           pushed           | error |
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+-------+
+#| | 2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd | b7c794dde2891313b297207300e951d2056c4463 | 68dded8b-ecd5-49d3-ab44-6ce82b565904 | 2023-03-07 16:11:05.379377 | 0     |
+#| | 820f9c83-8654-4a72-9c71-7958a492b41f | add39bc13c5ce30b6c7bc08ae2fed66e112552e3 | 3cf8ec5b-1ab8-4787-a55e-5c8734930238 | 2023-03-07 16:11:05.378708 | 0     |
+#| | c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971 | 3d2d16d530de2a80018ef76248d8cb6c6481f50b |                                      | 2023-03-07 16:11:05.379801 | 1     |
+#| +--------------------------------------+------------------------------------------+--------------------------------------+----------------------------+-------+
 # FIXME: It seems, that nothing has changed.
 
-tail -50 $BASEDIR/spinta.log
-#| spinta.exceptions.ItemDoesNotExist: Resource 'c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971' not found.
-#|   Context:
-#|     component: spinta.components.Model
-#|     manifest: default
-#|     schema: 9
-#|     dataset: cli/push
-#|     resource: db
-#|     model: cli/push/City
-#|     entity: cities
-#|     resource.backend: cli/push/db
-#|     id: c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971
-
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#|     _type                       _id                                 _revision                 id    name                country._id             
-#| ================================================================================================================================================
-#| cli/push/City   2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd   52c73040-3d14-4ab4-83e2-df66ad714b7f   2    Kaunas   f2c62384-1591-416c-8ed6-40a89c682e0f
-# FIXME: Klaipėda should be in the list of cieties, but is is not.
+#| _type          _id                                   _revision                             id  name    country._id                         
+#| -------------  ------------------------------------  ------------------------------------  --  ------  ------------------------------------
+#| cli/push/City  2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd  68dded8b-ecd5-49d3-ab44-6ce82b565904  2   Kaunas  f2c62384-1591-416c-8ed6-40a89c682e0f
+#| cli/push/City  820f9c83-8654-4a72-9c71-7958a492b41f  3cf8ec5b-1ab8-4787-a55e-5c8734930238  1   Vilniu  f2c62384-1591-416c-8ed6-40a89c682e0f\
+#|                                                                                                s
+# FIXME: Klaipėda should be in the list of cieties, but is not.
