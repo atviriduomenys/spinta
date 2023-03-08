@@ -84,6 +84,7 @@ def test_app(app):
             ('JSON', '/:format/json'),
             ('JSONL', '/:format/jsonl'),
             ('ASCII', '/:format/ascii'),
+            ('RDF', '/:format/rdf'),
         ],
     }
     assert next(d for d in data['data'] if d['title'] == 'Country') == {
@@ -141,6 +142,7 @@ def test_directory(app):
             ('JSON', '/datasets/xlsx/rinkimai/:ns/:format/json'),
             ('JSONL', '/datasets/xlsx/rinkimai/:ns/:format/jsonl'),
             ('ASCII', '/datasets/xlsx/rinkimai/:ns/:format/ascii'),
+            ('RDF', '/datasets/xlsx/rinkimai/:ns/:format/rdf'),
         ],
     }
 
@@ -213,6 +215,7 @@ def test_model(model, context, app):
             ('JSON', f'/{model}/:format/json'),
             ('JSONL', f'/{model}/:format/jsonl'),
             ('ASCII', f'/{model}/:format/ascii'),
+            ('RDF', f'/{model}/:format/rdf'),
         ],
     }
 
@@ -290,6 +293,7 @@ def test_model_get(model, app):
             ('JSON', f'/{model}/%s/:format/json' % row['_id']),
             ('JSONL', f'/{model}/%s/:format/jsonl' % row['_id']),
             ('ASCII', f'/{model}/%s/:format/ascii' % row['_id']),
+            ('RDF', f'/{model}/%s/:format/rdf' % row['_id']),
         ],
     }
 
@@ -330,6 +334,7 @@ def test_dataset(app):
             ('JSON', '/datasets/json/rinkimai/:format/json'),
             ('JSONL', '/datasets/json/rinkimai/:format/jsonl'),
             ('ASCII', '/datasets/json/rinkimai/:format/ascii'),
+            ('RDF', '/datasets/json/rinkimai/:format/rdf'),
         ],
     }
 
@@ -412,6 +417,7 @@ def test_nested_dataset(app):
             ('JSON', '/datasets/nested/dataset/name/model/:format/json'),
             ('JSONL', '/datasets/nested/dataset/name/model/:format/jsonl'),
             ('ASCII', '/datasets/nested/dataset/name/model/:format/ascii'),
+            ('RDF', '/datasets/nested/dataset/name/model/:format/rdf'),
         ],
     }
 
@@ -445,6 +451,7 @@ def test_dataset_key(app):
             ('JSON', f'/datasets/json/rinkimai/{pk}/:format/json'),
             ('JSONL', f'/datasets/json/rinkimai/{pk}/:format/jsonl'),
             ('ASCII', f'/datasets/json/rinkimai/{pk}/:format/ascii'),
+            ('RDF', f'/datasets/json/rinkimai/{pk}/:format/rdf'),
         ],
         'header': [
             '_type',
@@ -498,6 +505,7 @@ def test_changes_single_object(app: TestClient, mocker):
             ('JSON', f'/{model}/{obj.id}/:changes/-10/:format/json?limit(100)'),
             ('JSONL', f'/{model}/{obj.id}/:changes/-10/:format/jsonl?limit(100)'),
             ('ASCII', f'/{model}/{obj.id}/:changes/-10/:format/ascii?limit(100)'),
+            ('RDF', f'/{model}/{obj.id}/:changes/-10/:format/rdf?limit(100)'),
         ],
         'header': [
             '_cid',
@@ -566,6 +574,7 @@ def test_changes_object_list(app, mocker):
             ('JSON', f'/{model}/:changes/-10/:format/json?limit(100)'),
             ('JSONL', f'/{model}/:changes/-10/:format/jsonl?limit(100)'),
             ('ASCII', f'/{model}/:changes/-10/:format/ascii?limit(100)'),
+            ('RDF', f'/{model}/:changes/-10/:format/rdf?limit(100)'),
         ],
         'header': [
             '_cid',
