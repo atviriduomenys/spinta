@@ -74,3 +74,8 @@ def flat_dicts_to_nested(value):
             vref = vref[name]
         vref[names[-1]] = v
     return res
+
+
+def flatten_value(value, sep=".", key=()):
+    value, _ = _flatten(value, sep, key)
+    return value

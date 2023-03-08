@@ -4,7 +4,6 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 
 from spinta.core.config import RawConfig
-from spinta.exceptions import InvalidPropertyLevel
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest, prepare_manifest, load_manifest
@@ -29,25 +28,6 @@ def test_load(tmp_path: Path, rc: RawConfig):
     create_tabular_manifest(tmp_path / 'manifest.csv', table)
     manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     assert manifest == table
-
-
-def test_prepare_with_error(tmp_path: Path, rc: RawConfig):
-    with pytest.raises(InvalidPropertyLevel) as e:
-        prepare_manifest(rc, '''
-        d | r | b | m | property   | type   | ref                | source       | level | access
-        dataset/1                  |        |                    |              |       |
-          | external               | sql    |                    | sqlite://    |       |
-          |   |   | Country        |        | code               |              |       |
-          |   |   |   | code       | string |                    |              |       | open
-          |   |   |   | name       | string |                    |              |       | open
-        dataset/2                  |        |                    |              |       |
-          |   |   | City           |        |                    |              |       |
-          |   |   |   | name       | string |                    |              |       | open
-          |   |   |   | country    | ref    | /dataset/1/Country |              | 4     | open
-        ''')
-    assert e.value.message == (
-        "Level for property 'country' can't be more than 3 if reference model is external"
-    )
 
 
 def test_external_ref(

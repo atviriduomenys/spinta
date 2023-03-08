@@ -27,11 +27,12 @@ from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
-from spinta.types.datatype import DataType, Object, Array, File, Ref, ExternalRef
+from spinta.types.datatype import DataType, Object, Array, File, Ref, ExternalRef, Denorm
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
 from spinta.utils.errors import report_error
+from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA
 from spinta.utils.data import take
@@ -1086,6 +1087,22 @@ def before_write(
     }
 
 
+@commands.before_write.register(Context, Denorm, Backend)
+def before_write(
+    context: Context,
+    dtype: Denorm,
+    backend: Backend,
+    *,
+    data: DataSubItem,
+) -> dict:
+    patch = flatten_value(data.patch)
+    key = dtype.prop.place.split('.', maxsplit=1)[-1]
+    if patch.get(key):
+        return {dtype.prop.place: patch.get(key)}
+    else:
+        return {}
+
+
 async def _summary_response(context: Context, results: AsyncIterator[DataItem]) -> dict:
     errors = 0
     async for data in results:
@@ -1197,6 +1214,7 @@ def _get_simple_response(
                 data.model.properties,
                 data.action,
                 select_tree,
+                include_denorm_props=False
             )
             resp = commands.prepare_data_for_response(
                 context,

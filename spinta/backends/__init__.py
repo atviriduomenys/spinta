@@ -35,7 +35,7 @@ from spinta.components import Property
 from spinta.exceptions import ConflictingValue
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
-from spinta.types.datatype import Array, ExternalRef
+from spinta.types.datatype import Array, ExternalRef, Denorm
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -49,6 +49,7 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.utils.data import take
+from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
 
@@ -228,6 +229,30 @@ def simple_data_check(
     dtype = dtype.items.dtype
     for v in value:
         simple_data_check(context, data, dtype, prop, dtype.backend, v)
+
+
+@commands.simple_data_check.register(Context, DataItem, ExternalRef, Property, Backend, dict)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: ExternalRef,
+    prop: Property,
+    backend: Backend,
+    value: dict,
+) -> None:
+    denorm_prop_keys = [
+        p.name.split('.', maxsplit=1)[-1]
+        for p in prop.model.properties.values() if (
+            isinstance(p.dtype, Denorm) and
+            p.name.split('.')[0] == prop.name
+        )
+    ]
+    allowed_keys = [prop.name for prop in dtype.refprops]
+    allowed_keys.extend(denorm_prop_keys)
+    value = flatten_value(value)
+    for key in value.keys():
+        if key not in allowed_keys:
+            raise exceptions.FieldNotInResource(prop, property=key)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
