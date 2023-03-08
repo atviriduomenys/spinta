@@ -18,15 +18,17 @@ $DATASET                     |         |         |
   |   |   |   | country.code |         |         | open
 EOF
 poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
-#| UndefinedPropertyInDenormProperty:
-#| Property 'country.code' cannot be defined in 'types/ref/denorm/City',
-#| because property 'code' is not defined in 'types/ref/denorm/Country' 
-#| model.
+#| ReferencedPropertyNotFound: Property 'country.code' not found.
 #|   Context:
-#|     denorm_prop: country.code
-#|     denorm_model: types/ref/denorm/City
-#|     ref_prop: code
-#|     ref_model: types/ref/denorm/Country
+#|     component: spinta.components.Property
+#|     manifest: default
+#|     schema: 5
+#|     dataset: types/ref/denorm
+#|     model: types/ref/denorm/City
+#|     entity: 
+#|     property: country.code
+#|     attribute: 
+#|     ref: {'property': 'code', 'model': 'types/ref/denorm/Country'}
 
 
 cat > $BASEDIR/manifest.txt <<EOF
