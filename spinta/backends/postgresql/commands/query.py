@@ -12,15 +12,16 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from spinta import exceptions
 from spinta.auth import authorized
+from spinta.backends import _get_property_base_model
 from spinta.core.ufuncs import Env, ufunc
 from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Expr
-from spinta.exceptions import EmptyStringSearch
+from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Action, Model, Property
 from spinta.utils.data import take
-from spinta.types.datatype import DataType, ExternalRef
+from spinta.types.datatype import DataType, ExternalRef, Inherit
 from spinta.types.datatype import Array
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -110,6 +111,28 @@ class PgQueryBuilder(Env):
             self.from_ = self.from_.outerjoin(rtable, condition)
 
         return self.joins[fpr.name]
+
+    def get_joined_base_table(self, prop):
+        inherit_model = prop.model
+        base_model = _get_property_base_model(prop)
+
+        if not base_model:
+            raise PropertyNotFound(prop.dtype)
+
+        if base_model.name in self.joins:
+            return self.joins[base_model.name]
+
+        ltable = self.backend.get_table(inherit_model)
+        lrkey = self.backend.get_column(ltable, inherit_model.properties['_id'])
+
+        rtable = self.backend.get_table(base_model).alias()
+        rpkey = self.backend.get_column(rtable, base_model.properties['_id'])
+
+        condition = lrkey == rpkey
+        self.joins[base_model.name] = rtable
+        self.from_ = self.from_.outerjoin(rtable, condition)
+
+        return self.joins[base_model.name]
 
 
 class ForeignProperty:
@@ -362,6 +385,14 @@ def select(env: PgQueryBuilder, fpr: ForeignProperty):
     column = table.c[fpr.right.place]
     column = column.label(fpr.place)
     return Selected(column, fpr.right)
+
+
+@ufunc.resolver(PgQueryBuilder, Inherit)
+def select(env, dtype):
+    table = env.get_joined_base_table(dtype.prop)
+    column = table.c[dtype.prop.name]
+    column = column.label(dtype.prop.name)
+    return Selected(column, dtype.prop)
 
 
 @ufunc.resolver(PgQueryBuilder, int)

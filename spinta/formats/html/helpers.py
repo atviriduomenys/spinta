@@ -266,6 +266,7 @@ def get_output_formats(params: UrlParams):
         ('JSON', 'json'),
         ('JSONL', 'jsonl'),
         ('ASCII', 'ascii'),
+        ('RDF', 'rdf'),
     ]
     return [
         (label, _get_output_format_link(fmt, params))
