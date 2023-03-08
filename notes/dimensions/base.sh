@@ -8,29 +8,36 @@ DATASET=$INSTANCE
 # notes/spinta/server.sh    Configure server
 
 cat > $BASEDIR/manifest.txt <<EOF
-d | r | b | m | property   | type    | ref     | prepare   | access
-$DATASET                   |         |         |           |
-  |   |   |   |            |         |         |           |     
-  |   |   | Location       |         | id      |           |
-  |   |   |   | id         | integer |         |           | open
-  |   |   |   | name       | string  |         |           | open
-  |   |   |   | population | integer |         |           | open
-  |   |   |   | type       | string  |         |           | open
-  |   |   |   |            | enum    |         | "city"    |     
-  |   |   |   |            |         |         | "country" |     
-  |   |   |   |            |         |         |           |     
-  |   | Location           |         | name    |           |
-  |   |   |   |            |         |         |           |     
-  |   |   | Country        |         | id      |           |
-  |   |   |   | id         | integer |         |           | open
-  |   |   |   | name       |         |         |           | open
-  |   |   |   | population |         |         |           | open
-  |   |   |   |            |         |         |           |     
-  |   |   | City           |         | id      |           |
-  |   |   |   | id         | integer |         |           | open
-  |   |   |   | name       |         |         |           | open
-  |   |   |   | population |         |         |           | open
-  |   |   |   | country    | ref     | Country |           | open
+d | r | b | m | property   | type                 | ref     | prepare   | access
+$DATASET                   |                      |         |           |
+  |   |   |   |            |                      |         |           |     
+  |   |   | Place          |                      | id      |           |
+  |   |   |   | id         | integer              |         |           | open
+  |   |   |   | name       | string               |         |           | open
+  |   |   |   | koord      | geometry(point,4326) |         |           | open
+  |   |   |   |            |                      |         |           |     
+  |   | Place              |                      | name    |           |
+  |   |   |   |            |                      |         |           |     
+  |   |   | Location       |                      | id      |           |
+  |   |   |   | id         | integer              |         |           | open
+  |   |   |   | name       |                      |         |           | open
+  |   |   |   | population | integer              |         |           | open
+  |   |   |   | type       | string               |         |           | open
+  |   |   |   |            | enum                 |         | "city"    |     
+  |   |   |   |            |                      |         | "country" |     
+  |   |   |   |            |                      |         |           |     
+  |   | Location           |                      | name    |           |
+  |   |   |   |            |                      |         |           |     
+  |   |   | Country        |                      | id      |           |
+  |   |   |   | id         | integer              |         |           | open
+  |   |   |   | name       |                      |         |           | open
+  |   |   |   | population |                      |         |           | open
+  |   |   |   |            |                      |         |           |     
+  |   |   | City           |                      | id      |           |
+  |   |   |   | id         | integer              |         |           | open
+  |   |   |   | name       |                      |         |           | open
+  |   |   |   | population |                      |         |           | open
+  |   |   |   | country    | ref                  | Country |           | open
 EOF
 poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
 cat $BASEDIR/manifest.csv
@@ -42,6 +49,115 @@ poetry run spinta show
 # notes/spinta/server.sh    Run server
 # notes/spinta/client.sh    Configure client
 
+query -c '\dt "'$DATASET'"*'
+#|  Schema |                Name                 | Type  | Owner 
+#| --------+-------------------------------------+-------+-------
+#|  public | dimensions/base/City                | table | admin
+#|  public | dimensions/base/City/:changelog     | table | admin
+#|  public | dimensions/base/Country             | table | admin
+#|  public | dimensions/base/Country/:changelog  | table | admin
+#|  public | dimensions/base/Location            | table | admin
+#|  public | dimensions/base/Location/:changelog | table | admin
+#|  public | dimensions/base/Place               | table | admin
+#|  public | dimensions/base/Place/:changelog    | table | admin
+query -c '\d "'$DATASET'/Place"'
+#|                    Table "public.dimensions/base/Place"
+#|   Column   |            Type             | Collation | Nullable | Default 
+#| -----------+-----------------------------+-----------+----------+---------
+#|  _id       | uuid                        |           | not null | 
+#|  _revision | text                        |           |          | 
+#|  id        | integer                     |           |          | 
+#|  name      | text                        |           |          | 
+#|  koord     | geometry(Point,4326)        |           |          | 
+#| Indexes:
+#|     "dimensions/base/Place_pkey" PRIMARY KEY, btree (_id)
+#|     "idx_dimensions/base/Place_koord" gist (koord)
+#| Referenced by:
+#|     TABLE ""dimensions/base/Location""
+#|         CONSTRAINT "fk_dimensions/base/Place_id" FOREIGN KEY (_id)
+#|             REFERENCES "dimensions/base/Place"(_id)
+query -c '\d "'$DATASET'/Location"'
+#|                   Table "public.dimensions/base/Location"
+#|    Column   |            Type             | Collation | Nullable | Default 
+#| ------------+-----------------------------+-----------+----------+---------
+#|  _id        | uuid                        |           | not null | 
+#|  _revision  | text                        |           |          | 
+#|  id         | integer                     |           |          | 
+#|  population | integer                     |           |          | 
+#|  type       | text                        |           |          | 
+#| Indexes:
+#|     "dimensions/base/Location_pkey" PRIMARY KEY, btree (_id)
+#| Foreign-key constraints:
+#|     "fk_dimensions/base/Place_id" FOREIGN KEY (_id)
+#|         REFERENCES "dimensions/base/Place"(_id)
+#| Referenced by:
+#|     TABLE ""dimensions/base/Country""
+#|         CONSTRAINT "fk_dimensions/base/Location_id" FOREIGN KEY (_id)
+#|             REFERENCES "dimensions/base/Location"(_id)
+#|     TABLE ""dimensions/base/City""
+#|         CONSTRAINT "fk_dimensions/base/Location_id" FOREIGN KEY (_id)
+#|             REFERENCES "dimensions/base/Location"(_id)
+query -c '\d "'$DATASET'/Country"'
+#|                   Table "public.dimensions/base/Country"
+#|   Column   |            Type             | Collation | Nullable | Default 
+#| -----------+-----------------------------+-----------+----------+---------
+#|  _id       | uuid                        |           | not null | 
+#|  _revision | text                        |           |          | 
+#|  id        | integer                     |           |          | 
+#| Indexes:
+#|     "dimensions/base/Country_pkey" PRIMARY KEY, btree (_id)
+#| Foreign-key constraints:
+#|     "fk_dimensions/base/Location_id" FOREIGN KEY (_id)
+#|         REFERENCES "dimensions/base/Location"(_id)
+#| Referenced by:
+#|     TABLE ""dimensions/base/City""
+#|         CONSTRAINT "fk_dimensions/base/City_country._id" FOREIGN KEY ("country._id")
+#|             REFERENCES "dimensions/base/Country"(_id)
+query -c '\d "'$DATASET'/City"'
+#|                     Table "public.dimensions/base/City"
+#|    Column    |            Type             | Collation | Nullable | Default 
+#| -------------+-----------------------------+-----------+----------+---------
+#|  _id         | uuid                        |           | not null | 
+#|  _revision   | text                        |           |          | 
+#|  id          | integer                     |           |          | 
+#|  country._id | uuid                        |           |          | 
+#| Indexes:
+#|     "dimensions/base/City_pkey" PRIMARY KEY, btree (_id)
+#| Foreign-key constraints:
+#|     "fk_dimensions/base/City_country._id" FOREIGN KEY ("country._id")
+#|         REFERENCES "dimensions/base/Country"(_id)
+#|     "fk_dimensions/base/Location_id" FOREIGN KEY (_id)
+#|         REFERENCES "dimensions/base/Location"(_id)
+
+
+http POST "$SERVER/$DATASET/Place" $AUTH \
+    _id="2074d66e-0dfd-4233-b1ec-199abc994d0c" \
+    id:=1 \
+    name="Vilnius" \
+    koord="SRID=4326;POINT (54.68677 25.29067)"
+#| HTTP/1.1 201 Created
+#| 
+#| {
+#|     "_id": "2074d66e-0dfd-4233-b1ec-199abc994d0c",
+#|     "_revision": "2263e065-e813-4ef2-b43c-9699fc4ed212",
+#|     "_type": "dimensions/base/Place",
+#|     "id": 1,
+#|     "koord": "SRID=4326;POINT (54.68677 25.29067)",
+#|     "name": "Vilnius"
+#| }
+
+query -c 'SELECT * FROM "'$DATASET'/Place"'
+#|                  _id                  |              _revision               | id |  name   |                       koord                        
+#| --------------------------------------+--------------------------------------+----+---------+----------------------------------------------------
+#|  2074d66e-0dfd-4233-b1ec-199abc994d0c | 2263e065-e813-4ef2-b43c-9699fc4ed212 |  1 | Vilnius | 0101000020E6100000DDEF5014E8574B40A6ED5F59694A3940
+
+
+http GET "$SERVER/$DATASET/Place?format(ascii)"
+#| _id                                   _revision                             id  name     koord
+#| ------------------------------------  ------------------------------------  --  -------  -------------------------
+#| 2074d66e-0dfd-4233-b1ec-199abc994d0c  2263e065-e813-4ef2-b43c-9699fc4ed212  1   Vilnius  POINT (54.68677 25.29067)
+
+
 http POST "$SERVER/$DATASET/Location" $AUTH \
     _id="2074d66e-0dfd-4233-b1ec-199abc994d0c" \
     id:=42 \
@@ -51,26 +167,42 @@ http POST "$SERVER/$DATASET/Location" $AUTH \
 #| 
 #| {
 #|     "_id": "2074d66e-0dfd-4233-b1ec-199abc994d0c",
-#|     "_revision": "8b48b450-782c-4a41-80bb-25d249d6bae5",
+#|     "_revision": "8303ac22-90f4-4f0a-92a7-08d6b49430fe",
 #|     "_type": "dimensions/base/Location",
 #|     "id": 42,
 #|     "name": "Vilnius",
-#|     "population": 625349
+#|     "population": 625349,
 #|     "type": null
 #| }
 
+query -c 'SELECT * FROM "'$DATASET'/Location"'
+#|                  _id                  |              _revision               | id | population | type 
+#| --------------------------------------+--------------------------------------+----+------------+------
+#|  2074d66e-0dfd-4233-b1ec-199abc994d0c | 8303ac22-90f4-4f0a-92a7-08d6b49430fe | 42 |     625349 | 
+
+http GET "$SERVER/$DATASET/Location?format(ascii)"
+#| _id                                   _revision                             id  name     population  type
+#| ------------------------------------  ------------------------------------  --  -------  ----------  ----
+#| 2074d66e-0dfd-4233-b1ec-199abc994d0c  8303ac22-90f4-4f0a-92a7-08d6b49430fe  42  Vilnius  625349      ∅
+
 
 http PATCH "$SERVER/$DATASET/Location/2074d66e-0dfd-4233-b1ec-199abc994d0c" $AUTH \
-    _revision="8b48b450-782c-4a41-80bb-25d249d6bae5" \
+    _revision="8303ac22-90f4-4f0a-92a7-08d6b49430fe" \
     type="city"
 #| HTTP/1.1 200 OK
 #| 
 #| {
 #|     "_id": "2074d66e-0dfd-4233-b1ec-199abc994d0c",
-#|     "_revision": "7a75fc7f-6c91-4df7-8dfd-c2af09615f3e",
+#|     "_revision": "e9ec71ae-6a5f-4cd4-97dd-9c36250abefe",
 #|     "_type": "dimensions/base/Location",
 #|     "type": "city"
 #| }
+
+
+http GET "$SERVER/$DATASET/Location?select(_id,id,name,population,type)&format(ascii)"
+#| _id                                   id  name     population  type
+#| ------------------------------------  --  -------  ----------  ----
+#| 2074d66e-0dfd-4233-b1ec-199abc994d0c  42  Vilnius  625349      city
 
 
 http POST "$SERVER/$DATASET/City" $AUTH \
@@ -181,14 +313,78 @@ http POST "$SERVER/$DATASET/City" $AUTH \
     population:=625349
 #| HTTP/1.1 201 Created
 
-http GET "$SERVER/$DATASET/Location?select(_id,id,name,population)&format(ascii)"
-#| ------------------------------------  --  -------  ----------
-#| _id                                   id  name     population
-#| dc918748-0e0c-47ba-9090-c878eabd7fb9  42  Vilnius  625349
-#| ------------------------------------  --  -------  ----------
 
-http GET "$SERVER/$DATASET/City?select(_id,id,name,population)&format(ascii)"
-#| ------------------------------------  --  -------  ----------
-#| _id                                   id  name     population
-#| dc918748-0e0c-47ba-9090-c878eabd7fb9  24  Vilnius  625349
-#| ------------------------------------  --  -------  ----------
+http POST "$SERVER/$DATASET/City" $AUTH \
+    _id="2074d66e-0dfd-4233-b1ec-199abc994d0c" \
+    id:=24 \
+    name="Vilnius" \
+    population:=625349
+#| HTTP/1.1 400 Bad Request
+#| 
+#| {
+#|     "errors": [
+#|         {
+#|             "code": "UniqueConstraint",
+#|             "context": {
+#|                 "attribute": null,
+#|                 "component": "spinta.components.Property",
+#|                 "dataset": "dimensions/base",
+#|                 "entity": "",
+#|                 "manifest": "default",
+#|                 "model": "dimensions/base/City",
+#|                 "property": "_id",
+#|                 "schema": "18"
+#|             },
+#|             "message": "Given value already exists.",
+#|             "template": "Given value already exists.",
+#|             "type": "property"
+#|         }
+#|     ]
+#| }
+
+
+http GET "$SERVER/$DATASET/Location?select(_id,id,name,population,type)&format(ascii)"
+#| _id                                   id  name     population  type
+#| ------------------------------------  --  -------  ----------  ----
+#| 2074d66e-0dfd-4233-b1ec-199abc994d0c  42  Vilnius  625349      city
+
+
+http GET "$SERVER/$DATASET/City?select(_id,id,name,population,type,koord)&format(ascii)"
+#| HTTP/1.1 400 Bad Request
+#| 
+#| {
+#|     "errors": [
+#|         {
+#|             "code": "FieldNotInResource",
+#|             "context": {
+#|                 "component": "spinta.components.Model",
+#|                 "dataset": "dimensions/base",
+#|                 "entity": "",
+#|                 "manifest": "default",
+#|                 "model": "dimensions/base/City",
+#|                 "property": "koord",
+#|                 "schema": "24"
+#|             },
+#|             "message": "Unknown property 'koord'.",
+#|             "template": "Unknown property {property!r}.",
+#|             "type": "model"
+#|         },
+#|         {
+#|             "code": "FieldNotInResource",
+#|             "context": {
+#|                 "component": "spinta.components.Model",
+#|                 "dataset": "dimensions/base",
+#|                 "entity": "",
+#|                 "manifest": "default",
+#|                 "model": "dimensions/base/City",
+#|                 "property": "type",
+#|                 "schema": "24"
+#|             },
+#|             "message": "Unknown property 'type'.",
+#|             "template": "Unknown property {property!r}.",
+#|             "type": "model"
+#|         }
+#|     ]
+#| }
+# FIXME: This should not be defined, `type` is defined in base (Location) and
+#        should be retrieved from ther via join.

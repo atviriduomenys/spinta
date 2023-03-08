@@ -5,6 +5,8 @@ localhost:54321:spinta:admin:admin123
 localhost:54321:spinta_tests:admin:admin123
 EOF
 
+# Aliases
+alias query='psql -h localhost -p 54321 -U admin spinta'
 
 # Show tables
 export PAGER="less -FSRX"

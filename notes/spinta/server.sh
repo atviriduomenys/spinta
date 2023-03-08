@@ -81,11 +81,10 @@ EOF
 
 
 # Run server
-poetry run spinta run &>> $BASEDIR/spinta.log &
-PID=$!
+kill $PID
+poetry run spinta run &>> $BASEDIR/spinta.log &; PID=$!
 tail -50 $BASEDIR/spinta.log
 kill $(grep -Po 'server process \[\K\d+' $BASEDIR/spinta.log | tail -1)
-kill $PID
 
 
 # Check if server works
