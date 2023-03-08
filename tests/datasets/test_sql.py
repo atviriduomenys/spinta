@@ -281,7 +281,7 @@ def test_filter_multi_column_pk(rc, tmp_path, geodb):
        | datasets/gov/example     |             |                    |         |                |       |        |     | Example |
        |   | data                 |             |                    | sql     |                |       |        |     | Data    |
        |   |   |                  |             |                    |         |                |       |        |     |         |
-       |   |   |   | Country1     | salis       |                    |         | id,code        |       |        |     | Country |
+       |   |   |   | Country1     | salis       |                    |         | id             |       |        |     | Country |
        |   |   |   |   | id       | id          |                    | integer |                | 3     | open   |     | Code    |
        |   |   |   |   | code     | kodas       |                    | string  |                | 3     | open   |     | Code    |
        |   |   |   |   | name     | pavadinimas |                    | string  |                | 3     | open   |     | Name    |
@@ -295,6 +295,33 @@ def test_filter_multi_column_pk(rc, tmp_path, geodb):
     resp = app.get('/datasets/gov/example/Country1')
     codes = dict(listdata(resp, '_id', 'code'))
     resp = app.get('/datasets/gov/example/City1?sort(name)')
+    data = listdata(resp, 'country._id', 'name', sort='name')
+    data = [(codes.get(country), city) for country, city in data]
+    assert data == [
+         ('lv', 'Ryga'),
+         ('lt', 'Vilnius'),
+    ]
+
+def test_filter_multi_column_pk_with_two_ref(rc, tmp_path, geodb):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | prepare            | type    | ref            | level | access | uri | title   | description
+       | datasets/gov/example     |             |                    |         |                |       |        |     | Example |
+       |   | data                 |             |                    | sql     |                |       |        |     | Data    |
+       |   |   |                  |             |                    |         |                |       |        |     |         |
+       |   |   |   | Country2     | salis       |                    |         | id, code       |       |        |     | Country |
+       |   |   |   |   | id       | id          |                    | integer |                | 3     | open   |     | Code    |
+       |   |   |   |   | code     | kodas       |                    | string  |                | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |                    | string  |                | 3     | open   |     | Name    |
+       |   |   |                  |             |                    |         |                |       |        |     |         |
+       |   |   |   | City2        | miestas     | country.code!='ee' |         | name           |       |        |     | City    |
+       |   |   |   |   | name     | pavadinimas |                    | string  |                | 3     | open   |     | Name    |
+       |   |   |   |   | country  | salis       |                    | ref     | Country2[code] | 4     | open   |     | Country |
+    '''))
+    app = create_client(rc, tmp_path, geodb)
+
+    resp = app.get('/datasets/gov/example/Country2')
+    codes = dict(listdata(resp, '_id', 'code'))
+    resp = app.get('/datasets/gov/example/City2?sort(name)')
     data = listdata(resp, 'country._id', 'name', sort='name')
     data = [(codes.get(country), city) for country, city in data]
     assert data == [
