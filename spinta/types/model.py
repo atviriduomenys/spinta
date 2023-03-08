@@ -257,13 +257,16 @@ def load(
     return prop
 
 
-def load_level(component: Component, given_level: str):
+def load_level(component: Component, given_level):
     if given_level:
-        if given_level.isnumeric():
-            given_level = int(given_level)
+        if isinstance(given_level, Level):
+            level = given_level
         else:
-            raise InvalidLevel(component, level=given_level)
-        level = enum_by_value(component, 'level', Level, given_level)
+            if given_level.isnumeric():
+                given_level = int(given_level)
+            else:
+                raise InvalidLevel(component, level=given_level)
+            level = enum_by_value(component, 'level', Level, given_level)
     else:
         level = None
     component.level = level
