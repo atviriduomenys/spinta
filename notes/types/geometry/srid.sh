@@ -47,14 +47,16 @@ http POST "$SERVER/$DATASET/Point" $AUTH point="POINT(54.69806 25.27386)"
 #| HTTP/1.1 201 Created
 #| 
 #| {
-#|     "_id": "b59e19b2-3d68-4f35-8d9f-a53260563879",
-#|     "_revision": "95ad26b3-0610-44d5-95f9-5ab8bb12de9d",
+#|     "_id": "339eeee0-0282-456b-be36-418e5a405c17",
+#|     "_revision": "eb2e25d7-f908-4a62-ae81-1614407a6968",
 #|     "_type": "types/geometry/Point",
 #|     "point": "POINT(54.69806 25.27386)"
 #| }
 
 http POST "$SERVER/$DATASET/PointLKS94" $AUTH point="SRID=4326;POINT(54.69806 25.27386)"
 #| Geometry SRID (4326) does not match column SRID (3346)
+# TODO: This should be a 400 error, not 500.
+#       https://github.com/atviriduomenys/spinta/issues/392
 
 psql -h localhost -p 54321 -U admin spinta <<'EOF'
 select st_astext(
@@ -67,8 +69,14 @@ EOF
 #| POINT(3687214.32818431 3185637.15841001)
 
 http POST "$SERVER/$DATASET/PointLKS94" $AUTH point="POINT(3687214 3185637)"
-#| Geometry SRID (0) does not match column SRID (3346)
-# FIXME: As in description, SRID should not be required.
+#| HTTP/1.1 201 Created
+#| 
+#| {
+#|     "_id": "0d944689-62a9-416b-b390-ed7118a3e7f8",
+#|     "_revision": "558770a7-2dd9-4882-8653-875732fb3461",
+#|     "_type": "types/geometry/PointLKS94",
+#|     "point": "POINT(3687214 3185637)"
+#| }
 
 http POST "$SERVER/$DATASET/PointLKS94" $AUTH point="SRID=3346;POINT(3687214 3185637)"
 #| HTTP/1.1 201 Created
@@ -79,10 +87,17 @@ http POST "$SERVER/$DATASET/PointLKS94" $AUTH point="SRID=3346;POINT(3687214 318
 #|     "_type": "types/geometry/PointLKS94",
 #|     "point": "SRID=3346;POINT(3687214 3185637)"
 #| }
+# TODO: I think, SRID should not be here.
 
 http POST "$SERVER/$DATASET/PointWGS84" $AUTH point="POINT(54.69806 25.27386)"
-#| Geometry SRID (0) does not match column SRID (4326)
-# FIXME: As in description, SRID should not be required.
+#| HTTP/1.1 201 Created
+#| 
+#| {
+#|     "_id": "b26a2027-650f-4de3-9758-3b4f8540683f",
+#|     "_revision": "fd81c84c-17be-4c9c-9a24-f2ffed962d51",
+#|     "_type": "types/geometry/PointWGS84",
+#|     "point": "POINT(54.69806 25.27386)"
+#| }
 
 http POST "$SERVER/$DATASET/PointWGS84" $AUTH point="SRID=4326;POINT(54.69806 25.27386)"
 #| HTTP/1.1 201 Created
@@ -93,21 +108,56 @@ http POST "$SERVER/$DATASET/PointWGS84" $AUTH point="SRID=4326;POINT(54.69806 25
 #|     "_type": "types/geometry/PointWGS84",
 #|     "point": "SRID=4326;POINT(54.69806 25.27386)"
 #| }
+# TODO: I think, SRID should not be here.
 
 http GET "$SERVER/$DATASET/Point?select(point)&format(ascii)"
-#| -------------------------
 #| point
-#| POINT (54.69806 25.27386)
 #| -------------------------
+#| POINT (54.69806 25.27386)
 
 http GET "$SERVER/$DATASET/PointLKS94?select(point)&format(ascii)"
-#| -----------------------
 #| point
-#| POINT (3687214 3185637)
 #| -----------------------
+#| POINT (3687214 3185637)
+#| POINT (3687214 3185637)
 
 http GET "$SERVER/$DATASET/PointWGS84?select(point)&format(ascii)"
-#| -------------------------
 #| point
-#| POINT (54.69806 25.27386)
 #| -------------------------
+#| POINT (54.69806 25.27386)
+#| POINT (54.69806 25.27386)
+
+http GET "$SERVER/$DATASET/PointWGS84?select(point)&format(json)"
+#| {
+#|     "_data": [
+#|         {"point": "POINT (54.69806 25.27386)"},
+#|         {"point": "POINT (54.69806 25.27386)"}
+#|     ]
+#| }
+
+http GET "$SERVER/$DATASET/:all?select(point)&format(ascii)"
+#| HTTP/1.1 500 Internal Server Error
+#| 
+#| {
+#|     "errors": [
+#|         {
+#|             "code": "NotImplementedError",
+#|             "message": "Could not find signature for render: <Context, Request, Namespace, Ascii>"
+#|         }
+#|     ]
+#| }
+tail -50 $BASEDIR/spinta.log
+#| Traceback (most recent call last):
+#|   File "spinta/api.py", line 94, in homepage
+#|     return await create_http_response(context, params, request)
+#|   File "spinta/utils/response.py", line 153, in create_http_response
+#|     return await commands.getall(
+#|   File "spinta/types/namespace.py", line 189, in getall
+#|     return render(context, request, ns, params, rows, action=action)
+#|   File "spinta/renderer.py", line 23, in render
+#|     return commands.render(
+#|   File "multipledispatch/dispatcher.py", line 273, in __call__
+#|     raise NotImplementedError(
+#| NotImplementedError: Could not find signature for render: <Context, Request, Namespace, Ascii>
+# TODO: Implement ascii for namespaces
+#       https://github.com/atviriduomenys/spinta/issues/393
