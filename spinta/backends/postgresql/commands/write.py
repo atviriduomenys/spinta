@@ -6,7 +6,6 @@ from spinta.utils.data import take
 from spinta.components import Context, Model, DataItem, DataSubItem
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
-from spinta.types.geometry.components import Geometry
 
 @commands.insert.register(Context, Model, PostgreSQL)
 async def insert(
@@ -132,22 +131,5 @@ def after_write(
     for key in take(data.patch or {}):
         prop = model.properties[key]
         commands.after_write(context, prop.dtype, backend, data=data[key])
-
-
-@commands.before_write.register(Context, Geometry, PostgreSQL)
-def before_write(
-    context: Context,
-    dtype: Geometry,
-    backend: PostgreSQL,
-    *,
-    data: DataSubItem):
-    patch = {}
-    if 'SRID' not in data.patch and dtype.srid is not None:
-        value = {dtype.prop.name: 'SRID='+str(dtype.srid)+';'+str(data.patch)}
-        patch.update(value)
-    else:
-        value = {dtype.prop.name: str(data.patch)}
-        patch.update(value)
-    return patch
 
 
