@@ -15,11 +15,11 @@ from requests import PreparedRequest
 from responses import POST
 from responses import RequestsMock
 
-from spinta.cli.push import _PushRow, _reset_pushed, _get_deleted_rows
+from spinta.cli.push import _PushRow, _reset_pushed, _get_deleted_rows, _ErrorCounter
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
-from spinta.cli.push import _send_data
+from spinta.cli.push import _send_request
 from spinta.cli.push import _push
 from spinta.cli.push import _State
 from spinta.core.config import RawConfig
@@ -167,7 +167,8 @@ def test__send_data__json_error(rc: RawConfig, responses: RequestsMock):
     ]
     data = '{"name": "Vilnius"}'
     session = requests.Session()
-    assert _send_data(session, url, rows, data) is None
+    _, resp = _send_request(session, url, "POST", rows, data)
+    assert resp is None
 
 
 def _match_dict(d: Dict[str, Any], m: Dict[str, Any]) -> bool:
@@ -573,3 +574,83 @@ def test_push_state__retry(rc: RawConfig, responses: RequestsMock):
 
     query = sa.select([table.c.id, table.c.revision, table.c.error])
     assert list(conn.execute(query)) == [(_id, rev, False)]
+
+
+def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+       m | property | type   | access
+       City         |        |
+         | name     | string | open
+       ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    rev = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    conflicting_rev = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    _id1 = '4d741843-4e94-4890-81d9-5af7c5b5989a'
+    _id2 = '21ef6792-0315-4e86-9c39-b1b8f04b1f53'
+
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id=_id1,
+        revision=rev,
+        checksum='CREATED',
+        pushed=datetime.datetime.now(),
+        error=False,
+    ))
+
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_id': _id1,
+            '_revision': conflicting_rev,
+            'name': 'Vilnius',
+        }),
+        _PushRow(model, {
+            '_type': model.name,
+            '_id': _id2,
+            'name': 'Vilnius',
+        }),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(POST, server, status=409, body='Conflicting value')
+
+    error_counter = _ErrorCounter(1)
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+        chunk_size=1,
+        error_counter=error_counter
+    )
+
+    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    assert list(conn.execute(query)) == [(_id1, rev, True)]
+
+    error_counter = _ErrorCounter(2)
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+        chunk_size=1,
+        error_counter=error_counter
+    )
+
+    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    assert list(conn.execute(query)) == [
+        (_id1, rev, True),
+        (_id2, None, True)
+    ]
