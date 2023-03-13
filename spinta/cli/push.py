@@ -373,7 +373,7 @@ def _push_rows(
             if stop_on_error:
                 raise
             log.exception("Error while reading data.")
-        if error_counter and error_counter.count == 0:
+        if error_counter and error_counter.count <= 0:
             break
 
 
@@ -931,7 +931,8 @@ def _save_push_state(
         table = metadata.tables[row.data['_type']]
 
         if row.error and row.op != "delete":
-            data = json.dumps(row.data)
+            data = fix_data_for_json(row.data)
+            data = json.dumps(data)
         else:
             data = None
 
