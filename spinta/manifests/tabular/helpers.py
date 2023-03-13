@@ -75,7 +75,6 @@ from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
 from spinta.types.datatype import Ref
-from spinta.types.model import _parse_dtype_string
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -448,6 +447,44 @@ def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
     return ref_model, ref_props
 
 
+def _parse_dtype_string(dtype: str) -> dict:
+    args = []
+    error = None
+    required = unique = False
+    invalid_args = []
+
+    if '(' in dtype:
+        dtype, args = dtype.split('(', 1)
+        args, additional_args = args.split(')', 1)
+        args = args.strip().rstrip(')')
+        args = [a.strip() for a in args.split(',')]
+    else:
+        if len(dtype.split(' ', 1)) == 1:
+            additional_args = ""
+        else:
+            dtype, additional_args = dtype.split(' ', 1)
+
+    if additional_args:
+        for arg in additional_args.strip().split(' '):
+            arg = arg.strip()
+            if arg == 'required':
+                required = True
+            elif arg == 'unique':
+                unique = True
+            else:
+                invalid_args.append(arg)
+        if invalid_args:
+            error = f'Invalid type arguments: {", ".join(invalid_args)}.'
+
+    return {
+        'type': dtype,
+        'type_args': args,
+        'required': required,
+        'unique': unique,
+        'error': error,
+    }
+
+
 class PropertyReader(TabularReader):
     type: str = 'property'
     data: PropertyRow
@@ -470,6 +507,10 @@ class PropertyReader(TabularReader):
             )
 
         dtype = _parse_dtype_string(row['type'])
+        if dtype['error']:
+            self.error(
+                dtype['error']
+            )
 
         self.data = {
             'type': dtype['type'],
@@ -1800,7 +1841,7 @@ def _write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w', newline='') as f:
+    with path.open('w') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)

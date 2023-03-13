@@ -542,4 +542,4 @@ class RemoteClientScopesNotGiven(RemoteClientError):
 
 
 class RequiredProperty(UserError):
-    template = "{prop} is required for {model}."
+    template = "Property is required."

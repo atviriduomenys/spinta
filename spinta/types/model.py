@@ -180,30 +180,6 @@ def link(context: Context, base: Base):
     ]
 
 
-def _parse_dtype_string(dtype: str) -> dict:
-    args = []
-    required = unique = False
-
-    if 'required' in dtype:
-        required = True
-        dtype = dtype.replace('required', '').strip()
-    if 'unique' in dtype:
-        unique = True
-        dtype = dtype.replace('unique', '').strip()
-
-    if '(' in dtype:
-        dtype, args = dtype.split('(', 1)
-        args = args.strip().rstrip(')')
-        args = [a.strip() for a in args.split(',')]
-
-    return {
-        'type': dtype,
-        'type_args': args,
-        'required': required,
-        'unique': unique,
-    }
-
-
 @load.register(Context, Property, dict, Manifest)
 def load(
     context: Context,

@@ -36,9 +36,9 @@ def test_insert_with_required_property(
     assert get_error_context(
         resp.json(),
         "RequiredProperty",
-        ["prop", "model"]
+        ["property", "model"]
     ) == {
-        'prop': 'name',
+        'property': 'name',
         'model': 'example/City',
     }
     resp = app.post('/example/City', json={
@@ -90,9 +90,9 @@ def test_update_with_required_property(
     assert get_error_context(
         resp.json(),
         "RequiredProperty",
-        ["prop", "model"]
+        ["property", "model"]
     ) == {
-        'prop': 'name',
+        'property': 'name',
         'model': 'example/City',
     }
     resp = app.put(f'/example/City/{city["_id"]}', json={
@@ -146,9 +146,9 @@ def test_patch_with_required_property(
     assert get_error_context(
         resp.json(),
         "RequiredProperty",
-        ["prop", "model"]
+        ["property", "model"]
     ) == {
-        'prop': 'name',
+        'property': 'name',
         'model': 'example/City',
     }
 
@@ -196,9 +196,9 @@ def test_upsert_insert_with_required_property(
     assert get_error_context(
         resp.json(),
         "RequiredProperty",
-        ["prop", "model"]
+        ["property", "model"]
     ) == {
-        'prop': 'name',
+        'property': 'name',
         'model': 'example/City',
     }
     resp = app.post('/example/City', json={
@@ -253,9 +253,9 @@ def test_upsert_patch_with_required_property(
     assert get_error_context(
         resp.json(),
         "RequiredProperty",
-        ["prop", "model"]
+        ["property", "model"]
     ) == {
-        'prop': 'name',
+        'property': 'name',
         'model': 'example/City',
     }
     resp = app.post('/example/City', json={

@@ -315,10 +315,7 @@ def check_type_value(dtype: DataType, value: object, action: Action):
         (action == Action.PATCH and value is None) or
         (action != Action.PATCH and (value is None or value is NA))
     ):
-        raise RequiredProperty(
-            prop=dtype.prop.name,
-            model=dtype.prop.model.name
-        )
+        raise RequiredProperty(dtype.prop)
 
 
 @gen_object_id.register(Context, Backend, Node)
