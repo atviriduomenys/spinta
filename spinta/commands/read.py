@@ -101,6 +101,7 @@ async def getall(
             action,
             select_tree,
             reserved=['_type', '_id', '_revision'],
+            include_denorm_props=False,
         )
         rows = (
             commands.prepare_data_for_response(

@@ -149,8 +149,9 @@ class BackendRow(TypedDict, total=False):
 
 
 class BaseRow(TypedDict, total=False):
+    name: str
     model: str
-    pk: str
+    pk: List[str]
     lang: LangData
 
 
@@ -170,7 +171,7 @@ class ModelRow(TypedDict, total=False):
     type: str
     id: str
     name: str
-    base: Optional[str]
+    base: Optional[dict]
     level: str
     access: str
     title: str
