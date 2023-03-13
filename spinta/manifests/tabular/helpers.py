@@ -536,8 +536,8 @@ class PropertyReader(TabularReader):
                 dtype['error']
             )
 
-        if self.state.base and not row['type']:
-            row['type'] = 'inherit'
+        if self.state.base and not dtype['type']:
+            dtype['type'] = 'inherit'
 
         self.data = {
             'type': dtype['type'],
