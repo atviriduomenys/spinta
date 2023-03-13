@@ -3,7 +3,7 @@
 # notes/docker.sh           Start docker compose
 # notes/postgres.sh         Reset database
 
-INSTANCE=types/geometry
+INSTANCE=types/geometry/srid
 DATASET=$INSTANCE
 # notes/spinta/server.sh    Configure server
 
