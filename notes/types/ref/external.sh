@@ -41,50 +41,29 @@ query -c '\d "'$DATASET'/City"'
 #|     "types/ref/external/City_pkey" PRIMARY KEY, btree (_id)
 #|     "ix_types/ref/external/City__txn" btree (_txn)
 
+restart-spinta () {
+    test -n "$PID" && kill $PID
+    poetry run spinta run &>> $BASEDIR/spinta.log &; PID=$!
+}
+
 restart-spinta
 
 http POST "$SERVER/$DATASET/City" $AUTH id:=1 name=Vilnius country:=1
-#| HTTP/1.1 500 Internal Server Error
+#| HTTP/1.1 400 Bad Request
 #| 
 #| {
 #|     "errors": [
 #|         {
-#|             "code": "TypeError",
-#|             "message": "argument of type 'int' is not iterable"
+#|             "code": "InvalidNestedValue",
+#|             "context": {
+#|                 "value": 1
+#|             },
+#|             "message": "Expected value to be dictionary, got 1.",
+#|             "template": "Expected value to be dictionary, got {value}.",
+#|             "type": "system"
 #|         }
 #|     ]
 #| }
-tail -100 $BASEDIR/spinta.log
-#| Traceback (most recent call last):
-#|   File "spinta/api.py", line 94, in homepage
-#|     return await create_http_response(context, params, request)
-#|   File "spinta/utils/response.py", line 201, in create_http_response
-#|     return await commands.push(
-#|   File "spinta/commands/write.py", line 100, in push
-#|     status_code, response = await simple_response(
-#|   File "spinta/commands/write.py", line 1136, in simple_response
-#|     results = await alist(aslice(results, 2))
-#|   File "spinta/utils/aiotools.py", line 51, in alist
-#|     return [x async for x in it]
-#|   File "spinta/utils/aiotools.py", line 51, in <listcomp>
-#|     return [x async for x in it]
-#|   File "spinta/utils/aiotools.py", line 62, in aslice
-#|     async for x in it:
-#|   File "spinta/commands/write.py", line 185, in push_stream
-#|     async for data in dstream:
-#|   File "spinta/backends/postgresql/commands/changes.py", line 25, in create_changelog_entry
-#|     async for data in dstream:
-#|   File "spinta/backends/postgresql/commands/write.py", line 24, in insert
-#|     patch = commands.before_write(context, model, backend, data=data)
-#|   File "spinta/backends/postgresql/commands/write.py", line 115, in before_write
-#|     value = commands.before_write(
-#|   File "spinta/commands/write.py", line 1083, in before_write
-#|     patch = take([prop.place for prop in dtype.refprops], data.patch)
-#|   File "spinta/utils/data.py", line 74, in take
-#|     if v and x in v:
-#| TypeError: argument of type 'int' is not iterable
-# FIXME: Not related to this task, but could you fix this and return a propper
-#        400 error message?
 
 http POST "$SERVER/$DATASET/City" $AUTH <<'EOF'
 {
