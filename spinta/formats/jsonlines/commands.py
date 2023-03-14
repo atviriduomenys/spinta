@@ -8,6 +8,7 @@ from starlette.responses import StreamingResponse
 from spinta.components import Context, Action, UrlParams, Model, Node
 from spinta import commands
 from spinta.formats.jsonlines.components import JsonLines
+from spinta.utils.response import aiter, peek_and_stream
 
 
 @commands.render.register(Context, Request, Model, JsonLines)
@@ -45,13 +46,13 @@ def render(
 def _render(fmt: JsonLines, data, status_code: int, headers: dict):
     stream = _stream(data)
     return StreamingResponse(
-        stream,
+        aiter(peek_and_stream(stream)),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers
     )
 
 
-async def _stream(data):
+def _stream(data):
     for row in data:
         yield json.dumps(row, ensure_ascii=False) + '\n'
