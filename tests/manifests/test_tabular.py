@@ -250,21 +250,40 @@ def test_property_unique_add_wrong_type(tmp_path, rc):
 
 def test_property_with_ref_unique(tmp_path, rc):
     check(tmp_path, rc, '''
-    d | r | b | m | property | type               | ref     | uri
-    datasets/gov/example     |                    |         |
-                             | prefix             | locn    | http://www.w3.org/ns/locn#
-                             |                    | ogc     | http://www.opengis.net/rdf#
-                             |                    |         |
-      | data                 | postgresql         | default |
-                             |                    |         |
-      |   |   | Country      |                    | code    |
-      |   |   |   | code     | string             |         |
-      |   |   |   | name     | string             |         | locn:geographicName
-                             |                    |         |
-      |   |   | City         |                    | name    |
-      |   |   |   | name     | string unique      |         | locn:geographicName
-      |   |   |   | country  | ref unique         | Country |
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+                             | prefix             | locn                 | http://www.w3.org/ns/locn#
+                             |                    | ogc                  | http://www.opengis.net/rdf#
+                             |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    |                      |
+      |   |   |   | name     | string unique      |                      | locn:geographicName
+                             |                    |                      |
+      |   |   | City         |                    |                      |
+                             | unique             | name, country        |
+      |   |   |   | name     | string             |                      | locn:geographicName
+      |   |   |   | country  | ref                | Country              |
     ''')
+
+def test_property_with_ref_with_unique(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+                             | prefix             | locn                 | http://www.w3.org/ns/locn#
+                             |                    | ogc                  | http://www.opengis.net/rdf#
+                             |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    |                      |
+      |   |   |   | name     | string unique      |                      | locn:geographicName
+                             |                    |                      |
+      |   |   | City         |                    |                      |
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      | locn:geographicName
+      |   |   |   | country  | ref                | Country              |
+    ''')
+
 
 def test_with_denormalized_data(tmp_path, rc):
     check(tmp_path, rc, '''
@@ -284,3 +303,5 @@ def test_with_denormalized_data(tmp_path, rc):
       |   |   |   | country.name           |        |           | open
       |   |   |   | country.continent.name |        |           | open
     ''')
+
+

@@ -16,6 +16,7 @@ from spinta.components import Node
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA
 from spinta.utils.schema import resolve_schema
+from spinta.types.datatype import Ref
 
 
 def get_node(
@@ -214,5 +215,11 @@ def load_model_properties(
         prop.path = model.path
         prop.model = model
         prop = commands.load(context, prop, params, model.manifest)
+        if model.unique:
+            if prop.name in model.unique['unique']['ref']:
+                if not isinstance(prop.dtype, Ref):
+                    prop.dtype.unique = True
+                else:
+                    prop.dtype.ref_unique = True
         model.properties[name] = prop
         model.flatprops[name] = prop

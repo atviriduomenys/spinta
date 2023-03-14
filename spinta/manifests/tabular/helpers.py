@@ -100,6 +100,7 @@ EXTRA_DIMENSIONS = [
     'comment',
     'ns',
     'lang',
+    'unique'
 ]
 
 
@@ -830,6 +831,46 @@ class LangReader(TabularReader):
         pass
 
 
+class UniqueReader(TabularReader):
+    type: str = 'unique'
+
+    def read(self, row: ManifestRow) -> None:
+        reader = self.state.stack[-1]
+
+        if not isinstance(reader, (
+            DatasetReader,
+            ResourceReader,
+            BaseReader,
+            ModelReader,
+            PropertyReader,
+        )):
+            return
+
+        if self.type not in reader.data:
+            reader.data['unique'] = {}
+
+        unique = reader.data['unique']
+
+        self.name = '_'.join(row[REF].split(', '))
+
+        unique[self.type] = {
+            'type': self.type,
+            'ref': row[REF].split(', '),
+        }
+
+    def append(self, row: ManifestRow) -> None:
+        self.read(row)
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return not isinstance(reader, AppendReader)
+
+    def enter(self) -> None:
+        pass
+
+    def leave(self) -> None:
+        pass
+
+
 class CommentReader(TabularReader):
     type: str = 'comment'
     data: CommentData
@@ -881,6 +922,7 @@ READERS = {
     'enum': EnumReader,
     'lang': LangReader,
     'comment': CommentReader,
+    'unique': UniqueReader
 }
 
 
@@ -1387,6 +1429,18 @@ def _comments_to_tabular(
         })
         first = False
 
+def _unique_to_tabular(model_unique_data) -> Iterator[ManifestRow]:
+    if not model_unique_data:
+        return
+    first = True
+    for row in model_unique_data['unique']:
+        if first is True:
+            yield torow(DATASET, {
+                'type': model_unique_data['unique']['type'],
+                'ref': ', '.join(model_unique_data['unique']['ref'])
+            })
+        first = False
+
 
 def _dataset_to_tabular(
     dataset: Dataset,
@@ -1498,6 +1552,8 @@ def _property_to_tabular(
     elif prop.unit is not None:
         data['ref'] = prop.given.unit
 
+    if prop.model.unique:
+        data['type'] = data['type'].replace('unique', '')
     yield torow(DATASET, data)
     yield from _comments_to_tabular(prop.comments, access=access)
     yield from _lang_to_tabular(prop.lang)
@@ -1507,7 +1563,6 @@ def _property_to_tabular(
         access=access,
         order_by=order_by,
     )
-
 
 def _model_to_tabular(
     model: Model,
@@ -1544,6 +1599,7 @@ def _model_to_tabular(
                 p.name for p in model.external.pkeys
             ])
     yield torow(DATASET, data)
+    yield from _unique_to_tabular(model.unique)
     yield from _comments_to_tabular(model.comments, access=access)
     yield from _lang_to_tabular(model.lang)
 
