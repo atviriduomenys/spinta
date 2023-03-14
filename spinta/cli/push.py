@@ -747,62 +747,57 @@ def _init_push_state(
     metadata = sa.MetaData(engine)
     inspector = sa.inspect(engine)
     for model in models:
-        need_reflect = []
-        if inspector.has_table(model.name):
-            columns = [col['name'] for col in inspector.get_columns(model.name)]
+        table = sa.Table(
+            model.name, metadata,
+            sa.Column('id', sa.Unicode, primary_key=True),
+            sa.Column('checksum', sa.Unicode),
+            sa.Column('revision', sa.Unicode),
+            sa.Column('pushed', sa.DateTime),
+            sa.Column('error', sa.Boolean),
+            sa.Column('data', sa.Text)
+        )
+        table.create(checkfirst=True)
+
+        if inspector.has_table(table.name):
+            columns = [col['name'] for col in inspector.get_columns(table.name)]
             renamed = _rename_column(
                 engine,
-                model.name,
+                table.name,
                 columns,
                 old_column_name='rev',
                 new_column_name='checksum'
             )
-            need_reflect.append(renamed)
             if not renamed:
-                need_reflect.append(_add_column(
+                _add_column(
                     engine,
-                    model.name,
+                    table.name,
                     columns,
                     sa.Column('checksum', sa.Unicode)
-                ))
-            need_reflect.append(_add_column(
+                )
+            _add_column(
                 engine,
-                model.name,
+                table.name,
                 columns,
                 sa.Column('revision', sa.Unicode)
-            ))
-            need_reflect.append(_add_column(
+            )
+            _add_column(
                 engine,
-                model.name,
+                table.name,
                 columns,
                 sa.Column('pushed', sa.DateTime)
-            ))
-            need_reflect.append(_add_column(
+            )
+            _add_column(
                 engine,
-                model.name,
+                table.name,
                 columns,
                 sa.Column('error', sa.Boolean)
-            ))
-            need_reflect.append(_add_column(
+            )
+            _add_column(
                 engine,
-                model.name,
+                table.name,
                 columns,
                 sa.Column('data', sa.Text)
-            ))
-
-        if any(need_reflect):
-            metadata.reflect(only=[model.name], extend_existing=True)
-        else:
-            table = sa.Table(
-                model.name, metadata,
-                sa.Column('id', sa.Unicode, primary_key=True),
-                sa.Column('checksum', sa.Unicode),
-                sa.Column('revision', sa.Unicode),
-                sa.Column('pushed', sa.DateTime),
-                sa.Column('error', sa.Boolean),
-                sa.Column('data', sa.Text)
             )
-            table.create(checkfirst=True)
 
     return engine, metadata
 
@@ -812,7 +807,7 @@ def _add_column(
     table: str,
     columns: List[str],
     column: sa.Column,
-) -> bool:  # return True if column was added
+):
     column_type = column.type.compile(engine.dialect)
     if column.name not in columns:
         engine.execute('ALTER TABLE "%s" ADD COLUMN "%s" %s' % (
@@ -820,8 +815,6 @@ def _add_column(
             column.name,
             column_type
         ))
-        return True
-    return False
 
 
 def _rename_column(
