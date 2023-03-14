@@ -1152,6 +1152,7 @@ def test_base_select(rc, postgresql, request):
       |   |   | Location       |         |
       |   |   |   | id         | integer |
       |   |   |   | name       | string  |
+      |   |   |   | type       | string  |
                                |         |
       |   | Location           |         |
       |   |   | City           |         |
@@ -1170,6 +1171,7 @@ def test_base_select(rc, postgresql, request):
         '_id': _id,
         'id': 1,
         'name': 'Base location',
+        'type': 'city'
     })
     app.post('/datasets/gov/example/base/City', json={
         '_id': _id,
@@ -1177,10 +1179,10 @@ def test_base_select(rc, postgresql, request):
         'population': 100
     })
 
-    resp = app.get('/datasets/gov/example/base/City?select(id,name,_base.name,population)')
+    resp = app.get('/datasets/gov/example/base/City?select(id,name,_base.name,population,_base.type)')
     assert resp.json()['_data'] == [
         {
-            '_base': {'name': 'Base location'},
+            '_base': {'name': 'Base location', 'type': 'city'},
             'id': 1,
             'name': 'City',
             'population': 100

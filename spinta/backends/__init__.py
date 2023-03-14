@@ -935,26 +935,28 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     if dtype.prop.name == '_base' and value:
-        names = value.keys()
-
-        data = {
-            prop.name: commands.prepare_dtype_for_response(
-                context,
-                fmt,
-                prop.dtype,
-                val,
-                data=data,
-                action=action,
-                select=sel,
-            )
-            for prop, val, sel in select_props(
-                dtype.prop.model,
-                names,
-                dtype.prop.model.properties,
-                value,
-                select,
-            )
-        }
+        data = {}
+        for name in value.keys():
+            base_model = get_property_base_model(dtype.prop.model, name)
+            if base_model:
+                data.update({
+                    prop.name: commands.prepare_dtype_for_response(
+                        context,
+                        fmt,
+                        prop.dtype,
+                        val,
+                        data=data,
+                        action=action,
+                        select=sel,
+                    )
+                    for prop, val, sel in select_props(
+                        base_model,
+                        [name],
+                        base_model.properties,
+                        value,
+                        select,
+                    )
+                })
         return data
     return {}
 
