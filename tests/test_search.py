@@ -1,4 +1,5 @@
 import uuid
+import json
 
 import pytest
 import requests
@@ -1188,3 +1189,19 @@ def test_base_select(rc, postgresql, request):
             'population': 100
         }
     ]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_select_revision(model, app):
+    app.authmodel(model, ['search', 'getone', 'getall'])
+    ids = RowIds(_push_test_data(app, model))
+    id0 = ids[0]
+    resp = app.get(f'/{model}/{id0}')
+    revision = resp.json()['_revision']
+    resp = app.get(f'/{model}/:format/jsonl?limit(1)&select(_revision)')
+    assert json.loads(resp.content) == {
+        '_revision': revision
+    }

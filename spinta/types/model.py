@@ -299,7 +299,7 @@ def link(context: Context, prop: Property):
             [model.ns],
             model.ns.parents(),
         ))
-    link_access_param(prop, parents)
+    link_access_param(prop, parents, use_given=not prop.name.startswith('_'))
     link_enums([prop] + parents, prop.enums)
     prop.enum = _link_prop_enum(prop)
 
