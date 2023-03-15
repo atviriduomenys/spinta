@@ -366,7 +366,7 @@ class UnknownParameter(BaseError):
 
 
 class InvalidRefValue(UserError):
-    template = "Reference value should be dictionary."
+    template = "Invalid reference value: {value}."
 
 
 class InvalidLevel(UserError):

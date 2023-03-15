@@ -264,8 +264,8 @@ def simple_data_check(
     backend: Backend,
     value: object,
 ) -> None:
-    if value and not isinstance(value, dict):
-        raise exceptions.InvalidRefValue(prop)
+    if value and not isinstance(value, (dict, str)):
+        raise exceptions.InvalidRefValue(prop, value=value)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
