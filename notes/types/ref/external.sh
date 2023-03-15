@@ -54,16 +54,25 @@ http POST "$SERVER/$DATASET/City" $AUTH id:=1 name=Vilnius country:=1
 #| {
 #|     "errors": [
 #|         {
-#|             "code": "InvalidNestedValue",
+#|             "code": "InvalidRefValue",
 #|             "context": {
+#|                 "attribute": "",
+#|                 "component": "spinta.components.Property",
+#|                 "dataset": "types/ref/external",
+#|                 "entity": "",
+#|                 "manifest": "default",
+#|                 "model": "types/ref/external/City",
+#|                 "property": "country",
+#|                 "schema": "8",
 #|                 "value": 1
 #|             },
-#|             "message": "Expected value to be dictionary, got 1.",
-#|             "template": "Expected value to be dictionary, got {value}.",
-#|             "type": "system"
+#|             "message": "Invalid reference value: 1.",
+#|             "template": "Invalid reference value: {value}.",
+#|             "type": "property"
 #|         }
 #|     ]
 #| }
+
 
 http POST "$SERVER/$DATASET/City" $AUTH <<'EOF'
 {
@@ -72,19 +81,30 @@ http POST "$SERVER/$DATASET/City" $AUTH <<'EOF'
     "country": {"_id": 1}
 }
 EOF
-#| HTTP/1.1 201 Created
+#| HTTP/1.1 400 Bad Request
 #| 
 #| {
-#|     "_id": "05f29bc1-5c54-463c-ad99-2cddb58cd62c",
-#|     "_revision": "0dda7963-40e6-4fae-92cd-24b624796a1b",
-#|     "_type": "types/ref/external/City",
-#|     "country": {
-#|         "_id": 1
-#|     },
-#|     "id": 1,
-#|     "name": "Vilnius"
+#|     "errors": [
+#|         {
+#|             "code": "FieldNotInResource",
+#|             "context": {
+#|                 "attribute": "",
+#|                 "component": "spinta.components.Property",
+#|                 "dataset": "types/ref/external",
+#|                 "entity": "",
+#|                 "manifest": "default",
+#|                 "model": "types/ref/external/City",
+#|                 "property": "_id",
+#|                 "schema": "8"
+#|             },
+#|             "message": "Unknown property '_id'.",
+#|             "template": "Unknown property {property!r}.",
+#|             "type": "property"
+#|         }
+#|     ]
 #| }
-# FIXME: We should not allow to pass _id for ExternalRef
+# TODO: Show full property name: country._id
+
 
 http POST "$SERVER/$DATASET/City" $AUTH <<'EOF'
 {
@@ -114,27 +134,34 @@ http POST "$SERVER/$DATASET/City" $AUTH <<'EOF'
     "country": {"name": "Lithuania"}
 }
 EOF
-#| HTTP/1.1 201 Created
-#| 
-#| {
-#|     "_id": "bcaadf76-62f9-4a96-8d1f-2acd7f3f84f3",
-#|     "_revision": "774c726f-4d21-476e-84df-55cc8d2fbda6",
-#|     "_type": "types/ref/external/City",
-#|     "country": {
-#|         "name": "Lithuania"
-#|     },
-#|     "id": 1,
-#|     "name": "Vilnius"
-#| }
-# FIXME: We should not allow to pass any other fields, unless passed field is
-#        denormalized.
+HTTP/1.1 400 Bad Request
+
+{
+    "errors": [
+        {
+            "code": "FieldNotInResource",
+            "context": {
+                "attribute": "",
+                "component": "spinta.components.Property",
+                "dataset": "types/ref/external",
+                "entity": "",
+                "manifest": "default",
+                "model": "types/ref/external/City",
+                "property": "name",
+                "schema": "8"
+            },
+            "message": "Unknown property 'name'.",
+            "template": "Unknown property {property!r}.",
+            "type": "property"
+        }
+    ]
+}
+# TODO: Passing other properties should be allowed.
+#       https://github.com/atviriduomenys/spinta/issues/262
+#       https://github.com/atviriduomenys/spinta/issues/335
 
 
 http GET "$SERVER/$DATASET/City?select(_id,country)&format(ascii)"
-#| ------------------------------------  ----------
 #| _id                                   country.id
-#| 05f29bc1-5c54-463c-ad99-2cddb58cd62c  ∅
-#| a6e02923-234b-4026-8a82-0523cd7a1904  1
-#| bcaadf76-62f9-4a96-8d1f-2acd7f3f84f3  ∅
-#| d4f0aadb-8d9e-4b3f-856e-8d711935417a  ∅
 #| ------------------------------------  ----------
+#| eccfc4f0-94a4-4e11-bae0-c0c5478a6fd9  1
