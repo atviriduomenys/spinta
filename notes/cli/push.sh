@@ -12,25 +12,26 @@ DATASET=$INSTANCE
 rm $BASEDIR/db.sqlite
 sqlite3 $BASEDIR/db.sqlite <<'EOF'
 CREATE TABLE IF NOT EXISTS countries (
-    id          INTEGER PRIMARY KEY,
-    name        TEXT
+    id           INTEGER PRIMARY KEY,
+    name         TEXT,
+    continent_id INTEGER
 );
 CREATE TABLE IF NOT EXISTS cities (
-    id          INTEGER PRIMARY KEY,
-    name        TEXT,
-    country_id  INTEGER,
-    FOREIGN KEY (country_id) REFERENCES countries (id)
+    id           INTEGER PRIMARY KEY,
+    name         TEXT,
+    country_id   INTEGER,
+    FOREIGN KEY  (country_id) REFERENCES countries (id)
 );
 
-INSERT INTO countries VALUES (1, 'Lithuania');
+INSERT INTO countries VALUES (1, 'Lithuania', 42);
 INSERT INTO cities VALUES (1, 'Vilnius', 1);
 EOF
 sqlite3 $BASEDIR/db.sqlite "SELECT * FROM countries;"
-#| +----+-----------+
-#| | id |   name    |
-#| +----+-----------+
-#| | 1  | Lithuania |
-#| +----+-----------+
+#| +----+-----------+--------------+
+#| | id |   name    | continent_id |
+#| +----+-----------+--------------+
+#| | 1  | Lithuania | 42           |
+#| +----+-----------+--------------+
 sqlite3 $BASEDIR/db.sqlite "SELECT * FROM cities;"
 #| +----+---------+------------+
 #| | id |  name   | country_id |
@@ -39,16 +40,21 @@ sqlite3 $BASEDIR/db.sqlite "SELECT * FROM cities;"
 #| +----+---------+------------+
 
 cat > $BASEDIR/manifest.txt <<EOF
-d | r | b | m | property | type    | ref     | source     | prepare | access
-$DATASET                 |         |         |            |         |
-  | db                   | sql     |         | sqlite:///$BASEDIR/db.sqlite | |
-  |   |   | Country      |         | id      | countries  |         |
-  |   |   |   | id       | integer |         | id         |         | open
-  |   |   |   | name     | string  |         | name       |         | open
-  |   |   | City         |         | id      | cities     |         |
-  |   |   |   | id       | integer |         | id         |         | open
-  |   |   |   | name     | string  |         | name       |         | open
-  |   |   |   | country  | ref     | Country | country_id |         | open
+d | r | b | m | property  | type    | ref                          | source       | prepare | level | access
+datasets/external         |         |                              |              |         |       |
+  |   |   | Continent     |         | id                           |              |         | 4     |
+  |   |   |   | id        | integer |                              |              |         | 4     | open
+  |   |   |   | name      | string  |                              |              |         | 4     | open
+$DATASET                  |         |                              |              |         |       |
+  | db                    | sql     |                              | sqlite:///$BASEDIR/db.sqlite | | |
+  |   |   | Country       |         | id                           | countries    |         | 4     |
+  |   |   |   | id        | integer |                              | id           |         | 4     | open
+  |   |   |   | name      | string  |                              | name         |         | 4     | open
+  |   |   |   | continent | ref     | /datasets/external/Continent | continent_id |         | 3     | open
+  |   |   | City          |         | id                           | cities       |         | 4     |
+  |   |   |   | id        | integer |                              | id           |         | 4     | open
+  |   |   |   | name      | string  |                              | name         |         | 4     | open
+  |   |   |   | country   | ref     | Country                      | country_id   |         | 4     | open
 EOF
 poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
 cat $BASEDIR/manifest.csv
@@ -61,18 +67,47 @@ tail -50 $BASEDIR/spinta.log
 
 # notes/spinta/client.sh    Configure client
 
+http GET "$SERVER/datasets/example/Continent"
+#| HTTP/1.1 404 Not Found
+#| 
+#| {
+#|     "errors": [
+#|         {
+#|             "code": "ModelNotFound",
+#|             "context": {
+#|                 "model": "datasets/example/Continent"
+#|             },
+#|             "message": "Model 'datasets/example/Continent' not found.",
+#|             "template": "Model {model!r} not found.",
+#|             "type": "system"
+#|         }
+#|     ]
+#| }
+
 http GET "$SERVER/$DATASET/Country?format(ascii)"
-#| _type             _id                                   _revision  id  name     
-#| ----------------  ------------------------------------  ---------  --  ---------
-#| cli/push/Country  f2c62384-1591-416c-8ed6-40a89c682e0f  ∅          1   Lithuania
+#| _type             _id                                   _revision  id  name       continent._id                       
+#| ----------------  ------------------------------------  ---------  --  ---------  ------------------------------------
+#| cli/push/Country  2b7f8f23-89d7-479c-8b4e-f86612d608e2  ∅          1   Lithuania  b2c20b7e-ba9e-4e84-989e-625201b219e5
+# TODO: continent._id should be 42
+#       https://github.com/atviriduomenys/spinta/issues/208
 http GET "$SERVER/$DATASET/City?format(ascii)"
 #| _type          _id                                   _revision  id  name     country._id                         
 #| -------------  ------------------------------------  ---------  --  -------  ------------------------------------
-#| cli/push/City  820f9c83-8654-4a72-9c71-7958a492b41f  ∅          1   Vilnius  f2c62384-1591-416c-8ed6-40a89c682e0f
+#| cli/push/City  31bfc6b7-7ad5-48ec-83e9-0e6841b5dd43  ∅          1   Vilnius  2b7f8f23-89d7-479c-8b4e-f86612d608e2
 
 # notes/spinta/server.sh    Check configuration
 # notes/spinta/server.sh    Run migrations
 # notes/spinta/server.sh    Add client
+# notes/postgres.sh         Show tables
+
+psql -h localhost -p 54321 -U admin spinta -c '\d "'$DATASET'/Country"'
+#|     Column     |            Type             | Collation | Nullable | Default 
+#| ---------------+-----------------------------+-----------+----------+---------
+#|  continent._id | uuid                        |           |          | 
+#| Foreign-key constraints:
+#|     "fk_cli/push/Country_continent._id" FOREIGN KEY ("continent._id") REFERENCES "datasets/external/Continent"(_id)
+# TODO: referece should not be created
+#       https://github.com/atviriduomenys/spinta/issues/208
 
 # Run server with internal mode
 test -n "$PID" && kill $PID
@@ -101,11 +136,13 @@ sqlite3 $BASEDIR/push/localhost.db '.schema'
 # Delete all data from internal database, to start with a clean state.
 http DELETE "$SERVER/$DATASET/:wipe" $AUTH
 
+http GET "$SERVER/datasets/external/Continent?format(ascii)"
 http GET "$SERVER/$DATASET/Country?format(ascii)"
 http GET "$SERVER/$DATASET/City?format(ascii)"
 
 poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
-#| PUSH: 100%|######| 2/2 [00:00<00:00, 21.41it/s]
+#| (psycopg2.errors.ForeignKeyViolation) insert or update on table "cli/push/Country" violates foreign key constraint "fk_cli/push/Country_continent._id"
+# TODO: https://github.com/atviriduomenys/spinta/issues/208
 
 # Push state database tables should be updates to a new schema
 sqlite3 $BASEDIR/push/localhost.db '.schema'
