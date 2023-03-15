@@ -314,9 +314,19 @@ def test_geometry_params_with_srid_without_srid(
     })
     assert resp.status_code == 201
 
+    model: str = f'{ns}/PointWGS84'
+    backend = cast(PostgreSQL, store.backends['default'])
+    coordinates = cast(sa.Column, backend.tables[model].columns['point'])
+
+    assert coordinates.type.srid == 4326
+    assert coordinates.type.geometry_type == 'GEOMETRY'
+
+    app.authmodel(model, [
+        'insert',
+        'getall',
+    ])
+
     resp = app.post(f'/{model}', json={
         'point': 'POINT(582710 6061887)',
     })
     assert resp.status_code == 201
-
-
