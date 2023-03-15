@@ -1,8 +1,5 @@
 # 2023-03-01 11:31
 
-git log -1 --oneline
-#| 0795a7e (HEAD -> 148-unique-constraint-in-tabular-manifests, origin/148-unique-constraint-in-tabular-manifests) fix
-
 # notes/docker.sh           Start docker compose
 # notes/postgres.sh         Reset database
 
@@ -16,11 +13,27 @@ $DATASET                 |               |               |
   |   |   | Country      |               |               |
   |   |   |   | name     | string unique |               | open
   |   |   | City         |               |               |
-  |   |   |   |          | unique        | name, country | open
+  |   |   |   |          | unique        | name, country |
   |   |   |   | name     | string        |               | open
   |   |   |   | country  | string        |               | open
 EOF
 poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
-#| TabularManifestError:
-#| var/instances/metadata/unique/manifest.txt:6:type:
-#| Unknown additional dimension name unique.
+cat $BASEDIR/manifest.csv
+#| ,,,,,name,string ,,,,,open,,,
+#| ,,,,,country,string ,,,,,open,,,
+# FIXME: Space symbols should not be added after `string`.
+poetry run spinta show
+#| InvalidManifestFile:
+#| Error while parsing '7' manifest entry:
+#| Unknown 'string ' type of 'name' property in 'metadata/unique/City' model.
+#|   Context:
+#|     component: spinta.components.Property
+#|     manifest: default
+#|     schema: 7
+#|     model: metadata/unique/City
+#|     entity: 
+#|     property: name
+#|     attribute: 
+#|     eid: 7
+#|     error: Unknown 'string ' type of 'name' property in 'metadata/unique/City' model.
+# FIXME: Can't load manifest after unique.
