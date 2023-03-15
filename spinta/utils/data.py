@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 
-from spinta.exceptions import InvalidNestedValue
 from spinta.utils.schema import NA
 
 
@@ -74,8 +73,6 @@ def take(keys, *args):
     for k in keys:
         for v in args:
             for x in k:
-                if v and not isinstance(v, Iterable):
-                    raise InvalidNestedValue(value=v)
                 if v and x in v:
                     v = v[x]
                 else:

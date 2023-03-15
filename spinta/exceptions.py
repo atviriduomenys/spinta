@@ -365,8 +365,8 @@ class UnknownParameter(BaseError):
     }
 
 
-class InvalidNestedValue(UserError):
-    template = "Expected value to be dictionary, got {value}."
+class InvalidRefValue(UserError):
+    template = "Reference value should be dictionary."
 
 
 class InvalidLevel(UserError):

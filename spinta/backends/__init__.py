@@ -255,6 +255,19 @@ def simple_data_check(
             raise exceptions.FieldNotInResource(prop, property=key)
 
 
+@commands.simple_data_check.register(Context, DataItem, Ref, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Ref,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if value and not isinstance(value, dict):
+        raise exceptions.InvalidRefValue(prop)
+
+
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
 def complex_data_check(
     context: Context,
