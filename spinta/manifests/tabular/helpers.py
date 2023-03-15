@@ -492,8 +492,8 @@ class PropertyReader(TabularReader):
                 f"defined for this {self.state.model.name!r} model."
             )
 
-        if self.state.base and not row['type']:
-            row['type'] = 'inherit'
+        if self.state.base and not dtype['type']:
+            dtype['type'] = 'inherit'
 
         self.data = {
             'type': dtype['type'],
