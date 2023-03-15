@@ -1,8 +1,5 @@
 # 2023-03-01 10:12
 
-git log -1 --oneline
-#| ea345f2 (HEAD -> 259-required-not-null-constraint, origin/259-required-not-null-constraint) 259 fix PropertyReader
-
 # notes/docker.sh           Start docker compose
 # notes/postgres.sh         Reset database
 
@@ -36,8 +33,7 @@ psql -h localhost -p 54321 -U admin spinta -c '\d "'$DATASET'/City"'
 #| -----------+-----------------------------+-----------+----------+---------
 #|  name      | text                        |           | not null | 
 #|  country   | text                        |           |          | 
-#|  koords    | geometry(Point)             |           |          | 
-# FIXME: koords should be not null
+#|  koords    | geometry(Point)             |           | not null | 
 
 # notes/spinta/client.sh    Configure client
 
@@ -55,16 +51,21 @@ http POST "$SERVER/$DATASET/City" $AUTH country="lt"
 #|         {
 #|             "code": "RequiredProperty",
 #|             "context": {
+#|                 "attribute": "",
+#|                 "component": "spinta.components.Property",
+#|                 "dataset": "metadata/null",
+#|                 "entity": "",
+#|                 "manifest": "default",
 #|                 "model": "metadata/null/City",
-#|                 "prop": "name"
+#|                 "property": "name",
+#|                 "schema": "4"
 #|             },
-#|             "message": "name is required for metadata/null/City.",
-#|             "template": "{prop} is required for {model}.",
-#|             "type": "system"
+#|             "message": "Property is required.",
+#|             "template": "Property is required.",
+#|             "type": "property"
 #|         }
 #|     ]
 #| }
-# FIXME: type should be property
 # TODO: multiple errors should be shown, in this case koords is also a required
 #       property, but is not shown in the message
 #       https://github.com/atviriduomenys/spinta/issues/378
@@ -78,6 +79,7 @@ http GET "$SERVER/$DATASET/City"
 #|             "_revision": "89bb5e9b-7613-433d-b6f2-6003a9cfe59c",
 #|             "_type": "metadata/null/City",
 #|             "country": "lt",
+#|             "koords": "POINT (54.687222 25.28)",
 #|             "name": "Vilnius"
 #|         }
 #|     ]
@@ -94,30 +96,49 @@ http PATCH "$SERVER/$DATASET/City/d176699e-c589-405c-a4e8-3cdd2c24e54b" $AUTH \
 #|         {
 #|             "code": "RequiredProperty",
 #|             "context": {
+#|                 "attribute": "",
+#|                 "component": "spinta.components.Property",
+#|                 "dataset": "metadata/null",
+#|                 "entity": "",
+#|                 "manifest": "default",
 #|                 "model": "metadata/null/City",
-#|                 "prop": "name"
+#|                 "property": "name",
+#|                 "schema": "4"
 #|             },
-#|             "message": "name is required for metadata/null/City.",
-#|             "template": "{prop} is required for {model}.",
-#|             "type": "system"
+#|             "message": "Property is required.",
+#|             "template": "Property is required.",
+#|             "type": "property"
 #|         }
 #|     ]
 #| }
 
-http PATCH "$SERVER/$DATASET/City/d176699e-c589-405c-a4e8-3cdd2c24e54b" $AUTH \
-    _revision=89bb5e9b-7613-433d-b6f2-6003a9cfe59c \
+http GET "$SERVER/$DATASET/City?format(ascii)" 
+#| _type               _id                                   _revision                             name     country  koords        
+#| ------------------  ------------------------------------  ------------------------------------  -------  -------  --------------
+#| metadata/null/City  0e1648d9-ec64-4edc-bd27-33e0f7a337d3  1a3aafbd-3079-4f1b-87e5-767272703696  Vilnius  lt       POINT (54.6872\
+#|                                                                                                                   22 25.28)
+
+http PATCH "$SERVER/$DATASET/City/0e1648d9-ec64-4edc-bd27-33e0f7a337d3" $AUTH \
+    _revision=1a3aafbd-3079-4f1b-87e5-767272703696 \
     name=Kaunas
 #| HTTP/1.1 200 OK
-
+#|
+#| {
+#|     "_id": "0e1648d9-ec64-4edc-bd27-33e0f7a337d3",
+#|     "_revision": "c17344fa-aa89-4d70-bc5f-3a433d85eeee",
+#|     "_type": "metadata/null/City",
+#|     "name": "Kaunas"
+#| }
 
 http GET "$SERVER/$DATASET/City"
 #| {
 #|     "_data": [
 #|         {
-#|             "_id": "d176699e-c589-405c-a4e8-3cdd2c24e54b",
-#|             "_revision": "99381d44-9e72-4f7a-a61c-ba68cc48205c",
+#|             "_id": "0e1648d9-ec64-4edc-bd27-33e0f7a337d3",
+#|             "_revision": "c17344fa-aa89-4d70-bc5f-3a433d85eeee",
 #|             "_type": "metadata/null/City",
 #|             "country": "lt",
+#|             "koords": "POINT (54.687222 25.28)",
 #|             "name": "Kaunas"
 #|         }
 #|     ]
