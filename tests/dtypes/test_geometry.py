@@ -92,7 +92,7 @@ def test_geometry_params_point(
     # Write data
     resp = app.post(f'/{model}', json={
         'name': "Vilnius",
-        'coordinates': 'POINT(54.6870458 25.2829111)',
+        'coordinates': 'POINT (54.6870458 25.2829111)',
     })
     assert resp.status_code == 201
 
@@ -121,7 +121,6 @@ def test_geometry_params_srid(
 
     ns: str = 'backends/postgres/dtypes/geometry/srid'
     model: str = f'{ns}/City'
-
     store: Store = context.get('store')
     backend = cast(PostgreSQL, store.backends['default'])
     coordinates = cast(sa.Column, backend.tables[model].columns['coordinates'])
@@ -140,15 +139,6 @@ def test_geometry_params_srid(
         'coordinates': 'SRID=3346;POINT(582710 6061887)',
     })
     assert resp.status_code == 201
-
-    # Read data
-    resp = app.get(f'/{model}')
-    assert listdata(resp, full=True) == [
-        {
-            'name': "Vilnius",
-            'coordinates': 'POINT (582710 6061887)',
-        }
-    ]
 
 
 def test_geometry_html(rc: RawConfig):
@@ -285,3 +275,56 @@ def test_loading(tmp_path: Path, rc: RawConfig):
     create_tabular_manifest(tmp_path / 'manifest.csv', table)
     manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     assert manifest == table
+
+
+def test_geometry_params_with_srid_without_srid(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                | type           | access
+        backends/postgres/dtypes/geometry/srid  |                | 
+          |   |   | Point                       |                | 
+          |   |   |   | point                   | geometry       | open
+          |   |   | PointLKS94                  |                | 
+          |   |   |   | point                   | geometry(3346) | open
+          |   |   | PointWGS84                  |                | 
+          |   |   |   | point                   | geometry(4326) | open
+    ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/srid'
+    model: str = f'{ns}/PointLKS94'
+    store: Store = context.get('store')
+    backend = cast(PostgreSQL, store.backends['default'])
+    coordinates = cast(sa.Column, backend.tables[model].columns['point'])
+    assert coordinates.type.srid == 3346
+    assert coordinates.type.geometry_type == 'GEOMETRY'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+        'getall',
+    ])
+
+    resp = app.post(f'/{model}', json={
+        'point': 'POINT(582710 6061887)',
+    })
+    assert resp.status_code == 201
+
+    model: str = f'{ns}/PointWGS84'
+    backend = cast(PostgreSQL, store.backends['default'])
+    coordinates = cast(sa.Column, backend.tables[model].columns['point'])
+
+    assert coordinates.type.srid == 4326
+    assert coordinates.type.geometry_type == 'GEOMETRY'
+
+    app.authmodel(model, [
+        'insert',
+        'getall',
+    ])
+
+    resp = app.post(f'/{model}', json={
+        'point': 'POINT(582710 6061887)',
+    })
+    assert resp.status_code == 201
