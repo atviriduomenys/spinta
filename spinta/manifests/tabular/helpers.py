@@ -75,7 +75,6 @@ from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
 from spinta.types.datatype import Ref, DataType
-from spinta.types.model import _parse_dtype_string
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -470,6 +469,47 @@ def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
         ref_props = []
     return ref_model, ref_props
 
+
+def _parse_dtype_string(dtype: str) -> dict:
+    args = []
+    error = None
+    required = unique = ref_unique = False
+    invalid_args = []
+
+    if '(' in dtype:
+        dtype, args = dtype.split('(', 1)
+        args, additional_args = args.split(')', 1)
+        args = args.strip().rstrip(')')
+        args = [a.strip() for a in args.split(',')]
+    else:
+        if len(dtype.split(None, 1)) > 1:
+            dtype, additional_args = dtype.split(None, 1)
+        else:
+            additional_args = ""
+
+    if additional_args:
+        for arg in additional_args.split(None):
+            if arg == 'required':
+                required = True
+            elif arg == 'unique':
+                unique = True
+                if 'ref' in dtype and 'unique' in dtype:
+                    ref_unique = True
+            else:
+                invalid_args.append(arg)
+        if invalid_args:
+            error = f'Invalid type arguments: {", ".join(invalid_args)}.'
+
+    return {
+        'type': dtype,
+        'type_args': args,
+        'required': required,
+        'unique': unique,
+        'ref_unique': ref_unique,
+        'error': error,
+    }
+
+
 class PropertyReader(TabularReader):
     type: str = 'property'
     data: PropertyRow
@@ -484,12 +524,16 @@ class PropertyReader(TabularReader):
                 f"Now it is defined in {context.name!r} {context.type} context."
             )
 
-        dtype = _parse_dtype_string(row['type'])
-
         if row['property'] in self.state.model.data['properties']:
             self.error(
                 f"Property {self.name!r} with the same name is already "
                 f"defined for this {self.state.model.name!r} model."
+            )
+
+        dtype = _parse_dtype_string(row['type'])
+        if dtype['error']:
+            self.error(
+                dtype['error']
             )
 
         if self.state.base and not dtype['type']:

@@ -65,9 +65,6 @@ class DataType(Component):
         args = ''
         if self.type_args:
             args = ', '.join(self.type_args)
-            return f'{self.name}({args}){unique}{required}'
-        else:
-            return f'{self.name}{unique}{required}'
             args = f'({args})'
         return f'{self.name}{args}{unique}{required}'
 

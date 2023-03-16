@@ -105,7 +105,15 @@ def configure_remote_server(
         remote_rc,
         tmp_path,
         responses,
-        scopes=['spinta_set_meta_fields', 'spinta_upsert'],
+        scopes=[
+            'spinta_set_meta_fields',
+            'spinta_getone',
+            'spinta_getall',
+            'spinta_search',
+            'spinta_insert',
+            'spinta_patch',
+            'spinta_delete',
+        ],
         credsfile=True,
     )
 

@@ -539,3 +539,7 @@ class RemoteClientScopesNotGiven(RemoteClientError):
         "Make sure at least one scope is given for [{section}] in "
         "{credentials} file."
     )
+
+
+class RequiredProperty(UserError):
+    template = "Property is required."

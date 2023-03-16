@@ -82,7 +82,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
             f"Unknown type {dtype.name!r} for property {prop.place!r}."
         )
     column_type = types[dtype.name]
-    return sa.Column(name, column_type, unique=dtype.unique)
+    nullable = not dtype.required
+    return sa.Column(name, column_type, unique=dtype.unique, nullable=nullable)
 
 
 @commands.get_primary_key_type.register()
