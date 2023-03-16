@@ -866,12 +866,9 @@ class UniqueReader(TabularReader):
         reader = self.state.stack[-1]
 
         if not isinstance(reader, (
-            DatasetReader,
-            ResourceReader,
-            BaseReader,
-            ModelReader,
-            PropertyReader,
+            ModelReader
         )):
+            self.error(f'Unique reader is not supported for {reader.type}.')
             return
 
         if self.type not in reader.data:
@@ -879,11 +876,9 @@ class UniqueReader(TabularReader):
 
         unique = reader.data['unique']
 
-        self.name = '_'.join(row[REF].split(', '))
-
-        unique[self.type] = {
+        unique['_'.join(row[REF].split(',')).replace(' ', '')] = {
             'type': self.type,
-            'ref': row[REF].split(', '),
+            'ref': [row.strip() for row in row[REF].split(',')],
         }
 
     def append(self, row: ManifestRow) -> None:
@@ -1467,11 +1462,11 @@ def _unique_to_tabular(model_unique_data) -> Iterator[ManifestRow]:
     if not model_unique_data:
         return
     first = True
-    for row in model_unique_data['unique']:
+    for row in model_unique_data:
         if first is True:
             yield torow(DATASET, {
-                'type': model_unique_data['unique']['type'],
-                'ref': ', '.join(model_unique_data['unique']['ref'])
+                'type': model_unique_data[row]['type'],
+                'ref': ', '.join(model_unique_data[row]['ref'])
             })
         first = False
 
@@ -1599,7 +1594,7 @@ def _property_to_tabular(
         data['ref'] = prop.given.unit
 
     if prop.model.unique:
-        data['type'] = data['type'].replace('unique', '')
+        data['type'] = data['type'].replace('unique', '').strip()
     yield torow(DATASET, data)
     yield from _comments_to_tabular(prop.comments, access=access)
     yield from _lang_to_tabular(prop.lang)
