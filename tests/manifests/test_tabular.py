@@ -216,6 +216,17 @@ def test_prop_type_not_given(tmp_path, rc):
     )
 
 
+def test_prop_type_required(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type
+    example                  |
+                             |
+      |   |   | City         |
+      |   |   |   | name     | string required
+      |   |   |   | place    | geometry(point) required
+    ''')
+
+
 def test_time_type(tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type
