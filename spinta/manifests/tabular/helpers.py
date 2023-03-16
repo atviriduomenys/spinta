@@ -483,14 +483,13 @@ def _parse_dtype_string(dtype: str) -> dict:
         args = args.strip().rstrip(')')
         args = [a.strip() for a in args.split(',')]
     else:
-        if len(dtype.split(' ', 1)) == 1:
-            additional_args = ""
+        if len(dtype.split(None, 1)) > 1:
+            dtype, additional_args = dtype.split(None, 1)
         else:
-            dtype, additional_args = dtype.split(' ', 1)
+            additional_args = ""
 
     if additional_args:
-        for arg in additional_args.strip().split(' '):
-            arg = arg.strip()
+        for arg in additional_args.split(None):
             if arg == 'required':
                 required = True
             elif arg == 'unique':

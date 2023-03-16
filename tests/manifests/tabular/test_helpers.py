@@ -141,3 +141,14 @@ def test_parse_dtype_string_with_multipe_error():
         'unique': False,
         'error': 'Invalid type arguments: wrong_arg1, wrong_arg2.',
     }
+
+
+def test_parse_dtype_string_with_multiple_spaces():
+    res = _parse_dtype_string("geometry  required ")
+    assert res == {
+        'type': "geometry",
+        'type_args': [],
+        'required': True,
+        'unique': False,
+        'error': None,
+    }
