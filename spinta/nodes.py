@@ -216,7 +216,7 @@ def load_model_properties(
         prop.model = model
         prop = commands.load(context, prop, params, model.manifest)
         if isinstance(model.unique, dict):
-            if prop.name in model.unique.keys():
+            if prop.name in str(model.unique.keys()):
                 if not isinstance(prop.dtype, Ref):
                     prop.dtype.unique = True
                 else:

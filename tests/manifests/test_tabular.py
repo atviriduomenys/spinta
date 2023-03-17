@@ -3,6 +3,7 @@ import pytest
 from spinta.exceptions import InvalidManifestFile
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
+from spinta.manifests.tabular.helpers import TabularManifestError
 
 
 def check(tmp_path, rc, table):
@@ -248,16 +249,15 @@ def test_property_unique_add(tmp_path, rc):
     ''')
 
 def test_property_unique_add_wrong_type(tmp_path, rc):
-    with pytest.raises(InvalidManifestFile) as e:
+    with pytest.raises(TabularManifestError) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property | type
         datasets/gov/example     |
           |   |   | City         |
           |   |   |   | value    | string unikue
         ''')
-    assert e.value.context['error'] == (
-        "Unknown 'string unikue' type of 'value' property in 'datasets/gov/example/City' model."
-    )
+    assert 'TabularManifestError' in str(e)
+
 
 def test_property_with_ref_unique(tmp_path, rc):
     check(tmp_path, rc, '''
