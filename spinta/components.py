@@ -455,8 +455,13 @@ class Base(Node):
     lang: LangData = None
 
     schema = {
+        'name': {},
         'model': {'type': 'string'},
-        'pk': {'type': 'string'},
+        'parent': {'type': 'string'},
+        'pk': {
+            'type': 'array',
+            'items': {'type': 'object'},
+        },
         'lang': {'type': 'object'},
     }
 
@@ -479,6 +484,7 @@ class Model(MetaData):
     given: ModelGiven
     lang: LangData = None
     comments: List[Comment] = None
+    base: Base = None
     uri: str = None
 
     schema = {

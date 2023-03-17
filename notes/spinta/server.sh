@@ -38,7 +38,10 @@ poetry run spinta genkeys
 
 
 # Check configuration
-SPINTA_CONFIG=$BASEDIR/config.yml
+export SPINTA_CONFIG=$BASEDIR/config.yml
+poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
+cat $BASEDIR/manifest.csv
+poetry run spinta show
 poetry run spinta config backends manifests
 poetry run spinta show
 poetry run spinta check
@@ -79,10 +82,10 @@ EOF
 
 # Run server
 poetry run spinta run &>> $BASEDIR/spinta.log &
-
-
-# Check logs
+PID=$!
 tail -50 $BASEDIR/spinta.log
+kill $(grep -Po 'server process \[\K\d+' $BASEDIR/spinta.log | tail -1)
+kill $PID
 
 
 # Check if server works
@@ -90,5 +93,3 @@ http :8000
 http :8000/version
 
 
-# Kill server process
-kill $(grep -Po 'server process \[\K\d+' $BASEDIR/spinta.log | tail -1)

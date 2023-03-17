@@ -15,6 +15,7 @@ from spinta.testing.client import TestClientResponse
 from spinta.testing.client import get_html_tree
 from spinta.testing.utils import get_error_codes, get_error_context
 from spinta.testing.manifest import prepare_manifest
+from spinta.testing.data import pushdata
 from spinta.utils.nestedstruct import flatten
 from spinta.testing.client import create_test_client
 from spinta.backends.memory.components import Memory
@@ -1140,27 +1141,6 @@ def test_location_header(model, app, context):
 )
 def test_upsert_where_ast(model, app):
     app.authmodel(model, ['upsert', 'changes'])
-    resp = app.post('/' + model, json={
-        '_op': 'upsert',
-        '_where': {
-            'name': 'eq',
-            'args': [
-                {'name': 'bind', 'args': ['status']},
-                'ok',
-            ],
-        },
-        'status': 'ok',
-    })
-    data = resp.json()
-    assert resp.status_code == 201, data
-
-
-@pytest.mark.models(
-    'backends/postgres/report',
-    'backends/mongo/report',
-)
-def test_upsert_where_ast(model, app):
-    app.authmodel(model, ['upsert', 'changes'])
 
     payload = {
         '_op': 'upsert',
@@ -1229,3 +1209,58 @@ def test_head_method(
     resp = app.head(f'/{path}')
     assert resp.status_code == 200
     assert resp.content == b''
+
+
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_delete(
+    model: str,
+    app: TestClient,
+):
+    app.authmodel(model, ['insert', 'delete'])
+    data = pushdata(app, model, {'status': 'ok'})
+    _id = data['_id']
+
+    resp = app.delete(f'/{model}/{_id}')
+    assert resp.status_code == 204
+    assert resp.content == b''
+
+
+@pytest.mark.models(
+    'backends/postgres/report',
+    'backends/mongo/report',
+)
+def test_delete_batch(
+    model: str,
+    app: TestClient,
+):
+    app.authmodel(model, ['insert', 'delete'])
+    data = pushdata(app, model, {'status': 'ok'})
+    _id = data['_id']
+
+    resp = app.post('/', json={
+        '_data': [
+            {
+                '_op': 'delete',
+                '_where': f'_id="{_id}"',
+                '_type': f'{model}',
+            }
+        ],
+    })
+    assert resp.status_code == 200
+
+    data = resp.json()
+    item = data['_data'][0]
+    assert data == {
+        '_status': 'ok',
+        '_transaction': data['_transaction'],
+        '_data': [
+            {
+                '_type': model,
+                '_id': item['_id'],
+                '_revision': item['_revision'],
+            }
+        ]
+    }

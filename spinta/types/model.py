@@ -88,18 +88,18 @@ def load(
     config = context.get('config')
 
     if model.base:
-        base = model.base
+        base: dict = model.base
         model.base = get_node(
             config,
             manifest,
             model.eid,
             base,
-            group='bases',
-            ctype='model',
+            group='nodes',
+            ctype='base',
             parent=model,
         )
-        model.base.parent = model
-        load_node(context, model.base, base, parent=model)
+        load_node(context, model.base, base)
+        model.base.model = model
         commands.load(context, model.base, base, manifest)
 
     if model.external:
@@ -165,6 +165,10 @@ def link(context: Context, model: Model):
             model.ns.parents(),
         ))
 
+    # Link base
+    if model.base:
+        commands.link(context, model.base)
+
     # Link model properties.
     for prop in model.properties.values():
         commands.link(context, prop)
@@ -173,21 +177,11 @@ def link(context: Context, model: Model):
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
-    base.model = base.parent.manifest.models[base.model]
+    base.parent = base.model.manifest.models[base.parent]
     base.pk = [
         base.parent.properties[pk]
         for pk in base.pk
     ]
-
-
-def _parse_dtype_string(dtype: str) -> Tuple[str, List[str]]:
-    if '(' in dtype:
-        name, args = dtype.split('(', 1)
-        args = args.strip().rstrip(')')
-        args = [a.strip() for a in args.split(',')]
-        return name, args
-    else:
-        return dtype, []
 
 
 @load.register(Context, Property, dict, Manifest)
@@ -210,11 +204,8 @@ def load(
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
 
-    # Parse dtype like geometry(point, 3346)
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
-    dtype_type, dtype_args = _parse_dtype_string(data['type'])
-    data = {**data, 'type': dtype_type, 'type_args': dtype_args}
 
     prop.dtype = get_node(
         config,
@@ -295,7 +286,7 @@ def link(context: Context, prop: Property):
             [model.ns],
             model.ns.parents(),
         ))
-    link_access_param(prop, parents)
+    link_access_param(prop, parents, use_given=not prop.name.startswith('_'))
     link_enums([prop] + parents, prop.enums)
     prop.enum = _link_prop_enum(prop)
 
