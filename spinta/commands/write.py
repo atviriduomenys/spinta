@@ -22,6 +22,7 @@ from spinta import exceptions
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_async_response
 from spinta.auth import check_scope
+from spinta.backends import check_type_value
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures

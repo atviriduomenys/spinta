@@ -1,13 +1,12 @@
-from typing import AsyncIterator
+from typing import AsyncIterator, cast
 
-
+import sqlalchemy as sa
 from spinta import commands
 from spinta.types.datatype import Denorm
 from spinta.utils.data import take
 from spinta.components import Context, Model, DataItem, DataSubItem
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
-
 
 @commands.insert.register(Context, Model, PostgreSQL)
 async def insert(
@@ -23,7 +22,6 @@ async def insert(
     table = backend.get_table(model)
     async for data in dstream:
         patch = commands.before_write(context, model, backend, data=data)
-
         # TODO: Refactor this to insert batches with single query.
         qry = table.insert().values(
             _id=patch['_id'],
@@ -138,3 +136,5 @@ def after_write(
     for key in take(data.patch or {}):
         prop = model.properties[key]
         commands.after_write(context, prop.dtype, backend, data=data[key])
+
+

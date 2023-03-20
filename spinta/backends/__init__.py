@@ -32,7 +32,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
-from spinta.exceptions import ConflictingValue
+from spinta.exceptions import ConflictingValue, RequiredProperty
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
 from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit
@@ -193,7 +193,13 @@ def simple_data_check(
     backend: Backend,
     value: object,
 ) -> None:
-    check_type_value(dtype, value)
+    if data.action in (
+        Action.UPDATE,
+        Action.INSERT,
+        Action.PATCH,
+        Action.UPSERT
+    ):
+        check_type_value(dtype, value, data.action)
 
     # Action.DELETE is ignore for qvarn compatibility reasons.
     # XXX: make `spinta` check for revision on Action.DELETE,
@@ -342,10 +348,12 @@ def complex_data_check(
                 )
 
 
-def check_type_value(dtype: DataType, value: object):
-    if dtype.required and (value is None or value is NA):
-        # FIXME: Raise a UserError
-        raise Exception(f"{dtype.prop.name!r} is required for {dtype.prop.model.name!r}.")
+def check_type_value(dtype: DataType, value: object, action: Action):
+    if dtype.required and (
+        (action == Action.PATCH and value is None) or
+        (action != Action.PATCH and (value is None or value is NA))
+    ):
+        raise RequiredProperty(dtype.prop)
 
 
 @gen_object_id.register(Context, Backend, Node)

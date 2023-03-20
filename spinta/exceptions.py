@@ -523,6 +523,17 @@ class KeymapNotSet(UserError):
     )
 
 
+class NoRefPropertyForDenormProperty(UserError):
+    template = (
+        "Property {ref!r} with type 'ref' or 'object' must be defined "
+        "before defining property {prop!r}."
+    )
+
+
+class ReferencedPropertyNotFound(PropertyNotFound):
+    pass
+
+
 class RemoteClientError(UserError):
     pass
 
@@ -547,3 +558,7 @@ class RemoteClientScopesNotGiven(RemoteClientError):
         "Make sure at least one scope is given for [{section}] in "
         "{credentials} file."
     )
+
+
+class RequiredProperty(UserError):
+    template = "Property is required."

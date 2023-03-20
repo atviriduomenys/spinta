@@ -188,16 +188,6 @@ def link(context: Context, base: Base):
     ]
 
 
-def _parse_dtype_string(dtype: str) -> Tuple[str, List[str]]:
-    if '(' in dtype:
-        name, args = dtype.split('(', 1)
-        args = args.strip().rstrip(')')
-        args = [a.strip() for a in args.split(',')]
-        return name, args
-    else:
-        return dtype, []
-
-
 @load.register(Context, Property, dict, Manifest)
 def load(
     context: Context,
@@ -219,11 +209,8 @@ def load(
     prop.comments = load_comments(prop, prop.comments)
     load_level(prop, prop.level)
 
-    # Parse dtype like geometry(point, 3346)
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
-    dtype_type, dtype_args = _parse_dtype_string(data['type'])
-    data = {**data, 'type': dtype_type, 'type_args': dtype_args}
     if data['type'] == 'ref' and prop.level and prop.level < 4:
         data['type'] = '_external_ref'
 

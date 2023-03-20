@@ -74,7 +74,10 @@ def listdata(
 
     elif resp.headers['content-type'].startswith('text/html'):
         data = resp.context
-        assert resp.status_code == 200, pformat(data)
+        assert resp.status_code >= 200 and resp.status_code < 400, pformat({
+            'status': resp.status_code,
+            'resp': data,
+        })
         assert 'data' in data, pformat(data)
         assert 'header' in data, pformat(data)
         header = data['header']
@@ -86,9 +89,15 @@ def listdata(
 
     else:
         data = resp.json()
-        assert resp.status_code == 200, pformat(data)
-        assert '_data' in data, pformat(data)
-        data = data['_data']
+        assert resp.status_code >= 200 and resp.status_code < 400, pformat({
+            'status': resp.status_code,
+            'resp': data,
+        })
+        if '_id' in data:
+            data = [data]
+        else:
+            assert '_data' in data, pformat(data)
+            data = data['_data']
         keys = keys or sorted({
             k
             for d in flatten(data)
