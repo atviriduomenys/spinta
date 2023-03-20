@@ -365,6 +365,14 @@ class UnknownParameter(BaseError):
     }
 
 
+class InvalidRefValue(UserError):
+    template = "Invalid reference value: {value}."
+
+
+class InvalidLevel(UserError):
+    template = "Invalid level value \"{level}\"."
+
+
 class InvalidParameterValue(BaseError):
     template = "Invalid parameter {parameter!r} value."
 

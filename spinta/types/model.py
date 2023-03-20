@@ -17,7 +17,7 @@ from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action
+from spinta.components import Action, Component
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -25,13 +25,14 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
-from spinta.exceptions import KeymapNotSet
+from spinta.exceptions import KeymapNotSet, InvalidLevel
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
 from spinta.manifests.components import Manifest
@@ -39,8 +40,10 @@ from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
+from spinta.types.datatype import DataType, Ref
 from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
+from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
@@ -80,6 +83,7 @@ def load(
         [model.ns],
         model.ns.parents(),
     ))
+    load_level(model, model.level)
     load_model_properties(context, model, Property, data.get('properties'))
 
     # XXX: Maybe it is worth to leave possibility to override _id access?
@@ -203,9 +207,12 @@ def load(
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
+    load_level(prop, prop.level)
 
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
+    if data['type'] == 'ref' and prop.level and prop.level < 4:
+        data['type'] = '_external_ref'
 
     prop.dtype = get_node(
         config,
@@ -239,6 +246,21 @@ def load(
         prop.given.enum = unit
 
     return prop
+
+
+def load_level(component: Component, given_level):
+    if given_level:
+        if isinstance(given_level, Level):
+            level = given_level
+        else:
+            if given_level.isnumeric():
+                given_level = int(given_level)
+            else:
+                raise InvalidLevel(component, level=given_level)
+            level = enum_by_value(component, 'level', Level, given_level)
+    else:
+        level = None
+    component.level = level
 
 
 def _link_prop_enum(

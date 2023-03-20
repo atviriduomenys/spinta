@@ -274,6 +274,11 @@ class Denorm(DataType):
         return ""
 
 
+class ExternalRef(Ref):
+    def get_type_repr(self):
+        return "ref"
+
+
 class Inherit(DataType):
     def get_type_repr(self):
         return ""
