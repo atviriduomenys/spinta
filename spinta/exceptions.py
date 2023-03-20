@@ -515,6 +515,17 @@ class KeymapNotSet(UserError):
     )
 
 
+class NoRefPropertyForDenormProperty(UserError):
+    template = (
+        "Property {ref!r} with type 'ref' or 'object' must be defined "
+        "before defining property {prop!r}."
+    )
+
+
+class ReferencedPropertyNotFound(PropertyNotFound):
+    pass
+
+
 class RemoteClientError(UserError):
     pass
 
