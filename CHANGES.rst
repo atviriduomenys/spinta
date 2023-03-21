@@ -3,8 +3,16 @@
 Changes
 #######
 
-0.1.46 (unreleased)
+0.1.46 (2023-03-21)
 ===================
+
+Bug fixes:
+
+- Correctly handle cases, when a weak referece, references a model, that does
+  not have primary key specified, in that case `_id` is used as primary key
+  (`#399`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/399
 
 
 0.1.45 (2023-03-20)
