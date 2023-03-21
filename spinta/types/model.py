@@ -40,7 +40,6 @@ from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
-from spinta.types.datatype import DataType, Ref
 from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
@@ -120,8 +119,10 @@ def load(
         model.external.model = model
         load_node(context, model.external, external, parent=model)
         commands.load(context, model.external, external, manifest)
+        model.given.pkeys = external.get('pk', [])
     else:
         model.external = None
+        model.given.pkeys = []
 
     return model
 

@@ -468,6 +468,7 @@ class Base(Node):
 
 class ModelGiven:
     access: str = None
+    pkeys: list[str] = None
 
 
 class Model(MetaData):

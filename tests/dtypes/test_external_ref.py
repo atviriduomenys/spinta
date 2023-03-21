@@ -1,12 +1,12 @@
 from pathlib import Path
 
-import pytest
 from _pytest.fixtures import FixtureRequest
 
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
-from spinta.testing.manifest import bootstrap_manifest, prepare_manifest, load_manifest
+from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.manifest import load_manifest
 from spinta.testing.tabular import create_tabular_manifest
 
 
@@ -35,7 +35,7 @@ def test_external_ref(
     postgresql: str,
     request: FixtureRequest,
 ):
-    context = bootstrap_manifest(rc, f'''
+    context = bootstrap_manifest(rc, '''
     d | r | b | m | property | type   | ref                           | source       | level | access
     datasets/externalref     |        |                               |              |       |
       | external             | sql    |                               | sqlite://    |       |
@@ -75,5 +75,3 @@ def test_external_ref(
             'country.code': 'lt'
         }
     ]
-
-
