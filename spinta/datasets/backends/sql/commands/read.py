@@ -107,15 +107,23 @@ def getall(
                             sel.prop.dtype.refprops) > len(sel.prop.dtype.model.external.pkeys):
                             val = keymap.encode(sel.prop.dtype.model.model_type(), val)
                         else:
-                            val = keymap.encode(f'''{sel.prop.dtype.model.model_type()}.{"_".join(
-                            key_name.name for key_name in sel.prop.dtype.model.external.pkeys)}''',
+                            val = keymap.encode(_multi_key_selection(sel.prop.dtype.model.model_type(),
+                                                                     sel.prop.dtype.model.external.pkeys,
+                                                                     sel.prop.dtype.refprops),
                                 val, pk)
                         val = {'_id': val}
-                    else:
-                        keymap.encode(model.model_type()+'.'+str(val), val, pk)
+                    elif val not in ['r', 'l']:
+                        keymap.encode(sel.prop.model.model_type()+'.'+sel.prop.name, val, pk)
 
                 res[key] = val
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res
 
+
+def _multi_key_selection(model_name, external_pkeys, refprops):
+    if len(external_pkeys) == 1:
+        key = ['_'+key_name.name for key_name in refprops]
+        return f'''{model_name}.{key[0]}'''
+    else:
+        return f'''{model_name}.{"_".join(key_name.name for key_name in external_pkeys)}'''

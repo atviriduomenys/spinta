@@ -15,6 +15,7 @@ from spinta.components import Config
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap
+from sqlalchemy import exc
 
 
 class SqlAlchemyKeyMap(KeyMap):
@@ -58,32 +59,41 @@ class SqlAlchemyKeyMap(KeyMap):
                 return None
             value = _encode_value(value)
         table = self.get_table(name)
-        tmp_value = value
         value = msgpack.dumps(value, strict_types=True)
         hash = hashlib.sha1(value).hexdigest()
         query = sa.select([table.c.key]).where(table.c.hash == hash)
         key = self.conn.execute(query).scalar()
-        if primary_key is not None:
-            parent_table, code = name.split(".", 1)
-            if str(code) != str(tmp_value):
-                tmp_table = self.get_table(parent_table+'.'+str(tmp_value))
-                _query_parent_table = sa.select(tmp_table)
-                result = self.conn.execute(_query_parent_table).first()
-                try:
-                    self.conn.execute(table.insert(), {
-                        'key': result.key,
-                        'hash': result.hash,
-                        'value': result.value,
-                    })
-                    return result[0]
-                except:
-                    pass
 
+        if primary_key is not None and key is None:
+            if name.__contains__('_'):
+                parent_table, code = name.split(".", 1)
+                helper_table, helper_table_2 = name.split('_')
+                temp = '.'.join([parent_table, helper_table_2])
+                temp = self.get_table(temp)
+                query = sa.select([temp.c.key]).where(temp.c.value == value)
+                key = self.conn.execute(query).scalar()
+                if key is not None:
+                    self.conn.execute(table.insert(), {
+                        'key': key,
+                        'hash': hash,
+                        'value': value,
+                    })
+            else:
+                parent_table, code = name.split(".", 1)
+                parent_table = self.get_table(parent_table)
+                query = sa.select([parent_table.c.key]).where((parent_table.c.key == primary_key))
+                key = self.conn.execute(query).scalar()
+                if key is not None:
+                    self.conn.execute(table.insert(), {
+                        'key': key,
+                        'hash': hash,
+                        'value': value,
+                    })
 
         if key is None:
             key = str(uuid.uuid4())
             self.conn.execute(table.insert(), {
-                'key': key if primary_key is None else primary_key,
+                'key': key,
                 'hash': hash,
                 'value': value,
                 })
