@@ -1036,3 +1036,18 @@ def positive(env, dtype) -> Positive:
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
 def positive(env: PgQueryBuilder, fpr: ForeignProperty) -> Positive:
     return Positive(fpr)
+
+
+@ufunc.resolver(PgQueryBuilder, Bind)
+def page(
+    env: PgQueryBuilder,
+    sort_by: Bind,
+    *,
+    size: Optional[int] = 1000
+):
+    env.sort = [env.call('sort', sort_by)]
+    if env.limit:
+        env.limit = min(size, env.limit)
+    else:
+        env.limit = size
+    return sort_by

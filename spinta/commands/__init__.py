@@ -616,6 +616,8 @@ def getall(
     backend: Backend,
     *,
     query: Expr = None,
+    is_paginated: bool = False,
+    page: Any = None,
 ) -> Iterator[ObjectData]:
     pass
 
@@ -627,6 +629,8 @@ def getall(
     backend: ExternalBackend,
     *,
     query: Expr = None,
+    is_paginated: bool = False,
+    page: Any = None,
 ) -> Iterator[ObjectData]:
     pass
 

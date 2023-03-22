@@ -59,11 +59,13 @@ def count_rows(
     return counts
 
 
-def _read_model_data(
+def read_model_data(
     context: components.Context,
     model: components.Model,
     limit: int = None,
     stop_on_error: bool = False,
+    is_paginated: bool = False,
+    page: Any = None,
 ) -> Iterable[Dict[str, Any]]:
 
     if limit is None:
@@ -71,7 +73,7 @@ def _read_model_data(
     else:
         query = Expr('limit', limit)
 
-    stream = commands.getall(context, model, model.backend, query=query)
+    stream = commands.getall(context, model, model.backend, query=query, is_paginated=is_paginated, page=page)
 
     if stop_on_error:
         stream = peek(stream)
@@ -95,7 +97,7 @@ def iter_model_rows(
     no_progress_bar: bool = False,
 ) -> Iterator[ModelRow]:
     for model in models:
-        rows = _read_model_data(context, model, limit, stop_on_error)
+        rows = read_model_data(context, model, limit, stop_on_error)
         if not no_progress_bar:
             count = counts.get(model.name)
             rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)

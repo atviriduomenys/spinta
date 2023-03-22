@@ -654,3 +654,67 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
         (_id1, rev, True),
         (_id2, None, True)
     ]
+
+
+def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+       m | property | type   | prepare             |access
+       City         |        | page(name, size: 1) |
+         | name     | string |                     | open
+       ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    rev = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    _id = '4d741843-4e94-4890-81d9-5af7c5b5989a'
+
+    table = state.metadata.tables[model.name]
+    page_table = state.metadata.tables['_page']
+
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_id': _id,
+            'name': 'Vilnius',
+        }, op="insert"),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': _id,
+                '_revision': rev,
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'insert',
+            '_type': model.name,
+            '_id': _id,
+            'name': 'Vilnius',
+        },)],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+    )
+
+    query = sa.select([table.c.id, table.c.revision, table.c.error])
+    assert list(conn.execute(query)) == [(_id, rev, False)]
+
+    query = sa.select([page_table.c.model, page_table.c.property, page_table.c.value])
+    assert list(conn.execute(query)) == [(model.name, 'name', 'Vilnius')]

@@ -13,7 +13,7 @@ from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
-from spinta.datasets.helpers import get_enum_filters
+from spinta.datasets.helpers import get_enum_filters, isexpr, paginate
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
@@ -73,13 +73,16 @@ def getall(
     backend: Sql,
     *,
     query: Expr = None,
+    is_paginated: bool = False,
+    page: Any = None,
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
 
     # Merge user passed query with query set in manifest.
-    query = merge_formulas(model.external.prepare, query)
+    if not isexpr(model.external.prepare, {'page'}):
+        query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
 
@@ -91,9 +94,16 @@ def getall(
 
         env = builder.init(backend, table)
         env.update(params=params)
-        expr = env.resolve(query)
-        where = env.execute(expr)
-        qry = env.build(where)
+        if is_paginated and model.external and \
+                model.external.prepare and \
+                isexpr(model.external.prepare, {'page'}):
+            if isexpr(query, {'limit'}):
+                env.resolve(query)
+            qry = paginate(env, model.external.prepare, page)
+        else:
+            expr = env.resolve(query)
+            where = env.execute(expr)
+            qry = env.build(where)
 
         for row in conn.execute(qry):
             res = {

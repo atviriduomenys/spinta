@@ -1,4 +1,4 @@
-from typing import Iterator
+from typing import Iterator, Any
 from typing import overload
 
 from spinta.typing import ObjectData
@@ -106,6 +106,8 @@ def getall(
     backend: Mongo,
     *,
     query: Expr = None,
+    is_paginated: bool = False,
+    page: Any = None,
 ) -> Iterator[ObjectData]:
     builder = MongoQueryBuilder(context)
     builder.update(model=model)

@@ -12,7 +12,7 @@ from spinta.backends.helpers import load_backend
 from spinta.components import Action
 from spinta.components import Context
 from spinta.components import Model
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, Env
 from spinta.core.ufuncs import ShortExpr
 from spinta.datasets.components import Resource
 from spinta.dimensions.enum.helpers import get_prop_enum
@@ -196,3 +196,19 @@ def get_ref_filters(
             ))
 
     return query
+
+
+def paginate(
+    env: Env,
+    expr: Expr,
+    page: Any = None
+):
+    column = env.resolve(expr)
+    if page:
+        expr = ShortExpr('gt', column, page)
+        expr = env.resolve(expr)
+        where = env.execute(expr)
+    else:
+        where = None
+    qry = env.build(where)
+    return qry

@@ -34,10 +34,9 @@ from typer import echo
 from spinta import exceptions
 from spinta import spyna
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.data import ModelRow
+from spinta.cli.helpers.data import ModelRow, read_model_data
 from spinta.cli.helpers.data import count_rows
 from spinta.cli.helpers.data import ensure_data_dir
-from spinta.cli.helpers.data import iter_model_rows
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
@@ -48,6 +47,7 @@ from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Store
 from spinta.core.context import configure_context
+from spinta.datasets.helpers import isexpr
 from spinta.manifests.components import Manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
@@ -113,6 +113,10 @@ def push(
     max_error_count: int = Option(50, '--max-errors', help=(
         "If errors exceed given number, push command will be stopped."
     )),
+    full: bool = Option(False, '--full', help=(
+        "If True when pushing with pages, resets page value and starts "
+        "pushing from the beginning."
+    )),
 ):
     """Push data to external data store"""
     if chunk_size:
@@ -171,6 +175,8 @@ def push(
             state = _State(*_init_push_state(state, models))
             context.attach('push.state.conn', state.engine.begin)
             _reset_pushed(context, models, state.metadata)
+            if full:
+                _reset_pages(context, state.metadata)
 
         error_counter = _ErrorCounter(max_error_count)
 
@@ -299,6 +305,7 @@ def _push(
 
     if state and not dry_run:
         rows = _save_push_state(context, rows, state.metadata)
+        rows = _save_page_values(context, rows, state.metadata)
 
     _push_rows(rows, stop_on_error, error_counter)
 
@@ -319,6 +326,7 @@ def _read_rows(
     yield from _get_model_rows(
         context,
         models,
+        state.metadata,
         limit,
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
@@ -401,6 +409,7 @@ def _attach_keymaps(context: Context, store: Store) -> None:
 def _get_model_rows(
     context: Context,
     models: List[Model],
+    metadata: sa.MetaData,
     limit: int = None,
     *,
     stop_on_error: bool = False,
@@ -416,18 +425,110 @@ def _get_model_rows(
         if not no_progress_bar
         else {}
     )
-    rows = iter_model_rows(
+    rows = _iter_model_rows(
         context,
         models,
         counts,
+        metadata,
         limit,
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
     )
     if not no_progress_bar:
         rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
-    for model, row in rows:
+    for row in rows:
+        yield row
+
+
+def _iter_model_rows(
+    context: Context,
+    models: List[Model],
+    counts: Dict[str, int],
+    metadata: sa.MetaData,
+    limit: int = None,
+    *,
+    stop_on_error: bool = False,
+    no_progress_bar: bool = False,
+) -> Iterator[ModelRow]:
+    for model in models:
+        if model.external and \
+                isexpr(model.external.prepare, {'page'}) and \
+                model.external.prepare.args:
+
+            rows = _read_rows_by_pages(
+                context,
+                model,
+                metadata,
+                limit,
+                stop_on_error
+            )
+        else:
+            rows = read_model_data(context, model, limit, stop_on_error)
+            rows = _rows_to_push_rows(model, rows)
+
+        if not no_progress_bar:
+            count = counts.get(model.name)
+            rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
+        for row in rows:
+            yield row
+
+
+def _rows_to_push_rows(
+    model: Model,
+    rows: Iterable[Dict[str, Any]]
+) -> Iterator[_PushRow]:
+    for row in rows:
         yield _PushRow(model, row)
+
+
+def _read_rows_by_pages(
+    context: Context,
+    model: Model,
+    metadata: sa.MetaData,
+    limit: int = None,
+    stop_on_error: bool = False,
+) -> Iterator[_PushRow]:
+    conn = context.get('push.state.conn')
+    table = metadata.tables['_page']
+
+    page = conn.execute(
+        sa.select([table.c.property, table.c.value]).
+        where(
+            table.c.model == model.name
+        )
+    ).scalar()
+    prop = str(model.external.prepare.args[0])
+
+    push_page = False
+    while True:
+        if limit is not None and limit <= 0:
+            break
+
+        rows = read_model_data(
+            context,
+            model,
+            limit,
+            stop_on_error,
+            is_paginated=True,
+            page=page
+        )
+        peek = next(rows, None)
+        if peek is None:
+            break
+
+        row = None
+        rows = itertools.chain([peek], rows)
+        for i, row in enumerate(rows):
+            if limit is not None:
+                limit -= 1
+            if i == 0 and push_page:
+                yield _PushRow(model, row, push=True)
+            else:
+                push_page = True
+                yield _PushRow(model, row)
+        if row:
+            data = fix_data_for_json(row)
+            page = data[prop]
 
 
 def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
@@ -487,7 +588,7 @@ def _push_to_remote_spinta(
             )
             chunk = prefix
             ready = []
-        if not row.push and row.send:
+        if row.send:
             chunk += (',' if ready else '') + data
             ready.append(row)
 
@@ -746,6 +847,15 @@ def _init_push_state(
     engine = sa.create_engine(dburi)
     metadata = sa.MetaData(engine)
     inspector = sa.inspect(engine)
+
+    page_table = sa.Table(
+        '_page', metadata,
+        sa.Column('model', sa.Text, primary_key=True),
+        sa.Column('property', sa.Text),
+        sa.Column('value', sa.Text),
+    )
+    page_table.create(checkfirst=True)
+
     for model in models:
         table = sa.Table(
             model.name, metadata,
@@ -838,6 +948,10 @@ def _get_model_type(row: _PushRow) -> str:
     return row.data['_type']
 
 
+def _get_model(row: _PushRow) -> Model:
+    return row.model
+
+
 def _get_data_checksum(data: dict):
     data = fix_data_for_json(take(data))
     data = flatten([data])
@@ -866,6 +980,18 @@ def _reset_pushed(
             table.update().
             values(pushed=None)
         )
+
+
+def _reset_pages(
+    context: Context,
+    metadata: sa.MetaData,
+):
+    conn = context.get('push.state.conn')
+    table = metadata.tables['_page']
+    conn.execute(
+        table.update().
+        values(value=None)
+    )
 
 
 def _check_push_state(
@@ -965,6 +1091,58 @@ def _save_push_state(
                 )
             )
         yield row
+
+
+def _save_page_values(
+    context: Context,
+    rows: Iterable[_PushRow],
+    metadata: sa.MetaData,
+):
+    conn = context.get('push.state.conn')
+    page_table = metadata.tables['_page']
+
+    for model, group in itertools.groupby(rows, key=_get_model):
+        pagination_prop = None
+        saved = False
+        if model.external and \
+                isexpr(model.external.prepare, {'page'}) and \
+                model.external.prepare.args:
+
+            pagination_prop = str(model.external.prepare.args[0])
+
+            page_row = conn.execute(
+                sa.select(page_table.c.model)
+                .where(page_table.c.model == model.name)
+            ).scalar()
+
+            if page_row is not None:
+                saved = True
+
+        for row in group:
+            if pagination_prop:
+                data = fix_data_for_json(row.data)
+                if saved:
+                    conn.execute(
+                        page_table.update().
+                        where(
+                            (page_table.c.model == model.name)
+                        ).
+                        values(
+                            value=data.get(pagination_prop)
+                        )
+                    )
+                else:
+                    conn.execute(
+                        page_table.insert().
+                        values(
+                            model=model.name,
+                            property=pagination_prop,
+                            value=data.get(pagination_prop)
+                        )
+                    )
+                    saved = True
+
+            yield row
 
 
 def _get_deleted_rows(

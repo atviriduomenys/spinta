@@ -989,3 +989,26 @@ def cast(env: SqlResultBuilder, dtype: String, value: int) -> str:
 @ufunc.resolver(SqlResultBuilder, String, type(None))
 def cast(env: SqlResultBuilder, dtype: String, value: Optional[Any]) -> str:
     return ''
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind)
+def page(
+    env: SqlQueryBuilder,
+    sort_by: Bind,
+    *,
+    size: Optional[int] = 1000
+):
+    prop = env.model.properties[sort_by.name]
+    column = env.backend.get_column(env.table, prop)
+    if isinstance(sort_by, Negative):
+        column = column.desc()
+    else:
+        column = column.asc()
+    env.sort = [column]
+
+    if env.limit:
+        env.limit = min(size, env.limit)
+    else:
+        env.limit = size
+    return sort_by
+
