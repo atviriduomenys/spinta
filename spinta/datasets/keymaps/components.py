@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 
 from spinta.components import Component
 
@@ -6,11 +6,8 @@ from spinta.components import Component
 class KeyMap(Component):
     name: str = None
 
-    def encode(self, name: str, value: object) -> Optional[str]:
+    def encode(self, name: str, value: Any, primary_key: Optional[str] = None) -> Optional[str]:
         raise NotImplementedError
 
     def decode(self, name: str, key: str) -> object:
-        raise NotImplementedError
-
-    def encode_fkey(self, name: str, value: object, primary_key:str) -> Optional[str]:
         raise NotImplementedError
