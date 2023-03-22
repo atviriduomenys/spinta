@@ -22,4 +22,5 @@ def prepare(
     }
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
     column_type = ga.Geometry(**kwargs)
-    return sa.Column(name, column_type, unique=dtype.unique)
+    nullable = not dtype.required
+    return sa.Column(name, column_type, unique=dtype.unique, nullable=nullable)

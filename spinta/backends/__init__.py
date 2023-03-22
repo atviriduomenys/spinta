@@ -32,10 +32,10 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import Property
-from spinta.exceptions import ConflictingValue
+from spinta.exceptions import ConflictingValue, RequiredProperty
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
-from spinta.types.datatype import Array, Inherit
+from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -48,6 +48,8 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.utils.data import take
+from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
 
@@ -191,7 +193,13 @@ def simple_data_check(
     backend: Backend,
     value: object,
 ) -> None:
-    check_type_value(dtype, value)
+    if data.action in (
+        Action.UPDATE,
+        Action.INSERT,
+        Action.PATCH,
+        Action.UPSERT
+    ):
+        check_type_value(dtype, value, data.action)
 
     # Action.DELETE is ignore for qvarn compatibility reasons.
     # XXX: make `spinta` check for revision on Action.DELETE,
@@ -227,6 +235,43 @@ def simple_data_check(
     dtype = dtype.items.dtype
     for v in value:
         simple_data_check(context, data, dtype, prop, dtype.backend, v)
+
+
+@commands.simple_data_check.register(Context, DataItem, ExternalRef, Property, Backend, dict)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: ExternalRef,
+    prop: Property,
+    backend: Backend,
+    value: dict,
+) -> None:
+    denorm_prop_keys = [
+        p.name.split('.', maxsplit=1)[-1]
+        for p in prop.model.properties.values() if (
+            isinstance(p.dtype, Denorm) and
+            p.name.split('.')[0] == prop.name
+        )
+    ]
+    allowed_keys = [prop.name for prop in dtype.refprops]
+    allowed_keys.extend(denorm_prop_keys)
+    value = flatten_value(value)
+    for key in value.keys():
+        if key not in allowed_keys:
+            raise exceptions.FieldNotInResource(prop, property=key)
+
+
+@commands.simple_data_check.register(Context, DataItem, Ref, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Ref,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if value and not isinstance(value, dict):
+        raise exceptions.InvalidRefValue(prop, value=value)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
@@ -303,10 +348,12 @@ def complex_data_check(
                 )
 
 
-def check_type_value(dtype: DataType, value: object):
-    if dtype.required and (value is None or value is NA):
-        # FIXME: Raise a UserError
-        raise Exception(f"{dtype.prop.name!r} is required for {dtype.prop.model.name!r}.")
+def check_type_value(dtype: DataType, value: object, action: Action):
+    if dtype.required and (
+        (action == Action.PATCH and value is None) or
+        (action != Action.PATCH and (value is None or value is NA))
+    ):
+        raise RequiredProperty(dtype.prop)
 
 
 @gen_object_id.register(Context, Backend, Node)
@@ -728,6 +775,51 @@ def prepare_dtype_for_response(
     # FIXME: Backend should never return references as strings! References
     #        should always be dicts.
     return {'_id': value}
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, ExternalRef, (dict, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: ExternalRef,
+    value: Optional[Dict[str, Any]],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if value is None:
+        return {}
+
+    if select and select != {'*': {}}:
+        names = get_select_prop_names(
+            context,
+            dtype,
+            dtype.model.properties,
+            action,
+            select,
+        )
+    else:
+        names = value.keys()
+
+    data = {}
+    for prop, val, sel in select_props(
+        dtype.model,
+        names,
+        dtype.model.properties,
+        value,
+        select,
+    ):
+        data[prop.name] = commands.prepare_dtype_for_response(
+            context,
+            fmt,
+            prop.dtype,
+            val,
+            data=data,
+            action=action,
+            select=sel,
+        )
+    return data
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Object, dict)

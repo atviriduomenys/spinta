@@ -471,6 +471,43 @@ def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
     return ref_model, ref_props
 
 
+def _parse_dtype_string(dtype: str) -> dict:
+    args = []
+    error = None
+    required = unique = False
+    invalid_args = []
+
+    if '(' in dtype:
+        dtype, args = dtype.split('(', 1)
+        args, additional_args = args.split(')', 1)
+        args = args.strip().rstrip(')')
+        args = [a.strip() for a in args.split(',')]
+    else:
+        if len(dtype.split(None, 1)) > 1:
+            dtype, additional_args = dtype.split(None, 1)
+        else:
+            additional_args = ""
+
+    if additional_args:
+        for arg in additional_args.split(None):
+            if arg == 'required':
+                required = True
+            elif arg == 'unique':
+                unique = True
+            else:
+                invalid_args.append(arg)
+        if invalid_args:
+            error = f'Invalid type arguments: {", ".join(invalid_args)}.'
+
+    return {
+        'type': dtype,
+        'type_args': args,
+        'required': required,
+        'unique': unique,
+        'error': error,
+    }
+
+
 class PropertyReader(TabularReader):
     type: str = 'property'
     data: PropertyRow
@@ -492,23 +529,32 @@ class PropertyReader(TabularReader):
                 f"defined for this {self.state.model.name!r} model."
             )
 
-        if self.state.base and not row['type']:
-            row['type'] = 'inherit'
+        dtype = _parse_dtype_string(row['type'])
+        if dtype['error']:
+            self.error(
+                dtype['error']
+            )
+
+        if self.state.base and not dtype['type']:
+            dtype['type'] = 'inherit'
 
         self.data = {
-            'type': row['type'],
+            'type': dtype['type'],
+            'type_args': dtype['type_args'],
             'prepare': _parse_spyna(self, row[PREPARE]),
             'level': row['level'],
             'access': row['access'],
             'uri': row['uri'],
             'title': row['title'],
             'description': row['description'],
+            'required': dtype['required'],
+            'unique': dtype['unique'],
         }
 
         dataset = self.state.dataset.data if self.state.dataset else None
 
         if row['ref']:
-            if row['type'] in ('ref', 'backref', 'generic'):
+            if dtype['type'] in ('ref', 'backref', 'generic'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
                 self.data['model'] = get_relative_model_name(dataset, ref_model)
                 self.data['refprops'] = ref_props
@@ -1507,7 +1553,7 @@ def _property_to_tabular(
     data = {
         'property': prop.place,
         'type': prop.dtype.get_type_repr(),
-        'level': prop.level,
+        'level': prop.level.value if prop.level else "",
         'access': prop.given.access,
         'uri': prop.uri,
         'title': prop.title,
@@ -1568,7 +1614,7 @@ def _model_to_tabular(
     data = {
         'id': model.id,
         'model': model.name,
-        'level': model.level,
+        'level': model.level.value if model.level else "",
         'access': model.given.access,
         'title': model.title,
         'description': model.description,

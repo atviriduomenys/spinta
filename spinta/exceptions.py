@@ -365,6 +365,14 @@ class UnknownParameter(BaseError):
     }
 
 
+class InvalidRefValue(UserError):
+    template = "Invalid reference value: {value}."
+
+
+class InvalidLevel(UserError):
+    template = "Invalid level value \"{level}\"."
+
+
 class InvalidParameterValue(BaseError):
     template = "Invalid parameter {parameter!r} value."
 
@@ -515,6 +523,17 @@ class KeymapNotSet(UserError):
     )
 
 
+class NoRefPropertyForDenormProperty(UserError):
+    template = (
+        "Property {ref!r} with type 'ref' or 'object' must be defined "
+        "before defining property {prop!r}."
+    )
+
+
+class ReferencedPropertyNotFound(PropertyNotFound):
+    pass
+
+
 class RemoteClientError(UserError):
     pass
 
@@ -539,3 +558,7 @@ class RemoteClientScopesNotGiven(RemoteClientError):
         "Make sure at least one scope is given for [{section}] in "
         "{credentials} file."
     )
+
+
+class RequiredProperty(UserError):
+    template = "Property is required."

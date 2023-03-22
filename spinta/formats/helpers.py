@@ -12,7 +12,7 @@ from spinta.components import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
-from spinta.types.datatype import Array
+from spinta.types.datatype import Array, ExternalRef
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Object
 from spinta.types.datatype import File
@@ -42,6 +42,20 @@ def _get_dtype_header(
     elif isinstance(dtype, File):
         yield name + '._id'
         yield name + '._content_type'
+
+    elif isinstance(dtype, ExternalRef):
+        if select is None or select == {'*': {}}:
+            for prop in dtype.refprops:
+                yield name + '.' + prop.place
+        else:
+            for prop, sel in select_only_props(
+                dtype.prop,
+                dtype.model.properties.keys(),
+                dtype.model.properties,
+                select,
+            ):
+                name_ = name + '.' + prop.name
+                yield from _get_dtype_header(prop.dtype, sel, name_)
 
     elif isinstance(dtype, Ref):
         if select is None or select == {'*': {}}:
