@@ -1553,7 +1553,7 @@ def _property_to_tabular(
     data = {
         'property': prop.place,
         'type': prop.dtype.get_type_repr(),
-        'level': prop.level,
+        'level': prop.level.value if prop.level else "",
         'access': prop.given.access,
         'uri': prop.uri,
         'title': prop.title,
@@ -1614,7 +1614,7 @@ def _model_to_tabular(
     data = {
         'id': model.id,
         'model': model.name,
-        'level': model.level,
+        'level': model.level.value if model.level else "",
         'access': model.given.access,
         'title': model.title,
         'description': model.description,

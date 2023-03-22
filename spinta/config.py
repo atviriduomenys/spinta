@@ -109,6 +109,7 @@ CONFIG = {
             'rql': 'spinta.types.datatype:RQL',
             'json': 'spinta.types.datatype:JSON',
             'denorm': 'spinta.types.datatype:Denorm',
+            '_external_ref': 'spinta.types.datatype:ExternalRef',
             'inherit': 'spinta.types.datatype:Inherit',
         },
         'urlparams': {

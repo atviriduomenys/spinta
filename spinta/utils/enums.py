@@ -26,3 +26,17 @@ def enum_by_name(
         if item.name == name:
             return item
     raise exceptions.InvalidValue(component, param=param, given=name)
+
+
+def enum_by_value(
+    component: Component,
+    param: Optional[str],  # component param
+    enum: Type[Enum],
+    value: Any,
+) -> Optional[Enum]:
+    if value is None or value == '':
+        return None
+    for item in enum:
+        if item.value == value:
+            return item
+    raise exceptions.InvalidValue(component, param=param, given=value)
