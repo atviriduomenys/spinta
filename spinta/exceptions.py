@@ -562,3 +562,7 @@ class RemoteClientScopesNotGiven(RemoteClientError):
 
 class RequiredProperty(UserError):
     template = "Property is required."
+
+
+class UnableToCast(UserError):
+    template = "Unable to cast {value} to {type} type."

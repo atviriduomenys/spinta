@@ -10,6 +10,7 @@ from typing import Tuple
 from typing import TypeVar
 from typing import TypedDict
 from typing import Union
+from decimal import Decimal
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
@@ -29,10 +30,12 @@ from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UnknownMethod
+from spinta.exceptions import UnableToCast
 from spinta.types.datatype import DataType
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.types.datatype import Integer
 from spinta.types.file.components import FileData
 from spinta.ufuncs.components import ForeignProperty
 from spinta.core.ufuncs import Unresolved
@@ -989,3 +992,16 @@ def cast(env: SqlResultBuilder, dtype: String, value: int) -> str:
 @ufunc.resolver(SqlResultBuilder, String, type(None))
 def cast(env: SqlResultBuilder, dtype: String, value: Optional[Any]) -> str:
     return ''
+
+
+@ufunc.resolver(SqlResultBuilder, Integer, Decimal)
+def cast(env: SqlResultBuilder, dtype: Integer, value: Decimal) -> int:
+    return env.call('cast', dtype, float(value))
+
+
+@ufunc.resolver(SqlResultBuilder, Integer, float)
+def cast(env: SqlResultBuilder, dtype: Integer, value: float) -> int:
+    if value % 1 > 0:
+        raise UnableToCast(dtype, value=value, type=dtype.name)
+    else:
+        return int(value)
