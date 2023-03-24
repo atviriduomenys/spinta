@@ -252,11 +252,11 @@ def test_inspect_oracle_sqldump_stdin(
       BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT
     )
     TABLESPACE "GEO_PORTAL_V2" ;
-    
+
     --------------------------------------------------------
     --  DDL for Table COUNTRY
     --------------------------------------------------------
-    
+
     CREATE TABLE "GEO"."CITY" (
       "ID" NUMBER(19,0), 
       "NAME" VARCHAR2(255 CHAR)
@@ -269,7 +269,7 @@ def test_inspect_oracle_sqldump_stdin(
       BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT
     )
     TABLESPACE "GEO_PORTAL_V2" ;
-    
+
     ''')
 
     # Check what was detected.
