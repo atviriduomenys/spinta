@@ -13,17 +13,6 @@ def _cleanup(name: str) -> str:
     return name
 
 
-def to_dataset_name(name: str) -> str:
-    name = unidecode(name)
-    if '/' in name:
-        parts = [p for p in name.split('/') if p]
-        if parts:
-            name = parts[-1]
-    name = to_code_name(name)
-    words = split_words_re.split(name)
-    return _cleanup(''.join(words))
-
-
 def to_model_name(name: str) -> str:
     name = unidecode(name)
     name = camel_cased_words.sub(r' \1', name).strip()

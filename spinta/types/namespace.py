@@ -54,7 +54,7 @@ def load_namespace_from_name(
     ns: Optional[Namespace] = None
     parent: Optional[Namespace] = None
     parts: List[str] = []
-    parts_ = [p for p in path.split('/') if p]
+    parts_ = path.split('/')
     if drop:
         parts_ = parts_[:-1]
     for part in [''] + parts_:
@@ -74,16 +74,10 @@ def load_namespace_from_name(
             ns = manifest.namespaces[name]
             pass
 
-        if parent:
-            if ns.name == parent.name:
-                raise RuntimeError(f"Self reference in {path!r}.")
+        ns.parent = parent or manifest
 
-            ns.parent = parent or manifest
-
-            if part and part not in parent.names:
-                parent.names[part] = ns
-        else:
-            ns.parent = manifest
+        if parent and part and part not in parent.names:
+            parent.names[part] = ns
 
         parent = ns
 

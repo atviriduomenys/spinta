@@ -44,7 +44,6 @@ CONFIG = {
             'xlsx': 'spinta.manifests.tabular.components:XlsxManifest',
             'gsheets': 'spinta.manifests.tabular.components:GsheetsManifest',
             'wsdl': 'spinta.manifests.wsdl.components:WsdlManifest',
-            'sql': 'spinta.manifests.sql.components:SqlManifest',
         },
         'backends': {
             # In memory backends mostly usable in tests
