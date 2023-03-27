@@ -3,8 +3,23 @@
 Changes
 #######
 
-0.1.47 (unreleased)
+0.1.47 (2023-03-27)
 ===================
+
+Improvements:
+
+- Add support for `point(x,y)` and `cast()` functions for sql backend
+  (`#407`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/407
+
+Bug fixes:
+
+- Error when loading manifest from XLSX file, where level is read as integer
+  (`#405`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/405
+
 
 
 0.1.46 (2023-03-21)
