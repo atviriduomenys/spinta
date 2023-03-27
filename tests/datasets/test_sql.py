@@ -2573,3 +2573,44 @@ def test_cast_integer_error(
 
     resp = app.get(f'/{dataset}/Data')
     assert error(resp) == 'UnableToCast'
+
+
+def test_point(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    sqlite: Sqlite,
+):
+    dataset = 'example/func/point'
+    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
+    d | r | b | m | property | type     | ref | source | prepare     | access
+    {dataset}                |          |     |        |             |
+      | resource             | sql      | sql |        |             |
+      |   |   | Data         |          | id  | data   |             |
+      |   |   |   | id       | integer  |     | id     |             | open
+      |   |   |   | x        | number   |     | x      |             | private
+      |   |   |   | y        | number   |     | y      |             | private
+      |   |   |   | point    | geometry |     |        | point(x, y) | open
+    ''')
+
+    # Configure local server with SQL backend
+    sqlite.init({
+        'data': [
+            sa.Column('id', sa.Integer),
+            sa.Column('x', sa.Float),
+            sa.Column('y', sa.Float),
+        ],
+    })
+    sqlite.write('data', [{
+        'id': 1,
+        'x': 4,
+        'y': 2,
+    }])
+
+    app = create_client(rc, tmp_path, sqlite)
+    app.authmodel(dataset, ['getall'])
+
+    resp = app.get(f'/{dataset}/Data')
+    assert listdata(resp) == [(1, 'POINT (4.0 2.0)')]
