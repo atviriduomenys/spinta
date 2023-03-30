@@ -1,6 +1,6 @@
 import cgi
 import typing
-from typing import Any
+from typing import Any, List
 from typing import AsyncIterator, Union, Optional
 from typing import overload
 
@@ -171,6 +171,7 @@ async def push_stream(
         dstream = validate_data(context, dstream)
         dstream = prepare_patch(context, dstream)
         dstream = prepare_data_for_write(context, dstream)
+        dstream = sort_for_foreign_key_dependency(dstream, action, model)
         if prop:
             dstream = cmds[action](
                 context, prop, prop.dtype, prop.dtype.backend or model.backend, dstream=dstream,
@@ -862,6 +863,68 @@ async def prepare_data_for_write(
                 action=data.action,
             )
         yield data
+
+
+async def sort_for_foreign_key_dependency(
+    dstream: AsyncIterator[DataItem],
+    action,
+    model: Model
+) -> AsyncIterator[DataItem]:
+    # Get properties from model, whose ref is self
+    self_reference_properties = [prop.name for prop in model.properties.values() if
+                                 isinstance(prop.dtype, Ref) and prop.dtype.model == model]
+    data_with_self_reference = {}
+
+    # Get self ref properties from payload and check if they are all None
+    # if all None means no need to check for foreign key dependency and just Yield
+    # if action is not INSERT or UPSERT, it should skip sorting, since DELETE can be dependent on data that is not in stream
+    # else store the data for further processing
+    async for data in dstream:
+        payload = data.payload
+        filtered_properties = [payload.get(key) for key in self_reference_properties]
+        if all(value is None for value in filtered_properties) or action not in [Action.INSERT, Action.UPSERT]:
+            yield data
+        else:
+            data_with_self_reference[payload.get("_id")] = {
+                "data": data,
+                "self_reference": filtered_properties
+            }
+
+    # Process data that has self references
+    async for data in sort_by_no_reference_in_stream(data_with_self_reference):
+        yield data
+
+
+async def sort_by_no_reference_in_stream(
+    data_with_self_reference: Dict[str, Dict[str, Union[DataItem, List]]]
+) -> AsyncIterator[DataItem]:
+    # Going through self reference value and checking if they don't have self references left in Dict
+    # Added values_change_count to prevent infinite looping (should add Exception if it's impossible to add values)
+    # Should also probably add recursion to increase performance
+    values_change_count = 1
+    while len(data_with_self_reference) > 0 and values_change_count > 0:
+        values_change_count = 0
+        for key, value in data_with_self_reference.copy().items():
+            item_data = value.get("data")
+            item_references = value.get("self_reference")
+            if not check_if_self_reference_in_stream(list(data_with_self_reference.keys()), item_references):
+                data_with_self_reference.pop(key)
+                values_change_count += 1
+                yield item_data
+
+    # Should probably replace with exception
+    # This will only run when it's impossible to sort for foreign key dependency in single stream
+    # Example: {id:0, reference:{id:1}} {id:1, reference:{id:0}}
+    if len(data_with_self_reference) > 0:
+        for data in data_with_self_reference.values():
+            yield data
+
+
+def check_if_self_reference_in_stream(stream_ids: List[str], self_references: List[str]) -> bool:
+    for reference in self_references:
+        if reference.get("_id") in stream_ids:
+            return True
+    return False
 
 
 def prepare_response(
