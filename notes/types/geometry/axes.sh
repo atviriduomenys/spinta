@@ -57,25 +57,6 @@ http -b https://epsg.io/4326.json | jq -r "{name: .name, axis: .coordinate_syste
 #|   ]
 #| }
 
-http -b https://epsg.io/900913.json | jq -r "{name: .name, axis: .coordinate_system.axis}"
-#| {
-#|   "name": "Google Maps Global Mercator",
-#|   "axis": [
-#|     {
-#|       "name": "Easting",
-#|       "abbreviation": "X",
-#|       "direction": "east",
-#|       "unit": "metre"
-#|     },
-#|     {
-#|       "name": "Northing",
-#|       "abbreviation": "Y",
-#|       "direction": "north",
-#|       "unit": "metre"
-#|     }
-#|   ]
-#| }
-
 http -b https://epsg.io/3857.json | jq -r "{name: .name, axis: .coordinate_system.axis}"
 #| {
 #|   "name": "WGS 84 / Pseudo-Mercator",
@@ -96,7 +77,143 @@ http -b https://epsg.io/3857.json | jq -r "{name: .name, axis: .coordinate_syste
 #| }
 
 
-#| https://www.openstreetmap.org/?mlat=56.423&mlon=24.884#map=8/56.423/24.884
+# Katedros varpinė
+#
+# https://www.openstreetmap.org/?mlat=54.68570&mlon=25.28669#map=19/54.68570/25.28669
+# 54.68570 N, 25.28669 E
+#
+# https://maps.lt/map/?lang=lt#obj=582966;6061790&xy=582981,6061783&z=1000&lrs=vector,hybrid_overlay,vector_2_5d,stops,zebra
+# 582981 E, 6061783 N
+
+# Rubikių geležinkelio stotis
+#
+# https://www.openstreetmap.org/?mlat=55.53124&mlon=25.28203#map=18/55.53124/25.28203
+# 55.53124 N, 25.28203 E
+#
+# https://maps.lt/map/?lang=lt#obj=580940;6155884&xy=580964,6155873&z=1000&lrs=vector,hybrid_overlay,vector_2_5d,stops,zebra
+# 580964 E, 6155873 N
+
+
+#                                  north     east
+#                                  lat       lon
+#                                  y         x
+# 4326    WGS84                    54.68570  25.28669   Katedros varpinė
+#                                  55.53124  25.28203   Rubikių stotis
+# 3346    LKS94                    6061792   582966     Katedros varpinė
+#                                  6155873   580964     Rubikių stotis
+#
+#                                  east      north
+#                                  lat       lon
+#                                  x         y
+# 3857    WGS84 / Pseudo-Mercator  2814901   7301104    Katedros varpinė
+#                                  2814382   7465659    Rubikių stotis
+
+
+poetry run python
+from pyproj import CRS, Transformer
+from shapely.ops import transform
+from shapely.geometry import Point
+
+def trans(x, y, s, t, **kw):
+    transformer = Transformer.from_crs(
+        crs_from=CRS(f'EPSG:{s}'),
+        crs_to=CRS(f'EPSG:{t}'),
+        **kw,
+    )
+    shape = transform(transformer.transform, Point(x, y))
+    return shape.x, shape.y
+
+# WGS84 (4326) -> LKS94 (3346) Katedros varpinė
+trans(54.68570, 25.28669, 4326, 3346)                  # (north, east)
+#| (6061789.991147185, 582964.0913465106)              # (north, east)
+trans(25.28669, 54.68570, 4326, 3346, always_xy=True)  # (east, north)
+#| (582964.0913465106, 6061789.991147185)              # (east, north)
+
+# WGS84 (4326) -> LKS94 (3346) Rubikių stotis
+trans(55.53124, 25.28203, 4326, 3346)                  # (north, east)
+#| (6155887.721039969, 580936.2572643314)              # (north, east)
+trans(25.28203, 55.53124, 4326, 3346, always_xy=True)  # (east, north)
+#| (580936.2572643314, 6155887.721039969)              # (east, north)
+
+
+# WGS84 (4326) -> WGS84 / Pseudo-Mercator (3857) Katedros varpinė
+trans(54.68570, 25.28669, 4326, 3857)                  # (north, east)
+#| (2814901.454647363, 7301104.288392755)              # (east, north)
+trans(25.28669, 54.68570, 4326, 3857, always_xy=True)  # (east, north)
+#| (2814901.454647363, 7301104.288392755)              # (east, north)
+
+# WGS84 (4326) -> WGS84 / Pseudo-Mercator (3857) Rubikių stotis
+trans(55.53124, 25.28203, 4326, 3857)                  # (north, east)
+#| (2814382.705820266, 7465659.17820406)               # (east, north)
+trans(25.28203, 55.53124, 4326, 3857, always_xy=True)  # (east, north)
+#| (2814382.705820266, 7465659.17820406)               # (east, north)
+
+
+CRS(f'EPSG:4326')
+#| Name: WGS 84
+#| Axis Info [ellipsoidal]:
+#| - Lat[north]: Geodetic latitude (degree)
+#| - Lon[east]: Geodetic longitude (degree)
+
+CRS(f'EPSG:3346')
+#| Name: LKS94 / Lithuania TM
+#| Axis Info [cartesian]:
+#| - X[north]: Northing (metre)
+#| - Y[east]: Easting (metre)
+
+CRS(f'EPSG:3857')
+#| Name: WGS 84 / Pseudo-Mercator
+#| Axis Info [cartesian]:
+#| - X[east]: Easting (metre)
+#| - Y[north]: Northing (metre)
+
+
+# LKS94 (3346) -> WGS84 (4326)  Katedros varpinė
+trans(6061789, 582964, 3346, 4326)                  # (north, east)
+#| (54.68569111173754, 25.286688302053335)          # (north, east)
+
+
+# WGS84 / Pseudo-Mercator (3857) -> WGS84 (4326)  Katedros varpinė
+trans(2814901, 7301104, 3857, 4326)                 # (east, north)
+#| (54.68569850243032, 25.28668591583325)           # (north, east)
+
+
+
+
+
+trans(24.884, 56.423, 4326, 3346, always_xy=True)
+#| (554539.5211979866, 6254761.641923006)
+
+trans(6254761, 554539, 3346, 4326)  # PROJ swaps axes
+#| (56.422994294771925, 24.883991419600004)
+
+trans(554539, 6254761, 3346, 4326, always_xy=True)
+#| (24.883991419600004, 56.422994294771925)
+
+trans(6254761, 554539, 3346, 900913)  # PROJ swaps axes
+#| (2770073.253734061, 7643086.849722873)
+
+trans(554539, 6254761, 3346, 900913, always_xy=True)
+#| (2770073.253734061, 7643086.849722873)
+
+trans(6254761, 554539, 3346, 3857)  # PROJ swaps axes
+#| (2770073.253734061, 7643086.849722873)
+
+trans(554539, 6254761, 3346, 3857, always_xy=True)
+#| (2770073.253734061, 7643086.849722873)
+
+
+
+
+
+#                                  north   east
+#                                  lat     lon
+#                                  x       y
+# 4326    WGS84                    24.884  56.423
+# 3346    LKS94                    554539  6254761
+# 900913  WebMerkator              2770074 7643087
+# 3857    WGS84 / Pseudo-Merkator  2770074 7643087
+
 
 #                                  north   east
 #                                  lat     lon
