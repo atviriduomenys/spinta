@@ -99,7 +99,7 @@ def _get_primary_key(
 
 def _get_table_comment(insp: Inspector, table: str) -> str:
     try:
-        return insp.get_table_comment(table)
+        return insp.get_table_comment(table).get('text')
     except NotImplementedError:
         return ''
 

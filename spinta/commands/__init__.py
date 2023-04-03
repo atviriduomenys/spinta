@@ -935,5 +935,10 @@ def inspect(*args) -> Iterator[ManifestSchema]:
 
 
 @command()
-def merge(context: Context, old: Any, new: Any) -> None:
+def merge(
+    context: Context,
+    manifest: Manifest,
+    old: Any,
+    new: Any,
+) -> None:
     """Merge new manifest into old."""
