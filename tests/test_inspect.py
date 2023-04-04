@@ -82,7 +82,7 @@ def test_inspect_from_manifest_table(
     manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property  | type    | ref | source  | prepare
-    dbsqlite  |         |     |         |
+    dbsqlite                  |         |     |         |
       | resource1             | sql     |     | sqlite  |
                               |         |     |         |
       |   |   | Country       |         | id  | COUNTRY |
