@@ -1,7 +1,8 @@
 from typing import AsyncIterator, cast
 
-import sqlalchemy as sa
-from spinta import commands
+import psycopg2
+from sqlalchemy import exc
+from spinta import commands, exceptions
 from spinta.types.datatype import Denorm
 from spinta.utils.data import take
 from spinta.components import Context, Model, DataItem, DataSubItem
@@ -21,18 +22,24 @@ async def insert(
     connection = transaction.connection
     table = backend.get_table(model)
     async for data in dstream:
-        patch = commands.before_write(context, model, backend, data=data)
-        # TODO: Refactor this to insert batches with single query.
-        qry = table.insert().values(
-            _id=patch['_id'],
-            _revision=patch['_revision'],
-            _txn=transaction.id,
-            _created=utcnow(),
-        )
-        connection.execute(qry, patch)
-
-        commands.after_write(context, model, backend, data=data)
-
+        try:
+            patch = commands.before_write(context, model, backend, data=data)
+            # TODO: Refactor this to insert batches with single query.
+            qry = table.insert().values(
+                _id=patch['_id'],
+                _revision=patch['_revision'],
+                _txn=transaction.id,
+                _created=utcnow(),
+            )
+            savepoint = connection.begin_nested()
+            connection.execute(qry, patch)
+            commands.after_write(context, model, backend, data=data)
+        except exc.IntegrityError as error:
+            if type(error.orig) is psycopg2.errors.ForeignKeyViolation:
+                savepoint.rollback()
+                data.error = exceptions.ReferenceObjectNotFound(data.model, detailed_message=error.orig.diag.message_detail)
+            else:
+                raise error
         yield data
 
 
@@ -54,25 +61,32 @@ async def update(
             yield data
             continue
 
-        pk = data.saved['_id']
-        patch = commands.before_write(context, model, backend, data=data)
-        result = connection.execute(
-            table.update().
-            where(table.c._id == pk).
-            where(table.c._revision == data.saved['_revision']).
-            values(patch)
-        )
-
-        if result.rowcount == 0:
-            raise Exception(f"Update failed, {model} with {pk} not found.")
-        elif result.rowcount > 1:
-            raise Exception(
-                f"Update failed, {model} with {pk} has found and update "
-                f"{result.rowcount} rows."
+        try:
+            pk = data.saved['_id']
+            patch = commands.before_write(context, model, backend, data=data)
+            savepoint = connection.begin_nested()
+            result = connection.execute(
+                table.update().
+                where(table.c._id == pk).
+                where(table.c._revision == data.saved['_revision']).
+                values(patch)
             )
 
-        commands.after_write(context, model, backend, data=data)
+            if result.rowcount == 0:
+                raise Exception(f"Update failed, {model} with {pk} not found.")
+            elif result.rowcount > 1:
+                raise Exception(
+                    f"Update failed, {model} with {pk} has found and update "
+                    f"{result.rowcount} rows."
+                )
 
+            commands.after_write(context, model, backend, data=data)
+        except exc.IntegrityError as error:
+            if type(error.orig) is psycopg2.errors.ForeignKeyViolation:
+                savepoint.rollback()
+                data.error = exceptions.ReferenceObjectNotFound(data.model, detailed_message=error.orig.diag.message_detail)
+            else:
+                raise error
         yield data
 
 
@@ -89,12 +103,20 @@ async def delete(
     connection = transaction.connection
     table = backend.get_table(model)
     async for data in dstream:
-        commands.before_write(context, model, backend, data=data)
-        connection.execute(
-            table.delete().
-            where(table.c._id == data.saved['_id'])
-        )
-        commands.after_write(context, model, backend, data=data)
+        try:
+            commands.before_write(context, model, backend, data=data)
+            savepoint = connection.begin_nested()
+            connection.execute(
+                table.delete().
+                where(table.c._id == data.saved['_id'])
+            )
+            commands.after_write(context, model, backend, data=data)
+        except exc.IntegrityError as error:
+            if type(error.orig) is psycopg2.errors.ForeignKeyViolation:
+                savepoint.rollback()
+                data.error = exceptions.ReferenceObjectNotFound(data.model, detailed_message=error.orig.diag.message_detail)
+            else:
+                raise error
         yield data
 
 
