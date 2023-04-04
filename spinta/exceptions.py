@@ -566,3 +566,9 @@ class RequiredProperty(UserError):
 
 class UnableToCast(UserError):
     template = "Unable to cast {value} to {type} type."
+
+
+class ReferenceObjectNotFound(UserError):
+    template = (
+        "Reference object not found. {detailed_message}"
+    )
