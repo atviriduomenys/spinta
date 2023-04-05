@@ -568,7 +568,9 @@ class UnableToCast(UserError):
     template = "Unable to cast {value} to {type} type."
 
 
-class ReferenceObjectNotFound(UserError):
-    template = (
-        "Reference object not found. {detailed_message}"
-    )
+class ReferencedObjectNotFound(UserError):
+    template = "Referenced object {id!r} not found."
+
+
+class ReferringObjectFound(UserError):
+    template = "Object {id!r} is still being referenced in table {model!r}"
