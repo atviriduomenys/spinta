@@ -1,5 +1,6 @@
 from typing import AsyncIterator, cast
 
+import re
 import psycopg2
 from sqlalchemy import exc
 from spinta import commands, exceptions
@@ -8,6 +9,7 @@ from spinta.utils.data import take
 from spinta.components import Context, Model, DataItem, DataSubItem
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
+
 
 @commands.insert.register(Context, Model, PostgreSQL)
 async def insert(
@@ -21,8 +23,15 @@ async def insert(
     transaction = context.get('transaction')
     connection = transaction.connection
     table = backend.get_table(model)
+
+    # Need to set specific amount of max errors, to prevent memory problems
+    max_error_count = 100
+    error_list = []
+    savepoint_transaction_start = connection.begin_nested()
+    rollback_full = False
     async for data in dstream:
         try:
+            savepoint = connection.begin_nested()
             patch = commands.before_write(context, model, backend, data=data)
             # TODO: Refactor this to insert batches with single query.
             qry = table.insert().values(
@@ -31,16 +40,32 @@ async def insert(
                 _txn=transaction.id,
                 _created=utcnow(),
             )
-            savepoint = connection.begin_nested()
             connection.execute(qry, patch)
             commands.after_write(context, model, backend, data=data)
         except exc.IntegrityError as error:
+            rollback_full = True
+            savepoint.rollback()
             if type(error.orig) is psycopg2.errors.ForeignKeyViolation:
-                savepoint.rollback()
-                data.error = exceptions.ReferenceObjectNotFound(data.model, detailed_message=error.orig.diag.message_detail)
+                error_message = error.orig.diag.message_detail
+                error_property_name = re.search('Key \((.*?)\)', error_message).group(1).split(".")[0]
+                error_ref_id = re.search('\)=\((.*?)\)', error_message).group(1)
+                error_property = model.properties.get(error_property_name)
+                exception = exceptions.ReferencedObjectNotFound(error_property, id=error_ref_id)
+                error_list.append(exception)
+                data.error = exception
             else:
+                # Might need to append it to error_list, but these errors are not part of BaseError class
                 raise error
+
+            if len(error_list) >= max_error_count:
+                yield data
+                savepoint_transaction_start.rollback()
+                raise exceptions.MultipleErrors(error_list)
         yield data
+
+    if rollback_full:
+        savepoint_transaction_start.rollback()
+        raise exceptions.MultipleErrors(error_list)
 
 
 @commands.update.register(Context, Model, PostgreSQL)
@@ -56,22 +81,26 @@ async def update(
     connection = transaction.connection
     table = backend.get_table(model)
 
+    # Need to set specific amount of max errors, to prevent memory problems
+    max_error_count = 100
+    error_list = []
+    savepoint_transaction_start = connection.begin_nested()
+    rollback_full = False
     async for data in dstream:
         if not data.patch:
             yield data
             continue
 
         try:
+            savepoint = connection.begin_nested()
             pk = data.saved['_id']
             patch = commands.before_write(context, model, backend, data=data)
-            savepoint = connection.begin_nested()
             result = connection.execute(
                 table.update().
                 where(table.c._id == pk).
                 where(table.c._revision == data.saved['_revision']).
                 values(patch)
             )
-
             if result.rowcount == 0:
                 raise Exception(f"Update failed, {model} with {pk} not found.")
             elif result.rowcount > 1:
@@ -79,15 +108,31 @@ async def update(
                     f"Update failed, {model} with {pk} has found and update "
                     f"{result.rowcount} rows."
                 )
-
             commands.after_write(context, model, backend, data=data)
         except exc.IntegrityError as error:
+            rollback_full = True
+            savepoint.rollback()
             if type(error.orig) is psycopg2.errors.ForeignKeyViolation:
-                savepoint.rollback()
-                data.error = exceptions.ReferenceObjectNotFound(data.model, detailed_message=error.orig.diag.message_detail)
+                error_message = error.orig.diag.message_detail
+                error_property_name = re.search('Key \((.*?)\)', error_message).group(1).split(".")[0]
+                error_ref_id = re.search('\)=\((.*?)\)', error_message).group(1)
+                error_property = model.properties.get(error_property_name)
+                exception = exceptions.ReferencedObjectNotFound(error_property, id=error_ref_id)
+                error_list.append(exception)
+                data.error = exception
             else:
+                # Might need to append it to error_list, but these errors are not part of BaseError class
                 raise error
+
+            if len(error_list) >= max_error_count:
+                yield data
+                savepoint_transaction_start.rollback()
+                raise exceptions.MultipleErrors(error_list)
         yield data
+
+    if rollback_full:
+        savepoint_transaction_start.rollback()
+        raise exceptions.MultipleErrors(error_list)
 
 
 @commands.delete.register(Context, Model, PostgreSQL)
@@ -102,22 +147,43 @@ async def delete(
     transaction = context.get('transaction')
     connection = transaction.connection
     table = backend.get_table(model)
+
+    # Need to set specific amount of max errors, to prevent memory problems
+    max_error_count = 100
+    error_list = []
+    savepoint_transaction_start = connection.begin_nested()
+    rollback_full = False
     async for data in dstream:
         try:
-            commands.before_write(context, model, backend, data=data)
             savepoint = connection.begin_nested()
+            commands.before_write(context, model, backend, data=data)
             connection.execute(
                 table.delete().
                 where(table.c._id == data.saved['_id'])
             )
             commands.after_write(context, model, backend, data=data)
         except exc.IntegrityError as error:
+            rollback_full = True
+            savepoint.rollback()
             if type(error.orig) is psycopg2.errors.ForeignKeyViolation:
-                savepoint.rollback()
-                data.error = exceptions.ReferenceObjectNotFound(data.model, detailed_message=error.orig.diag.message_detail)
+                error_message = error.orig.diag.message_detail
+                error_model = re.search('\"([^"]*)\"', error_message).group(1)
+                exception = exceptions.ReferringObjectFound(model.properties.get("_id"), model=error_model, id=data.saved.get("_id"))
+                error_list.append(exception)
+                data.error = exception
             else:
+                # Might need to append it to error_list, but these errors are not part of BaseError class
                 raise error
+
+            if len(error_list) >= max_error_count:
+                yield data
+                savepoint_transaction_start.rollback()
+                raise exceptions.MultipleErrors(error_list)
         yield data
+
+    if rollback_full:
+        savepoint_transaction_start.rollback()
+        raise exceptions.MultipleErrors(error_list)
 
 
 @commands.before_write.register(Context, Model, PostgreSQL)
@@ -158,5 +224,3 @@ def after_write(
     for key in take(data.patch or {}):
         prop = model.properties[key]
         commands.after_write(context, prop.dtype, backend, data=data[key])
-
-
