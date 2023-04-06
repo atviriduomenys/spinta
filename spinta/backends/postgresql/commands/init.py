@@ -37,7 +37,10 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.extend(column)
         elif column is not None:
             columns.append(column)
-
+    if model.external is not None and model.external.unknown_primary_key is False:
+        if len(model.external.pkeys) == 1:
+            model.external.pkeys[0].dtype.unique = True
+        columns.append(sa.UniqueConstraint(*[key.name for key in model.external.pkeys]))
     # Create main table.
     main_table_name = get_pg_name(get_table_name(model))
     pkey_type = commands.get_primary_key_type(context, backend)
@@ -49,7 +52,6 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         *columns,
     )
     backend.add_table(main_table, model)
-
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
