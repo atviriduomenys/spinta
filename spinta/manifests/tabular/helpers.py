@@ -1550,6 +1550,9 @@ def _property_to_tabular(
     if prop.access < access:
         return
 
+    remember_unique_state = prop.dtype.unique
+    if len(prop.model.external.pkeys) == 1:
+        prop.dtype.unique = False
     data = {
         'property': prop.place,
         'type': prop.dtype.get_type_repr(),
@@ -1559,6 +1562,9 @@ def _property_to_tabular(
         'title': prop.title,
         'description': prop.description,
     }
+    if len(prop.model.external.pkeys) == 1:
+        prop.dtype.unique = remember_unique_state
+
 
     if external and prop.external:
         if isinstance(prop.external, list):
