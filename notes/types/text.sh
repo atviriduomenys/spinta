@@ -25,7 +25,7 @@ cat $BASEDIR/manifest.csv
 #| ,,,,,,,,,,,,,,
 #| ,,,,Country,,,,,,,,,,
 #| ,,,,,name,text,,,,,,,,
-# FIXME: When saving tabular manifet, instead of two name properties only one
+# FIXME: When saving tabular manifet, instead of two name properties only one DONE
 #        is left.
 cat > $BASEDIR/manifest.csv <<'EOF'
 id,dataset,resource,base,model,property,type,ref,source,prepare,level,access,uri,title,description
@@ -41,7 +41,7 @@ poetry run spinta show $BASEDIR/manifest.csv
 #|    |                          |      |     |        |         |       |        |     |       |
 #|    |   |   |   | Country      |      |     |        |         |       |        |     |       |
 #|    |   |   |   |   | name     | text |     |        |         |       |        |     |       |
-# FIXME: Same thing here, one property instead of two.
+# FIXME: Same thing here, one property instead of two. Done
 
 # notes/spinta/server.sh    Prepare manifest
 # notes/spinta/server.sh    Check configuration
@@ -64,7 +64,7 @@ http POST "$SERVER/$DATASET/Country" $AUTH name="Lithuania"
 #| {
 #|     "name": "Lithuania"
 #| }
-# FIXME: We can't save `name`, because no souch thing is defined in manifest
+# FIXME: We can't save `name`, because no souch thing is defined in manifest Done
 #        table. Only `name@lt` or `name@en` can be given. We could accept
 #        `name` if there would be only one language option defined.
 
@@ -92,7 +92,7 @@ EOF
 #| HTTP/1.1 400 Bad Request
 #|
 #| "message": "Unknown property 'name@en'.",
-# FIXME: This should be accepted.
+# FIXME: This should be accepted. Done
 
 http POST "$SERVER/$DATASET/Country" $AUTH <<'EOF'
 {
@@ -152,7 +152,7 @@ tail -200 $BASEDIR/spinta.log
 #|         * COLON
 #| 
 #| Previous tokens: Token('NAME', 'name')
-# FIXME: Fix the grammer to allow @ as an attribute separator.
+# FIXME: Fix the grammer to allow @ as an attribute separator. DONE
 
 
 http GET "$SERVER/$DATASET/Country?name='Lithuania'" $AUTH

@@ -8,6 +8,7 @@ from spinta.types.datatype import DataType
 class Text(DataType):
     schema = {
         'langs': {'type': 'object'},
+        'hidden': {'type': 'bool', 'default': True}
     }
 
     langs: Optional[Dict[str, Property]]

@@ -51,6 +51,9 @@ from spinta.types.datatype import String
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
+from spinta.types.text.components import Text
+from spinta.exceptions import UserError
+from spinta.utils.errors import report_error
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)
@@ -200,6 +203,9 @@ def simple_data_check(
     updating = data.action in (Action.UPDATE, Action.PATCH)
     if updating and '_revision' not in data.given:
         raise NoItemRevision(prop)
+    if isinstance(dtype, Text):
+        if not list(filter(lambda x: '@' in x, list(data.given.keys()))):
+            raise NotImplementedError
 
 
 @commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)

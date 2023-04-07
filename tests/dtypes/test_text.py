@@ -7,6 +7,8 @@ from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
+from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.manifest import load_manifest
 
 
 def test_text(
@@ -212,7 +214,6 @@ def test_text_select_by_prop(context, model, app):
     assert resp.status_code == 201
 
     select_by_prop = app.get(f'/{model}/?select(title@lt)')
-
     assert select_by_prop.status_code == 200
     assert len(select_by_prop.json()['_data']) == 2
     select_by_prop_value = app.get(f'/{model}?select(title@lt)=lietuva')
@@ -220,3 +221,102 @@ def test_text_select_by_prop(context, model, app):
     assert len(select_by_prop_value.json()['_data']) == 1
     sort_by_prop = app.get(f'/{model}/?sort(title@lt)')
     assert sort_by_prop.status_code == 200
+
+
+def test_text_check(tmpdir, rc):
+    table = '''
+        id | d | r | b | m | property | type   | ref | source | prepare | level | access      | uri | title | description
+           | types/text               |        |     |        |         |       |             |     |       |
+           |                          |        |     |        |         |       |             |     |       |
+           |   |   |   | Country      |        |     |        |         |       |             |     |       |
+           |   |   |   |   | name@lt  | text   |     |        |         | 1     | protected   |     |       |
+           |   |   |   |   | name@en  | text   |     |        |         | 1     | protected   |     |       |
+    '''
+
+    create_tabular_manifest(tmpdir / 'manifest.csv', table)
+    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+    assert manifest == table
+
+
+@pytest.mark.models(
+    'backends/postgres/country_text',
+)
+def test_text_post_property_with_text(context, model, app):
+    app.authmodel(model, [
+        'insert',
+        'getone',
+        'getall',
+        'search'
+    ])
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'title@en': 'lithuania',
+    })
+
+    assert resp.status_code == 201
+
+
+@pytest.mark.models(
+    'backends/postgres/country_text',
+)
+def test_text_post_wrong_property_with_text(context, model, app):
+
+    app.authmodel(model, [
+        'insert',
+        'getone',
+        'getall',
+        'search'
+    ])
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'title': 'lithuania',
+    })
+
+    assert resp.status_code == 200
+
+
+@pytest.mark.models(
+    'backends/postgres/country_text',
+)
+def test_text_get_response(context, model, app):
+
+    app.authmodel(model, [
+        'insert',
+        'getone',
+        'getall',
+        'search'
+    ])
+
+    resp = app.post(f'/{model}', json={
+        '_type': model,
+        'title': {'en': 'lithuania'}
+    })
+
+    get_response = app.get(f'/{model}')
+
+    assert get_response.status_code != 200
+
+
+@pytest.mark.models(
+    'backends/postgres/country_text',
+)
+def test_text_post_prop_with_text_dict(context, model, app):
+
+    app.authmodel(model, [
+        'insert',
+        'getone',
+        'getall',
+        'search'
+    ])
+
+    resp = app.post(f'/{model}', json={
+        "name": {
+            "en": "Lithuania"
+        }
+    })
+
+    get_response = app.get(f'/{model}?name="Lithuania"')
+
+    assert get_response.status == 500

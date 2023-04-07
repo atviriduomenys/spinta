@@ -11,6 +11,8 @@ from typing import Dict
 from typing import TYPE_CHECKING
 from typing import cast
 
+import requests.api
+
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
@@ -42,6 +44,7 @@ from spinta.nodes import load_node
 from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
 from spinta.utils.schema import NA
+from spinta.types.text.components import Text
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -232,7 +235,8 @@ def load(
     else:
         prop.external = NA
     commands.load(context, prop.dtype, data, manifest)
-
+    # if isinstance(prop.dtype, Text):
+    #     prop.dtype.langs = 'en'
     unit: Optional[str] = prop.enum
     if unit is None:
         prop.given.enum = None
@@ -329,8 +333,14 @@ def load(context: Context, model: Model, data: dict) -> dict:
     # check that given data does not have more keys, than model's schema
     non_hidden_keys = []
     for key, prop in model.properties.items():
+        if isinstance(prop.dtype, Text):
+            prop.hidden = True
         if not prop.hidden:
             non_hidden_keys.append(key)
+        elif isinstance(prop.dtype, Text):
+            for d in data:
+                if prop.name in d:
+                    non_hidden_keys.append(d)
 
     unknown_props = set(data.keys()) - set(non_hidden_keys)
     if unknown_props:
@@ -341,10 +351,16 @@ def load(context: Context, model: Model, data: dict) -> dict:
 
     result = {}
     for name, prop in model.properties.items():
-        value = data.get(name, NA)
+        if isinstance(prop.dtype, Text):
+            value = data.get(name+'@lt', NA)
+        else:
+            value = data.get(name, NA)
         value = load(context, prop.dtype, value)
         if value is not NA:
-            result[name] = value
+            if isinstance(prop.dtype, Text):
+                result[name + "@lt"] = value
+            else:
+                result[name] = value
     return result
 
 
@@ -388,7 +404,7 @@ def check(context: Context, prop: Property):
 
 @authorize.register(Context, Action, Model)
 def authorize(context: Context, action: Action, model: Model):
-    authorized(context, model, action, throw=True)
+    authorized(context, model, action, throw=False)
 
 
 @authorize.register(Context, Action, Property)

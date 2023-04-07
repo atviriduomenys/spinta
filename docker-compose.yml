@@ -11,6 +11,13 @@ services:
       - POSTGRES_PASSWORD=admin123
     volumes:
       - postgres:/var/lib/postgresql/data
+  adminer:
+    image: adminer
+    ports:
+      - 127.0.0.1:9000:8080
+    environment:
+      ADMINER_PLUGINS: 'tables-filter'
+      ADMINER_DEFAULT_SERVER: 'postgres'
   mongo:
     image: mongo:4.0.9-xenial
     ports:
