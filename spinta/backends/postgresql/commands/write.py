@@ -2,6 +2,7 @@ from typing import AsyncIterator, cast
 
 import sqlalchemy as sa
 from spinta import commands
+from spinta.types.datatype import Denorm
 from spinta.utils.data import take
 from spinta.components import Context, Model, DataItem, DataSubItem
 from spinta.backends.postgresql.components import PostgreSQL
@@ -110,11 +111,15 @@ def before_write(
     patch['_txn'] = context.get('transaction').id
     patch['_created'] = utcnow()
     for prop in take(model.properties).values():
+        if isinstance(prop.dtype, Denorm):
+            prop_data = data[prop.name.split('.')[0]]
+        else:
+            prop_data = data[prop.name]
         value = commands.before_write(
             context,
             prop.dtype,
             backend,
-            data=data[prop.name],
+            data=prop_data,
         )
         patch.update(value)
     return patch

@@ -29,7 +29,7 @@ from spinta.core.context import create_context
 log = logging.getLogger(__name__)
 
 app = Typer()
-
+pathlib.PosixPath = pathlib.WindowsPath
 add(app, 'config', config.config, short_help="Show current configuration values")
 add(app, 'check', config.check, short_help="Check configuration and manifests")
 

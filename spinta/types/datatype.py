@@ -269,8 +269,15 @@ class JSON(DataType):
 
 
 class Denorm(DataType):
+    rel_prop: Property
+
     def get_type_repr(self):
         return ""
+
+
+class ExternalRef(Ref):
+    def get_type_repr(self):
+        return "ref"
 
 
 class Inherit(DataType):

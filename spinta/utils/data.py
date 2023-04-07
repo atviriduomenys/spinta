@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 from spinta.utils.schema import NA
 
 
