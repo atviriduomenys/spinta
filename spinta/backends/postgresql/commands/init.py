@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from spinta import commands
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType, PrimaryKey
+from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
@@ -40,7 +40,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     if model.external is not None and model.external.unknown_primary_key is False:
         if len(model.external.pkeys) == 1:
             model.external.pkeys[0].dtype.unique = True
-        columns.append(sa.UniqueConstraint(*[key.name for key in model.external.pkeys]))
+        columns.append(sa.UniqueConstraint(*[f"{key.name}._id" if type(key.dtype) is Ref else key.name for key in model.external.pkeys]))
     # Create main table.
     main_table_name = get_pg_name(get_table_name(model))
     pkey_type = commands.get_primary_key_type(context, backend)
