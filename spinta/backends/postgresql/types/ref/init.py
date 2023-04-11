@@ -32,6 +32,12 @@ def get_pg_foreign_key(
     column_type: TypeEngine) -> List[Union[sa.Column, sa.Constraint]]:
     column_name = get_column_name(prop) + '._id'
     nullable = not prop.dtype.required
+    if prop.model.unique:
+        prop.model.unique['unique_model_ref_fields']['ref'] = list(map(lambda x: x.replace(get_column_name(prop),
+                                                                                           column_name),
+                                                                       prop.model.unique[
+                                                                           'unique_model_ref_fields']['ref']
+                                                                       ))
     return [
         sa.Column(
             column_name,

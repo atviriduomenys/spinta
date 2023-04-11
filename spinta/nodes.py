@@ -215,11 +215,5 @@ def load_model_properties(
         prop.path = model.path
         prop.model = model
         prop = commands.load(context, prop, params, model.manifest)
-        if isinstance(model.unique, dict):
-            if prop.name in str(model.unique.keys()):
-                if not isinstance(prop.dtype, Ref):
-                    prop.dtype.unique = True
-                else:
-                    prop.dtype.ref_unique = True
         model.properties[name] = prop
         model.flatprops[name] = prop

@@ -38,6 +38,8 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         elif column is not None:
             columns.append(column)
 
+    if model.unique:
+        columns.append(sa.UniqueConstraint(*model.unique.get('unique_model_ref_fields', None).get('ref', None)))
     # Create main table.
     main_table_name = get_pg_name(get_table_name(model))
     pkey_type = commands.get_primary_key_type(context, backend)

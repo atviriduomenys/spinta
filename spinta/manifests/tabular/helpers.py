@@ -920,7 +920,7 @@ class UniqueReader(TabularReader):
 
         unique = reader.data['unique']
 
-        unique['_'.join(row[REF].split(',')).replace(' ', '')] = {
+        unique['unique_model_ref_fields'] = {
             'type': self.type,
             'ref': [row.strip() for row in row[REF].split(',')],
         }
