@@ -1082,7 +1082,11 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    patch = take([prop.place for prop in dtype.refprops], data.patch)
+    if dtype.model.given.pkeys:
+        props = dtype.refprops
+    else:
+        props = [dtype.model.properties['_id']]
+    patch = take([prop.place for prop in props], data.patch)
     return {
         f'{dtype.prop.place}.{k}': v for k, v in patch.items()
     }

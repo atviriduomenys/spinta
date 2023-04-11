@@ -373,7 +373,11 @@ def select(env, dtype):
 def select(env, dtype):
     table = env.backend.get_table(env.model)
     columns = []
-    for prop in dtype.refprops:
+    if dtype.model.given.pkeys:
+        props = dtype.refprops
+    else:
+        props = [dtype.model.properties['_id']]
+    for prop in props:
         column = table.c[f"{dtype.prop.place}.{prop.place}"]
         columns.append(column)
     return Selected(columns, dtype.prop)

@@ -75,3 +75,51 @@ def test_external_ref(
             'country.code': 'lt'
         }
     ]
+
+
+def test_external_ref_without_primary_key(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref                           | source       | level | access
+    datasets/externalref     |        |                               |              |       |
+      | external             | sql    |                               | sqlite://    |       |
+      |   |   | Country      |        |                               |              |       |
+      |   |   |   | code     | string |                               |              |       | open
+      |   |   |   | name     | string |                               |              |       | open
+    datasets/internal/pk     |        |                               |              |       |
+      |   |   | City         |        |                               |              |       |
+      |   |   |   | name     | string |                               |              |       | open
+      |   |   |   | country  | ref    | /datasets/externalref/Country |              | 3     | open
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authmodel('datasets/internal/pk/City', [
+        'insert',
+        'getall',
+        'search'
+    ])
+
+    _id = '4d741843-4e94-4890-81d9-5af7c5b5989a'
+    resp = app.post('/datasets/internal/pk/City', json={
+        'country': {'_id': _id},
+        'name': 'Vilnius',
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/internal/pk/City')
+    assert listdata(resp, full=True) == [
+        {
+            'country._id': _id,
+            'name': "Vilnius"
+        }
+    ]
+
+    resp = app.get('/datasets/internal/pk/City?select(country)')
+    assert listdata(resp, full=True) == [
+        {
+            'country._id': _id
+        }
+    ]
