@@ -28,7 +28,7 @@ from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
 from spinta.renderer import render
-from spinta.types.datatype import DataType, Object, Array, File, Ref, ExternalRef, Denorm
+from spinta.types.datatype import DataType, Object, Array, File, Ref, ExternalRef, Denorm, Inherit
 from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
@@ -838,6 +838,20 @@ def build_data_patch_for_write(
         return given
     else:
         return NA
+
+
+@commands.build_data_patch_for_write.register(Context, Inherit)
+def build_data_patch_for_write(
+    context: Context,
+    dtype: Inherit,
+    *,
+    given: Optional[object],
+    saved: Optional[object],
+    insert_action: bool = False,
+    update_action: bool = False,
+) -> Union[dict, NotAvailable]:
+    # Needs to be implemented when it's possible to modify Inherit type
+    return NA
 
 
 async def prepare_data_for_write(
