@@ -1036,7 +1036,7 @@ def _get_property_base_model(prop: Property):
     while model.base and model.base.parent:
         model = model.base.parent
         if prop.name in model.properties and not isinstance(
-            model.properties[prop.name],
+            model.properties[prop.name].dtype,
             Inherit
         ):
             base_model = model
