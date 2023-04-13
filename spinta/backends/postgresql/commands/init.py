@@ -37,8 +37,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.extend(column)
         elif column is not None:
             columns.append(column)
-
-    if model.unique:
+    if isinstance(model.unique, dict):
         columns.append(sa.UniqueConstraint(*model.unique.get('unique_model_ref_fields', None).get('ref', None)))
     # Create main table.
     main_table_name = get_pg_name(get_table_name(model))
