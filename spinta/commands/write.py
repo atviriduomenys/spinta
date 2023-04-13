@@ -957,6 +957,18 @@ def build_full_response(  # noqa
 @commands.build_full_response.register()  # noqa
 def build_full_response(  # noqa
     context: Context,
+    dtype: Inherit,
+    *,
+    patch: Optional[object],
+    saved: Optional[object],
+):
+    # Needs to be implemented when it's possible to modify Inherit type
+    return NA
+
+
+@commands.build_full_response.register()  # noqa
+def build_full_response(  # noqa
+    context: Context,
     dtype: File,
     *,
     patch: Optional[dict],
