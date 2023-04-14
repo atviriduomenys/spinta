@@ -3,8 +3,14 @@
 Changes
 #######
 
-0.1.48 (unreleased)
+0.1.48 (2023-04-14)
 ===================
+
+Bug fixes:
+
+- Fix issue with dask/pandas version incompatibility (`dask/dask#10164`__).
+
+  __ https://github.com/dask/dask/issues/10164
 
 
 0.1.47 (2023-03-27)
