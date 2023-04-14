@@ -24,8 +24,7 @@ def get_osm_link(value: WKBElement, srid: Optional[int]) -> Optional[str]:
     if srid and srid != WGS84:
         transformer = Transformer.from_crs(
             crs_from=CRS(f'EPSG:{srid}'),
-            crs_to=CRS(f'EPSG:{WGS84}'),
-            always_xy=True,
+            crs_to=CRS(f'EPSG:{WGS84}')
         )
         shape = transform(transformer.transform, shape)
 
