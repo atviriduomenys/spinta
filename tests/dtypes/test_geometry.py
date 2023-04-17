@@ -337,12 +337,13 @@ def test_geometry_delete(
 ):
     context = bootstrap_manifest(rc, f'''
         d | r | b | m | property                | type           | access
-        backends/postgres/dtypes/geometry/srid  |                | 
+        backends/postgres/dtypes/geometry/error  |                | 
           |   |   | Point                       |                | 
           |   |   |   | point                   | geometry       | open
+          |   |   |   | number                  | integer        | open
     ''', backend=postgresql, request=request)
 
-    ns: str = 'backends/postgres/dtypes/geometry/srid'
+    ns: str = 'backends/postgres/dtypes/geometry/error'
     model: str = f'{ns}/Point'
 
     app = create_test_client(context)
@@ -368,13 +369,13 @@ def test_geometry_insert_without_geometry(
 ):
     context = bootstrap_manifest(rc, f'''
         d | r | b | m | property                | type           | access
-        backends/postgres/dtypes/geometry/srid  |                | 
+        backends/postgres/dtypes/geometry/error  |                | 
           |   |   | Point                       |                | 
           |   |   |   | point                   | geometry       | open
           |   |   |   | number                  | integer        | open
     ''', backend=postgresql, request=request)
 
-    ns: str = 'backends/postgres/dtypes/geometry/srid'
+    ns: str = 'backends/postgres/dtypes/geometry/error'
     model: str = f'{ns}/Point'
 
     app = create_test_client(context)
@@ -395,13 +396,13 @@ def test_geometry_update_without_geometry(
 ):
     context = bootstrap_manifest(rc, f'''
         d | r | b | m | property                | type           | access
-        backends/postgres/dtypes/geometry/srid  |                | 
+        backends/postgres/dtypes/geometry/error  |                | 
           |   |   | Point                       |                | 
           |   |   |   | point                   | geometry       | open
           |   |   |   | number                  | integer        | open
     ''', backend=postgresql, request=request)
 
-    ns: str = 'backends/postgres/dtypes/geometry/srid'
+    ns: str = 'backends/postgres/dtypes/geometry/error'
     model: str = f'{ns}/Point'
 
     app = create_test_client(context)
