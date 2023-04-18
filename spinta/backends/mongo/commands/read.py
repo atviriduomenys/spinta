@@ -1,4 +1,4 @@
-from typing import Iterator, Any
+from typing import Iterator
 from typing import overload
 
 from spinta.typing import ObjectData

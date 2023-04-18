@@ -989,4 +989,3 @@ def cast(env: SqlResultBuilder, dtype: String, value: int) -> str:
 @ufunc.resolver(SqlResultBuilder, String, type(None))
 def cast(env: SqlResultBuilder, dtype: String, value: Optional[Any]) -> str:
     return ''
-
