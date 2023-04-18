@@ -202,6 +202,9 @@ def push(
             error_counter=error_counter,
         )
 
+        if error_counter.count < max_error_count:
+            raise Exit(code=1)
+
 
 class _State(NamedTuple):
     engine: sa.engine.Engine
