@@ -24,6 +24,23 @@ def geodb():
         yield db
 
 
+@pytest.fixture(scope='module')
+def errordb():
+    with create_sqlite_db({
+        'salis': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('kodas', sa.Text),
+            sa.Column('pavadinimas', sa.Text),
+        ]
+    }) as db:
+        db.write('salis', [
+            {'kodas': 'lt', 'pavadinimas': 'Lietuva'},
+            {'kodas': 'lt', 'pavadinimas': 'Latvija'},
+            {'kodas': 'lt', 'pavadinimas': 'Estija'},
+        ])
+        yield db
+
+
 def test_push_with_progress_bar(
     postgresql,
     rc,
@@ -101,3 +118,41 @@ def test_push_without_progress_bar(
     ])
     assert result.exit_code == 0
     assert result.stderr == ""
+
+
+def test_push_error_exit_code(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    errordb,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property| type    | ref     | source       | access
+    datasets/gov/example    |         |         |              |
+      | data                | sql     |         |              |
+      |   |                 |         |         |              |
+      |   |   | Country     |         | code    | salis        |
+      |   |   |   | code    | string unique|         | kodas        | open
+      |   |   |   | name    | string  |         | pavadinimas  | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, errordb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+    ], fail=False)
+    assert result.exit_code == 1
+
