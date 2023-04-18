@@ -25,6 +25,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.core.ufuncs import LoadBuilder
 from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -123,6 +124,10 @@ def load(
     else:
         model.external = None
         model.given.pkeys = []
+
+    builder = LoadBuilder(context)
+    builder.update(model=model)
+    builder.load_page()
 
     return model
 

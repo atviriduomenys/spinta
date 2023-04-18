@@ -35,22 +35,23 @@ from spinta import exceptions
 from spinta import spyna
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow, read_model_data
-from spinta.cli.helpers.data import count_rows
 from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
-from spinta.components import Action
+from spinta.commands.read import get_page
+from spinta.components import Action, Page
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
 from spinta.components import Model
 from spinta.components import Store
 from spinta.core.context import configure_context
-from spinta.datasets.helpers import isexpr
+from spinta.core.ufuncs import Expr
 from spinta.manifests.components import Manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
+from spinta.utils.itertools import peek
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.units import tobytes
@@ -113,9 +114,14 @@ def push(
     max_error_count: int = Option(50, '--max-errors', help=(
         "If errors exceed given number, push command will be stopped."
     )),
-    full: bool = Option(False, '--full', help=(
-        "If True when pushing with pages, resets page value and starts "
-        "pushing from the beginning."
+    incremental: bool = Option(False, '-i', '--incremental', help=(
+        "Do an incremental push, only pushing objects from last page."
+    )),
+    page=Option(None, '--page', help=(
+        "Page value from which rows will be pushed."
+    )),
+    page_model: str = Option(None, '--model', help=(
+        "Model of the page value."
     )),
 ):
     """Push data to external data store"""
@@ -174,9 +180,6 @@ def push(
         if state:
             state = _State(*_init_push_state(state, models))
             context.attach('push.state.conn', state.engine.begin)
-            _reset_pushed(context, models, state.metadata)
-            if full:
-                _reset_pages(context, state.metadata)
 
         error_counter = _ErrorCounter(max_error_count)
 
@@ -191,6 +194,9 @@ def push(
             retry_count=retry_count,
             no_progress_bar=no_progress_bar,
             error_counter=error_counter,
+            incremental=incremental,
+            page_model=page_model,
+            page=page,
         )
 
         _push(
@@ -286,9 +292,6 @@ def _push(
     if stop_time:
         rows = _add_stop_time(rows, stop_time)
 
-    if state:
-        rows = _check_push_state(context, rows, state.metadata)
-
     rows = _prepare_rows_for_push(rows)
 
     if stop_row:
@@ -322,6 +325,9 @@ def _read_rows(
     retry_count: int = 5,
     no_progress_bar: bool = False,
     error_counter: _ErrorCounter = None,
+    incremental: bool = False,
+    page_model: str = None,
+    page: Any = None,
 ) -> Iterator[_PushRow]:
     yield from _get_model_rows(
         context,
@@ -330,14 +336,9 @@ def _read_rows(
         limit,
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
-    )
-
-    yield PUSH_NOW
-    yield from _get_deleted_rows(
-        models,
-        context,
-        state.metadata,
-        no_progress_bar=no_progress_bar,
+        incremental=incremental,
+        page_model=page_model,
+        page=page,
     )
 
     for i in range(1, retry_count + 1):
@@ -414,28 +415,25 @@ def _get_model_rows(
     *,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
+    incremental: bool = False,
+    page_model: str = None,
+    page: Any = None,
 ) -> Iterator[_PushRow]:
-    counts = (
-        count_rows(
-            context,
-            models,
-            limit,
-            stop_on_error=stop_on_error,
-        )
-        if not no_progress_bar
-        else {}
-    )
+    push_counter = None
+    if not no_progress_bar:
+        push_counter = tqdm.tqdm(desc='PUSH', ascii=True)
     rows = _iter_model_rows(
         context,
         models,
-        counts,
         metadata,
         limit,
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
+        push_counter=push_counter,
+        incremental=incremental,
+        page_model=page_model,
+        page=page,
     )
-    if not no_progress_bar:
-        rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
     for row in rows:
         yield row
 
@@ -443,34 +441,72 @@ def _get_model_rows(
 def _iter_model_rows(
     context: Context,
     models: List[Model],
-    counts: Dict[str, int],
     metadata: sa.MetaData,
     limit: int = None,
     *,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
+    push_counter=None,
+    incremental: bool = False,
+    page_model: str = None,
+    page: Any = None,
 ) -> Iterator[ModelRow]:
     for model in models:
-        if model.external and \
-                isexpr(model.external.prepare, {'page'}) and \
-                model.external.prepare.args:
+        model_push_counter = None
+        if not no_progress_bar:
+            model_push_counter = tqdm.tqdm(desc=model.name, ascii=True, leave=False)
 
+        if model.page and model.page.by:
             rows = _read_rows_by_pages(
                 context,
                 model,
                 metadata,
                 limit,
-                stop_on_error
+                stop_on_error,
+                incremental,
+                page_model,
+                page
             )
         else:
             rows = read_model_data(context, model, limit, stop_on_error)
             rows = _rows_to_push_rows(model, rows)
-
-        if not no_progress_bar:
-            count = counts.get(model.name)
-            rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
         for row in rows:
             yield row
+            push_counter.update(1)
+            model_push_counter.update(1)
+
+
+def _read_model_data_by_page(
+    context: Context,
+    model: Model,
+    limit: int = None,
+    stop_on_error: bool = False,
+    page: Page = None,
+) -> Iterable[Dict[str, Any]]:
+
+    if limit is None:
+        query = None
+    else:
+        query = Expr('limit', limit)
+
+    stream = get_page(
+        context,
+        model,
+        model.backend,
+        page,
+        query,
+    )
+
+    if stop_on_error:
+        stream = peek(stream)
+    else:
+        try:
+            stream = peek(stream)
+        except Exception:
+            log.exception(f"Error when reading data from model {model.name}")
+            return
+
+    yield from stream
 
 
 def _rows_to_push_rows(
@@ -487,48 +523,208 @@ def _read_rows_by_pages(
     metadata: sa.MetaData,
     limit: int = None,
     stop_on_error: bool = False,
+    incremental: bool = False,
+    page_model: str = None,
+    page: Any = None,
 ) -> Iterator[_PushRow]:
     conn = context.get('push.state.conn')
     table = metadata.tables['_page']
 
-    page = conn.execute(
-        sa.select([table.c.property, table.c.value]).
-        where(
-            table.c.model == model.name
+    value = {}
+    if incremental:
+        if (
+            page and
+            page_model and
+            page_model == model.name and
+            len(model.page.by) == 1
+        ):
+            prop = list(model.page.by.values())[0]
+            value = {
+                prop.name: page
+            }
+            model.page.value = [page]
+        else:
+            page = conn.execute(
+                sa.select([table.c.value]).
+                where(
+                    table.c.model == model.name
+                )
+            ).scalar()
+            value = json.loads(page) if page else {}
+            model.page.value = list(value.values())
+    else:
+        # reset page value
+        conn.execute(
+            table.update().
+            values(value=None).
+            where(
+                table.c.model == model.name
+            )
         )
-    ).scalar()
-    prop = str(model.external.prepare.args[0])
+
+    model_table = metadata.tables[model.name]
+    state_rows = _get_state_rows(
+        context,
+        model,
+        model_table,
+        value
+    )
 
     push_page = False
+    state_row = next(state_rows, None)
     while True:
         if limit is not None and limit <= 0:
             break
 
-        rows = read_model_data(
+        rows = _read_model_data_by_page(
             context,
             model,
             limit,
             stop_on_error,
-            is_paginated=True,
-            page=page
+            page=model.page
         )
         peek = next(rows, None)
         if peek is None:
             break
 
-        row = None
         rows = itertools.chain([peek], rows)
         for i, row in enumerate(rows):
             if limit is not None:
                 limit -= 1
+
             if i == 0 and push_page:
-                yield _PushRow(model, row, push=True)
+                row = _PushRow(model, row, push=True)
             else:
                 push_page = True
-                yield _PushRow(model, row)
-        if row:
-            data = fix_data_for_json(row)
-            page = data[prop]
+                row = _PushRow(model, row)
+
+            push_row = True
+            row.op = 'insert'
+            row.checksum = _get_data_checksum(row.data)
+
+            data = fix_data_for_json(row.data)
+            value = {}
+            for prop in model.page.by.values():
+                value.update({
+                    prop.name: data.get(prop.name)
+                })
+            model.page.value = list(value.values())
+
+            if state_row:
+                delete_cond = None
+                patch_cond = None
+                for by, prop in model.page.by.items():
+                    state_val = state_row[model_table.c[f"page.{prop.name}"]]
+                    source_val = value.get(prop.name)
+
+                    if state_val is not None and source_val is not None:
+                        if by.startswith('-'):
+                            compare = state_val > source_val
+                        else:
+                            compare = state_val < source_val
+
+                        if delete_cond is not None:
+                            delete_cond = delete_cond and compare
+                        else:
+                            delete_cond = compare
+
+                        if patch_cond is not None:
+                            patch_cond = patch_cond and state_val == source_val
+                        else:
+                            patch_cond = state_val == source_val
+
+                if delete_cond:
+                    yield from _get_delete_rows(
+                        model,
+                        model_table,
+                        row,
+                        state_rows,
+                        state_row,
+                        value,
+                        delete_cond,
+                    )
+                    state_row = next(state_rows, None)
+                    push_row = False
+
+                elif patch_cond:
+                    row.op = 'patch'
+                    row.saved = True
+                    row.data['_revision'] = state_row[model_table.c.revision]
+                    if state_row[model_table.c.checksum] == row.checksum:
+                        push_row = False
+                    state_row = next(state_rows, None)
+
+            if push_row:
+                yield row
+
+
+def _get_state_rows(
+    context: Context,
+    model: Model,
+    table: sa.Table,
+    value: dict,
+) -> sa.engine.LegacyCursorResult:
+    conn = context.get('push.state.conn')
+
+    where = []
+    order_by = []
+    for by, prop in model.page.by.items():
+        if by.startswith('-'):
+            if value.get(prop.name):
+                where.append(table.c[f"page.{prop.name}"] < value.get(prop.name))
+            order_by.append(sa.desc(table.c[f"page.{prop.name}"]))
+        else:
+            if value.get(prop.name):
+                where.append(table.c[f"page.{prop.name}"] > value.get(prop.name))
+            order_by.append(sa.asc(table.c[f"page.{prop.name}"]))
+
+    if where:
+        state_rows = conn.execute(
+            sa.select([table]).
+            where(*where).
+            order_by(*order_by)
+        )
+    else:
+        state_rows = conn.execute(
+            sa.select([table]).
+            order_by(*order_by)
+        )
+    return state_rows
+
+
+def _get_delete_rows(
+    model: Model,
+    table: sa.Table,
+    row: _PushRow,
+    rows: sa.engine.LegacyCursorResult,
+    state_row: sa.engine.LegacyRow,
+    value: dict,
+    delete_cond: bool,
+):
+    while state_row and delete_cond:
+        yield _prepare_deleted_row(model, state_row[table.c.id])
+
+        state_row = next(rows, None)
+        if state_row:
+            for by, prop in model.page.by.items():
+                state_val = state_row[table.c[f"page.{prop.name}"]]
+                source_val = value.get(prop.name)
+
+                if state_val is not None and source_val is not None:
+                    if by.startswith('-'):
+                        compare = state_val > source_val
+                    else:
+                        compare = state_val < source_val
+
+                    if delete_cond is not None:
+                        delete_cond = delete_cond and compare
+                    else:
+                        delete_cond = compare
+    row.op = 'patch'
+    row.saved = True
+    row.data['_revision'] = state_row[table.c.revision]
+    if state_row[table.c.checksum] != row.checksum:
+        yield row
 
 
 def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
@@ -856,7 +1052,22 @@ def _init_push_state(
     )
     page_table.create(checkfirst=True)
 
+    types = {
+        'string': sa.Text,
+        'date': sa.Date,
+        'datetime': sa.DateTime,
+        'integer': sa.Integer,
+    }
+
     for model in models:
+        pagination_cols = []
+        if model.page and model.page.by and model.backend.paginated:
+            for prop in model.page.by.values():
+                type = types.get(prop.dtype.name, sa.Text)
+                pagination_cols.append(
+                    sa.Column(f"page.{prop.name}", type)
+                )
+
         table = sa.Table(
             model.name, metadata,
             sa.Column('id', sa.Unicode, primary_key=True),
@@ -864,7 +1075,8 @@ def _init_push_state(
             sa.Column('revision', sa.Unicode),
             sa.Column('pushed', sa.DateTime),
             sa.Column('error', sa.Boolean),
-            sa.Column('data', sa.Text)
+            sa.Column('data', sa.Text),
+            *pagination_cols
         )
         table.create(checkfirst=True)
 
@@ -908,6 +1120,13 @@ def _init_push_state(
                 columns,
                 sa.Column('data', sa.Text)
             )
+            for pg_col in pagination_cols:
+                _add_column(
+                    engine,
+                    table.name,
+                    columns,
+                    pg_col
+                )
 
     return engine, metadata
 
@@ -966,80 +1185,6 @@ class _Saved(NamedTuple):
     checksum: str
 
 
-def _reset_pushed(
-    context: Context,
-    models: List[Model],
-    metadata: sa.MetaData,
-):
-    conn = context.get('push.state.conn')
-    for model in models:
-        table = metadata.tables[model.name]
-
-        # reset pushed so we could see which objects were deleted
-        conn.execute(
-            table.update().
-            values(pushed=None)
-        )
-
-
-def _reset_pages(
-    context: Context,
-    metadata: sa.MetaData,
-):
-    conn = context.get('push.state.conn')
-    table = metadata.tables['_page']
-    conn.execute(
-        table.update().
-        values(value=None)
-    )
-
-
-def _check_push_state(
-    context: Context,
-    rows: Iterable[_PushRow],
-    metadata: sa.MetaData,
-):
-    conn = context.get('push.state.conn')
-
-    for model_type, group in itertools.groupby(rows, key=_get_model_type):
-        saved_rows = {}
-        if model_type:
-            table = metadata.tables[model_type]
-
-            query = sa.select([table.c.id, table.c.revision, table.c.checksum])
-            saved_rows = {
-                state[table.c.id]: _Saved(
-                    state[table.c.revision],
-                    state[table.c.checksum],
-                )
-                for state in conn.execute(query)
-            }
-
-        for row in group:
-            if row.send and not row.error and row.op != "delete":
-                _id = row.data['_id']
-                row.checksum = _get_data_checksum(row.data)
-                saved = saved_rows.get(_id)
-                if saved is None:
-                    row.op = "insert"
-                    row.saved = False
-                else:
-                    row.op = "patch"
-                    row.saved = True
-                    row.data['_revision'] = saved.revision
-                    if saved.checksum == row.checksum:
-                        conn.execute(
-                            table.update().
-                            where(table.c.id == _id).
-                            values(
-                                pushed=datetime.datetime.now()
-                            )
-                        )
-                        continue  # Nothing has changed.
-
-            yield row
-
-
 def _save_push_state(
     context: Context,
     rows: Iterable[_PushRow],
@@ -1048,6 +1193,14 @@ def _save_push_state(
     conn = context.get('push.state.conn')
     for row in rows:
         table = metadata.tables[row.data['_type']]
+
+        if row.model.page and row.model.page.by:
+            page = {
+                f"page.{prop.name}": row.data.get(prop.name)
+                for prop in row.model.page.by.values()
+            }
+        else:
+            page = {}
 
         if row.error and row.op != "delete":
             data = fix_data_for_json(row.data)
@@ -1076,6 +1229,7 @@ def _save_push_state(
                     pushed=datetime.datetime.now(),
                     error=row.error,
                     data=data,
+                    **page
                 )
             )
         else:
@@ -1088,6 +1242,7 @@ def _save_push_state(
                     pushed=datetime.datetime.now(),
                     error=row.error,
                     data=data,
+                    **page
                 )
             )
         yield row
@@ -1102,13 +1257,10 @@ def _save_page_values(
     page_table = metadata.tables['_page']
 
     for model, group in itertools.groupby(rows, key=_get_model):
-        pagination_prop = None
+        pagination_props = []
         saved = False
-        if model.external and \
-                isexpr(model.external.prepare, {'page'}) and \
-                model.external.prepare.args:
-
-            pagination_prop = str(model.external.prepare.args[0])
+        if model.page and model.page.by:
+            pagination_props = model.page.by.values()
 
             page_row = conn.execute(
                 sa.select(page_table.c.model)
@@ -1119,117 +1271,38 @@ def _save_page_values(
                 saved = True
 
         for row in group:
-            if pagination_prop:
+            if pagination_props:
                 data = fix_data_for_json(row.data)
-                if saved:
-                    conn.execute(
-                        page_table.update().
-                        where(
-                            (page_table.c.model == model.name)
-                        ).
-                        values(
-                            value=data.get(pagination_prop)
+                value = {}
+                for prop in pagination_props:
+                    if data.get(prop.name) is not None:
+                        value.update({
+                            prop.name: data.get(prop.name)
+                        })
+                if value:
+                    value = json.dumps(value)
+                    if saved:
+                        conn.execute(
+                            page_table.update().
+                            where(
+                                (page_table.c.model == model.name)
+                            ).
+                            values(
+                                value=value
+                            )
                         )
-                    )
-                else:
-                    conn.execute(
-                        page_table.insert().
-                        values(
-                            model=model.name,
-                            property=pagination_prop,
-                            value=data.get(pagination_prop)
+                    else:
+                        conn.execute(
+                            page_table.insert().
+                            values(
+                                model=model.name,
+                                property=','.join([prop.name for prop in pagination_props]),
+                                value=value
+                            )
                         )
-                    )
-                    saved = True
+                        saved = True
 
             yield row
-
-
-def _get_deleted_rows(
-    models: List[Model],
-    context: Context,
-    metadata: sa.MetaData,
-    no_progress_bar: bool = False,
-):
-    counts = (
-        _get_deleted_row_counts(
-            models,
-            context,
-            metadata
-        )
-    )
-    total_count = sum(counts.values())
-    if total_count > 0:
-        rows = _iter_deleted_rows(
-            models,
-            context,
-            metadata,
-            counts,
-            no_progress_bar
-        )
-        if not no_progress_bar:
-            rows = tqdm.tqdm(rows, 'PUSH DELETED', ascii=True, total=total_count)
-        for row in rows:
-            yield row
-
-
-def _get_deleted_row_counts(
-    models: List[Model],
-    context: Context,
-    metadata: sa.MetaData,
-) -> dict:
-    counts = {}
-    conn = context.get('push.state.conn')
-    for model in models:
-        table = metadata.tables[model.name]
-        row_count = conn.execute(
-            sa.select(sa.func.count(table.c.id)).
-            where(
-                table.c.pushed.is_(None) &
-                table.c.error.is_(False)
-            )
-        )
-        counts[model.name] = row_count.scalar()
-    return counts
-
-
-def _iter_deleted_rows(
-    models: List[Model],
-    context: Context,
-    metadata: sa.MetaData,
-    counts: Dict[str, int],
-    no_progress_bar: bool = False,
-) -> Iterable[_PushRow]:
-    conn = context.get('push.state.conn')
-
-    for model in models:
-        table = metadata.tables[model.name]
-        deleted_rows = conn.execute(
-            sa.select([table.c.id]).
-            where(
-                table.c.pushed.is_(None) &
-                table.c.error.is_(False)
-            )
-        )
-        if not no_progress_bar:
-            deleted_rows = tqdm.tqdm(
-                deleted_rows,
-                model.name,
-                ascii=True,
-                total=counts.get(model.name),
-                leave=False
-            )
-
-        yield from _prepare_deleted_rows(deleted_rows, model, table)
-
-
-def _prepare_deleted_rows(
-    rows,
-    model: Model,
-    table: sa.Table,
-) -> Iterable[ModelRow]:
-    for row in rows:
-        yield _prepare_deleted_row(model, row[table.c.id])
 
 
 def _prepare_deleted_row(

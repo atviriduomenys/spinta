@@ -9,7 +9,7 @@ import urllib.parse
 from starlette.requests import Request
 
 from spinta.commands import prepare
-from spinta.components import Action
+from spinta.components import Action, Page
 from spinta.components import Config
 from spinta.components import Context, Node
 from spinta.components import Model
@@ -179,6 +179,16 @@ def _prepare_urlparams_from_path(params: UrlParams):
             params.action = Action.WIPE
         elif name == 'check':
             params.action = Action.CHECK
+        elif name == 'page':
+            params.page = Page()
+            is_sort_attr = True
+            for arg in args:
+                if isinstance(arg, dict):
+                    is_sort_attr = False
+                if is_sort_attr:
+                    params.page.value.append(arg)
+                elif arg['name'] == 'bind' and 'size' in arg['args']:
+                    params.page.size = arg['args'][1]
         else:
             if params.query is None:
                 params.query = []

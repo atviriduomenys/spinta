@@ -201,6 +201,9 @@ CONFIG = {
 
     'env': 'prod',
 
+    # Limit of objects in the page
+    'push_page_size': None,
+
     'environments': {
         'dev': {
             'keymaps.default': {

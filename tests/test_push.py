@@ -15,7 +15,7 @@ from requests import PreparedRequest
 from responses import POST
 from responses import RequestsMock
 
-from spinta.cli.push import _PushRow, _reset_pushed, _get_deleted_rows, _ErrorCounter
+from spinta.cli.push import _PushRow, _ErrorCounter
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
@@ -228,7 +228,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        }),
+        }, op='insert'),
     ]
 
     client = requests.Session()
@@ -287,7 +287,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        })
+        }, op='insert')
     ]
 
     client = requests.Session()
@@ -339,9 +339,10 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
     rows = [
         _PushRow(model, {
             '_type': model.name,
+            '_revision': rev_before,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        }),
+        }, op='patch', saved=True),
     ]
 
     client = requests.Session()
@@ -409,9 +410,10 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     rows = [
         _PushRow(model, {
             '_type': model.name,
+            '_revision': rev_before,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        }),
+        }, op='patch', saved=True),
     ]
 
     client = requests.Session()
@@ -485,8 +487,6 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         rev_before,
         False,
     )]
-
-    _reset_pushed(context, models, state.metadata)
 
     rows = [
         _PushRow(model, {
@@ -610,12 +610,12 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
             '_id': _id1,
             '_revision': conflicting_rev,
             'name': 'Vilnius',
-        }),
+        }, op='patch', saved=True),
         _PushRow(model, {
             '_type': model.name,
             '_id': _id2,
             'name': 'Vilnius',
-        }),
+        }, op='insert'),
     ]
 
     client = requests.Session()
@@ -658,9 +658,9 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
 
 def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
     context, manifest = load_manifest_and_context(rc, '''
-       m | property | type   | prepare             |access
-       City         |        | page(name, size: 1) |
-         | name     | string |                     | open
+       m | property | type   | access
+       City         |        |
+         | name     | string | open
        ''')
 
     model = manifest.models['City']
@@ -713,8 +713,8 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
         state=state,
     )
 
-    query = sa.select([table.c.id, table.c.revision, table.c.error])
-    assert list(conn.execute(query)) == [(_id, rev, False)]
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c['page._id']])
+    assert list(conn.execute(query)) == [(_id, rev, False, _id)]
 
     query = sa.select([page_table.c.model, page_table.c.property, page_table.c.value])
-    assert list(conn.execute(query)) == [(model.name, 'name', 'Vilnius')]
+    assert list(conn.execute(query)) == [(model.name, '_id', '{"_id": "' + _id + '"}')]

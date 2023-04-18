@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from typing import List, Union, Any
 
 import datetime
@@ -14,7 +15,7 @@ from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends import _get_property_base_model
 from spinta.core.ufuncs import Env, ufunc
-from spinta.core.ufuncs import Bind
+from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
@@ -484,6 +485,26 @@ def compare(env, op: str, fpr: ForeignProperty, value: Any):
     return env.call(op, fpr, fpr.right.dtype, value)
 
 
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=COMPARE)
+def compare(env, op, dtype, value):
+    value = str(value)
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
+
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, (String, Date, DateTime), object, names=COMPARE)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
 @ufunc.resolver(PgQueryBuilder, DataType, type(None))
 def eq(env, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
@@ -938,6 +959,12 @@ def sort(env, field):
     return env.call('asc', prop.dtype)
 
 
+@ufunc.resolver(PgQueryBuilder, Negative_)
+def sort(env, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call('desc', prop.dtype)
+
+
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
 def sort(env: PgQueryBuilder, fpr: ForeignProperty):
     return env.call('asc', fpr, fpr.right.dtype)
@@ -1051,18 +1078,3 @@ def positive(env, dtype) -> Positive:
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)
 def positive(env: PgQueryBuilder, fpr: ForeignProperty) -> Positive:
     return Positive(fpr)
-
-
-@ufunc.resolver(PgQueryBuilder, Bind)
-def page(
-    env: PgQueryBuilder,
-    sort_by: Bind,
-    *,
-    size: Optional[int] = 1000
-):
-    env.sort = [env.call('sort', sort_by)]
-    if env.limit:
-        env.limit = min(size, env.limit)
-    else:
-        env.limit = size
-    return sort_by

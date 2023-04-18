@@ -1,7 +1,6 @@
-from typing import overload, Any
+from typing import overload
 from typing import Iterator
 
-from spinta.datasets.helpers import isexpr, paginate
 from spinta.typing import ObjectData
 from spinta import commands
 from spinta.core.ufuncs import Expr
@@ -41,9 +40,6 @@ def getall(
     backend: PostgreSQL,
     *,
     query: Expr = None,
-    is_paginated: bool = False,  # If True, method returns one page of objects
-    page: Any = None,            # If set, method returns one page of objects, that are greater than given page value.
-                                 # If page is None and is_paginated is True, method returns first page of objects.
 ) -> Iterator[ObjectData]:
     assert isinstance(query, (Expr, type(None))), query
     connection = context.get('transaction').connection
@@ -52,17 +48,9 @@ def getall(
     builder.update(model=model)
     table = backend.get_table(model)
     env = builder.init(backend, table)
-
-    if is_paginated and model.external and \
-            model.external.prepare and \
-            isexpr(model.external.prepare, {'page'}):
-        if isexpr(query, {'limit'}):
-            env.resolve(query)
-        qry = paginate(env, model.external.prepare, page)
-    else:
-        expr = env.resolve(query)
-        where = env.execute(expr)
-        qry = env.build(where)
+    expr = env.resolve(query)
+    where = env.execute(expr)
+    qry = env.build(where)
 
     conn = connection.execution_options(stream_results=True)
     result = conn.execute(qry)

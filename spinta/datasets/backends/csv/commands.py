@@ -146,8 +146,6 @@ def getall(
     backend: Csv,
     *,
     query: Expr = None,
-    is_paginated: bool = False,
-    page: Any = None,
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')

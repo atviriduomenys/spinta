@@ -13,7 +13,7 @@ from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
-from spinta.datasets.helpers import get_enum_filters, isexpr, paginate
+from spinta.datasets.helpers import get_enum_filters, isexpr
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
@@ -73,8 +73,6 @@ def getall(
     backend: Sql,
     *,
     query: Expr = None,
-    is_paginated: bool = False,
-    page: Any = None,
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
     builder = SqlQueryBuilder(context)
@@ -94,16 +92,9 @@ def getall(
 
         env = builder.init(backend, table)
         env.update(params=params)
-        if is_paginated and model.external and \
-                model.external.prepare and \
-                isexpr(model.external.prepare, {'page'}):
-            if isexpr(query, {'limit'}):
-                env.resolve(query)
-            qry = paginate(env, model.external.prepare, page)
-        else:
-            expr = env.resolve(query)
-            where = env.execute(expr)
-            qry = env.build(where)
+        expr = env.resolve(query)
+        where = env.execute(expr)
+        qry = env.build(where)
 
         for row in conn.execute(qry):
             res = {

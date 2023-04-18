@@ -106,8 +106,6 @@ def getall(
     backend: Mongo,
     *,
     query: Expr = None,
-    is_paginated: bool = False,
-    page: Any = None,
 ) -> Iterator[ObjectData]:
     builder = MongoQueryBuilder(context)
     builder.update(model=model)

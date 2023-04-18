@@ -10,11 +10,11 @@ from typing import Tuple
 
 from spinta.dispatcher import Command
 from spinta import spyna
-from spinta.exceptions import UnknownMethod
+from spinta.exceptions import UnknownMethod, FieldNotInResource
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
-    from spinta.components import Context
+    from spinta.components import Context, Model
 
 
 class Expr:
@@ -305,3 +305,41 @@ class Positive(Bind):
 
 
 bind = functools.partial(Expr, 'bind')
+
+
+class LoadBuilder(Env):
+    model: Model
+
+    def load_page(self):
+        args = ['_id']
+        kwargs = {}
+        if self.model.external and self.model.external.resource:
+            if (
+                isinstance(self.model.external.prepare, Expr) and
+                self.model.external.prepare.name == 'page'
+            ):
+                page = self.model.external.prepare
+                args, kwargs = page.resolve(self)
+            elif self.model.given.pkeys:
+                if isinstance(self.model.given.pkeys, list):
+                    args = self.model.given.pkeys
+                else:
+                    args = [self.model.given.pkeys]
+        self.model.page.by = {}
+        for arg in args:
+            key = arg
+            if isinstance(arg, Negative):
+                key = '-' + arg.name
+                arg = arg.name
+            elif isinstance(arg, Bind):
+                key = arg.name
+                arg = arg.name
+
+            if arg in self.model.properties:
+                prop = self.model.properties[arg]
+                self.model.page.by.update({
+                    key: prop
+                })
+            else:
+                raise FieldNotInResource(self.model, property=arg)
+        self.model.page.size = kwargs.get('size', None)

@@ -1,5 +1,6 @@
+import itertools
 import uuid
-from typing import overload
+from typing import overload, Optional, Iterator, Union, List
 from pathlib import Path
 
 from starlette.requests import Request
@@ -11,9 +12,10 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams
+from spinta.components import Context, Node, Action, UrlParams, Page
 from spinta.components import Model
 from spinta.components import Property
+from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.components import ExternalBackend
 from spinta.renderer import render
 from spinta.types.datatype import Integer
@@ -24,6 +26,8 @@ from spinta.accesslog import log_response
 from spinta.exceptions import UnavailableSubresource
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
+from spinta.typing import ObjectData
+from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.data import take
 
 
@@ -59,7 +63,12 @@ async def getall(
     if params.head:
         rows = []
     else:
-        rows = commands.getall(context, model, backend, query=expr)
+        if not params.count and params.page and backend.paginated:
+            rows = get_page(context, model, backend, params.page, expr)
+        elif model.page and model.page.by and backend.paginated and not params.count:
+            rows = paginate(context, model, backend, params.page, expr, params.limit)
+        else:
+            rows = commands.getall(context, model, backend, query=expr)
 
     if params.count:
         # XXX: Quick and dirty hack. Functions should be handled properly.
@@ -119,6 +128,163 @@ async def getall(
     rows = log_response(context, rows)
 
     return render(context, request, model, params, rows, action=action)
+
+
+def get_page(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    page: Page,
+    expr: Expr,
+) -> Iterator[ObjectData]:
+    config = context.get('config')
+    page_size = config.push_page_size
+    size = page.size or model.page.size or page_size or 1000
+    value = page.value
+
+    query = _get_pagination_sort_query(model, expr)
+    query = _get_pagination_limit_query(size, query)
+    query = _get_pagination_compare_query(model, value, query)
+
+    rows = commands.getall(context, model, backend, query=query)
+    for row in rows:
+        yield row
+
+
+def paginate(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    page: Page,
+    expr: Optional[Expr],
+    limit: Optional[int],
+) -> Iterator[ObjectData]:
+    config = context.get('config')
+    page_size = config.push_page_size
+    if page:
+        size = page.size or model.page.size or page_size or 1000
+    else:
+        size = model.page.size or page_size or 1000
+    value = []
+
+    query = _get_pagination_sort_query(model, expr)
+    query = _get_pagination_limit_query(size, query)
+
+    count = 0
+    end_loop = False
+    while not end_loop:
+        query = _get_pagination_compare_query(model, value, query)
+        rows = commands.getall(context, model, backend, query=query)
+
+        peek = next(rows, None)
+        if peek is None:
+            end_loop = True
+        else:
+            rows = itertools.chain([peek], rows)
+            for row in rows:
+                if limit and count >= limit:
+                    end_loop = True
+                    break
+
+                value = []
+                for prop in model.page.by.values():
+                    value.append(
+                        row.get(prop.name)
+                    )
+                count += 1
+                yield row
+
+
+def _get_pagination_sort_query(
+    model: Model,
+    expr: Union[Expr, None],
+) -> Union[Expr, None]:
+    sort_by = model.page.by
+    sort_args = []
+    sort = {}
+
+    for by, prop in sort_by.items():
+        if by.startswith('-'):
+            name = 'negative'
+        else:
+            name = 'bind'
+        sort_args.append({
+            'name': name,
+            'args': [prop.name]
+        })
+
+    if sort_args:
+        sort = {
+            'name': 'sort',
+            'args': sort_args
+        }
+        sort = asttoexpr(sort)
+
+    if expr and sort:
+        query = merge_formulas(expr, sort)
+    else:
+        query = sort or expr or None
+    return query
+
+
+def _get_pagination_limit_query(
+    size: int,
+    expr: Union[Expr, None],
+) -> Union[Expr, None]:
+    size = asttoexpr({
+        'name': 'limit',
+        'args': [size]
+    })
+    if expr:
+        query = merge_formulas(expr, size)
+    else:
+        query = size
+    return query
+
+
+def _get_pagination_compare_query(
+    model: Model,
+    value: List,
+    expr: Union[Expr, None],
+):
+    compare = {}
+    if value:
+        for i, (by, prop) in enumerate(model.page.by.items()):
+            if by.startswith('-'):
+                op = 'lt'
+            else:
+                op = 'gt'
+
+            if compare:
+                compare = {
+                    'name': 'and',
+                    'args': [
+                        compare,
+                        {
+                            'name': op,
+                            'args': [{
+                                'name': 'bind',
+                                'args': [prop.name]
+                            }, value[i]]
+                        }
+                    ]
+                }
+            else:
+                compare = {
+                    'name': op,
+                    'args': [{
+                        'name': 'bind',
+                        'args': [prop.name]
+                    }, value[i]]
+                }
+    if compare:
+        compare = asttoexpr(compare)
+
+    if expr and compare:
+        query = merge_formulas(expr, compare)
+    else:
+        query = compare or expr or None
+    return query
 
 
 @overload

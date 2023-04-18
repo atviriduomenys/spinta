@@ -64,8 +64,6 @@ def read_model_data(
     model: components.Model,
     limit: int = None,
     stop_on_error: bool = False,
-    is_paginated: bool = False,
-    page: Any = None,
 ) -> Iterable[Dict[str, Any]]:
 
     if limit is None:
@@ -73,7 +71,7 @@ def read_model_data(
     else:
         query = Expr('limit', limit)
 
-    stream = commands.getall(context, model, model.backend, query=query, is_paginated=is_paginated, page=page)
+    stream = commands.getall(context, model, model.backend, query=query)
 
     if stop_on_error:
         stream = peek(stream)

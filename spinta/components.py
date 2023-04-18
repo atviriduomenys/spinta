@@ -471,6 +471,17 @@ class ModelGiven:
     pkeys: list[str] = None
 
 
+class Page:
+    by: Dict[str, Property]
+    size: int
+    value: List
+
+    def __init__(self):
+        self.by = {}
+        self.size = None
+        self.value = []
+
+
 class Model(MetaData):
     id: str
     level: Level
@@ -487,6 +498,7 @@ class Model(MetaData):
     comments: List[Comment] = None
     base: Base = None
     uri: str = None
+    page: Page = None
 
     schema = {
         'keymap': {'type': 'string'},
@@ -528,6 +540,7 @@ class Model(MetaData):
         self.leafprops = {}
         self.given = ModelGiven()
         self.params = {}
+        self.page = Page()
 
     def model_type(self):
         return self.name
@@ -721,6 +734,8 @@ class UrlParams:
 
     query: List[Dict[str, Any]] = None
 
+    page: Optional[Page] = None
+
     def changed_parsetree(self, change):
         ptree = {x['name']: x['args'] for x in (self.parsetree or [])}
         ptree.update(change)
@@ -887,6 +902,7 @@ class Config:
     data_path: pathlib.Path
     AccessLog: Type[AccessLog]
     exporters: Dict[str, Format]
+    push_page_size: int = None
 
     def __init__(self):
         self.commands = _CommandsConfig()
