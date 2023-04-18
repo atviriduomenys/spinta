@@ -11,10 +11,13 @@ def before_write(
     dtype: Geometry,
     backend: PostgreSQL,
     *,
-    data: DataSubItem):
-    patch = take(all, {dtype.prop.place: data.patch})
-    if patch.get(dtype.prop.place) is not None and 'SRID' not in data.patch and dtype.srid is not None:
-        patch[dtype.prop.place] = f"SRID={dtype.srid};{data.patch}"
-    return patch
-
-
+    data: DataSubItem
+):
+    value = data.patch
+    if (
+        dtype.srid is not None and
+        value and
+        "SRID" not in value
+    ):
+        value = f"SRID={dtype.srid};{value}"
+    return take({dtype.prop.place: value})
