@@ -277,6 +277,30 @@ def test_property_with_ref_unique(tmp_path, rc):
       |   |   |   | country  | ref                | Country              |
     ''')
 
+
+def test_property_with_multi_ref_unique(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+                             | prefix             | locn                 | http://www.w3.org/ns/locn#
+                             |                    | ogc                  | http://www.opengis.net/rdf#
+                             |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    |                      |
+      |   |   |   | name     | string unique      |                      | locn:geographicName
+                             |                    |                      |
+      |   |   | City         |                    |                      |
+                             | unique             | name, country        |
+                             | unique             | text                 |
+                             | unique             | another, text        |
+      |   |   |   | name     | string             |                      | locn:geographicName
+      |   |   |   | text     | string             |                      | locn:geographicName
+      |   |   |   | another  | string             |                      | locn:geographicName
+      |   |   |   | country  | ref                | Country              |
+    ''')
+
+
 def test_property_with_ref_with_unique(tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type               | ref                  | uri

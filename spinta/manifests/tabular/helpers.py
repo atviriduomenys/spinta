@@ -580,6 +580,7 @@ class PropertyReader(TabularReader):
             BaseReader,
             ModelReader,
             PropertyReader,
+            UniqueReader
         ))
 
     def enter(self) -> None:
@@ -907,23 +908,19 @@ class UniqueReader(TabularReader):
     type: str = 'unique'
 
     def read(self, row: ManifestRow) -> None:
+        self.name = row[REF]
         reader = self.state.stack[-1]
 
         if not isinstance(reader, (
-            ModelReader
+            ModelReader,
+            UniqueReader,
+            AppendReader
         )):
             self.error(f'Unique reader is not supported for {reader.type}.')
             return
 
         if self.type not in reader.data:
-            reader.data['unique'] = {}
-
-        unique = reader.data['unique']
-
-        unique['unique_model_ref_fields'] = {
-            'type': self.type,
-            'ref': [row.strip() for row in row[REF].split(',')],
-        }
+            reader.data['unique'] = []
 
     def append(self, row: ManifestRow) -> None:
         self.read(row)
@@ -932,7 +929,7 @@ class UniqueReader(TabularReader):
         return not isinstance(reader, AppendReader)
 
     def enter(self) -> None:
-        pass
+        self.state.model.data['unique'].append([row.strip() for row in self.name.split(',')])
 
     def leave(self) -> None:
         pass
@@ -1131,7 +1128,7 @@ def _read_csv_manifest(
         for i, row in enumerate(rows, 1):
             yield str(i), row
     else:
-        with pathlib.Path(path).open(encoding='utf-8-sig') as f:
+        with pathlib.Path(path).open(encoding='utf-8') as f:
             rows = csv.reader(f)
             for i, row in enumerate(rows, 1):
                 yield str(i), row
@@ -1502,17 +1499,15 @@ def _comments_to_tabular(
         })
         first = False
 
+
 def _unique_to_tabular(model_unique_data) -> Iterator[ManifestRow]:
     if not model_unique_data:
         return
-    first = True
     for row in model_unique_data:
-        if first is True:
-            yield torow(DATASET, {
-                'type': model_unique_data[row]['type'],
-                'ref': ', '.join(model_unique_data[row]['ref'])
-            })
-        first = False
+        yield torow(DATASET, {
+            'type': 'unique',
+            'ref': ', '.join([r.split('.')[0] for r in row])
+        })
 
 
 def _dataset_to_tabular(
