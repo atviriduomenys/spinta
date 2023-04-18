@@ -1,3 +1,4 @@
+import urllib
 from typing import cast
 from typing import Optional
 from pathlib import Path
@@ -22,6 +23,7 @@ from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_contex
 from spinta.testing.request import render_data
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import load_manifest_get_context
 from spinta.types.geometry.constants import WGS84, LKS94
 
 
@@ -330,3 +332,37 @@ def test_geometry_params_with_srid_without_srid(
         'point': 'POINT(582710 6061887)',
     })
     assert resp.status_code == 201
+
+
+@pytest.mark.parametrize('path', [
+    # LKS94 (3346) -> WGS84 (4326)  Bell tower of Vilnius Cathedral
+    '3346/6061789/582964',
+    # WGS84 / Pseudo-Mercator (3857) -> WGS84 (4326)  Bell tower of Vilnius Cathedral
+    '3857/2814901/7301104',
+    # WGS84 (4326) -> WGS84 (4326)  Bell tower of Vilnius Cathedral
+    '4326/54.68569/25.28668',
+])
+def test_srid_service(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    path: str,
+):
+    context = load_manifest_get_context(rc, '''
+    d | r | b | m | property | type | ref
+    ''')
+
+    app = create_test_client(context)
+
+    resp = app.get(f'/_srid/{path}', follow_redirects=False)
+    assert resp.status_code == 307
+
+    purl = urllib.parse.urlparse(resp.headers['location'])
+    query = urllib.parse.parse_qs(purl.query)
+    x, y = query['mlat'][0], query['mlon'][0]
+    assert x[:8] == '54.68569'
+    assert y[:8] == '25.28668'
+
+    _, x, y = purl.fragment.split('/')
+    assert x[:8] == '54.68569'
+    assert y[:8] == '25.28668'
