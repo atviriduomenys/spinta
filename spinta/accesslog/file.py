@@ -1,3 +1,5 @@
+from typing import Any
+from typing import Dict
 from typing import TextIO, Union
 
 import json
@@ -21,10 +23,9 @@ class FileAccessLog(AccessLog):
         if not self._closed:
             self._file.close()
 
-    def log(self, **kwargs):
+    def log(self, message: Dict[str, Any]) -> None:
         if self._file is None:
             return
-        message = self.create_message(**kwargs)
         message = json.dumps(message)
         print(message, file=self._file)
 

@@ -6,21 +6,21 @@ from spinta.testing.utils import create_manifest_files
 from spinta.testing.context import create_test_context
 
 
-def check_store(rc, tmpdir, files):
-    create_manifest_files(tmpdir, files)
+def check_store(rc, tmp_path, files):
+    create_manifest_files(tmp_path, files)
     context = create_test_context(rc)
     context.load({
         'manifests': {
             'default': {
-                'path': str(tmpdir),
+                'path': str(tmp_path),
             }
         }
     })
 
 
-def test_engine_name_overshadow(rc, tmpdir):
+def test_engine_name_overshadow(rc, tmp_path):
     with pytest.raises(Exception) as e:
-        check_store(rc, tmpdir, {
+        check_store(rc, tmp_path, {
             'models/report.yml': {
                 'type': 'model',
                 'name': 'report',
@@ -34,9 +34,9 @@ def test_engine_name_overshadow(rc, tmpdir):
 
 
 @pytest.mark.skip('datasets')
-def test_engine_name_overshadow_other(rc, tmpdir):
+def test_engine_name_overshadow_other(rc, tmp_path):
     with pytest.raises(Exception) as e:
-        check_store(rc, tmpdir, {
+        check_store(rc, tmp_path, {
             'models/report.yml': {
                 'type': 'model',
                 'name': 'report',

@@ -3,7 +3,6 @@ from pathlib import Path
 from textwrap import dedent
 
 import pytest
-from py._path.common import PathBase
 from responses import POST
 from responses import RequestsMock
 
@@ -20,8 +19,8 @@ from spinta.exceptions import RemoteClientCredentialsNotFound
     'https://spinta@example.com',
     'https://example.com',
 ])
-def test_get_access_token(responses: RequestsMock, tmpdir: PathBase, url: str):
-    credsfile = Path(tmpdir / 'credentials.cfg')
+def test_get_access_token(responses: RequestsMock, tmp_path: Path, url: str):
+    credsfile = Path(tmp_path / 'credentials.cfg')
     credsfile.write_text(dedent('''
     [example]
     server = https://example.com
@@ -53,15 +52,15 @@ def test_get_access_token(responses: RequestsMock, tmpdir: PathBase, url: str):
     assert token == 'TOKEN'
 
 
-def test_get_access_token_no_credsfile(tmpdir: PathBase):
-    credsfile = Path(tmpdir / 'credentials.cfg')
+def test_get_access_token_no_credsfile(tmp_path: Path):
+    credsfile = Path(tmp_path / 'credentials.cfg')
     with pytest.raises(RemoteClientCredentialsNotFound):
         creds = get_client_credentials(credsfile, 'https://example.com')
         get_access_token(creds)
 
 
-def test_get_access_token_no_section(tmpdir: PathBase):
-    credsfile = Path(tmpdir / 'credentials.cfg')
+def test_get_access_token_no_section(tmp_path: Path):
+    credsfile = Path(tmp_path / 'credentials.cfg')
     credsfile.write_text(dedent('''
     [test.example.com]
     client = spinta
@@ -75,8 +74,8 @@ def test_get_access_token_no_section(tmpdir: PathBase):
         get_access_token(creds)
 
 
-def test_add_client_credentials(tmpdir: PathBase):
-    credsfile = Path(tmpdir / 'credentials.cfg')
+def test_add_client_credentials(tmp_path: Path):
+    credsfile = Path(tmp_path / 'credentials.cfg')
 
     add_client_credentials(credsfile, 'example.com')
     add_client_credentials(credsfile, 'spinta@example.com')
@@ -107,8 +106,8 @@ def test_add_client_credentials(tmpdir: PathBase):
     }
 
 
-def test_add_client_credentials_kwargs(tmpdir: PathBase):
-    credsfile = Path(tmpdir / 'credentials.cfg')
+def test_add_client_credentials_kwargs(tmp_path: Path):
+    credsfile = Path(tmp_path / 'credentials.cfg')
 
     add_client_credentials(
         credsfile, 'https://example.com',

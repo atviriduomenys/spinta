@@ -371,7 +371,7 @@ def test_subresource_scopes(model, app):
     'backends/mongo/subitem',
     'backends/postgres/subitem',
 )
-def test_get_subresource_file(model, app, tmpdir):
+def test_get_subresource_file(model, app, tmp_path):
     app.authmodel(model, ['insert', 'getone', 'hidden_subobj_update',
                           'pdf_update', 'pdf_getone'])
 
@@ -391,7 +391,7 @@ def test_get_subresource_file(model, app, tmpdir):
     assert resp.status_code == 200
     revision_ = resp.json()['_revision']
 
-    pdf = pathlib.Path(tmpdir) / 'report.pdf'
+    pdf = tmp_path / 'report.pdf'
     pdf.write_bytes(b'REPORTDATA')
 
     resp = app.put(f'/{model}/{id_}/pdf:ref', json={

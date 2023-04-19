@@ -126,42 +126,13 @@ async def create_http_response(
             model = params.model
             action = params.action
 
-            if params.prop and params.propref:
-                prop = params.prop
-                dtype = prop.dtype
-                backend = model.backend
-                return await commands.getone(
-                    context,
-                    request,
-                    prop,
-                    dtype,
-                    backend,
-                    action=action,
-                    params=params,
-                )
-            elif params.prop:
-                prop = params.prop
-                dtype = prop.dtype
-                backend = dtype.backend or model.backend
-                return await commands.getone(
-                    context,
-                    request,
-                    prop,
-                    dtype,
-                    backend,
-                    action=action,
-                    params=params,
-                )
-            else:
-                backend = model.backend
-                return await commands.getone(
-                    context,
-                    request,
-                    model,
-                    backend,
-                    action=action,
-                    params=params,
-                )
+            return await commands.getone(
+                context,
+                request,
+                model,
+                action=action,
+                params=params,
+            )
 
         else:
             _enforce_limit(context, params)

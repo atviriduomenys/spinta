@@ -3,8 +3,216 @@
 Changes
 #######
 
-0.1.38 (unreleased)
+0.1.49 (unreleased)
 ===================
+
+
+0.1.48 (2023-04-14)
+===================
+
+Bug fixes:
+
+- Fix issue with dask/pandas version incompatibility (`dask/dask#10164`__).
+
+  __ https://github.com/dask/dask/issues/10164
+
+
+0.1.47 (2023-03-27)
+===================
+
+Improvements:
+
+- Add support for `point(x,y)` and `cast()` functions for sql backend
+  (`#407`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/407
+
+Bug fixes:
+
+- Error when loading manifest from XLSX file, where level is read as integer
+  (`#405`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/405
+
+
+
+0.1.46 (2023-03-21)
+===================
+
+Bug fixes:
+
+- Correctly handle cases, when a weak referece, references a model, that does
+  not have primary key specified, in that case `_id` is used as primary key
+  (`#399`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/399
+
+
+0.1.45 (2023-03-20)
+===================
+
+Improvements:
+
+- Multiple improvements in `spinta push` command (`#311`__):
+
+  __ https://github.com/atviriduomenys/spinta/issues/311
+
+  - New `--no-progress-bar` option to disable progress bar, this also skips
+    counting of rows, which can be slow in some cases, for example when reading
+    data from views (`#332`__).
+
+    __ https://github.com/atviriduomenys/spinta/issues/332
+
+  - New `--retry-count` option, to repeat push operation only with objects that
+    ended up in an error on previous push. By default 5 times are retried.
+
+  - New `--max-error-count` option, to stop push operation after specified
+    number of errors, by default 50 errors is set.
+
+  - Now instead of sending `upsert`, push became more sofisticated and sends
+    `insert`, `patch` or `delete`.
+
+  - If objects were deleted from source, they are also deleted from target
+    server.
+
+  - Errors are automatically retried after each push.
+
+- Now it is possible to reference external models, this is done by specifying 3
+  or lower data maturity level. When `property.level` is set to 3 or lower for
+  `ref` type properties, local values are accepted, testing notes
+  `notes/types/ref/external`_ (`#208`__).
+
+  .. _notes/types/ref/external: https://github.com/atviriduomenys/spinta/blob/a3d0157baaa4f82a7a760141a830ca2731b23387/notes/types/ref/external.sh
+
+  __ https://github.com/atviriduomenys/spinta/issues/208
+
+- Now it is possible to specify `required` properties in `property.type`_
+  (`#259`__).
+
+  .. _property.type: https://atviriduomenys.readthedocs.io/dsa/dimensijos.html#property.type
+
+  __ https://github.com/atviriduomenys/spinta/issues/259
+
+- Specifying SRID for `geometry` type data on writes is no longer required
+  (`#330`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/330
+
+- Now it is pssible to specify `geometry(geometry)` and `geometry(geometryz)`
+  types.
+
+- `base` dimension is now supported in tabular manifest files (`#325`__), but reading and
+  writing to models with base is still not fully implemented.
+
+  __ https://github.com/atviriduomenys/spinta/issues/325
+
+- Support for new `RDF` format was added (`#308`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/308
+
+
+Bug fixes:
+
+- New ascii table formater, that should fix memory issues, when large amounts
+  of data are downloaded (`#359`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/359
+
+- Fix order logitude and latidude when creatling links to OSM maps (`#334`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/334
+
+- Add possibility to explicitly select `_revision` (`#339`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/339
+
+
+0.1.44 (2022-11-23)
+===================
+
+Bug fixes:
+
+- Convert a non-WGS coordinates into WGS, before giving link to OSM if SRID is
+  not given, then link to OSM is not added too. Also long WKT expressions like
+  polygons now are shortened in HTML output (`#298`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/298
+
+
+0.1.43 (2022-11-15)
+===================
+
+Improvements:
+
+- Add `pid` (process id) to `request` messages in access log.
+
+Bug fixes:
+
+- Fix recursion error on getone (`#255`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/255
+
+
+0.1.42 (2022-11-08)
+===================
+
+Improvements:
+
+- Add support for comments in resources..
+
+
+0.1.41 (2022-11-08)
+===================
+
+Improvements:
+
+- Add support for HTML format in manifest files, without actual backend
+  implementing it. (`#318`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/318
+
+
+0.1.40 (2022-11-01)
+===================
+
+Improvements:
+
+- Add memory usage logging in order to find memory leaks (`#171`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/171
+
+Bug fixes:
+
+- Changes loads indefinitely (`#307`__). Cleaned empty patches, fixed
+  `:/changes/<offset>` API call, now it actually works. Also empty patches now
+  are not saved into the changelog.
+
+  __ https://github.com/atviriduomenys/spinta/issues/291
+
+- `wipe` action, now also resets changelog change id.
+
+
+0.1.39 (2022-10-12)
+===================
+
+Bug fixes:
+
+- Correctly handle invalid JSON responses on push command (`#307`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/307
+
+- Fix freezing, when XLSX file has large number of empty rows.
+
+
+
+0.1.38 (2022-10-03)
+===================
+
+Bug fixes:
+
+- Incorrect enum type checking (`#305`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/305
 
 
 0.1.37 (2022-10-02)
@@ -1038,8 +1246,8 @@ Internal changes:
     from spinta.testing.client import create_test_client
     from spinta.testing.context import create_test_context
 
-    def test(rc, cli, tmpdir, request):
-        create_manifest_files(tmpdir, {
+    def test(rc, cli, tmp_path, request):
+        create_manifest_files(tmp_path, {
             'country.yml': {
                 'type': 'model',
                 'name': 'country',
@@ -1049,7 +1257,7 @@ Internal changes:
             },
         })
 
-        rc = rc.fork().add('test', {'manifests.yaml.path': str(tmpdir)})
+        rc = rc.fork().add('test', {'manifests.yaml.path': str(tmp_path)})
 
         cli.invoke(rc, freeze)
 

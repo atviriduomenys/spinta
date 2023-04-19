@@ -160,7 +160,7 @@ def _prepare_urlparams_from_path(params: UrlParams):
             params.count = True
         elif name == 'changes':
             params.changes = True
-            params.changes_offset = args[0] if args else None
+            params.changes_offset = int(args[0]) if args else None
         elif name == 'format':
             if isinstance(args[0], dict) and args[0]['name'] == 'bind':
                 params.format = _read_format_params(args[0])

@@ -237,7 +237,9 @@ async def update_schema_version(context: Context, manifest: Manifest, schema: di
         '_id': schema['id'],
         'type': schema['type'],
         'name': schema['name'],
-        'version': schema['version'],
+        'version': {
+            '_id': schema['version']
+        },
         'schema': fix_data_for_json(schema),
     })
     await adrain(push_stream(context, aiter([data])))

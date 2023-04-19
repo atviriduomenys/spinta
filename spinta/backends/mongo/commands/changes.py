@@ -21,6 +21,11 @@ async def create_changelog_entry(
     else:
         table = backend.db[model.model.model_type() + '__changelog']
     async for data in dstream:
+
+        if not data.patch:
+            yield data
+            continue
+
         table.insert_one({
             '__id': data.saved['_id'] if data.saved else data.patch['_id'],
             '_revision': data.patch['_revision'] if data.patch else data.saved['_revision'],

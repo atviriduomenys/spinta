@@ -7,8 +7,8 @@ from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
 
-def test_copy(rc, cli: SpintaCliRunner, tmpdir):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+def test_copy(rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type   | ref     | source      | prepare | access
     datasets/gov/example     |        |         |             |         |
       | data                 | sql    |         |             |         |
@@ -33,11 +33,11 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
         'copy',
         '--no-source',
         '--access', 'open',
-        '-o', tmpdir / 'result.csv',
-        tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
     ])
 
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type   | ref     | source | prepare | access
     datasets/gov/example     |        |         |        |         |
@@ -54,8 +54,8 @@ def test_copy(rc, cli: SpintaCliRunner, tmpdir):
     '''
 
 
-def test_copy_enum_0(rc, cli: SpintaCliRunner, tmpdir):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+def test_copy_enum_0(rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type    | ref     | source      | prepare | access
     datasets/gov/example     |         |         |             |         |
       | data                 | sql     |         |             |         |
@@ -71,11 +71,11 @@ def test_copy_enum_0(rc, cli: SpintaCliRunner, tmpdir):
         'copy',
         '--no-source',
         '--access', 'open',
-        '-o', tmpdir / 'result.csv',
-        tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
   ])
 
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type    | ref     | source | prepare | access
     datasets/gov/example     |         |         |        |         |
@@ -88,8 +88,8 @@ def test_copy_enum_0(rc, cli: SpintaCliRunner, tmpdir):
     '''
 
 
-def test_copy_global_enum(rc, cli: SpintaCliRunner, tmpdir):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+def test_copy_global_enum(rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type    | ref       | source      | prepare | access
     datasets/gov/example     |         |           |             |         |
                              | enum    | direction | l           | 0       |     
@@ -105,11 +105,11 @@ def test_copy_global_enum(rc, cli: SpintaCliRunner, tmpdir):
         'copy',
         '--no-source',
         '--access', 'open',
-        '-o', tmpdir / 'result.csv',
-        tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
     ])
 
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type    | ref       | source | prepare | access
     datasets/gov/example     |         |           |        |         |
@@ -122,8 +122,8 @@ def test_copy_global_enum(rc, cli: SpintaCliRunner, tmpdir):
     '''
 
 
-def test_copy_with_filters_and_externals(rc, cli, tmpdir):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+def test_copy_with_filters_and_externals(rc, cli, tmp_path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type   | ref     | source      | prepare   | access
     datasets/gov/example     |        |         |             |           |
       | data                 | sql    |         |             |           |
@@ -147,11 +147,11 @@ def test_copy_with_filters_and_externals(rc, cli, tmpdir):
     cli.invoke(rc, [
         'copy',
         '--access', 'open',
-        '-o', tmpdir / 'result.csv',
-        tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
     ])
 
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type   | ref     | source      | prepare   | level | access
     datasets/gov/example     |        |         |             |           |       |
@@ -168,8 +168,8 @@ def test_copy_with_filters_and_externals(rc, cli, tmpdir):
     '''
 
 
-def test_copy_and_format_names(rc, cli, tmpdir):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+def test_copy_and_format_names(rc, cli, tmp_path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property    | type    | ref                        | source      | prepare                  | level  | access     | title
     datasets/gov/example        |         |                            |             |                          |        |            | Example dataset
       | data                    | sql     |                            |             |                          |        |            |
@@ -190,11 +190,11 @@ def test_copy_and_format_names(rc, cli, tmpdir):
     cli.invoke(rc, [
         'copy',
         '--format-names',
-        '-o', tmpdir / 'result.csv',
-        tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
     ])
 
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property     | type    | ref                         | source      | prepare                    | level  | access    | title
     datasets/gov/example         |         |                             |             |                            |        |           | Example dataset
@@ -214,8 +214,8 @@ def test_copy_and_format_names(rc, cli, tmpdir):
     '''
 
 
-def test_copy_and_format_names_for_ref(rc, cli, tmpdir):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+def test_copy_and_format_names_for_ref(rc, cli, tmp_path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property     | type   | ref       | prepare
     datasets/gov/example         |        |           |
       | data                     | sql    |           |
@@ -235,11 +235,11 @@ def test_copy_and_format_names_for_ref(rc, cli, tmpdir):
     cli.invoke(rc, [
         'copy',
         '--format-names',
-        '-o', tmpdir / 'result.csv',
-        tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
     ])
 
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property     | type   | ref       | prepare
     datasets/gov/example         |        |           |
@@ -258,8 +258,8 @@ def test_copy_and_format_names_for_ref(rc, cli, tmpdir):
     '''
 
 
-def test_copy_and_format_names_with_formulas(rc, cli, tmpdir):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+def test_copy_and_format_names_with_formulas(rc, cli, tmp_path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type   | prepare
     datasets/gov/example     |        |
       | data                 | sql    |
@@ -271,11 +271,11 @@ def test_copy_and_format_names_with_formulas(rc, cli, tmpdir):
     cli.invoke(rc, [
         'copy',
         '--format-names',
-        '-o', tmpdir / 'result.csv',
-        tmpdir / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
   ])
 
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type   | prepare
     datasets/gov/example     |        |
@@ -286,7 +286,7 @@ def test_copy_and_format_names_with_formulas(rc, cli, tmpdir):
     '''
 
 
-def test_copy_to_stdout(rc, cli, tmpdir):
+def test_copy_to_stdout(rc, cli, tmp_path):
     manifest = striptable('''
     d | r | b | m | property | type
     datasets/gov/example     |
@@ -295,19 +295,19 @@ def test_copy_to_stdout(rc, cli, tmpdir):
       |   |   | City         |
       |   |   |   | name     | string
     ''')
-    create_tabular_manifest(tmpdir / 'manifest.csv', manifest)
+    create_tabular_manifest(tmp_path / 'manifest.csv', manifest)
 
     result = cli.invoke(rc, [
         'copy',
         '-c', 'd,r,b,m,p,type',
-        tmpdir / 'manifest.csv',
+        tmp_path / 'manifest.csv',
     ])
 
     assert result.stdout.strip() == manifest
 
 
-def test_copy_order_by_access(rc, cli, tmpdir):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+def test_copy_order_by_access(rc, cli, tmp_path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property   | type    | ref        | source | prepare  | access
     datasets/gov/example       |         |            |        |          |
       | data                   | sql     |            |        |          |
@@ -333,12 +333,12 @@ def test_copy_order_by_access(rc, cli, tmpdir):
 
     result = cli.invoke(rc, [
         'copy',
-        '-o', tmpdir / 'result.csv',
+        '-o', tmp_path / 'result.csv',
         '--order-by', 'access',
-        tmpdir / 'manifest.csv',
+        tmp_path / 'manifest.csv',
     ])
 
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property   | type    | ref        | source | prepare  | access
     datasets/gov/example       |         |            |        |          |
@@ -364,8 +364,8 @@ def test_copy_order_by_access(rc, cli, tmpdir):
     '''
 
 
-def test_copy_rename_duplicates(rc, cli, tmpdir):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+def test_copy_rename_duplicates(rc, cli, tmp_path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property   | type
     datasets/gov/example       |
       | data                   | sql
@@ -383,11 +383,11 @@ def test_copy_rename_duplicates(rc, cli, tmpdir):
     cli.invoke(rc, [
         'copy',
         '--rename-duplicates',
-        tmpdir / 'manifest.csv',
-        '-o', tmpdir / 'result.csv',
+        tmp_path / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
     ])
 
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property   | type
     datasets/gov/example       |
@@ -404,8 +404,8 @@ def test_copy_rename_duplicates(rc, cli, tmpdir):
     '''
 
 
-def test_enum_ref(rc: RawConfig, cli: SpintaCliRunner, tmpdir: Path):
-    create_tabular_manifest(tmpdir / 'manifest.csv', '''
+def test_enum_ref(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', '''
     d | r | b | m | property | type    | ref     | source      | prepare | access | title
                              | enum    | sex     |             | 1       |        | Male
                              |         |         |             | 2       |        | Female
@@ -425,10 +425,10 @@ def test_enum_ref(rc: RawConfig, cli: SpintaCliRunner, tmpdir: Path):
     ''')
 
     cli.invoke(rc, [
-        'copy', tmpdir / 'manifest.csv', '-o', tmpdir / 'result.csv',
+        'copy', tmp_path / 'manifest.csv', '-o', tmp_path / 'result.csv',
     ])
 
-    manifest = load_manifest(rc, tmpdir / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
     assert manifest == '''
     d | r | b | m | property | type    | ref     | source      | prepare | access | title
                              | enum    | sex     |             | 1       |        | Male

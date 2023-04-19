@@ -76,9 +76,9 @@ def test_export_csv(app):
         for x in lines
     ]
     assert lines == [
-        ('patch', '', 'Latvia'),
-        ('insert', 'lv', 'LATVIA'),
         ('insert', 'lt', 'Lithuania'),
+        ('insert', 'lv', 'LATVIA'),
+        ('patch', '', 'Latvia'),
     ]
 
 

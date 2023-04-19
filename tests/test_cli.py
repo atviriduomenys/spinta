@@ -30,7 +30,7 @@ def test_empty_config_path(rc: RawConfig, cli: SpintaCliRunner):
 
 
 @pytest.mark.skip('datasets')
-def test_pull(responses, rc, cli: SpintaCliRunner, app, tmpdir):
+def test_pull(responses, rc, cli: SpintaCliRunner, app, tmp_path):
     responses.add(
         GET, 'http://example.com/countries.csv',
         status=200, content_type='text/plain; charset=utf-8',
@@ -42,11 +42,11 @@ def test_pull(responses, rc, cli: SpintaCliRunner, app, tmpdir):
         ),
     )
 
-    create_manifest_files(tmpdir, {
+    create_manifest_files(tmp_path, {
         'datasets/csv.yml': None,
         'datasets/csv/country.yml': None,
     })
-    update_manifest_files(tmpdir, {
+    update_manifest_files(tmp_path, {
         'datasets/csv.yml': [
             {'op': 'add', 'path': '/resources/countries/backend', 'value': 'csv'},
         ],
@@ -54,7 +54,7 @@ def test_pull(responses, rc, cli: SpintaCliRunner, app, tmpdir):
     rc = rc.fork({
         'manifests.default': {
             'type': 'yaml',
-            'path': str(tmpdir),
+            'path': str(tmp_path),
         },
         'backends.csv': {
             'type': 'csv',
@@ -96,10 +96,10 @@ def test_pull(responses, rc, cli: SpintaCliRunner, app, tmpdir):
 def test_log_file(
     rc: RawConfig,
     cli: SpintaCliRunner,
-    tmpdir: Path,
+    tmp_path: Path,
     caplog: LogCaptureFixture,
 ):
-    log_file = tmpdir / 'spinta.log'
+    log_file = tmp_path / 'spinta.log'
     with caplog.at_level(logging.DEBUG, 'spinta.cli.main'):
         cli.invoke(rc, [
             '--log-file', log_file,

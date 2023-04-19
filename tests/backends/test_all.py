@@ -198,7 +198,7 @@ def test_get_non_existant_subresource(model, context, app):
     'backends/mongo/report',
     'backends/postgres/report',
 )
-def test_delete(model, app, tmpdir):
+def test_delete(model, app, tmp_path):
     # FIXME: `spinta_report_pdf_delete` gives access to:
     # DELETE /report/ID/pdf
     # DELETE /report/pdf/ID
@@ -219,7 +219,7 @@ def test_delete(model, app, tmpdir):
     ids = [x['_id'] for x in resp.json()['_data']]
     revisions = [x['_revision'] for x in resp.json()['_data']]
 
-    pdf = pathlib.Path(tmpdir) / 'report.pdf'
+    pdf = tmp_path / 'report.pdf'
     pdf.write_bytes(b'REPORTDATA')
 
     resp = app.put(f'/{model}/{ids[0]}/pdf:ref', json={

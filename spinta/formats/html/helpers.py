@@ -73,7 +73,7 @@ def get_current_location(
         if changes:
             loc += [('Changes', None)]
         else:
-            loc += [('Changes', get_model_link(model, pk=pk, changes=[]))]
+            loc += [('Changes', get_model_link(model, pk=pk, changes=[-10]))]
 
     return loc
 
@@ -245,12 +245,30 @@ def get_template_context(context: Context, model, params: UrlParams):
     }
 
 
+def _get_output_format_link(fmt: str, params: UrlParams) -> str:
+    query = ''
+    change = {'format': [fmt]}
+
+    if params.changes:
+        params.changes_offset = -10
+        query = 'limit(100)'
+
+    params = params.changed_parsetree(change)
+    link = '/' + build_url_path(params)
+    if query:
+        link = link + '?' + query
+    return link
+
+
 def get_output_formats(params: UrlParams):
+    links = [
+        ('CSV', 'csv'),
+        ('JSON', 'json'),
+        ('JSONL', 'jsonl'),
+        ('ASCII', 'ascii'),
+        ('RDF', 'rdf'),
+    ]
     return [
-        # XXX I don't like that, there should be a better way to build links
-        #     from UrlParams instance.
-        ('CSV', '/' + build_url_path(params.changed_parsetree({'format': ['csv']}))),
-        ('JSON', '/' + build_url_path(params.changed_parsetree({'format': ['json']}))),
-        ('JSONL', '/' + build_url_path(params.changed_parsetree({'format': ['jsonl']}))),
-        ('ASCII', '/' + build_url_path(params.changed_parsetree({'format': ['ascii']}))),
+        (label, _get_output_format_link(fmt, params))
+        for label, fmt in links
     ]

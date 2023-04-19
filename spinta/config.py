@@ -62,6 +62,7 @@ CONFIG = {
             'xlsx': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'json': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
+            'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
         },
         'migrations': {
             'alembic': 'spinta.migrations.schema.alembic:Alembic',
@@ -72,6 +73,7 @@ CONFIG = {
             'owner': 'spinta.types.owner:Owner',
             'project': 'spinta.types.project:Project',
             'dataset': 'spinta.datasets.components:Dataset',
+            'base': 'spinta.components:Base',
         },
         'datasets': {
             'resource': 'spinta.datasets.components:Resource',
@@ -107,13 +109,16 @@ CONFIG = {
             'file': 'spinta.types.datatype:File',
             'rql': 'spinta.types.datatype:RQL',
             'json': 'spinta.types.datatype:JSON',
+            'denorm': 'spinta.types.datatype:Denorm',
+            '_external_ref': 'spinta.types.datatype:ExternalRef',
+            'inherit': 'spinta.types.datatype:Inherit',
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
         },
         'dimensions': {
             'prefix': 'spinta.dimensions.prefix.components:UriPrefix',
-        }
+        },
     },
     'exporters': {
         'ascii': 'spinta.formats.ascii.components:Ascii',
@@ -121,6 +126,7 @@ CONFIG = {
         'json': 'spinta.formats.json.components:Json',
         'jsonl': 'spinta.formats.jsonlines.components:JsonLines',
         'html': 'spinta.formats.html.components:Html',
+        'rdf': 'spinta.formats.rdf.components:Rdf',
     },
     'accesslog': {
         'type': 'file',

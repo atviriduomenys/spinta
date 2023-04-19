@@ -12,7 +12,7 @@ from spinta.components import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
-from spinta.types.datatype import Array
+from spinta.types.datatype import Array, ExternalRef
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Object
 from spinta.types.datatype import File
@@ -44,9 +44,23 @@ def _get_dtype_header(
         yield f'{name}._id'
         yield f'{name}._content_type'
 
+    elif isinstance(dtype, ExternalRef):
+        if select is None or select == {'*': {}}:
+            for prop in dtype.refprops:
+                yield name + '.' + prop.place
+        else:
+            for prop, sel in select_only_props(
+                dtype.prop,
+                dtype.model.properties.keys(),
+                dtype.model.properties,
+                select,
+            ):
+                name_ = name + '.' + prop.name
+                yield from _get_dtype_header(prop.dtype, sel, name_)
+
     elif isinstance(dtype, Ref):
-        if select == {'*': {}}:
-            yield f'{name}._id'
+        if select is None or select == {'*': {}}:
+            yield name + '._id'
         else:
             for prop, sel in select_only_props(
                 dtype.prop,
@@ -72,11 +86,17 @@ def _get_model_header(
     reserved: List[str],
 ) -> List[str]:
     if select is None or select == {'*': {}}:
-        names_ = reserved + names
+        keys = reserved + names
     else:
-        names_ = names
+        keys = names
     props = model.properties
-    props_ = select_only_props(model, names_, props, select, reserved=True)
+    props_ = select_only_props(
+        model,
+        keys,
+        props,
+        select,
+        reserved=True,
+    )
     for prop, sel in props_:
         yield from _get_dtype_header(prop.dtype, sel, prop.name)
 

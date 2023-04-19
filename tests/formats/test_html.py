@@ -11,7 +11,13 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta.components import Action
+from spinta.components import Config
+from spinta.components import Context
+from spinta.components import Namespace
 from spinta.components import Store
+from spinta.components import UrlParams
+from spinta.components import Version
+from spinta.core.config import RawConfig
 from spinta.formats.html.commands import _LimitIter
 from spinta.formats.html.components import Cell
 from spinta.formats.html.components import Color
@@ -19,19 +25,13 @@ from spinta.formats.html.components import Html
 from spinta.formats.html.helpers import CurrentLocation
 from spinta.formats.html.helpers import get_current_location
 from spinta.formats.html.helpers import short_id
-from spinta.components import Config
-from spinta.components import Context
-from spinta.components import Namespace
-from spinta.components import UrlParams
-from spinta.components import Version
-from spinta.core.config import RawConfig
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
-from spinta.utils.data import take
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
+from spinta.utils.data import take
 
 
 def _get_data_table(context: dict):
@@ -161,7 +161,7 @@ def context_current_location(rc: RawConfig) -> Context:
         ('vpt', '/datasets/gov/vpt'),
         ('New data', '/datasets/gov/vpt/new'),
         ('Cities', None),
-        ('Changes', '/datasets/gov/vpt/new/City/:changes'),
+        ('Changes', '/datasets/gov/vpt/new/City/:changes/-10'),
     ]),
     ('/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08', [
         ('🏠', '/'),
@@ -171,7 +171,7 @@ def context_current_location(rc: RawConfig) -> Context:
         ('New data', '/datasets/gov/vpt/new'),
         ('Cities', '/datasets/gov/vpt/new/City'),
         ('0edc2281', None),
-        ('Changes', '/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08/:changes'),
+        ('Changes', '/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08/:changes/-10'),
     ]),
 ])
 def test_current_location(
@@ -224,14 +224,14 @@ def context_current_location_with_root(rc: RawConfig):
         ('🏠', '/'),
         ('New data', '/datasets/gov/vpt/new'),
         ('Cities', None),
-        ('Changes', '/datasets/gov/vpt/new/City/:changes'),
+        ('Changes', '/datasets/gov/vpt/new/City/:changes/-10'),
     ]),
     ('/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08', [
         ('🏠', '/'),
         ('New data', '/datasets/gov/vpt/new'),
         ('Cities', '/datasets/gov/vpt/new/City'),
         ('0edc2281', None),
-        ('Changes', '/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08/:changes'),
+        ('Changes', '/datasets/gov/vpt/new/City/0edc2281-f372-44a7-b0f8-e8d06ad0ce08/:changes/-10'),
     ]),
 ])
 def test_current_location_with_root(
@@ -266,7 +266,7 @@ def _prep_file_type(
     ])
 
     # Add a file
-    resp = app.post(f'/example/html/file/Country', json={
+    resp = app.post('/example/html/file/Country', json={
         'name': 'Lithuania',
         'flag': {
             '_id': 'flag.png',
@@ -566,4 +566,52 @@ def test_select_join_multiple_props(rc: RawConfig):
             color=None,
         ),
         'country.name': Cell(value='Lithuania', link=None, color=None),
+    }
+
+
+def test_recursive_refs(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property | type    | ref      | access
+    example                  |         |          |
+      |   |   | Category     |         |          |
+      |   |   |   | name     | string  |          | open
+      |   |   |   | parent   | ref     | Category | open
+    ''')
+    result = render_data(
+        context, manifest,
+        'example/Category/262f6c72-4284-4d26-b9b0-e282bfe46a46',
+        query=None,
+        accept='text/html',
+        data={
+            '_id': '262f6c72-4284-4d26-b9b0-e282bfe46a46',
+            '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            '_type': 'example/Category',
+            'name': 'Leaf',
+            'parent': {
+                '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+            },
+        },
+    )
+    assert result == {
+        '_id': Cell(
+            value='262f6c72',
+            link='/example/Category/262f6c72-4284-4d26-b9b0-e282bfe46a46',
+            color=None,
+        ),
+        '_revision': Cell(
+            value='b6197bb7-3592-4cdb-a61c-5a618f44950c',
+            link=None,
+            color=None,
+        ),
+        '_type': Cell(
+            value='example/Category',
+            link=None,
+            color=None,
+        ),
+        'name': Cell(value='Leaf', link=None, color=None),
+        'parent._id': Cell(
+            value='19e4f199',
+            link='/example/Category/19e4f199-93c5-40e5-b04e-a575e81ac373',
+            color=None,
+        ),
     }

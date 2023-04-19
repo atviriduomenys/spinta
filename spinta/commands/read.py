@@ -1,3 +1,4 @@
+import uuid
 from typing import overload
 from pathlib import Path
 
@@ -19,11 +20,10 @@ from spinta.types.datatype import Integer
 from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.accesslog import AccessLog
+from spinta.accesslog import log_response
 from spinta.exceptions import UnavailableSubresource
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
-from spinta.backends.helpers import get_select_prop_names
-from spinta.backends.helpers import get_select_tree
 from spinta.utils.data import take
 
 
@@ -47,15 +47,18 @@ async def getall(
     else:
         expr = urlparams_to_expr(params)
 
+    accesslog: AccessLog = context.get('accesslog')
+    accesslog.request(
+        # XXX: Read operations does not have a transaction, but it
+        #      is needed for loging.
+        txn=str(uuid.uuid4()),
+        model=model.model_type(),
+        action=action.value,
+    )
+
     if params.head:
         rows = []
     else:
-        accesslog = context.get('accesslog')
-        accesslog.log(
-            model=model.model_type(),
-            action=action.value,
-        )
-
         rows = commands.getall(context, model, backend, query=expr)
 
     if params.count:
@@ -98,6 +101,7 @@ async def getall(
             action,
             select_tree,
             reserved=['_type', '_id', '_revision'],
+            include_denorm_props=False,
         )
         rows = (
             commands.prepare_data_for_response(
@@ -111,6 +115,8 @@ async def getall(
             )
             for row in rows
         )
+
+    rows = log_response(context, rows)
 
     return render(context, request, model, params, rows, action=action)
 
@@ -126,25 +132,27 @@ async def getone(
     params: UrlParams,
 ) -> Response:
     if params.prop and params.propref:
-        return await commands.getone(
+        resp = await commands.getone(
             context,
             request,
             params.prop,
+            params.prop.dtype,
             params.model.backend,
             action=action,
             params=params,
         )
     elif params.prop:
-        return await commands.getone(
+        resp = await commands.getone(
             context,
             request,
             params.prop,
+            params.prop.dtype,
             params.prop.dtype.backend or params.model.backend,
             action=action,
             params=params,
         )
     else:
-        return await commands.getone(
+        resp = await commands.getone(
             context,
             request,
             params.model,
@@ -152,6 +160,11 @@ async def getone(
             action=action,
             params=params,
         )
+
+    accesslog: AccessLog = context.get('accesslog')
+    accesslog.response(objects=1)
+
+    return resp
 
 
 @overload
@@ -183,7 +196,10 @@ async def getone(
     commands.authorize(context, action, model)
 
     accesslog: AccessLog = context.get('accesslog')
-    accesslog.log(
+    accesslog.request(
+        # XXX: Read operations does not have a transaction, but it
+        #      is needed for loging.
+        txn=str(uuid.uuid4()),
         model=model.model_type(),
         action=action.value,
         id_=params.pk,
@@ -225,7 +241,10 @@ async def getone(
     commands.authorize(context, action, prop)
 
     accesslog: AccessLog = context.get('accesslog')
-    accesslog.log(
+    accesslog.request(
+        # XXX: Read operations does not have a transaction, but it
+        #      is needed for loging.
+        txn=str(uuid.uuid4()),
         model=prop.model.model_type(),
         prop=prop.place,
         action=action.value,
@@ -265,7 +284,10 @@ async def getone(
     commands.authorize(context, action, prop)
 
     accesslog: AccessLog = context.get('accesslog')
-    accesslog.log(
+    accesslog.request(
+        # XXX: Read operations does not have a transaction, but it
+        #      is needed for loging.
+        txn=str(uuid.uuid4()),
         model=prop.model.model_type(),
         prop=prop.place,
         action=action.value,
@@ -345,7 +367,10 @@ async def changes(
         rows = []
     else:
         accesslog = context.get('accesslog')
-        accesslog.log(
+        accesslog.request(
+            # XXX: Read operations does not have a transaction, but it
+            #      is needed for loging.
+            txn=str(uuid.uuid4()),
             model=model.model_type(),
             action=action.value,
         )
@@ -356,7 +381,7 @@ async def changes(
             model.backend,
             id_=params.pk,
             limit=params.limit,
-            offset=params.offset,
+            offset=params.changes_offset,
         )
 
     select_tree = get_select_tree(context, action, params.select)

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Dict
 from typing import List
-from typing import Optional
 from typing import TYPE_CHECKING, Any, Union
 
 import base64
@@ -57,6 +56,15 @@ class DataType(Component):
 
     def get_bind_expr(self):
         return Expr('bind', self.prop.name)
+
+    def get_type_repr(self):
+        required = ' required' if self.required else ''
+        unique = ' unique' if self.unique else ''
+        args = ''
+        if self.type_args:
+            args = ', '.join(self.type_args)
+            args = f'({args})'
+        return f'{self.name}{args}{unique}{required}'
 
 
 class PrimaryKey(DataType):
@@ -257,6 +265,23 @@ class RQL(DataType):
 
 class JSON(DataType):
     pass
+
+
+class Denorm(DataType):
+    rel_prop: Property
+
+    def get_type_repr(self):
+        return ""
+
+
+class ExternalRef(Ref):
+    def get_type_repr(self):
+        return "ref"
+
+
+class Inherit(DataType):
+    def get_type_repr(self):
+        return ""
 
 
 @load.register(Context, DataType, dict, Manifest)

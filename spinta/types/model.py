@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 from typing import Optional
-from typing import Tuple
+from typing import Union
 from typing import overload
 
 import itertools
@@ -19,7 +19,7 @@ from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action
+from spinta.components import Action, Component
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -27,13 +27,14 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.enum.helpers import link_enums
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
-from spinta.exceptions import KeymapNotSet
+from spinta.exceptions import KeymapNotSet, InvalidLevel
 from spinta.exceptions import UndefinedEnum
 from spinta.exceptions import UnknownPropertyType
 from spinta.manifests.components import Manifest
@@ -43,6 +44,7 @@ from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
 from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
+from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
 from spinta.types.text.components import Text
 
@@ -83,6 +85,7 @@ def load(
         [model.ns],
         model.ns.parents(),
     ))
+    load_level(model, model.level)
     load_model_properties(context, model, Property, data.get('properties'))
 
     # XXX: Maybe it is worth to leave possibility to override _id access?
@@ -91,18 +94,18 @@ def load(
     config = context.get('config')
 
     if model.base:
-        base = model.base
+        base: dict = model.base
         model.base = get_node(
             config,
             manifest,
             model.eid,
             base,
-            group='bases',
-            ctype='model',
+            group='nodes',
+            ctype='base',
             parent=model,
         )
-        model.base.parent = model
-        load_node(context, model.base, base, parent=model)
+        load_node(context, model.base, base)
+        model.base.model = model
         commands.load(context, model.base, base, manifest)
 
     if model.external:
@@ -119,8 +122,10 @@ def load(
         model.external.model = model
         load_node(context, model.external, external, parent=model)
         commands.load(context, model.external, external, manifest)
+        model.given.pkeys = external.get('pk', [])
     else:
         model.external = None
+        model.given.pkeys = []
 
     return model
 
@@ -168,6 +173,10 @@ def link(context: Context, model: Model):
             model.ns.parents(),
         ))
 
+    # Link base
+    if model.base:
+        commands.link(context, model.base)
+
     # Link model properties.
     for prop in model.properties.values():
         commands.link(context, prop)
@@ -176,21 +185,11 @@ def link(context: Context, model: Model):
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
-    base.model = base.parent.manifest.models[base.model]
+    base.parent = base.model.manifest.models[base.parent]
     base.pk = [
         base.parent.properties[pk]
         for pk in base.pk
     ]
-
-
-def _parse_dtype_string(dtype: str) -> Tuple[str, List[str]]:
-    if '(' in dtype:
-        name, args = dtype.split('(', 1)
-        args = args.strip().rstrip(')')
-        args = [a.strip() for a in args.split(',')]
-        return name, args
-    else:
-        return dtype, []
 
 
 @load.register(Context, Property, dict, Manifest)
@@ -212,12 +211,12 @@ def load(
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
+    load_level(prop, prop.level)
 
-    # Parse dtype like geometry(point, 3346)
     if data['type'] is None:
         raise UnknownPropertyType(prop, type=data['type'])
-    dtype_type, dtype_args = _parse_dtype_string(data['type'])
-    data = {**data, 'type': dtype_type, 'type_args': dtype_args}
+    if data['type'] == 'ref' and prop.level and prop.level < 4:
+        data['type'] = '_external_ref'
 
     prop.dtype = get_node(
         config,
@@ -252,6 +251,24 @@ def load(
         prop.given.enum = unit
 
     return prop
+
+
+def load_level(
+    component: Component,
+    given_level: Union[Level, int, str],
+):
+    if given_level:
+        if isinstance(given_level, Level):
+            level = given_level
+        else:
+            if isinstance(given_level, str) and given_level.isdigit():
+                given_level = int(given_level)
+            if not isinstance(given_level, int):
+                raise InvalidLevel(component, level=given_level)
+            level = enum_by_value(component, 'level', Level, given_level)
+    else:
+        level = None
+    component.level = level
 
 
 def _link_prop_enum(
@@ -299,7 +316,7 @@ def link(context: Context, prop: Property):
             [model.ns],
             model.ns.parents(),
         ))
-    link_access_param(prop, parents)
+    link_access_param(prop, parents, use_given=not prop.name.startswith('_'))
     link_enums([prop] + parents, prop.enums)
     prop.enum = _link_prop_enum(prop)
 
