@@ -55,6 +55,7 @@ from spinta.utils.json import fix_data_for_json
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.units import tobytes
 from spinta.utils.units import toseconds
+from spinta.utils.sqlite import migrate_table
 
 log = logging.getLogger(__name__)
 
@@ -758,104 +759,11 @@ def _init_push_state(
         )
         table.create(checkfirst=True)
 
-        if inspector.has_table(table.name):
-            columns = [col['name'] for col in inspector.get_columns(table.name)]
-
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('checksum', sa.Unicode)
-            )
-
-            # If rev column exists, copy rev column values to checksum
-            if 'rev' in columns and 'checksum' not in columns:
-                _copy_data(
-                    engine,
-                    table.name,
-                    column_from='rev',
-                    column_to='checksum',
-                )
-                _drop_column(engine, table.name, 'rev')
-
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('revision', sa.Unicode)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('pushed', sa.DateTime)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('error', sa.Boolean)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('data', sa.Text)
-            )
+        migrate_table(engine, metadata, inspector, renames={
+            'rev': 'checksum',
+        })
 
     return engine, metadata
-
-
-def _add_column(
-    engine: sa.engine.Engine,
-    table: str,
-    columns: List[str],
-    column: sa.Column,
-):
-    column_type = column.type.compile(engine.dialect)
-    if column.name not in columns:
-        engine.execute('ALTER TABLE "%s" ADD COLUMN "%s" %s' % (
-            table,
-            column.name,
-            column_type
-        ))
-
-
-def _copy_data(
-    engine: sa.engine.Engine,
-    table: str,
-    column_from: str,
-    column_to: str,
-):
-    engine.execute(
-        'UPDATE "%s" '
-        'SET ("%s") = ('
-        'SELECT "%s" '
-        'FROM "%s" as copy '
-        'WHERE "%s"."id" = "copy"."id"'
-        ')' % (
-            table,
-            column_to,
-            column_from,
-            table,
-            table
-        )
-    )
-
-
-def _drop_column(
-    engine: sa.engine.Engine,
-    table: str,
-    column: str,
-):
-    try:
-        engine.execute('ALTER TABLE "%s" DROP COLUMN "%s"' % (
-            table,
-            column
-        ))
-    except sa.exc.SQLAlchemyError:
-        # User is using older sqlite version which doesn't support dropping columns
-        pass
 
 
 def _get_model_type(row: _PushRow) -> str:
