@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 from typing import Optional
-from typing import Tuple
+from typing import Union
 from typing import overload
 
 import itertools
@@ -249,14 +249,17 @@ def load(
     return prop
 
 
-def load_level(component: Component, given_level):
+def load_level(
+    component: Component,
+    given_level: Union[Level, int, str],
+):
     if given_level:
         if isinstance(given_level, Level):
             level = given_level
         else:
-            if given_level.isnumeric():
+            if isinstance(given_level, str) and given_level.isdigit():
                 given_level = int(given_level)
-            else:
+            if not isinstance(given_level, int):
                 raise InvalidLevel(component, level=given_level)
             level = enum_by_value(component, 'level', Level, given_level)
     else:

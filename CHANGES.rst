@@ -3,8 +3,37 @@
 Changes
 #######
 
-0.1.47 (unreleased)
+0.1.49 (unreleased)
 ===================
+
+
+0.1.48 (2023-04-14)
+===================
+
+Bug fixes:
+
+- Fix issue with dask/pandas version incompatibility (`dask/dask#10164`__).
+
+  __ https://github.com/dask/dask/issues/10164
+
+
+0.1.47 (2023-03-27)
+===================
+
+Improvements:
+
+- Add support for `point(x,y)` and `cast()` functions for sql backend
+  (`#407`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/407
+
+Bug fixes:
+
+- Error when loading manifest from XLSX file, where level is read as integer
+  (`#405`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/405
+
 
 
 0.1.46 (2023-03-21)
