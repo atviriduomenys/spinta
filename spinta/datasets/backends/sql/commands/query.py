@@ -989,3 +989,21 @@ def cast(env: SqlResultBuilder, dtype: String, value: int) -> str:
 @ufunc.resolver(SqlResultBuilder, String, type(None))
 def cast(env: SqlResultBuilder, dtype: String, value: Optional[Any]) -> str:
     return ''
+
+
+@ufunc.resolver(SqlQueryBuilder, Expr)
+def page(
+    env: SqlQueryBuilder,
+    expr: Expr,
+    size: int = None
+):
+    pass
+
+
+@ufunc.resolver(SqlQueryBuilder, Bind)
+def page(
+    env: SqlQueryBuilder,
+    sort_by: Bind,
+    size: int = None
+):
+    pass

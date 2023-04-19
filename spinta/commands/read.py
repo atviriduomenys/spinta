@@ -1,6 +1,6 @@
 import itertools
 import uuid
-from typing import overload, Optional, Iterator, Union, List
+from typing import overload, Optional, Iterator, Union, List, Tuple
 from pathlib import Path
 
 from starlette.requests import Request
@@ -169,12 +169,13 @@ def paginate(
 
     query = _get_pagination_sort_query(model, expr)
     query = _get_pagination_limit_query(size, query)
+    query = _get_pagination_select_query(model, query)
 
     count = 0
     end_loop = False
     while not end_loop:
-        query = _get_pagination_compare_query(model, value, query)
-        rows = commands.getall(context, model, backend, query=query)
+        page_query = _get_pagination_compare_query(model, value, query)
+        rows = commands.getall(context, model, backend, query=page_query)
 
         peek = next(rows, None)
         if peek is None:
@@ -208,10 +209,10 @@ def _get_pagination_sort_query(
             name = 'negative'
         else:
             name = 'bind'
-        sort_args.append({
+        sort_args.append(asttoexpr({
             'name': name,
             'args': [prop.name]
-        })
+        }))
 
     if sort_args:
         sort = {
@@ -221,32 +222,78 @@ def _get_pagination_sort_query(
         sort = asttoexpr(sort)
 
     if expr and sort:
-        query = merge_formulas(expr, sort)
+        updated, query = _update_expr_args(expr, 'sort', sort_args)
+        if not updated:
+            query = merge_formulas(query, sort)
     else:
         query = sort or expr or None
     return query
+
+
+def _update_expr_args(
+    expr: Expr,
+    name: str,
+    args: List,
+    override: bool = False
+) -> Tuple[bool, Expr]:
+    updated = False
+    expr.args = list(expr.args)
+    if expr.name == name:
+        if override:
+            expr.args = args
+            updated = True
+        else:
+            if expr.args:
+                expr.args.extend(args)
+                updated = True
+    else:
+        for i, arg in enumerate(expr.args):
+            if isinstance(arg, Expr):
+                updated, expr.args[i] = _update_expr_args(arg, name, args, override)
+                if updated:
+                    break
+    expr.args = tuple(expr.args)
+    return updated, expr
 
 
 def _get_pagination_limit_query(
     size: int,
     expr: Union[Expr, None],
 ) -> Union[Expr, None]:
-    size = asttoexpr({
+    limit = asttoexpr({
         'name': 'limit',
         'args': [size]
     })
     if expr:
-        query = merge_formulas(expr, size)
+        updated, query = _update_expr_args(expr, 'limit', [size], override=True)
+        if not updated:
+            query = merge_formulas(query, limit)
     else:
-        query = size
+        query = limit
     return query
+
+
+def _get_pagination_select_query(
+    model: Model,
+    expr: Union[Expr, None],
+) -> Union[Expr, None]:
+    if expr:
+        select_args = []
+        for prop in model.page.by.values():
+            select_args.append(asttoexpr({
+                'name': 'bind',
+                'args': [prop.name]
+            }))
+        if select_args:
+            _, expr = _update_expr_args(expr, 'select', select_args)
+    return expr
 
 
 def _get_pagination_compare_query(
     model: Model,
     value: List,
     expr: Union[Expr, None],
-):
+) -> Union[Expr, None]:
     compare = {}
     if value:
         for i, (by, prop) in enumerate(model.page.by.items()):

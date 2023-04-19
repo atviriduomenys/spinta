@@ -17,6 +17,7 @@ from spinta.testing.data import listdata
 test_data = [
     {
         '_type': 'report',
+        '_id': '1845aa15-c8e0-4368-a325-c31c6ac3bfac',
         'status': 'OK',
         'report_type': 'STV',
         'count': 10,
@@ -31,6 +32,7 @@ test_data = [
     },
     {
         '_type': 'report',
+        '_id': '2dc605ba-f4ff-4240-9db6-51e1a7ad7d28',
         'status': 'invalid',
         'report_type': 'VMI',
         'count': 42,
@@ -45,6 +47,7 @@ test_data = [
     },
     {
         '_type': 'report',
+        '_id': '34e9f68d-7291-4b63-ad61-0480ae3941c4',
         'status': 'invalid',
         'report_type': 'STV',
         'count': 13,
@@ -58,6 +61,7 @@ test_data = [
 
 
 def _push_test_data(app, model, data=None):
+    app.authorize(['spinta_set_meta_fields'])
     app.authmodel(model, ['insert'])
     resp = app.post('/', json={'_data': [
         {
@@ -174,11 +178,6 @@ def test_search_gt(model, context, app):
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
 
-    # search for string value
-    resp = app.get(f'/{model}?status>"ok"')
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidValue"]
-
     # multi field search
     # test if operators are joined with AND logic
     resp = app.get(f'/{model}?count>40&count>10')
@@ -224,11 +223,6 @@ def test_search_gte(model, context, app):
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r2['_id']
-
-    # search for string value
-    resp = app.get(f'/{model}?status>="ok"')
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # multi field search
     # test if operators are joined with AND logic
@@ -279,11 +273,6 @@ def test_search_lt(model, context, app):
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
 
-    # search for string value
-    resp = app.get(f'/{model}?status<"ok"')
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidValue"]
-
     # multi field search
     # test if operators are joined with AND logic
     resp = app.get(f'/{model}?count<20&count>10')
@@ -331,11 +320,6 @@ def test_search_lte(model, context, app):
     data = resp.json()['_data']
     assert len(data) == 1
     assert data[0]['_id'] == r1['_id']
-
-    # search for string value
-    resp = app.get(f'/{model}?status<="ok"')
-    assert resp.status_code == 400
-    assert get_error_codes(resp.json()) == ["InvalidValue"]
 
     # multi field search
     # test if operators are joined with AND logic
@@ -1061,11 +1045,12 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
     context = create_test_context(rc)
     request.addfinalizer(context.wipe_all)
     app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
     app.authmodel('extrafields', ['insert'])
     resp = app.post('/extrafields', json={'_data': [
-        {'_op': 'insert', 'code': 'lt', 'name': 'Lietuva'},
-        {'_op': 'insert', 'code': 'lv', 'name': 'Latvija'},
-        {'_op': 'insert', 'code': 'ee', 'name': 'Estija'},
+        {'_op': 'insert', 'code': 'lt', 'name': 'Lietuva', '_id': '00600aa5-1629-4ead-a4fc-736a2e64f5ce'},
+        {'_op': 'insert', 'code': 'lv', 'name': 'Latvija', '_id': '0411734b-8658-40c5-bf32-9ade37cbb401'},
+        {'_op': 'insert', 'code': 'ee', 'name': 'Estija', '_id': '0a3afc49-263c-40a0-a278-b58514ed961a'},
     ]})
     assert resp.status_code == 200, resp.json()
 

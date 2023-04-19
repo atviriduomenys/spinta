@@ -34,7 +34,7 @@ from typer import echo
 from spinta import exceptions
 from spinta import spyna
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.data import ModelRow, read_model_data
+from spinta.cli.helpers.data import ModelRow, count_rows
 from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
@@ -419,12 +419,23 @@ def _get_model_rows(
     page_model: str = None,
     page: Any = None,
 ) -> Iterator[_PushRow]:
+    counts = (
+        count_rows(
+            context,
+            models,
+            limit,
+            stop_on_error=stop_on_error,
+        )
+        if not no_progress_bar
+        else {}
+    )
     push_counter = None
     if not no_progress_bar:
-        push_counter = tqdm.tqdm(desc='PUSH', ascii=True)
+        push_counter = tqdm.tqdm(desc='PUSH', ascii=True, total=sum(counts.values()))
     rows = _iter_model_rows(
         context,
         models,
+        counts,
         metadata,
         limit,
         stop_on_error=stop_on_error,
@@ -437,16 +448,20 @@ def _get_model_rows(
     for row in rows:
         yield row
 
+    if push_counter is not None:
+        push_counter.close()
+
 
 def _iter_model_rows(
     context: Context,
     models: List[Model],
+    counts: Dict[str, int],
     metadata: sa.MetaData,
     limit: int = None,
     *,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
-    push_counter=None,
+    push_counter: tqdm.tqdm = None,
     incremental: bool = False,
     page_model: str = None,
     page: Any = None,
@@ -454,7 +469,8 @@ def _iter_model_rows(
     for model in models:
         model_push_counter = None
         if not no_progress_bar:
-            model_push_counter = tqdm.tqdm(desc=model.name, ascii=True, leave=False)
+            count = counts.get(model.name)
+            model_push_counter = tqdm.tqdm(desc=model.name, ascii=True, total=count, leave=False)
 
         if model.page and model.page.by:
             rows = _read_rows_by_pages(
@@ -463,17 +479,17 @@ def _iter_model_rows(
                 metadata,
                 limit,
                 stop_on_error,
+                push_counter,
+                model_push_counter,
                 incremental,
                 page_model,
-                page
+                page,
             )
-        else:
-            rows = read_model_data(context, model, limit, stop_on_error)
-            rows = _rows_to_push_rows(model, rows)
-        for row in rows:
-            yield row
-            push_counter.update(1)
-            model_push_counter.update(1)
+            for row in rows:
+                yield row
+
+        if model_push_counter is not None:
+            model_push_counter.close()
 
 
 def _read_model_data_by_page(
@@ -523,6 +539,8 @@ def _read_rows_by_pages(
     metadata: sa.MetaData,
     limit: int = None,
     stop_on_error: bool = False,
+    push_counter: tqdm.tqdm = None,
+    model_push_counter: tqdm.tqdm = None,
     incremental: bool = False,
     page_model: str = None,
     page: Any = None,
@@ -656,6 +674,9 @@ def _read_rows_by_pages(
 
             if push_row:
                 yield row
+
+            push_counter.update(1)
+            model_push_counter.update(1)
 
 
 def _get_state_rows(

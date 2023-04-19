@@ -498,7 +498,7 @@ def compare(env, op, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, (String, Date, DateTime), object, names=COMPARE)
+@ufunc.resolver(PgQueryBuilder, (Integer, String, Date, DateTime), object, names=['eq', 'ne', 'lt', 'le', 'gt', 'ge'])
 def compare(env, op, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
     cond = _sa_compare(op, column, value)
