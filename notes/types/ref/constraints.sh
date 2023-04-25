@@ -59,19 +59,21 @@ EOF
 #| {
 #|     "errors": [
 #|         {
-#|             "code": "FieldNotInResource",
+#|             "code": "ReferencedObjectNotFound",
 #|             "context": {
-#|                 "component": "spinta.components.Model",
+#|                 "attribute": "",
+#|                 "component": "spinta.components.Property",
 #|                 "dataset": "types/ref/constraints",
 #|                 "entity": "",
+#|                 "id": "9e1ca4d7-d13d-4e48-91f8-627632d7ea28",
 #|                 "manifest": "default",
 #|                 "model": "types/ref/constraints/City",
-#|                 "property": "twin",
+#|                 "property": "country",
 #|                 "schema": "8"
 #|             },
-#|             "message": "Unknown property 'twin'.",
-#|             "template": "Unknown property {property!r}.",
-#|             "type": "model"
+#|             "message": "Referenced object '9e1ca4d7-d13d-4e48-91f8-627632d7ea28' not found.",
+#|             "template": "Referenced object {id!r} not found.",
+#|             "type": "property"
 #|         }
 #|     ]
 #| }
@@ -97,25 +99,20 @@ http POST "$SERVER/$DATASET/City" $AUTH <<'EOF'
     "twin": null
 }
 EOF
-#| HTTP/1.1 400 Bad Request
+#| HTTP/1.1 201 Created
 #| 
 #| {
-#|     "errors": [
-#|         {
-#|             "code": "FieldNotInResource",
-#|             "context": {
-#|                 "component": "spinta.components.Model",
-#|                 "dataset": "types/ref/constraints",
-#|                 "entity": "",
-#|                 "manifest": "default",
-#|                 "model": "types/ref/constraints/City",
-#|                 "property": "twin",
-#|                 "schema": "8"
-#|             },
-#|             "message": "Unknown property 'twin'.",
-#|             "template": "Unknown property {property!r}.",
-#|             "type": "model"
-#|         }
-#|     ]
+#|     "_id": "640be5bc-50bb-4b4a-8515-1aede9a11e08",
+#|     "_revision": "e051a2e0-9a2e-4d43-b47d-baff68cd9b69",
+#|     "_type": "types/ref/constraints/City",
+#|     "country": {
+#|         "_id": "5dd1b4aa-3f2e-420a-a116-f606ac1f7e7d"
+#|     },
+#|     "id": 1,
+#|     "name": "Kaunas",
+#|     "twin": {
+#|         "_id": null
+#|     }
 #| }
-# FIXME: This should not be an error.
+# TODO: "twin" should be {"twin": null}.
+#       https://github.com/atviriduomenys/spinta/issues/436
