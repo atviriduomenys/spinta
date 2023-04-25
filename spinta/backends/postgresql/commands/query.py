@@ -373,7 +373,7 @@ def select(env, dtype):
 def select(env, dtype):
     table = env.backend.get_table(env.model)
     columns = []
-    if dtype.model.given.pkeys:
+    if dtype.model.given.pkeys or dtype.explicit:
         props = dtype.refprops
     else:
         props = [dtype.model.properties['_id']]

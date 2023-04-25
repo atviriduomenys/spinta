@@ -253,7 +253,7 @@ def simple_data_check(
             p.name.split('.')[0] == prop.name
         )
     ]
-    if dtype.model.given.pkeys:
+    if dtype.model.given.pkeys or dtype.explicit:
         allowed_keys = [prop.name for prop in dtype.refprops]
     else:
         allowed_keys = ['_id']

@@ -1082,7 +1082,7 @@ def before_write(
     *,
     data: DataSubItem,
 ) -> dict:
-    if dtype.model.given.pkeys:
+    if dtype.model.given.pkeys or dtype.explicit:
         props = dtype.refprops
     else:
         props = [dtype.model.properties['_id']]

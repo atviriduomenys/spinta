@@ -8,6 +8,7 @@ from spinta.testing.data import listdata
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest
 from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.utils import get_error_codes
 
 
 def test_load(tmp_path: Path, rc: RawConfig):
@@ -121,5 +122,59 @@ def test_external_ref_without_primary_key(
     assert listdata(resp, full=True) == [
         {
             'country._id': _id
+        }
+    ]
+
+
+def test_external_ref_with_explicit_key(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref                               | source       | level | access
+    datasets/external/ref    |        |                                   |              |       |
+      | external             | sql    |                                   | sqlite://    |       |
+      |   |   | Country      |        |                                   |              |       |
+      |   |   |   | id       | integer|                                   |              |       | open
+      |   |   |   | name     | string |                                   |              |       | open
+    datasets/explicit/ref    |        |                                   |              |       |
+      |   |   | City         |        |                                   |              |       |
+      |   |   |   | name     | string |                                   |              |       | open
+      |   |   |   | country  | ref    | /datasets/external/ref/Country[id]|              | 3     | open
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authmodel('datasets/explicit/ref/City', [
+        'insert',
+        'getall',
+        'search'
+    ])
+
+    resp = app.post('/datasets/explicit/ref/City', json={
+        'country': {'_id': 1},
+        'name': 'Vilnius',
+    })
+    assert resp.status_code == 400
+    assert get_error_codes(resp.json()) == ['FieldNotInResource']
+
+    resp = app.post('/datasets/explicit/ref/City', json={
+        'country': {'id': 1},
+        'name': 'Vilnius',
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/explicit/ref/City')
+    assert listdata(resp, full=True) == [
+        {
+            'country.id': 1,
+            'name': "Vilnius"
+        }
+    ]
+
+    resp = app.get('/datasets/explicit/ref/City?select(country)')
+    assert listdata(resp, full=True) == [
+        {
+            'country.id': 1
         }
     ]
