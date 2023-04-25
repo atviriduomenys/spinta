@@ -757,9 +757,7 @@ def _init_push_state(
             sa.Column('error', sa.Boolean),
             sa.Column('data', sa.Text)
         )
-        table.create(checkfirst=True)
-
-        migrate_table(engine, metadata, inspector, renames={
+        migrate_table(engine, metadata, inspector, table, renames={
             'rev': 'checksum',
         })
 
