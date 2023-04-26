@@ -45,7 +45,11 @@ def _get_dtype_header(
 
     elif isinstance(dtype, ExternalRef):
         if select is None or select == {'*': {}}:
-            for prop in dtype.refprops:
+            if dtype.model.given.pkeys or dtype.explicit:
+                props = dtype.refprops
+            else:
+                props = [dtype.model.properties['_id']]
+            for prop in props:
                 yield name + '.' + prop.place
         else:
             for prop, sel in select_only_props(

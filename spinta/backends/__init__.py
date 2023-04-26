@@ -253,7 +253,10 @@ def simple_data_check(
             p.name.split('.')[0] == prop.name
         )
     ]
-    allowed_keys = [prop.name for prop in dtype.refprops]
+    if dtype.model.given.pkeys or dtype.explicit:
+        allowed_keys = [prop.name for prop in dtype.refprops]
+    else:
+        allowed_keys = ['_id']
     allowed_keys.extend(denorm_prop_keys)
     value = flatten_value(value)
     for key in value.keys():
@@ -815,7 +818,7 @@ def prepare_dtype_for_response(
             fmt,
             prop.dtype,
             val,
-            data=data,
+            data=value,
             action=action,
             select=sel,
         )

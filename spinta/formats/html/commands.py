@@ -18,7 +18,7 @@ from starlette.templating import Jinja2Templates
 
 from spinta import commands
 from spinta.backends.components import SelectTree
-from spinta.backends.helpers import get_model_reserved_props
+from spinta.backends.helpers import get_model_reserved_props, get_select_prop_names, select_props
 from spinta.backends.helpers import get_ns_reserved_props
 from spinta.backends.helpers import select_model_props
 from spinta.components import Action
@@ -374,7 +374,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if dtype.prop.name == '_id':
+    link = data.pop('_link', True)
+    if dtype.prop.name == '_id' and link:
         return Cell(short_id(value), link=get_model_link(
             dtype.prop.model,
             pk=value,
@@ -516,14 +517,48 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
     dtype: ExternalRef,
-    value: NotAvailable,
+    value: Optional[Dict[str, Any]],
     *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
-    super_ = commands.prepare_dtype_for_response[Context, Format, ExternalRef, dict]
-    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    if value is None:
+        return {}
+
+    if select and select != {'*': {}}:
+        names = get_select_prop_names(
+            context,
+            dtype,
+            dtype.model.properties,
+            action,
+            select,
+        )
+    else:
+        names = value.keys()
+
+    data = {}
+    for prop, val, sel in select_props(
+        dtype.model,
+        names,
+        dtype.model.properties,
+        value,
+        select,
+    ):
+        if '_id' in value:
+            value.update({
+                '_link': False
+            })
+        data[prop.name] = commands.prepare_dtype_for_response(
+            context,
+            fmt,
+            prop.dtype,
+            val,
+            data=value,
+            action=action,
+            select=sel,
+        )
+    return data
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, File, NotAvailable)
