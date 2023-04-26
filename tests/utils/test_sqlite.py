@@ -24,7 +24,7 @@ def test_create_table():
     }
 
 
-def test_add_column():
+def test_add_column_with_copy():
     engine = sa.create_engine('sqlite://')
     metadata = sa.MetaData(engine)
     columns = [
@@ -51,7 +51,7 @@ def test_add_column():
     }
 
 
-def test_drop_column():
+def test_drop_column_with_copy():
     engine = sa.create_engine('sqlite://')
     metadata = sa.MetaData(engine)
     columns = [
@@ -79,7 +79,7 @@ def test_drop_column():
     }
 
 
-def test_rename_column():
+def test_rename_column_with_copy():
     engine = sa.create_engine('sqlite://')
     metadata = sa.MetaData(engine)
     columns = [
@@ -107,7 +107,7 @@ def test_rename_column():
     }
 
 
-def test_rename_missing_column():
+def test_rename_missing_column_with_copy():
     engine = sa.create_engine('sqlite://')
     metadata = sa.MetaData(engine)
     columns = [
@@ -126,6 +126,131 @@ def test_rename_missing_column():
     table = sa.Table('table', metadata, *columns)
 
     migrate_table(engine, metadata, inspector, table, renames={'column3': 'column2'})
+    inspector = sa.inspect(engine)
+    assert _schema(inspector) == {
+        'table': [
+            'column1 text null',
+            'column2 text null',
+        ],
+    }
+
+
+def test_add_column_with_alter():
+    engine = sa.create_engine('sqlite://')
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+    table.create()
+    inspector = sa.inspect(engine)
+
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+        sa.Column('column2', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+
+    migrate_table(engine, metadata, inspector, table, copy=False)
+    inspector = sa.inspect(engine)
+    assert _schema(inspector) == {
+        'table': [
+            'column1 text null',
+            'column2 text null',
+        ],
+    }
+
+
+def test_drop_column_with_alter():
+    engine = sa.create_engine('sqlite://')
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+        sa.Column('column3', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+    table.create()
+    inspector = sa.inspect(engine)
+
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+        sa.Column('column2', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+
+    migrate_table(engine, metadata, inspector, table, copy=False)
+    inspector = sa.inspect(engine)
+    assert _schema(inspector) == {
+        'table': [
+            'column1 text null',
+            'column2 text null',
+        ],
+    }
+
+
+def test_rename_column_with_alter():
+    engine = sa.create_engine('sqlite://')
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+        sa.Column('column3', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+    table.create()
+    inspector = sa.inspect(engine)
+
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+        sa.Column('column2', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+
+    migrate_table(
+        engine,
+        metadata,
+        inspector,
+        table,
+        renames={'column3': 'column2'},
+        copy=False
+    )
+    inspector = sa.inspect(engine)
+    assert _schema(inspector) == {
+        'table': [
+            'column1 text null',
+            'column2 text null',
+        ],
+    }
+
+
+def test_rename_missing_column_with_alter():
+    engine = sa.create_engine('sqlite://')
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+        sa.Column('column2', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+    table.create()
+    inspector = sa.inspect(engine)
+
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+        sa.Column('column2', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+
+    migrate_table(
+        engine,
+        metadata,
+        inspector,
+        table,
+        renames={'column3': 'column2'},
+        copy=False
+    )
     inspector = sa.inspect(engine)
     assert _schema(inspector) == {
         'table': [

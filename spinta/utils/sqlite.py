@@ -19,6 +19,7 @@ def migrate_table(
         str,  # old column name
         str,  # new column name
     ]] = None,
+    copy: bool = True
 ) -> None:
     if not inspector.has_table(table.name):
         table.create()
@@ -31,9 +32,9 @@ def migrate_table(
         op = Operations(ctx)
 
         if (
-            renames and
             isinstance(engine.dialect, SQLiteDialect) and
-            engine.dialect.server_version_info < (3, 36)
+            engine.dialect.server_version_info < (3, 36) and
+            copy
         ):
             _migrate_with_insert_from_select(engine, metadata, op, table, renames)
         else:
