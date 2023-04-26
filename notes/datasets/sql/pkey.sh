@@ -108,26 +108,6 @@ http POST "$SERVER/$DATASET/CityExplicit" $AUTH <<'EOF'
     "country": {"_id": "bf8a4ed3-7db8-4ceb-b8da-7b35ed374149"}
 }
 EOF
-#| HTTP/1.1 201 Created
-#| 
-#| {
-#|     "_id": "c3e3c7b6-683d-4fd0-8e54-4e5e504f8d7a",
-#|     "_revision": "d0fff86e-16c4-4ccd-b5a3-d3f89fbfc34a",
-#|     "_type": "datasets/sql/pkey/CityExplicit",
-#|     "country": {
-#|         "_id": "bf8a4ed3-7db8-4ceb-b8da-7b35ed374149"
-#|     },
-#|     "name": "Vilnius"
-#| }
-# FIXME: This should be an error, _id is not allowed.
-
-
-http POST "$SERVER/$DATASET/CityExplicit" $AUTH <<'EOF'
-{
-    "name": "Kaunas",
-    "country": {"id": 42}
-}
-EOF
 #| HTTP/1.1 400 Bad Request
 #| 
 #| {
@@ -141,24 +121,37 @@ EOF
 #|                 "entity": "",
 #|                 "manifest": "default",
 #|                 "model": "datasets/sql/pkey/CityExplicit",
-#|                 "property": "id",
+#|                 "property": "_id",
 #|                 "schema": "12"
 #|             },
-#|             "message": "Unknown property 'id'.",
+#|             "message": "Unknown property '_id'.",
 #|             "template": "Unknown property {property!r}.",
 #|             "type": "property"
 #|         }
 #|     ]
 #| }
-# FIXME: This should be allowed.
+
+
+http POST "$SERVER/$DATASET/CityExplicit" $AUTH <<'EOF'
+{
+    "name": "Kaunas",
+    "country": {"id": 42}
+}
+EOF
+#| HTTP/1.1 201 Created
+#| 
+#| {
+#|     "_id": "1c2cdc33-c4c3-451f-a29c-28d29e56a9ad",
+#|     "_revision": "8f6f9044-38d8-4a79-9123-5b3b5aefa9a6",
+#|     "_type": "datasets/sql/pkey/CityExplicit",
+#|     "country": {
+#|         "id": 42
+#|     },
+#|     "name": "Kaunas"
+#| }
 
 
 http GET "$SERVER/$DATASET/CityExplicit?select(_id,country)&format(ascii)"
-#| _id                                   country._id                         
-#| ------------------------------------  ------------------------------------
-#| c3e3c7b6-683d-4fd0-8e54-4e5e504f8d7a  bf8a4ed3-7db8-4ceb-b8da-7b35ed374149
-# FIXME: I expect to get this:
-#
-#     _id                                   country.id                         
-#     ------------------------------------  ----------
-#     c3e3c7b6-683d-4fd0-8e54-4e5e504f8d7a  42
+#| _id                                   country.id
+#| ------------------------------------  ----------
+#| 1c2cdc33-c4c3-451f-a29c-28d29e56a9ad  42
