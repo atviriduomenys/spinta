@@ -1,14 +1,15 @@
 from typing import AsyncIterator, cast
 
-import re
 import psycopg2
 from sqlalchemy import exc
 from spinta import commands, exceptions
 from spinta.types.datatype import Denorm
 from spinta.utils.data import take
-from spinta.components import Context, Model, DataItem, DataSubItem
+from spinta.components import Context, Model, DataItem, DataSubItem, Property
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
+from spinta.backends.postgresql.helpers.extractors import extract_error_property_name, extract_error_ref_id, \
+    extract_error_model
 
 
 @commands.insert.register(Context, Model, PostgreSQL)
@@ -45,10 +46,10 @@ async def insert(
         except exc.IntegrityError as error:
             rollback_full = True
             savepoint.rollback()
-            if type(error.orig) is psycopg2.errors.ForeignKeyViolation:
+            if isinstance(error.orig, psycopg2.errors.ForeignKeyViolation):
                 error_message = error.orig.diag.message_detail
-                error_property_name = re.search('Key \((.*?)\)', error_message).group(1).split(".")[0]
-                error_ref_id = re.search('\)=\((.*?)\)', error_message).group(1)
+                error_property_name = extract_error_property_name(error_message)
+                error_ref_id = extract_error_ref_id(error_message)
                 error_property = model.properties.get(error_property_name)
                 exception = exceptions.ReferencedObjectNotFound(error_property, id=error_ref_id)
                 error_list.append(exception)
@@ -112,10 +113,10 @@ async def update(
         except exc.IntegrityError as error:
             rollback_full = True
             savepoint.rollback()
-            if type(error.orig) is psycopg2.errors.ForeignKeyViolation:
+            if isinstance(error.orig, psycopg2.errors.ForeignKeyViolation):
                 error_message = error.orig.diag.message_detail
-                error_property_name = re.search('Key \((.*?)\)', error_message).group(1).split(".")[0]
-                error_ref_id = re.search('\)=\((.*?)\)', error_message).group(1)
+                error_property_name = extract_error_property_name(error_message)
+                error_ref_id = extract_error_ref_id(error_message)
                 error_property = model.properties.get(error_property_name)
                 exception = exceptions.ReferencedObjectNotFound(error_property, id=error_ref_id)
                 error_list.append(exception)
@@ -165,9 +166,9 @@ async def delete(
         except exc.IntegrityError as error:
             rollback_full = True
             savepoint.rollback()
-            if type(error.orig) is psycopg2.errors.ForeignKeyViolation:
+            if isinstance(error.orig, psycopg2.errors.ForeignKeyViolation):
                 error_message = error.orig.diag.message_detail
-                error_model = re.search('\"([^"]*)\"', error_message).group(1)
+                error_model = extract_error_model(error_message)
                 exception = exceptions.ReferringObjectFound(model.properties.get("_id"), model=error_model, id=data.saved.get("_id"))
                 error_list.append(exception)
                 data.error = exception
