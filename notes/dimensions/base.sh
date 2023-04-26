@@ -385,6 +385,8 @@ http GET "$SERVER/$DATASET/City?select(_id,id,name,population,type,koord)&format
 #|         }
 #|     ]
 #| }
-# FIXME: There should be no error here, `type` is defined in base (Location),
-#        `koord` is defined in `Place` and should be retrieved from there via
-#        join.
+# TODO: There should be no error here, `type` is defined in base (Location),
+#       `koord` is defined in `Place` and should be retrieved from there via
+#       join.
+#
+#       https://github.com/atviriduomenys/spinta/issues/395
