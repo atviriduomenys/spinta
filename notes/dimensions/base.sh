@@ -43,9 +43,7 @@ poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
 cat $BASEDIR/manifest.csv
 poetry run spinta show
 
-# notes/spinta/server.sh    Check configuration
 # notes/spinta/server.sh    Run migrations
-# notes/spinta/server.sh    Add client
 # notes/spinta/server.sh    Run server
 # notes/spinta/client.sh    Configure client
 
@@ -167,7 +165,7 @@ http POST "$SERVER/$DATASET/Location" $AUTH \
 #| 
 #| {
 #|     "_id": "2074d66e-0dfd-4233-b1ec-199abc994d0c",
-#|     "_revision": "8303ac22-90f4-4f0a-92a7-08d6b49430fe",
+#|     "_revision": "dcd6e164-5189-4291-b61c-b84d5c1b576c",
 #|     "_type": "dimensions/base/Location",
 #|     "id": 42,
 #|     "name": "Vilnius",
@@ -187,13 +185,13 @@ http GET "$SERVER/$DATASET/Location?format(ascii)"
 
 
 http PATCH "$SERVER/$DATASET/Location/2074d66e-0dfd-4233-b1ec-199abc994d0c" $AUTH \
-    _revision="8303ac22-90f4-4f0a-92a7-08d6b49430fe" \
+    _revision="dcd6e164-5189-4291-b61c-b84d5c1b576c" \
     type="city"
 #| HTTP/1.1 200 OK
 #| 
 #| {
 #|     "_id": "2074d66e-0dfd-4233-b1ec-199abc994d0c",
-#|     "_revision": "e9ec71ae-6a5f-4cd4-97dd-9c36250abefe",
+#|     "_revision": "12274579-32cc-448d-962d-7d0fc82de8d8",
 #|     "_type": "dimensions/base/Location",
 #|     "type": "city"
 #| }
@@ -252,6 +250,7 @@ http POST "$SERVER/$DATASET/City" $AUTH \
 #|     ]
 #| }
 # TODO: This should not be a 500 error.
+#       https://github.com/atviriduomenys/spinta/issues/205
 tail -100 $BASEDIR/spinta.log
 #| Traceback (most recent call last):
 #|   File "sqlalchemy/engine/base.py", line 1771, in _execute_context
@@ -386,5 +385,6 @@ http GET "$SERVER/$DATASET/City?select(_id,id,name,population,type,koord)&format
 #|         }
 #|     ]
 #| }
-# FIXME: This should not be defined, `type` is defined in base (Location) and
-#        should be retrieved from ther via join.
+# FIXME: There should be no error here, `type` is defined in base (Location),
+#        `koord` is defined in `Place` and should be retrieved from there via
+#        join.
