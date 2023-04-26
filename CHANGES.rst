@@ -3,8 +3,14 @@
 Changes
 #######
 
-0.1.45 (unreleased)
+0.1.50 (unreleased)
 ===================
+
+New features:
+
+- Add support for reading data from models with base (`#273`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/273
 
 Improvements:
 
