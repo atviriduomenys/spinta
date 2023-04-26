@@ -1,13 +1,15 @@
 from typing import Dict
 from typing import List
 
+import pytest
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
 
 from spinta.utils.sqlite import migrate_table
 
 
-def test_create_table():
+@pytest.mark.parametrize("copy", [True, False])
+def test_create_table(copy):
     engine = sa.create_engine('sqlite://')
     metadata = sa.MetaData(engine)
     columns = [
@@ -15,7 +17,7 @@ def test_create_table():
     ]
     table = sa.Table('table', metadata, *columns)
     inspector = sa.inspect(engine)
-    migrate_table(engine, metadata, inspector, table)
+    migrate_table(engine, metadata, inspector, table, copy=copy)
     inspector = sa.inspect(engine)
     assert _schema(inspector) == {
         'table': [
@@ -24,7 +26,8 @@ def test_create_table():
     }
 
 
-def test_add_column_with_copy():
+@pytest.mark.parametrize("copy", [True, False])
+def test_add_column(copy):
     engine = sa.create_engine('sqlite://')
     metadata = sa.MetaData(engine)
     columns = [
@@ -41,7 +44,7 @@ def test_add_column_with_copy():
     ]
     table = sa.Table('table', metadata, *columns)
 
-    migrate_table(engine, metadata, inspector, table)
+    migrate_table(engine, metadata, inspector, table, copy=copy)
     inspector = sa.inspect(engine)
     assert _schema(inspector) == {
         'table': [
@@ -51,35 +54,8 @@ def test_add_column_with_copy():
     }
 
 
-def test_drop_column_with_copy():
-    engine = sa.create_engine('sqlite://')
-    metadata = sa.MetaData(engine)
-    columns = [
-        sa.Column('column1', sa.Text),
-        sa.Column('column3', sa.Text),
-    ]
-    table = sa.Table('table', metadata, *columns)
-    table.create()
-    inspector = sa.inspect(engine)
-
-    metadata = sa.MetaData(engine)
-    columns = [
-        sa.Column('column1', sa.Text),
-        sa.Column('column2', sa.Text),
-    ]
-    table = sa.Table('table', metadata, *columns)
-
-    migrate_table(engine, metadata, inspector, table)
-    inspector = sa.inspect(engine)
-    assert _schema(inspector) == {
-        'table': [
-            'column1 text null',
-            'column2 text null',
-        ],
-    }
-
-
-def test_rename_column_with_copy():
+@pytest.mark.parametrize("copy", [True, False])
+def test_drop_column(copy):
     engine = sa.create_engine('sqlite://')
     metadata = sa.MetaData(engine)
     columns = [
@@ -97,7 +73,7 @@ def test_rename_column_with_copy():
     ]
     table = sa.Table('table', metadata, *columns)
 
-    migrate_table(engine, metadata, inspector, table, renames={'column3': 'column2'})
+    migrate_table(engine, metadata, inspector, table, copy=copy)
     inspector = sa.inspect(engine)
     assert _schema(inspector) == {
         'table': [
@@ -107,90 +83,8 @@ def test_rename_column_with_copy():
     }
 
 
-def test_rename_missing_column_with_copy():
-    engine = sa.create_engine('sqlite://')
-    metadata = sa.MetaData(engine)
-    columns = [
-        sa.Column('column1', sa.Text),
-        sa.Column('column2', sa.Text),
-    ]
-    table = sa.Table('table', metadata, *columns)
-    table.create()
-    inspector = sa.inspect(engine)
-
-    metadata = sa.MetaData(engine)
-    columns = [
-        sa.Column('column1', sa.Text),
-        sa.Column('column2', sa.Text),
-    ]
-    table = sa.Table('table', metadata, *columns)
-
-    migrate_table(engine, metadata, inspector, table, renames={'column3': 'column2'})
-    inspector = sa.inspect(engine)
-    assert _schema(inspector) == {
-        'table': [
-            'column1 text null',
-            'column2 text null',
-        ],
-    }
-
-
-def test_add_column_with_alter():
-    engine = sa.create_engine('sqlite://')
-    metadata = sa.MetaData(engine)
-    columns = [
-        sa.Column('column1', sa.Text),
-    ]
-    table = sa.Table('table', metadata, *columns)
-    table.create()
-    inspector = sa.inspect(engine)
-
-    metadata = sa.MetaData(engine)
-    columns = [
-        sa.Column('column1', sa.Text),
-        sa.Column('column2', sa.Text),
-    ]
-    table = sa.Table('table', metadata, *columns)
-
-    migrate_table(engine, metadata, inspector, table, copy=False)
-    inspector = sa.inspect(engine)
-    assert _schema(inspector) == {
-        'table': [
-            'column1 text null',
-            'column2 text null',
-        ],
-    }
-
-
-def test_drop_column_with_alter():
-    engine = sa.create_engine('sqlite://')
-    metadata = sa.MetaData(engine)
-    columns = [
-        sa.Column('column1', sa.Text),
-        sa.Column('column3', sa.Text),
-    ]
-    table = sa.Table('table', metadata, *columns)
-    table.create()
-    inspector = sa.inspect(engine)
-
-    metadata = sa.MetaData(engine)
-    columns = [
-        sa.Column('column1', sa.Text),
-        sa.Column('column2', sa.Text),
-    ]
-    table = sa.Table('table', metadata, *columns)
-
-    migrate_table(engine, metadata, inspector, table, copy=False)
-    inspector = sa.inspect(engine)
-    assert _schema(inspector) == {
-        'table': [
-            'column1 text null',
-            'column2 text null',
-        ],
-    }
-
-
-def test_rename_column_with_alter():
+@pytest.mark.parametrize("copy", [True, False])
+def test_rename_column(copy):
     engine = sa.create_engine('sqlite://')
     metadata = sa.MetaData(engine)
     columns = [
@@ -214,7 +108,7 @@ def test_rename_column_with_alter():
         inspector,
         table,
         renames={'column3': 'column2'},
-        copy=False
+        copy=copy
     )
     inspector = sa.inspect(engine)
     assert _schema(inspector) == {
@@ -225,7 +119,8 @@ def test_rename_column_with_alter():
     }
 
 
-def test_rename_missing_column_with_alter():
+@pytest.mark.parametrize("copy", [True, False])
+def test_rename_missing_column(copy):
     engine = sa.create_engine('sqlite://')
     metadata = sa.MetaData(engine)
     columns = [
@@ -249,7 +144,7 @@ def test_rename_missing_column_with_alter():
         inspector,
         table,
         renames={'column3': 'column2'},
-        copy=False
+        copy=copy
     )
     inspector = sa.inspect(engine)
     assert _schema(inspector) == {
