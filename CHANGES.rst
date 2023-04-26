@@ -3,8 +3,15 @@
 Changes
 #######
 
-0.1.48 (unreleased)
+0.1.50 (unreleased)
 ===================
+
+Bug fixes:
+
+- Correctly handle level 3 references, when referenced model does not have a
+  primary key or property references a non-primary key (`#400`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/400
 
 
 0.1.47 (2023-03-27)
