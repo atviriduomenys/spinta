@@ -217,6 +217,8 @@ class PropertyRow(TypedDict, total=False):
     enums: Dict[str, Dict[str, EnumRow]]
     lang: LangData
     units: str
+    required: bool
+    unique: bool
 
 
 class PropertyExternalRow(TypedDict, total=False):

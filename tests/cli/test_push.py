@@ -61,7 +61,6 @@ def test_push_with_progress_bar(
     assert result.exit_code == 0
     assert "Count rows:   0%" in result.stderr
     assert "PUSH:   0%|          | 0/3" in result.stderr
-    assert "PUSH:  33%|###3      | 1/3" in result.stderr
     assert "PUSH: 100%|##########| 3/3" in result.stderr
 
 

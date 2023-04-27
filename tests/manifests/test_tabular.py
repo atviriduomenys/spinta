@@ -1,6 +1,6 @@
 import pytest
 
-from spinta.exceptions import InvalidManifestFile
+from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, ReferencedPropertyNotFound
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 
@@ -216,6 +216,17 @@ def test_prop_type_not_given(tmp_path, rc):
     )
 
 
+def test_prop_type_required(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type
+    example                  |
+                             |
+      |   |   | City         |
+      |   |   |   | name     | string required
+      |   |   |   | place    | geometry(point) required
+    ''')
+
+
 def test_time_type(tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type
@@ -244,6 +255,50 @@ def test_with_denormalized_data(tmp_path, rc):
       |   |   |   | country.name           |        |           | open
       |   |   |   | country.continent.name |        |           | open
     ''')
+    
+    
+def test_with_denormalized_data_ref_error(tmp_path, rc):
+    with pytest.raises(NoRefPropertyForDenormProperty) as e:
+        check(tmp_path, rc, '''
+        d | r | b | m | property               | type   | ref       | access
+        example                                |        |           |
+                                               |        |           |
+          |   |   | Country                    |        |           |
+          |   |   |   | name                   | string |           | open
+                                               |        |           |
+          |   |   | City                       |        |           |
+          |   |   |   | name                   | string |           | open
+          |   |   |   | country.name           |        |           | open
+        ''')
+    assert e.value.message == (
+        "Property 'country' with type 'ref' or 'object' must be defined "
+        "before defining property 'country.name'."
+    )
+
+
+def test_with_denormalized_data_undefined_error(tmp_path, rc):
+    with pytest.raises(ReferencedPropertyNotFound) as e:
+        check(tmp_path, rc, '''
+        d | r | b | m | property               | type   | ref       | access
+        example                                |        |           |
+                                               |        |           |
+          |   |   | Continent                  |        |           |
+          |   |   |   | name                   | string |           | open
+                                               |        |           |
+          |   |   | Country                    |        |           |
+          |   |   |   | name                   | string |           | open
+          |   |   |   | continent              | ref    | Continent | open
+                                               |        |           |
+          |   |   | City                       |        |           |
+          |   |   |   | name                   | string |           | open
+          |   |   |   | country                | ref    | Country   | open
+          |   |   |   | country.name           |        |           | open
+          |   |   |   | country.continent.size |        |           | open
+        ''')
+    assert e.value.message == (
+        "Property 'country.continent.size' not found."
+    )
+    assert e.value.context['ref'] == "{'property': 'size', 'model': 'example/Continent'}"
 
 
 def test_with_base(tmp_path, rc):
