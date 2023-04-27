@@ -32,10 +32,10 @@ def migrate_table(
         op = Operations(ctx)
 
         if (
+            renames and
             isinstance(engine.dialect, SQLiteDialect) and
-            engine.dialect.server_version_info < (3, 36) and
-            copy
-        ):
+            engine.dialect.server_version_info < (3, 36)
+        ) or copy:
             _migrate_with_insert_from_select(engine, metadata, op, table, renames)
         else:
             _migrate_with_alter_table(
