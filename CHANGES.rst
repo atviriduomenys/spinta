@@ -6,6 +6,12 @@ Changes
 0.1.50 (unreleased)
 ===================
 
+New features:
+
+- Add support for reading data from models with base (`#273`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/273
+
 Bug fixes:
 
 - Correctly handle level 3 references, when referenced model does not have a

@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from spinta import exceptions
 from spinta.auth import authorized
-from spinta.backends import _get_property_base_model
+from spinta.backends import get_property_base_model
 from spinta.core.ufuncs import Env, ufunc
 from spinta.core.ufuncs import Bind
 from spinta.core.ufuncs import Expr
@@ -112,12 +112,12 @@ class PgQueryBuilder(Env):
 
         return self.joins[fpr.name]
 
-    def get_joined_base_table(self, prop):
-        inherit_model = prop.model
-        base_model = _get_property_base_model(prop)
+    def get_joined_base_table(self, model: Model, prop: str):
+        inherit_model = model
+        base_model = get_property_base_model(inherit_model, prop)
 
         if not base_model:
-            raise PropertyNotFound(prop.dtype)
+            raise PropertyNotFound(prop)
 
         if base_model.name in self.joins:
             return self.joins[base_model.name]
@@ -168,6 +168,19 @@ class ForeignProperty:
         )
 
 
+class InheritForeignProperty:
+
+    def __init__(
+        self,
+        model: Model,
+        prop_name: str,
+        base_prop: Property
+    ):
+        self.model = model
+        self.base_prop = base_prop
+        self.prop_name = prop_name
+
+
 class Func:
     pass
 
@@ -215,7 +228,7 @@ def getattr_(env, field, attr):
     if field.name in env.model.properties:
         prop = env.model.properties[field.name]
     else:
-        raise FieldNotInResource(env.model, property=field.anem)
+        raise FieldNotInResource(env.model, property=field.name)
     return env.call('getattr', prop.dtype, attr)
 
 
@@ -247,6 +260,11 @@ def getattr_(env, dtype, attr):
 def getattr_(env, fpr, attr):
     prop = fpr.right.dtype.model.properties[attr.name]
     return ForeignProperty(fpr, fpr.right, prop)
+
+
+@ufunc.resolver(PgQueryBuilder, Inherit, Bind, name='getattr')
+def getattr_(env, dtype, attr):
+    return InheritForeignProperty(dtype.prop.model, attr.name, dtype.prop)
 
 
 @ufunc.resolver(PgQueryBuilder, ExternalRef, Bind, name='getattr')
@@ -393,10 +411,18 @@ def select(env: PgQueryBuilder, fpr: ForeignProperty):
 
 @ufunc.resolver(PgQueryBuilder, Inherit)
 def select(env, dtype):
-    table = env.get_joined_base_table(dtype.prop)
+    table = env.get_joined_base_table(dtype.prop.model, dtype.prop.name)
     column = table.c[dtype.prop.name]
     column = column.label(dtype.prop.name)
     return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, InheritForeignProperty)
+def select(env, dtype):
+    table = env.get_joined_base_table(dtype.model, dtype.prop_name)
+    column = table.c[dtype.prop_name]
+    column = column.label(f"{dtype.base_prop.name}.{dtype.prop_name}")
+    return Selected(column, dtype.base_prop)
 
 
 @ufunc.resolver(PgQueryBuilder, int)
