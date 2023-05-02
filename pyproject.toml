@@ -74,7 +74,7 @@ asyncpg = { version = "^0.22.0", optional = false }
 psycopg2-binary = { version = "^2.9.3", optional = false }
 # FIXME: https://github.com/python-poetry/poetry/issues/4402
 # sqlalchemy = "~1.4"
-sqlalchemy = ">=1.4,<1.4.23"
+sqlalchemy = "~1.4"
 
 # Mongo backend dependendencies
 pymongo = { version = "^4.2.0", optional = false }

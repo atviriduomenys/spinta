@@ -155,6 +155,76 @@ def test_rename_missing_column(copy):
     }
 
 
+@pytest.mark.parametrize("copy", [True, False])
+def test_same_table(copy):
+    engine = sa.create_engine('sqlite://')
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+        sa.Column('column2', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+    table.create()
+    inspector = sa.inspect(engine)
+
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+        sa.Column('column2', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+
+    migrate_table(
+        engine,
+        metadata,
+        inspector,
+        table,
+        renames={'foo': 'bar'},
+        copy=copy
+    )
+    inspector = sa.inspect(engine)
+    assert _schema(inspector) == {
+        'table': [
+            'column1 text null',
+            'column2 text null',
+        ],
+    }
+
+
+@pytest.mark.parametrize("copy", [True, False])
+def test_different_tables(copy):
+    engine = sa.create_engine('sqlite://')
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column1', sa.Text),
+        sa.Column('column2', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+    table.create()
+    inspector = sa.inspect(engine)
+
+    metadata = sa.MetaData(engine)
+    columns = [
+        sa.Column('column3', sa.Text),
+        sa.Column('column4', sa.Text),
+    ]
+    table = sa.Table('table', metadata, *columns)
+
+    with pytest.raises(RuntimeError) as e:
+        migrate_table(
+            engine,
+            metadata,
+            inspector,
+            table,
+            renames={'foo': 'bar'},
+            copy=copy
+        )
+    assert str(e.value) == (
+        "Can't migrate, table 'table' is completely different, from what "
+        "is expected."
+    )
+
+
 def _schema(inspector: Inspector) -> Dict[str, List[str]]:
     schema = {}
     for table in inspector.get_table_names():

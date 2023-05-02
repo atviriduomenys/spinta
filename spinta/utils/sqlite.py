@@ -25,6 +25,9 @@ def migrate_table(
         table.create()
         return
 
+    if not _need_migrating(engine, table):
+        return
+
     renames = renames or {}
 
     with engine.begin() as conn:
@@ -35,7 +38,14 @@ def migrate_table(
             isinstance(engine.dialect, SQLiteDialect) and
             engine.dialect.server_version_info < (3, 36)
         ) or copy:
-            _migrate_with_insert_from_select(engine, metadata, op, table, renames)
+            _migrate_with_insert_from_select(
+                engine,
+                metadata,
+                inspector,
+                op,
+                table,
+                renames,
+            )
         else:
             _migrate_with_alter_table(
                 inspector,
@@ -43,6 +53,27 @@ def migrate_table(
                 table,
                 renames,
             )
+
+
+def _need_migrating(
+    engine: Engine,
+    new_table: sa.Table,
+):
+    metadata = sa.MetaData(engine)
+    old_table = sa.Table(new_table.name, metadata, autoload_with=engine)
+
+    old = {c.name for c in old_table.columns}
+    new = {c.name for c in new_table.columns}
+
+    # https://docs.python.org/3/library/stdtypes.html#set
+    if not (old & new):
+        raise RuntimeError(
+            f"Can't migrate, table {new_table.name!r} is completely different, "
+            "from what is expected."
+        )
+
+    # https://docs.python.org/3/library/stdtypes.html#set
+    return bool(new - old)
 
 
 def _migrate_with_alter_table(
@@ -81,14 +112,24 @@ def _migrate_with_alter_table(
 def _migrate_with_insert_from_select(
     engine: Engine,
     metadata: sa.MetaData,
+    inspector: Inspector,
     op: Operations,
     table: sa.Table,
     renames: Optional[Dict[str, str]],
 ) -> None:
     old_table_name = f'__{table.name}'
-    op.rename_table(table.name, old_table_name)
-    table.create()
+
+    # Recover from a possible previous failed migration, by checking if
+    # rename was already done previously.
+    if not inspector.has_table(old_table_name):
+        op.rename_table(table.name, old_table_name)
+
     old_table = sa.Table(old_table_name, metadata, autoload_with=engine)
+
+    # Recover from a possible previous failed migration, by checking if
+    # new table was already created previously.
+    if not inspector.has_table(table.name):
+        table.create()
 
     select_list = []
     insert_list = []
@@ -105,11 +146,13 @@ def _migrate_with_insert_from_select(
             select_list.append(old_table.c[source])
             insert_list.append(column.name)
 
-    engine.execute(
+    qry = (
         table.insert().from_select(
             insert_list,
             sa.select(*select_list)
         )
     )
+
+    engine.execute(qry)
 
     op.drop_table(old_table_name)
