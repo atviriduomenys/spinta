@@ -1,3 +1,4 @@
+import urllib
 from typing import cast
 from typing import Optional
 from pathlib import Path
@@ -22,6 +23,7 @@ from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_contex
 from spinta.testing.request import render_data
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import load_manifest_get_context
 from spinta.types.geometry.constants import WGS84, LKS94
 
 
@@ -177,20 +179,22 @@ def test_geometry_html(rc: RawConfig):
         ),
     }
 
+
 osm_url = (
     'https://www.openstreetmap.org/?'
-    'mlat=25.273658402751387&'
-    'mlon=54.662851967609136'
-    '#map=19/25.273658402751387/54.662851967609136'
+    'mlat=54.68569111173754&'
+    'mlon=25.286688302053335'
+    '#map=19/54.68569111173754/25.286688302053335'
 )
 
+
 @pytest.mark.parametrize('wkt, srid, link', [
-    ('POINT (582170 6059232)', LKS94, osm_url),
-    ('POINT (25.273658402751387 54.662851967609136)', WGS84, osm_url),
+    ('POINT (6061789 582964)', LKS94, osm_url),
+    ('POINT (54.68569111173754 25.286688302053335)', WGS84, osm_url),
     ('POINT (582170 6059232)', None, None),
     ('POINT (25.273658402751387 54.662851967609136)', None, None),
 ])
-def test_geometry_coordinate_tansformation(
+def test_geometry_coordinate_transformation(
     rc: RawConfig,
     wkt: str,
     srid: Optional[int],
@@ -328,3 +332,138 @@ def test_geometry_params_with_srid_without_srid(
         'point': 'POINT(582710 6061887)',
     })
     assert resp.status_code == 201
+
+
+@pytest.mark.parametrize('path', [
+    # LKS94 (3346) -> WGS84 (4326)  Bell tower of Vilnius Cathedral
+    '3346/6061789/582964',
+    # WGS84 / Pseudo-Mercator (3857) -> WGS84 (4326)  Bell tower of Vilnius Cathedral
+    '3857/2814901/7301104',
+    # WGS84 (4326) -> WGS84 (4326)  Bell tower of Vilnius Cathedral
+    '4326/54.68569/25.28668',
+])
+def test_srid_service(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    path: str,
+):
+    context = load_manifest_get_context(rc, '''
+    d | r | b | m | property | type | ref
+    ''')
+
+    app = create_test_client(context)
+
+    resp = app.get(f'/_srid/{path}', follow_redirects=False)
+    assert resp.status_code == 307
+
+    purl = urllib.parse.urlparse(resp.headers['location'])
+    query = urllib.parse.parse_qs(purl.query)
+    x, y = query['mlat'][0], query['mlon'][0]
+    assert x[:8] == '54.68569'
+    assert y[:8] == '25.28668'
+
+    _, x, y = purl.fragment.split('/')
+    assert x[:8] == '54.68569'
+    assert y[:8] == '25.28668'
+
+
+def test_geometry_delete(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                | type           | access
+        backends/postgres/dtypes/geometry/error  |                | 
+          |   |   | Point                       |                | 
+          |   |   |   | point                   | geometry       | open
+          |   |   |   | number                  | integer        | open
+    ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/error'
+    model: str = f'{ns}/Point'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+        'delete',
+    ])
+
+    resp = app.post(f'/{model}', json={
+        "point": "Point(50 50)"
+    })
+    print(resp.json().get("_id"))
+    assert resp.status_code == 201
+
+    resp = app.delete(f'/{model}/{resp.json().get("_id")}')
+    assert resp.status_code == 204
+
+
+def test_geometry_insert_without_geometry(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                | type           | access
+        backends/postgres/dtypes/geometry/error  |                | 
+          |   |   | Point                       |                | 
+          |   |   |   | point                   | geometry       | open
+          |   |   |   | number                  | integer        | open
+    ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/error'
+    model: str = f'{ns}/Point'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+    ])
+
+    resp = app.post(f'/{model}', json={
+        'number': 0
+    })
+    assert resp.status_code == 201
+
+
+def test_geometry_update_without_geometry(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                | type           | access
+        backends/postgres/dtypes/geometry/error  |                | 
+          |   |   | Point                       |                | 
+          |   |   |   | point                   | geometry       | open
+          |   |   |   | number                  | integer        | open
+    ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/error'
+    model: str = f'{ns}/Point'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+        'update',
+        'patch'
+    ])
+
+    resp = app.post(f'/{model}', json={
+        "number": 0,
+        "point": "Point(0 0)"
+    })
+    assert resp.status_code == 201
+
+    resp = app.patch(f'/{model}/{resp.json().get("_id")}', json={
+        "_revision": resp.json().get("_revision"),
+        "number": 1
+    })
+    assert resp.status_code == 200
+
+    resp = app.put(f'/{model}/{resp.json().get("_id")}', json={
+        "_revision": resp.json().get("_revision"),
+        "number": 2
+    })
+    assert resp.status_code == 200

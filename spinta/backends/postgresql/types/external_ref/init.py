@@ -9,7 +9,7 @@ from spinta.backends.postgresql.helpers import get_column_name
 
 @commands.prepare.register(Context, PostgreSQL, ExternalRef)
 def prepare(context: Context, backend: PostgreSQL, dtype: ExternalRef):
-    if dtype.model.given.pkeys:
+    if dtype.model.given.pkeys or dtype.explicit:
         columns = []
         for prop in dtype.refprops:
             original_place = prop.place
