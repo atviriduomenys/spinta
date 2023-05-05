@@ -59,20 +59,20 @@ def inspect(
     )),
 ):
     """Update manifest schema from an external data source"""
+    resources = parse_resource_args(*resource, formula)
     context = configure_context(
         ctx.obj,
         [manifest] if manifest else None,
         mode=Mode.external,
         backend=backend,
+        resources=resources
     )
     store = load_manifest(context, ensure_config_dir=True)
     old = store.manifest
-
     manifest = Manifest()
     init_manifest(context, manifest, 'inspect')
     commands.merge(context, manifest, manifest, old)
 
-    resources = parse_resource_args(*resource, formula)
     if not resources:
         resources = []
         for ds in old.datasets.values():
@@ -369,6 +369,7 @@ def merge(context: Context, manifest: Manifest, old: Model, new: Model) -> None:
         if new_keys:
             old.external.pkeys = new_keys
             old.external.unknown_primary_key = new.external.unknown_primary_key
+
 
 @commands.merge.register(Context, Manifest, Model, NotAvailable)
 def merge(context: Context, manifest: Manifest, old: Model, new: NotAvailable) -> None:
@@ -693,7 +694,6 @@ def _merge_resources(
     )
     for res in resources:
         for o, n in res:
-            print(f"{o} {n}")
             commands.merge(context, manifest, o, n)
 
 
