@@ -8,6 +8,7 @@ import sqlalchemy as sa
 import pytest
 
 from spinta.core.config import RawConfig
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
 from spinta.testing.datasets import Sqlite
@@ -20,6 +21,31 @@ from spinta.testing.manifest import load_manifest
 def sqlite_new():
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Sqlite('sqlite:///' + os.path.join(tmpdir, 'new.sqlite'))
+
+
+@pytest.fixture()
+def rc(rc, tmp_path: pathlib.Path):
+    # Need to have a clean slate, ignoring testing context manifests
+    path = f'{tmp_path}/manifest.csv'
+    create_tabular_manifest(path, striptable('''
+     d | r | b | m | property   | type    | ref     | source     | prepare
+    '''))
+    return rc.fork({
+        'manifests': {
+            'default': {
+                'type': 'tabular',
+                'path': str(path),
+                'backend': 'default',
+                'keymap': 'default',
+                'mode': 'external',
+            },
+        },
+        'backends': {
+            'default': {
+                'type': 'memory',
+            },
+        },
+    })
 
 
 def test_inspect(
@@ -77,8 +103,8 @@ def test_inspect_from_manifest_table(
     })
     create_tabular_manifest(tmp_path / 'manifest.csv', f'''
     d | r | m | property     | type   | ref | source | access
-    dbsqlite                |        |     |        |
-      | resource1            | sql    |   | {sqlite.dsn} |
+    dataset                |        |     |        |
+      | rs            | sql    |   | {sqlite.dsn} |
     ''')
     cli.invoke(rc, [
         'inspect', tmp_path / 'manifest.csv',

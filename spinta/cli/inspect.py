@@ -65,7 +65,6 @@ def inspect(
         [manifest] if manifest else None,
         mode=Mode.external,
         backend=backend,
-        resources=resources
     )
     store = load_manifest(context, ensure_config_dir=True)
     old = store.manifest
