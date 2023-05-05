@@ -14,3 +14,4 @@ project.
    setup
    tests
    functions
+   manifests
