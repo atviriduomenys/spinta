@@ -103,8 +103,8 @@ def test_inspect_from_manifest_table(
     })
     create_tabular_manifest(tmp_path / 'manifest.csv', f'''
     d | r | m | property     | type   | ref | source | access
-    dataset                |        |     |        |
-      | rs            | sql    |   | {sqlite.dsn} |
+    dbsqlite                |        |     |        |
+      | resource1            | sql    |   | {sqlite.dsn} |
     ''')
     cli.invoke(rc, [
         'inspect', tmp_path / 'manifest.csv',
