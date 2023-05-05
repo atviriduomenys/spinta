@@ -23,6 +23,7 @@ def sqlite_new():
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Sqlite('sqlite:///' + os.path.join(tmpdir, 'new.sqlite'))
 
+
 @pytest.fixture()
 def rc(rc, tmp_path: pathlib.Path):
     # Need to have a clean slate, ignoring testing context manifests
@@ -71,11 +72,10 @@ def test_inspect(
 
     # Check what was detected.
     manifest = load_manifest(rc, tmp_path / 'result.csv')
-    dataset = list(manifest.datasets.keys())[0]
-    manifest.datasets[dataset].resources['resource1'].external = 'sqlite'
+    manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
-    {dataset} |         |         |            |
+    dbsqlite                   |         |         |            |
       | resource1              | sql     |         | sqlite     |
                                |         |         |            |
       |   |   | City           |         |         | CITY       |
@@ -102,10 +102,9 @@ def test_inspect_from_manifest_table(
             sa.Column('NAME', sa.Text),
         ],
     })
-    dataset = to_dataset_name(sa.engine.make_url(sqlite.dsn).database)
     create_tabular_manifest(tmp_path / 'manifest.csv', f'''
     d | r | m | property     | type   | ref | source | access
-    {dataset}                 |        |     |        |
+    dbsqlite                |        |     |        |
       | resource1            | sql    |   | {sqlite.dsn} |
     ''')
     cli.invoke(rc, [
@@ -116,10 +115,10 @@ def test_inspect_from_manifest_table(
 
     # Check what was detected.
     manifest = load_manifest(rc, tmp_path / 'result.csv')
-    manifest.datasets[dataset].resources['resource1'].external = 'sqlite'
+    manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property  | type    | ref | source  | prepare
-    {dataset} |         |     |         |
+    dbsqlite                  |         |     |         |
       | resource1             | sql     |     | sqlite  |
                               |         |     |         |
       |   |   | Country       |         | id  | COUNTRY |
@@ -154,11 +153,10 @@ def test_inspect_format(
 
     # Check what was detected.
     manifest = load_manifest(rc, tmp_path / 'manifest.csv')
-    dataset = list(manifest.datasets.keys())[0]
-    manifest.datasets[dataset].resources['resource1'].external = 'sqlite'
+    manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
-    {dataset} |         |         |            |
+    dbsqlite                   |         |         |            |
       | resource1              | sql     |         | sqlite     |
                                |         |         |            |
       |   |   | City           |         |         | CITY       |
@@ -201,11 +199,10 @@ def test_inspect_cyclic_refs(
 
     # Check what was detected.
     manifest = load_manifest(rc, tmp_path / 'manifest.csv')
-    dataset = list(manifest.datasets.keys())[0]
-    manifest.datasets[dataset].resources['resource1'].external = 'sqlite'
+    manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
-    {dataset} |         |         |            |
+    dbsqlite                   |         |         |            |
       | resource1              | sql     |         | sqlite     |
                                |         |         |            |
       |   |   | City           |         | id      | CITY       |
@@ -249,11 +246,10 @@ def test_inspect_self_refs(
 
     # Check what was detected.
     manifest = load_manifest(rc, tmp_path / 'manifest.csv')
-    dataset = list(manifest.datasets.keys())[0]
-    manifest.datasets[dataset].resources['resource1'].external = 'sqlite'
+    manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property  | type    | ref      | source    | prepare
-    {dataset} |         |          |           |
+    dbsqlite                  |         |          |           |
       | resource1             | sql     |          | sqlite    |
                               |         |          |           |
       |   |   | Category      |         | id       | CATEGORY  |
@@ -471,7 +467,7 @@ def test_inspect_update_existing_ref(
     rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
     d | r | m | property | type    | ref | source  | prepare | access  | title
     datasets/gov/example |         |     |         |         |         | Example
-      | schema           | sql     | sql |  |         |         |
+      | schema           | sql     | sql |         |         |         |
                          |         |     |         |         |         |
       |   | Country      |         | id  | COUNTRY |         |         | Country
       |   |   | id       | integer |     | ID      |         | private | Primary key
@@ -535,11 +531,10 @@ def test_inspect_with_empty_config_dir(
 
     # Check what was detected.
     manifest = load_manifest(rc, tmp_path / 'result.csv')
-    dataset = list(manifest.datasets.keys())[0]
-    manifest.datasets[dataset].resources['resource1'].external = 'sqlite'
+    manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
-    {dataset} |         |     |
+    dbsqlite                 |         |     |
       | resource1            | sql     |     | sqlite
                              |         |     |
       |   |   | Country      |         | id  | COUNTRY
@@ -570,11 +565,10 @@ def test_inspect_duplicate_table_names(
 
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
-    dataset = list(manifest.datasets.keys())[0]
-    manifest.datasets[dataset].resources['resource1'].external = 'sqlite'
+    manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
-    {dataset} |         |     |
+    dbsqlite                 |         |     |
       | resource1            | sql     |     | sqlite
                              |         |     |
       |   |   | Country      |         |     | COUNTRY
@@ -612,11 +606,10 @@ def test_inspect_duplicate_column_names(
 
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
-    dataset = list(manifest.datasets.keys())[0]
-    manifest.datasets[dataset].resources['resource1'].external = 'sqlite'
+    manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
-    {dataset} |         |     |
+    dbsqlite                 |         |     |
       | resource1            | sql     |     | sqlite
                              |         |     |
       |   |   | Country      |         |     | COUNTRY
@@ -658,22 +651,22 @@ def test_inspect_existing_duplicate_table_names(
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property | type    | ref | source  | prepare | access  | title
-       datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     | sql |         |         |         |
-                            |         |     |         |         |         |
-         |   | Country      |         | id  |         |         |         | Country
-         |   |   | id       | integer |     |         |         | private | Primary key
-         |   |   | name     | string  |     |         |         | open    | Country name
-                            |         |     |         |         |         |
-         |   | Country1     |         |     | COUNTRY |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |
-         |   | Country11    |         |     | _COUNTRY |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |
+       d | r | m | property | type    | ref | source    | prepare | access  | title
+       datasets/gov/example |         |     |           |         |         | Example
+         | schema           | sql     | sql |           |         |         |
+                            |         |     |           |         |         |
+         |   | Country      |         | id  |           |         |         | Country
+         |   |   | id       | integer |     |           |         | private | Primary key
+         |   |   | name     | string  |     |           |         | open    | Country name
+                            |         |     |           |         |         |
+         |   | Country1     |         |     | COUNTRY   |         |         |
+         |   |   | name     | string  |     | NAME      |         |         |
+                            |         |     |           |         |         |
+         |   | Country11    |         |     | _COUNTRY  |         |         |
+         |   |   | name     | string  |     | NAME      |         |         |
+                            |         |     |           |         |         |
          |   | Country2     |         |     | __COUNTRY |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
+         |   |   | name     | string  |     | NAME      |         |         |
        ''')
     assert a == b
 
@@ -754,15 +747,15 @@ def test_inspect_insert_new_dataset(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
-    dataset = list(manifest.datasets.keys())[1]
+    manifest.datasets['dbsqlite'].resources['resource1'].external.name = "sqlite"
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
                             |         |     |         |         |         |
          |   | Country      |         |     |         |         |         | Country
          |   |   | name     | string  |     |         |         | open    | Country name
-       {dataset} |         |     |         |         |         |
-         | resource1        | sql     |     | {sqlite.dsn} |         |         |
+       dbsqlite             |         |     |         |         |         |
+         | resource1        | sql     |     | sqlite  |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
@@ -893,17 +886,19 @@ def test_inspect_multiple_resources_all_new(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
+    manifest.datasets['datasets/gov/example'].resources['schema_1'].external = 'sqlite_new'
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property | type    | ref | source  | prepare | access  | title
-       datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     |     | {sqlite.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | Country      |         |     | COUNTRY |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-         | schema_1         | sql     |     | {sqlite_new.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | Country1     |         |     | COUNTRY |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
+       d | r | m | property | type    | ref | source     | prepare | access  | title
+       datasets/gov/example |         |     |            |         |         | Example
+         | schema           | sql     |     | sqlite     |         |         |
+                            |         |     |            |         |         |
+         |   | Country      |         |     | COUNTRY    |         |         |
+         |   |   | name     | string  |     | NAME       |         |         |
+         | schema_1         | sql     |     | sqlite_new |         |         |
+                            |         |     |            |         |         |
+         |   | Country1     |         |     | COUNTRY    |         |         |
+         |   |   | code     | string  |     | CODE       |         |         |
 
 ''')
     assert a == b
@@ -961,23 +956,25 @@ def test_inspect_multiple_resources_specific(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
+    manifest.datasets['datasets/gov/example'].resources['schema_1'].external = 'sqlite_new'
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property | type    | ref | source  | prepare | access  | title
-       datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     |     | {sqlite.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | Country      |         |     | COUNTRY |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-         | schema_1         | sql     |     | {sqlite_new.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | Country1     |         |     | COUNTRY |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | continent | ref     | Continent | CONTINENT |         |         |
-                            |         |     |         |         |         |
-         |   | Continent    |         | id  | CONTINENT |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | id       | integer |     | ID      |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
+       d | r | m | property  | type    | ref       | source     | prepare | access  | title
+       datasets/gov/example  |         |           |            |         |         | Example
+         | schema            | sql     |           | sqlite     |         |         |
+                             |         |           |            |         |         |
+         |   | Country       |         |           | COUNTRY    |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
+         | schema_1          | sql     |           | sqlite_new |         |         |
+                             |         |           |            |         |         |
+         |   | Country1      |         |           | COUNTRY    |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | continent | ref     | Continent | CONTINENT  |         |         |
+                             |         |           |            |         |         |
+         |   | Continent     |         | id        | CONTINENT  |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | id        | integer |           | ID         |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
 
 ''')
     assert a == b
@@ -1053,47 +1050,49 @@ def test_inspect_multiple_resources_advanced(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
+    manifest.datasets['datasets/gov/example'].resources['schema_1'].external = 'sqlite_new'
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property | type    | ref | source  | prepare | access  | title
-       datasets/gov/example |         |     |         |         |         | Example
-                            |         |     |         |         |         |
-         |   | Location     |         |     |         |         |         |
-         |   |   | name     | string  |     |         |         |         |
-         |   |   | type     | integer |     |         |         |         |
-         | schema           | sql     |     | {sqlite.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | New          |         |     |         |         |         |
-         |   |   | name     | string  |     |         |         |         |
-                            |         |     |         |         |         |
-         |   | NewRemoved   |         |     |         |         |         |
-         |   |   | name     | string  |     |         |         |         |
-                            |         |     |         |         |         |
-         |   | City         |         |     | CITY    |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-         |   |   | removed  | string  |     |         |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-                            |         |     |         |         |         |
-         |   | Country      |         |     | COUNTRY |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-         | /                |         |     |         |         |         |
-                            |         |     |         |         |         |
-         |   | InBetween    |         |     |         |         |         |
-         |   |   | name     | string  |     |         |         |         |
-         |   |   | type     | integer |     |         |         |         |
-         | /                |         |     |         |         |         |
-                            |         |     |         |         |         |
-         |   | AtEnd        |         |     |         |         |         |
-         |   |   | name     | string  |     |         |         |         |
-         | schema_1         | sql     |     | {sqlite_new.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | Continent    |         | id  | CONTINENT |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | id       | integer |     | ID      |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |
-         |   | Country1     |         |     | COUNTRY |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | continent | ref     | Continent | CONTINENT |         |         |
+       d | r | m | property  | type    | ref       | source     | prepare | access  | title
+       datasets/gov/example  |         |           |            |         |         | Example
+                             |         |           |            |         |         |
+         |   | Location      |         |           |            |         |         |
+         |   |   | name      | string  |           |            |         |         |
+         |   |   | type      | integer |           |            |         |         |
+         | schema            | sql     |           | sqlite     |         |         |
+                             |         |           |            |         |         |
+         |   | New           |         |           |            |         |         |
+         |   |   | name      | string  |           |            |         |         |
+                             |         |           |            |         |         |
+         |   | NewRemoved    |         |           |            |         |         |
+         |   |   | name      | string  |           |            |         |         |
+                             |         |           |            |         |         |
+         |   | City          |         |           | CITY       |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
+         |   |   | removed   | string  |           |            |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+                             |         |           |            |         |         |
+         |   | Country       |         |           | COUNTRY    |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
+         | /                 |         |           |            |         |         |
+                             |         |           |            |         |         |
+         |   | InBetween     |         |           |            |         |         |
+         |   |   | name      | string  |           |            |         |         |
+         |   |   | type      | integer |           |            |         |         |
+         | /                 |         |           |            |         |         |
+                             |         |           |            |         |         |
+         |   | AtEnd         |         |           |            |         |         |
+         |   |   | name      | string  |           |            |         |         |
+         | schema_1          | sql     |           | sqlite_new |         |         |
+                             |         |           |            |         |         |
+         |   | Continent     |         | id        | CONTINENT  |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | id        | integer |           | ID         |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
+                             |         |           |            |         |         |
+         |   | Country1      |         |           | COUNTRY    |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | continent | ref     | Continent | CONTINENT  |         |         |
 
 ''')
     assert a == b
@@ -1139,10 +1138,12 @@ def test_inspect_multiple_datasets(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
+    manifest.datasets['datasets/gov/loc'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     |     | {sqlite.dsn} |         |         |
+         | schema           | sql     |     | sqlite  |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
@@ -1151,7 +1152,7 @@ def test_inspect_multiple_datasets(
          |   |   | code     | string  |     | CODE    |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
        datasets/gov/loc     |         |     |         |         |         | Example
-         | schema           | sql     |     | {sqlite.dsn} |         |         |
+         | schema           | sql     |     | sqlite  |         |         |
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
@@ -1211,32 +1212,34 @@ def test_inspect_multiple_datasets_advanced(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
+    manifest.datasets['datasets/gov/loc'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property | type    | ref | source  | prepare | access  | title
-       datasets/gov/example |         |     |         |         |         | Example
-         | schema           | sql     |     | {sqlite.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | NewCountry   |         |     | COUNTRY |         |         |
-         |   |   | name     | string  |     |         |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | continent | ref     | Continent | CONTINENT |         |         |
-                            |         |     |         |         |         |
-         |   | Continent    |         | id  | CONTINENT |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | id       | integer |     | ID      |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-       datasets/gov/loc     |         |     |         |         |         | Example
-         | schema           | sql     |     | {sqlite.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | Country      |         |     | COUNTRY |         |         |
-         |   |   | name     | string  |     | CODE    |         |         |
+       d | r | m | property  | type    | ref          | source    | prepare | access  | title
+       datasets/gov/example  |         |              |           |         |         | Example
+         | schema            | sql     |              | sqlite    |         |         |
+                             |         |              |           |         |         |
+         |   | NewCountry    |         |              | COUNTRY   |         |         |
+         |   |   | name      | string  |              |           |         |         |
+         |   |   | code      | string  |              | CODE      |         |         |
+         |   |   | continent | ref     | Continent    | CONTINENT |         |         |
+                             |         |              |           |         |         |
+         |   | Continent     |         | id           | CONTINENT |         |         |
+         |   |   | code      | string  |              | CODE      |         |         |
+         |   |   | id        | integer |              | ID        |         |         |
+         |   |   | name      | string  |              | NAME      |         |         |
+       datasets/gov/loc      |         |              |           |         |         | Example
+         | schema            | sql     |              | sqlite    |         |         |
+                             |         |              |           |         |         |
+         |   | Country       |         |              | COUNTRY   |         |         |
+         |   |   | name      | string  |              | CODE      |         |         |
          |   |   | continent | ref     | NewContinent | CONTINENT |         |         |
-                            |         |     |         |         |         |
-         |   | NewContinent |         | new_id | CONTINENT |         |         |
-         |   |   | name     | string  |     |         |         |         |
-         |   |   | new_id   | integer |     | ID      |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | name_1   | string  |     | NAME    |         |         |
+                             |         |              |           |         |         |
+         |   | NewContinent  |         | new_id       | CONTINENT |         |         |
+         |   |   | name      | string  |              |           |         |         |
+         |   |   | new_id    | integer |              | ID        |         |         |
+         |   |   | code      | string  |              | CODE      |         |         |
+         |   |   | name_1    | string  |              | NAME      |         |         |
 ''')
     assert a == b
 
@@ -1290,30 +1293,32 @@ def test_inspect_multiple_datasets_different_resources(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/gov/car'].resources['schema'].external = 'sqlite_new'
+    manifest.datasets['datasets/gov/loc'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property | type    | ref | source  | prepare | access  | title
-       datasets/gov/loc     |         |     |         |         |         | Example
-         | schema           | sql     |     | {sqlite.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | Continent    |         | id  | CONTINENT |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | id       | integer |     | ID      |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |
-         |   | Country      |         |     | COUNTRY |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | continent | ref     | Continent | CONTINENT |         |         |
-       datasets/gov/car     |         |     |         |         |         | Example
-         | schema           | sql     |     | {sqlite_new.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | Car          |         |     | CAR     |         |         |
-         |   |   | engine   | ref     | Engine | ENGINE  |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |
-         |   | Engine       |         | id  | ENGINE  |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | id       | integer |     | ID      |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
+       d | r | m | property  | type    | ref       | source     | prepare | access  | title
+       datasets/gov/loc      |         |           |            |         |         | Example
+         | schema            | sql     |           | sqlite     |         |         |
+                             |         |           |            |         |         |
+         |   | Continent     |         | id        | CONTINENT  |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | id        | integer |           | ID         |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
+                             |         |           |            |         |         |
+         |   | Country       |         |           | COUNTRY    |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | continent | ref     | Continent | CONTINENT  |         |         |
+       datasets/gov/car      |         |           |            |         |         | Example
+         | schema            | sql     |           | sqlite_new |         |         |
+                             |         |           |            |         |         |
+         |   | Car           |         |           | CAR        |         |         |
+         |   |   | engine    | ref     | Engine    | ENGINE     |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
+                             |         |           |            |         |         |
+         |   | Engine        |         | id        | ENGINE     |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | id        | integer |           | ID         |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
 
 ''')
     assert a == b
@@ -1376,27 +1381,29 @@ def test_inspect_multiple_datasets_different_resources_specific(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/gov/car'].resources['schema'].external = 'sqlite_new'
+    manifest.datasets['datasets/gov/loc'].resources['schema'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property | type    | ref | source  | prepare | access  | title
-       datasets/gov/loc     |         |     |         |         |         | Example
-         | schema           | sql     |     | {sqlite.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | NewContinent |         | id  | CONTINENT |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | id       | integer |     | ID      |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-       datasets/gov/car     |         |     |         |         |         | Example
-         | schema           | sql     |     | {sqlite_new.dsn} |         |         |
-                            |         |     |         |         |         |
-         |   | NewCar       |         |     | CAR     |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
-         |   |   | motor    | string  |     |         |         |         |
-         |   |   | engine   | ref     | Engine | ENGINE  |         |         |
-                            |         |     |         |         |         |
-         |   | Engine       |         | id  | ENGINE  |         |         |
-         |   |   | code     | string  |     | CODE    |         |         |
-         |   |   | id       | integer |     | ID      |         |         |
-         |   |   | name     | string  |     | NAME    |         |         |
+       d | r | m | property | type    | ref    | source     | prepare | access  | title
+       datasets/gov/loc     |         |        |            |         |         | Example
+         | schema           | sql     |        | sqlite     |         |         |
+                            |         |        |            |         |         |
+         |   | NewContinent |         | id     | CONTINENT  |         |         |
+         |   |   | code     | string  |        | CODE       |         |         |
+         |   |   | id       | integer |        | ID         |         |         |
+         |   |   | name     | string  |        | NAME       |         |         |
+       datasets/gov/car     |         |        |            |         |         | Example
+         | schema           | sql     |        | sqlite_new |         |         |
+                            |         |        |            |         |         |
+         |   | NewCar       |         |        | CAR        |         |         |
+         |   |   | name     | string  |        | NAME       |         |         |
+         |   |   | motor    | string  |        |            |         |         |
+         |   |   | engine   | ref     | Engine | ENGINE     |         |         |
+                            |         |        |            |         |         |
+         |   | Engine       |         | id     | ENGINE     |         |         |
+         |   |   | code     | string  |        | CODE       |         |         |
+         |   |   | id       | integer |        | ID         |         |         |
+         |   |   | name     | string  |        | NAME       |         |         |
 ''')
     assert a == b
 
@@ -1435,15 +1442,16 @@ def test_inspect_with_manifest_backends(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['test'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property | type    | ref | source  | prepare | access  | title
-       datasets/gov/example |         |     |         |         |         | Example
-         | test             | sql     |      | {sqlite.dsn} |         |         |
-                            |         |      |              |         |         |
+       d | r | m | property | type    | ref  | source  | prepare | access  | title
+       datasets/gov/example |         |      |         |         |         | Example
+         | test             | sql     |      | sqlite  |         |         |
+                            |         |      |         |         |         |
          | schema           | sql     | test |         |         |         |
-                            |         |     |         |         |         |
-         |   | Country      |         |     | COUNTRY |         |         | Country
-         |   |   | name     | string  |     | NAME    |         | open    | Country name
-         |   |   | code     | string  |     |         |         | open    | Country code
+                            |         |      |         |         |         |
+         |   | Country      |         |      | COUNTRY |         |         | Country
+         |   |   | name     | string  |      | NAME    |         | open    | Country name
+         |   |   | code     | string  |      |         |         | open    | Country code
 ''')
     assert a == b
