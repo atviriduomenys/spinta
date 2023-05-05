@@ -748,7 +748,7 @@ def test_inspect_insert_new_dataset(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
-    manifest.datasets['dbsqlite'].resources['resource1'].external.name = "sqlite"
+    manifest.datasets['dbsqlite'].resources['resource1'].external = "sqlite"
     a, b = compare_manifest(manifest, f'''
        d | r | m | property | type    | ref | source  | prepare | access  | title
        datasets/gov/example |         |     |         |         |         | Example
