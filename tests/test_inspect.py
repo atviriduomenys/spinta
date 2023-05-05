@@ -24,31 +24,6 @@ def sqlite_new():
         yield Sqlite('sqlite:///' + os.path.join(tmpdir, 'new.sqlite'))
 
 
-@pytest.fixture()
-def rc(rc, tmp_path: pathlib.Path):
-    # Need to have a clean slate, ignoring testing context manifests
-    path = f'{tmp_path}/manifest.csv'
-    create_tabular_manifest(path, striptable('''
-     d | r | b | m | property   | type    | ref     | source     | prepare
-    '''))
-    return rc.fork({
-        'manifests': {
-            'default': {
-                'type': 'tabular',
-                'path': str(path),
-                'backend': 'default',
-                'keymap': 'default',
-                'mode': 'external',
-            },
-        },
-        'backends': {
-            'default': {
-                'type': 'memory',
-            },
-        },
-    })
-
-
 def test_inspect(
     rc: RawConfig,
     cli: SpintaCliRunner,
