@@ -360,8 +360,8 @@ def merge(context: Context, manifest: Manifest, old: Model, new: Model, has_mani
     manifest.models[old.name] = old
     _merge_model_properties(context, manifest, old, new, has_manifest_priority)
 
-    if not has_manifest_priority:
-        if old.external and new.external:
+    if old.external and new.external:
+        if not has_manifest_priority or (old.external.unknown_primary_key and not new.external.unknown_primary_key):
             keys = zipitems(
                 old.properties.values(),
                 new.external.pkeys,

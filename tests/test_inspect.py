@@ -1227,7 +1227,7 @@ def test_inspect_multiple_datasets(
     assert a == b
 
 
-def test_inspect_multiple_datasets_advanced(
+def test_inspect_multiple_datasets_advanced_manifest_priority(
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -1269,6 +1269,85 @@ def test_inspect_multiple_datasets_advanced(
     cli.invoke(rc, [
         'inspect',
         tmp_path / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+    ])
+    # Check what was detected.
+    manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/gov/example'].resources['schema'].external = 'sqlite'
+    manifest.datasets['datasets/gov/loc'].resources['schema'].external = 'sqlite'
+    a, b = compare_manifest(manifest, f'''
+       d | r | m | property  | type    | ref          | source    | prepare | access  | title
+       datasets/gov/example  |         |              |           |         |         | Example
+         | schema            | sql     |              | sqlite    |         |         |
+                             |         |              |           |         |         |
+         |   | NewCountry    |         |              | COUNTRY   |         |         |
+         |   |   | name      | string  |              |           |         |         |
+         |   |   | code      | string  |              | CODE      |         |         |
+         |   |   | continent | ref     | Continent    | CONTINENT |         |         |
+                             |         |              |           |         |         |
+         |   | Continent     |         | id           | CONTINENT |         |         |
+         |   |   | code      | string  |              | CODE      |         |         |
+         |   |   | id        | integer |              | ID        |         |         |
+         |   |   | name      | string  |              | NAME      |         |         |
+       datasets/gov/loc      |         |              |           |         |         | Example
+         | schema            | sql     |              | sqlite    |         |         |
+                             |         |              |           |         |         |
+         |   | Country       |         |              | COUNTRY   |         |         |
+         |   |   | name      | string  |              | CODE      |         |         |
+         |   |   | continent | ref     | NewContinent | CONTINENT |         |         |
+                             |         |              |           |         |         |
+         |   | NewContinent  |         | new_id       | CONTINENT |         |         |
+         |   |   | name      | string  |              |           |         |         |
+         |   |   | new_id    | string  |              | ID        |         |         |
+         |   |   | code      | string  |              | CODE      |         |         |
+         |   |   | name_1    | string  |              | NAME      |         |         |
+''')
+    assert a == b
+
+
+def test_inspect_multiple_datasets_advanced_external_priority(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite
+):
+    # Prepare source data.
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('CODE', sa.Text),
+            sa.Column('CONTINENT', sa.Integer, sa.ForeignKey("CONTINENT.ID")),
+        ],
+        'CONTINENT': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+            sa.Column('CODE', sa.Text),
+        ],
+    })
+
+    result_file_path = tmp_path / 'result.csv'
+    # Configure Spinta.
+    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+       d | r | m | property | type    | ref | source  | prepare | access  | title
+       datasets/gov/example |         |     |         |         |         | Example
+         | schema           | sql     |     | {sqlite.dsn} |         |         |
+                            |         |     |         |         |         |
+         |   | NewCountry   |         |     | COUNTRY |         |         |
+         |   |   | name     | string  |     | NAME    |         |         |
+                            |         |     |         |         |         |     
+       datasets/gov/loc     |         |     |         |         |         | Example
+         | schema           | sql     |     | {sqlite.dsn} |         |         |
+                            |         |     |         |         |         |
+         |   | Country      |         |     | COUNTRY |         |         |
+         |   |   | name     | string  |     | CODE    |         |         |
+                            |         |     |         |         |         |
+         |   | NewContinent      |         |     | CONTINENT |         |         |
+         |   |   | name     | string  |     | TEST    |         |         |
+         |   |   | new_id     | string  |     | ID    |         |         |
+       ''')
+    cli.invoke(rc, [
+        'inspect',
+        tmp_path / 'manifest.csv',
+        '-p', 'external',
         '-o', tmp_path / 'result.csv',
     ])
     # Check what was detected.
