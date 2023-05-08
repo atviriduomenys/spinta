@@ -25,8 +25,8 @@ def test_load(tmp_path: Path, rc: RawConfig):
       |   |   |   | name       | string |                    |              |       | open
       |   |   |   | country    | ref    | /dataset/1/Country |              | 3     | open
     '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', table)
+    manifest = load_manifest(rc, tmp_path / 'manifest_text.csv')
     assert manifest == table
 
 

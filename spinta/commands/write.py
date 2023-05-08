@@ -641,6 +641,19 @@ async def validate_data(
         yield data
 
 
+def _prepare_text_properties(data_patch, data_payload):
+    lang_list = list(set([lang.split('@')[1] for lang in list(data_payload.keys()) if '@' in lang]))
+    text_key_for_patch = [key for key in data_patch if key == data_patch[key]]
+    if text_key_for_patch:
+        for key in text_key_for_patch:
+            temp = {}
+            for lang in lang_list:
+                if str(key + '@' + lang) in list(data_payload.keys()):
+                    temp[lang] = data_payload[str(key + '@' + lang)]
+            data_patch[key] = temp
+        return data_patch
+
+
 async def prepare_patch(
     context: Context,
     dstream: AsyncIterator[DataItem],
@@ -672,8 +685,10 @@ async def prepare_patch(
 
         if data.action == Action.DELETE or data.patch:
             data.patch['_revision'] = commands.gen_object_id(
-                context, data.model.backend, data.model
-            )
+                context, data.model.backend, data.model)
+
+        if [key for key in list(data.given.keys()) if '@' in key]:
+            data.patch = _prepare_text_properties(data.patch, data.payload)
 
         yield data
 
@@ -831,7 +846,10 @@ def build_data_patch_for_write(
 ) -> Union[dict, NotAvailable]:
     if given is NA:
         if insert_action or update_action:
-            given = dtype.default
+            if dtype.name == "text":
+                given = dtype.prop.name
+            else:
+                given = dtype.default
         else:
             return NA
     if given != saved:

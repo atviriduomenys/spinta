@@ -6,8 +6,8 @@ from spinta.testing.manifest import load_manifest
 
 
 def check(tmp_path, rc, table):
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', table)
+    manifest = load_manifest(rc, tmp_path / 'manifest_text.csv')
     assert manifest == table
 
 

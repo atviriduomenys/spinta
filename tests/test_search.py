@@ -1046,13 +1046,13 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
         'backends': [backend],
         'manifests.default': {
             'type': 'tabular',
-            'path': str(tmp_path / 'manifest.csv'),
+            'path': str(tmp_path / 'manifest_text.csv'),
             'backend': backend,
         },
     })
 
     # Create data into a extrafields model with code and name properties.
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     m | property | type
     extrafields  |
       | code     | string
@@ -1070,7 +1070,7 @@ def test_extra_fields(postgresql, mongo, backend, rc, tmp_path, request):
     assert resp.status_code == 200, resp.json()
 
     # Now try to read from same model, but loaded with just one property.
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     m | property | type
     extrafields  |
       | name     | string
@@ -1098,13 +1098,13 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
         'backends': [backend],
         'manifests.default': {
             'type': 'tabular',
-            'path': str(tmp_path / 'manifest.csv'),
+            'path': str(tmp_path / 'manifest_text.csv'),
             'backend': backend,
         },
     })
 
     # Create data into a extrafields model with code and name properties.
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     m | property  | type
     missingfields |
       | code      | string
@@ -1120,7 +1120,7 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
     assert resp.status_code == 200, resp.json()
 
     # Now try to read from same model, but loaded with just one property.
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     m | property  | type
     missingfields |
       | code      | string

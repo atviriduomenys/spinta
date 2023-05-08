@@ -211,8 +211,9 @@ def simple_data_check(
     if updating and '_revision' not in data.given:
         raise NoItemRevision(prop)
     if isinstance(dtype, Text):
-        if not list(filter(lambda x: '@' in x, list(data.given.keys()))):
-            raise NotImplementedError
+        if list(data.given.keys()):
+            if not list(filter(lambda x: '@' in x, list(data.given.keys()))):
+                raise UserError
 
 
 @commands.simple_data_check.register(Context, DataItem, Object, Property, Backend, dict)

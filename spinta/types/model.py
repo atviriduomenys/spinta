@@ -234,8 +234,6 @@ def load(
     else:
         prop.external = NA
     commands.load(context, prop.dtype, data, manifest)
-    # if isinstance(prop.dtype, Text):
-    #     prop.dtype.langs = 'en'
     unit: Optional[str] = prop.enum
     if unit is None:
         prop.given.enum = None
@@ -369,13 +367,13 @@ def load(context: Context, model: Model, data: dict) -> dict:
     result = {}
     for name, prop in model.properties.items():
         if isinstance(prop.dtype, Text):
-            value = data.get(name+'@lt', NA)
+            value = data.get(name + '@' + next(iter(prop.dtype.langs.keys())), NA)
         else:
             value = data.get(name, NA)
         value = load(context, prop.dtype, value)
         if value is not NA:
             if isinstance(prop.dtype, Text):
-                result[name + "@lt"] = value
+                result[name + "@" + next(iter(prop.dtype.langs.keys()))] = value
             else:
                 result[name] = value
     return result

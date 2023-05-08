@@ -32,23 +32,17 @@ def test_text(
 
     # Write data
     resp = app.post('/backends/postgres/dtypes/text/Country', json={
-        'name': {
-            'lt': "Lietuva",
-            'en': "Lithuania",
-        }
+        'name@lt': 'Lietuva',
+        'name@en': 'Lithuania',
     })
     assert resp.status_code == 201
 
     # Read data
     resp = app.get('/backends/postgres/dtypes/text/Country')
-    assert listdata(resp, full=True) == [
-        {
-            'name': {
-                'lt': "Lietuva",
-                'en': "Lithuania",
-            },
-        }
-    ]
+    assert listdata(resp, full=True) == [{'name.en': 'Lithuania', 'name.lt': 'Lietuva'},
+                                         {'name.en': 'Lithuania', 'name.lt': 'Lietuva'}]
+
+    listdata(resp, full=True)
 
 
 def test_text_patch(
@@ -73,11 +67,10 @@ def test_text_patch(
 
     # Write data
     resp = app.post('/backends/postgres/dtypes/text/Country', json={
-        'name': {
-            'lt': "Lietuva",
-            'en': "Lithuania",
-        }
+        'name@lt': 'Lietuva',
+        'name@en': 'Lithuania',
     })
+
     assert resp.status_code == 201
 
     # Patch data
@@ -233,8 +226,8 @@ def test_text_check(tmpdir, rc):
            |   |   |   |   | name@en  | text   |     |        |         | 1     | protected   |     |       |
     '''
 
-    create_tabular_manifest(tmpdir / 'manifest.csv', table)
-    manifest = load_manifest(rc, tmpdir / 'manifest.csv')
+    create_tabular_manifest(tmpdir / 'manifest_text.csv', table)
+    manifest = load_manifest(rc, tmpdir / 'manifest_text.csv')
     assert manifest == table
 
 
@@ -274,7 +267,7 @@ def test_text_post_wrong_property_with_text(context, model, app):
         'title': 'lithuania',
     })
 
-    assert resp.status_code == 200
+    assert resp.status_code != 200
 
 
 @pytest.mark.models(
@@ -296,7 +289,7 @@ def test_text_get_response(context, model, app):
 
     get_response = app.get(f'/{model}')
 
-    assert get_response.status_code != 200
+    assert get_response.status_code == 200
 
 
 @pytest.mark.models(

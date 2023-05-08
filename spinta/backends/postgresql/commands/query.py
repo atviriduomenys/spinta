@@ -66,14 +66,21 @@ class PgQueryBuilder(Env):
                 self.table.c['_id'],
                 self.table.c['_revision'],
             ]
+        items_to_jsonb_each_text = []
         for sel in self.select.values():
             items = sel.item if isinstance(sel.item, list) else [sel.item]
             for item in items:
                 if item is not None and item not in select:
+                    if str(sel.item.type) == 'JSONB':
+                        items_to_jsonb_each_text.append(item)
                     select.append(item)
         qry = sa.select(select)
 
-        qry = qry.select_from(self.from_)
+        if items_to_jsonb_each_text:
+            qry = qry.select_from(self.from_).join(sa.func.jsonb_each_text(items_to_jsonb_each_text[-1]).alias("e"),
+                                                   onclause=True)
+        else:
+            qry = qry.select_from(self.from_)
 
         if where is not None:
             qry = qry.where(where)
@@ -253,6 +260,13 @@ def getattr_(env, fpr, attr):
 @ufunc.resolver(PgQueryBuilder, ExternalRef, Bind, name='getattr')
 def getattr_(env, dtype, attr):
     return dtype
+
+
+@ufunc.resolver(PgQueryBuilder, Text, Bind, name='getattr')
+def getattr_(env, dtype, bind):
+    if dtype.prop.name in env.model.properties:
+        prop = env.model.properties[dtype.prop.name]
+    return prop.dtype
 
 
 @ufunc.resolver(PgQueryBuilder, Expr)
@@ -461,6 +475,8 @@ COMPARE = [
 @ufunc.resolver(PgQueryBuilder, Bind, object, names=COMPARE)
 def compare(env, op, field, value):
     prop = _get_from_flatprops(env.model, field.name)
+    if isinstance(prop.dtype, Text):
+        return env.call(op, prop.dtype, value)
     return env.call(op, prop.dtype, value)
 
 
@@ -499,6 +515,20 @@ def eq(env, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
+@ufunc.resolver(PgQueryBuilder, Text, str)
+def eq(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare('eq', column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, Text, Bind)
+def eq(env, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare('eq', column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType, type(None))
 def eq(
     env: PgQueryBuilder,
@@ -530,7 +560,7 @@ def _ensure_non_empty(op, s):
         raise EmptyStringSearch(op=op)
 
 
-@ufunc.resolver(PgQueryBuilder, String, str, names=[
+@ufunc.resolver(PgQueryBuilder, (String), str, names=[
     'eq', 'startswith', 'contains',
 ])
 def compare(env, op, dtype, value):
@@ -672,6 +702,8 @@ def compare(env, op, fn, value):
 
 def _sa_compare(op, column, value):
     if op == 'eq':
+        if str(column.type) == 'JSONB':
+            return sa.text("value='"+str(value)+"'")
         return column == value
 
     if op == 'lt':
@@ -699,6 +731,7 @@ def _sa_compare(op, column, value):
 
 
 def _prepare_condition(env: PgQueryBuilder, prop: Property, cond):
+
     if prop.list is None:
         return cond
 

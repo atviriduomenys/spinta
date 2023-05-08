@@ -33,7 +33,7 @@ def test_push_with_progress_bar(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property| type   | ref     | source       | access
     datasets/gov/example    |        |         |              |
       | data                | sql    |         |              |
@@ -73,7 +73,7 @@ def test_push_without_progress_bar(
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property| type   | ref     | source       | access
     datasets/gov/example    |        |         |              |
       | data                | sql    |         |              |

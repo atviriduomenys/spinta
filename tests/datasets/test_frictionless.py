@@ -6,7 +6,7 @@ from spinta.testing.manifest import load_manifest
 
 @pytest.mark.skip
 def test_filter(rc, tmp_path):
-    load_manifest(rc, tmp_path / 'manifest.csv', '''
+    load_manifest(rc, tmp_path / 'manifest_text.csv', '''
     d | r | b | m | property | source      | prepare   | type   | ref     | level | access | uri | title   | description
     datasets/gov/example     |             |           |        |         |       |        |     | Example |
       | data                 |             |           | sql    |         |       |        |     | Data    |

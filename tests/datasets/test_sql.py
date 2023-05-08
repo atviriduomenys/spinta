@@ -59,7 +59,7 @@ def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite) -> RawConfig:
         'manifests': {
             'default': {
                 'type': 'tabular',
-                'path': str(tmp_path / 'manifest.csv'),
+                'path': str(tmp_path / 'manifest_text.csv'),
                 'backend': 'sql',
                 'keymap': 'default',
             },
@@ -87,7 +87,7 @@ def configure_remote_server(
         '--no-source',
         '--access', 'open',
         '-o', tmp_path / 'remote.csv',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
     ])
 
     # Create remote server with PostgreSQL backend
@@ -125,7 +125,7 @@ def create_client(rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite):
 
 
 def test_filter(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare   | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |           |        |         |       |        |     | Example |
        |   | data                 |             |           | sql    |         |       |        |     | Data    |
@@ -144,7 +144,7 @@ def test_filter(rc, tmp_path, geodb):
 
 
 def test_filter_join(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | type   | ref     | source      | prepare           | level | access | uri | title   | description
        | datasets/gov/example     |        |         |             |                   |       |        |     | Example |
        |   | data                 | sql    |         |             |                   |       |        |     | Data    |
@@ -176,7 +176,7 @@ def test_filter_join_nested(
     tmp_path: pathlib.Path,
     sqlite: Sqlite,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property | type   | ref     | source   | prepare   | access
     example/join/nested      |        |         |          |           |
       | data                 | sql    |         |          |           |
@@ -227,7 +227,7 @@ def test_filter_join_nested(
 
 
 def test_filter_join_array_value(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare                  | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |                          |        |         |       |        |     | Example |
        |   | data                 |             |                          | sql    |         |       |        |     | Data    |
@@ -256,7 +256,7 @@ def test_filter_join_array_value(rc, tmp_path, geodb):
 
 
 def test_filter_join_ne_array_value(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare                   | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |                           |        |         |       |        |     | Example |
        |   | data                 |             |                           | sql    |         |       |        |     | Data    |
@@ -285,7 +285,7 @@ def test_filter_join_ne_array_value(rc, tmp_path, geodb):
 
 @pytest.mark.skip('todo')
 def test_filter_multi_column_pk(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare            | type   | ref           | level | access | uri | title   | description
        | datasets/gov/example     |             |                    |        |               |       |        |     | Example |
        |   | data                 |             |                    | sql    |               |       |        |     | Data    |
@@ -315,7 +315,7 @@ def test_filter_multi_column_pk(rc, tmp_path, geodb):
 
 
 def test_getall(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
@@ -350,7 +350,7 @@ def test_getall(rc, tmp_path, geodb):
 
 
 def test_select(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
@@ -372,7 +372,7 @@ def test_select(rc, tmp_path, geodb):
 
 @pytest.mark.skip('TODO')
 def test_select_len(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
@@ -393,7 +393,7 @@ def test_select_len(rc, tmp_path, geodb):
 
 
 def test_filter_len(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare | type   | ref     | level | access | uri | title   | description
        | datasets/gov/example     |             |         |        |         |       |        |     | Example |
        |   | data                 |             |         | sql    |         |       |        |     | Data    |
@@ -413,7 +413,7 @@ def test_filter_len(rc, tmp_path, geodb):
 
 
 def test_private_property(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
@@ -433,7 +433,7 @@ def test_private_property(rc, tmp_path, geodb):
 
 
 def test_all_private_properties(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
@@ -450,7 +450,7 @@ def test_all_private_properties(rc, tmp_path, geodb):
 
 
 def test_default_access(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
@@ -467,7 +467,7 @@ def test_default_access(rc, tmp_path, geodb):
 
 
 def test_model_open_access(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
@@ -487,7 +487,7 @@ def test_model_open_access(rc, tmp_path, geodb):
 
 
 def test_property_public_access(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
@@ -513,7 +513,7 @@ def test_property_public_access(rc, tmp_path, geodb):
 
 
 def test_select_protected_property(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
@@ -533,7 +533,7 @@ def test_select_protected_property(rc, tmp_path, geodb):
 
 
 def test_ns_getall(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     id | d | r | b | m | property | source      | prepare    | type   | ref     | level | access  | uri | title   | description
        | datasets/gov/example     |             |            |        |         |       |         |     | Example |
        |   | data                 |             |            | sql    |         |       |         |     | Data    |
@@ -557,7 +557,7 @@ def test_ns_getall(rc, tmp_path, geodb):
 
 
 def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property| type   | ref     | source       | access
     datasets/gov/example    |        |         |              |
       | data                | sql    |         |              |
@@ -639,7 +639,7 @@ def test_push(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, 
 
 
 def test_push_dry_run(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property| type   | ref     | source       | access
     datasets/gov/example    |        |         |              |
       | data                | sql    |         |              |
@@ -677,7 +677,7 @@ def test_push_dry_run(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path,
 
 
 def test_no_primary_key(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property | source      | type   | ref | access
     datasets/gov/example     |             |        |     |
       | data                 |             | sql    |     |
@@ -701,7 +701,7 @@ def test_no_primary_key(rc, tmp_path, geodb):
 
 
 def test_count(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property | source      | type   | ref | access
     datasets/gov/example     |             |        |     |
       | data                 |             | sql    |     |
@@ -726,7 +726,7 @@ def test_push_chunks(
     geodb,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
@@ -762,7 +762,7 @@ def test_push_chunks(
 
 
 def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
@@ -809,7 +809,7 @@ def test_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, g
 
 
 def test_prepared_property(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property  | type   | ref  | source      | prepare | access
     datasets/gov/example      |        |      |             |         |
       | data                  | sql    |      |             |         |
@@ -830,7 +830,7 @@ def test_prepared_property(rc, tmp_path, geodb):
 
 
 def test_composite_keys(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref           | source    | prepare                 | access
     datasets/ds              |        |               |           |                         |
       | rs                   | sql    |               |           |                         |
@@ -910,7 +910,7 @@ def test_composite_keys(rc, tmp_path, sqlite):
 
 
 def test_composite_ref_keys(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type    | ref                     | source       | prepare                 | access
     datasets/ds              |         |                         |              |                         |
       | rs                   | sql     |                         |              |                         |
@@ -1001,7 +1001,7 @@ def test_composite_ref_keys(rc, tmp_path, sqlite):
 
 
 def test_composite_non_pk_keys(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref                     | source    | prepare                 | access
     datasets/ds              |        |                         |           |                         |
       | rs                   | sql    |                         |           |                         |
@@ -1080,7 +1080,7 @@ def test_composite_non_pk_keys(rc, tmp_path, sqlite):
 
 
 def test_composite_non_pk_keys_with_filter(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref                     | source    | prepare                 | access
     datasets/ds              |        |                         |           |                         |
       | rs                   | sql    |                         |           |                         |
@@ -1157,7 +1157,7 @@ def test_composite_non_pk_keys_with_filter(rc, tmp_path, sqlite):
 
 
 def test_access_private_primary_key(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | access
     datasets/ds              |        |         |         |
       | rs                   | sql    |         |         |
@@ -1228,7 +1228,7 @@ def test_access_private_primary_key(rc, tmp_path, sqlite):
 
 
 def test_enum(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1262,7 +1262,7 @@ def test_enum(rc, tmp_path, sqlite):
 
 
 def test_enum_ref(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property | type   | ref  | source  | prepare | access
                          | enum   | side | l       | 'left'  | open
                          |        |      | r       | 'right' | open
@@ -1297,7 +1297,7 @@ def test_enum_ref(rc, tmp_path, sqlite):
 
 
 def test_enum_no_prepare(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1331,7 +1331,7 @@ def test_enum_no_prepare(rc, tmp_path, sqlite):
 
 
 def test_enum_empty_source(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare       | access
     datasets/gov/example     |        |         |         |               |
       | resource             | sql    |         |         |               |
@@ -1366,7 +1366,7 @@ def test_enum_empty_source(rc, tmp_path, sqlite):
 
 
 def test_enum_ref_empty_source(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare       | access
                              | enum   | side    | l       |               | open
                              |        |         | r       |               | open
@@ -1401,7 +1401,7 @@ def test_enum_ref_empty_source(rc, tmp_path, sqlite):
 
 
 def test_enum_empty_integer_source(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1435,7 +1435,7 @@ def test_enum_empty_integer_source(rc, tmp_path, sqlite):
 
 
 def test_filter_by_enum_access(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1468,7 +1468,7 @@ def test_filter_by_enum_access(rc, tmp_path, sqlite):
 
 
 def test_filter_by_ref_enum_access(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
                              | enum   | side    | 0       | 'l'     | private
                              |        |         | 1       | 'r'     | open
@@ -1501,7 +1501,7 @@ def test_filter_by_ref_enum_access(rc, tmp_path, sqlite):
 
 
 def test_filter_by_enum(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1534,7 +1534,7 @@ def test_filter_by_enum(rc, tmp_path, sqlite):
 
 
 def test_filter_by_ref_enum(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
                              | enum   | side    | 0       | 'l'     | private
                              |        |         | 1       | 'r'     | open
@@ -1567,7 +1567,7 @@ def test_filter_by_ref_enum(rc, tmp_path, sqlite):
 
 
 def test_filter_by_enum_multi_value(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1601,7 +1601,7 @@ def test_filter_by_enum_multi_value(rc, tmp_path, sqlite):
 
 
 def test_filter_by_enum_list_value(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1635,7 +1635,7 @@ def test_filter_by_enum_list_value(rc, tmp_path, sqlite):
 
 
 def test_implicit_filter(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source    | prepare          | access
     datasets/gov/example     |        |         |           |                  |
       | resource             | sql    |         |           |                  |
@@ -1683,7 +1683,7 @@ def test_implicit_filter(rc, tmp_path, sqlite):
 
 
 def test_implicit_filter_no_external_source(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source    | prepare     | access
     datasets/gov/example     |        |         |           |             |
       | resource             | sql    |         |           |             |
@@ -1726,7 +1726,7 @@ def test_implicit_filter_no_external_source(rc, tmp_path, sqlite):
 
 
 def test_implicit_filter_two_refs(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property     | type    | ref                | source             | prepare | access
     example/standards            |         |                    |                    |         |
       | sql                      | sql     |                    | sqlite://          |         |
@@ -1786,7 +1786,7 @@ def test_implicit_filter_two_refs(rc, tmp_path, sqlite):
 
 
 def test_implicit_filter_by_enum(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source  | prepare | access
     datasets/gov/example     |        |         |         |         |
       | resource             | sql    |         |         |         |
@@ -1836,7 +1836,7 @@ def test_implicit_filter_by_enum(rc, tmp_path, sqlite):
 
 
 def test_implicit_filter_by_enum_empty_access(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | m | property     | type   | ref     | source    | prepare          | access
     datasets/gov/example     |        |         |           |                  |
                              | enum   | Side    | 0         | 'l'              |
@@ -1889,7 +1889,7 @@ def test_implicit_filter_by_enum_empty_access(rc, tmp_path, sqlite):
 
 
 def test_file(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', '''
     d | r | m | property  | type   | ref | source    | prepare                                   | access
     datasets/gov/example  |        |     |           |                                           |
       | resource          | sql    |     |           |                                           |
@@ -1941,7 +1941,7 @@ def test_push_file(
     sqlite: Sqlite,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', '''
     d | r | m | property   | type   | ref | source    | prepare                                   | access
     datasets/gov/push/file |        |     |           |                                           |
       | resource           | sql    | sql |           |                                           |
@@ -1979,7 +1979,7 @@ def test_push_file(
     # Push data to the remote server
     cli.invoke(local_rc, [
         'push',
-        str(tmp_path / 'manifest.csv'),
+        str(tmp_path / 'manifest_text.csv'),
         '-o', remote.url,
         '--credentials', remote.credsfile,
     ])
@@ -2002,7 +2002,7 @@ def test_push_file(
 
 
 def test_image(rc, tmp_path, sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', '''
     d | r | m | property  | type   | ref | source    | prepare                                   | access
     datasets/gov/example  |        |     |           |                                           |
       | resource          | sql    |     |           |                                           |
@@ -2054,7 +2054,7 @@ def test_image_file(
     sqlite: Sqlite,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', '''
     d | r | m | property   | type   | ref | source    | prepare                                   | access
     datasets/gov/push/file |        |     |           |                                           |
       | resource           | sql    | sql |           |                                           |
@@ -2092,7 +2092,7 @@ def test_image_file(
     # Push data to the remote server
     cli.invoke(local_rc, [
         'push',
-        str(tmp_path / 'manifest.csv'),
+        str(tmp_path / 'manifest_text.csv'),
         '-o', remote.url,
         '--credentials', remote.credsfile,
     ])
@@ -2123,7 +2123,7 @@ def test_push_null_foreign_key(
     sqlite: Sqlite,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', '''
     d | r | b | m | property      | type     | ref          | source        | access
     example/null/fk               |          |              |               |
       | resource                  | sql      | sql          |               |
@@ -2227,7 +2227,7 @@ def test_push_self_ref(
     sqlite: Sqlite,
     request,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', '''
     d | r | b | m | property      | type     | ref          | source        | access
     example/self/ref              |          |              |               |
       | resource                  | sql      | sql          |               |
@@ -2295,7 +2295,7 @@ def _prep_error_handling(
     response: Tuple[int, Dict[str, str], str] = None,
     exception: Exception = None,
 ) -> RawConfig:
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', '''
     d | r | b | m | property      | type     | ref          | source        | access
     example/errors                |          |              |               |
       | resource                  | sql      | sql          |               |
@@ -2407,7 +2407,7 @@ def test_error_handling_io_error(
 
 
 def test_sql_views(rc: RawConfig, tmp_path: pathlib.Path, sqlite: Sqlite):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', '''
     d | r | b | m | property      | type     | ref          | source        | access
     example/views                 |          |              |               |
       | resource                  | sql      | sql          |               |
@@ -2447,7 +2447,7 @@ def test_params(
     tmp_path,
     sqlite: Sqlite,
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', '''
     d | r | b | m | property | type    | ref      | source   | prepare
     example/self/ref/param   |         |          |          |
       | resource             | sql     | sql      |          |
@@ -2496,7 +2496,7 @@ def test_cast_string(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/cast/string'
-    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', f'''
     d | r | b | m | property  | type    | ref      | source   | prepare
     {dataset}                 |         |          |          |
       | resource              | sql     | sql      |          |
@@ -2520,7 +2520,7 @@ def test_cast_string(
 
 
 def test_type_text_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmpdir / 'manifest_text.csv', striptable('''
         d | r | b | m | property| type   | ref     | source       | access
         datasets/gov/example    |        |         |              |
           | data                | sql    |         |              |
@@ -2566,7 +2566,7 @@ def test_text_type_push_chunks(
     geodb,
     request,
 ):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmpdir / 'manifest_text.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
@@ -2602,7 +2602,7 @@ def test_text_type_push_chunks(
 
 
 def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
-    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmpdir / 'manifest_text.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
@@ -2657,7 +2657,7 @@ def test_cast_integer(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/cast/integer'
-    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', f'''
     d | r | b | m | property  | type    | ref      | source   | prepare
     {dataset}                 |         |          |          |
       | resource              | sql     | sql      |          |
@@ -2689,7 +2689,7 @@ def test_cast_integer_error(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/cast/integer/error'
-    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', f'''
     d | r | b | m | property  | type    | ref      | source   | prepare
     {dataset}                 |         |          |          |
       | resource              | sql     | sql      |          |
@@ -2721,7 +2721,7 @@ def test_point(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/point'
-    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', f'''
     d | r | b | m | property | type     | ref | source | prepare     | access
     {dataset}                |          |     |        |             |
       | resource             | sql      | sql |        |             |

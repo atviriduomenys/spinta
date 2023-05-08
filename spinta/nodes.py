@@ -166,7 +166,10 @@ def load_node(
             assert parent is not None, node
             setattr(node, attr, parent)
             continue
-        value = data.get(name, NA)
+        if data.get('type') == 'text' and name != 'langs':
+            value = data['langs'][next(iter(data['langs'].keys()))].get(name, NA)
+        else:
+            value = data.get(name, NA)
         if schema.get('inherit', False) and value is NA:
             if node.parent and hasattr(node.parent, name):
                 value = getattr(node.parent, name)

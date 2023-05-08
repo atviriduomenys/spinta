@@ -1451,12 +1451,15 @@ def _lang_to_tabular(
 def _text_to_tabular(
     prop
 ):
-    yield torow(DATASET, {
-        'property': prop.name,
-        'type': prop.dtype.name,
-        'level': prop.level,
-        'access': prop.access
-    })
+    if not isinstance(prop.dtype, Text):
+        return
+    for lang in prop.dtype.langs:
+        yield torow(DATASET, {
+            'property': prop.name + '@' + lang,
+            'type': prop.dtype.name,
+            'level': prop.level.value,
+            'access': prop.given.access
+        })
 
 
 def _comments_to_tabular(
@@ -1656,24 +1659,12 @@ def _model_to_tabular(
     yield from _lang_to_tabular(model.lang)
     props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)
     for prop in props:
-        if isinstance(prop.dtype, Text):
-            for l in [*prop.dtype.langs.keys()]:
-                temp = prop.name
-                prop.name = prop.name + '@' + str(l)
-                yield from _property_to_tabular(
-                    prop,
-                    external=external,
-                    access=access,
-                    order_by=order_by,
-                )
-                prop.name = temp
-        else:
-            yield from _property_to_tabular(
-                prop,
-                external=external,
-                access=access,
-                order_by=order_by,
-            )
+        yield from _property_to_tabular(
+            prop,
+            external=external,
+            access=access,
+            order_by=order_by,
+        )
 
 
 def datasets_to_tabular(

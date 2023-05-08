@@ -70,7 +70,7 @@ http POST "$SERVER/$DATASET/Country" $AUTH name="Lithuania"
 
 http GET "$SERVER/$DATASET/Country"
 #| HTTP/1.1 401 Unauthorized
-# FIXME: Probably related to the above issue, the access level is lost.
+# FIXME: Probably related to the above issue, the access level is lost. DOne
 
 http GET "$SERVER/$DATASET/Country" $AUTH
 #| HTTP/1.1 200 OK
@@ -108,7 +108,7 @@ psql -h localhost -p 54321 -U admin spinta -c 'SELECT name FROM "'$DATASET'/Coun
 #| ---------------------
 #|  "Lithuania"
 #|  {"en": "Lithuania"}
-# FIXME: In database, we should save `("en": "Lithuania"}`, not `"Lithuania"`.
+# FIXME: In database, we should save `("en": "Lithuania"}`, not `"Lithuania"`. Done
 
 http GET "$SERVER/$DATASET/Country?select(name)&format(ascii)" $AUTH
 #| name.lt    name.en 

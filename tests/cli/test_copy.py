@@ -8,7 +8,7 @@ from spinta.testing.manifest import load_manifest
 
 
 def test_copy(rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property | type   | ref     | source      | prepare | access
     datasets/gov/example     |        |         |             |         |
       | data                 | sql    |         |             |         |
@@ -34,7 +34,7 @@ def test_copy(rc, cli: SpintaCliRunner, tmp_path):
         '--no-source',
         '--access', 'open',
         '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
     ])
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
@@ -55,7 +55,7 @@ def test_copy(rc, cli: SpintaCliRunner, tmp_path):
 
 
 def test_copy_enum_0(rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property | type    | ref     | source      | prepare | access
     datasets/gov/example     |         |         |             |         |
       | data                 | sql     |         |             |         |
@@ -72,7 +72,7 @@ def test_copy_enum_0(rc, cli: SpintaCliRunner, tmp_path):
         '--no-source',
         '--access', 'open',
         '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
   ])
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
@@ -89,7 +89,7 @@ def test_copy_enum_0(rc, cli: SpintaCliRunner, tmp_path):
 
 
 def test_copy_global_enum(rc, cli: SpintaCliRunner, tmp_path):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property | type    | ref       | source      | prepare | access
     datasets/gov/example     |         |           |             |         |
                              | enum    | direction | l           | 0       |     
@@ -106,7 +106,7 @@ def test_copy_global_enum(rc, cli: SpintaCliRunner, tmp_path):
         '--no-source',
         '--access', 'open',
         '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
     ])
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
@@ -123,7 +123,7 @@ def test_copy_global_enum(rc, cli: SpintaCliRunner, tmp_path):
 
 
 def test_copy_with_filters_and_externals(rc, cli, tmp_path):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property | type   | ref     | source      | prepare   | access
     datasets/gov/example     |        |         |             |           |
       | data                 | sql    |         |             |           |
@@ -148,7 +148,7 @@ def test_copy_with_filters_and_externals(rc, cli, tmp_path):
         'copy',
         '--access', 'open',
         '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
     ])
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
@@ -169,7 +169,7 @@ def test_copy_with_filters_and_externals(rc, cli, tmp_path):
 
 
 def test_copy_and_format_names(rc, cli, tmp_path):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property    | type    | ref                        | source      | prepare                  | level  | access     | title
     datasets/gov/example        |         |                            |             |                          |        |            | Example dataset
       | data                    | sql     |                            |             |                          |        |            |
@@ -191,7 +191,7 @@ def test_copy_and_format_names(rc, cli, tmp_path):
         'copy',
         '--format-names',
         '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
     ])
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
@@ -215,7 +215,7 @@ def test_copy_and_format_names(rc, cli, tmp_path):
 
 
 def test_copy_and_format_names_for_ref(rc, cli, tmp_path):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property     | type   | ref       | prepare
     datasets/gov/example         |        |           |
       | data                     | sql    |           |
@@ -236,7 +236,7 @@ def test_copy_and_format_names_for_ref(rc, cli, tmp_path):
         'copy',
         '--format-names',
         '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
     ])
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
@@ -259,7 +259,7 @@ def test_copy_and_format_names_for_ref(rc, cli, tmp_path):
 
 
 def test_copy_and_format_names_with_formulas(rc, cli, tmp_path):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property | type   | prepare
     datasets/gov/example     |        |
       | data                 | sql    |
@@ -272,7 +272,7 @@ def test_copy_and_format_names_with_formulas(rc, cli, tmp_path):
         'copy',
         '--format-names',
         '-o', tmp_path / 'result.csv',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
   ])
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
@@ -295,19 +295,19 @@ def test_copy_to_stdout(rc, cli, tmp_path):
       |   |   | City         |
       |   |   |   | name     | string
     ''')
-    create_tabular_manifest(tmp_path / 'manifest.csv', manifest)
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', manifest)
 
     result = cli.invoke(rc, [
         'copy',
         '-c', 'd,r,b,m,p,type',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
     ])
 
     assert result.stdout.strip() == manifest
 
 
 def test_copy_order_by_access(rc, cli, tmp_path):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property   | type    | ref        | source | prepare  | access
     datasets/gov/example       |         |            |        |          |
       | data                   | sql     |            |        |          |
@@ -335,7 +335,7 @@ def test_copy_order_by_access(rc, cli, tmp_path):
         'copy',
         '-o', tmp_path / 'result.csv',
         '--order-by', 'access',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
     ])
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')
@@ -365,7 +365,7 @@ def test_copy_order_by_access(rc, cli, tmp_path):
 
 
 def test_copy_rename_duplicates(rc, cli, tmp_path):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', striptable('''
     d | r | b | m | property   | type
     datasets/gov/example       |
       | data                   | sql
@@ -383,7 +383,7 @@ def test_copy_rename_duplicates(rc, cli, tmp_path):
     cli.invoke(rc, [
         'copy',
         '--rename-duplicates',
-        tmp_path / 'manifest.csv',
+        tmp_path / 'manifest_text.csv',
         '-o', tmp_path / 'result.csv',
     ])
 
@@ -405,7 +405,7 @@ def test_copy_rename_duplicates(rc, cli, tmp_path):
 
 
 def test_enum_ref(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
-    create_tabular_manifest(tmp_path / 'manifest.csv', '''
+    create_tabular_manifest(tmp_path / 'manifest_text.csv', '''
     d | r | b | m | property | type    | ref     | source      | prepare | access | title
                              | enum    | sex     |             | 1       |        | Male
                              |         |         |             | 2       |        | Female
@@ -425,7 +425,7 @@ def test_enum_ref(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path):
     ''')
 
     cli.invoke(rc, [
-        'copy', tmp_path / 'manifest.csv', '-o', tmp_path / 'result.csv',
+        'copy', tmp_path / 'manifest_text.csv', '-o', tmp_path / 'result.csv',
     ])
 
     manifest = load_manifest(rc, tmp_path / 'result.csv')

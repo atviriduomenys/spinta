@@ -8,6 +8,7 @@ from spinta.components import Context, Model, DataItem, DataSubItem
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
 
+
 @commands.insert.register(Context, Model, PostgreSQL)
 async def insert(
     context: Context,
