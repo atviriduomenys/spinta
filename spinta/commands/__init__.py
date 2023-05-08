@@ -934,11 +934,27 @@ def inspect(*args) -> Iterator[ManifestSchema]:
     """
 
 
-@command()
+@overload
 def merge(
     context: Context,
     manifest: Manifest,
     old: Any,
     new: Any,
 ) -> None:
+    """Merge new manifest into old."""
+
+
+@overload
+def merge(
+    context: Context,
+    manifest: Manifest,
+    old: Any,
+    new: Any,
+    has_manifest_priority: bool
+) -> None:
+    """Merge new manifest into old."""
+
+
+@command()
+def merge(*args) -> None:
     """Merge new manifest into old."""
