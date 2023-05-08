@@ -13,8 +13,9 @@ from typing import overload
 from starlette.requests import Request
 from starlette.responses import Response
 
+from spinta.exceptions import BaseError
 from spinta.typing import ObjectData
-from spinta.components import Node
+from spinta.components import Node, DataItem
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.dispatcher import command
@@ -931,4 +932,14 @@ def inspect(*args) -> Iterator[ManifestSchema]:
     Existing manifest nodes must be matched with backend equivalents by
     comparing source names.
 
+    """
+
+
+@command()
+def create_exception(
+    data_item: DataItem,
+    error: Exception
+) -> BaseError:
+    """
+        Creates Spinta Exception from normal error
     """
