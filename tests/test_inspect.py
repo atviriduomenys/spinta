@@ -445,7 +445,7 @@ def test_inspect_update_existing_manifest(
     assert a == b
 
 
-def test_inspect_update_existing_ref(
+def test_inspect_update_existing_ref_manifest_priority(
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path,
@@ -482,6 +482,66 @@ def test_inspect_update_existing_ref(
     cli.invoke(rc, [
         'inspect',
         tmp_path / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+    ])
+
+    # Check what was detected.
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    a, b = compare_manifest(manifest, '''
+    d | r | b | m | property | type    | ref     | source  | prepare | access  | title
+    datasets/gov/example     |         |         |         |         |         | Example
+      | schema               | sql     | sql     |         |         |         |
+                             |         |         |         |         |         |
+      |   |   | Country      |         | id      | COUNTRY |         |         | Country
+      |   |   |   | id       | integer |         | ID      |         | private | Primary key
+      |   |   |   | name     | string  |         | NAME    |         | open    | Country name
+                             |         |         |         |         |         |
+      |   |   | City         |         | id      | CITY    | id>1    |         | City
+      |   |   |   | id       | integer |         | ID      |         | private |
+      |   |   |   | name     | string  |         | NAME    | strip() | open    | City name
+      |   |   |   | country  | integer |         | COUNTRY |         | open    | Country id
+    ''')
+    assert a == b
+
+
+def test_inspect_update_existing_ref_external_priority(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    # Prepare source data.
+    sqlite.init({
+        'COUNTRY': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+        ],
+        'CITY': [
+            sa.Column('ID', sa.Integer, primary_key=True),
+            sa.Column('NAME', sa.Text),
+            sa.Column('COUNTRY', sa.Integer, sa.ForeignKey("COUNTRY.ID")),
+        ],
+    })
+
+    # Configure Spinta.
+    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', f'''
+    d | r | m | property | type    | ref | source  | prepare | access  | title
+    datasets/gov/example |         |     |         |         |         | Example
+      | schema           | sql     | sql |         |         |         |
+                         |         |     |         |         |         |
+      |   | Country      |         | id  | COUNTRY |         |         | Country
+      |   |   | id       | integer |     | ID      |         | private | Primary key
+      |   |   | name     | string  |     | NAME    |         | open    | Country name
+                         |         |     |         |         |         |
+      |   | City         |         | id  | CITY    | id > 1  |         | City
+      |   |   | id       | integer |     | ID      |         | private |
+      |   |   | name     | string  |     | NAME    | strip() | open    | City name
+      |   |   | country  | integer |     | COUNTRY |         | open    | Country id
+    ''')
+    cli.invoke(rc, [
+        'inspect',
+        tmp_path / 'manifest.csv',
+        '-p', 'external',
         '-o', tmp_path / 'result.csv',
     ])
 

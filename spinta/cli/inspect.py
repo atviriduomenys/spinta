@@ -57,8 +57,14 @@ def inspect(
     auth: Optional[str] = Option(None, '-a', '--auth', help=(
         "Authorize as a client"
     )),
+    priority: str = Option('manifest', '-p', '--priority', help=(
+        "Merge property priority ('manifest' or 'external')"
+    ))
 ):
     """Update manifest schema from an external data source"""
+    if priority not in ['manifest', 'external']:
+        raise Exception(f"\'{priority}\' priority doesnt not exist, there can only be \'manifest\' or \'external\'")
+    has_manifest_priority = priority == 'manifest'
     resources = parse_resource_args(*resource, formula)
     context = configure_context(
         ctx.obj,
@@ -70,7 +76,7 @@ def inspect(
     old = store.manifest
     manifest = Manifest()
     init_manifest(context, manifest, 'inspect')
-    commands.merge(context, manifest, manifest, old)
+    commands.merge(context, manifest, manifest, old, has_manifest_priority)
 
     if not resources:
         resources = []
@@ -84,7 +90,7 @@ def inspect(
 
     if resources:
         for resource in resources:
-            _merge(context, manifest, manifest, resource)
+            _merge(context, manifest, manifest, resource, has_manifest_priority)
 
     # Sort models for render
     sorted_models = {}
@@ -105,18 +111,18 @@ def inspect(
         echo(render_tabular_manifest(manifest))
 
 
-def _merge(context: Context, manifest: Manifest, old: Manifest, resource: ResourceTuple):
+def _merge(context: Context, manifest: Manifest, old: Manifest, resource: ResourceTuple, has_manifest_priority: bool):
     rc: RawConfig = context.get('rc')
     Manifest_ = get_manifest_from_type(rc, resource.type)
     path = ManifestPath(type=Manifest_.type, path=resource.external)
     context = configure_context(context, [path], mode=Mode.external)
     store = load_manifest(context)
     new = store.manifest
-    commands.merge(context, manifest, old, new)
+    commands.merge(context, manifest, old, new, has_manifest_priority)
 
 
-@commands.merge.register(Context, Manifest, Manifest, Manifest)
-def merge(context: Context, manifest: Manifest, old: Manifest, new: Manifest) -> None:
+@commands.merge.register(Context, Manifest, Manifest, Manifest, bool)
+def merge(context: Context, manifest: Manifest, old: Manifest, new: Manifest, has_manifest_priority: bool) -> None:
     resource_list = []
     for ds in new.datasets.values():
         for res in ds.resources.values():
@@ -146,7 +152,7 @@ def merge(context: Context, manifest: Manifest, old: Manifest, new: Manifest) ->
 
     for ds in datasets:
         for o, n in ds:
-            commands.merge(context, manifest, o, n)
+            commands.merge(context, manifest, o, n, has_manifest_priority)
 
 
 @commands.merge.register(Context, Manifest, NotAvailable, ExternalBackend)
@@ -164,8 +170,8 @@ def merge(context: Context, manifest: Manifest, old: ExternalBackend, new: NotAv
     manifest.backends[old.name] = old
 
 
-@commands.merge.register(Context, Manifest, NotAvailable, Dataset)
-def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Dataset) -> None:
+@commands.merge.register(Context, Manifest, NotAvailable, Dataset, bool)
+def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Dataset, has_manifest_priority: bool) -> None:
     manifest.datasets[new.name] = new
     _merge_resources(context, manifest, old, new)
 
@@ -173,13 +179,13 @@ def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Dataset)
     deduplicator = Deduplicator()
     for model in dataset_models:
         model.name = deduplicator(model.name)
-        merge(context, manifest, NA, model)
+        merge(context, manifest, NA, model, has_manifest_priority)
 
     new.manifest = manifest
 
 
-@commands.merge.register(Context, Manifest, Dataset, Dataset)
-def merge(context: Context, manifest: Manifest, old: Dataset, new: Dataset) -> None:
+@commands.merge.register(Context, Manifest, Dataset, Dataset, bool)
+def merge(context: Context, manifest: Manifest, old: Dataset, new: Dataset, has_manifest_priority: bool) -> None:
     old.id = coalesce(old.id, new.id)
     old.description = coalesce(old.description, new.description)
     old.lang = coalesce(old.lang, new.lang)
@@ -226,11 +232,11 @@ def merge(context: Context, manifest: Manifest, old: Dataset, new: Dataset) -> N
                     nm.external.dataset = old
                     name = deduplicator(f"{nm.external.dataset.name}/{nm.basename}")
                     nm.name = name
-            merge(context, manifest, om, nm)
+            merge(context, manifest, om, nm, has_manifest_priority)
 
 
-@commands.merge.register(Context, Manifest, Dataset, NotAvailable)
-def merge(context: Context, manifest: Manifest, old: Dataset, new: NotAvailable) -> None:
+@commands.merge.register(Context, Manifest, Dataset, NotAvailable, bool)
+def merge(context: Context, manifest: Manifest, old: Dataset, new: NotAvailable, has_manifest_priority: bool) -> None:
     return
 
 
@@ -313,8 +319,8 @@ def merge(context: Context, manifest: Manifest, old: Resource, new: NotAvailable
     return
 
 
-@commands.merge.register(Context, Manifest, NotAvailable, Model)
-def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Model) -> None:
+@commands.merge.register(Context, Manifest, NotAvailable, Model, bool)
+def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Model, has_manifest_priority: bool) -> None:
     old = copy(new)
     old.external = copy(old.external)
     if old.external and old.external.resource:
@@ -331,11 +337,11 @@ def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Model) -
     old.manifest = manifest
     manifest.models[old.name] = old
 
-    _merge_model_properties(context, manifest, old, new)
+    _merge_model_properties(context, manifest, old, new, has_manifest_priority)
 
 
-@commands.merge.register(Context, Manifest, Model, Model)
-def merge(context: Context, manifest: Manifest, old: Model, new: Model) -> None:
+@commands.merge.register(Context, Manifest, Model, Model, bool)
+def merge(context: Context, manifest: Manifest, old: Model, new: Model, has_manifest_priority: bool) -> None:
     old.description = coalesce(new.description, old.description)
     old.comments = coalesce(new.comments, old.comments)
     old.lang = coalesce(new.lang, old.lang)
@@ -352,34 +358,35 @@ def merge(context: Context, manifest: Manifest, old: Model, new: Model) -> None:
     old.manifest = manifest
 
     manifest.models[old.name] = old
-    _merge_model_properties(context, manifest, old, new)
+    _merge_model_properties(context, manifest, old, new, has_manifest_priority)
 
-    if old.external and new.external:
-        keys = zipitems(
-            old.properties.values(),
-            new.external.pkeys,
-            _property_source_key
-        )
-        new_keys = []
-        for key in keys:
-            for o, n in key:
-                if o and n:
-                    new_keys.append(o)
-        if new_keys:
-            old.external.pkeys = new_keys
-            old.external.unknown_primary_key = new.external.unknown_primary_key
+    if not has_manifest_priority:
+        if old.external and new.external:
+            keys = zipitems(
+                old.properties.values(),
+                new.external.pkeys,
+                _property_source_key
+            )
+            new_keys = []
+            for key in keys:
+                for o, n in key:
+                    if o and n:
+                        new_keys.append(o)
+            if new_keys:
+                old.external.pkeys = new_keys
+                old.external.unknown_primary_key = new.external.unknown_primary_key
 
 
-@commands.merge.register(Context, Manifest, Model, NotAvailable)
-def merge(context: Context, manifest: Manifest, old: Model, new: NotAvailable) -> None:
+@commands.merge.register(Context, Manifest, Model, NotAvailable, bool)
+def merge(context: Context, manifest: Manifest, old: Model, new: NotAvailable, has_manifest_priority: bool) -> None:
     if old.external and not old.external.name:
         for prop in old.properties.values():
             if prop.external:
                 prop.external.name = None
 
 
-@commands.merge.register(Context, Manifest, NotAvailable, Property)
-def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Property) -> None:
+@commands.merge.register(Context, Manifest, NotAvailable, Property, bool)
+def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Property, has_manifest_priority: bool) -> None:
     if new.external:
         new.external.prop = new
     new.dtype.prop = new
@@ -387,35 +394,36 @@ def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Property
     new.model.properties[new.name] = new
 
 
-@commands.merge.register(Context, Manifest, Property, Property)
-def merge(context: Context, manifest: Manifest, old: Property, new: Property) -> None:
-    merged = new
-    merged.type = coalesce(new.type, old.type)
-    merged.uri = coalesce(new.uri, old.uri)
-    merged.description = coalesce(new.description, old.description)
-    merged.enum = coalesce(new.enum, old.enum)
-    merged.enums = coalesce(new.enums, old.enums)
-    merged.unit = coalesce(new.unit, old.unit)
-    merged.comments = coalesce(new.comments, old.comments)
-    merged.lang = coalesce(new.lang, old.lang)
+@commands.merge.register(Context, Manifest, Property, Property, bool)
+def merge(context: Context, manifest: Manifest, old: Property, new: Property, has_manifest_priority: bool) -> None:
+    if not has_manifest_priority:
+        merged = old
+        merged.type = coalesce(new.type, old.type)
+        merged.uri = coalesce(new.uri, old.uri)
+        merged.description = coalesce(new.description, old.description)
+        merged.enum = coalesce(new.enum, old.enum)
+        merged.enums = coalesce(new.enums, old.enums)
+        merged.unit = coalesce(new.unit, old.unit)
+        merged.comments = coalesce(new.comments, old.comments)
+        merged.lang = coalesce(new.lang, old.lang)
 
-    merged.model = coalesce(old.model, new.model)
-    merged.external = coalesce(old.external, new.external)
-    merged.place = coalesce(old.place, new.place)
-    merged.name = coalesce(old.name, new.name)
-    merged.given = coalesce(old.given, new.given)
-    merged.title = coalesce(old.title, new.title)
-    merged.level = coalesce(old.level, new.level)
-    merged.access = coalesce(old.access, new.access)
-    merged.dtype.prop = merged
+        merged.model = coalesce(old.model, new.model)
+        merged.external = coalesce(old.external, new.external)
+        merged.place = coalesce(old.place, new.place)
+        merged.name = coalesce(old.name, new.name)
+        merged.given = coalesce(old.given, new.given)
+        merged.title = coalesce(old.title, new.title)
+        merged.level = coalesce(old.level, new.level)
+        merged.access = coalesce(old.access, new.access)
+        merged.dtype.prop = merged
 
-    old.model.properties[old.name] = merged
+        old.model.properties[old.name] = merged
 
-    merge(context, manifest, merged.dtype, new.dtype)
+        merge(context, manifest, merged.dtype, new.dtype)
 
 
-@commands.merge.register(Context, Manifest, Property, NotAvailable)
-def merge(context: Context, manifest: Manifest, old: Property, new: NotAvailable) -> None:
+@commands.merge.register(Context, Manifest, Property, NotAvailable, bool)
+def merge(context: Context, manifest: Manifest, old: Property, new: NotAvailable, has_manifest_priority: bool) -> None:
     if old.external:
         old.external.name = None
     manifest.models[old.model.name].properties[old.name] = old
@@ -609,18 +617,17 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Denorm) -> N
 @commands.merge.register(Context, Manifest, DataType, DataType)
 def merge(context: Context, manifest: Manifest, old: DataType, new: DataType) -> None:
     merged = new
+    merged.name = coalesce(new.name, old.name)
     merged.type_args = coalesce(new.type_args, old.type_args)
     merged.unique = coalesce(new.unique, old.unique)
     merged.nullable = coalesce(new.nullable, old.nullable)
     merged.required = coalesce(new.required, old.required)
     merged.default = coalesce(new.default, old.default)
 
-    merged.name = coalesce(old.name, new.name)
     merged.backend = coalesce(old.backend, new.backend)
     merged.prop = coalesce(old.prop, new.prop)
     merged.choices = coalesce(old.choices, new.choices)
     merged.prepare = coalesce(old.prepare, new.prepare)
-
     old.prop.dtype = merged
 
 
@@ -641,6 +648,7 @@ def _merge_model_properties(
     manifest: Manifest,
     old: Model,
     new: Model,
+    has_manifest_priority: bool
 ):
     properties = zipitems(
         old.properties.values(),
@@ -659,7 +667,7 @@ def _merge_model_properties(
                 n.model = old
                 n.name = name
                 n.place = name
-            commands.merge(context, manifest, o, n)
+            commands.merge(context, manifest, o, n, has_manifest_priority)
 
 
 def _merge_prefixes(
