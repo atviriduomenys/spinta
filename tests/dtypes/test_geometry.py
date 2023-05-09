@@ -366,3 +366,104 @@ def test_srid_service(
     _, x, y = purl.fragment.split('/')
     assert x[:8] == '54.68569'
     assert y[:8] == '25.28668'
+
+
+def test_geometry_delete(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                | type           | access
+        backends/postgres/dtypes/geometry/error  |                | 
+          |   |   | Point                       |                | 
+          |   |   |   | point                   | geometry       | open
+          |   |   |   | number                  | integer        | open
+    ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/error'
+    model: str = f'{ns}/Point'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+        'delete',
+    ])
+
+    resp = app.post(f'/{model}', json={
+        "point": "Point(50 50)"
+    })
+    print(resp.json().get("_id"))
+    assert resp.status_code == 201
+
+    resp = app.delete(f'/{model}/{resp.json().get("_id")}')
+    assert resp.status_code == 204
+
+
+def test_geometry_insert_without_geometry(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                | type           | access
+        backends/postgres/dtypes/geometry/error  |                | 
+          |   |   | Point                       |                | 
+          |   |   |   | point                   | geometry       | open
+          |   |   |   | number                  | integer        | open
+    ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/error'
+    model: str = f'{ns}/Point'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+    ])
+
+    resp = app.post(f'/{model}', json={
+        'number': 0
+    })
+    assert resp.status_code == 201
+
+
+def test_geometry_update_without_geometry(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, f'''
+        d | r | b | m | property                | type           | access
+        backends/postgres/dtypes/geometry/error  |                | 
+          |   |   | Point                       |                | 
+          |   |   |   | point                   | geometry       | open
+          |   |   |   | number                  | integer        | open
+    ''', backend=postgresql, request=request)
+
+    ns: str = 'backends/postgres/dtypes/geometry/error'
+    model: str = f'{ns}/Point'
+
+    app = create_test_client(context)
+    app.authmodel(model, [
+        'insert',
+        'update',
+        'patch'
+    ])
+
+    resp = app.post(f'/{model}', json={
+        "number": 0,
+        "point": "Point(0 0)"
+    })
+    assert resp.status_code == 201
+
+    resp = app.patch(f'/{model}/{resp.json().get("_id")}', json={
+        "_revision": resp.json().get("_revision"),
+        "number": 1
+    })
+    assert resp.status_code == 200
+
+    resp = app.put(f'/{model}/{resp.json().get("_id")}', json={
+        "_revision": resp.json().get("_revision"),
+        "number": 2
+    })
+    assert resp.status_code == 200

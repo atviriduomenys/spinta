@@ -172,6 +172,8 @@ class Ref(DataType):
     model: Model
     # Properties from referenced model
     refprops: List[Property]
+    # True if ref column is set explicitly
+    explicit: bool = False
 
     schema = {
         'model': {

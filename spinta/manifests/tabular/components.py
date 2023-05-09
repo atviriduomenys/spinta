@@ -132,6 +132,7 @@ class DatasetRow(TypedDict, total=False):
     description: str
     resources: Dict[str, ResourceRow]
     lang: LangData
+    source: str
 
 
 class ResourceRow(ManifestRow):

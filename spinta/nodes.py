@@ -202,6 +202,7 @@ def load_model_properties(
         '_cid': {'type': 'integer'},
         '_created': {'type': 'datetime'},
         '_where': {'type': 'rql'},
+        '_base': {'type': 'inherit'},
         **data,
     }
 
