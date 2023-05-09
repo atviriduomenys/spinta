@@ -195,7 +195,7 @@ def test_push_error_exit_code_with_bad_resource(
     })
 
     # Configure remote server
-    remote = configure_remote_server(cli, rc, rc, tmp_path, responses)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
     request.addfinalizer(remote.app.context.wipe_all)
 
     # Push data from local to remote.
