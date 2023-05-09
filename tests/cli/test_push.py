@@ -118,11 +118,11 @@ def test_push_with_resource_check(
     datasets/gov/example    |        |         |              |
       | data                | sql    |         |              |
       |   |                 |        |         |              |
-      |   |   | country     |        | code    | salis        |
+      |   |   | countryRes  |        | code    | salis        |
       |   |   |   | code    | string |         | kodas        | open
       |   |   |   | name    | string |         | pavadinimas  | open
-    datasets/gov/example     |        |         |              |
-      |   |   | country     |        | code    | salis        |
+    datasets/gov/example    |        |         |              |
+      |   |   | countryNoRes|        | code    | salis        |
       |   |   |   | code    | string |         | kodas        | open
       |   |   |   | name    | string |         | pavadinimas  | open
     '''))
