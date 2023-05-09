@@ -156,3 +156,55 @@ def test_push_error_exit_code(
     ], fail=False)
     assert result.exit_code == 1
 
+
+def test_push_error_exit_code_with_bad_resource(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(f'''
+    d | r | b | m | property| type    | ref     | source       | access
+    datasets/gov/example    |         |         |              |
+      | data                | sql     |         | sqlite:///{tmp_path}/bad.db |
+      |   |                 |         |         |              |
+      |   |   | Country     |         | code    | salis        |
+      |   |   |   | code    | string  |         | kodas        | open
+      |   |   |   | name    | string  |         | pavadinimas  | open
+    '''))
+
+    localrc = rc.fork({
+        'manifests': {
+            'default': {
+                'type': 'tabular',
+                'path': str(tmp_path / 'manifest.csv'),
+                'backend': 'sql',
+                'keymap': 'default',
+            },
+        },
+        'backends': {
+            'sql': {
+                'type': 'sql',
+                'dsn': f"sqlite:///{tmp_path}/bad.db",
+            },
+        },
+        # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
+        'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
+    })
+
+    # Configure remote server
+    remote = configure_remote_server(cli, rc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/example',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+    ], fail=False)
+    assert result.exit_code == 1
+
