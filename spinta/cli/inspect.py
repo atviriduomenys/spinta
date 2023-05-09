@@ -63,7 +63,8 @@ def inspect(
 ):
     """Update manifest schema from an external data source"""
     if priority not in ['manifest', 'external']:
-        raise Exception(f"\'{priority}\' priority doesnt not exist, there can only be \'manifest\' or \'external\'")
+        echo(f"Priority \'{priority}\' does not exist, there can only be \'manifest\' or \'external\', it will be set to default 'manifest'.")
+        priority = 'manifest'
     has_manifest_priority = priority == 'manifest'
     resources = parse_resource_args(*resource, formula)
     context = configure_context(
@@ -804,14 +805,14 @@ def _resource_source_key(resource: Resource) -> str:
         elif manifest.store.backends:
             if resource.backend.name in manifest.store.backends:
                 result = manifest.store.backends[resource.backend.name].config['dsn']
-    if result.__contains__("@"):
+    if "@" in result:
         result = result.split("@")[1]
     return result
 
 
 def _backend_dsn(backend: ExternalBackend) -> str:
     dsn = backend.config['dsn']
-    if dsn.__contains__("@"):
+    if "@" in dsn:
         dsn = dsn.split("@")[1]
     return dsn
 
