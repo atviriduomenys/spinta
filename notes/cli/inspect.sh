@@ -161,7 +161,6 @@ poetry run spinta show $BASEDIR/manifest.csv
 #|    |   |   |   | Continent      |         | id      | continents                                    |         |       |        |     |       |
 #|    |   |   |   |   | id         | integer |         | id                                            |         |       |        |     |       |
 #|    |   |   |   |   | name       | string  |         | name                                          |         |       |        |     |       |
-# FIXME: `continent` type was lost, types specified in manifest table should be preserved.
 
 
 sqlite3 $BASEDIR/db.sqlite <<'EOF'
