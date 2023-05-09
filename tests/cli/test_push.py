@@ -146,10 +146,11 @@ def test_push_with_resource_check(
     assert result.stderr == ""
 
     remote.app.authmodel('datasets/gov/exampleRes/countryRes', ['getall'])
-    resp = remote.app.get('/datasets/gov/exampleRes/countryRes')
-    assert len(listdata(resp)) == 1
+    resp_res = remote.app.get('/datasets/gov/exampleRes/countryRes')
 
     remote.app.authmodel('datasets/gov/exampleRes/countryNoRes', ['getall'])
-    resp = remote.app.get('/datasets/gov/exampleRes/countryNoRes')
-    assert len(listdata(resp)) == 0
+    resp_no_res = remote.app.get('/datasets/gov/exampleRes/countryNoRes')
+
+    assert len(listdata(resp_res)) == 1
+    assert len(listdata(resp_no_res)) == 0
 
