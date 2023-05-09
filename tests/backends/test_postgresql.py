@@ -207,15 +207,15 @@ def test_exceptions_unique_constraint_single_column(
 ):
     context = bootstrap_manifest(rc, '''
         d | r | b | m | property | type   | ref     | access  | uri
-        example/unique           |        |         |         |
+        example/unique/single    |        |         |         |
           |   |   | Country      |        | name    |         | 
           |   |   |   | name     | string |         | open    | 
         ''', backend=postgresql, request=request)
     app = create_test_client(context)
-    app.authmodel('example/unique', ['insert'])
+    app.authmodel('example/unique/single', ['insert'])
 
-    app.post('/example/unique/Country', json={'name': 'Lithuania'})
-    response = app.post('/example/unique/Country', json={'name': 'Lithuania'})
+    app.post('/example/unique/single/Country', json={'name': 'Lithuania'})
+    response = app.post('/example/unique/single/Country', json={'name': 'Lithuania'})
     assert response.status_code == 400
     assert response.json() == {
         "errors": [{
@@ -226,8 +226,8 @@ def test_exceptions_unique_constraint_single_column(
                 "component": "spinta.components.Property",
                 "manifest": "default",
                 "schema": "3",
-                "dataset": "example/unique",
-                "model": "example/unique/Country",
+                "dataset": "example/unique/single",
+                "model": "example/unique/single/Country",
                 "entity": "",
                 "property": "name",
                 "attribute": ""
@@ -244,16 +244,16 @@ def test_exceptions_unique_constraint_multiple_columns(
 ):
     context = bootstrap_manifest(rc, '''
         d | r | b | m | property | type    | ref      | access  | uri
-        example/unique           |         |          |         |
+        example/unique/multiple  |         |          |         |
           |   |   | Country      |         | name, id |         | 
           |   |   |   | name     | string  |          | open    | 
           |   |   |   | id       | integer |          | open    | 
         ''', backend=postgresql, request=request)
     app = create_test_client(context)
-    app.authmodel('example/unique', ['insert'])
+    app.authmodel('example/unique/multiple', ['insert'])
 
-    app.post('/example/unique/Country', json={'name': 'Lithuania', 'id': 0})
-    response = app.post('/example/unique/Country', json={'name': 'Lithuania', 'id': 0})
+    app.post('/example/unique/multiple/Country', json={'name': 'Lithuania', 'id': 0})
+    response = app.post('/example/unique/multiple/Country', json={'name': 'Lithuania', 'id': 0})
     assert response.status_code == 400
     assert response.json() == {
         "errors": [{
@@ -264,8 +264,8 @@ def test_exceptions_unique_constraint_multiple_columns(
                 "component": "spinta.components.Model",
                 "manifest": "default",
                 "schema": "3",
-                "dataset": "example/unique",
-                "model": "example/unique/Country",
+                "dataset": "example/unique/multiple",
+                "model": "example/unique/multiple/Country",
                 "entity": "",
                 "properties": "name,id",
             },
