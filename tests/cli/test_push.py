@@ -115,13 +115,13 @@ def test_push_with_resource_check(
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property| type   | ref     | source       | access
-    datasets/gov/example    |        |         |              |
+    datasets/gov/exampleRes |        |         |              |
       | data                | sql    |         |              |
       |   |                 |        |         |              |
       |   |   | countryRes  |        | code    | salis        |
       |   |   |   | code    | string |         | kodas        | open
       |   |   |   | name    | string |         | pavadinimas  | open
-    datasets/gov/example    |        |         |              |
+    datasets/gov/exampleRes    |        |         |              |
       |   |   | countryNoRes|        | code    | salis        |
       |   |   |   | code    | string |         | kodas        | open
       |   |   |   | name    | string |         | pavadinimas  | open
@@ -138,13 +138,18 @@ def test_push_with_resource_check(
     assert remote.url == 'https://example.com/'
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'datasets/gov/example',
+        '-d', 'datasets/gov/exampleRes',
         '-o', remote.url,
         '--credentials', remote.credsfile,
     ])
     assert result.exit_code == 0
     assert result.stderr == ""
 
-    remote.app.authmodel('datasets/gov/example/country', ['getall'])
-    resp = remote.app.get('/datasets/gov/example/country')
+    remote.app.authmodel('datasets/gov/exampleRes/countryRes', ['getall'])
+    resp = remote.app.get('/datasets/gov/exampleRes/countryRes')
     assert len(listdata(resp)) == 1
+
+    remote.app.authmodel('datasets/gov/exampleRes/countryNoRes', ['getall'])
+    resp = remote.app.get('/datasets/gov/exampleRes/countryNoRes')
+    assert len(listdata(resp)) == 0
+
