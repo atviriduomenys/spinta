@@ -10,7 +10,7 @@ def test_extract_error_ref_id():
 def test_extract_error_property_name():
     error_message = "Key (baseOne._id)=(b1da1c16-b8a6-4c60-b8cd-364efe8d7b44) is not present in table \"datasets/gov/ivpk/adp/catalog/BaseOne\"."
     result = extractors.extract_error_property_names(error_message)
-    assert result[0] == "baseOne"
+    assert result == ["baseOne"]
 
 
 def test_extract_error_property_names():
