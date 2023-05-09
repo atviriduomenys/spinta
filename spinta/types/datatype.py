@@ -29,7 +29,6 @@ class DataType(Component):
         'type': {'type': 'string', 'attr': 'name'},
         'type_args': {'type': 'array'},
         'unique': {'type': 'bool', 'default': False},
-        'ref_unique': {'type': 'bool', 'ref_unique': False},
         'nullable': {'type': 'bool', 'default': False},
         'required': {'type': 'bool', 'default': False},
         'default': {'default': None},
@@ -41,7 +40,6 @@ class DataType(Component):
     type_args: List[str]
     name: str
     unique: bool = False
-    ref_unique: bool = False
     nullable: bool = False
     required: bool = False
     default: Any = None
@@ -58,15 +56,6 @@ class DataType(Component):
 
     def get_bind_expr(self):
         return Expr('bind', self.prop.name)
-
-    def get_type_repr(self):
-        required = ' required' if self.required else ''
-        unique = ' unique' if self.unique else ''
-        args = ''
-        if self.type_args:
-            args = ', '.join(self.type_args)
-            args = f'({args})'
-        return f'{self.name}{args}{unique}{required}'
 
 
 class PrimaryKey(DataType):

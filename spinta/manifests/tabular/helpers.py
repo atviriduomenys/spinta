@@ -215,6 +215,7 @@ class TabularReader:
     def error(self, message: str) -> None:
         raise TabularManifestError(f"{self.path}:{self.line}: {message}")
 
+
 class ManifestReader(TabularReader):
     type: str = 'manifest'
     datasets: Set[str]
@@ -473,7 +474,7 @@ def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
 def _parse_dtype_string(dtype: str) -> dict:
     args = []
     error = None
-    required = unique = ref_unique = False
+    required = unique = False
     invalid_args = []
 
     if '(' in dtype:
@@ -493,8 +494,6 @@ def _parse_dtype_string(dtype: str) -> dict:
                 required = True
             elif arg == 'unique':
                 unique = True
-                if 'ref' in dtype and 'unique' in dtype:
-                    ref_unique = True
             else:
                 invalid_args.append(arg)
         if invalid_args:
@@ -505,9 +504,37 @@ def _parse_dtype_string(dtype: str) -> dict:
         'type_args': args,
         'required': required,
         'unique': unique,
-        'ref_unique': ref_unique,
         'error': error,
     }
+
+
+def _get_type_repr(dtype: [DataType, str]):
+    if isinstance(dtype, DataType):
+        args = ''
+        required = ' required' if dtype.required else ''
+        unique = ' unique' if dtype.unique else ''
+        if dtype.type_args:
+            args = ', '.join(dtype.type_args)
+            args = f'({args})'
+        return f'{dtype.name}{args}{required}{unique}'
+    else:
+        args = ''
+        required = ' required' if 'required' in dtype else ''
+        unique = ' unique' if 'unique' in dtype else ''
+        if '(' in dtype:
+            dtype, args = dtype.split('(', 1)
+            args, additional_args = args.split(')', 1)
+            args = args.strip().rstrip(')')
+            args = [a.strip() for a in args.split(',')]
+            args = ', '.join(args)
+            args = f'({args})'
+        else:
+            if len(dtype.split(None, 1)) > 1:
+                dtype, additional_args = dtype.split(None, 1)
+            else:
+                dtype = dtype.replace(' ', '')
+
+        return f'{dtype}{args}{required}{unique}'
 
 
 class PropertyReader(TabularReader):
@@ -529,8 +556,9 @@ class PropertyReader(TabularReader):
                 f"Property {self.name!r} with the same name is already "
                 f"defined for this {self.state.model.name!r} model."
             )
+        dtype = _get_type_repr(row['type'])
+        dtype = _parse_dtype_string(dtype)
 
-        dtype = _parse_dtype_string(row['type'])
         if dtype['error']:
             self.error(
                 dtype['error']
@@ -550,7 +578,6 @@ class PropertyReader(TabularReader):
             'description': row['description'],
             'required': dtype['required'],
             'unique': dtype['unique'],
-            'ref_unique': dtype['ref_unique']
         }
         dataset = self.state.dataset.data if self.state.dataset else None
         if row['ref']:
@@ -1592,7 +1619,7 @@ def _property_to_tabular(
 
     data = {
         'property': prop.place,
-        'type': prop.dtype.get_type_repr(),
+        'type': _get_type_repr(prop.dtype),
         'level': prop.level.value if prop.level else "",
         'access': prop.given.access,
         'uri': prop.uri,
@@ -1632,8 +1659,6 @@ def _property_to_tabular(
     elif prop.unit is not None:
         data['ref'] = prop.given.unit
 
-    if prop.model.unique:
-        data['type'] = data['type'].replace('unique', '').strip()
     yield torow(DATASET, data)
     yield from _comments_to_tabular(prop.comments, access=access)
     yield from _lang_to_tabular(prop.lang)
@@ -1643,6 +1668,7 @@ def _property_to_tabular(
         access=access,
         order_by=order_by,
     )
+
 
 def _model_to_tabular(
     model: Model,
@@ -1679,9 +1705,9 @@ def _model_to_tabular(
                 p.name for p in model.external.pkeys
             ])
     yield torow(DATASET, data)
-    yield from _unique_to_tabular(model.unique)
     yield from _comments_to_tabular(model.comments, access=access)
     yield from _lang_to_tabular(model.lang)
+    yield from _unique_to_tabular(model.unique)
 
     props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)
     for prop in props:
