@@ -117,11 +117,10 @@ def test_push_with_resource_check(
     d | r | b | m | property  | type   | ref     | source       | access
     datasets/gov/exampleRes   |        |         |              |
       | data                  | sql    |         |              |
-      |   |                   |        |         |              |
       |   |   | countryRes    |        | code    | salis        |
       |   |   |   | code      | string |         | kodas        | open
       |   |   |   | name      | string |         | pavadinimas  | open
-    datasets/gov/exampleNoRes |        |         |              |
+      |   |                   |        |         |              |
       |   |   | countryNoRes  |        | code    | salis        |
       |   |   |   | code      | string |         | kodas        | open
       |   |   |   | name      | string |         | pavadinimas  | open
@@ -147,7 +146,7 @@ def test_push_with_resource_check(
     remote.app.authmodel('datasets/gov/exampleRes/countryRes', ['getall'])
     resp_res = remote.app.get('/datasets/gov/exampleRes/countryRes')
 
-    remote.app.authmodel('datasets/gov/exampleNoRes/countryNoRes', ['getall'])
+    remote.app.authmodel('datasets/gov/exampleRes/countryNoRes', ['getall'])
     resp_no_res = remote.app.get('/datasets/gov/exampleRes/countryNoRes')
 
     assert len(listdata(resp_res)) == 1
