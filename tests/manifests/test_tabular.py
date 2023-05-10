@@ -248,6 +248,7 @@ def test_property_unique_add(tmp_path, rc):
       |   |   |   | prop_not_unique     | string
     ''')
 
+
 def test_property_unique_add_wrong_type(tmp_path, rc):
     with pytest.raises(TabularManifestError) as e:
         check(tmp_path, rc, '''

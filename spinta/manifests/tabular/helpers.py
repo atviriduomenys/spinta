@@ -74,7 +74,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref, DataType
+from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -517,11 +517,13 @@ def _get_type_repr(dtype: [DataType, str]):
         if dtype.type_args:
             args = ', '.join(dtype.type_args)
             args = f'({args})'
-        return f'{dtype.name}{args}{required}{unique}'
+        return f'{dtype.name}{args}{required}{unique}' if not isinstance(dtype, (Denorm, Inherit, ExternalRef)
+                                                                         ) else dtype.get_type_repr()
     else:
         args = ''
         required = ' required' if 'required' in dtype else ''
         unique = ' unique' if 'unique' in dtype else ''
+        additional_args = []
         if '(' in dtype:
             dtype, args = dtype.split('(', 1)
             args, additional_args = args.split(')', 1)
@@ -533,8 +535,11 @@ def _get_type_repr(dtype: [DataType, str]):
             if len(dtype.split(None, 1)) > 1:
                 dtype, additional_args = dtype.split(None, 1)
             else:
-                dtype = dtype.replace(' ', '')
-
+                dtype = dtype.strip(' ')
+        if additional_args:
+            if [additional_arg for additional_arg in additional_args.split(' ') if additional_arg not in [
+                required.strip(' '), unique.strip(' ')]]:
+                raise TabularManifestError
         return f'{dtype}{args}{required}{unique}'
 
 
@@ -559,7 +564,6 @@ class PropertyReader(TabularReader):
             )
         dtype = _get_type_repr(row['type'])
         dtype = _parse_dtype_string(dtype)
-
         if dtype['error']:
             self.error(
                 dtype['error']
@@ -1977,7 +1981,7 @@ def _write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w') as f:
+    with path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)
