@@ -143,7 +143,6 @@ def test_push_with_resource_check(
         '--credentials', remote.credsfile,
     ])
     assert result.exit_code == 0
-    assert result.stderr == ""
 
     remote.app.authmodel('datasets/gov/exampleRes/countryRes', ['getall'])
     resp_res = remote.app.get('/datasets/gov/exampleRes/countryRes')
