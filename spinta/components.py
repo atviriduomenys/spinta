@@ -512,6 +512,7 @@ class Model(MetaData):
         'params': {'type': 'object'},
         'comments': {},
         'uri': {'type': 'string'},
+        'schema_type': {'type': 'string'},
     }
 
     def __init__(self):
@@ -588,6 +589,7 @@ class Property(Node):
         'units': {'type': 'string'},
         'lang': {'type': 'object'},
         'comments': {},
+        'schema_type': {'type': 'string'},
     }
 
     def __init__(self):
