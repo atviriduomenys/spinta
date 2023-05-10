@@ -39,7 +39,6 @@ def test_parse_dtype_string():
         'type': "geometry",
         'type_args': [],
         'required': False,
-        'ref_unique': False,
         'unique': False,
         'error': None,
     }
@@ -52,7 +51,6 @@ def test_parse_dtype_string_with_args():
         'type_args': ["linestringm", "3345"],
         'required': False,
         'unique': False,
-        'ref_unique': False,
         'error': None,
     }
 
@@ -64,7 +62,6 @@ def test_parse_dtype_string_with_required():
         'type_args': [],
         'required': True,
         'unique': False,
-        'ref_unique': False,
         'error': None,
     }
 
@@ -76,7 +73,6 @@ def test_parse_dtype_string_with_args_and_required():
         'type_args': ["linestringm", "3345"],
         'required': True,
         'unique': False,
-        'ref_unique': False,
         'error': None,
     }
 
@@ -88,7 +84,6 @@ def test_parse_dtype_string_with_unique():
         'type_args': [],
         'required': False,
         'unique': True,
-        'ref_unique': False,
         'error': None,
     }
 
@@ -100,7 +95,6 @@ def test_parse_dtype_string_with_args_and_unique():
         'type_args': ["linestringm", "3345"],
         'required': False,
         'unique': True,
-        'ref_unique': False,
         'error': None,
     }
 
@@ -124,7 +118,6 @@ def test_parse_dtype_string_with_args_unique_and_required():
         'type_args': ["linestringm", "3345"],
         'required': True,
         'unique': True,
-        'ref_unique': False,
         'error': None,
     }
 
@@ -148,7 +141,6 @@ def test_parse_dtype_string_with_multipe_error():
         'type_args': ["linestringm", "3345"],
         'required': False,
         'unique': False,
-        'ref_unique': False,
         'error': 'Invalid type arguments: wrong_arg1, wrong_arg2.',
     }
 
@@ -160,6 +152,5 @@ def test_parse_dtype_string_with_multiple_spaces():
         'type_args': [],
         'required': True,
         'unique': False,
-        'ref_unique': False,
         'error': None,
     }
