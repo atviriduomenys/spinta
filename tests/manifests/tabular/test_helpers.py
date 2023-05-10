@@ -106,7 +106,6 @@ def test_parse_dtype_string_with_unique_and_required():
         'type_args': [],
         'required': True,
         'unique': True,
-        'ref_unique': False,
         'error': None,
     }
 
@@ -129,7 +128,6 @@ def test_parse_dtype_string_with_error():
         'type_args': [],
         'required': False,
         'unique': False,
-        'ref_unique': False,
         'error': 'Invalid type arguments: wrong_arg.',
     }
 
