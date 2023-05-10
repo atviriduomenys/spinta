@@ -566,3 +566,11 @@ class RequiredProperty(UserError):
 
 class UnableToCast(UserError):
     template = "Unable to cast {value} to {type} type."
+
+
+class ReferencedObjectNotFound(UserError):
+    template = "Referenced object {id!r} not found."
+
+
+class ReferringObjectFound(UserError):
+    template = "Object {id!r} is still being referenced in table {model!r}"

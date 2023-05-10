@@ -55,6 +55,7 @@ from spinta.utils.json import fix_data_for_json
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.units import tobytes
 from spinta.utils.units import toseconds
+from spinta.utils.sqlite import migrate_table
 
 log = logging.getLogger(__name__)
 
@@ -756,82 +757,11 @@ def _init_push_state(
             sa.Column('error', sa.Boolean),
             sa.Column('data', sa.Text)
         )
-        table.create(checkfirst=True)
-
-        if inspector.has_table(table.name):
-            columns = [col['name'] for col in inspector.get_columns(table.name)]
-            renamed = _rename_column(
-                engine,
-                table.name,
-                columns,
-                old_column_name='rev',
-                new_column_name='checksum'
-            )
-            if not renamed:
-                _add_column(
-                    engine,
-                    table.name,
-                    columns,
-                    sa.Column('checksum', sa.Unicode)
-                )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('revision', sa.Unicode)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('pushed', sa.DateTime)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('error', sa.Boolean)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('data', sa.Text)
-            )
+        migrate_table(engine, metadata, inspector, table, renames={
+            'rev': 'checksum',
+        })
 
     return engine, metadata
-
-
-def _add_column(
-    engine: sa.engine.Engine,
-    table: str,
-    columns: List[str],
-    column: sa.Column,
-):
-    column_type = column.type.compile(engine.dialect)
-    if column.name not in columns:
-        engine.execute('ALTER TABLE "%s" ADD COLUMN "%s" %s' % (
-            table,
-            column.name,
-            column_type
-        ))
-
-
-def _rename_column(
-    engine: sa.engine.Engine,
-    table: str,
-    columns: List[str],
-    old_column_name: str,
-    new_column_name: str
-) -> bool:  # return True if column was renamed
-    if old_column_name in columns and new_column_name not in columns:
-        engine.execute('ALTER TABLE "%s" RENAME COLUMN "%s" TO "%s"' % (
-            table,
-            old_column_name,
-            new_column_name
-        ))
-        return True
-    return False
 
 
 def _get_model_type(row: _PushRow) -> str:

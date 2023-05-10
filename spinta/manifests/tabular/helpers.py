@@ -256,6 +256,7 @@ class DatasetReader(TabularReader):
                 'type': 'dataset',
                 'id': row['id'],
                 'name': row['dataset'],
+                'source': row['source'],
                 'level': row['level'],
                 'access': row['access'],
                 'title': row['title'],

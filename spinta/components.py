@@ -438,9 +438,13 @@ class Namespace(MetaData):
 
     def parents(self) -> Iterator[Namespace]:
         ns = self.parent
+        i = 0
         while isinstance(ns, Namespace):
             yield ns
             ns = ns.parent
+            i += 1
+            if i > 99:
+                raise RuntimeError('Namespace references to itself?')
 
     def is_root(self) -> bool:
         # TODO: Move Namespace component to spinta.namespaces
