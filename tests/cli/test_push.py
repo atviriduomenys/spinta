@@ -121,9 +121,9 @@ def test_push_with_resource_check(
       |   |   |   | code      | string |         | kodas        | open
       |   |   |   | name      | string |         | pavadinimas  | open
       |   |                   |        |         |              |
-      |   |   | countryNoRes  |        | code    | salis        |
-      |   |   |   | code      | string |         | kodas        | open
-      |   |   |   | name      | string |         | pavadinimas  | open
+      |   |   | countryNoRes  |        |         |              |
+      |   |   |   | code      | string |         |              | open
+      |   |   |   | name      | string |         |              | open
     '''))
 
     # Configure local server with SQL backend
@@ -140,6 +140,7 @@ def test_push_with_resource_check(
         '-d', 'datasets/gov/exampleRes',
         '-o', remote.url,
         '--credentials', remote.credsfile,
+        '--no-progress-bar',
     ])
     assert result.exit_code == 0
 
