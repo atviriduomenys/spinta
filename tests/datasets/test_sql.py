@@ -3,8 +3,9 @@ import pathlib
 import re
 from typing import Dict
 from typing import Tuple
-
+import json
 import pytest
+from pytest import FixtureRequest
 
 import sqlalchemy as sa
 from _pytest.logging import LogCaptureFixture
@@ -21,6 +22,7 @@ from spinta.testing.context import create_test_context
 from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
 from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
 from spinta.testing.client import create_remote_server
@@ -281,6 +283,68 @@ def test_filter_join_ne_array_value(rc, tmp_path, geodb):
     assert data == [
         ('ee', 'Talinas'),
     ]
+
+
+def test_join_with_base(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type    | ref     | access
+    datasets/basetest        |         |         |
+      |   |   | Place        |         | id      |
+      |   |   |   | id       | integer |         | open
+      |   |   |   | name     | string  |         | open
+      |   |   |   |          |         |         |
+      |   | Place            |         | name    |
+      |   |   |   |          |         |         |
+      |   |   | Country      |         | id      |
+      |   |   |   | id       | integer |         | open
+      |   |   |   | name     |         |         | open
+      |   |   |   |          |         |         |
+      |   |   | City         |         | id      |
+      |   |   |   | id       | integer |         | open
+      |   |   |   | name     |         |         | open
+      |   |   |   | country  | ref     | Country | open 
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
+    VLN = "2074d66e-0dfd-4233-b1ec-199abc994d0c"
+
+    resp = app.post('/datasets/basetest/Place', json={
+        '_id': LTU,
+        'id': 1,
+        'name': 'Lithuania',
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Country', json={
+        '_id': LTU,
+        'id': 10,
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Place', json={
+        '_id': VLN,
+        'id': 2,
+        'name': 'Vilnius',
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/City', json={
+        '_id': VLN,
+        'id': 20,
+        'country': {'_id': LTU},
+    })
+    assert resp.status_code == 201
+
+    resp = app.get('/datasets/basetest/City?select(id,name,country.name)&format(ascii)')
+    print(json.dumps(resp.json(), indent=2))
+    print()
+    assert listdata(resp) is not ""
 
 
 @pytest.mark.skip('todo')
