@@ -36,12 +36,10 @@ poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
 cat $BASEDIR/manifest.csv
 poetry run spinta show
 
-# notes/spinta/server.sh    Check configuration
 # notes/spinta/server.sh    Run migrations
-# notes/spinta/server.sh    Add client
 # notes/postgres.sh         Show tables
 
-# Run server that response with error to every request except /auth/token
+# Run server that responds with error to every request except /auth/token
 test -n "$PID" && kill $PID
 poetry run pip install bottle
 poetry run python &>> $BASEDIR/bottle.log <<'EOF' &
@@ -90,5 +88,4 @@ poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
 #|     raise exc.NoSuchTableError(table.name)
 #| sqlalchemy.exc.NoSuchTableError: cities
 echo $?
-#| 0
-# FIXME: Shuold be 1.
+#| 1
