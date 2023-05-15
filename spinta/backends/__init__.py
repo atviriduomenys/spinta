@@ -143,6 +143,24 @@ def prepare(context: Context, backend: Backend, prop: Property):
     return prepare(context, backend, prop.dtype)
 
 
+# @commands.prepare_for_write.register(Context, Model, Backend, type(None))
+# def prepare_for_write(
+#     context: Context,
+#     model: Model,
+#     backend: Backend,
+#     patch: Dict[str, Any],
+#     *,
+#     action: Action,
+# ) -> dict:
+#     # prepares model's data for storing in a backend
+#     backend = model.backend
+#     result = {}
+#     for name, value in patch.items():
+#         if not name.startswith('_'):
+#             prop = model.properties[name]
+#             value = commands.prepare_for_write(context, prop.dtype, backend, value)
+
+
 @commands.simple_data_check.register(Context, DataItem, Model, Backend)
 def simple_data_check(
     context: Context,
@@ -210,7 +228,7 @@ def simple_data_check(
     updating = data.action in (Action.UPDATE, Action.PATCH)
     if updating and '_revision' not in data.given:
         raise NoItemRevision(prop)
-    if isinstance(dtype, Text):
+    if isinstance(dtype, Text) and not Action.DELETE:
         if list(data.given.keys()):
             if not list(filter(lambda x: '@' in x, list(data.given.keys()))):
                 raise UserError

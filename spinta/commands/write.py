@@ -712,7 +712,10 @@ def build_data_patch_for_write(
             if not (prop.name.startswith('_') or prop.hidden)
         )
     else:
-        props = (model.properties[k] for k in given)
+        if [key for key in list(given.keys()) if '@' in key]:
+            props = (model.properties[k.split('@')[0]] for k in given)
+        else:
+            props = (model.properties[k] for k in given)
 
     patch = {}
     for prop in props:
@@ -851,7 +854,10 @@ def build_data_patch_for_write(
             else:
                 given = dtype.default
         else:
-            return NA
+            if dtype.name == "text":
+                given = dtype.prop.name
+            else:
+                return NA
     if given != saved:
         return given
     else:

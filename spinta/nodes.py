@@ -166,7 +166,7 @@ def load_node(
             assert parent is not None, node
             setattr(node, attr, parent)
             continue
-        if data.get('type') == 'text' and name != 'langs':
+        if data.get('type') == 'text' and name != 'langs' and data.get('langs'):
             value = data['langs'][next(iter(data['langs'].keys()))].get(name, NA)
         else:
             value = data.get(name, NA)

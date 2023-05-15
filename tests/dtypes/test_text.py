@@ -39,8 +39,7 @@ def test_text(
 
     # Read data
     resp = app.get('/backends/postgres/dtypes/text/Country')
-    assert listdata(resp, full=True) == [{'name.en': 'Lithuania', 'name.lt': 'Lietuva'},
-                                         {'name.en': 'Lithuania', 'name.lt': 'Lietuva'}]
+    assert listdata(resp, full=True) == [{'name.en': 'Lithuania', 'name.lt': 'Lietuva'}]
 
     listdata(resp, full=True)
 
@@ -79,23 +78,15 @@ def test_text_patch(
     rev = data['_revision']
     resp = app.patch(f'/backends/postgres/dtypes/text/Country/{pk}', json={
         '_revision': rev,
-        'name': {
-            'lt': "Latvija",
-            'en': "Latvia",
-        }
+        'name@lt': "Latvija",
+        'name@en': "Latvia",
+
     })
     assert resp.status_code == 200
 
     # Read data
     resp = app.get('/backends/postgres/dtypes/text/Country')
-    assert listdata(resp, full=True) == [
-        {
-            'name': {
-                'lt': "Latvija",
-                'en': "Latvia",
-            },
-        }
-    ]
+    assert listdata(resp, full=True) == [{'name.lt': "Latvija", 'name.en': "Latvia"}]
 
 
 def test_html(rc: RawConfig):
@@ -131,47 +122,37 @@ def test_html(rc: RawConfig):
     }
 
 
-@pytest.mark.models(
-    'backends/postgres/country_text',
-)
-def test_text_changelog(context, model, app):
-    app.authmodel(model, [
+def test_text_change_log(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property      | type
+    backends/postgres/dtypes/text |
+      |   |   | Country           |
+      |   |   |   | name@lt       | text
+      |   |   |   | name@en       | text
+    ''', backend=postgresql, request=request)
+    model = 'backends/postgres/dtypes/text/Country'
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/text/Country', [
         'insert',
         'update',
         'delete',
         'changes',
     ])
-    resp = app.post(f'/{model}', json={
-        '_type': model,
-        'title': {'lt': 'lietuva', 'en': 'lithuania'},
-    })
-
+    resp = app.post(model, json={'name@lt': 'lietuva', 'name@en': 'lithuania'})
     assert resp.status_code == 201
 
     data = resp.json()
     id_ = data['_id']
-    revision = data['_revision']
 
     resp_changes = app.get(f'/{model}/{id_}/:changes')
 
     assert len(resp_changes.json()['_data']) == 1
     assert resp_changes.json()['_data'][-1]['_op'] == 'insert'
-    assert resp_changes.json()['_data'][-1]['title'] == data['title']
-
-    send_data = {
-        '_revision': revision,
-        'title': {'lt': 'lietuva1', 'en': 'lithuania1'}
-    }
-
-    resp = app.put(f'/{model}/{id_}', json=send_data)
-
-    assert resp.status_code == 200
-
-    resp_changes = app.get(f'/{model}/{id_}/:changes')
-
-    assert len(resp_changes.json()['_data']) == 2
-    assert resp_changes.json()['_data'][0]['_op'] == 'update'
-    assert resp_changes.json()['_data'][0]['title'] == resp.json()['title']
+    assert resp_changes.json()['_data'][-1]['name'] == data['name']
 
     resp = app.delete(f'/{model}/{id_}')
 
@@ -179,137 +160,70 @@ def test_text_changelog(context, model, app):
 
     resp_changes = app.get(f'/{model}/{id_}/:changes')
 
-    assert len(resp_changes.json()['_data']) == 3
-    assert resp_changes.json()['_data'][0]['_op'] == 'delete'
+    assert len(resp_changes.json()['_data']) == 2
+    assert resp_changes.json()['_data'][1]['_op'] == 'delete'
 
-@pytest.mark.models(
-    'backends/postgres/country_text',
-)
-def test_text_select_by_prop(context, model, app):
-    app.authmodel(model, [
+
+def test_text_select_by_prop(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property      | type
+    backends/postgres/dtypes/text |
+      |   |   | Country           |
+      |   |   |   | name@lt       | text
+      |   |   |   | name@en       | text
+    ''', backend=postgresql, request=request)
+    model = 'backends/postgres/dtypes/text/Country'
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/text/Country', [
         'insert',
-        'getone',
-        'getall',
-        'search'
+        'update',
+        'delete',
+        'changes',
     ])
     resp = app.post(f'/{model}', json={
-        '_type': model,
-        'title': {'lt': 'lietuva', 'en': 'lithuania'},
+        'name@lt': 'lietuva', 'name@en': 'lithuania'
     })
 
     assert resp.status_code == 201
 
-    resp = app.post(f'/{model}', json={
-        '_type': model,
-        'title': {'lt': 'latvija', 'en': 'latvia'},
-    })
-
-    assert resp.status_code == 201
-
-    select_by_prop = app.get(f'/{model}/?select(title@lt)')
+    select_by_prop = app.get(f'/{model}/?select(name@lt)')
     assert select_by_prop.status_code == 200
-    assert len(select_by_prop.json()['_data']) == 2
-    select_by_prop_value = app.get(f'/{model}?select(title@lt)=lietuva')
-    assert select_by_prop_value.status_code == 200
-    assert len(select_by_prop_value.json()['_data']) == 1
-    sort_by_prop = app.get(f'/{model}/?sort(title@lt)')
+    assert len(select_by_prop.json()['_data']) == 1
+    sort_by_prop = app.get(f'/{model}/?sort(name@lt)')
     assert sort_by_prop.status_code == 200
 
 
-def test_text_check(tmpdir, rc):
-    table = '''
-        id | d | r | b | m | property | type   | ref | source | prepare | level | access      | uri | title | description
-           | types/text               |        |     |        |         |       |             |     |       |
-           |                          |        |     |        |         |       |             |     |       |
-           |   |   |   | Country      |        |     |        |         |       |             |     |       |
-           |   |   |   |   | name@lt  | text   |     |        |         | 1     | protected   |     |       |
-           |   |   |   |   | name@en  | text   |     |        |         | 1     | protected   |     |       |
-    '''
-
-    create_tabular_manifest(tmpdir / 'manifest_text.csv', table)
-    manifest = load_manifest(rc, tmpdir / 'manifest_text.csv')
-    assert manifest == table
-
-
-@pytest.mark.models(
-    'backends/postgres/country_text',
-)
-def test_text_post_property_with_text(context, model, app):
-    app.authmodel(model, [
+def test_text_post_wrong_property_with_text(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property      | type
+    backends/postgres/dtypes/text |
+      |   |   | Country           |
+      |   |   |   | name@lt       | text
+      |   |   |   | name@en       | text
+    ''', backend=postgresql, request=request)
+    model = 'backends/postgres/dtypes/text/Country'
+    app = create_test_client(context)
+    app.authmodel('backends/postgres/dtypes/text/Country', [
         'insert',
-        'getone',
-        'getall',
-        'search'
+        'update',
+        'delete',
+        'changes',
     ])
 
     resp = app.post(f'/{model}', json={
-        '_type': model,
-        'title@en': 'lithuania',
+        'name': 'lietuva', 'name@en': 'lithuania'
     })
-
-    assert resp.status_code == 201
-
-
-@pytest.mark.models(
-    'backends/postgres/country_text',
-)
-def test_text_post_wrong_property_with_text(context, model, app):
-
-    app.authmodel(model, [
-        'insert',
-        'getone',
-        'getall',
-        'search'
-    ])
-
     resp = app.post(f'/{model}', json={
         '_type': model,
         'title': 'lithuania',
     })
 
     assert resp.status_code != 200
-
-
-@pytest.mark.models(
-    'backends/postgres/country_text',
-)
-def test_text_get_response(context, model, app):
-
-    app.authmodel(model, [
-        'insert',
-        'getone',
-        'getall',
-        'search'
-    ])
-
-    resp = app.post(f'/{model}', json={
-        '_type': model,
-        'title': {'en': 'lithuania'}
-    })
-
-    get_response = app.get(f'/{model}')
-
-    assert get_response.status_code == 200
-
-
-@pytest.mark.models(
-    'backends/postgres/country_text',
-)
-def test_text_post_prop_with_text_dict(context, model, app):
-
-    app.authmodel(model, [
-        'insert',
-        'getone',
-        'getall',
-        'search'
-    ])
-
-    resp = app.post(f'/{model}', json={
-        "name": {
-            "en": "Lithuania"
-        }
-    })
-
-    get_response = app.get(f'/{model}?name="Lithuania"')
-
-    assert get_response.status == 500

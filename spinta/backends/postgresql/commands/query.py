@@ -71,8 +71,9 @@ class PgQueryBuilder(Env):
             items = sel.item if isinstance(sel.item, list) else [sel.item]
             for item in items:
                 if item is not None and item not in select:
-                    if str(sel.item.type) == 'JSONB':
-                        items_to_jsonb_each_text.append(item)
+                    if not isinstance(sel.item, list):
+                        if str(sel.item.type) == 'JSONB' and '._id' not in str(where) and where is not None:
+                            items_to_jsonb_each_text.append(item)
                     select.append(item)
         qry = sa.select(select)
 
@@ -703,7 +704,7 @@ def compare(env, op, fn, value):
 def _sa_compare(op, column, value):
     if op == 'eq':
         if str(column.type) == 'JSONB':
-            return sa.text("value='"+str(value)+"'")
+            return sa.text("value='" + str(value) + "'")
         return column == value
 
     if op == 'lt':
@@ -971,6 +972,11 @@ def sort(env, expr):
     env.sort = [
         env.call('sort', arg) for arg in args
     ]
+
+
+@ufunc.resolver(PgQueryBuilder, Text)
+def sort(env, dtype):
+    return dtype.prop.name
 
 
 @ufunc.resolver(PgQueryBuilder, Bind)
