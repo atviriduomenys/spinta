@@ -3,8 +3,38 @@
 Changes
 #######
 
-0.1.49 (unreleased)
+0.1.50 (unreleased)
 ===================
+
+New features:
+
+- Add support for reading data from models with base (`#273`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/273
+
+Bug fixes:
+
+- Correctly handle level 3 references, when referenced model does not have a
+  primary key or property references a non-primary key (`#400`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/400
+
+
+0.1.49 (2023-04-19)
+===================
+
+Bug fixes:
+
+- Fix issue with order of axes in geometry properties (`#410`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/410
+
+
+- Fix write operations models containing geometry properties (`#417`__,
+  `#418`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/417
+  __ https://github.com/atviriduomenys/spinta/issues/418
 
 
 0.1.48 (2023-04-14)

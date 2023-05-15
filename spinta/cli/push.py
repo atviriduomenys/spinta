@@ -38,6 +38,7 @@ from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.data import count_rows
 from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.data import iter_model_rows
+from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
@@ -55,6 +56,7 @@ from spinta.utils.json import fix_data_for_json
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.units import tobytes
 from spinta.utils.units import toseconds
+from spinta.utils.sqlite import migrate_table
 
 log = logging.getLogger(__name__)
 
@@ -172,7 +174,7 @@ def push(
             context.attach('push.state.conn', state.engine.begin)
             _reset_pushed(context, models, state.metadata)
 
-        error_counter = _ErrorCounter(max_error_count)
+        error_counter = ErrorCounter(max_count=max_error_count)
 
         rows = _read_rows(
             context,
@@ -202,17 +204,13 @@ def push(
             error_counter=error_counter,
         )
 
+        if error_counter.has_errors():
+            raise Exit(code=1)
+
 
 class _State(NamedTuple):
     engine: sa.engine.Engine
     metadata: sa.MetaData
-
-
-class _ErrorCounter:
-    count: int      # Shows how many errors can still occur
-
-    def __init__(self, count: int):
-        self.count = count
 
 
 class _PushRow:
@@ -275,7 +273,7 @@ def _push(
     chunk_size: Optional[int] = None,   # split into chunks of given size in bytes
     dry_run: bool = False,              # do not send or write anything
     stop_on_error: bool = False,        # raise error immediately
-    error_counter: _ErrorCounter = None
+    error_counter: ErrorCounter = None
 ) -> None:
     if stop_time:
         rows = _add_stop_time(rows, stop_time)
@@ -314,7 +312,7 @@ def _read_rows(
     stop_on_error: bool = False,
     retry_count: int = 5,
     no_progress_bar: bool = False,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> Iterator[_PushRow]:
     yield from _get_model_rows(
         context,
@@ -322,6 +320,7 @@ def _read_rows(
         limit,
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
+        error_counter=error_counter,
     )
 
     yield PUSH_NOW
@@ -362,7 +361,7 @@ def _read_rows(
 def _push_rows(
     rows: Iterator[_PushRow],
     stop_on_error: bool = False,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> None:
     while True:
         try:
@@ -373,7 +372,7 @@ def _push_rows(
             if stop_on_error:
                 raise
             log.exception("Error while reading data.")
-        if error_counter and error_counter.count <= 0:
+        if error_counter and error_counter.has_reached_max():
             break
 
 
@@ -405,6 +404,7 @@ def _get_model_rows(
     *,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
+    error_counter: ErrorCounter = None
 ) -> Iterator[_PushRow]:
     counts = (
         count_rows(
@@ -412,6 +412,7 @@ def _get_model_rows(
             models,
             limit,
             stop_on_error=stop_on_error,
+            error_counter=error_counter,
         )
         if not no_progress_bar
         else {}
@@ -461,7 +462,7 @@ def _push_to_remote_spinta(
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> Iterator[_PushRow]:
     prefix = '{"_data":['
     suffix = ']}'
@@ -470,6 +471,10 @@ def _push_to_remote_spinta(
     ready: List[_PushRow] = []
 
     for row in rows:
+        if error_counter:
+            if error_counter.has_reached_max():
+                break
+
         data = fix_data_for_json(row.data)
         data = json.dumps(data, ensure_ascii=False)
         if ready and (
@@ -492,15 +497,27 @@ def _push_to_remote_spinta(
             ready.append(row)
 
     if ready:
-        yield from _send_and_receive(
-            client,
-            server,
-            ready,
-            chunk + suffix,
-            dry_run=dry_run,
-            stop_on_error=stop_on_error,
-            error_counter=error_counter
-        )
+        if error_counter:
+            if not error_counter.has_reached_max():
+                yield from _send_and_receive(
+                    client,
+                    server,
+                    ready,
+                    chunk + suffix,
+                    dry_run=dry_run,
+                    stop_on_error=stop_on_error,
+                    error_counter=error_counter
+                )
+        else:
+            yield from _send_and_receive(
+                client,
+                server,
+                ready,
+                chunk + suffix,
+                dry_run=dry_run,
+                stop_on_error=stop_on_error,
+                error_counter=error_counter
+            )
 
 
 def _send_and_receive(
@@ -511,7 +528,7 @@ def _send_and_receive(
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> Iterator[_PushRow]:
     if dry_run:
         recv = _send_data_dry_run(data)
@@ -551,7 +568,7 @@ def _send_request(
     *,
     stop_on_error: bool = False,
     ignore_errors: Optional[List[int]] = None,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> Tuple[Optional[int], Optional[Dict[str, Any]]]:
     data = data.encode('utf-8')
     if not ignore_errors:
@@ -561,7 +578,7 @@ def _send_request(
         resp = client.request(method, server, data=data)
     except IOError as e:
         if error_counter:
-            error_counter.count -= 1
+            error_counter.increase()
         log.error(
             (
                 "Error when sending and receiving data.%s\n"
@@ -579,7 +596,7 @@ def _send_request(
     except HTTPError:
         if resp.status_code not in ignore_errors:
             if error_counter:
-                error_counter.count -= 1
+                error_counter.increase()
             try:
                 recv = resp.json()
             except requests.JSONDecodeError:
@@ -756,82 +773,11 @@ def _init_push_state(
             sa.Column('error', sa.Boolean),
             sa.Column('data', sa.Text)
         )
-        table.create(checkfirst=True)
-
-        if inspector.has_table(table.name):
-            columns = [col['name'] for col in inspector.get_columns(table.name)]
-            renamed = _rename_column(
-                engine,
-                table.name,
-                columns,
-                old_column_name='rev',
-                new_column_name='checksum'
-            )
-            if not renamed:
-                _add_column(
-                    engine,
-                    table.name,
-                    columns,
-                    sa.Column('checksum', sa.Unicode)
-                )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('revision', sa.Unicode)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('pushed', sa.DateTime)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('error', sa.Boolean)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('data', sa.Text)
-            )
+        migrate_table(engine, metadata, inspector, table, renames={
+            'rev': 'checksum',
+        })
 
     return engine, metadata
-
-
-def _add_column(
-    engine: sa.engine.Engine,
-    table: str,
-    columns: List[str],
-    column: sa.Column,
-):
-    column_type = column.type.compile(engine.dialect)
-    if column.name not in columns:
-        engine.execute('ALTER TABLE "%s" ADD COLUMN "%s" %s' % (
-            table,
-            column.name,
-            column_type
-        ))
-
-
-def _rename_column(
-    engine: sa.engine.Engine,
-    table: str,
-    columns: List[str],
-    old_column_name: str,
-    new_column_name: str
-) -> bool:  # return True if column was renamed
-    if old_column_name in columns and new_column_name not in columns:
-        engine.execute('ALTER TABLE "%s" RENAME COLUMN "%s" TO "%s"' % (
-            table,
-            old_column_name,
-            new_column_name
-        ))
-        return True
-    return False
 
 
 def _get_model_type(row: _PushRow) -> str:
@@ -1087,7 +1033,7 @@ def _get_rows_with_errors(
     counts: Dict[str, int],
     retry: int,
     no_progress_bar: bool = False,
-    error_counter: _ErrorCounter = None
+    error_counter: ErrorCounter = None
 ):
     rows = _iter_rows_with_errors(
         client,
@@ -1132,7 +1078,7 @@ def _iter_rows_with_errors(
     metadata: sa.MetaData,
     counts: Dict[str, int],
     no_progress_bar: bool = False,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
     conn = context.get('push.state.conn')
     for model in models:
@@ -1170,7 +1116,7 @@ def _prepare_rows_with_errors(
     rows,
     model: Model,
     table: sa.Table,
-    error_counter: _ErrorCounter = None
+    error_counter: ErrorCounter = None
 ) -> Iterable[ModelRow]:
     conn = context.get('push.state.conn')
     for row in rows:

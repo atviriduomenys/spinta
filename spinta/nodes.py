@@ -10,7 +10,6 @@ from typing import Iterator
 from typing import NamedTuple
 from typing import overload
 from collections import defaultdict
-
 from spinta import commands
 from spinta import exceptions
 from spinta.components import Component
@@ -22,6 +21,7 @@ from spinta.components import Model
 from spinta.manifests.components import Manifest
 from spinta.utils.schema import NA
 from spinta.utils.schema import resolve_schema
+from spinta.types.datatype import Ref
 
 
 def get_node(
@@ -47,7 +47,6 @@ def get_node(
             eid=eid,
             error=f"Expected dict got {type(data).__name__}.",
         )
-
     if ctype is None:
         if 'type' not in data:
             raise exceptions.InvalidManifestFile(
@@ -110,7 +109,7 @@ def get_node(
             manifest=manifest.name,
             eid=eid,
             error=error,
-        )
+            )
 
     Node_ = config.components[group][ctype]
     return Node_()
@@ -211,6 +210,7 @@ def load_model_properties(
         '_cid': {'type': 'integer'},
         '_created': {'type': 'datetime'},
         '_where': {'type': 'rql'},
+        '_base': {'type': 'inherit'},
         **data,
     }
 

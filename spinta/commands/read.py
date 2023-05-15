@@ -94,13 +94,17 @@ async def getall(
         )
     else:
         select_tree = get_select_tree(context, action, params.select)
+        if action == Action.SEARCH:
+            reserved = ['_type', '_id', '_revision', '_base']
+        else:
+            reserved = ['_type', '_id', '_revision']
         prop_names = get_select_prop_names(
             context,
             model,
             model.properties,
             action,
             select_tree,
-            reserved=['_type', '_id', '_revision'],
+            reserved=reserved,
             include_denorm_props=False,
         )
         rows = (

@@ -560,7 +560,10 @@ def _get_resource_config(
     rc: RawConfig,
     resource: ResourceTuple,
 ) -> Dict[str, str]:
-    if resource.external and resource.external in rc.get('backends', default={}):
+    if (
+        resource.external and
+        resource.external in rc.get('backends', default={})
+    ):
         return {
             'type': resource.type,
             'backend': resource.external,

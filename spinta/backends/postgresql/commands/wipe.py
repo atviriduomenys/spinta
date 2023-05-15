@@ -7,7 +7,7 @@ from spinta.types.datatype import DataType
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.backends.postgresql.helpers import get_pg_sequence_name
+from spinta.backends.postgresql.helpers import get_pg_sequence_name, get_pg_name
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def wipe(context: Context, model: Model, backend: PostgreSQL):
 
     # Reset changelog table sequence
     table_name = get_table_name(model, TableType.CHANGELOG)
-    seqname = get_pg_sequence_name(table_name)
+    seqname = get_pg_sequence_name(get_pg_name(table_name))
     connection.execute(f'ALTER SEQUENCE "{seqname}" RESTART')
 
     # Delete data table

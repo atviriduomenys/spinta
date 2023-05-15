@@ -79,7 +79,20 @@ def main(
         "Log level. Possible levels: fatal, error, warning, info, debug. "
         "Default: warning."
     )),
+    tb: Optional[str] = Option('pretty', '--tb', help=(
+        "Exception style: pretty, native."
+    )),
 ):
+    if tb == 'pretty':
+        app.pretty_exceptions_enable = True
+    elif tb == 'native':
+        app.pretty_exceptions_enable = False
+    else:
+        raise ValueError(
+            "Unknown value {tb!r} for --tb option. Possible values are: "
+            "pretty, native."
+        )
+
     logging.basicConfig(
         level=logging.getLevelName(log_level.upper()),
         format='%(asctime)s %(levelname)s: %(message)s',

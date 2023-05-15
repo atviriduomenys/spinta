@@ -74,7 +74,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref
+from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -100,6 +100,7 @@ EXTRA_DIMENSIONS = [
     'comment',
     'ns',
     'lang',
+    'unique'
 ]
 
 
@@ -257,6 +258,7 @@ class DatasetReader(TabularReader):
                 'type': 'dataset',
                 'id': row['id'],
                 'name': row['dataset'],
+                'source': row['source'],
                 'level': row['level'],
                 'access': row['access'],
                 'title': row['title'],
@@ -440,7 +442,6 @@ class ModelReader(TabularReader):
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
         }
-
         if resource and not dataset:
             self.data['backend'] = resource.name
 
@@ -509,6 +510,40 @@ def _parse_dtype_string(dtype: str) -> dict:
     }
 
 
+def _get_type_repr(dtype: [DataType, str]):
+    if isinstance(dtype, DataType):
+        args = ''
+        required = ' required' if dtype.required else ''
+        unique = ' unique' if dtype.unique else ''
+        if dtype.type_args:
+            args = ', '.join(dtype.type_args)
+            args = f'({args})'
+        return f'{dtype.name}{args}{required}{unique}' if not isinstance(dtype, (Denorm, Inherit, ExternalRef)
+                                                                         ) else dtype.get_type_repr()
+    else:
+        args = ''
+        required = ' required' if 'required' in dtype else ''
+        unique = ' unique' if 'unique' in dtype else ''
+        additional_args = []
+        if '(' in dtype:
+            dtype, args = dtype.split('(', 1)
+            args, additional_args = args.split(')', 1)
+            args = args.strip().rstrip(')')
+            args = [a.strip() for a in args.split(',')]
+            args = ', '.join(args)
+            args = f'({args})'
+        else:
+            if len(dtype.split(None, 1)) > 1:
+                dtype, additional_args = dtype.split(None, 1)
+            else:
+                dtype = dtype.strip(' ')
+        if additional_args:
+            if [additional_arg for additional_arg in additional_args.split(' ') if additional_arg not in [
+                required.strip(' '), unique.strip(' ')]]:
+                raise TabularManifestError
+        return f'{dtype}{args}{required}{unique}'
+
+
 class PropertyReader(TabularReader):
     type: str = 'property'
     data: PropertyRow
@@ -516,7 +551,6 @@ class PropertyReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['property']
-
         if self.state.model is None:
             context = self.state.stack[-1]
             self.error(
@@ -529,8 +563,8 @@ class PropertyReader(TabularReader):
                 f"Property {self.name!r} with the same name is already "
                 f"defined for this {self.state.model.name!r} model."
             )
-
-        dtype = _parse_dtype_string(row['type'])
+        dtype = _get_type_repr(row['type'])
+        dtype = _parse_dtype_string(dtype)
         if dtype['error']:
             self.error(
                 dtype['error']
@@ -551,9 +585,7 @@ class PropertyReader(TabularReader):
             'required': dtype['required'],
             'unique': dtype['unique'],
         }
-
         dataset = self.state.dataset.data if self.state.dataset else None
-
         if row['ref']:
             if dtype['type'] in ('ref', 'backref', 'generic'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
@@ -562,13 +594,11 @@ class PropertyReader(TabularReader):
             else:
                 # TODO: Detect if ref is a unit or an enum.
                 self.data['enum'] = row['ref']
-
         if dataset or row['source']:
             self.data['external'] = {
                 'name': row['source'],
                 'prepare': self.data.pop('prepare'),
             }
-
         # Denormalized form
         if "." in self.name and not self.data['type']:
             self.data['type'] = 'denorm'
@@ -583,6 +613,7 @@ class PropertyReader(TabularReader):
             BaseReader,
             ModelReader,
             PropertyReader,
+            UniqueReader
         ))
 
     def enter(self) -> None:
@@ -906,6 +937,37 @@ class LangReader(TabularReader):
         pass
 
 
+class UniqueReader(TabularReader):
+    type: str = 'unique'
+
+    def read(self, row: ManifestRow) -> None:
+        self.name = row[REF]
+        reader = self.state.stack[-1]
+
+        if not isinstance(reader, (
+            ModelReader,
+            UniqueReader,
+            AppendReader
+        )):
+            self.error(f'Unique reader is not supported for {reader.type}.')
+            return
+
+        if self.type not in reader.data:
+            reader.data['unique'] = []
+
+    def append(self, row: ManifestRow) -> None:
+        self.read(row)
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return not isinstance(reader, AppendReader)
+
+    def enter(self) -> None:
+        self.state.model.data['unique'].append([row.strip() for row in self.name.split(',')])
+
+    def leave(self) -> None:
+        pass
+
+
 class CommentReader(TabularReader):
     type: str = 'comment'
     data: CommentData
@@ -957,6 +1019,7 @@ READERS = {
     'enum': EnumReader,
     'lang': LangReader,
     'comment': CommentReader,
+    'unique': UniqueReader
 }
 
 
@@ -998,7 +1061,6 @@ class State:
         if reader:
             reader.enter()
             self.stack.append(reader)
-
 
 def _read_tabular_manifest_rows(
     path: Optional[str],
@@ -1099,7 +1161,7 @@ def _read_csv_manifest(
         for i, row in enumerate(rows, 1):
             yield str(i), row
     else:
-        with pathlib.Path(path).open(encoding='utf-8-sig') as f:
+        with pathlib.Path(path).open(encoding='utf-8') as f:
             rows = csv.reader(f)
             for i, row in enumerate(rows, 1):
                 yield str(i), row
@@ -1485,6 +1547,16 @@ def _comments_to_tabular(
         first = False
 
 
+def _unique_to_tabular(model_unique_data) -> Iterator[ManifestRow]:
+    if not model_unique_data:
+        return
+    for row in model_unique_data:
+        yield torow(DATASET, {
+            'type': 'unique',
+            'ref': ', '.join([r.split('.')[0] for r in row])
+        })
+
+
 def _dataset_to_tabular(
     dataset: Dataset,
     *,
@@ -1567,7 +1639,7 @@ def _property_to_tabular(
 
     data = {
         'property': prop.place,
-        'type': prop.dtype.get_type_repr(),
+        'type': _get_type_repr(prop.dtype),
         'level': prop.level.value if prop.level else "",
         'access': prop.given.access,
         'uri': prop.uri,
@@ -1588,7 +1660,6 @@ def _property_to_tabular(
         elif prop.external:
             data['source'] = prop.external.name
             data['prepare'] = unparse(prop.external.prepare or NA)
-
     if isinstance(prop.dtype, Ref):
         model = prop.model
         if model.external and model.external.dataset:
@@ -1657,6 +1728,7 @@ def _model_to_tabular(
     yield torow(DATASET, data)
     yield from _comments_to_tabular(model.comments, access=access)
     yield from _lang_to_tabular(model.lang)
+    yield from _unique_to_tabular(model.unique)
     props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)
     for prop in props:
         yield from _property_to_tabular(
@@ -1911,7 +1983,6 @@ def write_tabular_manifest(
         rows = datasets_to_tabular(rows)
 
     rows = ({c: row[c] for c in cols} for row in rows)
-
     if path.endswith('.csv'):
         _write_csv(pathlib.Path(path), rows, cols)
     elif path.endswith('.xlsx'):
