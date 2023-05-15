@@ -14,7 +14,7 @@ def test_csv_empty_column(rc: RawConfig, tmp_path: Path):
     ,,,,City,,,name,,,,open,,City,,error
     ,,,,,name,string,,,pavadinimas,3,open,,City name,
     '''
-    path = tmp_path / 'manifest_text.csv'
+    path = tmp_path / 'manifest.csv'
     path.write_text(csv)
     with pytest.raises(TabularManifestError):
         load_manifest_and_context(rc, path)

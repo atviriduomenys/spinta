@@ -38,7 +38,7 @@ def test_detect_pii(rc, cli: SpintaCliRunner, tmp_path, sqlite):
     ])
 
     # Configure Spinta.
-    rc = configure(rc, sqlite, tmp_path / 'manifest_text.csv', '''
+    rc = configure(rc, sqlite, tmp_path / 'manifest.csv', '''
     d | r | m | property     | type   | ref     | source  | access
     datasets/ds              |        |         |         |
       | rs                   | sql    | sql     |         |
@@ -51,7 +51,7 @@ def test_detect_pii(rc, cli: SpintaCliRunner, tmp_path, sqlite):
 
     # Detect person identifying information.
     cli.invoke(rc, [
-        'pii', 'detect', tmp_path / 'manifest_text.csv',
+        'pii', 'detect', tmp_path / 'manifest.csv',
         '-o', tmp_path / 'pii.csv',
         '--stop-on-error',
     ])

@@ -9,7 +9,7 @@ from spinta.testing.manifest import load_manifest
 
 
 def test_gsheets(rc: RawConfig, tmp_path: Path, responses: RequestsMock):
-    path = tmp_path / 'manifest_text.csv'
+    path = tmp_path / 'manifest.csv'
     table = '''
     d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
     datasets/gov/example     |             |           |            |         |       | open   |     | Example |

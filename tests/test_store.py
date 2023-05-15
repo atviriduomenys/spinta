@@ -105,7 +105,7 @@ def test_nested(model, app):
 
 
 def test_root(rc: RawConfig, tmp_path: Path):
-    rc = configure(rc, None, tmp_path / 'manifest_text.csv', '''
+    rc = configure(rc, None, tmp_path / 'manifest.csv', '''
     d | r | b | m | property | type   | title
     datasets/gov/vpt/old     |        | Old data
       | sql                  | sql    |
