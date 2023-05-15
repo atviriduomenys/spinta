@@ -46,11 +46,8 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
-<<<<<<< HEAD
 from spinta.types.text.components import Text
-=======
 from spinta.types.datatype import Ref
->>>>>>> origin/master
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
