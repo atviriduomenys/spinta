@@ -37,12 +37,10 @@ def test_rdf_with_one_schema():
     assert res == [
         (1, {
             'type': 'model',
-            'schema_type': Schema.shacl,
             'name': 'datasets/rdf/Dataset',
             'base': None,
             'properties': {
                 'identifier': {
-                    'schema_type': Schema.shacl,
                     'type': 'integer',
                     'title': 'Identifier',
                     'description': 'Dataset identifier',
@@ -91,7 +89,6 @@ def test_rdf_with_duplicate_schema_for_model():
     assert res == [
         (1, {
             'type': 'model',
-            'schema_type': Schema.shacl,
             'name': 'datasets/rdf/Dataset',
             'base': None,
             'properties': {},
@@ -145,12 +142,10 @@ def test_rdf_with_duplicate_schema_for_property():
     assert res == [
         (1, {
             'type': 'model',
-            'schema_type': Schema.shacl,
             'name': 'datasets/rdf/Dataset',
             'base': None,
             'properties': {
                 'identifier': {
-                    'schema_type': Schema.shacl,
                     'type': 'string',
                     'title': 'Identifier',
                     'description': 'Dataset identifier rdfs\nDataset identifier shacl',
@@ -190,12 +185,10 @@ def test_rdf_with_missing_model():
     assert res == [
         (1, {
             'type': 'model',
-            'schema_type': Schema.undefined,
             'name': 'datasets/rdf/Resource',
             'base': None,
             'properties': {
                 'identifier': {
-                    'schema_type': Schema.shacl,
                     'type': 'integer',
                     'title': 'Identifier',
                     'description': 'Dataset identifier',
@@ -244,7 +237,16 @@ def test_rdf_with_base():
     assert res == [
         (1, {
             'type': 'model',
-            'schema_type': Schema.shacl,
+            'name': 'datasets/rdf/Base',
+            'base': None,
+            'properties': {},
+            'uri': 'dcat:Base',
+            'access': 'open',
+            'description': 'Base model',
+            'title': 'Base',
+        }),
+        (2, {
+            'type': 'model',
             'name': 'datasets/rdf/Dataset',
             'base': {
                 'name': 'datasets/rdf/Base',
@@ -255,17 +257,6 @@ def test_rdf_with_base():
             'access': 'open',
             'description': 'Dataset',
             'title': 'Dataset',
-        }),
-        (2, {
-            'type': 'model',
-            'schema_type': Schema.shacl,
-            'name': 'datasets/rdf/Base',
-            'base': None,
-            'properties': {},
-            'uri': 'dcat:Base',
-            'access': 'open',
-            'description': 'Base model',
-            'title': 'Base',
         })
     ]
 
@@ -312,12 +303,10 @@ def test_rdf_with_ref():
     assert res == [
         (1, {
             'type': 'model',
-            'schema_type': Schema.shacl,
             'name': 'datasets/rdf/Dataset',
             'base': None,
             'properties': {
                 'catalog': {
-                    'schema_type': Schema.shacl,
                     'type': 'ref',
                     'title': 'Catalog',
                     'description': 'Dataset catalog',
@@ -333,7 +322,6 @@ def test_rdf_with_ref():
         }),
         (2, {
             'type': 'model',
-            'schema_type': Schema.shacl,
             'name': 'datasets/rdf/Catalog',
             'base': None,
             'properties': {},
@@ -378,12 +366,10 @@ def test_rdf_with_different_language():
     assert res == [
         (1, {
             'type': 'model',
-            'schema_type': Schema.shacl,
             'name': 'datasets/rdf/Dataset',
             'base': None,
             'properties': {
                 'identifier': {
-                    'schema_type': Schema.shacl,
                     'type': 'integer',
                     'title': '',
                     'description': '',

@@ -190,11 +190,17 @@ def _get_schemas(
 ):
     for i, row in enumerate(schemas, 1):
 
+        if 'schema' in row:
+            row.pop('schema')
+
         if 'description' in row:
             row['description'] = '\n'.join(sorted(set(row['description'])))
 
         if 'properties' in row:
             for prop in row['properties'].values():
+                if 'schema' in prop:
+                    prop.pop('schema')
+
                 prop['description'] = '\n'.join(sorted(set(prop['description'])))
                 prop['type'], ref_model = _to_type_name(graph, dataset, models, prop['type'])
                 if ref_model:
@@ -245,15 +251,31 @@ def _read_model(
         properties = existing_model['properties']
         descriptions.extend(existing_model['description'])
 
-        if data[model]['schema_type'] > schema:
-            schema = existing_model['schema_type']
+        if data[model]['schema'] > schema:
+            schema = existing_model['schema']
             base = existing_model['base']['name'] if existing_model['base'] else base
             title = existing_model['title'] or title
+
+    if base and base not in data:
+        # Add temporary model for base
+        data.update({
+            base: {
+                'type': 'model',
+                'schema': Schema.undefined,
+                'name': base,
+                'base': None,
+                'properties': {},
+                'uri': "",
+                'access': 'open',
+                'description': [],
+                'title': None,
+            }
+        })
 
     data.update({
         model: {
             'type': 'model',
-            'schema_type': schema,
+            'schema': schema,
             'name': model,
             'base': {
                 'name': base,
@@ -290,7 +312,7 @@ def _read_property(
         data.update({
             model: {
                 'type': 'model',
-                'schema_type': Schema.undefined,
+                'schema': Schema.undefined,
                 'name': model,
                 'base': None,
                 'properties': {},
@@ -307,14 +329,14 @@ def _read_property(
         existing_prop = model['properties'][prop]
         descriptions.extend(existing_prop['description'])
 
-        if model['properties'][prop]['schema_type'] > schema:
-            schema = existing_prop['schema_type']
+        if model['properties'][prop]['schema'] > schema:
+            schema = existing_prop['schema']
             type = existing_prop['type'] or type
             title = existing_prop['title'] or title
 
     model['properties'].update({
         prop: {
-            'schema_type': schema,
+            'schema': schema,
             'type': type,
             'title': title,
             'description': descriptions,
@@ -398,15 +420,16 @@ def _to_type_name(
     name: str,
 ) -> Tuple[str, str]:
     ref_model = None
+    type = 'string'
     if name:
         if name in TYPES:
-            name = TYPES[name]
+            type = TYPES[name]
         else:
             model_name, _ = _to_model_name(graph, dataset, name)
             if model_name in models:
-                name = 'ref'
+                type = 'ref'
                 ref_model = model_name
-    return name, ref_model
+    return type, ref_model
 
 
 def _parse_uri(graph: Graph, name: Any) -> str:
