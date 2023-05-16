@@ -1,7 +1,0 @@
----
-type: model
-name: backends/postgres/country_text
-title: country_text
-properties:
-  title:
-    type: text

@@ -72,7 +72,7 @@ class PgQueryBuilder(Env):
             for item in items:
                 if item is not None and item not in select:
                     if not isinstance(sel.item, list):
-                        if str(sel.item.type) == 'JSONB' and '._id' not in str(where) and where is not None:
+                        if isinstance(sel.item.type, Text) and '._id' not in str(where) and where is not None:
                             items_to_jsonb_each_text.append(item)
                     select.append(item)
         qry = sa.select(select)
