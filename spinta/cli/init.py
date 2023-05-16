@@ -10,7 +10,7 @@ def init(
 ):
     """Initialize a new manifest table
 
-    `MANIFEST` is a file path, for example `manifest_text.csv` or `manifest.xlsx`.
+    `MANIFEST` is a file path, for example `manifest.csv` or `manifest.xlsx`.
     Depending of file extensions, a CSV of a XLSX format manifest will be
     created.
     """

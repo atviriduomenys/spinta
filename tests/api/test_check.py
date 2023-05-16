@@ -15,7 +15,7 @@ def test_success(rc: RawConfig):
        |   |   |   |   | name     | string
     ''')
     resp = app.post('/:check', files={
-        'manifest': ('manifest_text.csv', csv_manifest, 'text/csv'),
+        'manifest': ('manifest.csv', csv_manifest, 'text/csv'),
     })
     assert resp.json() == {'status': 'OK'}
 
@@ -30,13 +30,13 @@ def test_unknown_field(rc: RawConfig):
        |   |   |   |   | name     | string  |
     ''')
     resp = app.post('/:check', files={
-        'manifest': ('manifest_text.csv', csv_manifest, 'text/csv'),
+        'manifest': ('manifest.csv', csv_manifest, 'text/csv'),
     })
     assert resp.json() == {
         'errors': [
             {
                 'code': 'TabularManifestError',
-                'message': 'manifest_text.csv:1: Unknown columns: typo.',
+                'message': 'manifest.csv:1: Unknown columns: typo.',
             },
         ]
     }
@@ -52,13 +52,13 @@ def test_strip_unknown_field(rc: RawConfig):
        |   |   |   |   | name     |      | string
     ''')
     resp = app.post('/:check', files={
-        'manifest': ('manifest_text.csv', csv_manifest, 'text/csv'),
+        'manifest': ('manifest.csv', csv_manifest, 'text/csv'),
     })
     assert resp.json() == {
         'errors': [
             {
                 'code': 'TabularManifestError',
-                'message': 'manifest_text.csv:1: Unknown columns: typo.',
+                'message': 'manifest.csv:1: Unknown columns: typo.',
             },
         ]
     }
@@ -74,7 +74,7 @@ def test_unknown_type(rc: RawConfig):
        |   |   |   |   | name     | stringz
     ''')
     resp = app.post('/:check', files={
-        'manifest': ('manifest_text.csv', csv_manifest, 'text/csv'),
+        'manifest': ('manifest.csv', csv_manifest, 'text/csv'),
     })
     assert error(resp, ['component', 'error']) == {
         'context': {

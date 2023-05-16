@@ -40,6 +40,7 @@ from spinta.utils.data import take
 from spinta.types.namespace import traverse_ns_models
 from spinta.core.ufuncs import asttoexpr
 from spinta.formats.components import Format
+from spinta.types.text.components import Text
 
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
@@ -849,12 +850,12 @@ def build_data_patch_for_write(
 ) -> Union[dict, NotAvailable]:
     if given is NA:
         if insert_action or update_action:
-            if dtype.name == "text":
+            if isinstance(dtype, Text):
                 given = dtype.prop.name
             else:
                 given = dtype.default
         else:
-            if dtype.name == "text":
+            if isinstance(dtype, Text):
                 given = dtype.prop.name
             else:
                 return NA

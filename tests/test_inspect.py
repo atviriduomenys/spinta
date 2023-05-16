@@ -71,6 +71,7 @@ def test_inspect(
 
     # Check what was detected.
     manifest = load_manifest(rc, tmp_path / 'result.csv')
+    print(manifest.datasets)
     manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare
@@ -1087,10 +1088,10 @@ def test_inspect_multiple_resources_advanced(
                             |         |     |         |         |         |
          |   | NewRemoved   |         |     | NEWREMOVED |         |         |
          |   |   | name     | string  |     | NAME |         |         |
-                            |         |     |         |         |         |       
+                            |         |     |         |         |         |
          |   | City         |         |     | CITY |         |         |
          |   |   | name     | string  |     | NAME |         |         |
-         |   |   | removed  | string  |     | REMOVED |         |         |   
+         |   |   | removed  | string  |     | REMOVED |         |         |
                             |         |     |         |         |         |
          | /          |      |     |  |         |         |
          |   | InBetween    |         |     |         |         |         |
@@ -1185,7 +1186,7 @@ def test_inspect_multiple_datasets(
                             |         |     |         |         |         |
          |   | Country      |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |     
+                            |         |     |         |         |         |
        datasets/gov/loc     |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
@@ -1255,7 +1256,7 @@ def test_inspect_multiple_datasets_advanced_manifest_priority(
                             |         |     |         |         |         |
          |   | NewCountry   |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |     
+                            |         |     |         |         |         |
        datasets/gov/loc     |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |
@@ -1333,7 +1334,7 @@ def test_inspect_multiple_datasets_advanced_external_priority(
                             |         |     |         |         |         |
          |   | NewCountry   |         |     | COUNTRY |         |         |
          |   |   | name     | string  |     | NAME    |         |         |
-                            |         |     |         |         |         |     
+                            |         |     |         |         |         |
        datasets/gov/loc     |         |     |         |         |         | Example
          | schema           | sql     |     | {sqlite.dsn} |         |         |
                             |         |     |         |         |         |

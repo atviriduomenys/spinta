@@ -276,8 +276,8 @@ def test_loading(tmp_path: Path, rc: RawConfig):
       |   |   |   | name     | string                |      | open
       |   |   |   | country  | geometry(point, 3346) |      | open
     '''
-    create_tabular_manifest(tmp_path / 'manifest_text.csv', table)
-    manifest = load_manifest(rc, tmp_path / 'manifest_text.csv')
+    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     assert manifest == table
 
 

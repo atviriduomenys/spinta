@@ -209,7 +209,7 @@ def select_keys(
             continue
 
         if key in value:
-            if sel is None or sel.get('*') == {}:
+            if sel is None or sel.get('*') == {} or isinstance(sel, dict):
                 val = value[key]
             else:
                 val = {}

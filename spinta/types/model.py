@@ -425,7 +425,7 @@ def check(context: Context, prop: Property):
 
 @authorize.register(Context, Action, Model)
 def authorize(context: Context, action: Action, model: Model):
-    authorized(context, model, action, throw=False)
+    authorized(context, model, action, throw=True)
 
 
 @authorize.register(Context, Action, Property)

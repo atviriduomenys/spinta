@@ -22,8 +22,8 @@ def test_show(rc, cli: SpintaCliRunner, tmp_path):
        |   |   |   |   | country  | ref    | Country | salis       |         |       | protected |     |       |
     ''')
 
-    create_tabular_manifest(tmp_path / 'manifest_text.csv', manifest)
+    create_tabular_manifest(tmp_path / 'manifest.csv', manifest)
 
-    result = cli.invoke(rc, ['show', tmp_path / 'manifest_text.csv'])
+    result = cli.invoke(rc, ['show', tmp_path / 'manifest.csv'])
 
     assert striptable(result.stdout) == manifest
