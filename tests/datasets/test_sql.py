@@ -313,6 +313,7 @@ def test_join_with_base(
     app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
     LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
     VLN = "2074d66e-0dfd-4233-b1ec-199abc994d0c"
+    SLS = "e6ebd442-80a3-4115-b4d6-72411ee6ef76"
 
     resp = app.post('/datasets/basetest/Place', json={
         '_id': LTU,
@@ -341,8 +342,24 @@ def test_join_with_base(
     })
     assert resp.status_code == 201
 
+    resp = app.post('/datasets/basetest/Place', json={
+        '_id': SLS,
+        'id': 3,
+        'name': 'Siauliai',
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/City', json={
+        '_id': SLS,
+        'id': 30,
+        'country': {'_id': LTU},
+    })
+    assert resp.status_code == 201
+
     resp = app.get('/datasets/basetest/City?select(id,name,country.name)')
-    assert listdata(resp) is not ""
+
+    assert resp.status_code == 200
+    assert "Lithuania" in resp.text
 
 
 @pytest.mark.skip('todo')
