@@ -103,12 +103,23 @@ class PgQueryBuilder(Env):
             lrkey = self.backend.get_column(ltable, fpr.left)
 
             rmodel = fpr.right.model
+
             rtable = self.backend.get_table(rmodel).alias()
             rpkey = self.backend.get_column(rtable, rmodel.properties['_id'])
 
             condition = lrkey == rpkey
             self.joins[fpr.name] = rtable
             self.from_ = self.from_.outerjoin(rtable, condition)
+
+            base_model = get_property_base_model(rmodel, prop.right.basename)
+            if base_model:
+                rtable = self.backend.get_table(base_model).alias()
+                self.joins[base_model.name] = rtable
+
+                rpkey = self.backend.get_column(rtable, base_model.properties['_id'])
+                condition = lrkey == rpkey
+                self.from_ = self.from_.outerjoin(rtable, condition)
+                return self.joins[base_model.name]
 
         return self.joins[fpr.name]
 

@@ -306,7 +306,7 @@ def test_join_with_base(
       |   |   | City         |         | id      |
       |   |   |   | id       | integer |         | open
       |   |   |   | name     |         |         | open
-      |   |   |   | country  | ref     | Country | open 
+      |   |   |   | country  | ref     | Country | open
     ''', backend=postgresql, request=request)
 
     app = create_test_client(context)
@@ -341,9 +341,7 @@ def test_join_with_base(
     })
     assert resp.status_code == 201
 
-    resp = app.get('/datasets/basetest/City?select(id,name,country.name)&format(ascii)')
-    print(json.dumps(resp.json(), indent=2))
-    print()
+    resp = app.get('/datasets/basetest/City?select(id,name,country.name)')
     assert listdata(resp) is not ""
 
 
