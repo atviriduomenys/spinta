@@ -44,11 +44,11 @@ id | d | r | b | m | property | type                   | ref     | source       
    |   | resource             | json                   |         | manifest.json    |         |       |        |     |       |
    |                          |                        |         |                  |         |       |        |     |       |
    |   |   |   | Country      |                        |         | country          |         |       |        |     |       |
-   |   |   |   |   | name     | string unique required |         | name             |         |       |        |     |       |
-   |   |   |   |   | code     | string unique required |         | code             |         |       |        |     |       |
+   |   |   |   |   | name     | string required unique |         | name             |         |       |        |     |       |
+   |   |   |   |   | code     | string required unique |         | code             |         |       |        |     |       |
    |                          |                        |         |                  |         |       |        |     |       |
    |   |   |   | Cities       |                        |         | country[].cities |         |       |        |     |       |
-   |   |   |   |   | name     | string unique required |         | name             |         |       |        |     |       |
+   |   |   |   |   | name     | string required unique |         | name             |         |       |        |     |       |
    |   |   |   |   | country  | ref                    | Country | ..               |         |       |        |     |       |
 ''')
     assert a == b
@@ -89,11 +89,11 @@ id | d | r | b | m | property | type                   | ref     | source       
    |   | resource             | json                   |         | manifest.json |         |       |        |     |       |
    |                          |                        |         |               |         |       |        |     |       |
    |   |   |   | Model1       |                        |         | .             |         |       |        |     |       |
-   |   |   |   |   | name     | string unique required |         | name          |         |       |        |     |       |
-   |   |   |   |   | code     | string unique required |         | code          |         |       |        |     |       |
+   |   |   |   |   | name     | string required unique |         | name          |         |       |        |     |       |
+   |   |   |   |   | code     | string required unique |         | code          |         |       |        |     |       |
    |                          |                        |         |               |         |       |        |     |       |
    |   |   |   | Cities       |                        |         | cities        |         |       |        |     |       |
-   |   |   |   |   | name     | string unique required |         | name          |         |       |        |     |       |
+   |   |   |   |   | name     | string required unique |         | name          |         |       |        |     |       |
    |   |   |   |   | parent   | ref                    | Model1  | ..            |         |       |        |     |       |
 ''')
     assert a == b
@@ -146,13 +146,13 @@ id | d | r | b | m | property            | type                   | ref     | so
    |   | resource                        | json                   |         | manifest.json       |         |       |        |     |       |
    |                                     |                        |         |                     |         |       |        |     |       |
    |   |   |   | Model1                  |                        |         | .                   |         |       |        |     |       |
-   |   |   |   |   | name                | string unique required |         | name                |         |       |        |     |       |
-   |   |   |   |   | code                | string unique required |         | code                |         |       |        |     |       |
+   |   |   |   |   | name                | string required unique |         | name                |         |       |        |     |       |
+   |   |   |   |   | code                | string required unique |         | code                |         |       |        |     |       |
    |   |   |   |   | location_latitude   | number unique          |         | location.latitude   |         |       |        |     |       |
    |   |   |   |   | location_longitude  | number unique          |         | location.longitude  |         |       |        |     |       |
    |                                     |                        |         |                     |         |       |        |     |       |
    |   |   |   | Cities                  |                        |         | cities              |         |       |        |     |       |
-   |   |   |   |   | name                | string unique required |         | name                |         |       |        |     |       |
+   |   |   |   |   | name                | string required unique |         | name                |         |       |        |     |       |
    |   |   |   |   | weather_temperature | number unique          |         | weather.temperature |         |       |        |     |       |
    |   |   |   |   | weather_wind_speed  | number unique          |         | weather.wind_speed  |         |       |        |     |       |
    |   |   |   |   | parent              | ref                    | Model1  | ..                  |         |       |        |     |       |
@@ -214,21 +214,21 @@ id | d | r | b | m | property            | type                    | ref     | s
    |   | resource                        | json                    |         | manifest.json                   |         |       |        |     |       |
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Country                 |                         |         | country                         |         |       |        |     |       |
-   |   |   |   |   | name                | string unique required  |         | name                            |         |       |        |     |       |
-   |   |   |   |   | code                | string unique required  |         | code                            |         |       |        |     |       |
+   |   |   |   |   | name                | string required unique  |         | name                            |         |       |        |     |       |
+   |   |   |   |   | code                | string required unique  |         | code                            |         |       |        |     |       |
    |   |   |   |   | location_coords     | array                   |         | location.coords                 |         |       |        |     |       |
    |   |   |   |   | location_test       | string unique           |         | location.test                   |         |       |        |     |       |
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Geo                     |                         |         | country[].location.geo          |         |       |        |     |       |
-   |   |   |   |   | geo_test            | string unique required  |         | geo_test                        |         |       |        |     |       |
+   |   |   |   |   | geo_test            | string required unique  |         | geo_test                        |         |       |        |     |       |
    |   |   |   |   | country             | ref                     | Country | ...                             |         |       |        |     |       |
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Geo1                    |                         |         | country[].cities[].location.geo |         |       |        |     |       |
-   |   |   |   |   | geo_test            | integer unique required |         | geo_test                        |         |       |        |     |       |
+   |   |   |   |   | geo_test            | integer required unique |         | geo_test                        |         |       |        |     |       |
    |   |   |   |   | cities              | ref                     | Cities  | ...                             |         |       |        |     |       |
    |                                     |                         |         |                                 |         |       |        |     |       |
    |   |   |   | Cities                  |                         |         | country[].cities                |         |       |        |     |       |
-   |   |   |   |   | name                | string unique required  |         | name                            |         |       |        |     |       |
+   |   |   |   |   | name                | string required unique  |         | name                            |         |       |        |     |       |
    |   |   |   |   | location_coords     | array                   |         | location.coords                 |         |       |        |     |       |
    |   |   |   |   | country             | ref                     | Country | ..                              |         |       |        |     |       |
 ''')
