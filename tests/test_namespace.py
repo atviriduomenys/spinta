@@ -46,9 +46,9 @@ def test_getall(model: str, app: TestClient):
 
     resp = app.get('/datasets/backends/postgres/dataset/:all')
     assert listdata(resp, full=True) == [
+        {'code': 'lt', 'continent._id': eu, 'title': 'Lithuania'},
+        {'country._id': lt, 'title': 'Vilnius'},
         {'title': 'Europe'},
-        {'code': 'lt', 'continent': {'_id': eu}, 'title': 'Lithuania'},
-        {'country': {'_id': lt}, 'title': 'Vilnius'},
     ]
 
     resp = app.get('/datasets/csv/:all')

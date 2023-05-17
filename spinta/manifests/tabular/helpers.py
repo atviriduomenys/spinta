@@ -1519,7 +1519,7 @@ def _text_to_tabular(
         yield torow(DATASET, {
             'property': prop.name + '@' + lang,
             'type': prop.dtype.name,
-            'level': prop.level.value,
+            'level': prop.level.value if prop.level is not None else '',
             'access': prop.given.access
         })
 
@@ -1996,7 +1996,7 @@ def _write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w') as f:
+    with path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)

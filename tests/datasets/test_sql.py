@@ -1924,10 +1924,8 @@ def test_file(rc, tmp_path, sqlite):
     assert listdata(resp, full=True) == [
         {
             'name': 'Lithuania',
-            'flag': {
-                '_id': 'lt.png',
-                '_content_type': None,  # FIXME: Should be 'image/png'.
-            },
+            'flag._id': 'lt.png',
+            'flag._content_type': None,  # FIXME: Should be 'image/png'.
         },
     ]
 
@@ -1989,10 +1987,8 @@ def test_push_file(
     assert listdata(resp, full=True) == [
         {
             'name': 'Lithuania',
-            'flag': {
-                '_id': 'lt.png',
-                '_content_type': None,  # FIXME: Should be 'image/png'.
-            },
+            'flag._id': 'lt.png',
+            'flag._content_type': None,  # FIXME: Should be 'image/png'.
         },
     ]
     _id = resp.json()['_data'][0]['_id']
@@ -2037,10 +2033,8 @@ def test_image(rc, tmp_path, sqlite):
     assert listdata(resp, full=True) == [
         {
             'name': 'Lithuania',
-            'flag': {
-                '_id': 'lt.png',
-                '_content_type': None,  # FIXME: Should be 'image/png'.
-            },
+            'flag._id': 'lt.png',
+            'flag._content_type': None,  # FIXME: Should be 'image/png'.
         },
     ]
 
@@ -2102,10 +2096,8 @@ def test_image_file(
     assert listdata(resp, full=True) == [
         {
             'name': 'Lithuania',
-            'flag': {
-                '_id': 'lt.png',
-                '_content_type': None,  # FIXME: Should be 'image/png'.
-            },
+            'flag._id': 'lt.png',
+            'flag._content_type': None,  # FIXME: Should be 'image/png'.
         },
     ]
     _id = resp.json()['_data'][0]['_id']
@@ -2202,18 +2194,18 @@ def test_push_null_foreign_key(
     assert listdata(resp, full=True, sort='name') == [
         {
             'name': 'Ryga',
-            'country': {'_id': countries['Latvia']},
-            'embassy': {'_id': None},
+            'country._id': countries['Latvia'],
+            'embassy._id': None,
         },
         {
             'name': 'Vilnius',
-            'country': {'_id': countries['Lithuania']},
-            'embassy': {'_id': countries['Latvia']},
+            'country._id': countries['Lithuania'],
+            'embassy._id': countries['Latvia'],
         },
         {
             'name': 'Winterfell',
-            'country': {'_id': None},
-            'embassy': {'_id': None},
+            'country._id': None,
+            'embassy._id': None,
         },
     ]
 
@@ -2277,11 +2269,11 @@ def test_push_self_ref(
     assert listdata(resp, full=True) == [
         {
             'name': 'Trakai',
-            'governance': {'_id': cities['Vilnius']},
+            'governance._id': cities['Vilnius'],
         },
         {
             'name': 'Vilnius',
-            'governance': {'_id': None},
+            'governance._id': None,
         },
     ]
 
@@ -2520,7 +2512,7 @@ def test_cast_string(
 
 
 def test_type_text_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
-    create_tabular_manifest(tmpdir / 'manifest_text.csv', striptable('''
+    create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
         d | r | b | m | property| type   | ref     | source       | access
         datasets/gov/example    |        |         |              |
           | data                | sql    |         |              |
