@@ -41,6 +41,10 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         if len(model.external.pkeys) == 1:
             model.external.pkeys[0].dtype.unique = True
         columns.append(sa.UniqueConstraint(*[f"{key.name}._id" if type(key.dtype) is Ref else key.name for key in model.external.pkeys]))
+
+    if model.unique:
+        for val in model.unique:
+            columns.append(sa.UniqueConstraint(*val))
     # Create main table.
     main_table_name = get_pg_name(get_table_name(model))
     pkey_type = commands.get_primary_key_type(context, backend)
@@ -52,16 +56,15 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         *columns,
     )
     backend.add_table(main_table, model)
+
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
-
 
 @commands.prepare.register(Context, PostgreSQL, DataType)
 def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
     if dtype.name in UNSUPPORTED_TYPES:
         return
-
     prop = dtype.prop
     name = get_column_name(prop)
     types = {
@@ -85,7 +88,6 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         raise Exception(
             f"Unknown type {dtype.name!r} for property {prop.place!r}."
         )
-
     column_type = types[dtype.name]
     nullable = not dtype.required
     return sa.Column(name, column_type, unique=dtype.unique, nullable=nullable)

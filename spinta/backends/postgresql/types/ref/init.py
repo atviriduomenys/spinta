@@ -29,8 +29,7 @@ def get_pg_foreign_key(
     *,
     table_name: str,
     model_name: str,
-    column_type: TypeEngine,
-) -> List[Union[sa.Column, sa.Constraint]]:
+    column_type: TypeEngine) -> List[Union[sa.Column, sa.Constraint]]:
     column_name = get_column_name(prop) + '._id'
     nullable = not prop.dtype.required
     return [
