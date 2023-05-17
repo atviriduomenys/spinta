@@ -170,19 +170,24 @@ def test_text_select_by_prop(
     request: FixtureRequest,
 ):
     context = bootstrap_manifest(rc, '''
-    d | r | b | m | property      | type
-    backends/postgres/dtypes/text |
-      |   |   | Country           |
-      |   |   |   | name@lt       | text
-      |   |   |   | name@en       | text
+        id | d | r | b | m | property | type   | ref | source | prepare | level | access | uri | title | description
+           | types/text               |        |     |        |         |       |        |     |       |
+           |                          |        |     |        |         |       |        |     |       |
+           |   |   |   | Country      |        |     |        |         |       |        |     |       |
+           |   |   |   |   | name     | string |     |        |         | 3     | open   |     |       |
+           |                          |        |     |        |         |       |        |     |       |
+           |   |   |   | Country1     |        |     |        |         |       |        |     |       |
+           |   |   |   |   | name@lt  | text   |     |        |         | 3     | open   |     |       |
+           |   |   |   |   | name@en  | text   |     |        |         | 3     | open   |     |       |
     ''', backend=postgresql, request=request)
-    model = 'backends/postgres/dtypes/text/Country'
+    model = 'types/text/Country1'
     app = create_test_client(context)
-    app.authmodel('backends/postgres/dtypes/text/Country', [
+    app.authmodel('types/text/Country1', [
         'insert',
         'update',
         'delete',
         'changes',
+        'search'
     ])
     resp = app.post(f'/{model}', json={
         'name@lt': 'lietuva', 'name@en': 'lithuania'
