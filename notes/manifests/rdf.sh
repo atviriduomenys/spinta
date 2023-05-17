@@ -107,36 +107,8 @@ where {
 }
 ''')
 
+poetry install
 unset SPINTA_CONFIG
-poetry run spinta --tb native inspect -r rdf https://www.w3.org/ns/dcat2.ttl
-#| Loading MemoryManifest manifest default
-#| Loading InlineManifest manifest default
-#| Traceback (most recent call last):
-#|   File "spinta/cli/inspect.py", line 94, in inspect
-#|     _merge(context, manifest, manifest, resource, has_manifest_priority)
-#|   File "spinta/cli/inspect.py", line 120, in _merge
-#|     store = load_manifest(context)
-#|   File "spinta/cli/helpers/store.py", line 116, in load_manifest
-#|     commands.load(
-#|   File "spinta/manifests/yaml/commands/load.py", line 108, in load
-#|     commands.load(
-#|   File "spinta/manifests/rdf/commands/load.py", line 31, in load
-#|     load_manifest_nodes(context, into, schemas, source=manifest)
-#|   File "spinta/manifests/helpers.py", line 136, in load_manifest_nodes
-#|     node = _load_manifest_node(context, config, manifest, source, eid, schema)
-#|   File "spinta/manifests/helpers.py", line 197, in _load_manifest_node
-#|     commands.load(context, node, data, manifest, source=source)
-#|   File "spinta/types/model.py", line 86, in load
-#|     load_model_properties(context, model, Property, data.get('properties'))
-#|   File "spinta/nodes.py", line 219, in load_model_properties
-#|     prop = commands.load(context, prop, params, model.manifest)
-#|   File "spinta/types/model.py", line 214, in load
-#|     raise UnknownPropertyType(prop, type=data['type'])
-#| spinta.exceptions.UnknownPropertyType: Unknown property type 'None'.
-#|   Context:
-#|     component: spinta.components.Property
-#|     manifest: default
-#|     schema: 2
-#|     model: dcat2/Distribution
-#|     property: accessurl
-#|     type: None
+poetry run spinta inspect -r rdf https://www.w3.org/ns/dcat2.ttl
+#| id | d | r | b | m | property | type | ref | source | prepare | level | access | uri | title | description
+#|    | dcat2                    |      |     |        |         |       |        |     |       |
