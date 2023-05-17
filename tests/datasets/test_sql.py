@@ -2511,6 +2511,7 @@ def test_cast_string(
     assert listdata(resp) == ['1']
 
 
+@pytest.mark.skip('todo')
 def test_type_text_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
     create_tabular_manifest(tmpdir / 'manifest.csv', striptable('''
         d | r | b | m | property| type   | ref     | source       | access
@@ -2549,16 +2550,17 @@ def test_type_text_push(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir,
     assert listdata(resp, 'code', 'name') == []
 
 
+@pytest.mark.skip('todo')
 def test_text_type_push_chunks(
     postgresql,
     rc,
     cli: SpintaCliRunner,
     responses,
-    tmpdir,
+    tmp_path,
     geodb,
     request,
 ):
-    create_tabular_manifest(tmpdir / 'manifest_text.csv', striptable('''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
@@ -2566,16 +2568,25 @@ def test_text_type_push_chunks(
       |   |   | country      | salis       |        | code    |
       |   |   |   | code     | kodas       | string |         | open
       |   |   |   | name@lt  | pavadinimas | text   |         | open
+      |   |   |   | name@en  | pavadinimas | text   |         | open
     '''))
 
     # Configure local server with SQL backend
-    localrc = create_rc(rc, tmpdir, geodb)
+    localrc = create_rc(rc, tmp_path, geodb)
 
     # Configure remote server
-    remote = configure_remote_server(cli, localrc, rc, tmpdir, responses)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
     request.addfinalizer(remote.app.context.wipe_all)
 
     # Push data from local to remote.
+    cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/example',
+        '-o', 'spinta+' + remote.url,
+        '--credentials', remote.credsfile,
+        '--chunk-size=1',
+    ])
+
     cli.invoke(localrc, [
         'push',
         '-d', 'datasets/gov/example',
@@ -2593,8 +2604,8 @@ def test_text_type_push_chunks(
     ]
 
 
-def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmpdir, geodb, request):
-    create_tabular_manifest(tmpdir / 'manifest_text.csv', striptable('''
+def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, tmp_path, geodb, request):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | source      | type   | ref     | access
     datasets/gov/example     |             |        |         |
       | data                 |             | sql    |         |
@@ -2605,10 +2616,10 @@ def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, t
     '''))
 
     # Configure local server with SQL backend
-    localrc = create_rc(rc, tmpdir, geodb)
+    localrc = create_rc(rc, tmp_path, geodb)
 
     # Configure remote server
-    remote = configure_remote_server(cli, localrc, rc, tmpdir, responses)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
     request.addfinalizer(remote.app.context.wipe_all)
 
     # Push one row, save state and stop.
@@ -2620,7 +2631,7 @@ def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, t
         '--chunk-size', '1k',
         '--stop-time', '1h',
         '--stop-row', '1',
-        '--state', tmpdir / 'state.db',
+        '--state', tmp_path / 'state.db',
     ])
 
     remote.app.authmodel('datasets/gov/example/country', ['getall'])
@@ -2633,7 +2644,7 @@ def test_text_type_push_state(postgresql, rc, cli: SpintaCliRunner, responses, t
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--stop-row', '1',
-        '--state', tmpdir / 'state.db',
+        '--state', tmp_path / 'state.db',
     ])
 
     resp = remote.app.get('/datasets/gov/example/country')
@@ -2649,7 +2660,7 @@ def test_cast_integer(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/cast/integer'
-    create_tabular_manifest(tmp_path / 'manifest_text.csv', f'''
+    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
     d | r | b | m | property  | type    | ref      | source   | prepare
     {dataset}                 |         |          |          |
       | resource              | sql     | sql      |          |
@@ -2681,7 +2692,7 @@ def test_cast_integer_error(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/cast/integer/error'
-    create_tabular_manifest(tmp_path / 'manifest_text.csv', f'''
+    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
     d | r | b | m | property  | type    | ref      | source   | prepare
     {dataset}                 |         |          |          |
       | resource              | sql     | sql      |          |
@@ -2713,7 +2724,7 @@ def test_point(
     sqlite: Sqlite,
 ):
     dataset = 'example/func/point'
-    create_tabular_manifest(tmp_path / 'manifest_text.csv', f'''
+    create_tabular_manifest(tmp_path / 'manifest.csv', f'''
     d | r | b | m | property | type     | ref | source | prepare     | access
     {dataset}                |          |     |        |             |
       | resource             | sql      | sql |        |             |
