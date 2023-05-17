@@ -37,10 +37,6 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.extend(column)
         elif column is not None:
             columns.append(column)
-    if model.external is not None and model.external.unknown_primary_key is False:
-        if len(model.external.pkeys) == 1:
-            model.external.pkeys[0].dtype.unique = True
-        columns.append(sa.UniqueConstraint(*[f"{key.name}._id" if type(key.dtype) is Ref else key.name for key in model.external.pkeys]))
 
     if model.unique:
         for val in model.unique:
@@ -60,6 +56,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
+
 
 @commands.prepare.register(Context, PostgreSQL, DataType)
 def prepare(context: Context, backend: PostgreSQL, dtype: DataType):

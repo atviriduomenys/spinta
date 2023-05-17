@@ -321,6 +321,77 @@ def test_property_with_ref_with_unique(tmp_path, rc):
     ''')
 
 
+def test_unique_prop_remove_when_model_ref_single(tmp_path, rc):
+    table = '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    | name                 |
+      |   |   |   | name     | string unique      |                      |
+                             |                    |                      |
+      |   |   | City         |                    | name                 |
+                             | unique             | name                 |   
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      |
+      |   |   |   | country  | ref                | Country              |
+    '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    assert manifest == '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    | name                 |
+      |   |   |   | name     | string             |                      |
+                             |                    |                      |
+      |   |   | City         |                    | name                 |
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      |
+      |   |   |   | country  | ref                | Country              |
+    '''
+
+
+def test_unique_prop_remove_when_model_ref_multi(tmp_path, rc):
+    table = '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    | name, id             |
+                             | unique             | name, id             |  
+      |   |   |   | name     | string             |                      |
+      |   |   |   | id       | string unique      |                      |
+                             |                    |                      |
+      |   |   | City         |                    | name, id             |
+                             | unique             | name, id             |   
+                             | unique             | name                 |   
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      |
+      |   |   |   | id       | string             |                      |
+      |   |   |   | country  | ref                | Country              |
+    '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    assert manifest == '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    | name, id             |
+      |   |   |   | name     | string             |                      |
+      |   |   |   | id       | string unique      |                      |
+                             |                    |                      |
+      |   |   | City         |                    | name, id             |
+                             | unique             | name                 |
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      |
+      |   |   |   | id       | string             |                      |
+      |   |   |   | country  | ref                | Country              |
+    '''
+
+
 def test_with_denormalized_data(tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property               | type   | ref       | access
