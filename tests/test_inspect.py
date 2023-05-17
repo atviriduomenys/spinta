@@ -71,7 +71,6 @@ def test_inspect(
 
     # Check what was detected.
     manifest = load_manifest(rc, tmp_path / 'result.csv')
-    print(manifest.datasets)
     manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property   | type    | ref     | source     | prepare

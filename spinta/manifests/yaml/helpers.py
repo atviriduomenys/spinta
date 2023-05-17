@@ -44,7 +44,7 @@ def list_yaml_files(manifest: YamlManifest) -> Iterator[pathlib.Path]:
 
 def read_yaml_file(path: pathlib.Path):
     try:
-        with path.open(encoding='utf8') as f:
+        with path.open() as f:
             for data in yaml.load_all(f):
                 yield data
     except (ParserError, ScannerError, YAMLError) as e:

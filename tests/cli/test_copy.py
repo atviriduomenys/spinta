@@ -168,50 +168,50 @@ def test_copy_with_filters_and_externals(rc, cli, tmp_path):
     '''
 
 
-# def test_copy_and_format_names(rc, cli, tmp_path):
-#     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
-#     d | r | b | m | property    | type    | ref                        | source      | prepare                  | level  | access     | title
-#     datasets/gov/example        |         |                            |             |                          |        |            | Example dataset
-#       | data                    | sql     |                            |             |                          |        |            |
-#                                 |         |                            |             |                          |        |            |
-#       |   |   | COUNTRY         |         | countryCode                | Šalis       | countryCode='lt'         |        |            | Countries
-#       |   |   |   | countryCode | string  |                            | Kodas       | lower()                  | 3      | private    | Country code
-#       |   |   |   | name        | string  |                            | Pavadinimas |                          | 3      | open       |
-#       |   |   |   | population  | integer |                            | Populiacija |                          | 4      | protected  |
-#       |   |   |   | id          | integer |                            |             | countryCode, name        | 2      | public     |
-#                                 |         |                            |             |                          |        |            |
-#       |   |   | CITY            |         | name                       | Miestas     |                          |        |            | Cities
-#       |   |   |   | name        | string  |                            | Pavadinimas |                          | 1      |            |
-#       |   |   |   | countryName | string  |                            | Šalis       |                          | 4      |            |
-#       |   |   |   | countryCode | string  |                            | Kodas       |                          | 4      |            |
-#       |   |   |   | country     | ref     | COUNTRY[countryCode, name] |             | countryCode, countryName | 4      |            |
-#     '''))
-#
-#     cli.invoke(rc, [
-#         'copy',
-#         '--format-names',
-#         '-o', tmp_path / 'result.csv',
-#         tmp_path / 'manifest.csv',
-#     ])
-#
-#     manifest = load_manifest(rc, tmp_path / 'result.csv')
-#     assert manifest == '''
-#     d | r | b | m | property     | type    | ref                         | source      | prepare                    | level  | access    | title
-#     datasets/gov/example         |         |                             |             |                            |        |           | Example dataset
-#       | data                     | sql     |                             |             |                            |        |           |
-#                                  |         |                             |             |                            |        |           |
-#       |   |   | Country          |         | country_code                | Šalis       | country_code='lt'          |        |           | Countries
-#       |   |   |   | country_code | string  |                             | Kodas       | lower()                    | 3      | private   | Country code
-#       |   |   |   | name         | string  |                             | Pavadinimas |                            | 3      | open      |
-#       |   |   |   | population   | integer |                             | Populiacija |                            | 4      | protected |
-#       |   |   |   | id           | integer |                             |             | country_code, name         | 2      | public    |
-#                                  |         |                             |             |                            |        |           |
-#       |   |   | City             |         | name                        | Miestas     |                            |        |           | Cities
-#       |   |   |   | name         | string  |                             | Pavadinimas |                            | 1      |           |
-#       |   |   |   | country_name | string  |                             | Šalis       |                            | 4      |           |
-#       |   |   |   | country_code | string  |                             | Kodas       |                            | 4      |           |
-#       |   |   |   | country      | ref     | Country[country_code, name] |             | country_code, country_name | 4      |           |
-#     '''
+def test_copy_and_format_names(rc, cli, tmp_path):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property    | type    | ref                        | source      | prepare                  | level  | access     | title
+    datasets/gov/example        |         |                            |             |                          |        |            | Example dataset
+      | data                    | sql     |                            |             |                          |        |            |
+                                |         |                            |             |                          |        |            |
+      |   |   | COUNTRY         |         | countryCode                | Šalis       | countryCode='lt'         |        |            | Countries
+      |   |   |   | countryCode | string  |                            | Kodas       | lower()                  | 3      | private    | Country code
+      |   |   |   | name        | string  |                            | Pavadinimas |                          | 3      | open       |
+      |   |   |   | population  | integer |                            | Populiacija |                          | 4      | protected  |
+      |   |   |   | id          | integer |                            |             | countryCode, name        | 2      | public     |
+                                |         |                            |             |                          |        |            |
+      |   |   | CITY            |         | name                       | Miestas     |                          |        |            | Cities
+      |   |   |   | name        | string  |                            | Pavadinimas |                          | 1      |            |
+      |   |   |   | countryName | string  |                            | Šalis       |                          | 4      |            |
+      |   |   |   | countryCode | string  |                            | Kodas       |                          | 4      |            |
+      |   |   |   | country     | ref     | COUNTRY[countryCode, name] |             | countryCode, countryName | 4      |            |
+    '''))
+
+    cli.invoke(rc, [
+        'copy',
+        '--format-names',
+        '-o', tmp_path / 'result.csv',
+        tmp_path / 'manifest.csv',
+    ])
+
+    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    assert manifest == '''
+    d | r | b | m | property     | type    | ref                         | source      | prepare                    | level  | access    | title
+    datasets/gov/example         |         |                             |             |                            |        |           | Example dataset
+      | data                     | sql     |                             |             |                            |        |           |
+                                 |         |                             |             |                            |        |           |
+      |   |   | Country          |         | country_code                | Šalis       | country_code='lt'          |        |           | Countries
+      |   |   |   | country_code | string  |                             | Kodas       | lower()                    | 3      | private   | Country code
+      |   |   |   | name         | string  |                             | Pavadinimas |                            | 3      | open      |
+      |   |   |   | population   | integer |                             | Populiacija |                            | 4      | protected |
+      |   |   |   | id           | integer |                             |             | country_code, name         | 2      | public    |
+                                 |         |                             |             |                            |        |           |
+      |   |   | City             |         | name                        | Miestas     |                            |        |           | Cities
+      |   |   |   | name         | string  |                             | Pavadinimas |                            | 1      |           |
+      |   |   |   | country_name | string  |                             | Šalis       |                            | 4      |           |
+      |   |   |   | country_code | string  |                             | Kodas       |                            | 4      |           |
+      |   |   |   | country      | ref     | Country[country_code, name] |             | country_code, country_name | 4      |           |
+    '''
 
 
 def test_copy_and_format_names_for_ref(rc, cli, tmp_path):
