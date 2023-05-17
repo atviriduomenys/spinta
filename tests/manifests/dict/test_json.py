@@ -39,17 +39,17 @@ def test_json_normal(rc: RawConfig, tmp_path: Path):
     manifest = load_manifest(rc, path)
     manifest.datasets["dataset"].resources["resource"].external = "manifest.json"
     a, b = compare_manifest(manifest, f'''
-id | d | r | b | m | property | type                   | ref     | source        | prepare | level | access | uri | title | description
-   | dataset                  |                        |         |               |         |       |        |     |       |
-   |   | resource             | json                   |         | manifest.json |         |       |        |     |       |
-   |                          |                        |         |               |         |       |        |     |       |
-   |   |   |   | Country      |                        |         | country       |         |       |        |     |       |
-   |   |   |   |   | name     | string unique required |         | name          |         |       |        |     |       |
-   |   |   |   |   | code     | string unique required |         | code          |         |       |        |     |       |
-   |                          |                        |         |               |         |       |        |     |       |
-   |   |   |   | Cities       |                        |         | cities        |         |       |        |     |       |
-   |   |   |   |   | name     | string unique required |         | name          |         |       |        |     |       |
-   |   |   |   |   | country  | ref                    | Country | country       |         |       |        |     |       |
+id | d | r | b | m | property | type                   | ref     | source           | prepare | level | access | uri | title | description
+   | dataset                  |                        |         |                  |         |       |        |     |       |
+   |   | resource             | json                   |         | manifest.json    |         |       |        |     |       |
+   |                          |                        |         |                  |         |       |        |     |       |
+   |   |   |   | Country      |                        |         | country          |         |       |        |     |       |
+   |   |   |   |   | name     | string unique required |         | name             |         |       |        |     |       |
+   |   |   |   |   | code     | string unique required |         | code             |         |       |        |     |       |
+   |                          |                        |         |                  |         |       |        |     |       |
+   |   |   |   | Cities       |                        |         | country[].cities |         |       |        |     |       |
+   |   |   |   |   | name     | string unique required |         | name             |         |       |        |     |       |
+   |   |   |   |   | country  | ref                    | Country | ..               |         |       |        |     |       |
 ''')
     assert a == b
 
@@ -156,5 +156,80 @@ id | d | r | b | m | property            | type                   | ref     | so
    |   |   |   |   | weather_temperature | number unique          |         | weather.temperature |         |       |        |     |       |
    |   |   |   |   | weather_wind_speed  | number unique          |         | weather.wind_speed  |         |       |        |     |       |
    |   |   |   |   | parent              | ref                    | Model1  | ..                  |         |       |        |     |       |
+''')
+    assert a == b
+
+
+def test_json_inherit_nested(rc: RawConfig, tmp_path: Path):
+    json_manifest = {
+        "country": [
+            {
+                "name": "Lithuania",
+                "code": "LT",
+                "location": {
+                    "coords": [54.5 ,58.6],
+                    "test": "nope",
+                    "geo": [
+                        {
+                            "geo_test":"test"
+                        }
+                    ]
+                },
+                "cities": [
+                    {
+                        "name": "Vilnius",
+                        "location": {
+                            "coords": [54.5, 55.1],
+                            "geo": [
+                                {
+                                    "geo_test": 5
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Kaunas"
+                    }
+                ]
+            },
+            {
+                "name": "Latvia",
+                "code": "LV",
+                "cities": [
+                    {
+                        "name": "Riga"
+                    }
+                ]
+            }
+        ]
+    }
+    path = tmp_path / 'manifest.json'
+    path.write_text(json.dumps(json_manifest))
+
+    manifest = load_manifest(rc, path)
+    manifest.datasets["dataset"].resources["resource"].external = "manifest.json"
+    a, b = compare_manifest(manifest, f'''
+id | d | r | b | m | property            | type                    | ref     | source                          | prepare | level | access | uri | title | description
+   | dataset                             |                         |         |                                 |         |       |        |     |       |
+   |   | resource                        | json                    |         | manifest.json                   |         |       |        |     |       |
+   |                                     |                         |         |                                 |         |       |        |     |       |
+   |   |   |   | Country                 |                         |         | country                         |         |       |        |     |       |
+   |   |   |   |   | name                | string unique required  |         | name                            |         |       |        |     |       |
+   |   |   |   |   | code                | string unique required  |         | code                            |         |       |        |     |       |
+   |   |   |   |   | location_coords     | array                   |         | location.coords                 |         |       |        |     |       |
+   |   |   |   |   | location_test       | string unique           |         | location.test                   |         |       |        |     |       |
+   |                                     |                         |         |                                 |         |       |        |     |       |
+   |   |   |   | Geo                     |                         |         | country[].location.geo          |         |       |        |     |       |
+   |   |   |   |   | geo_test            | string unique required  |         | geo_test                        |         |       |        |     |       |
+   |   |   |   |   | country             | ref                     | Country | ...                             |         |       |        |     |       |
+   |                                     |                         |         |                                 |         |       |        |     |       |
+   |   |   |   | Geo1                    |                         |         | country[].cities[].location.geo |         |       |        |     |       |
+   |   |   |   |   | geo_test            | integer unique required |         | geo_test                        |         |       |        |     |       |
+   |   |   |   |   | cities              | ref                     | Cities  | ...                             |         |       |        |     |       |
+   |                                     |                         |         |                                 |         |       |        |     |       |
+   |   |   |   | Cities                  |                         |         | country[].cities                |         |       |        |     |       |
+   |   |   |   |   | name                | string unique required  |         | name                            |         |       |        |     |       |
+   |   |   |   |   | location_coords     | array                   |         | location.coords                 |         |       |        |     |       |
+   |   |   |   |   | country             | ref                     | Country | ..                              |         |       |        |     |       |
 ''')
     assert a == b
