@@ -155,3 +155,32 @@ def test_sort_models_by_refs(rc: RawConfig):
         'datasets/gov/example/Country',
         'datasets/gov/example/Continent',
     ]
+
+
+def test_sort_models_by_ref_with_base(rc: RawConfig):
+    manifest = load_manifest(rc, '''
+    d | r | b | m | property | type    | ref     | access
+    datasets/basetest        |         |         |
+      |   |   | Place        |         | id      |
+      |   |   |   | id       | integer |         | open
+      |   |   |   | name     | string  |         | open
+      |   |   |   |          |         |         |
+      |   | Place            |         | name    |
+      |   |   |   |          |         |         |
+      |   |   | Country      |         | id      |
+      |   |   |   | id       | integer |         | open
+      |   |   |   | name     |         |         | open
+      |   |   |   |          |         |         |
+      |   |   | City         |         | id      |
+      |   |   |   | id       | integer |         | open
+      |   |   |   | name     |         |         | open
+      |   |   |   | country  | ref     | Country | open
+    ''')
+
+    models = sort_models_by_refs(manifest.models.values())
+    names = [model.name for model in models]
+    assert names == [
+        'datasets/basetest/City',
+        'datasets/basetest/Country',
+        'datasets/basetest/Place',
+    ]
