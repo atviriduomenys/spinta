@@ -269,6 +269,9 @@ def _read_model(
                 'access': 'open',
                 'description': [],
                 'title': None,
+                'external': {
+                    'dataset': dataset['name'],
+                },
             }
         })
 
@@ -286,6 +289,9 @@ def _read_model(
             'properties': properties,
             'uri': uri,
             'access': 'open',
+            'external': {
+                'dataset': dataset['name'],
+            },
         }
     })
 
@@ -320,6 +326,9 @@ def _read_property(
                 'access': 'open',
                 'description': [],
                 'title': None,
+                'external': {
+                    'dataset': dataset['name'],
+                },
             }
         })
 

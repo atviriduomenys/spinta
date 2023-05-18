@@ -52,6 +52,7 @@ def test_rdf_with_one_schema():
             'access': 'open',
             'description': 'Dataset',
             'title': 'Dataset',
+            'external': {'dataset': 'datasets/rdf'},
         })
     ]
 
@@ -96,6 +97,7 @@ def test_rdf_with_duplicate_schema_for_model():
             'access': 'open',
             'description': 'Dataset rdfs\nDataset shacl',
             'title': 'Dataset',
+            'external': {'dataset': 'datasets/rdf'},
         })
     ]
 
@@ -157,6 +159,7 @@ def test_rdf_with_duplicate_schema_for_property():
             'access': 'open',
             'description': 'Dataset',
             'title': 'Dataset',
+            'external': {'dataset': 'datasets/rdf'},
         })
     ]
 
@@ -200,6 +203,7 @@ def test_rdf_with_missing_model():
             'access': 'open',
             'description': '',
             'title': None,
+            'external': {'dataset': 'datasets/rdf'},
         })
     ]
 
@@ -244,6 +248,7 @@ def test_rdf_with_base():
             'access': 'open',
             'description': 'Base model',
             'title': 'Base',
+            'external': {'dataset': 'datasets/rdf'},
         }),
         (2, {
             'type': 'model',
@@ -257,6 +262,7 @@ def test_rdf_with_base():
             'access': 'open',
             'description': 'Dataset',
             'title': 'Dataset',
+            'external': {'dataset': 'datasets/rdf'},
         })
     ]
 
@@ -319,6 +325,7 @@ def test_rdf_with_ref():
             'access': 'open',
             'description': 'Dataset',
             'title': 'Dataset',
+            'external': {'dataset': 'datasets/rdf'},
         }),
         (2, {
             'type': 'model',
@@ -329,6 +336,7 @@ def test_rdf_with_ref():
             'access': 'open',
             'description': 'Catalog',
             'title': 'Catalog',
+            'external': {'dataset': 'datasets/rdf'},
         })
     ]
 
@@ -381,6 +389,7 @@ def test_rdf_with_different_language():
             'access': 'open',
             'description': '',
             'title': '',
+            'external': {'dataset': 'datasets/rdf'},
         })
     ]
 
