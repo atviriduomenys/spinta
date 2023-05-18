@@ -1548,7 +1548,7 @@ def _unique_to_tabular(model_unique_data, hide_list: List) -> Iterator[ManifestR
         if row not in hide_list:
             yield torow(DATASET, {
                 'type': 'unique',
-                'ref': ', '.join([r.split('.')[0] for r in row])
+                'ref': ', '.join([r.name for r in row])
             })
 
 
@@ -1723,7 +1723,7 @@ def _model_to_tabular(
     hide_list = []
     if model.external:
         if not model.external.unknown_primary_key:
-            hide_list.append([key.name for key in model.external.pkeys])
+            hide_list = [model.external.pkeys]
     yield torow(DATASET, data)
     yield from _comments_to_tabular(model.comments, access=access)
     yield from _lang_to_tabular(model.lang)
