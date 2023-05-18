@@ -40,7 +40,13 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 
     if model.unique:
         for val in model.unique:
-            columns.append(sa.UniqueConstraint(*val))
+            prop_list = []
+            for prop in val:
+                name = prop.name
+                if isinstance(prop.dtype, Ref):
+                    name = f'{name}.{prop.dtype.refprops[0].name}'
+                prop_list.append(name)
+            columns.append(sa.UniqueConstraint(*prop_list))
     # Create main table.
     main_table_name = get_pg_name(get_table_name(model))
     pkey_type = commands.get_primary_key_type(context, backend)
