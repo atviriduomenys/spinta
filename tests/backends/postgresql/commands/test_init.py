@@ -37,7 +37,7 @@ def test_prepare(rc: RawConfig):
 def test_prepare_base_under_level(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b         | m           | property | type    | ref       | level | access
-    example/base/under                         |         |           |       |
+    example/base_under                         |         |           |       |
       |   |           | BaseModel   |          |         |           | 3     |
       |   |           |             | id       | integer |           | 3     | open
       |   |           |             | name     | string  |           | 3     | open
@@ -48,11 +48,11 @@ def test_prepare_base_under_level(rc: RawConfig):
       |   |           |             | test     | string  |           | 3     | open
 
     ''')
-    model = manifest.models['example/base/under/NormalModel']
+    model = manifest.models['example/base_under/NormalModel']
     backend = model.backend
     commands.prepare(context, backend, model)
     table = backend.get_table(model)
-    assert [type(c).__name__ for c in table.constraints] == [
+    assert sorted([type(c).__name__ for c in table.constraints]) == [
         'PrimaryKeyConstraint'
     ]
 
@@ -60,7 +60,7 @@ def test_prepare_base_under_level(rc: RawConfig):
 def test_prepare_base_over_level(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b         | m           | property | type    | ref       | level | access
-    example/base/over                          |         |           |       |
+    example/base_over                          |         |           |       |
       |   |           | BaseModel   |          |         |           | 4     |
       |   |           |             | id       | integer |           | 3     | open
       |   |           |             | name     | string  |           | 3     | open
@@ -71,20 +71,20 @@ def test_prepare_base_over_level(rc: RawConfig):
       |   |           |             | test     | string  |           | 3     | open
 
     ''')
-    model = manifest.models['example/base/over/NormalModel']
+    model = manifest.models['example/base_over/NormalModel']
     backend = model.backend
     commands.prepare(context, backend, model)
     table = backend.get_table(model)
-    assert [type(c).__name__ for c in table.constraints] == [
+    assert sorted([type(c).__name__ for c in table.constraints]) == sorted([
         'PrimaryKeyConstraint',
         'ForeignKeyConstraint'
-    ]
+    ])
 
 
 def test_prepare_base_no_level(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b         | m           | property | type    | ref       | level | access
-    example/base/over                          |         |           |       |
+    example/base_no                          |         |           |       |
       |   |           | BaseModel   |          |         |           |       |
       |   |           |             | id       | integer |           | 3     | open
       |   |           |             | name     | string  |           | 3     | open
@@ -95,11 +95,11 @@ def test_prepare_base_no_level(rc: RawConfig):
       |   |           |             | test     | string  |           | 3     | open
 
     ''')
-    model = manifest.models['example/base/over/NormalModel']
+    model = manifest.models['example/base_no/NormalModel']
     backend = model.backend
     commands.prepare(context, backend, model)
     table = backend.get_table(model)
-    assert [type(c).__name__ for c in table.constraints] == [
+    assert sorted([type(c).__name__ for c in table.constraints]) == sorted([
         'PrimaryKeyConstraint',
         'ForeignKeyConstraint'
-    ]
+    ])
