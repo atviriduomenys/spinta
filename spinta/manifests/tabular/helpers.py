@@ -762,12 +762,13 @@ class ParamReader(TabularReader):
             'description': row[DESCRIPTION],
         }
 
+    def _get_and_append_data(self, old: Dict, row: ManifestRow):
+        old["source"].append(row[SOURCE])
+        old["prepare"].append(_parse_spyna(self, row[PREPARE]))
+
     def _ensure_params_list(self, node: TabularReader, name: str) -> None:
         if 'params' not in node.data:
             node.data['params'] = {}
-
-        if name not in node.data['params']:
-            node.data['params'][name] = []
 
     def _check_param_name(self, node: TabularReader, name: str) -> None:
         if 'params' in node.data and name in node.data['params']:
@@ -786,7 +787,7 @@ class ParamReader(TabularReader):
         self._ensure_params_list(node, self.name)
 
         self.data = self._get_data(self.name, row)
-        node.data['params'][self.name].append(self.data)
+        node.data['params'][self.name] = self.data
 
     def append(self, row: ManifestRow) -> None:
         node = self._get_node()
@@ -796,8 +797,7 @@ class ParamReader(TabularReader):
             self._check_param_name(node, self.name)
             self._ensure_params_list(node, self.name)
 
-        self.data = self._get_data(self.name, row)
-        node.data['params'][self.name].append(self.data)
+        self._get_and_append_data(node.data['params'][self.name], row)
 
     def release(self, reader: TabularReader = None) -> bool:
         return not isinstance(reader, (AppendReader, LangReader))
@@ -1542,6 +1542,32 @@ def _unique_to_tabular(model_unique_data) -> Iterator[ManifestRow]:
         })
 
 
+def _params_to_tabular(params_data) -> Iterator[ManifestRow]:
+    if not params_data:
+        return
+    for param, values in params_data.items():
+        for i in range(len(values["source"])):
+            if isinstance(values["prepare"][i], NotAvailable):
+                prepare = ''
+            else:
+                prepare = spyna.unparse(values["prepare"][i])
+            if not (isinstance(values["prepare"][i], NotAvailable) and values['source'][i] == ''):
+                if i == 0:
+                    yield torow(DATASET, {
+                        'type': 'param',
+                        'ref': param,
+                        'source': values["source"][i],
+                        'prepare': prepare,
+                        'title': values["title"],
+                        'description': values["description"]
+                    })
+                else:
+                    yield torow(DATASET, {
+                        'source': values["source"][i],
+                        'prepare': prepare
+                    })
+
+
 def _dataset_to_tabular(
     dataset: Dataset,
     *,
@@ -1593,6 +1619,7 @@ def _resource_to_tabular(
         'title': resource.title,
         'description': resource.description,
     })
+    yield from _params_to_tabular(resource.params)
     yield from _comments_to_tabular(resource.comments, access=access)
     yield from _lang_to_tabular(resource.lang)
 
@@ -1710,6 +1737,7 @@ def _model_to_tabular(
                 p.name for p in model.external.pkeys
             ])
     yield torow(DATASET, data)
+    yield from _params_to_tabular(model.params)
     yield from _comments_to_tabular(model.comments, access=access)
     yield from _lang_to_tabular(model.lang)
     yield from _unique_to_tabular(model.unique)
