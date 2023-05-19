@@ -2359,7 +2359,7 @@ def test_error_handling_server_error(
             'push',
             '-o', 'spinta+https://example.com',
             '--credentials', tmp_path / 'credentials.cfg',
-        ])
+        ], fail=False)
 
     message = (
         'Error when sending and receiving data. Model example/errors/City, '
@@ -2388,7 +2388,7 @@ def test_error_handling_io_error(
             'push',
             '-o', 'spinta+https://example.com',
             '--credentials', tmp_path / 'credentials.cfg',
-        ])
+        ], fail=False)
 
     message = (
         'Error when sending and receiving data. Model example/errors/City, '

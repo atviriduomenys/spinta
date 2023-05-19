@@ -253,7 +253,10 @@ def simple_data_check(
             p.name.split('.')[0] == prop.name
         )
     ]
-    allowed_keys = [prop.name for prop in dtype.refprops]
+    if dtype.model.given.pkeys or dtype.explicit:
+        allowed_keys = [prop.name for prop in dtype.refprops]
+    else:
+        allowed_keys = ['_id']
     allowed_keys.extend(denorm_prop_keys)
     value = flatten_value(value)
     for key in value.keys():
@@ -830,7 +833,7 @@ def prepare_dtype_for_response(
             fmt,
             prop.dtype,
             val,
-            data=data,
+            data=value,
             action=action,
             select=sel,
         )
@@ -1015,7 +1018,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    base_model = _get_property_base_model(dtype.prop)
+    base_model = get_property_base_model(dtype.prop.model, dtype.prop.name)
     if base_model:
         prop = base_model.properties[dtype.prop.name]
         return commands.prepare_dtype_for_response(
@@ -1030,13 +1033,51 @@ def prepare_dtype_for_response(
     return None
 
 
-def _get_property_base_model(prop: Property):
-    model = prop.model
+@commands.prepare_dtype_for_response.register(Context, Format, Inherit, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: DataType,
+    value: Any,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if dtype.prop.name == '_base' and value:
+        data = {}
+        for name in value.keys():
+            base_model = get_property_base_model(dtype.prop.model, name)
+            if base_model:
+                data.update({
+                    prop.name: commands.prepare_dtype_for_response(
+                        context,
+                        fmt,
+                        prop.dtype,
+                        val,
+                        data=data,
+                        action=action,
+                        select=sel,
+                    )
+                    for prop, val, sel in select_props(
+                        base_model,
+                        [name],
+                        base_model.properties,
+                        value,
+                        select,
+                    )
+                })
+        return data
+    return {}
+
+
+def get_property_base_model(model: Model, name: str):
+    model = model
     base_model = None
     while model.base and model.base.parent:
         model = model.base.parent
-        if prop.name in model.properties and not isinstance(
-            model.properties[prop.name].dtype,
+        if name in model.properties and not isinstance(
+            model.properties[name].dtype,
             Inherit
         ):
             base_model = model

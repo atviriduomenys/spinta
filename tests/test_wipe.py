@@ -2,9 +2,12 @@ from typing import List
 from typing import Tuple
 
 import pytest
+from _pytest.fixtures import FixtureRequest
 
-from spinta.testing.client import TestClient
+from spinta.core.config import RawConfig
+from spinta.testing.client import TestClient, create_test_client
 from spinta.testing.data import listdata
+from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import get_error_codes
 from spinta.utils.schema import NA
 
@@ -282,3 +285,45 @@ def test_wipe_row_access(model, app):
         ('backends/postgres/report', 'ok'),
         ('report', 'ok'),
     ]
+
+
+def test_wipe_with_long_names(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property                 | type     | ref
+    backends/postgres/very/long/name/models  |          |
+      |   |   | ModelWithVeryVeryVeryLongName|          |
+      |   |   |   | status                   | string   |
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe'])
+
+    # Create some data
+    resp = app.post('/', json={'_data': [
+        {
+            '_op': 'insert',
+            '_type': 'backends/postgres/very/long/name/models/ModelWithVeryVeryVeryLongName',
+            'status': 'ok'
+        },
+    ]})
+    assert resp.status_code == 200, resp.json()
+
+    # Get data from all models
+    resp = app.get('/:all')
+    assert listdata(resp, '_type', 'status') == [
+        ('_txn', NA),
+        ('backends/postgres/very/long/name/models/ModelWithVeryVeryVeryLongName', 'ok')
+    ]
+
+    # Wipe all data
+    resp = app.delete('/:wipe')
+    assert resp.status_code == 200, resp.json()
+
+    # Check what data again
+    resp = app.get('/:all')
+    assert resp.status_code == 200, resp.json()
+    assert len(resp.json()['_data']) == 0

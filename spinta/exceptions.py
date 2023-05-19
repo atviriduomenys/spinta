@@ -570,3 +570,11 @@ class UnableToCast(UserError):
 
 class NotImplementedFeature(BaseError):
     template = "{feature} is not implemented yet."
+
+
+class ReferencedObjectNotFound(UserError):
+    template = "Referenced object {id!r} not found."
+
+
+class ReferringObjectFound(UserError):
+    template = "Object {id!r} is still being referenced in table {model!r}"
