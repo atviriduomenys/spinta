@@ -142,7 +142,7 @@ class _MappingScope(TypedDict):
 def nested_prop_names(new_values: list, values: dict, root: str, seperator: str):
     for key, value in values.items():
         if isinstance(value, dict):
-            nested_prop_names(new_values, values, f'{root}{seperator}{key}', seperator)
+            nested_prop_names(new_values, value, f'{root}{seperator}{key}', seperator)
         elif isinstance(value, list):
             if not _is_list_of_dicts(value):
                 new_values.append(f'{root}{seperator}{key}')
