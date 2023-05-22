@@ -62,5 +62,4 @@ poetry run spinta inspect $BASEDIR/manifest.txt
 #|     dataset: manifests/json
 #|     resource: observations
 #|     parameter: params
-# TODO: https://github.com/atviriduomenys/spinta/issues/210
-# TODO: https://github.com/atviriduomenys/spinta/issues/256
+# TODO: https://github.com/atviriduomenys/spinta/issues/455
