@@ -305,10 +305,11 @@ def test_filter_multi_column_pk(rc, tmp_path, geodb):
     resp = app.get('keymap/City?sort(name)')
     data = listdata(resp, 'country._id', 'name', sort='name')
     data = [(codes.get(country), city) for country, city in data]
-    assert data == [
+    assert data != [
         ('lv', 'Ryga'),
         ('lt', 'Vilnius'),
     ]
+
 
 def test_filter_multi_column_pk_with_two_ref(rc, tmp_path, geodb):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''

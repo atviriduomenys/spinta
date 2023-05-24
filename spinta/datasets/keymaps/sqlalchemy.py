@@ -48,6 +48,8 @@ class SqlAlchemyKeyMap(KeyMap):
             )
             table.create(checkfirst=True)
         return self.metadata.tables[name]
+
+
     def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
         # Make value msgpack serializable.
         if isinstance(value, (list, tuple)):
@@ -58,38 +60,13 @@ class SqlAlchemyKeyMap(KeyMap):
             if value is None:
                 return None
             value = _encode_value(value)
+        if primary_key:
+            return primary_key
         table = self.get_table(name)
         value = msgpack.dumps(value, strict_types=True)
         hash = hashlib.sha1(value).hexdigest()
         query = sa.select([table.c.key]).where(table.c.hash == hash)
         key = self.conn.execute(query).scalar()
-
-        if primary_key is not None and key is None:
-            if name.__contains__('_'):
-                parent_table, code = name.split(".", 1)
-                helper_table, helper_table_2 = name.split('_')
-                temp = '.'.join([parent_table, helper_table_2])
-                temp = self.get_table(temp)
-                query = sa.select([temp.c.key]).where(temp.c.value == value)
-                key = self.conn.execute(query).scalar()
-                if key is not None:
-                    self.conn.execute(table.insert(), {
-                        'key': key,
-                        'hash': hash,
-                        'value': value,
-                    })
-            else:
-                parent_table, code = name.split(".", 1)
-                parent_table = self.get_table(parent_table)
-                query = sa.select([parent_table.c.key]).where((parent_table.c.key == primary_key))
-                key = self.conn.execute(query).scalar()
-                if key is not None:
-                    self.conn.execute(table.insert(), {
-                        'key': key,
-                        'hash': hash,
-                        'value': value,
-                    })
-
         if key is None:
             key = str(uuid.uuid4())
             self.conn.execute(table.insert(), {

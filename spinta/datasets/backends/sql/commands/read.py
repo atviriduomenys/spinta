@@ -24,6 +24,7 @@ from spinta.types.datatype import Ref
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
+import sqlalchemy as sa
 
 log = logging.getLogger(__name__)
 
@@ -85,7 +86,6 @@ def getall(
     for params in iterparams(context, model):
         table = model.external.name.format(**params)
         table = backend.get_table(model, table)
-
         env = builder.init(backend, table)
         env.update(params=params)
         expr = env.resolve(query)
@@ -101,29 +101,26 @@ def getall(
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = keymap.encode(sel.prop.model.model_type(), val)
-                        pk = val
                     elif isinstance(sel.prop.dtype, Ref):
-                        if sel.prop.dtype.refprops == sel.prop.dtype.model.external.pkeys or len(
-                            sel.prop.dtype.refprops) > len(sel.prop.dtype.model.external.pkeys):
-                            val = keymap.encode(sel.prop.dtype.model.model_type(), val)
+                        if sel.prop.dtype.model.external.pkeys == sel.prop.dtype.refprops:
+                            val = keymap.encode(sel.prop.dtype.model.name, val)
+                            pk = val
                         else:
-                            val = keymap.encode(_multi_key_selection(sel.prop.dtype.model.model_type(),
-                                                                     sel.prop.dtype.model.external.pkeys,
-                                                                     sel.prop.dtype.refprops),
-                                val, pk)
+                            if not pk:
+                                table = backend.get_table(model, str(sel.prop.dtype.model.external.name))
+                                pk = conn.execute(_get_params_values(table, query, val)).scalar()
+                                val = keymap.encode(sel.prop.dtype.model.model_type(), pk)
+                            else:
+                                val = keymap.encode(sel.prop.dtype.model.model_type(), val, pk)
                         val = {'_id': val}
-                    elif val not in ['r', 'l']:
-                        keymap.encode(sel.prop.model.model_type()+'.'+sel.prop.name, val, pk)
-
                 res[key] = val
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res
 
 
-def _multi_key_selection(model_name, external_pkeys, refprops):
-    if len(external_pkeys) == 1:
-        key = ['_'+key_name.name for key_name in refprops]
-        return f'''{model_name}.{key[0]}'''
-    else:
-        return f'''{model_name}.{"_".join(key_name.name for key_name in external_pkeys)}'''
+def _get_params_values(table, query, val):
+    parse_params = str(query).strip("(select").rstrip(')').replace('_', '.')
+    foreing_keys = [t.name for t in table.c if t.primary_key]
+    columns = [t.name for t in table.c if t.name in parse_params and not t.primary_key]
+    return sa.select(table.c[foreing_keys[0]]).where(table.c[columns[0]] == val)
