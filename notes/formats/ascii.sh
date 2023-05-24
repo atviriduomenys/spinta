@@ -8,20 +8,27 @@ DATASET=$INSTANCE
 # notes/spinta/server.sh    Configure server
 
 cat > $BASEDIR/manifest.txt <<EOF
-d | r | b | m | property    | type    | ref | access
-$DATASET                    |         |     |
-  |   |   | Dataset         |         | id  |
-  |   |   |   | id          | integer |     | open
-  |   |   |   | title       | string  |     | open
-  |   |   |   | description | string  |     | open
+d | r | b | m | property    | type    | ref     | access
+$DATASET                    |         |         |
+  |   |   | Dataset         |         | id      |
+  |   |   |   | id          | integer |         | open
+  |   |   |   | title       | string  |         | open
+  |   |   |   | description | string  |         | open
+  |   |   |   |             |         |         |
+  |   |   | Country         |         | id      |
+  |   |   |   | id          | integer |         | open
+  |   |   |   | name        | string  |         | open
+  |   |   |   |             |         |         |
+  |   |   | City            |         | id      |
+  |   |   |   | id          | integer |         | open
+  |   |   |   | name        | string  |         | open
+  |   |   |   | country     | ref     | Country | open
 EOF
 poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
 cat $BASEDIR/manifest.csv
 poetry run spinta show
 
-# notes/spinta/server.sh    Check configuration
 # notes/spinta/server.sh    Run migrations
-# notes/spinta/server.sh    Add client
 # notes/spinta/server.sh    Run server
 # notes/spinta/client.sh    Configure client
 
@@ -87,3 +94,29 @@ http GET "$SERVER/$DATASET/Dataset?select(id,title,description)&format(ascii)"
 #| 03    inės asmens sveikatos priežiūros įstaigos, pasi  ernal medicine, pediatric diseases, surgery...           \
 #|       rašius...                                                                                                 
 #| ----  -----------------------------------------------  ---------------------------------------------------------  
+
+
+http POST "$SERVER/$DATASET/Country" $AUTH id:=1 name="Lithunia" _id="54308ab0-7ca0-4728-bb07-0d8819bfc2a7"
+http POST "$SERVER/$DATASET/Country" $AUTH id:=1 name="Latvia" _id="8fc0849d-1907-4cb2-8f62-64b41798824a"
+http POST "$SERVER/$DATASET/City" $AUTH id:=1 name="Vilnius" "country[_id]"="54308ab0-7ca0-4728-bb07-0d8819bfc2a7"
+http POST "$SERVER/$DATASET/City" $AUTH id:=2 name="Kaunas" "country[_id]"="54308ab0-7ca0-4728-bb07-0d8819bfc2a7"
+http POST "$SERVER/$DATASET/City" $AUTH id:=3 name="Ryga" "country[_id]"="8fc0849d-1907-4cb2-8f62-64b41798824a"
+http PATCH "$SERVER/$DATASET/City/a2fd854f-496e-4995-a8c8-09d08e67ef44" $AUTH id:=42 _revision=b5970a01-7563-4e36-b3b9-00be0d5fdd1b
+
+http GET "$SERVER/$DATASET/City/:changes?format(ascii, width(1000))"
+#| _cid  _created                    _op     _id                                   _txn                                  _revision                             id  name     country._id                         
+#| ----  --------------------------  ------  ------------------------------------  ------------------------------------  ------------------------------------  --  -------  ------------------------------------
+#| 1     2023-05-12T11:28:37.937121  insert  a2fd854f-496e-4995-a8c8-09d08e67ef44  e85b88b3-ea1e-4c62-8694-b6c137484b30  b5970a01-7563-4e36-b3b9-00be0d5fdd1b  1   Vilnius  54308ab0-7ca0-4728-bb07-0d8819bfc2a7
+#| 2     2023-05-12T11:28:49.891273  insert  acf3c401-c46b-49cd-ac21-07aca3b278b7  9a58c66e-5a21-40d7-9a34-b361d20e31d1  544043f5-854c-4ebc-8ad4-2af3e25b6149  2   Kaunas   54308ab0-7ca0-4728-bb07-0d8819bfc2a7
+#| 3     2023-05-12T11:29:34.385886  insert  4fb63623-fa66-4b89-b19f-0b1eb911946d  55d04b0c-2f25-4b2d-9649-84df5b7fd43a  85829d97-7b45-4e3e-aa76-cd04f4ac9df4  3   Ryga     8fc0849d-1907-4cb2-8f62-64b41798824a
+#| 4     2023-05-12T11:37:56.675473  patch   a2fd854f-496e-4995-a8c8-09d08e67ef44  86953415-585a-45ad-ba22-15bc70902d09  04085671-e858-4eac-9557-db8f0034fc7f  42  ∅        ∅
+http GET "$SERVER/$DATASET/City/a2fd854f-496e-4995-a8c8-09d08e67ef44/:changes?format(ascii, width(1000))"
+#| _cid  _created                    _op     _id                                   _txn                                  _revision                             id  name     country._id                         
+#| ----  --------------------------  ------  ------------------------------------  ------------------------------------  ------------------------------------  --  -------  ------------------------------------
+#| 1     2023-05-12T11:28:37.937121  insert  a2fd854f-496e-4995-a8c8-09d08e67ef44  e85b88b3-ea1e-4c62-8694-b6c137484b30  b5970a01-7563-4e36-b3b9-00be0d5fdd1b  1   Vilnius  54308ab0-7ca0-4728-bb07-0d8819bfc2a7
+#| 4     2023-05-12T11:37:56.675473  patch   a2fd854f-496e-4995-a8c8-09d08e67ef44  86953415-585a-45ad-ba22-15bc70902d09  04085671-e858-4eac-9557-db8f0034fc7f  42  ∅        ∅
+http GET "$SERVER/$DATASET/Country/:changes?format(ascii, width(1000))"
+#| _cid  _created                    _op     _id                                   _txn                                  _revision                             id  name    
+#| ----  --------------------------  ------  ------------------------------------  ------------------------------------  ------------------------------------  --  --------
+#| 1     2023-05-12T11:27:12.398533  insert  54308ab0-7ca0-4728-bb07-0d8819bfc2a7  8a095976-28d9-4f5b-b652-a17401ebef52  3ee9a07b-c5a3-441d-a314-d6528d86d37c  1   Lithunia
+#| 2     2023-05-12T11:27:14.373875  insert  8fc0849d-1907-4cb2-8f62-64b41798824a  29d30920-8c38-403d-b38e-7c97b4deeedc  2d5dcca7-4bfe-488a-8707-93dd3f8f23c9  1   Latvia

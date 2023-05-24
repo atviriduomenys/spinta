@@ -15,7 +15,8 @@ from requests import PreparedRequest
 from responses import POST
 from responses import RequestsMock
 
-from spinta.cli.push import _PushRow, _reset_pushed, _get_deleted_rows, _ErrorCounter
+from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.push import _PushRow, _reset_pushed
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
@@ -23,6 +24,7 @@ from spinta.cli.push import _send_request
 from spinta.cli.push import _push
 from spinta.cli.push import _State
 from spinta.core.config import RawConfig
+from spinta.testing.datasets import Sqlite
 from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
 
@@ -622,7 +624,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     server = 'https://example.com/'
     responses.add(POST, server, status=409, body='Conflicting value')
 
-    error_counter = _ErrorCounter(1)
+    error_counter = ErrorCounter(1)
     _push(
         context,
         client,
@@ -637,7 +639,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     query = sa.select([table.c.id, table.c.revision, table.c.error])
     assert list(conn.execute(query)) == [(_id1, rev, True)]
 
-    error_counter = _ErrorCounter(2)
+    error_counter = ErrorCounter(2)
     _push(
         context,
         client,
@@ -653,4 +655,54 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     assert list(conn.execute(query)) == [
         (_id1, rev, True),
         (_id2, None, True)
+    ]
+
+
+def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
+    context, manifest = load_manifest_and_context(rc, '''
+           m | property | type   | access
+           City         |        |
+             | name     | string | open
+           ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    sqlite.init({
+        'City': [
+            sa.Column('id', sa.Unicode, primary_key=True),
+            sa.Column('rev', sa.Unicode),
+            sa.Column('pushed', sa.DateTime)
+        ],
+    })
+
+    table = sqlite.tables[model.name]
+    conn = sqlite.engine.connect()
+
+    _id = '4d741843-4e94-4890-81d9-5af7c5b5989a'
+    rev = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    pushed = datetime.datetime.now()
+    conn.execute(
+        table.insert().
+        values(
+            id=_id,
+            rev=rev,
+            pushed=pushed
+        )
+    )
+
+    state = _State(*_init_push_state(sqlite.dsn, models))
+    conn = state.engine.connect()
+    table = state.metadata.tables[model.name]
+
+    query = sa.select([
+        table.c.id,
+        table.c.checksum,
+        table.c.pushed,
+        table.c.revision,
+        table.c.error,
+        table.c.data,
+    ])
+    assert list(conn.execute(query)) == [
+        (_id, rev, pushed, None, None, None),
     ]

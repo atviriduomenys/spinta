@@ -3,6 +3,7 @@ import pytest
 from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, ReferencedPropertyNotFound
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
+from spinta.manifests.tabular.helpers import TabularManifestError
 
 
 def check(tmp_path, rc, table):
@@ -237,7 +238,6 @@ def test_time_type(tmp_path, rc):
     ''')
 
 
-
 def test_explicit_ref(tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type       | ref
@@ -253,6 +253,89 @@ def test_explicit_ref(tmp_path, rc):
       |   |   |   | name     | string     |
       |   |   |   | country  | ref        | Country[code]
       ''')
+
+def test_property_unique_add(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property            | type
+    example                             |
+                                        |
+      |   |   | City                    |
+      |   |   |   | prop_with_unique    | string unique
+      |   |   |   | prop_not_unique     | string
+    ''')
+
+
+def test_property_unique_add_wrong_type(tmp_path, rc):
+    with pytest.raises(TabularManifestError) as e:
+        check(tmp_path, rc, '''
+        d | r | b | m | property | type
+        datasets/gov/example     |
+          |   |   | City         |
+          |   |   |   | value    | string unikue
+        ''')
+    assert 'TabularManifestError' in str(e)
+
+
+def test_property_with_ref_unique(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+                             | prefix             | locn                 | http://www.w3.org/ns/locn#
+                             |                    | ogc                  | http://www.opengis.net/rdf#
+                             |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    |                      |
+      |   |   |   | name     | string unique      |                      | locn:geographicName
+                             |                    |                      |
+      |   |   | City         |                    |                      |
+                             | unique             | name, country        |
+      |   |   |   | name     | string             |                      | locn:geographicName
+      |   |   |   | country  | ref                | Country              |
+    ''')
+
+
+def test_property_with_multi_ref_unique(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+                             | prefix             | locn                 | http://www.w3.org/ns/locn#
+                             |                    | ogc                  | http://www.opengis.net/rdf#
+                             |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    |                      |
+      |   |   |   | name     | string unique      |                      | locn:geographicName
+                             |                    |                      |
+      |   |   | City         |                    |                      |
+                             | unique             | name, country        |
+                             | unique             | text                 |
+                             | unique             | another, text        |
+      |   |   |   | name     | string             |                      | locn:geographicName
+      |   |   |   | text     | string             |                      | locn:geographicName
+      |   |   |   | another  | string             |                      | locn:geographicName
+      |   |   |   | country  | ref                | Country              |
+    ''')
+
+
+def test_property_with_ref_with_unique(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+                             | prefix             | locn                 | http://www.w3.org/ns/locn#
+                             |                    | ogc                  | http://www.opengis.net/rdf#
+                             |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    |                      |
+      |   |   |   | name     | string unique      |                      | locn:geographicName
+                             |                    |                      |
+      |   |   | City         |                    |                      |
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      | locn:geographicName
+      |   |   |   | country  | ref                | Country              |
+    ''')
+
 
 def test_with_denormalized_data(tmp_path, rc):
     check(tmp_path, rc, '''

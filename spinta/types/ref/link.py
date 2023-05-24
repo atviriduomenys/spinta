@@ -31,6 +31,7 @@ def link(context: Context, dtype: Ref) -> None:
                 raise ModelReferenceKeyNotFound(dtype, ref=rprop, model=dtype.model)
             refprops.append(dtype.model.properties[rprop])
         dtype.refprops = refprops
+        dtype.explicit = True
     elif dtype.model.external:
         dtype.refprops = [*dtype.model.external.pkeys]
     else:

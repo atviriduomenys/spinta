@@ -8,18 +8,21 @@ head CHANGES.rst
 
 docker-compose ps
 docker-compose up -d
+unset SPINTA_CONFIG
 poetry run pytest -vvx --tb=short tests
-#| 1119 passed, 31 skipped, 6 warnings in 200.43s (0:03:20)
+#| 1178 passed, 34 skipped, 4 warnings in 201.63s (0:03:21)
 docker-compose down
 
-version=0.1.45
+# Current version
+version=0.1.49
 xdg-open https://github.com/atviriduomenys/spinta/compare/$version..master
 xdg-open https://github.com/atviriduomenys/spinta/compare/$version...master
 # Update CHANGES.rst
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
 
-version=0.1.46
+# New version
+version=0.1.50
 ed pyproject.toml <<EOF
 /^version = /c
 version = "$version"
@@ -41,7 +44,8 @@ git push origin master
 git tag -a $version -m "Releasing version $version"
 git push origin $version
 
-version=0.1.47
+# Next version (after new one)
+version=0.1.51
 ed pyproject.toml <<EOF
 /^version = /c
 version = "$version.dev0"
