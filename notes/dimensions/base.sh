@@ -127,9 +127,15 @@ query -c '\d "'$DATASET'/City"'
 #|     "fk_dimensions/base/Location_id" FOREIGN KEY (_id)
 #|         REFERENCES "dimensions/base/Location"(_id)
 
+LTU=2fcc3da3-be88-4715-83c9-a45bcbeeb3c3
+VLN=2074d66e-0dfd-4233-b1ec-199abc994d0c
+
+http POST "$SERVER/$DATASET/Place"    $AUTH _id=$LTU id:=1 name=Lithuania
+http POST "$SERVER/$DATASET/Location" $AUTH _id=$LTU id:=2 population:=2862380
+http POST "$SERVER/$DATASET/Country"  $AUTH _id=$LTU id:=3
 
 http POST "$SERVER/$DATASET/Place" $AUTH \
-    _id="2074d66e-0dfd-4233-b1ec-199abc994d0c" \
+    _id=$VLN \
     id:=1 \
     name="Vilnius" \
     koord="SRID=4326;POINT (54.68677 25.29067)"
@@ -157,7 +163,7 @@ http GET "$SERVER/$DATASET/Place?format(ascii)"
 
 
 http POST "$SERVER/$DATASET/Location" $AUTH \
-    _id="2074d66e-0dfd-4233-b1ec-199abc994d0c" \
+    _id=$VLN \
     id:=42 \
     name="Vilnius" \
     population:=625349
@@ -306,9 +312,10 @@ tail -100 $BASEDIR/spinta.log
 
 
 http POST "$SERVER/$DATASET/City" $AUTH \
-    _id="2074d66e-0dfd-4233-b1ec-199abc994d0c" \
+    _id=$VLN \
     id:=24 \
     name="Vilnius" \
+    "country[_id]=$LTU" \
     population:=625349
 #| HTTP/1.1 201 Created
 
@@ -390,3 +397,48 @@ http GET "$SERVER/$DATASET/City?select(_id,id,name,population,type,koord)&format
 #       join.
 #
 #       https://github.com/atviriduomenys/spinta/issues/395
+
+http GET "$SERVER/$DATASET/City?select(id,name,country.name)&format(ascii)"
+#| HTTP/1.1 500 Internal Server Error
+#| 
+#| {
+#|     "errors": [
+#|         {
+#|             "code": "KeyError",
+#|             "message": "'name'"
+#|         }
+#|     ]
+#| }
+tail -100 $BASEDIR/spinta.log
+#| Traceback (most recent call last):
+#|   File "spinta/api.py", line 95, in homepage
+#|     return await create_http_response(context, params, request)
+#|   File "spinta/utils/response.py", line 153, in create_http_response
+#|     return await commands.getall(
+#|   File "spinta/commands/read.py", line 125, in getall
+#|     return render(context, request, model, params, rows, action=action)
+#|   File "spinta/renderer.py", line 23, in render
+#|     return commands.render(
+#|   File "spinta/formats/ascii/commands.py", line 28, in render
+#|     return _render(
+#|   File "spinta/formats/ascii/commands.py", line 62, in _render
+#|     aiter(peek_and_stream(fmt(
+#|   File "spinta/utils/response.py", line 223, in peek_and_stream
+#|     peek = list(itertools.islice(stream, 2))
+#|   File "spinta/formats/ascii/components.py", line 41, in __call__
+#|     peek = next(data, None)
+#|   File "spinta/accesslog/__init__.py", line 162, in log_response
+#|     for row in rows:
+#|   File "spinta/commands/read.py", line 110, in <genexpr>
+#|     rows = (
+#|   File "spinta/backends/postgresql/commands/read.py", line 51, in getall
+#|     expr = env.resolve(query)
+#|   File "spinta/backends/postgresql/commands/query.py", line 296, in select
+#|     selected = env.call('select', arg)
+#|   File "spinta/backends/postgresql/commands/query.py", line 320, in select
+#|     return env.call('select', prop.dtype)
+#|   File "spinta/backends/postgresql/commands/query.py", line 426, in select
+#|     column = table.c[dtype.prop.name]
+#|   File "sqlalchemy/sql/base.py", line 1192, in __getitem__
+#|     return self._index[key]
+#| KeyError: 'name'
