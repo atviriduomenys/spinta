@@ -15,7 +15,8 @@ from requests import PreparedRequest
 from responses import POST
 from responses import RequestsMock
 
-from spinta.cli.push import _PushRow, _reset_pushed, _get_deleted_rows, _ErrorCounter
+from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.push import _PushRow, _reset_pushed
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
@@ -623,7 +624,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     server = 'https://example.com/'
     responses.add(POST, server, status=409, body='Conflicting value')
 
-    error_counter = _ErrorCounter(1)
+    error_counter = ErrorCounter(1)
     _push(
         context,
         client,
@@ -638,7 +639,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     query = sa.select([table.c.id, table.c.revision, table.c.error])
     assert list(conn.execute(query)) == [(_id1, rev, True)]
 
-    error_counter = _ErrorCounter(2)
+    error_counter = ErrorCounter(2)
     _push(
         context,
         client,

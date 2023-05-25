@@ -44,6 +44,7 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
+from spinta.types.datatype import Ref
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -231,7 +232,11 @@ def load(
     else:
         prop.external = NA
     commands.load(context, prop.dtype, data, manifest)
-
+    if prop.model.unique:
+        if isinstance(prop.dtype, Ref):
+            if '.id' not in prop.name:
+                prop.model.unique = [list(map(lambda val: val.replace(
+                    prop.name, prop.name + '._id'), val)) for val in prop.model.unique]
     unit: Optional[str] = prop.enum
     if unit is None:
         prop.given.enum = None

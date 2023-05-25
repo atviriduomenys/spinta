@@ -57,15 +57,6 @@ class DataType(Component):
     def get_bind_expr(self):
         return Expr('bind', self.prop.name)
 
-    def get_type_repr(self):
-        required = ' required' if self.required else ''
-        unique = ' unique' if self.unique else ''
-        args = ''
-        if self.type_args:
-            args = ', '.join(self.type_args)
-            args = f'({args})'
-        return f'{self.name}{args}{unique}{required}'
-
 
 class PrimaryKey(DataType):
     pass
@@ -194,7 +185,6 @@ class Ref(DataType):
         },
         'enum': {'type': 'array'},
     }
-
 
 class BackRef(DataType):
     schema = {
