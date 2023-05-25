@@ -204,3 +204,4 @@ poetry run spinta inspect $BASEDIR/manifest.txt
 #|    |   |   |   |   | condition_code         | string required                |                                                      | conditionCode                                                     |                            |       |        |     |       |
 #|    |   |   |   |   | station                | ref                            | Station                                              |                                                                   |                            |       |        |     |       |
 #|    |   |   |   |   | parent                 | ref                            | StationObservations[code, latitude, longitude, name] | ..                                                                |                            |       |        |     |       |
+# TODO: Would be nice to fix this.
