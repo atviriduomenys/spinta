@@ -68,6 +68,15 @@ QUERY = '''
             optional { ?property rdfs:isDefinedBy ?description }
             bind("rdfs" as ?schema)
         }
+        
+        union
+        {
+            ?property a owl:ObjectProperty .
+            optional { ?property rdfs:label ?title }
+            optional { ?property rdfs:comment ?description }
+            optional { ?property rdfs:domain ?type }
+            bind("owl" as ?schema)
+        }
 
         union
 
@@ -121,6 +130,15 @@ QUERY = '''
             optional { ?model rdfs:isDefinedBy ?description }
             bind("rdfs" as ?schema)
         }
+        
+        union
+        
+        {
+            ?model a owl:Class .
+            optional { ?model rdfs:label ?title }
+            optional { ?model rdfs:comment ?description }
+            bind("owl" as ?schema)
+        }
 
         union
 
@@ -167,8 +185,16 @@ def read_rdf_manifest(
     schemas = []
     dataset = {
         'type': 'dataset',
-        'name': manifest.path.split('/')[-1].rsplit('.', 1)[0]
+        'name': manifest.path.split('/')[-1].rsplit('.', 1)[0],
+        'prefixes': {}
     }
+    for i, (name, url) in enumerate(g.namespaces()):
+        dataset['prefixes'][name] = {
+            'type': 'prefix',
+            'eid': i,
+            'name': name,
+            'uri': url,
+        }
     schemas.append(dataset)
 
     models = _prepare_data(g, g.query(QUERY), dataset, lang)
@@ -249,11 +275,14 @@ def _read_model(
     if model in data:
         existing_model = data[model]
         properties = existing_model['properties']
+        title = title or existing_model['title']
         descriptions.extend(existing_model['description'])
+        if not base and existing_model['base']:
+            base = existing_model['base']['parent']
 
         if data[model]['schema'] > schema:
             schema = existing_model['schema']
-            base = existing_model['base']['name'] if existing_model['base'] else base
+            base = existing_model['base']['parent'] if existing_model['base'] else base
             title = existing_model['title'] or title
 
     if base and base not in data:
@@ -268,7 +297,7 @@ def _read_model(
                 'uri': "",
                 'access': 'open',
                 'description': [],
-                'title': None,
+                'title': '',
                 'external': {
                     'dataset': dataset['name'],
                 },
@@ -281,7 +310,7 @@ def _read_model(
             'schema': schema,
             'name': model,
             'base': {
-                'name': base,
+                'name': base.split('/')[-1],
                 'parent': base,
             } if base else None,
             'title': title,
@@ -325,7 +354,7 @@ def _read_property(
                 'uri': model_uri,
                 'access': 'open',
                 'description': [],
-                'title': None,
+                'title': '',
                 'external': {
                     'dataset': dataset['name'],
                 },
@@ -336,6 +365,8 @@ def _read_property(
 
     if prop in model['properties']:
         existing_prop = model['properties'][prop]
+        title = title or existing_prop['title']
+        type = type or existing_prop['type']
         descriptions.extend(existing_prop['description'])
 
         if model['properties'][prop]['schema'] > schema:

@@ -202,7 +202,7 @@ def test_rdf_with_missing_model():
             'uri': 'rdfs:Resource',
             'access': 'open',
             'description': '',
-            'title': None,
+            'title': '',
             'external': {'dataset': 'datasets/rdf'},
         })
     ]
@@ -254,7 +254,7 @@ def test_rdf_with_base():
             'type': 'model',
             'name': 'datasets/rdf/Dataset',
             'base': {
-                'name': 'datasets/rdf/Base',
+                'name': 'Base',
                 'parent': 'datasets/rdf/Base'
             },
             'properties': {},
