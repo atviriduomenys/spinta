@@ -13,6 +13,7 @@ from spinta.components import Context, Store
 from spinta.urlparams import get_model_by_name
 from spinta.manifests.helpers import create_manifest
 from spinta.manifests.helpers import create_internal_manifest
+from spinta.datasets.keymaps.helpers import load_keymaps
 
 
 @commands.load.register(Context, Store)
@@ -23,13 +24,7 @@ def load(context: Context, store: Store) -> Store:
     config = context.get('config')
 
     # Load keymaps
-    store.keymaps = {}
-    for name in rc.keys('keymaps'):
-        keymap_type = rc.get('keymaps', name, 'type', required=True)
-        KeyMap = config.components['keymaps'][keymap_type]
-        keymap = store.keymaps[name] = KeyMap()
-        keymap.name = name
-        commands.configure(context, keymap)
+    store.keymaps = load_keymaps(context)
 
     # Load backends
     # Backends can also be loaded from manifests, see:

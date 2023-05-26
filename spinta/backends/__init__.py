@@ -21,6 +21,7 @@ from spinta.backends.helpers import check_unknown_props
 from spinta.backends.helpers import flat_select_to_nested
 from spinta.backends.helpers import select_model_props
 from spinta.backends.helpers import get_select_prop_names
+from spinta.backends.helpers import is_uuid
 from spinta.commands import gen_object_id
 from spinta.commands import is_object_id
 from spinta.commands import load_operator_value
@@ -48,7 +49,6 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
-from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -390,10 +390,7 @@ def is_object_id(context: Context, value: str):
 
 @is_object_id.register(Context, Backend, Model, str)
 def is_object_id(context: Context, backend: Backend, model: Model, value: str):
-    try:
-        return uuid.UUID(value).version == 4
-    except ValueError:
-        return False
+    return is_uuid(value)
 
 
 @is_object_id.register(Context, Backend, Model, object)

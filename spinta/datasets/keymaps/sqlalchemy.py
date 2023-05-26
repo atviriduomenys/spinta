@@ -18,7 +18,12 @@ from spinta.datasets.keymaps.components import KeyMap
 
 
 class SqlAlchemyKeyMap(KeyMap):
+    type: str = 'sql'
     dsn: str = None
+
+    @staticmethod
+    def detect_from_url(url: str) -> bool:
+        return True
 
     def __init__(self, dsn: str = None):
         self.dsn = dsn
@@ -47,7 +52,7 @@ class SqlAlchemyKeyMap(KeyMap):
             table.create(checkfirst=True)
         return self.metadata.tables[name]
 
-    def encode(self, name: str, value: object) -> Optional[str]:
+    def encode(self, name: str, value: object, *, create: bool = True) -> Optional[str]:
         # Make value msgpack serializable.
         if isinstance(value, (list, tuple)):
             value = [_encode_value(k) for k in value if k is not None]
@@ -66,7 +71,7 @@ class SqlAlchemyKeyMap(KeyMap):
         table = self.get_table(name)
         query = sa.select([table.c.key]).where(table.c.hash == hash)
         key = self.conn.execute(query).scalar()
-        if key is None:
+        if key is None and create:
 
             # Create new key.
             key = str(uuid.uuid4())
@@ -103,6 +108,8 @@ def configure(context: Context, keymap: SqlAlchemyKeyMap):
     rc: RawConfig = context.get('rc')
     config: Config = context.get('config')
     dsn = rc.get('keymaps', keymap.name, 'dsn', required=True)
+    if '://' not in dsn:
+        dsn = f'sqlite:///{dsn}'
     ensure_data_dir(config.data_path)
     dsn = dsn.format(data_dir=config.data_path)
     keymap.dsn = dsn
