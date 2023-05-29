@@ -1668,20 +1668,20 @@ def test_inspect_json_model_ref_change(
     manifest = load_manifest(rc, result_file_path)
     manifest.datasets['datasets/json/inspect'].resources['resource'].external = 'resource.json'
     a, b = compare_manifest(manifest, f'''
-           d | r | m      | property            | type                   | ref    | source              
-           datasets/json/inspect                |                        |        |
-             | resource                         | json                   |        | resource.json
-                                                |                        |        |
-             |   | Pos    |                     |                        | code   | .
-             |   |        | name                | string required unique |        | name
-             |   |        | code                | string required unique |        | code
-             |   |        | location_latitude   | number unique          |        | location.latitude
-             |   |        | location_longitude  | number unique          |        | location.longitude
-                                                |                        |        |
-             |   | Cities |                     |                        |        | cities
-             |   |        | name                | string required unique |        | name
-             |   |        | weather_temperature | number unique          |        | weather.temperature
-             |   |        | weather_wind_speed  | number unique          |        | weather.wind_speed
-             |   |        | parent              | ref                    | Pos    | ..
+d | r | model  | property            | type                   | ref    | source
+datasets/json/inspect           |                        |        |
+  | resource                    | json                   |        | resource.json
+                                |                        |        |
+  |   | Pos                     |                        | code   | .
+  |   |   | name                | string required unique |        | name
+  |   |   | code                | string required unique |        | code
+  |   |   | location_latitude   | number unique          |        | location.latitude
+  |   |   | location_longitude  | number unique          |        | location.longitude
+                                |                        |        |
+  |   | Cities                  |                        |        | cities
+  |   |   | name                | string required unique |        | name
+  |   |   | weather_temperature | number unique          |        | weather.temperature
+  |   |   | weather_wind_speed  | number unique          |        | weather.wind_speed
+  |   |   | parent              | ref                    | Pos    | ..
     ''')
     assert a == b
