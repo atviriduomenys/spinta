@@ -137,7 +137,7 @@ class Resource(External):
         'external': {
             'type': 'string'
         },
-
+        'params': {'type': 'object'},
         'level': {
             'type': 'integer',
             'choices': Level,
@@ -155,6 +155,7 @@ class Resource(External):
 
     def __init__(self):
         self.given = ResourceGiven()
+        self.params = {}
 
 
 class Param:

@@ -3,7 +3,12 @@
 Changes
 #######
 
-0.1.50 (unreleased)
+0.1.51 (unreleased)
+===================
+
+
+
+0.1.50 (2023-05-22)
 ===================
 
 New features:
@@ -12,12 +17,40 @@ New features:
 
   __ https://github.com/atviriduomenys/spinta/issues/273
 
+- Add support for `unique` constraints in tabular manifests (`#148`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/148
+
+Improvements:
+
+- Much better implementation for updating manifest files from SQL as data
+  source (`#346`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/364
+
+- Show better error messages on foreign key constraint errors (`#363`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/363
+
+- Return a non-zero error code if `spinta push` command fails with an error
+  (`#423`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/423
+
+- Add support for older SQLite versions (`#411`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/411
+
 Bug fixes:
 
 - Correctly handle level 3 references, when referenced model does not have a
   primary key or property references a non-primary key (`#400`__).
 
   __ https://github.com/atviriduomenys/spinta/issues/400
+
+- WIPE command now works on tables with long names (`#431`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/431
 
 
 0.1.49 (2023-04-19)
