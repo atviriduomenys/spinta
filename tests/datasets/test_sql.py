@@ -291,29 +291,41 @@ def test_join_with_base(
     request: FixtureRequest,
 ):
     context = bootstrap_manifest(rc, '''
-    d | r | b | m | property | type    | ref     | access
-    datasets/basetest        |         |         |
-      |   |   | Place        |         | id      |
-      |   |   |   | id       | integer |         | open
-      |   |   |   | name     | string  |         | open
-      |   |   |   |          |         |         |
-      |   | Place            |         | name    |
-      |   |   |   |          |         |         |
-      |   |   | Country      |         | id      |
-      |   |   |   | id       | integer |         | open
-      |   |   |   | name     |         |         | open
-      |   |   |   |          |         |         |
-      |   |   | City         |         | id      |
-      |   |   |   | id       | integer |         | open
-      |   |   |   | name     |         |         | open
-      |   |   |   | country  | ref     | Country | open
+    d | r | b | m | property   | type                 | ref     | prepare   | access
+    datasets/basetest          |                      |         |           |
+      |   |   | Place          |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       | string               |         |           | open
+      |   |   |   | koord      | geometry(point,4326) |         |           | open
+      |   |   |   |            |                      |         |           |
+      |   | Place              |                      | name    |           |
+      |   |   |   |            |                      |         |           |
+      |   |   | Location       |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       |                      |         |           | open
+      |   |   |   | population | integer              |         |           | open
+      |   |   |   | type       | string               |         |           | open
+      |   |   |   |            | enum                 |         | "city"    |
+      |   |   |   |            |                      |         | "country" |
+      |   |   |   |            |                      |         |           |
+      |   | Location           |                      |name     |           |
+      |   |   |   |            |                      |         |           |
+      |   |   | Country        |                      | id      |           |
+      |   |   |   | id         |                      |         |           | open
+      |   |   |   | name       |                      |         |           | open
+      |   |   |   | population |                      |         |           | open
+      |   |   |   |            |                      |         |           |
+      |   |   | City           |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       |                      |         |           | open
+      |   |   |   | population |                      |         |           | open
+      |   |   |   | country    | ref                  | Country |           | open
     ''', backend=postgresql, request=request)
 
     app = create_test_client(context)
     app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
     LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
     VLN = "2074d66e-0dfd-4233-b1ec-199abc994d0c"
-    SLS = "e6ebd442-80a3-4115-b4d6-72411ee6ef76"
 
     resp = app.post('/datasets/basetest/Place', json={
         '_id': LTU,
@@ -322,44 +334,58 @@ def test_join_with_base(
     })
     assert resp.status_code == 201
 
+    resp = app.post('/datasets/basetest/Location', json={
+        '_id': LTU,
+        'id': 2,
+        'population': 2862380,
+    })
+    assert resp.status_code == 201
+
     resp = app.post('/datasets/basetest/Country', json={
         '_id': LTU,
-        'id': 10,
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/Place', json={
-        '_id': VLN,
-        'id': 2,
-        'name': 'Vilnius',
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/City', json={
-        '_id': VLN,
-        'id': 20,
-        'country': {'_id': LTU},
-    })
-    assert resp.status_code == 201
-
-    resp = app.post('/datasets/basetest/Place', json={
-        '_id': SLS,
         'id': 3,
-        'name': 'Siauliai',
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Place', json={
+        '_id': VLN,
+        'id': 1,
+        'name': 'Vilnius',
+        'koord': "SRID=4326;POINT (54.68677 25.29067)"
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Location', json={
+        '_id': VLN,
+        'id': 42,
+        'population': 625349,
     })
     assert resp.status_code == 201
 
     resp = app.post('/datasets/basetest/City', json={
-        '_id': SLS,
-        'id': 30,
+        '_id': VLN,
+        'id': 24,
+        'name': "Vilnius",
         'country': {'_id': LTU},
+        'population': 625349,
     })
     assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/City', json={
+        '_id': "2074d66e-0dfd-4233-b1ec-199abc994d0c",
+        'id': 24,
+        'name': "Vilnius",
+        'population': 625349,
+    })
+    assert resp.status_code is not None
+
+    resp = app.get('/datasets/basetest/Location?select(_id,id,name,population,type)')
+    assert resp.status_code == 200
+    assert "Vilnius" in resp.text
 
     resp = app.get('/datasets/basetest/City?select(id,name,country.name)')
-
     assert resp.status_code == 200
-    assert "Lithuania" in resp.text
+    assert "Vilnius" in resp.text
 
 
 @pytest.mark.skip('todo')
