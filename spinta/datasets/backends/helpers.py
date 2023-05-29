@@ -6,7 +6,7 @@ from spinta.exceptions import NotImplementedFeature
 
 
 def handle_ref_key_assignment(keymap: KeyMap, value: Any, prop: Property) -> dict:
-    if prop.level.value > 3:
+    if not prop.level or prop.level.value > 3:
         val = keymap.encode(prop.dtype.model.model_type(), value)
         val = {'_id': val}
     else:
