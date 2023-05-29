@@ -229,7 +229,7 @@ def test_push_ref_with_level_3(
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
-    leveldataset             |          |          |             |       |
+    level3dataset             |          |          |             |       |
       | db                   | sql      |          |             |       |
       |   |   | City         |          | id       | cities      | 4     |
       |   |   |   | id       | integer  |          | id          | 4     | open
@@ -253,15 +253,15 @@ def test_push_ref_with_level_3(
     assert remote.url == 'https://example.com/'
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'leveldataset',
+        '-d', 'level3dataset',
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--no-progress-bar',
     ])
     assert result.exit_code == 0
 
-    remote.app.authmodel('leveldataset/City', ['getall', 'search'])
-    resp_city = remote.app.get('leveldataset/City')
+    remote.app.authmodel('level3dataset/City', ['getall', 'search'])
+    resp_city = remote.app.get('level3dataset/City')
 
     assert resp_city.status_code == 200
     assert listdata(resp_city, 'name') == ['Vilnius']
@@ -280,7 +280,7 @@ def test_push_ref_with_level_4(
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
-    leveldataset             |          |          |             |       |
+    level4dataset             |          |          |             |       |
       | db                   | sql      |          |             |       |
       |   |   | City         |          | id       | cities      | 4     |
       |   |   |   | id       | integer  |          | id          | 4     | open
@@ -304,15 +304,15 @@ def test_push_ref_with_level_4(
     assert remote.url == 'https://example.com/'
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'leveldataset',
+        '-d', 'level4dataset',
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--no-progress-bar',
     ])
     assert result.exit_code == 0
 
-    remote.app.authmodel('leveldataset/City', ['getall', 'search'])
-    resp_city = remote.app.get('leveldataset/City')
+    remote.app.authmodel('level4dataset/City', ['getall', 'search'])
+    resp_city = remote.app.get('level4dataset/City')
 
     assert resp_city.status_code == 200
     assert listdata(resp_city, 'name') == ['Vilnius']
