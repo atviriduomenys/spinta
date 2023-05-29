@@ -12,7 +12,7 @@ def handle_ref_key_assignment(keymap: KeyMap, value: Any, prop: Property) -> dic
     else:
         if len(prop.dtype.refprops) > 1 and not prop.model.external.unknown_primary_key:
             raise NotImplementedFeature(prop, feature="Ability to have multiple refprops")
-        if prop.dtype.refprops:
+        if len(prop.dtype.refprops) == 1:
             val = {
                 prop.dtype.refprops[0].name: value
             }
