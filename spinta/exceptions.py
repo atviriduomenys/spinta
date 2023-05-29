@@ -574,3 +574,7 @@ class ReferencedObjectNotFound(UserError):
 
 class ReferringObjectFound(UserError):
     template = "Object {id!r} is still being referenced in table {model!r}"
+
+
+class NotImplementedFeature(BaseError):
+    template = "{feature} is not implemented yet."

@@ -8,6 +8,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.datasets.backends.helpers import handle_ref_key_assignment
 from spinta.typing import ObjectData
 from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
@@ -105,15 +106,7 @@ def getall(
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = keymap.encode(sel.prop.model.model_type(), val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        if sel.prop.level.value > 3:
-                            val = keymap.encode(sel.prop.dtype.model.model_type(), val)
-                            val = {'_id': val}
-                        else:
-                            if len(sel.prop.dtype.refprops) > 1:
-                                raise Exception("wrong data")
-                            val = {
-                                sel.prop.dtype.refprops[0].name: val
-                            }
+                        val = handle_ref_key_assignment(keymap, val, sel.prop)
                 res[key] = val
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
