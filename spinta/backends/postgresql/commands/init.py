@@ -37,7 +37,9 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.extend(column)
         elif column is not None:
             columns.append(column)
-
+    if model.unique:
+        for val in model.unique:
+            columns.append(sa.UniqueConstraint(*val))
     # Create main table.
     main_table_name = get_pg_name(get_table_name(model))
     pkey_type = commands.get_primary_key_type(context, backend)
@@ -58,7 +60,6 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
 def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
     if dtype.name in UNSUPPORTED_TYPES:
         return
-
     prop = dtype.prop
     name = get_column_name(prop)
     types = {
@@ -82,9 +83,9 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         raise Exception(
             f"Unknown type {dtype.name!r} for property {prop.place!r}."
         )
-
     column_type = types[dtype.name]
-    return sa.Column(name, column_type, unique=dtype.unique)
+    nullable = not dtype.required
+    return sa.Column(name, column_type, unique=dtype.unique, nullable=nullable)
 
 
 @commands.get_primary_key_type.register()
@@ -95,4 +96,13 @@ def get_primary_key_type(context: Context, backend: PostgreSQL):
 @commands.prepare.register(Context, PostgreSQL, PrimaryKey)
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
     pkey_type = commands.get_primary_key_type(context, backend)
-    return sa.Column('_id', pkey_type, primary_key=True)
+    if dtype.prop.model.base:
+        return [
+            sa.Column('_id', pkey_type, primary_key=True),
+            sa.ForeignKeyConstraint(
+                ['_id'], [f'{get_pg_name(get_table_name(dtype.prop.model.base.parent))}._id'],
+                name=get_pg_name(f'fk_{dtype.prop.model.base.parent.name}_id'),
+            )
+        ]
+    else:
+        return sa.Column('_id', pkey_type, primary_key=True)

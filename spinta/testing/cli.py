@@ -40,6 +40,7 @@ class SpintaCliRunner(CliRunner):
         self,
         rc: RawConfig,
         args: List[Any] = None,
+        fail: bool = True,
         **kwargs,
     ):
         assert isinstance(rc, RawConfig)
@@ -59,7 +60,8 @@ class SpintaCliRunner(CliRunner):
             print(result.stdout)
             print(result.stderr, file=sys.stderr)
             cmd = ' '.join(['spinta'] + (args or []))
-            pytest.fail(f"Command `{cmd}` failed, exit code {result.exit_code}.")
+            if fail:
+                pytest.fail(f"Command `{cmd}` failed, exit code {result.exit_code}.")
         else:
             if result.stderr_bytes is not None and result.stderr:
                 print(result.stderr, file=sys.stderr)

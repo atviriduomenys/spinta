@@ -1,6 +1,10 @@
+import uuid
+import json
+
 import pytest
 import requests
 import httpx
+from spinta.testing.manifest import bootstrap_manifest
 
 from spinta.utils.data import take
 from spinta.testing.utils import error
@@ -1139,3 +1143,65 @@ def test_missing_fields(postgresql, mongo, backend, rc, tmp_path):
     data = resp.json()
     assert resp.status_code == 200, data
     assert take(data) == {'code': 'lt'}
+
+
+def test_base_select(rc, postgresql, request):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property   | type    | ref
+    datasets/gov/example/base  |         |
+                               |         |
+      |   |   | Location       |         |
+      |   |   |   | id         | integer |
+      |   |   |   | name       | string  |
+      |   |   |   | type       | string  |
+                               |         |
+      |   | Location           |         |
+      |   |   | City           |         |
+      |   |   |   | id         |         |
+      |   |   |   | name       | string  |
+      |   |   |   | population | integer |
+    ''', backend=postgresql, request=request)
+
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('datasets/gov/example/base/Location', ['insert', 'delete'])
+    app.authmodel('datasets/gov/example/base/City', ['insert', 'delete', 'getall', 'search'])
+
+    _id = str(uuid.uuid4())
+    app.post('/datasets/gov/example/base/Location', json={
+        '_id': _id,
+        'id': 1,
+        'name': 'Base location',
+        'type': 'city'
+    })
+    app.post('/datasets/gov/example/base/City', json={
+        '_id': _id,
+        'name': 'City',
+        'population': 100
+    })
+
+    resp = app.get('/datasets/gov/example/base/City?select(id,name,_base.name,population,_base.type)')
+    assert resp.json()['_data'] == [
+        {
+            '_base': {'name': 'Base location', 'type': 'city'},
+            'id': 1,
+            'name': 'City',
+            'population': 100
+        }
+    ]
+
+
+@pytest.mark.models(
+    'backends/mongo/report',
+    'backends/postgres/report',
+)
+def test_select_revision(model, app):
+    app.authmodel(model, ['search', 'getone', 'getall'])
+    ids = RowIds(_push_test_data(app, model))
+    id0 = ids[0]
+    resp = app.get(f'/{model}/{id0}')
+    revision = resp.json()['_revision']
+    resp = app.get(f'/{model}/:format/jsonl?limit(1)&select(_revision)')
+    assert json.loads(resp.content) == {
+        '_revision': revision
+    }

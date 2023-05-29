@@ -57,13 +57,6 @@ class DataType(Component):
     def get_bind_expr(self):
         return Expr('bind', self.prop.name)
 
-    def get_type_repr(self):
-        if self.type_args:
-            args = ', '.join(self.type_args)
-            return f'{self.name}({args})'
-        else:
-            return self.name
-
 
 class PrimaryKey(DataType):
     pass
@@ -180,6 +173,8 @@ class Ref(DataType):
     model: Model
     # Properties from referenced model
     refprops: List[Property]
+    # True if ref column is set explicitly
+    explicit: bool = False
 
     schema = {
         'model': {
@@ -192,7 +187,6 @@ class Ref(DataType):
         'enum': {'type': 'array'},
         'ref': {'type': 'string'}
     }
-
 
 class BackRef(DataType):
     model: Model
@@ -280,6 +274,18 @@ class JSON(DataType):
 
 
 class Denorm(DataType):
+    rel_prop: Property
+
+    def get_type_repr(self):
+        return ""
+
+
+class ExternalRef(Ref):
+    def get_type_repr(self):
+        return "ref"
+
+
+class Inherit(DataType):
     def get_type_repr(self):
         return ""
 

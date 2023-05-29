@@ -30,7 +30,7 @@ from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
-from spinta.components import Context
+from spinta.components import Context, Base
 from spinta.datasets.components import Resource
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
@@ -74,7 +74,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref, BackRef, Array
+from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, Array
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -99,6 +99,7 @@ EXTRA_DIMENSIONS = [
     'comment',
     'ns',
     'lang',
+    'unique'
 ]
 
 
@@ -245,25 +246,33 @@ class DatasetReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['dataset']
-        if row['dataset'] in self.state.manifest.datasets:
-            self.error("Dataset already defined.")
 
-        self.data = {
-            'type': 'dataset',
-            'id': row['id'],
-            'name': row['dataset'],
-            'level': row['level'],
-            'access': row['access'],
-            'title': row['title'],
-            'description': row['description'],
-            'resources': {},
-        }
+        if self.name == '/':
+            self.data = {}
+        else:
+            if row['dataset'] in self.state.manifest.datasets:
+                self.error("Dataset already defined.")
+
+            self.data = {
+                'type': 'dataset',
+                'id': row['id'],
+                'name': row['dataset'],
+                'source': row['source'],
+                'level': row['level'],
+                'access': row['access'],
+                'title': row['title'],
+                'description': row['description'],
+                'resources': {},
+            }
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
             ManifestReader,
             DatasetReader,
-        ))
+        )) or (
+            isinstance(reader, (ResourceReader, ModelReader)) and
+            self.name == '/'
+        )
 
     def enter(self) -> None:
         self.state.dataset = self
@@ -279,10 +288,13 @@ class ResourceReader(TabularReader):
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['resource']
 
-        if self.state.dataset is None:
-            self.read_backend(row)
+        if self.name == '/':
+            self.data = {}
         else:
-            self.read_resource(row)
+            if self.state.dataset is None:
+                self.read_backend(row)
+            else:
+                self.read_resource(row)
 
     def read_backend(self, row: Dict[str, str]) -> None:
         # Backends will be loaded using
@@ -308,7 +320,8 @@ class ResourceReader(TabularReader):
         backends[self.name] = self.data
 
     def read_resource(self, row: Dict[str, str]) -> None:
-        dataset = self.state.dataset.data
+        dataset = _get_state_obj(self.state.dataset)
+        dataset = dataset.data if dataset else None
 
         if self.name in dataset['resources']:
             self.error("Resource with the same name already defined in ")
@@ -331,7 +344,7 @@ class ResourceReader(TabularReader):
             ManifestReader,
             DatasetReader,
             ResourceReader,
-        ))
+        )) or (isinstance(reader, ModelReader) and self.name == '/')
 
     def enter(self) -> None:
         self.state.resource = self
@@ -347,11 +360,20 @@ class BaseReader(TabularReader):
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['base']
 
-        dataset = self.state.dataset.data if self.state.dataset else None
-        self.data = {
-            'model': get_relative_model_name(dataset, row['base']),
-            'pk': row['ref'],
-        }
+        if self.name == '/':
+            self.data = {}
+        else:
+            dataset = _get_state_obj(self.state.dataset)
+            dataset = dataset.data if dataset else None
+
+            self.data = {
+                'name': self.name,
+                'model': get_relative_model_name(dataset, row['base']),
+                'pk': (
+                    [x.strip() for x in row['ref'].split(',')]
+                    if row['ref'] else []
+                )
+            }
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
@@ -359,7 +381,7 @@ class BaseReader(TabularReader):
             DatasetReader,
             ResourceReader,
             BaseReader,
-        ))
+        )) or (isinstance(reader, ModelReader) and self.name == '/')
 
     def enter(self) -> None:
         self.state.base = self
@@ -373,9 +395,9 @@ class ModelReader(TabularReader):
     data: ModelRow
 
     def read(self, row: Dict[str, str]) -> None:
-        dataset = self.state.dataset
-        resource = self.state.resource
-        base = self.state.base
+        dataset = _get_state_obj(self.state.dataset)
+        resource = _get_state_obj(self.state.resource)
+        base = _get_state_obj(self.state.base)
         name = get_relative_model_name(
             dataset.data if dataset else None,
             row['model'],
@@ -397,7 +419,11 @@ class ModelReader(TabularReader):
             'type': 'model',
             'id': row['id'],
             'name': name,
-            'base': base.name if base else None,
+            'base': {
+                'name': base.name,
+                'parent': base.data['model'],
+                'pk': base.data['pk'],
+            } if base and base.data else None,
             'level': row['level'],
             'access': row['access'],
             'title': row['title'],
@@ -415,7 +441,6 @@ class ModelReader(TabularReader):
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
         }
-
         if resource and not dataset:
             self.data['backend'] = resource.name
 
@@ -447,6 +472,77 @@ def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
     return ref_model, ref_props
 
 
+def _parse_dtype_string(dtype: str) -> dict:
+    args = []
+    error = None
+    required = unique = False
+    invalid_args = []
+
+    if '(' in dtype:
+        dtype, args = dtype.split('(', 1)
+        args, additional_args = args.split(')', 1)
+        args = args.strip().rstrip(')')
+        args = [a.strip() for a in args.split(',')]
+    else:
+        if len(dtype.split(None, 1)) > 1:
+            dtype, additional_args = dtype.split(None, 1)
+        else:
+            additional_args = ""
+
+    if additional_args:
+        for arg in additional_args.split(None):
+            if arg == 'required':
+                required = True
+            elif arg == 'unique':
+                unique = True
+            else:
+                invalid_args.append(arg)
+        if invalid_args:
+            error = f'Invalid type arguments: {", ".join(invalid_args)}.'
+
+    return {
+        'type': dtype,
+        'type_args': args,
+        'required': required,
+        'unique': unique,
+        'error': error,
+    }
+
+
+def _get_type_repr(dtype: [DataType, str]):
+    if isinstance(dtype, DataType):
+        args = ''
+        required = ' required' if dtype.required else ''
+        unique = ' unique' if dtype.unique else ''
+        if dtype.type_args:
+            args = ', '.join(dtype.type_args)
+            args = f'({args})'
+        return f'{dtype.name}{args}{required}{unique}' if not isinstance(dtype, (Denorm, Inherit, ExternalRef)
+                                                                         ) else dtype.get_type_repr()
+    else:
+        args = ''
+        required = ' required' if 'required' in dtype else ''
+        unique = ' unique' if 'unique' in dtype else ''
+        additional_args = []
+        if '(' in dtype:
+            dtype, args = dtype.split('(', 1)
+            args, additional_args = args.split(')', 1)
+            args = args.strip().rstrip(')')
+            args = [a.strip() for a in args.split(',')]
+            args = ', '.join(args)
+            args = f'({args})'
+        else:
+            if len(dtype.split(None, 1)) > 1:
+                dtype, additional_args = dtype.split(None, 1)
+            else:
+                dtype = dtype.strip(' ')
+        if additional_args:
+            if [additional_arg for additional_arg in additional_args.split(' ') if additional_arg not in [
+                required.strip(' '), unique.strip(' ')]]:
+                raise TabularManifestError
+        return f'{dtype}{args}{required}{unique}'
+
+
 class PropertyReader(TabularReader):
     type: str = 'property'
     data: PropertyRow
@@ -454,7 +550,6 @@ class PropertyReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         self.name = row['property']
-
         if self.state.model is None:
             context = self.state.stack[-1]
             self.error(
@@ -467,19 +562,29 @@ class PropertyReader(TabularReader):
                 f"Property {self.name!r} with the same name is already "
                 f"defined for this {self.state.model.name!r} model."
             )
+        dtype = _get_type_repr(row['type'])
+        dtype = _parse_dtype_string(dtype)
+        if dtype['error']:
+            self.error(
+                dtype['error']
+            )
+
+        if self.state.base and not dtype['type']:
+            dtype['type'] = 'inherit'
 
         self.data = {
-            'type': row['type'],
+            'type': dtype['type'],
+            'type_args': dtype['type_args'],
             'prepare': _parse_spyna(self, row[PREPARE]),
             'level': row['level'],
             'access': row['access'],
             'uri': row['uri'],
             'title': row['title'],
             'description': row['description'],
+            'required': dtype['required'],
+            'unique': dtype['unique'],
         }
-
         dataset = self.state.dataset.data if self.state.dataset else None
-
         if row['ref']:
             if row['type'] in ('ref', 'backref', 'generic', 'array'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
@@ -488,13 +593,11 @@ class PropertyReader(TabularReader):
             else:
                 # TODO: Detect if ref is a unit or an enum.
                 self.data['enum'] = row['ref']
-
         if dataset or row['source']:
             self.data['external'] = {
                 'name': row['source'],
                 'prepare': self.data.pop('prepare'),
             }
-
         # Denormalized form
         if "." in self.name and not self.data['type']:
             self.data['type'] = 'denorm'
@@ -509,6 +612,7 @@ class PropertyReader(TabularReader):
             BaseReader,
             ModelReader,
             PropertyReader,
+            UniqueReader
         ))
 
     def enter(self) -> None:
@@ -658,12 +762,13 @@ class ParamReader(TabularReader):
             'description': row[DESCRIPTION],
         }
 
+    def _get_and_append_data(self, old: Dict, row: ManifestRow):
+        old["source"].append(row[SOURCE])
+        old["prepare"].append(_parse_spyna(self, row[PREPARE]))
+
     def _ensure_params_list(self, node: TabularReader, name: str) -> None:
         if 'params' not in node.data:
             node.data['params'] = {}
-
-        if name not in node.data['params']:
-            node.data['params'][name] = []
 
     def _check_param_name(self, node: TabularReader, name: str) -> None:
         if 'params' in node.data and name in node.data['params']:
@@ -682,7 +787,7 @@ class ParamReader(TabularReader):
         self._ensure_params_list(node, self.name)
 
         self.data = self._get_data(self.name, row)
-        node.data['params'][self.name].append(self.data)
+        node.data['params'][self.name] = self.data
 
     def append(self, row: ManifestRow) -> None:
         node = self._get_node()
@@ -692,8 +797,7 @@ class ParamReader(TabularReader):
             self._check_param_name(node, self.name)
             self._ensure_params_list(node, self.name)
 
-        self.data = self._get_data(self.name, row)
-        node.data['params'][self.name].append(self.data)
+        self._get_and_append_data(node.data['params'][self.name], row)
 
     def release(self, reader: TabularReader = None) -> bool:
         return not isinstance(reader, (AppendReader, LangReader))
@@ -832,6 +936,37 @@ class LangReader(TabularReader):
         pass
 
 
+class UniqueReader(TabularReader):
+    type: str = 'unique'
+
+    def read(self, row: ManifestRow) -> None:
+        self.name = row[REF]
+        reader = self.state.stack[-1]
+
+        if not isinstance(reader, (
+            ModelReader,
+            UniqueReader,
+            AppendReader
+        )):
+            self.error(f'Unique reader is not supported for {reader.type}.')
+            return
+
+        if self.type not in reader.data:
+            reader.data['unique'] = []
+
+    def append(self, row: ManifestRow) -> None:
+        self.read(row)
+
+    def release(self, reader: TabularReader = None) -> bool:
+        return not isinstance(reader, AppendReader)
+
+    def enter(self) -> None:
+        self.state.model.data['unique'].append([row.strip() for row in self.name.split(',')])
+
+    def leave(self) -> None:
+        pass
+
+
 class CommentReader(TabularReader):
     type: str = 'comment'
     data: CommentData
@@ -883,6 +1018,7 @@ READERS = {
     'enum': EnumReader,
     'lang': LangReader,
     'comment': CommentReader,
+    'unique': UniqueReader
 }
 
 
@@ -914,7 +1050,7 @@ class State:
                     NamespaceReader,
                     DatasetReader,
                     ModelReader,
-                )):
+                )) and parent.name != "/":
                     yield from parent.items()
                 self.stack.pop()
                 parent.leave()
@@ -924,7 +1060,6 @@ class State:
         if reader:
             reader.enter()
             self.stack.append(reader)
-
 
 def _read_tabular_manifest_rows(
     path: Optional[str],
@@ -1025,7 +1160,7 @@ def _read_csv_manifest(
         for i, row in enumerate(rows, 1):
             yield str(i), row
     else:
-        with pathlib.Path(path).open(encoding='utf-8-sig') as f:
+        with pathlib.Path(path).open(encoding='utf-8') as f:
             rows = csv.reader(f)
             for i, row in enumerate(rows, 1):
                 yield str(i), row
@@ -1248,6 +1383,12 @@ def sort(
         return items
 
 
+def _end_marker(name):
+    yield torow(DATASET, {
+        name: "/"
+    })
+
+
 def _prefixes_to_tabular(
     prefixes: Dict[str, UriPrefix],
     *,
@@ -1391,6 +1532,42 @@ def _comments_to_tabular(
         first = False
 
 
+def _unique_to_tabular(model_unique_data) -> Iterator[ManifestRow]:
+    if not model_unique_data:
+        return
+    for row in model_unique_data:
+        yield torow(DATASET, {
+            'type': 'unique',
+            'ref': ', '.join([r.split('.')[0] for r in row])
+        })
+
+
+def _params_to_tabular(params_data) -> Iterator[ManifestRow]:
+    if not params_data:
+        return
+    for param, values in params_data.items():
+        for i in range(len(values["source"])):
+            if isinstance(values["prepare"][i], NotAvailable):
+                prepare = ''
+            else:
+                prepare = spyna.unparse(values["prepare"][i])
+            if not (isinstance(values["prepare"][i], NotAvailable) and values['source'][i] == ''):
+                if i == 0:
+                    yield torow(DATASET, {
+                        'type': 'param',
+                        'ref': param,
+                        'source': values["source"][i],
+                        'prepare': prepare,
+                        'title': values["title"],
+                        'description': values["description"]
+                    })
+                else:
+                    yield torow(DATASET, {
+                        'source': values["source"][i],
+                        'prepare': prepare
+                    })
+
+
 def _dataset_to_tabular(
     dataset: Dataset,
     *,
@@ -1442,8 +1619,21 @@ def _resource_to_tabular(
         'title': resource.title,
         'description': resource.description,
     })
+    yield from _params_to_tabular(resource.params)
     yield from _comments_to_tabular(resource.comments, access=access)
     yield from _lang_to_tabular(resource.lang)
+
+
+def _base_to_tabular(
+    base: Base,
+) -> Iterator[ManifestRow]:
+    data = {
+        'base': base.name
+    }
+    if base.pk:
+        data['ref'] = ', '.join([pk.place for pk in base.pk])
+    yield torow(DATASET, data)
+    yield from _lang_to_tabular(base.lang)
 
 
 def _property_to_tabular(
@@ -1461,8 +1651,8 @@ def _property_to_tabular(
 
     data = {
         'property': prop.place,
-        'type': prop.dtype.get_type_repr(),
-        'level': prop.level,
+        'type': _get_type_repr(prop.dtype),
+        'level': prop.level.value if prop.level else "",
         'access': prop.given.access,
         'uri': prop.uri,
         'title': prop.title,
@@ -1482,7 +1672,6 @@ def _property_to_tabular(
         elif prop.external:
             data['source'] = prop.external.name
             data['prepare'] = unparse(prop.external.prepare or NA)
-
     if isinstance(prop.dtype, Ref):
         model = prop.model
         if model.external and model.external.dataset:
@@ -1528,7 +1717,7 @@ def _model_to_tabular(
     data = {
         'id': model.id,
         'model': model.name,
-        'level': model.level,
+        'level': model.level.value if model.level else "",
         'access': model.given.access,
         'title': model.title,
         'description': model.description,
@@ -1553,8 +1742,10 @@ def _model_to_tabular(
                 p.name for p in model.external.pkeys
             ])
     yield torow(DATASET, data)
+    yield from _params_to_tabular(model.params)
     yield from _comments_to_tabular(model.comments, access=access)
     yield from _lang_to_tabular(model.lang)
+    yield from _unique_to_tabular(model.unique)
 
     props = sort(PROPERTIES_ORDER_BY, model.properties.values(), order_by)
     for prop in props:
@@ -1588,6 +1779,7 @@ def datasets_to_tabular(
     seen_datasets = set()
     dataset = None
     resource = None
+    base = None
     models = manifest.models if internal else take(manifest.models)
     models = sort(MODELS_ORDER_BY, models.values(), order_by)
 
@@ -1597,7 +1789,7 @@ def datasets_to_tabular(
             continue
 
         if model.external:
-            if dataset is None or dataset.name != model.external.dataset.name:
+            if dataset is None or (model.external.dataset and dataset.name != model.external.dataset.name):
                 dataset = model.external.dataset
                 if dataset:
                     seen_datasets.add(dataset.name)
@@ -1609,6 +1801,13 @@ def datasets_to_tabular(
                         access=access,
                         order_by=order_by,
                     )
+            elif dataset is not None and \
+                    model.external.dataset is None:
+                dataset = None
+                resource = None
+                base = None
+                separator = True
+                yield from _end_marker('dataset')
 
             if external and model.external and model.external.resource and (
                 resource is None or
@@ -1622,12 +1821,25 @@ def datasets_to_tabular(
                         external=external,
                         access=access,
                     )
+            elif external and \
+                    model.external and \
+                    model.external.resource is None and \
+                    dataset is not None and \
+                    resource is not None:
+                base = None
+                yield from _end_marker('resource')
 
         if separator:
             yield torow(DATASET, {})
         else:
             separator = False
 
+        if model.base and (not base or model.base.name != base.name):
+            base = model.base
+            yield from _base_to_tabular(model.base)
+        elif base and not model.base:
+            base = None
+            yield from _end_marker("base")
         yield from _model_to_tabular(
             model,
             external=external,
@@ -1789,7 +2001,6 @@ def write_tabular_manifest(
         rows = datasets_to_tabular(rows)
 
     rows = ({c: row[c] for c in cols} for row in rows)
-
     if path.endswith('.csv'):
         _write_csv(pathlib.Path(path), rows, cols)
     elif path.endswith('.xlsx'):
@@ -1900,3 +2111,10 @@ def _write_xlsx(
             sheet.write(i, j, val, fmt)
 
     workbook.close()
+
+
+def _get_state_obj(reader: TabularReader) -> Optional[TabularReader]:
+    if reader is None or reader.name == "/":
+        return None
+    else:
+        return reader

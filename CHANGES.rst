@@ -3,8 +3,191 @@
 Changes
 #######
 
-0.1.45 (unreleased)
+0.1.51 (unreleased)
 ===================
+
+
+
+0.1.50 (2023-05-22)
+===================
+
+New features:
+
+- Add support for reading data from models with base (`#273`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/273
+
+- Add support for `unique` constraints in tabular manifests (`#148`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/148
+
+Improvements:
+
+- Much better implementation for updating manifest files from SQL as data
+  source (`#346`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/364
+
+- Show better error messages on foreign key constraint errors (`#363`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/363
+
+- Return a non-zero error code if `spinta push` command fails with an error
+  (`#423`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/423
+
+- Add support for older SQLite versions (`#411`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/411
+
+Bug fixes:
+
+- Correctly handle level 3 references, when referenced model does not have a
+  primary key or property references a non-primary key (`#400`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/400
+
+- WIPE command now works on tables with long names (`#431`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/431
+
+
+0.1.49 (2023-04-19)
+===================
+
+Bug fixes:
+
+- Fix issue with order of axes in geometry properties (`#410`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/410
+
+
+- Fix write operations models containing geometry properties (`#417`__,
+  `#418`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/417
+  __ https://github.com/atviriduomenys/spinta/issues/418
+
+
+0.1.48 (2023-04-14)
+===================
+
+Bug fixes:
+
+- Fix issue with dask/pandas version incompatibility (`dask/dask#10164`__).
+
+  __ https://github.com/dask/dask/issues/10164
+
+
+0.1.47 (2023-03-27)
+===================
+
+Improvements:
+
+- Add support for `point(x,y)` and `cast()` functions for sql backend
+  (`#407`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/407
+
+Bug fixes:
+
+- Error when loading manifest from XLSX file, where level is read as integer
+  (`#405`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/405
+
+
+
+0.1.46 (2023-03-21)
+===================
+
+Bug fixes:
+
+- Correctly handle cases, when a weak referece, references a model, that does
+  not have primary key specified, in that case `_id` is used as primary key
+  (`#399`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/399
+
+
+0.1.45 (2023-03-20)
+===================
+
+Improvements:
+
+- Multiple improvements in `spinta push` command (`#311`__):
+
+  __ https://github.com/atviriduomenys/spinta/issues/311
+
+  - New `--no-progress-bar` option to disable progress bar, this also skips
+    counting of rows, which can be slow in some cases, for example when reading
+    data from views (`#332`__).
+
+    __ https://github.com/atviriduomenys/spinta/issues/332
+
+  - New `--retry-count` option, to repeat push operation only with objects that
+    ended up in an error on previous push. By default 5 times are retried.
+
+  - New `--max-error-count` option, to stop push operation after specified
+    number of errors, by default 50 errors is set.
+
+  - Now instead of sending `upsert`, push became more sofisticated and sends
+    `insert`, `patch` or `delete`.
+
+  - If objects were deleted from source, they are also deleted from target
+    server.
+
+  - Errors are automatically retried after each push.
+
+- Now it is possible to reference external models, this is done by specifying 3
+  or lower data maturity level. When `property.level` is set to 3 or lower for
+  `ref` type properties, local values are accepted, testing notes
+  `notes/types/ref/external`_ (`#208`__).
+
+  .. _notes/types/ref/external: https://github.com/atviriduomenys/spinta/blob/a3d0157baaa4f82a7a760141a830ca2731b23387/notes/types/ref/external.sh
+
+  __ https://github.com/atviriduomenys/spinta/issues/208
+
+- Now it is possible to specify `required` properties in `property.type`_
+  (`#259`__).
+
+  .. _property.type: https://atviriduomenys.readthedocs.io/dsa/dimensijos.html#property.type
+
+  __ https://github.com/atviriduomenys/spinta/issues/259
+
+- Specifying SRID for `geometry` type data on writes is no longer required
+  (`#330`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/330
+
+- Now it is pssible to specify `geometry(geometry)` and `geometry(geometryz)`
+  types.
+
+- `base` dimension is now supported in tabular manifest files (`#325`__), but reading and
+  writing to models with base is still not fully implemented.
+
+  __ https://github.com/atviriduomenys/spinta/issues/325
+
+- Support for new `RDF` format was added (`#308`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/308
+
+
+Bug fixes:
+
+- New ascii table formater, that should fix memory issues, when large amounts
+  of data are downloaded (`#359`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/359
+
+- Fix order logitude and latidude when creatling links to OSM maps (`#334`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/334
+
+- Add possibility to explicitly select `_revision` (`#339`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/339
 
 
 0.1.44 (2022-11-23)

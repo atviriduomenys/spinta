@@ -25,13 +25,13 @@ def get_osm_link(value: WKBElement, srid: Optional[int]) -> Optional[str]:
         transformer = Transformer.from_crs(
             crs_from=CRS(f'EPSG:{srid}'),
             crs_to=CRS(f'EPSG:{WGS84}'),
-            always_xy=True,
         )
         shape = transform(transformer.transform, shape)
 
     centroid = shape.centroid
-    lon, lat = centroid.x, centroid.y
+    lat, lon = centroid.x, centroid.y
     params = urlencode({'mlat': lat, 'mlon': lon})
+
     return f'https://www.openstreetmap.org/?{params}#map=19/{lat}/{lon}'
 
 

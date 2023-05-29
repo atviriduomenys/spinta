@@ -38,19 +38,20 @@ def prepare(context: Context, backend: PostgreSQL, dtype: File):
         model.backend.add_table(table, prop, TableType.FILE)
 
     name = get_column_name(prop)
+    nullable = not dtype.required
 
     # Required file metadata on any backend.
     columns = [
-        sa.Column(f'{name}._id', sa.String),
-        sa.Column(f'{name}._content_type', sa.String),
-        sa.Column(f'{name}._size', BIGINT),
+        sa.Column(f'{name}._id', sa.String, nullable=nullable),
+        sa.Column(f'{name}._content_type', sa.String, nullable=nullable),
+        sa.Column(f'{name}._size', BIGINT, nullable=nullable),
     ]
 
     # Optional file metadata, depending on backend supported features.
     if same_backend or BackendFeatures.FILE_BLOCKS in dtype.backend.features:
         columns += [
-            sa.Column(f'{name}._bsize', sa.Integer),
-            sa.Column(f'{name}._blocks', ARRAY(pkey_type)),
+            sa.Column(f'{name}._bsize', sa.Integer, nullable=nullable),
+            sa.Column(f'{name}._blocks', ARRAY(pkey_type, ), nullable=nullable),
         ]
 
     return columns

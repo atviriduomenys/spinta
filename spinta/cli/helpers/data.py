@@ -13,6 +13,7 @@ import tqdm
 
 from spinta import commands
 from spinta import components
+from spinta.cli.helpers.errors import ErrorCounter
 from spinta.formats.components import Format
 from spinta.components import Context
 from spinta.components import DataStream
@@ -42,14 +43,19 @@ def count_rows(
     limit: int = None,
     *,
     stop_on_error: bool = False,
+    error_counter: ErrorCounter = None
 ) -> Dict[str, int]:
     counts = {}
     for model in tqdm.tqdm(models, 'Count rows', ascii=True, leave=False):
         try:
             count = _get_row_count(context, model)
         except Exception:
+            if error_counter:
+                error_counter.increase()
+                if error_counter.has_reached_max():
+                    break
             if stop_on_error:
-                raise
+                break
             else:
                 log.exception("Error on _get_row_count({model.name}).")
         else:
@@ -92,11 +98,13 @@ def iter_model_rows(
     limit: int = None,
     *,
     stop_on_error: bool = False,
+    no_progress_bar: bool = False,
 ) -> Iterator[ModelRow]:
     for model in models:
         rows = _read_model_data(context, model, limit, stop_on_error)
-        count = counts.get(model.name)
-        rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
+        if not no_progress_bar:
+            count = counts.get(model.name)
+            rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
         for row in rows:
             yield model, row
 

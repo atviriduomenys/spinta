@@ -438,9 +438,13 @@ class Namespace(MetaData):
 
     def parents(self) -> Iterator[Namespace]:
         ns = self.parent
+        i = 0
         while isinstance(ns, Namespace):
             yield ns
             ns = ns.parent
+            i += 1
+            if i > 99:
+                raise RuntimeError('Namespace references to itself?')
 
     def is_root(self) -> bool:
         # TODO: Move Namespace component to spinta.namespaces
@@ -455,14 +459,20 @@ class Base(Node):
     lang: LangData = None
 
     schema = {
+        'name': {},
         'model': {'type': 'string'},
-        'pk': {'type': 'string'},
+        'parent': {'type': 'string'},
+        'pk': {
+            'type': 'array',
+            'items': {'type': 'object'},
+        },
         'lang': {'type': 'object'},
     }
 
 
 class ModelGiven:
     access: str = None
+    pkeys: list[str] = None
 
 
 class Model(MetaData):
@@ -479,6 +489,7 @@ class Model(MetaData):
     given: ModelGiven
     lang: LangData = None
     comments: List[Comment] = None
+    base: Base = None
     uri: str = None
 
     schema = {
