@@ -105,10 +105,17 @@ def getall(
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = keymap.encode(sel.prop.model.model_type(), val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        val = keymap.encode(sel.prop.dtype.model.model_type(), val)
-                        val = {'_id': val}
+                        if sel.prop.level.value > 3:
+                            val = keymap.encode(sel.prop.dtype.model.model_type(), val)
+                            val = {'_id': val}
+                        else:
+                            if len(sel.prop.dtype.refprops) > 1:
+                                raise Exception("wrong data")
+                            val = {
+                                sel.prop.dtype.refprops[0].name: val
+                            }
                 res[key] = val
-
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res
+

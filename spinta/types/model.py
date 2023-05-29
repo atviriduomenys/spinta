@@ -250,7 +250,6 @@ def load(
         prop.unit = unit
     else:
         prop.given.enum = unit
-
     return prop
 
 

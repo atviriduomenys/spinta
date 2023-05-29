@@ -218,7 +218,6 @@ def test_push_error_exit_code_with_bad_resource(
     assert result.exit_code == 1
 
 
-
 def test_push_with_resource_check(
     postgresql,
     rc,
@@ -236,6 +235,7 @@ def test_push_with_resource_check(
       |   |   |   | code      | string |         | kodas        | open
       |   |   |   | name      | string |         | pavadinimas  | open
       |   |                   |        |         |              |
+    datasets/gov/exampleNoRes |        |         |              |
       |   |   | countryNoRes  |        |         |              |
       |   |   |   | code      | string |         |              | open
       |   |   |   | name      | string |         |              | open
@@ -259,11 +259,20 @@ def test_push_with_resource_check(
     ])
     assert result.exit_code == 0
 
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/exampleNoRes',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
     remote.app.authmodel('datasets/gov/exampleRes/countryRes', ['getall'])
     resp_res = remote.app.get('/datasets/gov/exampleRes/countryRes')
 
-    remote.app.authmodel('datasets/gov/exampleRes/countryNoRes', ['getall'])
-    resp_no_res = remote.app.get('/datasets/gov/exampleRes/countryNoRes')
+    remote.app.authmodel('datasets/gov/exampleNoRes/countryNoRes', ['getall'])
+    resp_no_res = remote.app.get('/datasets/gov/exampleNoRes/countryNoRes')
 
     assert len(listdata(resp_res)) == 3
     assert len(listdata(resp_no_res)) == 0
@@ -279,18 +288,18 @@ def test_push_ref_with_level(
     request
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
-    d | r | b | m | property | type    | ref                             | source   | level | access
-    leveldataset             |         |                                 |          |       |
-      | db                   | sql     |                                 |          |       |
-      |   |   | City         |         | id                              | cities   | 4     |
-      |   |   |   | id       | integer |                                 | id       | 4     | open
-      |   |   |   | name     | string  |                                 | name     | 2     | open
-      |   |   |   | country  | ref     | /leveldataset/countries/Country | country  | 3     | open
-      |   |   |   |          |         |                                 |          |       |
-    leveldataset/countries   |         |                                 |          |       |
-      |   |   | Country      |         | code                            |          | 4     |
-      |   |   |   | code     | string  |                                 |          | 4     | open
-      |   |   |   | name     | string  |                                 |          | 2     | open
+    d | r | b | m | property | type    | ref                             | source         | level | access
+    leveldataset             |         |                                 |                |       |
+      | db                   | sql     |                                 |                |       |
+      |   |   | City         |         | id                              | cities         | 4     |
+      |   |   |   | id       | integer |                                 | id             | 4     | open
+      |   |   |   | name     | string  |                                 | name           | 2     | open
+      |   |   |   | country  | ref     | /leveldataset/countries/Country | country        | 3     | open
+      |   |   |   |          |         |                                 |                |       |
+    leveldataset/countries   |         |                                 |                |       |
+      |   |   | Country      |         | code                            |                | 4     |
+      |   |   |   | code     | string  |                                 |                | 4     | open
+      |   |   |   | name     | string  |                                 |                | 2     | open
     '''))
 
     # Configure local server with SQL backend

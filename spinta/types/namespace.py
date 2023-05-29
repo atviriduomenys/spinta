@@ -244,7 +244,7 @@ def traverse_ns_models(
     for model in models.values():
         if _model_matches_params(context, model, action, dataset_, resource, internal):
             if resource_check:
-                if model.external.resource:
+                if model.external.name and model.external.resource:
                     yield model
             else:
                 yield model
