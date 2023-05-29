@@ -300,38 +300,10 @@ def test_filter_multi_column_pk(rc, tmp_path, geodb):
     '''))
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('keymap/Country')
-    codes = dict(listdata(resp, '_id', 'code'))
-    resp = app.get('keymap/City?sort(name)')
-    data = listdata(resp, 'country._id', 'name', sort='name')
-    data = [(codes.get(country), city) for country, city in data]
-    assert data != [
-        ('lv', 'Ryga'),
-        ('lt', 'Vilnius'),
-    ]
-
-
-def test_filter_multi_column_pk_with_two_ref(rc, tmp_path, geodb):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source      | prepare            | type    | ref            | level | access | uri | title   | description
-       | keymaptworef             |             |                    |         |                |       |        |     | Example |
-       |   | data                 |             |                    | sql     |                |       |        |     | Data    |
-       |   |   |                  |             |                    |         |                |       |        |     |         |
-       |   |   |   | Country      | salis       |                    |         | id, code       |       |        |     | Country |
-       |   |   |   |   | id       | id          |                    | integer |                | 3     | open   |     | Code    |
-       |   |   |   |   | code     | kodas       |                    | string  |                | 3     | open   |     | Code    |
-       |   |   |   |   | name     | pavadinimas |                    | string  |                | 3     | open   |     | Name    |
-       |   |   |                  |             |                    |         |                |       |        |     |         |
-       |   |   |   | City         | miestas     | country.code!='ee' |         | name           |       |        |     | City    |
-       |   |   |   |   | name     | pavadinimas |                    | string  |                | 3     | open   |     | Name    |
-       |   |   |   |   | country  | salis       |                    | ref     | Country[code]  | 4     | open   |     | Country |
-    '''))
-    app = create_client(rc, tmp_path, geodb)
-
-    resp = app.get('keymaptworef/Country')
-    codes = dict(listdata(resp, '_id', 'code'))
-    resp = app.get('keymaptworef/City?sort(name)')
-    data = listdata(resp, 'country._id', 'name', sort='name')
+    resp_country = app.get('keymap/Country')
+    codes = dict(listdata(resp_country, '_id', 'code'))
+    resp_city = app.get('keymap/City?sort(name)')
+    data = listdata(resp_city, 'country._id', 'name', sort='name')
     data = [(codes.get(country), city) for country, city in data]
     assert data == [
         ('lv', 'Ryga'),

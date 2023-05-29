@@ -8,9 +8,6 @@ def test_scalar():
     kmap = KeyMap('sqlite:///:memory:')
     commands.prepare(context, kmap)
     with kmap:
-        # val = 42
-        # key = kmap.encode('test', val, None)
-        # assert kmap.decode('test', key) == 42
         pkey = kmap.encode('datasets/gov/example/Country', [1, 'lt'])
         xkey = kmap.encode('datasets/gov/example/Country.code', 'lt', pkey)
         assert pkey == xkey

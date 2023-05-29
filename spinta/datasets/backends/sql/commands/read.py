@@ -102,16 +102,13 @@ def getall(
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = keymap.encode(sel.prop.model.model_type(), val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        if sel.prop.dtype.model.external.pkeys == sel.prop.dtype.refprops:
+                        if sel.prop.dtype.model.external.pkeys == sel.prop.dtype.refprops or len(
+                            sel.prop.dtype.refprops) > len(sel.prop.dtype.model.external.pkeys):
                             val = keymap.encode(sel.prop.dtype.model.name, val)
-                            pk = val
                         else:
-                            if not pk:
-                                table = backend.get_table(model, str(sel.prop.dtype.model.external.name))
-                                pk = conn.execute(_get_params_values(table, query, val)).scalar()
-                                val = keymap.encode(sel.prop.dtype.model.model_type(), pk)
-                            else:
-                                val = keymap.encode(sel.prop.dtype.model.model_type(), val, pk)
+                            table = backend.get_table(model, str(sel.prop.dtype.model.external.name))
+                            pk = conn.execute(_get_params_values(table, val)).scalar()
+                            val = keymap.encode(sel.prop.dtype.model.model_type(), pk)
                         val = {'_id': val}
                 res[key] = val
             res = flat_dicts_to_nested(res)
@@ -119,8 +116,8 @@ def getall(
             yield res
 
 
-def _get_params_values(table, query, val):
-    parse_params = str(query).strip("(select").rstrip(')').replace('_', '.')
-    foreing_keys = [t.name for t in table.c if t.primary_key]
-    columns = [t.name for t in table.c if t.name in parse_params and not t.primary_key]
-    return sa.select(table.c[foreing_keys[0]]).where(table.c[columns[0]] == val)
+def _get_params_values(table, val):
+    primary_keys = [t.name for t in table.c if t.primary_key]
+    columns = [t.name for t in table.c if t.name and not t.primary_key]
+    where_clause = [table.c[column] == val for column in columns]
+    return sa.select(table.c[primary_keys[0]]).filter(sa.or_(*where_clause))
