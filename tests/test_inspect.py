@@ -1657,7 +1657,6 @@ def test_inspect_json_model_ref_change(
              |   |        | name                | string required unique |        | name
              |   |        | weather_temperature | number unique          |        | weather.temperature
              |   |        | weather_wind_speed  | number unique          |        | weather.wind_speed
-             |   |        | parent              | ref                    | Pos    | ..
            ''')
 
     cli.invoke(rc, [
