@@ -306,7 +306,7 @@ def test_push_ref_with_level(
     localrc = create_rc(rc, tmp_path, geodb)
 
     # Configure remote server
-    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
     request.addfinalizer(remote.app.context.wipe_all)
 
     # Push data from local to remote.

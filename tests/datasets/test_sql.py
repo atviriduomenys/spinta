@@ -81,13 +81,17 @@ def configure_remote_server(
     rc: RawConfig,
     tmp_path: pathlib.Path,
     responses,
+    remove_source: bool = True
 ):
-    cli.invoke(local_rc, [
+    invoke_props = [
         'copy',
         '--access', 'open',
         '-o', tmp_path / 'remote.csv',
         tmp_path / 'manifest.csv',
-    ])
+    ]
+    if remove_source:
+        invoke_props.append('--no-source')
+    cli.invoke(local_rc, invoke_props)
 
     # Create remote server with PostgreSQL backend
     remote_rc = rc.fork({
