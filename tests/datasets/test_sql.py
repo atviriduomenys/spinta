@@ -84,7 +84,6 @@ def configure_remote_server(
 ):
     cli.invoke(local_rc, [
         'copy',
-        '--no-source',
         '--access', 'open',
         '-o', tmp_path / 'remote.csv',
         tmp_path / 'manifest.csv',
