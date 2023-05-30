@@ -97,7 +97,7 @@ def get_primary_key_type(context: Context, backend: PostgreSQL):
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
     pkey_type = commands.get_primary_key_type(context, backend)
     base = dtype.prop.model.base
-    if base and (base.parent.level and base.parent.level > 3 or not base.parent.level):
+    if base and (base.level and base.level > 3 or not base.level):
         return [
             sa.Column('_id', pkey_type, primary_key=True),
             sa.ForeignKeyConstraint(

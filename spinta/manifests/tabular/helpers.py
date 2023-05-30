@@ -372,7 +372,8 @@ class BaseReader(TabularReader):
                 'pk': (
                     [x.strip() for x in row['ref'].split(',')]
                     if row['ref'] else []
-                )
+                ),
+                'level': row['level']
             }
 
     def release(self, reader: TabularReader = None) -> bool:
@@ -423,6 +424,7 @@ class ModelReader(TabularReader):
                 'name': base.name,
                 'parent': base.data['model'],
                 'pk': base.data['pk'],
+                'level': base.data['level']
             } if base and base.data else None,
             'level': row['level'],
             'access': row['access'],
@@ -1061,6 +1063,7 @@ class State:
             reader.enter()
             self.stack.append(reader)
 
+
 def _read_tabular_manifest_rows(
     path: Optional[str],
     rows: Iterator[Tuple[str, List[str]]],
@@ -1601,7 +1604,8 @@ def _base_to_tabular(
     base: Base,
 ) -> Iterator[ManifestRow]:
     data = {
-        'base': base.name
+        'base': base.name,
+        'level': base.level.value if base.level else "",
     }
     if base.pk:
         data['ref'] = ', '.join([pk.place for pk in base.pk])

@@ -457,6 +457,7 @@ class Base(Node):
     parent: Model       # a.base.b - here `parent` is `a`
     pk: List[Property]  # a.base.b - list of properties of `a` model
     lang: LangData = None
+    level: Level
 
     schema = {
         'name': {},
@@ -467,6 +468,11 @@ class Base(Node):
             'items': {'type': 'object'},
         },
         'lang': {'type': 'object'},
+        'level': {
+            'type': 'integer',
+            'choices': Level,
+            'inherit': 'external.resource.level',
+        },
     }
 
 

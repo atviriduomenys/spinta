@@ -38,10 +38,10 @@ def test_prepare_base_under_level(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b         | m           | property | type    | ref       | level | access
     example/base_under                         |         |           |       |
-      |   |           | BaseModel   |          |         |           | 3     |
+      |   |           | BaseModel   |          |         |           | 4     |
       |   |           |             | id       | integer |           | 3     | open
       |   |           |             | name     | string  |           | 3     | open
-      |   | BaseModel |             |          |         |           |       |
+      |   | BaseModel |             |          |         |           | 3     |
       |   |           | NormalModel |          |         |           | 4     |
       |   |           |             | id       | integer |           | 3     | open
       |   |           |             | name     | string  |           | 3     | open
@@ -64,7 +64,7 @@ def test_prepare_base_over_level(rc: RawConfig):
       |   |           | BaseModel   |          |         |           | 4     |
       |   |           |             | id       | integer |           | 3     | open
       |   |           |             | name     | string  |           | 3     | open
-      |   | BaseModel |             |          |         |           |       |
+      |   | BaseModel |             |          |         |           | 4     |
       |   |           | NormalModel |          |         |           | 4     |
       |   |           |             | id       | integer |           | 3     | open
       |   |           |             | name     | string  |           | 3     | open
@@ -84,8 +84,8 @@ def test_prepare_base_over_level(rc: RawConfig):
 def test_prepare_base_no_level(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b         | m           | property | type    | ref       | level | access
-    example/base_no                          |         |           |       |
-      |   |           | BaseModel   |          |         |           |       |
+    example/base_no                            |         |           |       |
+      |   |           | BaseModel   |          |         |           | 4     |
       |   |           |             | id       | integer |           | 3     | open
       |   |           |             | name     | string  |           | 3     | open
       |   | BaseModel |             |          |         |           |       |
