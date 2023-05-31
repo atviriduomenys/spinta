@@ -160,6 +160,7 @@ TYPES = [
     (sa.Text, 'string'),
     (sa.Time, 'time'),
     (sa.VARCHAR, 'string'),
+    (sa.CHAR, 'string'),
     (mysql.BIT, 'string'),
     (mysql.VARBINARY, 'string'),
     (mysql.VARCHAR, 'string'),
