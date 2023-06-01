@@ -1,19 +1,14 @@
 import json
 import urllib
-from pprint import pprint
 from typing import Dict, Any, Iterator, List
 
 import dask
-import numpy as np
-import pandas
 import requests
 from dask.dataframe import DataFrame
 from lxml import etree
-import time
 
 from spinta import commands
-from spinta.auth import authorized
-from spinta.components import Context, Property, Model, Action
+from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
 from spinta.datasets.backends.dataframe.commands.query import DaskDataFrameQueryBuilder, Selected
@@ -23,7 +18,7 @@ from spinta.datasets.helpers import get_enum_filters, get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName, NotImplementedFeature
+from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName
 from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts
 from spinta.types.datatype import PrimaryKey, Ref
@@ -173,46 +168,13 @@ def parse_source(model_source: str, prop_source: str) -> str:
         return prop_source
 
 
-def create_nested_list(string):
-    result = []
-    current_level = result
-
-    parts = string.split(".")
-    for part in parts:
-        if "[]" in part:
-            part = part.replace("[]", "")
-            current_level.append(part)
-            new_level = []
-            current_level.append(new_level)
-            current_level = new_level
-        else:
-            current_level.append(part)
-
-    return result
-
-
-def filter_json(data, record_path):
-    if not record_path:
-        return data
-
-    current_key, *remaining_keys = record_path
-
-    if isinstance(data, list):
-        filtered_data = []
-        for item in data:
-            if current_key in item:
-                filtered_data.extend(filter_json(item[current_key], remaining_keys))
-        return filtered_data
-
-    if current_key in data:
-        return filter_json(data[current_key], remaining_keys)
-
-    return []
-
-
 def parse_json_with_params(data, source: str, model_props: Dict):
     data = json.loads(data)
-    values = extract_values(data, source.split("."), model_props)
+    source_list = source.split(".")
+    if source == ".":
+        source_list = ["."]
+
+    values = extract_values(data, source_list, model_props)
     return values
 
 
@@ -261,7 +223,7 @@ def extract_values(data, source: list, model_props: dict):
             for item in items:
                 traverse(item, current_value.copy(), current_path, in_model)
 
-    traverse(data)
+    traverse(data, in_model=source == ["."])
     return result
 
 
@@ -306,9 +268,10 @@ def getall(
     props = {}
     for prop in model.properties.values():
         if prop.external and prop.external.name:
+            root_source = get_full_source_json(model.external.name, prop.external.name)
             props[prop.external.name] = {
                 "source": prop.external.name,
-                "root_source": get_full_source_json(model.external.name, prop.external.name).split(".")
+                "root_source": root_source.split(".") if root_source!="." else ["."]
             }
 
     for params in iterparams(context, model):
