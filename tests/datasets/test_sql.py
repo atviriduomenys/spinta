@@ -382,11 +382,11 @@ def test_join_with_base(
 
     resp = app.get('/datasets/basetest/Location?select(_id,id,name,population,type)')
     assert resp.status_code == 200
-    assert "Vilnius" in resp.text
+    assert listdata(resp, 'name', sort='name') == ['Lithuania', 'Vilnius']
 
     resp = app.get('/datasets/basetest/City?select(id,name,country.name)')
     assert resp.status_code == 200
-    assert "Vilnius" in resp.text
+    assert listdata(resp, 'name', sort='name')[0] == 'Vilnius'
 
 
 @pytest.mark.skip('todo')
