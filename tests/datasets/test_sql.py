@@ -3,7 +3,7 @@ import pathlib
 import re
 from typing import Dict
 from typing import Tuple
-import json
+
 import pytest
 from pytest import FixtureRequest
 
@@ -308,10 +308,10 @@ def test_join_with_base(
       |   |   |   |            | enum                 |         | "city"    |
       |   |   |   |            |                      |         | "country" |
       |   |   |   |            |                      |         |           |
-      |   | Location           |                      |name     |           |
+      |   | Location           |                      | name    |           |
       |   |   |   |            |                      |         |           |
       |   |   | Country        |                      | id      |           |
-      |   |   |   | id         |                      |         |           | open
+      |   |   |   | id         | integer              |         |           | open
       |   |   |   | name       |                      |         |           | open
       |   |   |   | population |                      |         |           | open
       |   |   |   |            |                      |         |           |
@@ -358,6 +358,7 @@ def test_join_with_base(
     resp = app.post('/datasets/basetest/Location', json={
         '_id': VLN,
         'id': 42,
+        'name': 'Vilnius',
         'population': 625349,
     })
     assert resp.status_code == 201
