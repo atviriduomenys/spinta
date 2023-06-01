@@ -100,8 +100,8 @@ class PgQueryBuilder(Env):
                 ltable = self.joins[fpr.chain[-2].name]
             else:
                 ltable = self.backend.get_table(fpr.left.model)
-            lrkey = self.backend.get_column(ltable, fpr.left)
 
+            lrkey = self.backend.get_column(ltable, fpr.left)
             rmodel = fpr.right.model
 
             rtable = self.backend.get_table(rmodel).alias()
@@ -113,19 +113,16 @@ class PgQueryBuilder(Env):
 
             base_model = get_property_base_model(rmodel, prop.right.basename)
             if base_model:
-                rtable = self.backend.get_table(base_model).alias()
-                self.joins[base_model.name] = rtable
+                return self.get_joined_base_table(base_model, prop.right.basename)
 
-                rpkey = self.backend.get_column(rtable, base_model.properties['_id'])
-                condition = lrkey == rpkey
-                self.from_ = self.from_.outerjoin(rtable, condition)
-                return self.joins[base_model.name]
+            return self.joins[fpr.name]
 
-        return self.joins[fpr.name]
-
-    def get_joined_base_table(self, model: Model, prop: str):
+    def get_joined_base_table(self, model: Model, prop: str, original_model=None):
         inherit_model = model
         base_model = get_property_base_model(inherit_model, prop)
+
+        if not original_model:
+            original_model = model
 
         if not base_model:
             raise PropertyNotFound(prop)
@@ -133,8 +130,12 @@ class PgQueryBuilder(Env):
         if base_model.name in self.joins:
             return self.joins[base_model.name]
 
-        ltable = self.backend.get_table(inherit_model)
-        lrkey = self.backend.get_column(ltable, inherit_model.properties['_id'])
+        if original_model:
+            ltable = self.backend.get_table(original_model)
+            lrkey = self.backend.get_column(ltable, original_model.properties['_id'])
+        else:
+            ltable = self.backend.get_table(inherit_model)
+            lrkey = self.backend.get_column(ltable, inherit_model.properties['_id'])
 
         rtable = self.backend.get_table(base_model).alias()
         rpkey = self.backend.get_column(rtable, base_model.properties['_id'])
@@ -143,7 +144,10 @@ class PgQueryBuilder(Env):
         self.joins[base_model.name] = rtable
         self.from_ = self.from_.outerjoin(rtable, condition)
 
-        return self.joins[base_model.name]
+        if not base_model.base:
+            return self.joins[base_model.name]
+
+        return self.get_joined_base_table(base_model, prop, original_model)
 
 
 class ForeignProperty:
