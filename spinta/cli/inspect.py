@@ -550,20 +550,23 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Ref) -> None
                 if n.external and merged.prop.model.external:
                     if n.external.dataset is merged.prop.model.external.dataset:
                         merged.model = n
-                        new_refprops = []
-                        properties = zipitems(
-                            merged.refprops,
-                            n.properties.values(),
-                            _property_source_key
-                        )
-                        for prop in properties:
-                            for po, pn in prop:
-                                if po and pn:
-                                    new_refprops.append(pn)
+                        if not n.external.unknown_primary_key and n.external.pkeys:
+                            merged.refprops = n.external.pkeys
+                        else:
+                            new_refprops = []
+                            properties = zipitems(
+                                merged.refprops,
+                                n.properties.values(),
+                                _property_source_key
+                            )
+                            for prop in properties:
+                                for po, pn in prop:
+                                    if po and pn:
+                                        new_refprops.append(pn)
 
-                        if not new_refprops:
-                            new_refprops = merged.refprops
-                        merged.refprops = new_refprops
+                            if not new_refprops:
+                                new_refprops = merged.refprops
+                            merged.refprops = new_refprops
                         break
         else:
             continue
