@@ -114,3 +114,51 @@ def test_read_refs(rc: RawConfig, fs: AbstractFileSystem):
         (countries['lv'], 'Ryga'),
         (countries['ee'], 'Talin'),
     ]
+
+
+def test_read_multiple_models(rc: RawConfig, fs: AbstractFileSystem):
+    fs.pipe('countries.csv', (
+        'kodas,pavadinimas,id\n'
+        'lt,Lietuva,1\n'
+        'lv,Latvija,2\n'
+        'ee,Estija,3'
+    ).encode('utf-8'))
+
+    fs.pipe('cities.csv', (
+        'šalis,miestas\n'
+        'lt,Vilnius\n'
+        'lv,Ryga\n'
+        'ee,Talin'
+    ).encode('utf-8'))
+
+    context, manifest = prepare_manifest(rc, '''
+    d | r | b | m | property | type    | ref     | source                 | prepare | access
+    example/countries        |         |         |                        |         |
+      | csv0                 | csv     |         | memory://countries.csv |         |
+      |   |   | Country      |         | code    |                        |         |
+      |   |   |   | code     | string  |         | kodas                  |         | open
+      |   |   |   | name     | string  |         | pavadinimas            |         | open
+      |   |   |   | id       | integer |         | id                     |         | open
+                             |         |         |                        |         |
+      | csv1                 | csv     |         | memory://cities.csv    |         |
+      |   |   | City         |         | miestas |                        |         |
+      |   |   |   | miestas  | string  |         | miestas                |         | open
+      |   |   |   | kodas    | string  |         | šalis                  |         | open
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example', ['getall'])
+
+    resp = app.get('/example/countries/Country')
+    assert listdata(resp, sort=False) == [
+        ('lt', 1, 'Lietuva'),
+        ('lv', 2, 'Latvija'),
+        ('ee', 3, 'Estija'),
+    ]
+
+    resp = app.get('example/countries/City')
+    assert listdata(resp, sort=False) == [
+        ('lt', 'Vilnius'),
+        ('lv', 'Ryga'),
+        ('ee', 'Talin'),
+    ]

@@ -60,10 +60,10 @@ CONFIG = {
             # XXX: Probably these should be moved to components.resources?
             'sql': 'spinta.datasets.backends.sql.components:Sql',
             'sqldump': 'spinta.datasets.backends.sqldump.components:SqlDump',
-            'csv': 'spinta.datasets.backends.csv.components:Csv',
-            'xml': 'spinta.datasets.backends.xml.components:Xml',
+            'csv': 'spinta.datasets.backends.dataframe.components:Csv',
+            'xml': 'spinta.datasets.backends.dataframe.components:Xml',
+            'json': 'spinta.datasets.backends.dataframe.components:Json',
             'xlsx': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
-            'json': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'geojson': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
             'html': 'spinta.datasets.backends.notimpl.components:BackendNotImplemented',
         },

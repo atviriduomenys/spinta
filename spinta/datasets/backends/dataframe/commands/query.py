@@ -1,23 +1,17 @@
-import base64
-import dataclasses
-from typing import Dict, Any, Tuple, List, Optional, TypedDict, Union, TypeVar, overload
+from typing import Dict, Any, Tuple, List
 
-import dask as dask
-from _decimal import Decimal
+from dask import dataframe as Dataframe
 
 from spinta.auth import authorized
 from spinta.components import Model, Property, Action
-from spinta.core.ufuncs import Env, Expr, ufunc, Bind, Negative, Unresolved
+from spinta.core.ufuncs import Env, Expr, ufunc, Bind, Unresolved
+from spinta.datasets.backends.dataframe.components import DaskBackend
 from spinta.datasets.backends.sql.commands.query import GetAttr
-from spinta.datasets.backends.xml.components import Xml
-from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import UnknownMethod, PropertyNotFound, UnableToCast, NotImplementedFeature
-from spinta.types.datatype import DataType, PrimaryKey, Ref, Integer, String
-from spinta.types.file.components import FileData
+from spinta.exceptions import UnknownMethod, PropertyNotFound, NotImplementedFeature, SourceCannotBeList
+from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.ufuncs.components import ForeignProperty
 from spinta.utils.data import take
-from spinta.utils.itertools import flatten
 from spinta.utils.schema import NA
 
 
@@ -51,7 +45,7 @@ class Selected:
                 f'item={self.item}, '
                 f'prop={prop}, '
                 f'prep=...)\n'
-                   ) + self.prep.debug(indent + '  ')
+            ) + self.prep.debug(indent + '  ')
         elif isinstance(self.prep, (tuple, list)):
             return (
                 f'{indent}Selected('
@@ -74,9 +68,9 @@ class Selected:
 
 
 class DaskDataFrameQueryBuilder(Env):
-    backend: Xml
+    backend: DaskBackend
     model: Model
-    dataframe: dask.dataframe
+    dataframe: Dataframe
     # `resolved` is used to map which prop.place properties are already
     # resolved, usually it maps to Selected, but different DataType's can return
     # different results.
@@ -84,7 +78,7 @@ class DaskDataFrameQueryBuilder(Env):
     selected: Dict[str, Selected] = None
     params: ResolvedParams
 
-    def init(self, backend: Xml, dataframe: dask.dataframe):
+    def init(self, backend: DaskBackend, dataframe: Dataframe):
         return self(
             backend=backend,
             dataframe=dataframe,
@@ -101,19 +95,8 @@ class DaskDataFrameQueryBuilder(Env):
     def build(self, where):
         if self.selected is None:
             self.call('select', Expr('select'))
-        print(self.selected)
         df = self.dataframe
-        # qry = sa.select(self.columns)
-        # qry = qry.select_from(self.joins.from_)
-        #
-        # if where is not None:
-        #     qry = qry.where(where)
-        #
-        if self.sort["desc"]:
-            df = df.sort_values(by=self.sort["desc"], ascending=False)
-        if self.sort["asc"]:
-            df = df.sort_values(by=self.sort["asc"], ascending=False)
-        #
+
         if self.limit is not None:
             df = df.loc[:self.limit]
         #
@@ -129,16 +112,77 @@ class DaskDataFrameQueryBuilder(Env):
         raise UnknownMethod(name=expr.name, expr=str(expr(*args, **kwargs)))
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, DataType, list)
-def eq(env: DaskDataFrameQueryBuilder, dtype: DataType, value: List[Any]):
-    column = dtype.prop.external.name
-    return env.dataframe[env.dataframe[column].isin(value)]
+@ufunc.resolver(DaskDataFrameQueryBuilder, int)
+def limit(env: DaskDataFrameQueryBuilder, n: int):
+    env.limit = n
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, DataType, list)
-def ne(env: DaskDataFrameQueryBuilder, dtype: DataType, value: List[Any]):
-    column = dtype.prop.external.name
-    return env.dataframe[~env.dataframe[column].isin(value)]
+@ufunc.resolver(DaskDataFrameQueryBuilder, int)
+def offset(env: DaskDataFrameQueryBuilder, n: int):
+    env.offset = n
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind, name='getattr')
+def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: Bind):
+    return GetAttr(obj.name, attr)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, GetAttr, name='getattr')
+def getattr_(env: DaskDataFrameQueryBuilder, obj: Bind, attr: GetAttr):
+    return GetAttr(obj.name, attr)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
+def _resolve_getattr(
+    env: DaskDataFrameQueryBuilder,
+    attr: GetAttr,
+) -> ForeignProperty:
+    prop = env.model.properties[attr.obj]
+    return env.call('_resolve_getattr', prop.dtype, attr.name)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, GetAttr)
+def _resolve_getattr(
+    env: DaskDataFrameQueryBuilder,
+    dtype: Ref,
+    attr: GetAttr,
+) -> ForeignProperty:
+    prop = dtype.model.properties[attr.obj]
+    fpr = ForeignProperty(None, dtype, prop.dtype)
+    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, Ref, Bind)
+def _resolve_getattr(
+    env: DaskDataFrameQueryBuilder,
+    dtype: Ref,
+    attr: Bind,
+) -> ForeignProperty:
+    prop = dtype.model.properties[attr.name]
+    return ForeignProperty(None, dtype, prop.dtype)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ForeignProperty, Ref, GetAttr)
+def _resolve_getattr(
+    env: DaskDataFrameQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Ref,
+    attr: GetAttr,
+) -> ForeignProperty:
+    prop = dtype.model.properties[attr.obj]
+    fpr = fpr.push(prop)
+    return env.call('_resolve_getattr', fpr, prop.dtype, attr.name)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ForeignProperty, Ref, Bind)
+def _resolve_getattr(
+    env: DaskDataFrameQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: Ref,
+    attr: Bind,
+) -> ForeignProperty:
+    prop = dtype.model.properties[attr.name]
+    return fpr.push(prop)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, object)
@@ -158,18 +202,6 @@ def _resolve_unresolved(env: DaskDataFrameQueryBuilder, field: Bind) -> str:
         raise PropertyNotFound(env.model, property=field.name)
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name='list')
-def list_(env: DaskDataFrameQueryBuilder, expr: Expr) -> List[Any]:
-    args, kwargs = expr.resolve(env)
-    return list(args)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
-def testlist(env: DaskDataFrameQueryBuilder, expr: Expr) -> Tuple[Any]:
-    args, kwargs = expr.resolve(env)
-    return tuple(args)
-
-
 @ufunc.resolver(DaskDataFrameQueryBuilder)
 def count(env: DaskDataFrameQueryBuilder):
     return len(env.dataframe.index)
@@ -187,8 +219,6 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
     env.selected = {}
     if args:
         for key, arg in args:
-            print(arg)
-            print(type(arg))
             env.selected[key] = env.call('select', arg)
     else:
         for prop in take(['_id', all], env.model.properties).values():
@@ -196,22 +226,9 @@ def select(env: DaskDataFrameQueryBuilder, expr: Expr):
                 env.selected[prop.place] = env.call('select', prop)
 
 
-@ufunc.resolver(DaskDataFrameQueryBuilder, object)
-def select(env: DaskDataFrameQueryBuilder, value: Any) -> Selected:
-    """For things like select(1, count())."""
-    raise NotImplementedFeature("Ability to write custom function for property.prepare")
-
-
 @ufunc.resolver(DaskDataFrameQueryBuilder, Bind)
 def select(env: DaskDataFrameQueryBuilder, item: Bind, *, nested: bool = False):
     prop = _get_property_for_select(env, item.name, nested=nested)
-    return env.call('select', prop)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, str)
-def select(env: DaskDataFrameQueryBuilder, item: str, *, nested: bool = False):
-    # XXX: Backwards compatible resolver, `str` arguments are deprecated.
-    prop = _get_property_for_select(env, item, nested=nested)
     return env.call('select', prop)
 
 
@@ -247,9 +264,7 @@ def _get_property_for_select(
 def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
-            # TODO: Should raise one of spinta.exceptions exception, with
-            #       property as a context.
-            raise ValueError("Source can't be a list, use prepare instead.")
+            raise SourceCannotBeList(prop)
         if prop.external.prepare is not NA:
             # If `prepare` formula is given, evaluate formula.
             if isinstance(prop.external.prepare, Expr):
@@ -287,7 +302,7 @@ def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object)
 def select(env: DaskDataFrameQueryBuilder, dtype: DataType, prep: Any) -> Selected:
-    print(prep)
+    print(type(prep))
     if isinstance(prep, str):
         # XXX: Backwards compatibility thing.
         #      str values are interpreted as Bind values and Bind values are
@@ -343,6 +358,64 @@ def select(env: DaskDataFrameQueryBuilder, dtype: Ref, prep: Any) -> Selected:
     return Selected(
         prop=dtype.prop,
         prep=env.call('select', fpr, fpr.right.prop),
+    )
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, GetAttr)
+def select(env: DaskDataFrameQueryBuilder, attr: GetAttr) -> Selected:
+    """For things like select(foo.bar.baz)."""
+
+    fpr: ForeignProperty = env.call('_resolve_getattr', attr)
+    raise NotImplementedFeature(fpr.left.prop.model, feature="Ability to use foreign properties")
+    return Selected(
+        prop=fpr.right.prop,
+        prep=env.call('select', fpr, fpr.right.prop),
+    )
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ForeignProperty)
+def select(
+    env: DaskDataFrameQueryBuilder,
+    fpr: ForeignProperty,
+) -> Selected:
+    return env.call('select', fpr, fpr.right.prop)
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ForeignProperty, Property)
+def select(
+    env: DaskDataFrameQueryBuilder,
+    fpr: ForeignProperty,
+    prop: Property,
+) -> Selected:
+    resolved_key = fpr / prop
+    print("CALLED FP1")
+    if resolved_key not in env.resolved:
+        if isinstance(prop.external, list):
+            raise ValueError("Source can't be a list, use prepare instead.")
+        if prop.external.prepare is not NA:
+
+            if isinstance(prop.external.prepare, Expr):
+                result = env(this=prop).resolve(prop.external.prepare)
+            else:
+                result = prop.external.prepare
+            result = env.call('select', fpr, prop.dtype, result)
+        else:
+            result = env.call('select', fpr, prop.dtype)
+        assert isinstance(result, Selected), prop
+        env.resolved[resolved_key] = result
+    return env.resolved[resolved_key]
+
+
+@ufunc.resolver(DaskDataFrameQueryBuilder, ForeignProperty, DataType)
+def select(
+    env: DaskDataFrameQueryBuilder,
+    fpr: ForeignProperty,
+    dtype: DataType,
+) -> Selected:
+    # TODO need join for this to work
+    return Selected(
+        item=dtype.prop.name,
+        prop=dtype.prop,
     )
 
 
@@ -422,131 +495,4 @@ def select(
     env: DaskDataFrameQueryBuilder,
     prep: Dict[str, Any],
 ) -> Dict[str, Any]:
-    # TODO: Add tests.
     return {k: env.call('select', v) for k, v in prep.items()}
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
-def sort(env: DaskDataFrameQueryBuilder, expr: Expr):
-    args, kwargs = expr.resolve(env)
-    env.sort = {
-        "desc": [],
-        "asc": []
-    }
-    for key in args:
-        prop = env.model.properties[key.name]
-        if prop.external and prop.external.name:
-            if isinstance(key, Negative):
-                env.sort["desc"].append(prop.external.name)
-            else:
-                env.sort["asc"].append(prop.external.name)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, int)
-def limit(env: DaskDataFrameQueryBuilder, n: int):
-    env.limit = n
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, int)
-def offset(env: DaskDataFrameQueryBuilder, n: int):
-    env.offset = n
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Property, object, object)
-def swap(env: DaskDataFrameQueryBuilder, prop: Property, old: Any, new: Any) -> Any:
-    return Expr('swap', old, new)
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
-def file(env: DaskDataFrameQueryBuilder, expr: Expr) -> Expr:
-    args, kwargs = expr.resolve(env)
-    return Expr(
-        'file',
-        name=env.call('select', kwargs['name'], nested=True),
-        content=env.call('select', kwargs['content'], nested=True),
-    )
-
-
-class _FileSelected(TypedDict):
-    name: Selected      # File name
-    content: Selected   # File content
-
-
-@ufunc.resolver(DaskDataFrameQueryBuilder, Expr)
-def file(env: DaskDataFrameQueryBuilder, expr: Expr) -> FileData:
-    """Post query file data processor
-
-    Will be called with _FileSelected kwargs and no args.
-    """
-    kwargs: _FileSelected
-    args, kwargs = expr.resolve(env)
-    assert len(args) == 0, args
-    name = env.data[kwargs['name'].item]
-    content = env.data[kwargs['content'].item]
-    if isinstance(content, str):
-        content = content.encode('utf-8')
-    if content is not None:
-        content = base64.b64encode(content).decode()
-    return {
-        '_id': name,
-        # TODO: Content probably should not be returned if not explicitly
-        #       requested in select list.
-        '_content': content,
-    }
-
-
-@overload
-@ufunc.resolver(DaskDataFrameQueryBuilder)
-def cast(env: DaskDataFrameQueryBuilder) -> Expr:
-    return Expr('cast')
-
-
-@overload
-@ufunc.resolver(DaskDataFrameQueryBuilder)
-def cast(env: DaskDataFrameQueryBuilder) -> Any:
-    return env.call('cast', env.prop.dtype, env.this)
-
-
-@overload
-@ufunc.resolver(DaskDataFrameQueryBuilder, String, int)
-def cast(env: DaskDataFrameQueryBuilder, dtype: String, value: int) -> str:
-    return str(value)
-
-
-@overload
-@ufunc.resolver(DaskDataFrameQueryBuilder, String, type(None))
-def cast(env: DaskDataFrameQueryBuilder, dtype: String, value: Optional[Any]) -> str:
-    return ''
-
-
-@overload
-@ufunc.resolver(DaskDataFrameQueryBuilder, Integer, Decimal)
-def cast(env: DaskDataFrameQueryBuilder, dtype: Integer, value: Decimal) -> int:
-    return env.call('cast', dtype, float(value))
-
-
-@overload
-@ufunc.resolver(DaskDataFrameQueryBuilder, Integer, float)
-def cast(env: DaskDataFrameQueryBuilder, dtype: Integer, value: float) -> int:
-    if value % 1 > 0:
-        raise UnableToCast(dtype, value=value, type=dtype.name)
-    else:
-        return int(value)
-
-
-@overload
-@ufunc.resolver(DaskDataFrameQueryBuilder, Bind, Bind)
-def point(env: DaskDataFrameQueryBuilder, x: Bind, y: Bind) -> Expr:
-    return Expr(
-        'point',
-        env.call('select', x, nested=True),
-        env.call('select', y, nested=True),
-    )
-
-
-@overload
-@ufunc.resolver(DaskDataFrameQueryBuilder, Selected, Selected)
-def point(env: DaskDataFrameQueryBuilder, x: Selected, y: Selected) -> Expr:
-    x = env.data[x.item]
-    y = env.data[y.item]
-    return f'POINT ({x} {y})'

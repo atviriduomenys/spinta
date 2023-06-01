@@ -144,7 +144,7 @@ def nested_prop_names(new_values: list, values: dict, root: str, seperator: str)
         if isinstance(value, dict):
             nested_prop_names(new_values, value, f'{root}{seperator}{key}', seperator)
         elif isinstance(value, list):
-            if not _is_list_of_dicts(value):
+            if not is_list_of_dicts(value):
                 new_values.append(f'{root}{seperator}{key}')
         else:
             new_values.append(f'{root}{seperator}{key}')
@@ -170,7 +170,7 @@ def check_missing_prop_required(dataset: _MappedDataset, values: dict, mapping_s
             if isinstance(v, dict):
                 nested_prop_names(key_values, v, new_val, mapping_meta['seperator'])
             elif isinstance(v, list):
-                if not _is_list_of_dicts(v):
+                if not is_list_of_dicts(v):
                     key_values.append(new_val)
             else:
                 key_values.append(new_val)
@@ -197,7 +197,7 @@ def run_type_detectors(dataset: _MappedDataset, values: dict, mapping_scope: _Ma
                 property_name=key
             )
             if isinstance(value, list):
-                if _is_list_of_dicts(value):
+                if is_list_of_dicts(value):
                     new_mapping_scope["model_name"] = key
                     parent_scope = _create_name_with_prefix(
                         new_mapping_scope["parent_scope"],
@@ -242,7 +242,7 @@ def _detect_type(dataset: _MappedDataset, mapping_scope: _MappingScope, mapping_
     dataset["models"][model_name][model_source]["properties"][prop_name]["type_detector"].detect(value)
 
 
-def _is_list_of_dicts(lst: List) -> bool:
+def is_list_of_dicts(lst: List) -> bool:
     for item in lst:
         if not isinstance(item, dict):
             return False
@@ -263,7 +263,7 @@ def setup_model_type_detectors(dataset: _MappedDataset, values: Union[dict, list
                 property_name=key
             )
             if isinstance(value, list):
-                if _is_list_of_dicts(value):
+                if is_list_of_dicts(value):
                     new_mapping_scope["model_name"] = key
                     parent_scope = _create_name_with_prefix(
                         new_mapping_scope["parent_scope"],

@@ -578,3 +578,7 @@ class ReferringObjectFound(UserError):
 
 class NotImplementedFeature(BaseError):
     template = "{feature} is not implemented yet."
+
+
+class SourceCannotBeList(BaseError):
+    template = "Source can't be a list, use prepare instead."
