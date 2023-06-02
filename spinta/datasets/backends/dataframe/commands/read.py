@@ -12,6 +12,7 @@ from spinta.components import Context, Property, Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.dataframe.components import DaskBackend, Csv, Xml, Json
 from spinta.datasets.backends.dataframe.commands.query import DaskDataFrameQueryBuilder, Selected
+from spinta.datasets.backends.dataframe.ufuncs.components import TabularResource
 
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
 from spinta.datasets.helpers import get_enum_filters, get_ref_filters
@@ -320,16 +321,18 @@ def getall(
     query: Expr = None,
 ) -> Iterator[ObjectData]:
     base = model.external.resource.external
+    resource_builder = TabularResource(context)
+    resource_builder.resolve(model.external.resource.prepare)
+
     builder = DaskDataFrameQueryBuilder(context)
     builder.update(model=model)
-
     for params in iterparams(context, model):
         if base:
             url = urllib.parse.urljoin(base, model.external.name)
         else:
             url = model.external.name
         url = url.format(**params)
-        df = dask.dataframe.read_csv(url)
+        df = dask.dataframe.read_csv(url, sep=resource_builder.seperator)
         yield from dask_get_all(context, query, df, backend, model, builder)
 
 
