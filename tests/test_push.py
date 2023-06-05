@@ -500,15 +500,32 @@ def test_push_delete_with_dependent_objects(
     remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
     request.addfinalizer(remote.app.context.wipe_all)
 
-    result = cli.invoke(localrc, [
-        'push',
-        '-d', 'datasets/gov/deleteDependent',
-        '-o', remote.url,
-        '--credentials', remote.credsfile,
-        '--no-progress-bar',
-        '--state', tmp_path / 'state.db',
-    ])
-    assert result.exit_code == 0
+    LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
+    KAUN = "2074d66e-0dfd-4233-b1ec-199abc994d0c"
+
+    remote.app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
+    resp = remote.app.post('/datasets/gov/deleteDependent/Country', json={
+        '_id': LTU,
+        'name': 'Lithuania',
+        'code': 'lt',
+        'continent': 'Europe',
+    })
+    assert resp.status_code == 201
+
+    resp = remote.app.post('/datasets/gov/deleteDependent/City', json={
+        '_id': KAUN,
+        'name': 'Kaunas',
+        'country_code': 'lt',
+        'continent': 'Europe',
+        'country': {'_id': LTU},
+    })
+    assert resp.status_code == 201
+
+    resp = remote.app.get('/datasets/gov/deleteDependent/Country')
+    assert len(listdata(resp)) == 1
+
+    resp = remote.app.get('/datasets/gov/deleteDependent/City')
+    assert len(listdata(resp)) == 1
 
     result = cli.invoke(localrc, [
         'push',
@@ -519,8 +536,21 @@ def test_push_delete_with_dependent_objects(
     ])
     assert result.exit_code == 0
 
-    remote.app.authmodel('/datasets/gov/deleteDependent', ['getall'])
-    resp = remote.app.get('/datasets/gov/deleteDependent')
+    remote.app.delete('/:wipe')
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteDependent',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    resp = remote.app.get('/datasets/gov/deleteDependent/Country')
+    assert len(listdata(resp)) == 0
+
+    resp = remote.app.get('/datasets/gov/deleteDependent/City')
     assert len(listdata(resp)) == 0
 
 
