@@ -24,9 +24,41 @@ from spinta.cli.push import _send_request
 from spinta.cli.push import _push
 from spinta.cli.push import _State
 from spinta.core.config import RawConfig
-from spinta.testing.datasets import Sqlite
+from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.data import listdata
+from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.tabular import create_tabular_manifest
+from tests.datasets.test_sql import create_rc, configure_remote_server
+
+
+@pytest.fixture(scope='module')
+def geodb():
+    with create_sqlite_db({
+        'salis': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('kodas', sa.Text),
+            sa.Column('pavadinimas', sa.Text),
+        ],
+        'miestas': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('pavadinimas', sa.Text),
+            sa.Column('salis', sa.Text),
+        ],
+    }) as db:
+        db.write('salis', [
+            {'kodas': 'lt', 'pavadinimas': 'Lietuva'},
+            {'kodas': 'lv', 'pavadinimas': 'Latvija'},
+            {'kodas': 'ee', 'pavadinimas': 'Estija'},
+        ])
+        db.write('miestas', [
+            {'salis': 'lt', 'pavadinimas': 'Vilnius'},
+            {'salis': 'lv', 'pavadinimas': 'Ryga'},
+            {'salis': 'ee', 'pavadinimas': 'Talinas'},
+        ])
+        yield db
 
 
 @pytest.mark.skip('datasets')
@@ -435,6 +467,61 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
         rev_before,
         True,
     )]
+
+
+def test_push_delete_with_dependent_objects(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | m | property         | type   | ref                     | source    | prepare                 | access
+    datasets/gov/deleteDependent |        |                         |           |                         |
+      | data                     | sql    |                         |           |                         |
+      |   | Country              |        | code                    | COUNTRY   |                         | open
+      |   |   | name             | string |                         | NAME      |                         |
+      |   |   | code             | string |                         | CODE      |                         |
+      |   |   | continent        | string |                         | CONTINENT |                         |
+      |   | City                 |        | name, country           | CITY      | country.code='lt'       | open
+      |   |   | name             | string |                         | NAME      |                         |
+      |   |   | country_code     | string |                         | COUNTRY   |                         |
+      |   |   | continent        | string |                         | CONTINENT |                         |
+      |   |   | country          | ref    | Country[continent,code] |           | continent, country_code |
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteDependent',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+        '--state', tmp_path / 'state.db',
+    ])
+    assert result.exit_code == 0
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteDependent',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('/datasets/gov/deleteDependent', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteDependent')
+    assert len(listdata(resp)) == 0
 
 
 def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
