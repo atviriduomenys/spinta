@@ -32,7 +32,7 @@ def read_schema(manifest_type: DictFormat, path: str):
         mapping_meta["seperator"] = "/"
         mapping_meta["recursive_descent"] = "/.."
         # Add xml load
-    mapping_meta["is_blank_node"] = _is_blank_node(converted)
+    mapping_meta["is_blank_node"] = is_blank_node(converted)
     dataset_structure: _MappedDataset = {
         "dataset": "dataset",
         "resource": "resource",
@@ -317,7 +317,7 @@ def create_type_detectors(dataset: _MappedDataset, values: Any, mapping_meta: _M
     run_type_detectors(dataset, values, mapping_scope, mapping_meta)
 
 
-def _is_blank_node(values: Union[list, dict]) -> bool:
+def is_blank_node(values: Union[list, dict]) -> bool:
     if isinstance(values, list):
         return True
     if isinstance(values, dict):
