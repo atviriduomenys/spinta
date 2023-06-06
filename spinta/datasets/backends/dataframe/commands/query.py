@@ -302,7 +302,6 @@ def select(env: DaskDataFrameQueryBuilder, dtype: DataType) -> Selected:
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, DataType, object)
 def select(env: DaskDataFrameQueryBuilder, dtype: DataType, prep: Any) -> Selected:
-    print(type(prep))
     if isinstance(prep, str):
         # XXX: Backwards compatibility thing.
         #      str values are interpreted as Bind values and Bind values are
@@ -388,7 +387,6 @@ def select(
     prop: Property,
 ) -> Selected:
     resolved_key = fpr / prop
-    print("CALLED FP1")
     if resolved_key not in env.resolved:
         if isinstance(prop.external, list):
             raise ValueError("Source can't be a list, use prepare instead.")
