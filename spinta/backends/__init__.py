@@ -1240,6 +1240,9 @@ def cast_backend_to_python(
     backend: Backend,
     data: Any,
 ) -> Any:
+    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
+    if data != data:
+        return None
     return data
 
 
