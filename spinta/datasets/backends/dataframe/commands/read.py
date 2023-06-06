@@ -368,15 +368,13 @@ def getall(
         else:
             url = model.external.name
         url = url.format(**params)
-        try:
-            df = dask.bag.from_sequence([base]).map(
-                _get_data_json,
-                source=url,
-                model_props=props
-            ).flatten().to_dataframe(meta=_get_dask_dataframe_meta(model))
-            yield from _dask_get_all(context, query, df, backend, model, builder)
-        except ValueError:
-            yield {}
+
+        df = dask.bag.from_sequence([base]).map(
+            _get_data_json,
+            source=url,
+            model_props=props
+        ).flatten().to_dataframe(meta=_get_dask_dataframe_meta(model))
+        yield from _dask_get_all(context, query, df, backend, model, builder)
 
 
 @commands.getall.register(Context, Model, Xml)
@@ -404,15 +402,12 @@ def getall(
         else:
             url = model.external.name
         url = url.format(**params)
-        try:
-            df = dask.bag.from_sequence([base]).map(
-                _get_data_xml,
-                source=url,
-                model_props=props
-            ).flatten().to_dataframe(meta=_get_dask_dataframe_meta(model))
-            yield from _dask_get_all(context, query, df, backend, model, builder)
-        except ValueError:
-            yield {}
+        df = dask.bag.from_sequence([base]).map(
+            _get_data_xml,
+            source=url,
+            model_props=props
+        ).flatten().to_dataframe(meta=_get_dask_dataframe_meta(model))
+        yield from _dask_get_all(context, query, df, backend, model, builder)
 
 
 @commands.getall.register(Context, Model, Csv)
