@@ -469,89 +469,143 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     )]
 
 
-def test_push_delete_with_dependent_objects(
-    postgresql,
-    rc,
-    cli: SpintaCliRunner,
-    responses,
-    tmp_path,
-    geodb,
-    request
-):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
-    d | r | m | property         | type   | ref                     | source    | prepare                 | access
-    datasets/gov/deleteDependent |        |                         |           |                         |
-      | data                     | sql    |                         |           |                         |
-      |   | Country              |        | code                    | COUNTRY   |                         | open
-      |   |   | name             | string |                         | NAME      |                         |
-      |   |   | code             | string |                         | CODE      |                         |
-      |   |   | continent        | string |                         | CONTINENT |                         |
-      |   | City                 |        | name, country           | CITY      | country.code='lt'       | open
-      |   |   | name             | string |                         | NAME      |                         |
-      |   |   | country_code     | string |                         | COUNTRY   |                         |
-      |   |   | continent        | string |                         | CONTINENT |                         |
-      |   |   | country          | ref    | Country[continent,code] |           | continent, country_code |
-    '''))
+def test_push_delete_with_dependent_objects(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+     m  | property         | type   | ref                     | source    | prepare                 | access
+     Country               |        | code                    | COUNTRY   |                         | open
+        | name             | string |                         | NAME      |                         |
+        | code             | string |                         | CODE      |                         |
+        | continent        | string |                         | CONTINENT |                         |
+     City                  |        | name, country           | CITY      | country.code='lt'       | open
+        | name             | string |                         | NAME      |                         |
+        | country_code     | string |                         | COUNTRY   |                         |
+        | continent        | string |                         | CONTINENT |                         |
+        | country          | ref    | Country[continent,code] |           | continent, country_code |
+    ''')
 
-    # Configure local server with SQL backend
-    localrc = create_rc(rc, tmp_path, geodb)
+    city = manifest.models['City']
+    country = manifest.models['Country']
+    models = [city, country]
 
-    # Configure remote server
-    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
-    request.addfinalizer(remote.app.context.wipe_all)
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
 
-    LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
-    KAUN = "2074d66e-0dfd-4233-b1ec-199abc994d0c"
+    rev_city = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    rev_country = '45e8d4d6-bb6c-42cd-8ad8-09049bbed6bd'
 
-    remote.app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
-    resp = remote.app.post('/datasets/gov/deleteDependent/Country', json={
-        '_id': LTU,
-        'name': 'Lithuania',
-        'code': 'lt',
-        'continent': 'Europe',
-    })
-    assert resp.status_code == 201
+    CITY = '4d741843-4e94-4890-81d9-5af7c5b5989a'
+    COUNTRY = '9b64b9e5-8c8b-4c0e-972c-70c8757f9dd5'
 
-    resp = remote.app.post('/datasets/gov/deleteDependent/City', json={
-        '_id': KAUN,
-        'name': 'Kaunas',
-        'country_code': 'lt',
-        'continent': 'Europe',
-        'country': {'_id': LTU},
-    })
-    assert resp.status_code == 201
+    city_table = state.metadata.tables[city.name]
+    country_table = state.metadata.tables[country.name]
 
-    resp = remote.app.get('/datasets/gov/deleteDependent/Country')
-    assert len(listdata(resp)) == 1
+    conn.execute(city_table.insert().values(
+        id=CITY,
+        revision=rev_city,
+        checksum='CREATED',
+        pushed=datetime.datetime.now(),
+        error=False,
+    ))
 
-    resp = remote.app.get('/datasets/gov/deleteDependent/City')
-    assert len(listdata(resp)) == 1
+    city_rows = [
+        _PushRow(city, {
+            '_type': city.name,
+            '_id': CITY,
+            'name': 'Vilnius',
+            'country_code': 'lt',
+            'continent': 'Europe',
+            'country': {'_id': COUNTRY}
+        }),
+    ]
 
-    result = cli.invoke(localrc, [
-        'push',
-        '-d', 'datasets/gov/deleteDependent',
-        '-o', remote.url,
-        '--credentials', remote.credsfile,
-        '--no-progress-bar',
-    ])
-    assert result.exit_code == 0
+    conn.execute(country_table.insert().values(
+        id=COUNTRY,
+        revision=rev_country,
+        checksum='CREATED',
+        pushed=datetime.datetime.now(),
+        error=False,
+    ))
 
-    remote.app.delete('/:wipe')
+    country_rows = [
+        _PushRow(country, {
+            '_type': country.name,
+            '_id': COUNTRY,
+            'name': 'Lithuania',
+            'code': 'lt',
+            'continent': 'Europe'
+        }),
+    ]
 
-    result = cli.invoke(localrc, [
-        'push',
-        '-d', 'datasets/gov/deleteDependent',
-        '-o', remote.url,
-        '--credentials', remote.credsfile,
-        '--no-progress-bar',
-    ])
-    assert result.exit_code == 0
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': city.name,
+                '_id': CITY,
+                '_revision': rev_city,
+                'name': 'Vilnius',
+                'country_code': 'lt',
+                'continent': 'Europe',
+                'country': {'_id': COUNTRY}
+            }],
+        },
+        match=[_matcher({
+            '_op': 'insert',
+            '_type': city.name,
+            '_id': CITY,
+            'name': 'Vilnius',
+            'country_code': 'lt',
+            'continent': 'Europe',
+            'country': {'_id': COUNTRY}
+        })],)
 
-    resp = remote.app.get('/datasets/gov/deleteDependent/Country')
-    assert len(listdata(resp)) == 0
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': country.name,
+                '_id': COUNTRY,
+                '_revision': rev_country,
+                'name': 'Lithuania',
+                'code': 'lt',
+                'continent': 'Europe',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'insert',
+            '_type': country.name,
+            '_id': COUNTRY,
+            'name': 'Lithuania',
+            'code': 'lt',
+            'continent': 'Europe',
+        })],)
 
-    resp = remote.app.get('/datasets/gov/deleteDependent/City')
-    assert len(listdata(resp)) == 0
+    _push(
+        context,
+        client,
+        server,
+        models,
+        city_rows,
+        state=state,
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        country_rows,
+        state=state,
+    )
+
+    query = sa.select([city_table.c.id, city_table.c.revision, city_table.c.error])
+    assert list(conn.execute(query)) == [(CITY, rev_city, False)]
+
+    query = sa.select([country_table.c.id, country_table.c.revision, country_table.c.error])
+    assert list(conn.execute(query)) == [(COUNTRY, rev_country, False)]
 
 
 def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
