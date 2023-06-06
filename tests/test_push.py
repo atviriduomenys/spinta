@@ -500,24 +500,8 @@ def test_push_delete_with_dependent_objects(rc: RawConfig, responses: RequestsMo
     city_table = state.metadata.tables[city.name]
     country_table = state.metadata.tables[country.name]
 
-    conn.execute(city_table.insert().values(
-        id=CITY,
-        revision=rev_city,
-        checksum='CREATED',
-        pushed=datetime.datetime.now(),
-        error=False,
-    ))
-
-    city_rows = [
-        _PushRow(city, {
-            '_type': city.name,
-            '_id': CITY,
-            'name': 'Vilnius',
-            'country_code': 'lt',
-            'continent': 'Europe',
-            'country': {'_id': COUNTRY}
-        }),
-    ]
+    client = requests.Session()
+    server = 'https://example.com/'
 
     conn.execute(country_table.insert().values(
         id=COUNTRY,
@@ -534,11 +518,62 @@ def test_push_delete_with_dependent_objects(rc: RawConfig, responses: RequestsMo
             'name': 'Lithuania',
             'code': 'lt',
             'continent': 'Europe'
-        }),
+        }, op="insert", error=True, saved=True),
     ]
 
-    client = requests.Session()
-    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': country.name,
+                '_id': COUNTRY,
+                '_revision': rev_country,
+                'name': 'Lithuania',
+                'code': 'lt',
+                'continent': 'Europe',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'insert',
+            '_type': country.name,
+            '_id': COUNTRY,
+            'name': 'Lithuania',
+            'code': 'lt',
+            'continent': 'Europe',
+        })],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        country_rows,
+        state=state,
+    )
+
+    query = sa.select([country_table.c.id, country_table.c.revision, country_table.c.error])
+    assert list(conn.execute(query)) == [(COUNTRY, rev_country, False)]
+
+    conn.execute(city_table.insert().values(
+        id=CITY,
+        revision=rev_city,
+        checksum='CREATED',
+        pushed=datetime.datetime.now(),
+        error=False,
+    ))
+
+    city_rows = [
+        _PushRow(city, {
+            '_type': city.name,
+            '_id': CITY,
+            'name': 'Vilnius',
+            'country_code': 'lt',
+            'continent': 'Europe',
+            'country': {'_id': COUNTRY}
+        }, op="insert", error=True, saved=True),
+    ]
+
     responses.add(
         POST, server,
         json={
@@ -562,27 +597,6 @@ def test_push_delete_with_dependent_objects(rc: RawConfig, responses: RequestsMo
             'country': {'_id': COUNTRY}
         })],)
 
-    responses.add(
-        POST, server,
-        json={
-            '_data': [{
-                '_type': country.name,
-                '_id': COUNTRY,
-                '_revision': rev_country,
-                'name': 'Lithuania',
-                'code': 'lt',
-                'continent': 'Europe',
-            }],
-        },
-        match=[_matcher({
-            '_op': 'insert',
-            '_type': country.name,
-            '_id': COUNTRY,
-            'name': 'Lithuania',
-            'code': 'lt',
-            'continent': 'Europe',
-        })],)
-
     _push(
         context,
         client,
@@ -592,20 +606,63 @@ def test_push_delete_with_dependent_objects(rc: RawConfig, responses: RequestsMo
         state=state,
     )
 
+    query = sa.select([city_table.c.id, city_table.c.revision, city_table.c.error])
+    assert list(conn.execute(query)) == [(CITY, rev_city, False)]
+
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': city.name,
+                '_id': CITY,
+                '_revision': rev_city,
+            },
+                {
+                '_type': country.name,
+                '_id': COUNTRY,
+                '_revision': rev_country,
+            }],
+        },
+        match=[_matcher({
+            '_op': 'delete',
+            '_type': city.name,
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')"
+        }),
+            _matcher({
+                '_op': 'delete',
+                '_type': country.name,
+                '_where': "eq(_id, '9b64b9e5-8c8b-4c0e-972c-70c8757f9dd5')"
+            })
+        ],
+    )
+
+    rows = [
+        _PushRow(city, {
+            '_op': 'delete',
+            '_type': city.name,
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
+        }, op="delete", saved=True),
+        _PushRow(country, {
+            '_op': 'delete',
+            '_type': country.name,
+            '_where': "eq(_id, '9b64b9e5-8c8b-4c0e-972c-70c8757f9dd5')",
+        }, op="delete", saved=True),
+    ]
+
     _push(
         context,
         client,
         server,
         models,
-        country_rows,
+        rows,
         state=state,
     )
 
     query = sa.select([city_table.c.id, city_table.c.revision, city_table.c.error])
-    assert list(conn.execute(query)) == [(CITY, rev_city, False)]
+    assert list(conn.execute(query)) == []
 
     query = sa.select([country_table.c.id, country_table.c.revision, country_table.c.error])
-    assert list(conn.execute(query)) == [(COUNTRY, rev_country, False)]
+    assert list(conn.execute(query)) == []
 
 
 def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
