@@ -30,7 +30,7 @@ def test_csv_read(rc: RawConfig, fs: AbstractFileSystem):
 
     context, manifest = prepare_manifest(rc, '''
     d | r | b | m | property | type    | ref  | source              | prepare | access
-    example                  |         |      |                     |         |
+    example/csv              |         |      |                     |         |
       | csv                  | csv     |      | memory://cities.csv |         |
       |   |   | City         |         | name |                     |         |
       |   |   |   | name     | string  |      | miestas             |         | open
@@ -38,9 +38,9 @@ def test_csv_read(rc: RawConfig, fs: AbstractFileSystem):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/City', ['getall'])
+    app.authmodel('example/csv/City', ['getall'])
 
-    resp = app.get('/example/City')
+    resp = app.get('/example/csv/City')
     assert listdata(resp, sort=False) == [
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
@@ -58,7 +58,7 @@ def test_csv_read_unknown_column(rc: RawConfig, fs: AbstractFileSystem):
 
     context, manifest = prepare_manifest(rc, '''
     d | r | b | m | property | type    | source              | prepare | access
-    example                  |         |                     |         |
+    example/csv              |         |                     |         |
       | csv                  | csv     | memory://cities.csv |         |
       |   |   | City         |         |                     |         |
       |   |   |   | name     | string  | miestas             |         | open
@@ -66,9 +66,9 @@ def test_csv_read_unknown_column(rc: RawConfig, fs: AbstractFileSystem):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/City', ['getall'])
+    app.authmodel('example/csv/City', ['getall'])
 
-    resp = app.get('/example/City')
+    resp = app.get('/example/csv/City')
     assert error(resp) == 'PropertyNotFound'
 
 
@@ -89,29 +89,29 @@ def test_csv_read_refs(rc: RawConfig, fs: AbstractFileSystem):
 
     context, manifest = prepare_manifest(rc, '''
     d | r | b | m | property | type   | ref                        | source                 | prepare | access
-    example/countries        |        |                            |                        |         |
+    example/csv/countries        |        |                            |                        |         |
       | csv                  | csv    |                            | memory://countries.csv |         |
       |   |   | Country      |        | code                       |                        |         |
       |   |   |   | code     | string |                            | kodas                  |         | open
       |   |   |   | name     | string |                            | pavadinimas            |         | open
-    example/cities           |        |                            |                        |         |
+    example/csv/cities           |        |                            |                        |         |
       | csv                  | csv    |                            | memory://cities.csv    |         |
       |   |   | City         |        | name                       |                        |         |
       |   |   |   | name     | string |                            | miestas                |         | open
-      |   |   |   | country  | ref    | /example/countries/Country | šalis                  |         | open
+      |   |   |   | country  | ref    | /example/csv/countries/Country | šalis                  |         | open
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example', ['getall'])
+    app.authmodel('example/csv', ['getall'])
 
-    resp = app.get('/example/countries/Country')
+    resp = app.get('/example/csv/countries/Country')
     countries = {
         c['code']: c['_id']
         for c in listdata(resp, '_id', 'code', full=True)
     }
     assert sorted(countries) == ['ee', 'lt', 'lv']
 
-    resp = app.get('/example/cities/City')
+    resp = app.get('/example/csv/cities/City')
     assert listdata(resp, sort=False) == [
         (countries['lt'], 'Vilnius'),
         (countries['lv'], 'Ryga'),
@@ -136,7 +136,7 @@ def test_csv_read_multiple_models(rc: RawConfig, fs: AbstractFileSystem):
 
     context, manifest = prepare_manifest(rc, '''
     d | r | b | m | property | type    | ref     | source                 | prepare | access
-    example/countries        |         |         |                        |         |
+    example/csv/countries        |         |         |                        |         |
       | csv0                 | csv     |         | memory://countries.csv |         |
       |   |   | Country      |         | code    |                        |         |
       |   |   |   | code     | string  |         | kodas                  |         | open
@@ -150,16 +150,16 @@ def test_csv_read_multiple_models(rc: RawConfig, fs: AbstractFileSystem):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example', ['getall'])
+    app.authmodel('example/csv', ['getall'])
 
-    resp = app.get('/example/countries/Country')
+    resp = app.get('/example/csv/countries/Country')
     assert listdata(resp, sort=False) == [
         ('lt', 1, 'Lietuva'),
         ('lv', 2, 'Latvija'),
         ('ee', 3, 'Estija'),
     ]
 
-    resp = app.get('example/countries/City')
+    resp = app.get('example/csv/countries/City')
     assert listdata(resp, sort=False) == [
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
@@ -189,7 +189,7 @@ def test_xml_read(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | b | m | property | type    | ref  | source              | prepare | access
-    example                  |         |      |                     |         |
+    example/xml                  |         |      |                     |         |
       | xml                  | xml     |      | {path}              |         |
       |   |   | City         |         | name | /cities/city        |         |
       |   |   |   | name     | string  |      | name                |         | open
@@ -197,9 +197,9 @@ def test_xml_read(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/City', ['getall'])
+    app.authmodel('example/xml/City', ['getall'])
 
-    resp = app.get('/example/City')
+    resp = app.get('/example/xml/City')
     assert listdata(resp, sort=False) == [
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
@@ -220,7 +220,7 @@ def test_xml_read_with_attributes(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | b | m | property | type    | ref  | source              | prepare | access
-    example                  |         |      |                     |         |
+    example/xml                  |         |      |                     |         |
       | xml                  | xml     |      | {path}              |         |
       |   |   | City         |         | name | /cities/city        |         |
       |   |   |   | name     | string  |      | @name               |         | open
@@ -228,9 +228,9 @@ def test_xml_read_with_attributes(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/City', ['getall'])
+    app.authmodel('example/xml/City', ['getall'])
 
-    resp = app.get('/example/City')
+    resp = app.get('/example/xml/City')
     assert listdata(resp, sort=False) == [
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
@@ -269,7 +269,7 @@ def test_xml_read_refs_level_3(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
        d | r | b | m | property | type    | ref     | source                               | prepare | access | level
-       example                  |         |         |                                      |         |        |
+       example/xml                  |         |         |                                      |         |        |
          | xml                  | xml     |         | {path}                               |         |        |
          |   |   | City         |         | name    | /countries/country/cities/city       |         |        |
          |   |   |   | name     | string  |         | @name                                |         | open   |
@@ -281,9 +281,9 @@ def test_xml_read_refs_level_3(rc: RawConfig, tmp_path: Path):
         ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example', ['getall'])
+    app.authmodel('example/xml', ['getall'])
 
-    resp = app.get('/example/City')
+    resp = app.get('/example/xml/City')
     assert listdata(resp, sort=False) == [
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
@@ -322,7 +322,7 @@ def test_xml_read_refs_level_4(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
        d | r | b | m | property | type    | ref     | source                               | prepare | access | level
-       example                  |         |         |                                      |         |        |
+       example/xml                  |         |         |                                      |         |        |
          | xml                  | xml     |         | {path}                               |         |        |
          |   |   | City         |         | name    | /countries/country/cities/city       |         |        |
          |   |   |   | name     | string  |         | @name                                |         | open   |
@@ -334,16 +334,16 @@ def test_xml_read_refs_level_4(rc: RawConfig, tmp_path: Path):
         ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example', ['getall'])
+    app.authmodel('example/xml', ['getall'])
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/xml/Country')
     countries = {
         c['country']: c['_id']
         for c in listdata(resp, '_id', 'country', full=True)
     }
     assert sorted(countries) == ['ee', 'lt', 'lv']
 
-    resp = app.get('/example/City')
+    resp = app.get('/example/xml/City')
     assert listdata(resp, sort=False) == [
         (countries['lt'], 'Vilnius'),
         (countries['lv'], 'Ryga'),
@@ -374,7 +374,7 @@ def test_xml_read_multiple_sources(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
        d | r | b | m | property | type    | ref     | source             | prepare | access | level
-       example                  |         |         |                    |         |        |
+       example/xml                  |         |         |                    |         |        |
          | xml_city             | xml     |         | {path0}            |         |        |
          |   |   | City         |         | name    | /cities/city       |         |        |
          |   |   |   | name     | string  |         | @name              |         | open   |
@@ -387,20 +387,94 @@ def test_xml_read_multiple_sources(rc: RawConfig, tmp_path: Path):
         ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example', ['getall'])
+    app.authmodel('example/xml', ['getall'])
 
-    resp = app.get('/example/City')
+    resp = app.get('/example/xml/City')
     assert listdata(resp, sort=False) == [
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
         ('ee', 'Talin'),
     ]
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/xml/Country')
     assert listdata(resp, sort=False) == [
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
         ('ee', 'Estija'),
+    ]
+
+
+def test_xml_read_with_empty(rc: RawConfig, tmp_path: Path):
+    xml = '''
+        <countries>
+            <country code="lt"/>
+            <country code="lv" name="Latvija"/>
+            <country name="Estija"/>
+        </countries>'''
+    path = tmp_path / 'cities.xml'
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(rc, f'''
+    d | r | m              | property | type   | ref     | source                 | level        
+           example/xml                |        |         |                        |
+             | resource               | xml    |         | {path}                 |
+                                      |        |         |                        |
+             |   | Country |          |        | code    | /countries/country     |
+             |   |         | name     | string |         | @name                  |
+             |   |         | code     | string |         | @code                  |
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/xml/Country', ['getall'])
+
+    resp = app.get('/example/xml/Country')
+    assert listdata(resp, sort=False) == [
+        ('lt', None),
+        ('lv', 'Latvija'),
+        (None, 'Estija'),
+    ]
+
+
+def test_xml_read_with_empty_nested(rc: RawConfig, tmp_path: Path):
+    xml = '''
+        <countries>
+            <country code="lt" name="Lietuva"/>
+            <country name="Latvija">
+                <location>
+                    <lon>3</lon>
+                </location>
+            </country>
+            <country code="ee">
+                <location>
+                    <lon>5</lon>
+                    <lat>4</lat>
+                </location>
+            </country>
+        </countries>'''
+    path = tmp_path / 'cities.xml'
+    path.write_text(xml)
+
+    context, manifest = prepare_manifest(rc, f'''
+    d | r | m              | property  | type    | ref     | source                | level        
+           example/xml                     |         |         |                       |
+             | resource                | xml     |         | {path}                |
+                                       |         |         |                       |
+             |   | Country |           |         | code    | /countries/country     |
+             |   |         | name      | string  |         | @name                  |
+             |   |         | code      | string  |         | @code                  |
+             |   |         | latitude  | integer |         | location/lat        |
+             |   |         | longitude | integer |         | location/lon          |
+    ''', mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel('example/xml/Country', ['getall'])
+
+    resp = app.get('/example/xml/Country')
+    res = listdata(resp, sort=False)
+    assert listdata(resp, sort=False) == [
+        ('lt', None, None, 'Lietuva'),
+        (None, None, 3, 'Latvija'),
+        ('ee', 4, 5, None),
     ]
 
 
@@ -426,7 +500,7 @@ def test_json_read(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | m              | property | type   | ref     | source                | level        
-           example                    |        |         |                       |
+           example/json                    |        |         |                       |
              | resource               | json   |         | {path}                |
                                       |        |         |                       |
              |   | Country |          |        | code    | countries             |
@@ -435,9 +509,9 @@ def test_json_read(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/Country', ['getall'])
+    app.authmodel('example/json/Country', ['getall'])
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/json/Country')
     assert listdata(resp, sort=False) == [
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
@@ -479,7 +553,7 @@ def test_json_read_nested(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | m              | property  | type    | ref     | source                | level        
-           example                     |         |         |                       |
+           example/json                     |         |         |                       |
              | resource                | json    |         | {path}                |
                                        |         |         |                       |
              |   | Country |           |         | code    | countries             |
@@ -490,9 +564,9 @@ def test_json_read_nested(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/Country', ['getall'])
+    app.authmodel('example/json/Country', ['getall'])
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/json/Country')
     assert listdata(resp, sort=False) == [
         ('lt', 0, 1, 'Lietuva'),
         ('lv', 2, 3, 'Latvija'),
@@ -544,7 +618,7 @@ def test_json_read_multi_nested(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | m              | property  | type    | ref     | source
-           example                     |         |         |
+           example/json                     |         |         |
              | resource                | json    |         | {path}
                                        |         |         |
              |   | Country |           |         | code    | galaxy.solar_system.planet.countries
@@ -558,9 +632,9 @@ def test_json_read_multi_nested(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/Country', ['getall'])
+    app.authmodel('example/json/Country', ['getall'])
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/json/Country')
     assert listdata(resp, sort=False, full=True) == [
         {
             'name': 'Lietuva',
@@ -613,7 +687,7 @@ def test_json_read_blank_node_list(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | m              | property | type   | ref     | source                | level        
-           example                    |        |         |                       |
+           example/json                    |        |         |                       |
              | resource               | json   |         | {path}                |
                                       |        |         |                       |
              |   | Country |          |        | code    | .                     |
@@ -622,9 +696,9 @@ def test_json_read_blank_node_list(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/Country', ['getall'])
+    app.authmodel('example/json/Country', ['getall'])
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/json/Country')
     assert listdata(resp, sort=False) == [
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
@@ -656,7 +730,7 @@ def test_json_read_blank_node_single_level(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | m              | property | type    | ref     | source                | level        
-           example                    |         |         |                       |
+           example/json                    |         |         |                       |
              | resource               | json    |         | {path}                |
                                       |         |         |                       |
              |   | Country |          |         | code    | countries             |
@@ -666,9 +740,9 @@ def test_json_read_blank_node_single_level(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/Country', ['getall'])
+    app.authmodel('example/json/Country', ['getall'])
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/json/Country')
     assert listdata(resp, sort=False) == [
         ('lt', 0, 'Lietuva'),
         ('lv', 0, 'Latvija'),
@@ -721,7 +795,7 @@ def test_json_read_blank_node_multi_level(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | m              | property  | type    | ref     | source   
-           example                     |         |         |
+           example/json                     |         |         |
              | resource                | json    |         | {path}
                                        |         |         |
              |   | Country |           |         | code    | galaxy.solar_system.planet.countries
@@ -736,9 +810,9 @@ def test_json_read_blank_node_multi_level(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/Country', ['getall'])
+    app.authmodel('example/json/Country', ['getall'])
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/json/Country')
     assert listdata(resp, sort=False, full=True) == [
         {
             'name': 'Lietuva',
@@ -810,7 +884,7 @@ def test_json_read_ref_level_3(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | m              | property | type   | ref     | source                | level        
-           example                    |        |         |                       |
+           example/json                    |        |         |                       |
              | resource               | json   |         | {path}                |
                                       |        |         |                       |
              |   | Country |          |        | code    | countries             |
@@ -823,9 +897,9 @@ def test_json_read_ref_level_3(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/City', ['getall'])
+    app.authmodel('example/json/City', ['getall'])
 
-    resp = app.get('/example/City')
+    resp = app.get('/example/json/City')
     assert listdata(resp, sort=False) == [
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
@@ -870,7 +944,7 @@ def test_json_read_ref_level_4(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | m              | property | type   | ref     | source                | level        
-           example                    |        |         |                       |
+           example/json                    |        |         |                       |
              | resource               | json   |         | {path}                |
                                       |        |         |                       |
              |   | Country |          |        | code    | countries             |
@@ -883,16 +957,16 @@ def test_json_read_ref_level_4(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example', ['getall'])
+    app.authmodel('example/json', ['getall'])
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/json/Country')
     countries = {
         c['code']: c['_id']
         for c in listdata(resp, '_id', 'code', full=True)
     }
     assert sorted(countries) == ['ee', 'lt', 'lv']
 
-    resp = app.get('/example/City')
+    resp = app.get('/example/json/City')
     assert listdata(resp, sort=False) == [
         (countries['lt'], 'Vilnius'),
         (countries['lv'], 'Ryga'),
@@ -941,7 +1015,7 @@ def test_json_read_multiple_sources(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
        d | r | b | m | property | type    | ref     | source    | prepare | access | level
-       example                  |         |         |           |         |        |
+       example/json                  |         |         |           |         |        |
          | json_city            | json    |         | {path1}   |         |        |
          |   |   | City         |         | name    | cities    |         |        |
          |   |   |   | name     | string  |         | name      |         | open   |
@@ -954,16 +1028,16 @@ def test_json_read_multiple_sources(rc: RawConfig, tmp_path: Path):
         ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example', ['getall'])
+    app.authmodel('example/json', ['getall'])
 
-    resp = app.get('/example/City')
+    resp = app.get('/example/json/City')
     assert listdata(resp, sort=False) == [
         ('lt', 'Vilnius'),
         ('lv', 'Ryga'),
         ('ee', 'Talin'),
     ]
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/json/Country')
     assert listdata(resp, sort=False) == [
         ('lt', 'Lietuva'),
         ('lv', 'Latvija'),
@@ -991,7 +1065,7 @@ def test_json_read_with_empty(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | m              | property | type   | ref     | source                | level        
-           example                    |        |         |                       |
+           example/json                    |        |         |                       |
              | resource               | json   |         | {path}                |
                                       |        |         |                       |
              |   | Country |          |        | code    | countries             |
@@ -1000,9 +1074,9 @@ def test_json_read_with_empty(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/Country', ['getall'])
+    app.authmodel('example/json/Country', ['getall'])
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/json/Country')
     assert listdata(resp, sort=False) == [
         ('lt', None),
         ('lv', 'Latvija'),
@@ -1037,7 +1111,7 @@ def test_json_read_with_empty_nested(rc: RawConfig, tmp_path: Path):
 
     context, manifest = prepare_manifest(rc, f'''
     d | r | m              | property  | type    | ref     | source                | level        
-           example                     |         |         |                       |
+           example/json                     |         |         |                       |
              | resource                | json    |         | {path}                |
                                        |         |         |                       |
              |   | Country |           |         | code    | countries             |
@@ -1048,9 +1122,9 @@ def test_json_read_with_empty_nested(rc: RawConfig, tmp_path: Path):
     ''', mode=Mode.external)
     context.loaded = True
     app = create_test_client(context)
-    app.authmodel('example/Country', ['getall'])
+    app.authmodel('example/json/Country', ['getall'])
 
-    resp = app.get('/example/Country')
+    resp = app.get('/example/json/Country')
     assert listdata(resp, sort=False) == [
         ('lt', None, None, 'Lietuva'),
         (None, None, 3, 'Latvija'),

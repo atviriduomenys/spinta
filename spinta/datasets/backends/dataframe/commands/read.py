@@ -1,10 +1,12 @@
 import json
+import numpy as np
 import urllib
-from typing import Dict, Any, Iterator, List
+from typing import Dict, Any, Iterator
 
 import dask
 import requests
 from dask.dataframe import DataFrame
+from dask.dataframe.utils import make_meta
 from lxml import etree
 
 from spinta import commands
@@ -22,7 +24,7 @@ from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.exceptions import ValueNotInEnum, PropertyNotFound, NoExternalName
 from spinta.manifests.components import Manifest
 from spinta.manifests.dict.helpers import is_list_of_dicts, is_blank_node
-from spinta.types.datatype import PrimaryKey, Ref
+from spinta.types.datatype import PrimaryKey, Ref, DataType, Boolean, Number, Integer, DateTime, Time
 from spinta.typing import ObjectData
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.data import take
@@ -287,7 +289,6 @@ def _parse_json_with_params(data, source: list, model_props: dict):
     for prop in model_props.values():
         current_value[prop["source"]] = None
     traverse_json(data, current_value=current_value)
-    print(result)
     return result
 
 
@@ -330,6 +331,14 @@ def _get_pkeys_if_ref(prop: Property):
     return return_list
 
 
+def _get_dask_dataframe_meta(model: Model):
+    dask_meta = {}
+    for prop in model.properties.values():
+        if prop.external and prop.external.name:
+            dask_meta[prop.external.name] = spinta_to_np_dtype(prop.dtype)
+    return make_meta(dask_meta)
+
+
 @commands.getall.register(Context, Model, Json)
 def getall(
     context: Context,
@@ -362,7 +371,7 @@ def getall(
                 _get_data_json,
                 source=url,
                 model_props=props
-            ).flatten().to_dataframe()
+            ).flatten().to_dataframe(meta=_get_dask_dataframe_meta(model))
             yield from _dask_get_all(context, query, df, backend, model, builder)
         except ValueError:
             yield {}
@@ -398,7 +407,7 @@ def getall(
                 _get_data_xml,
                 source=url,
                 model_props=props
-            ).flatten().to_dataframe()
+            ).flatten().to_dataframe(meta=_get_dask_dataframe_meta(model))
             yield from _dask_get_all(context, query, df, backend, model, builder)
         except ValueError:
             yield {}
@@ -458,3 +467,28 @@ def _dask_get_all(context: Context, query: Expr, df: dask.dataframe, backend: Da
 @commands.wait.register(Context, DaskBackend)
 def wait(context: Context, backend: DaskBackend, *, fail: bool = False) -> bool:
     return True
+
+
+@commands.spinta_to_np_dtype.register(Boolean)
+def spinta_to_np_dtype(dtype: Boolean):
+    return np.dtype("?")
+
+
+@commands.spinta_to_np_dtype.register(Number)
+def spinta_to_np_dtype(dtype: Number):
+    return np.dtype("f")
+
+
+@commands.spinta_to_np_dtype.register(Integer)
+def spinta_to_np_dtype(dtype: Integer):
+    return "Int64"
+
+
+@commands.spinta_to_np_dtype.register(DateTime)
+def spinta_to_np_dtype(dtype: DateTime):
+    return np.dtype("M")
+
+
+@commands.spinta_to_np_dtype.register(DataType)
+def spinta_to_np_dtype(dtype: DataType):
+    return np.dtype("U")

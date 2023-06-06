@@ -958,3 +958,8 @@ def merge(
 @command()
 def merge(*args) -> None:
     """Merge new manifest into old."""
+
+
+@command()
+def spinta_to_np_dtype(dtype: DataType):
+    """Converts Spinta dtype to np.dtype"""
