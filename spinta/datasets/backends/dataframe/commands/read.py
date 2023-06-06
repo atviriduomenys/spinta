@@ -1,4 +1,6 @@
 import json
+import pathlib
+
 import numpy as np
 import urllib
 from typing import Dict, Any, Iterator
@@ -306,7 +308,7 @@ def _get_data_json(url: str, source: str, model_props: Dict):
         f = requests.get(url)
         return _parse_json(f.text, source, model_props)
     else:
-        with open(url, 'rb') as f:
+        with pathlib.Path(url).open(encoding='utf-8-sig') as f:
             return _parse_json(f.read(), source, model_props)
 
 

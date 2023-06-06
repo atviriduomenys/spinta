@@ -470,7 +470,6 @@ def test_xml_read_with_empty_nested(rc: RawConfig, tmp_path: Path):
     app.authmodel('example/xml/Country', ['getall'])
 
     resp = app.get('/example/xml/Country')
-    res = listdata(resp, sort=False)
     assert listdata(resp, sort=False) == [
         ('lt', None, None, 'Lietuva'),
         (None, None, 3, 'Latvija'),
