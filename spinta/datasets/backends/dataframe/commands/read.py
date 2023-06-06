@@ -200,7 +200,6 @@ def _parse_xml(data, source: str, model_props: Dict):
 def _parse_json(data, source: str, model_props: Dict):
     data = json.loads(data)
     source_list = source.split(".")
-
     # Prepare source for blank nodes
     blank_nodes = is_blank_node(data)
     if source == ".":
@@ -257,7 +256,7 @@ def _parse_json_with_params(data, source: list, model_props: dict):
                 if id == len(prop_source) - 1:
                     return new_value
 
-    def traverse_json(items, current_value: Dict = {}, current_path: int = 0, in_model: bool = False):
+    def traverse_json(items, current_value: Dict, current_path: int = 0, in_model: bool = False):
         last_path = source[:current_path + 1]
         c_path = source[current_path]
         if c_path.endswith("[]"):
@@ -270,7 +269,6 @@ def _parse_json_with_params(data, source: list, model_props: dict):
                     item = items[c_path]
                 else:
                     return
-
             if isinstance(item, list) and is_list_of_dicts(item):
                 traverse_json(item, current_value, current_path, True)
             else:
@@ -279,7 +277,7 @@ def _parse_json_with_params(data, source: list, model_props: dict):
                     this_path = last_path
                     if prop_path == this_path:
                         current_value[prop["source"]] = get_prop_value(item, prop["pkeys"], prop["source"].split("."))
-                if current_path != len(source) - 1:
+                if current_path < len(source) - 1:
                     traverse_json(item, current_value, current_path + 1, False)
                 else:
                     result.append(current_value)
@@ -287,10 +285,10 @@ def _parse_json_with_params(data, source: list, model_props: dict):
             for item in items:
                 traverse_json(item, current_value.copy(), current_path, in_model)
 
-    current_value = {}
+    c_value = {}
     for prop in model_props.values():
-        current_value[prop["source"]] = None
-    traverse_json(data, current_value=current_value)
+        c_value[prop["source"]] = None
+    traverse_json(data, current_value=c_value)
     return result
 
 
@@ -338,7 +336,7 @@ def _get_dask_dataframe_meta(model: Model):
     for prop in model.properties.values():
         if prop.external and prop.external.name:
             dask_meta[prop.external.name] = spinta_to_np_dtype(prop.dtype)
-    return make_meta(dask_meta)
+    return dask_meta
 
 
 @commands.getall.register(Context, Model, Json)
@@ -363,17 +361,12 @@ def getall(
             }
 
     for params in iterparams(context, model):
-        if base:
-            url = urllib.parse.urljoin(base, model.external.name)
-        else:
-            url = model.external.name
-        url = url.format(**params)
-
+        meta = _get_dask_dataframe_meta(model)
         df = dask.bag.from_sequence([base]).map(
             _get_data_json,
-            source=url,
+            source=model.external.name,
             model_props=props
-        ).flatten().to_dataframe(meta=_get_dask_dataframe_meta(model))
+        ).flatten().to_dataframe(meta=meta)
         yield from _dask_get_all(context, query, df, backend, model, builder)
 
 
@@ -397,14 +390,9 @@ def getall(
             }
 
     for params in iterparams(context, model):
-        if base:
-            url = urllib.parse.urljoin(base, model.external.name)
-        else:
-            url = model.external.name
-        url = url.format(**params)
         df = dask.bag.from_sequence([base]).map(
             _get_data_xml,
-            source=url,
+            source=model.external.name,
             model_props=props
         ).flatten().to_dataframe(meta=_get_dask_dataframe_meta(model))
         yield from _dask_get_all(context, query, df, backend, model, builder)
@@ -468,7 +456,7 @@ def wait(context: Context, backend: DaskBackend, *, fail: bool = False) -> bool:
 
 @commands.spinta_to_np_dtype.register(Boolean)
 def spinta_to_np_dtype(dtype: Boolean):
-    return np.dtype("?")
+    return "boolean"
 
 
 @commands.spinta_to_np_dtype.register(Number)
@@ -483,9 +471,9 @@ def spinta_to_np_dtype(dtype: Integer):
 
 @commands.spinta_to_np_dtype.register(DateTime)
 def spinta_to_np_dtype(dtype: DateTime):
-    return np.dtype("M")
+    return "datetime64[ns]"
 
 
 @commands.spinta_to_np_dtype.register(DataType)
 def spinta_to_np_dtype(dtype: DataType):
-    return np.dtype("U")
+    return np.dtype("S")
