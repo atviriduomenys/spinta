@@ -599,8 +599,6 @@ class PropertyReader(TabularReader):
         if row['ref']:
             if row['type'] in ('ref', 'backref', 'generic', 'array'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
-                if row['type'] in ('array', 'backref') and not ref_props:
-                    ref_props = split_by_uppercase(ref_model)
                 self.data['model'] = get_relative_model_name(dataset, ref_model)
                 self.data['refprops'] = ref_props
             else:
@@ -1700,7 +1698,7 @@ def _property_to_tabular(
         else:
             data['ref'] = prop.dtype.model.name
     elif isinstance(prop.dtype, BackRef) or (isinstance(prop.dtype, Array) and not prop.dtype.refprops):
-        data['ref'] = prop.dtype.model.replace(prop.model.external.dataset.name + '/','')
+        data['ref'] = prop.dtype.model.replace(prop.model.external.dataset.name + '/', '')
     elif isinstance(prop.dtype, Array):
         data['ref'] = prop.dtype.model.replace(prop.model.external.dataset.name + '/', '') + str(
             prop.dtype.refprops).replace("'", '')

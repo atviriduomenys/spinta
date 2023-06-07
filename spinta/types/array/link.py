@@ -2,6 +2,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.types.datatype import Array
 from spinta.types.helpers import set_dtype_backend
+from spinta.manifests.tabular.helpers import split_by_uppercase
 
 
 @commands.link.register(Context, Array)
@@ -11,4 +12,8 @@ def link(context: Context, dtype: Array) -> None:
     if dtype.items:
         commands.link(context, dtype.items.dtype)
     elif isinstance(dtype.refprops, list):
-        dtype.items = dtype.prop.model.manifest.models[dtype.model].flatprops.get(dtype.refprops[-1]).dtype
+        if dtype.refprops:
+            dtype.items = dtype.prop.model.manifest.models[dtype.model].flatprops.get(dtype.refprops[-1]).dtype
+        else:
+            refprops = split_by_uppercase(dtype.model)
+            dtype.items = dtype.prop.model.manifest.models[dtype.model].flatprops.get(refprops[-1]).dtype
