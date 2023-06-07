@@ -1,5 +1,7 @@
 import pathlib
 import json
+
+import xmltodict
 from typing import List, Dict, Union, TypedDict, Any, Tuple
 
 from urllib.request import urlopen
@@ -22,15 +24,19 @@ def read_schema(manifest_type: DictFormat, path: str):
         blank_node_name="model1",
         blank_node_source=".",
         seperator="",
-        recursive_descent=""
+        recursive_descent="",
+        array_suffix=""
     )
     if manifest_type == DictFormat.JSON:
         mapping_meta["seperator"] = "."
         mapping_meta["recursive_descent"] = "."
+        mapping_meta["array_suffix"] = "[]"
         converted = json.loads(value)
     elif manifest_type in (DictFormat.XML, DictFormat.HTML):
         mapping_meta["seperator"] = "/"
         mapping_meta["recursive_descent"] = "/.."
+        mapping_meta["array_suffix"] = "[]"
+        converted = xmltodict.parse(value, process_namespaces=True)
         # Add xml load
     mapping_meta["is_blank_node"] = _is_blank_node(converted)
     dataset_structure: _MappedDataset = {
@@ -130,6 +136,7 @@ class _MappingMeta(TypedDict):
     blank_node_source: str
     seperator: str
     recursive_descent: str
+    array_suffix: str
 
 
 class _MappingScope(TypedDict):
@@ -202,7 +209,7 @@ def run_type_detectors(dataset: _MappedDataset, values: dict, mapping_scope: _Ma
                     parent_scope = _create_name_with_prefix(
                         new_mapping_scope["parent_scope"],
                         mapping_meta["seperator"],
-                        "" if mapping_scope["model_name"] == "" else f'{mapping_scope["model_name"]}[]'
+                        "" if mapping_scope["model_name"] == "" else f'{mapping_scope["model_name"]}{mapping_meta["array_suffix"]}'
                     )
                     parent_scope = _create_name_with_prefix(
                         parent_scope,
@@ -268,7 +275,7 @@ def setup_model_type_detectors(dataset: _MappedDataset, values: Union[dict, list
                     parent_scope = _create_name_with_prefix(
                         new_mapping_scope["parent_scope"],
                         mapping_meta["seperator"],
-                        "" if mapping_scope["model_name"] == "" else f'{mapping_scope["model_name"]}[]'
+                        "" if mapping_scope["model_name"] == "" else f'{mapping_scope["model_name"]}{mapping_meta["array_suffix"]}'
                     )
                     parent_scope = _create_name_with_prefix(
                         parent_scope,
@@ -321,9 +328,21 @@ def _is_blank_node(values: Union[list, dict]) -> bool:
     if isinstance(values, list):
         return True
     if isinstance(values, dict):
-        for key, value in values.items():
-            if not isinstance(value, list):
-                return True
+        val = values
+        first_value = val[list(val.keys())[0]]
+        if len(val.keys()) == 1 and isinstance(first_value, dict):
+            while len(val.keys()) == 1 and isinstance(first_value, dict):
+                val = val[list(val.keys())[0]]
+                first_value = val[list(val.keys())[0]]
+                if len(val.keys()) != 1:
+                    return True
+                if isinstance(first_value, list):
+                    return False
+            return True
+        else:
+            for key, value in values.items():
+                if not isinstance(value, list):
+                    return True
     return False
 
 
