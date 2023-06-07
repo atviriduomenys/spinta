@@ -6,7 +6,6 @@ from spinta.types.datatype import DateTime
 from spinta.types.geometry.components import Geometry
 from spinta.types.datatype import Integer
 from spinta.types.datatype import Number
-from spinta.types.datatype import Array
 
 _time_unit_re = re.compile(r'^\d*[YMQWDHTSLUN]$')
 

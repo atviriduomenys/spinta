@@ -2,7 +2,7 @@ import pytest
 
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
-from spinta.testing.manifest import bootstrap_manifest
+
 
 def test_prop_array(tmp_path, rc):
     table = '''
@@ -20,6 +20,7 @@ def test_prop_array(tmp_path, rc):
     create_tabular_manifest(tmp_path / 'manifest.csv', table)
     manifest = load_manifest(rc, tmp_path / 'manifest.csv')
     assert manifest == table
+
 
 def test_prop_array_with_custom(rc, tmp_path):
     table = '''

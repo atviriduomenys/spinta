@@ -1,5 +1,3 @@
-import time
-
 import sqlalchemy as sa
 
 from sqlalchemy.dialects.postgresql import JSONB
@@ -15,10 +13,7 @@ from spinta.backends.postgresql.helpers import get_pg_name
 @commands.prepare.register(Context, PostgreSQL, Array)
 def prepare(context: Context, backend: PostgreSQL, dtype: Array):
     prop = dtype.prop
-    if dtype.items is not None:
-        columns = commands.prepare(context, backend, dtype.items)
-    else:
-        return
+    columns = commands.prepare(context, backend, dtype.items)
 
     assert columns is not None
     if not isinstance(columns, list):
@@ -47,7 +42,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: Array):
         sa.Column('_rid', pkey_type, sa.ForeignKey(
             f'{main_table_name}._id', ondelete='CASCADE',
         )),
-        # Main table id (resource id).
+
         *columns,
     )
     backend.add_table(table, prop, TableType.LIST)

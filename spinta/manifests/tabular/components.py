@@ -222,7 +222,6 @@ class PropertyRow(TypedDict, total=False):
     unique: bool
 
 
-
 class PropertyExternalRow(TypedDict, total=False):
     name: str
     prepare: Optional[Dict[str, Any]]

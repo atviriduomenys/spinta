@@ -10,3 +10,5 @@ def link(context: Context, dtype: Array) -> None:
     # In case of a dynamic array, dtype of items is not known.
     if dtype.items:
         commands.link(context, dtype.items.dtype)
+    elif isinstance(dtype.refprops, list):
+        dtype.items = dtype.prop.model.manifest.models[dtype.model].flatprops.get(dtype.refprops[-1]).dtype

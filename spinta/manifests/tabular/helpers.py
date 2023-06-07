@@ -543,6 +543,17 @@ def _get_type_repr(dtype: [DataType, str]):
         return f'{dtype}{args}{required}{unique}'
 
 
+def split_by_uppercase(model_name):
+    result = ''
+    for ch in model_name:
+        if ch.isupper():
+            result += " " + ch
+        else:
+            result += ch
+    result = result.split()
+    return [r.lower() for r in result if '/' not in r]
+
+
 class PropertyReader(TabularReader):
     type: str = 'property'
     data: PropertyRow
@@ -588,6 +599,8 @@ class PropertyReader(TabularReader):
         if row['ref']:
             if row['type'] in ('ref', 'backref', 'generic', 'array'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
+                if row['type'] in ('array', 'backref') and not ref_props:
+                    ref_props = split_by_uppercase(ref_model)
                 self.data['model'] = get_relative_model_name(dataset, ref_model)
                 self.data['refprops'] = ref_props
             else:

@@ -213,7 +213,6 @@ class Array(DataType):
     schema = {
         'items': {},
         'model': {'type': 'string'},
-        'ref': {'type': 'string'},
         'refprops': {
             'type': 'array',
             'items': {'type': 'string'},
@@ -333,14 +332,6 @@ def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> Dat
     dtype.properties = props
     return dtype
 
-# def _parse_intermiadate_realation(prop, data, dtype_args):
-#     if data.get('ref', None) is None:
-#         return dtype_args
-#     rel_models = is_unit(prop.dtype, data['ref'])[2]
-#     split_model_row_to_list = re.findall('[A-Z][a-z]*', rel_models)
-#     for model in split_model_row_to_list:
-#         dtype_args.append(prop.model.external['dataset'] + "/" + str(model))
-#     return dtype_args
 
 @load.register(Context, Array, dict, Manifest)
 def load(context: Context, dtype: Array, data: dict, manifest: Manifest) -> DataType:

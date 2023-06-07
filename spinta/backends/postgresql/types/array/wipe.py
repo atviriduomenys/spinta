@@ -7,8 +7,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 
 @commands.wipe.register(Context, Array, PostgreSQL)
 def wipe(context: Context, dtype: Array, backend: PostgreSQL):
-    if dtype.items is not None:
-        wipe(context, dtype.items.dtype, backend)
+    wipe(context, dtype.items.dtype, backend)
     table = backend.get_table(dtype.prop, TableType.LIST)
     connection = context.get('transaction').connection
     connection.execute(table.delete())

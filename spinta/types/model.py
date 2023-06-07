@@ -190,7 +190,7 @@ def link(context: Context, base: Base):
     ]
 
 
-@load.register(Context, Property, dict, Manifest)
+@commands.load.register(Context, Property, dict, Manifest)
 def load(
     context: Context,
     prop: Property,

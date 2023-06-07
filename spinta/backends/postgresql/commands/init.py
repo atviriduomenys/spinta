@@ -1,4 +1,4 @@
-
+import re
 import sqlalchemy as sa
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from spinta import commands
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType, PrimaryKey
+from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
@@ -14,6 +14,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
+from spinta.manifests.tabular.helpers import split_by_uppercase
 
 
 @commands.prepare.register(Context, PostgreSQL, Manifest)
@@ -27,16 +28,23 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
 @commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     columns = []
+    model_to_not_create = '' # if model of manifest has type array props
     for prop in model.properties.values():
         # FIXME: _revision should has its own type and on database column type
         #        should bet received from get_primary_key_type() command.
-        if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):
+        if isinstance(prop.dtype, Ref):
+            model_to_not_create += prop.name.capitalize()
+        if (prop.name.startswith('_') or ('[]' in prop.name and prop.dtype.name == 'ref')) and prop.name not in ('_id', '_revision'):
             continue
         column = commands.prepare(context, backend, prop)
         if isinstance(column, list):
             columns.extend(column)
         elif column is not None:
             columns.append(column)
+    if split_by_uppercase(model.name) and split_by_uppercase(model_to_not_create):
+        if split_by_uppercase(model.name) == split_by_uppercase(model_to_not_create) or \
+            split_by_uppercase(model.name) == sorted(split_by_uppercase(model_to_not_create)):
+            return
     if model.unique:
         for val in model.unique:
             columns.append(sa.UniqueConstraint(*val))
@@ -51,10 +59,10 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         *columns,
     )
     backend.add_table(main_table, model)
-
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
+
 
 @commands.prepare.register(Context, PostgreSQL, DataType)
 def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
