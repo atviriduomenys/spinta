@@ -1,8 +1,9 @@
 import pathlib
 import json
+from pprint import pprint
 
 import xmltodict
-from typing import List, Dict, Union, TypedDict, Any, Tuple
+from typing import List, Dict, Union, TypedDict, Any, Tuple, Callable
 
 from urllib.request import urlopen
 
@@ -25,20 +26,30 @@ def read_schema(manifest_type: DictFormat, path: str):
         blank_node_source=".",
         seperator="",
         recursive_descent="",
-        array_suffix=""
+        model_source_prefix="",
+        remove_array_suffix=False,
+        check_namespace=False,
+        namespace_prefix="",
+        detect_model=is_model_json
     )
     if manifest_type == DictFormat.JSON:
+        converted = json.loads(value)
         mapping_meta["seperator"] = "."
         mapping_meta["recursive_descent"] = "."
-        mapping_meta["array_suffix"] = "[]"
-        converted = json.loads(value)
+        mapping_meta["is_blank_node"] = _is_blank_node(converted)
+        mapping_meta["detect_model"] = is_model_json
+
     elif manifest_type in (DictFormat.XML, DictFormat.HTML):
+        converted = xmltodict.parse(value)
         mapping_meta["seperator"] = "/"
         mapping_meta["recursive_descent"] = "/.."
-        mapping_meta["array_suffix"] = "[]"
-        converted = xmltodict.parse(value, process_namespaces=True)
-        # Add xml load
-    mapping_meta["is_blank_node"] = _is_blank_node(converted)
+        mapping_meta["model_source_prefix"] = "/"
+        mapping_meta["remove_array_suffix"] = True
+        mapping_meta["check_namespace"] = True
+        mapping_meta["namespace_prefix"] = "@xmlns"
+        mapping_meta["detect_model"] = is_model_xml
+
+    prepare_data(converted, mapping_meta)
     dataset_structure: _MappedDataset = {
         "dataset": "dataset",
         "resource": "resource",
@@ -98,13 +109,17 @@ def read_schema(manifest_type: DictFormat, path: str):
                     'unique': type_detector.unique,
                     **extra
                 }
+            fixed_external_source = m["source"]
+            if mapping_meta["remove_array_suffix"]:
+                fixed_external_source = fixed_external_source.replace("[]", "")
+            fixed_external_source = f'{mapping_meta["model_source_prefix"]}{fixed_external_source}'
             yield None, {
                 'type': 'model',
                 'name': f'{dataset_structure["dataset"]}/{mapped_models[(m["name"], model_source)]}',
                 'external': {
                     'dataset': dataset_structure["dataset"],
                     'resource': dataset_structure["resource"],
-                    'name': m["source"],
+                    'name': fixed_external_source,
                 },
                 'description': '',
                 'properties': converted_props
@@ -136,7 +151,11 @@ class _MappingMeta(TypedDict):
     blank_node_source: str
     seperator: str
     recursive_descent: str
-    array_suffix: str
+    remove_array_suffix: bool
+    model_source_prefix: str
+    check_namespace: bool
+    namespace_prefix: str
+    detect_model: Callable
 
 
 class _MappingScope(TypedDict):
@@ -144,6 +163,42 @@ class _MappingScope(TypedDict):
     model_scope: str
     model_name: str
     property_name: str
+
+
+def is_model_json(data):
+    if isinstance(data, list) and _is_list_of_dicts(data):
+        return True
+    return False
+
+
+def is_model_xml(data):
+    normal = is_model_json(data)
+    if normal:
+        return True
+    if isinstance(data, dict):
+        for key, item in data.items():
+            if not is_model_json(item):
+                if isinstance(item, dict):
+                    result = is_model_xml(item)
+                    return result
+                return True
+    return False
+
+
+def prepare_data(data: Any, mapping_meta: _MappingMeta):
+    if mapping_meta["check_namespace"]:
+        if isinstance(data, dict):
+            keys_to_remove = []
+            for key in data.keys():
+                if key.startswith(mapping_meta["namespace_prefix"]):
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                del data[key]
+            for value in data.values():
+                prepare_data(value, mapping_meta)
+        elif isinstance(data, list):
+            for item in data:
+                prepare_data(item, mapping_meta)
 
 
 def nested_prop_names(new_values: list, values: dict, root: str, seperator: str):
@@ -203,32 +258,31 @@ def run_type_detectors(dataset: _MappedDataset, values: dict, mapping_scope: _Ma
                 model_scope=mapping_scope["model_scope"],
                 property_name=key
             )
-            if isinstance(value, list):
-                if _is_list_of_dicts(value):
-                    new_mapping_scope["model_name"] = key
-                    parent_scope = _create_name_with_prefix(
-                        new_mapping_scope["parent_scope"],
-                        mapping_meta["seperator"],
-                        "" if mapping_scope["model_name"] == "" else f'{mapping_scope["model_name"]}{mapping_meta["array_suffix"]}'
-                    )
-                    parent_scope = _create_name_with_prefix(
-                        parent_scope,
-                        mapping_meta["seperator"],
-                        new_mapping_scope["model_scope"]
-                    )
-                    new_mapping_scope["model_scope"] = ""
-                    new_mapping_scope["parent_scope"] = parent_scope
-                    for item in value:
-                        run_type_detectors(dataset, item, new_mapping_scope, mapping_meta)
-            elif isinstance(value, dict):
-                new_mapping_scope["model_scope"] = _create_name_with_prefix(
-                    new_mapping_scope["model_scope"],
+            if mapping_meta["detect_model"](value):
+                new_mapping_scope["model_name"] = key
+                parent_scope = _create_name_with_prefix(
+                    new_mapping_scope["parent_scope"],
                     mapping_meta["seperator"],
-                    key
+                    "" if mapping_scope["model_name"] == "" else f'{mapping_scope["model_name"]}[]'
                 )
+                parent_scope = _create_name_with_prefix(
+                    parent_scope,
+                    mapping_meta["seperator"],
+                    new_mapping_scope["model_scope"]
+                )
+                new_mapping_scope["model_scope"] = ""
+                new_mapping_scope["parent_scope"] = parent_scope
                 run_type_detectors(dataset, value, new_mapping_scope, mapping_meta)
             else:
-                _detect_type(dataset, new_mapping_scope, mapping_meta, value)
+                if isinstance(value, dict):
+                    new_mapping_scope["model_scope"] = _create_name_with_prefix(
+                        new_mapping_scope["model_scope"],
+                        mapping_meta["seperator"],
+                        key
+                    )
+                    run_type_detectors(dataset, value, new_mapping_scope, mapping_meta)
+                else:
+                    _detect_type(dataset, new_mapping_scope, mapping_meta, value)
 
 
 def _detect_type(dataset: _MappedDataset, mapping_scope: _MappingScope, mapping_meta: _MappingMeta, value: Any):
@@ -262,6 +316,7 @@ def setup_model_type_detectors(dataset: _MappedDataset, values: Union[dict, list
         for item in values:
             setup_model_type_detectors(dataset, item, mapping_scope, mapping_meta)
     elif isinstance(values, dict):
+        print("----------")
         for key, value in values.items():
             new_mapping_scope = _MappingScope(
                 parent_scope=mapping_scope["parent_scope"],
@@ -269,42 +324,44 @@ def setup_model_type_detectors(dataset: _MappedDataset, values: Union[dict, list
                 model_scope=mapping_scope["model_scope"],
                 property_name=key
             )
-            if isinstance(value, list):
-                if _is_list_of_dicts(value):
-                    new_mapping_scope["model_name"] = key
-                    parent_scope = _create_name_with_prefix(
-                        new_mapping_scope["parent_scope"],
-                        mapping_meta["seperator"],
-                        "" if mapping_scope["model_name"] == "" else f'{mapping_scope["model_name"]}{mapping_meta["array_suffix"]}'
-                    )
-                    parent_scope = _create_name_with_prefix(
-                        parent_scope,
-                        mapping_meta["seperator"],
-                        new_mapping_scope["model_scope"]
-                    )
-                    new_mapping_scope["model_scope"] = ""
-                    new_mapping_scope["parent_scope"] = parent_scope
-                    for item in value:
-                        setup_model_type_detectors(dataset, item, new_mapping_scope, mapping_meta)
-                    old_mapping_scope = new_mapping_scope.copy()
-                    old_mapping_scope["property_name"] = mapping_scope["property_name"]
-                    if mapping_scope["property_name"] == "" and mapping_meta["is_blank_node"]:
-                        old_mapping_scope["property_name"] = "parent"
-                        set_type_detector(dataset, old_mapping_scope, mapping_meta, is_ref=True)
-                    else:
-                        set_type_detector(dataset, old_mapping_scope, mapping_meta, is_ref=True)
-                else:
-                    set_type_detector(dataset, new_mapping_scope, mapping_meta, is_array=True)
-            elif isinstance(value, dict):
-                new_mapping_scope["model_scope"] = _create_name_with_prefix(
-                    new_mapping_scope["model_scope"],
+            print(f'{key} {mapping_meta["detect_model"](value)}')
+            if mapping_meta["detect_model"](value):
+                new_mapping_scope["model_name"] = key
+                parent_scope = _create_name_with_prefix(
+                    new_mapping_scope["parent_scope"],
                     mapping_meta["seperator"],
-                    key
+                    "" if mapping_scope["model_name"] == "" else f'{mapping_scope["model_name"]}[]'
                 )
-                new_mapping_scope["property_name"] = mapping_scope["property_name"]
+                parent_scope = _create_name_with_prefix(
+                    parent_scope,
+                    mapping_meta["seperator"],
+                    new_mapping_scope["model_scope"]
+                )
+                new_mapping_scope["model_scope"] = ""
+                new_mapping_scope["parent_scope"] = parent_scope
+
                 setup_model_type_detectors(dataset, value, new_mapping_scope, mapping_meta)
+
+                old_mapping_scope = new_mapping_scope.copy()
+                old_mapping_scope["property_name"] = mapping_scope["property_name"]
+                if mapping_scope["property_name"] == "" and mapping_meta["is_blank_node"]:
+                    old_mapping_scope["property_name"] = "parent"
+                    set_type_detector(dataset, old_mapping_scope, mapping_meta, is_ref=True)
+                else:
+                    set_type_detector(dataset, old_mapping_scope, mapping_meta, is_ref=True)
             else:
-                set_type_detector(dataset, new_mapping_scope, mapping_meta)
+                if isinstance(value, list):
+                    set_type_detector(dataset, new_mapping_scope, mapping_meta, is_array=True)
+                elif isinstance(value, dict):
+                    new_mapping_scope["model_scope"] = _create_name_with_prefix(
+                        new_mapping_scope["model_scope"],
+                        mapping_meta["seperator"],
+                        key
+                    )
+                    new_mapping_scope["property_name"] = mapping_scope["property_name"]
+                    setup_model_type_detectors(dataset, value, new_mapping_scope, mapping_meta)
+                else:
+                    set_type_detector(dataset, new_mapping_scope, mapping_meta)
 
 
 def _create_name_with_prefix(prefix: str, seperator: str, value: str) -> str:
@@ -321,6 +378,7 @@ def create_type_detectors(dataset: _MappedDataset, values: Any, mapping_meta: _M
         property_name=""
     )
     setup_model_type_detectors(dataset, values, mapping_scope, mapping_meta)
+    pprint(dataset)
     run_type_detectors(dataset, values, mapping_scope, mapping_meta)
 
 
