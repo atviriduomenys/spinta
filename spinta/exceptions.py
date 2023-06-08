@@ -568,6 +568,10 @@ class UnableToCast(UserError):
     template = "Unable to cast {value} to {type} type."
 
 
+class NotImplementedFeature(BaseError):
+    template = "{feature} is not implemented yet."
+
+
 class ReferencedObjectNotFound(UserError):
     template = "Referenced object {id!r} not found."
 
