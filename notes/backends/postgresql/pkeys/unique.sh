@@ -134,47 +134,36 @@ http POST "$SERVER/$DATASET/Multiple" $AUTH id:=1 code=01 title=T01
 #| }
 
 http POST "$SERVER/$DATASET/Multiple" $AUTH id:=1 code=01 title=T01
-#| HTTP/1.1 500 Internal Server Error
+#| HTTP/1.1 400 Bad Request
 #| 
 #| {
 #|     "errors": [
 #|         {
-#|             "code": "IntegrityError",
-#|             "message": "
-#|                 psycopg2.errors.UniqueViolation:
-#|                     duplicate key value violates unique constraint
-#|                     backends/postgresql/pkeys/unique/Multiple_id_code_key
-#|                 DETAIL:
-#|                     Key (id, code)=(1, 01) already exists.
-#|                 SQL:
-#|                     INSERT INTO backends/postgresql/pkeys/unique/Multiple (
-#|                         _txn,
-#|                         _created,
-#|                         _id,
-#|                         _revision,
-#|                         id,
-#|                         code,
-#|                         title
-#|                     )
-#|                     VALUES (
-#|                         %(_txn)s,
-#|                         TIMEZONE('utc', CURRENT_TIMESTAMP),
-#|                         %(_id)s,
-#|                         %(_revision)s,
-#|                         %(id)s,
-#|                         %(code)s,
-#|                         %(title)s
-#|                     )
-#|                 parameters: {
-#|                     '_txn': UUID('f7895c04-a6e1-4cb6-8a66-c343b012616c'),
-#|                     '_id': UUID('46475ba6-cb79-4864-83ae-dcd78c04e705'),
-#|                     '_revision': '8de45de1-577d-4ef7-ba50-7480b5d7934f',
-#|                     'id': 1,
-#|                     'code': '01',
-#|                     'title': 'T01'
-#|                 }
-#|             "
+#|             "code": "CompositeUniqueConstraint",
+#|             "context": {
+#|                 "component": "spinta.components.Model",
+#|                 "dataset": "backends/postgresql/pkeys/unique",
+#|                 "entity": "",
+#|                 "manifest": "default",
+#|                 "model": "backends/postgresql/pkeys/unique/Multiple",
+#|                 "properties": "id,code",
+#|                 "schema": "14"
+#|             },
+#|             "message": "Given values for composition of properties (id,code) already exist.",
+#|             "template": "Given values for composition of properties ({properties}) already exist.",
+#|             "type": "model"
 #|         }
 #|     ]
 #| }
-# FIXME: This should be a 400 error.
+
+http POST "$SERVER/$DATASET/Multiple" $AUTH id:=1 code=02 title=T02
+#| HTTP/1.1 201 Created
+#| 
+#| {
+#|     "_id": "8e176912-ba1d-4e37-b496-900ad5f97bed",
+#|     "_revision": "9e0e357f-296c-41db-8da0-8eba634fa90f",
+#|     "_type": "backends/postgresql/pkeys/unique/Multiple",
+#|     "code": "02",
+#|     "id": 1,
+#|     "title": "T02"
+#| }
