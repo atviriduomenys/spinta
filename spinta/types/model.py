@@ -104,6 +104,17 @@ def load(
         load_node(context, model.base, base)
         model.base.model = model
         commands.load(context, model.base, base, manifest)
+    if model.unique:
+        unique_properties = []
+        for unique_set in model.unique:
+            prop_set = []
+            for prop_name in unique_set:
+                if "." in prop_name:
+                    prop_name = prop_name.split(".")[0]
+                prop_set.append(model.properties[prop_name])
+            if prop_set:
+                unique_properties.append(prop_set)
+        model.unique = unique_properties
 
     if model.external:
         external: dict = model.external
