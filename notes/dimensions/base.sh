@@ -190,9 +190,8 @@ http GET "$SERVER/$DATASET/Location?format(ascii)"
 #| 2074d66e-0dfd-4233-b1ec-199abc994d0c  8303ac22-90f4-4f0a-92a7-08d6b49430fe  42  Vilnius  625349      ∅
 
 
-http PATCH "$SERVER/$DATASET/Location/2074d66e-0dfd-4233-b1ec-199abc994d0c" $AUTH \
-    _revision="dcd6e164-5189-4291-b61c-b84d5c1b576c" \
-    type="city"
+REV=$(http GET "$SERVER/$DATASET/Location/$VLN" | jq -r ._revision)
+http PATCH "$SERVER/$DATASET/Location/$VLN" $AUTH _revision=$REV type="city"
 #| HTTP/1.1 200 OK
 #| 
 #| {
@@ -213,102 +212,30 @@ http POST "$SERVER/$DATASET/City" $AUTH \
     id:=24 \
     name="Vilnius" \
     population:=625349
-#| HTTP/1.1 500 Internal Server Error
+tail -100 $BASEDIR/spinta.log
+#| HTTP/1.1 400 Bad Request
+#| 
 #| {
 #|     "errors": [
 #|         {
-#|             "code": "IntegrityError",
-#|             "message": "
-#|                 (psycopg2.errors.ForeignKeyViolation)
-#|                 insert or update on table "dimensions/base/City"
-#|                 violates foreign key constraint
-#|                 "fk_dimensions/base/Location_id"
-#|
-#|                 DETAIL:
-#|                     Key (_id)=(467db78a-e1c4-409d-a0de-4dac885a2d8b)
-#|                     is not present in table "dimensions/base/Location".
-#|
-#|                 SQL:
-#|                     INSERT INTO "dimensions/base/City" (
-#|                         _txn,
-#|                         _created,
-#|                         _id,
-#|                         _revision,
-#|                         id
-#|                     )
-#|                     VALUES (
-#|                         %(_txn)s,
-#|                         TIMEZONE('utc', CURRENT_TIMESTAMP),
-#|                         %(_id)s,
-#|                         %(_revision)s,
-#|                         %(id)s
-#|                     )
-#|
-#|                 parameters:
-#|                     {
-#|                         '_txn': UUID('68a85ce1-50d4-4d05-abc2-bf9ca69cabea'),
-#|                         '_id': UUID('467db78a-e1c4-409d-a0de-4dac885a2d8b'),
-#|                         '_revision': '40505c9b-0ca5-4ee1-8cae-e81ef2da85c1',
-#|                         'id': 24
-#|                     }
-#|             "
+#|             "code": "ReferencedObjectNotFound",
+#|             "context": {
+#|                 "attribute": null,
+#|                 "component": "spinta.components.Property",
+#|                 "dataset": "dimensions/base",
+#|                 "entity": "",
+#|                 "id": "6f0208d9-4e0e-4a57-8c44-9b122b25bd43",
+#|                 "manifest": "default",
+#|                 "model": "dimensions/base/City",
+#|                 "property": "_id",
+#|                 "schema": "24"
+#|             },
+#|             "message": "Referenced object '6f0208d9-4e0e-4a57-8c44-9b122b25bd43' not found.",
+#|             "template": "Referenced object {id!r} not found.",
+#|             "type": "property"
 #|         }
 #|     ]
 #| }
-# TODO: This should not be a 500 error.
-#       https://github.com/atviriduomenys/spinta/issues/205
-tail -100 $BASEDIR/spinta.log
-#| Traceback (most recent call last):
-#|   File "sqlalchemy/engine/base.py", line 1771, in _execute_context
-#|     self.dialect.do_execute(
-#|   File "sqlalchemy/engine/default.py", line 717, in do_execute
-#|     cursor.execute(statement, parameters)
-#| psycopg2.errors.ForeignKeyViolation: insert or update on table "dimensions/base/City" violates foreign key constraint "fk_dimensions/base/Location_id"
-#| DETAIL:  Key (_id)=(a050ba11-538f-4bd6-9d02-c4717495bfdf) is not present in table "dimensions/base/Location".
-#| 
-#| The above exception was the direct cause of the following exception:
-#| 
-#| Traceback (most recent call last):
-#|   File "spinta/api.py", line 94, in homepage
-#|     return await create_http_response(context, params, request)
-#|   File "spinta/utils/response.py", line 201, in create_http_response
-#|     return await commands.push(
-#|   File "spinta/commands/write.py", line 100, in push
-#|     status_code, response = await simple_response(
-#|   File "spinta/commands/write.py", line 1122, in simple_response
-#|     results = await alist(aslice(results, 2))
-#|   File "spinta/utils/aiotools.py", line 51, in alist
-#|     return [x async for x in it]
-#|   File "spinta/utils/aiotools.py", line 51, in <listcomp>
-#|     return [x async for x in it]
-#|   File "spinta/utils/aiotools.py", line 62, in aslice
-#|     async for x in it:
-#|   File "spinta/accesslog/__init__.py", line 174, in log_async_response
-#|     async for row in rows:
-#|   File "spinta/commands/write.py", line 185, in push_stream
-#|     async for data in dstream:
-#|   File "spinta/backends/postgresql/commands/changes.py", line 25, in create_changelog_entry
-#|     async for data in dstream:
-#|   File "spinta/backends/postgresql/commands/write.py", line 33, in insert
-#|     connection.execute(qry, patch)
-#|   File "sqlalchemy/engine/base.py", line 1263, in execute
-#|     return meth(self, multiparams, params, _EMPTY_EXECUTION_OPTS)
-#|   File "sqlalchemy/sql/elements.py", line 323, in _execute_on_connection
-#|     return connection._execute_clauseelement(
-#|   File "sqlalchemy/engine/base.py", line 1452, in _execute_clauseelement
-#|     ret = self._execute_context(
-#|   File "sqlalchemy/engine/base.py", line 1814, in _execute_context
-#|     self._handle_dbapi_exception(
-#|   File "sqlalchemy/engine/base.py", line 1995, in _handle_dbapi_exception
-#|     util.raise_(
-#|   File "sqlalchemy/util/compat.py", line 207, in raise_
-#|     raise exception
-#|   File "sqlalchemy/engine/base.py", line 1771, in _execute_context
-#|     self.dialect.do_execute(
-#|   File "sqlalchemy/engine/default.py", line 717, in do_execute
-#|     cursor.execute(statement, parameters)
-#| sqlalchemy.exc.IntegrityError: (psycopg2.errors.ForeignKeyViolation) insert or update on table "dimensions/base/City" violates foreign key constraint "fk_dimensi
-#| ons/base/Location_id"
 
 
 http POST "$SERVER/$DATASET/City" $AUTH \
@@ -399,46 +326,7 @@ http GET "$SERVER/$DATASET/City?select(_id,id,name,population,type,koord)&format
 #       https://github.com/atviriduomenys/spinta/issues/395
 
 http GET "$SERVER/$DATASET/City?select(id,name,country.name)&format(ascii)"
-#| HTTP/1.1 500 Internal Server Error
-#| 
-#| {
-#|     "errors": [
-#|         {
-#|             "code": "KeyError",
-#|             "message": "'name'"
-#|         }
-#|     ]
-#| }
-tail -100 $BASEDIR/spinta.log
-#| Traceback (most recent call last):
-#|   File "spinta/api.py", line 95, in homepage
-#|     return await create_http_response(context, params, request)
-#|   File "spinta/utils/response.py", line 153, in create_http_response
-#|     return await commands.getall(
-#|   File "spinta/commands/read.py", line 125, in getall
-#|     return render(context, request, model, params, rows, action=action)
-#|   File "spinta/renderer.py", line 23, in render
-#|     return commands.render(
-#|   File "spinta/formats/ascii/commands.py", line 28, in render
-#|     return _render(
-#|   File "spinta/formats/ascii/commands.py", line 62, in _render
-#|     aiter(peek_and_stream(fmt(
-#|   File "spinta/utils/response.py", line 223, in peek_and_stream
-#|     peek = list(itertools.islice(stream, 2))
-#|   File "spinta/formats/ascii/components.py", line 41, in __call__
-#|     peek = next(data, None)
-#|   File "spinta/accesslog/__init__.py", line 162, in log_response
-#|     for row in rows:
-#|   File "spinta/commands/read.py", line 110, in <genexpr>
-#|     rows = (
-#|   File "spinta/backends/postgresql/commands/read.py", line 51, in getall
-#|     expr = env.resolve(query)
-#|   File "spinta/backends/postgresql/commands/query.py", line 296, in select
-#|     selected = env.call('select', arg)
-#|   File "spinta/backends/postgresql/commands/query.py", line 320, in select
-#|     return env.call('select', prop.dtype)
-#|   File "spinta/backends/postgresql/commands/query.py", line 426, in select
-#|     column = table.c[dtype.prop.name]
-#|   File "sqlalchemy/sql/base.py", line 1192, in __getitem__
-#|     return self._index[key]
-#| KeyError: 'name'
+#| id  name     country.name
+#| --  -------  ------------
+#| 24  Vilnius  Vilnius
+# FIXME: `country.name` should be Lithuania.
