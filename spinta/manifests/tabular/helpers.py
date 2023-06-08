@@ -1710,10 +1710,11 @@ def _property_to_tabular(
         else:
             data['ref'] = prop.dtype.model.name
     elif isinstance(prop.dtype, (BackRef, Array)) and not prop.dtype.refprops:
-        if prop.model.external.dataset:
+        if prop.model.external.dataset and prop.dtype.model:
+            print(prop.model.external.dataset.name, prop.dtype.model)
             data['ref'] = get_relative_model_name(prop.model.external.dataset.name + '/', prop.dtype.model)
     elif isinstance(prop.dtype, Array):
-        if prop.model.external.dataset:
+        if prop.model.external.dataset and prop.dtype.model:
             data['ref'] = get_relative_model_name(prop.model.external.dataset.name + '/', prop.dtype.model) + str(
                 prop.dtype.refprops).replace("'", '')
     elif prop.enum is not None:
