@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from spinta import commands
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType, PrimaryKey, Ref
+from spinta.types.datatype import DataType, PrimaryKey, Ref, BackRef
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
@@ -36,7 +36,14 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             model_to_not_create += prop.name.capitalize()
         if (prop.name.startswith('_') or ('[]' in prop.name and prop.dtype.name == 'ref')) and prop.name not in ('_id', '_revision'):
             continue
-        column = commands.prepare(context, backend, prop)
+        if isinstance(prop.dtype, BackRef):
+            if not model.manifest.models.get(''.join([prop.dtype.model,
+                                                         prop.dtype.prop.model.name.replace(model.ns.name + '/', '')])):
+                column = commands.prepare(context, backend, prop)
+            else:
+                continue
+        else:
+            column = commands.prepare(context, backend, prop)
         if isinstance(column, list):
             columns.extend(column)
         elif column is not None:

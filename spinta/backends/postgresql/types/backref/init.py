@@ -27,5 +27,3 @@ def prepare(context: Context, backend: PostgreSQL, dtype: BackRef):
             f'{dtype.model}._id', ondelete='CASCADE'
         ))
     )
-
-    backend.tables[name] = table_for_many_to_many_relation

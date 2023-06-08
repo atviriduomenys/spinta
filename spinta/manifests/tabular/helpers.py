@@ -1305,7 +1305,9 @@ def load_ascii_tabular_manifest(
     commands.link(context, manifest)
 
 
-def get_relative_model_name(dataset: dict, name: str) -> str:
+def get_relative_model_name(dataset: [str, dict], name: str) -> str:
+    if isinstance(dataset, str):
+        return name.replace(dataset, '')
     if name.startswith('/'):
         return name[1:]
     elif dataset is None:
@@ -1697,11 +1699,13 @@ def _property_to_tabular(
                 data['ref'] += f'[{rkeys}]'
         else:
             data['ref'] = prop.dtype.model.name
-    elif isinstance(prop.dtype, BackRef) or (isinstance(prop.dtype, Array) and not prop.dtype.refprops):
-        data['ref'] = prop.dtype.model.replace(prop.model.external.dataset.name + '/', '')
+    elif isinstance(prop.dtype, (BackRef, Array)) and not prop.dtype.refprops:
+        if prop.model.external.dataset:
+            data['ref'] = get_relative_model_name(prop.model.external.dataset.name + '/', prop.dtype.model)
     elif isinstance(prop.dtype, Array):
-        data['ref'] = prop.dtype.model.replace(prop.model.external.dataset.name + '/', '') + str(
-            prop.dtype.refprops).replace("'", '')
+        if prop.model.external.dataset:
+            data['ref'] = get_relative_model_name(prop.model.external.dataset.name + '/', prop.dtype.model) + str(
+                prop.dtype.refprops).replace("'", '')
     elif prop.enum is not None:
         data['ref'] = prop.given.enum
     elif prop.unit is not None:
