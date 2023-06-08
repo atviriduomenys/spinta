@@ -582,3 +582,7 @@ class ReferringObjectFound(UserError):
 
 class CompositeUniqueConstraint(UserError):
     template = "Given values for composition of properties ({properties}) already exist."
+
+
+class NotImplementedFeature(BaseError):
+    template = "{feature} is not implemented yet."
