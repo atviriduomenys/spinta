@@ -245,84 +245,29 @@ http GET "$SERVER/$DATASET/Location?select(_id,id,name,population,type)&format(a
 
 
 http POST "$SERVER/$DATASET/City" $AUTH id:=24
-#| HTTP/1.1 500 Internal Server Error
+#| HTTP/1.1 400 Bad Request
+#| 
 #| {
 #|     "errors": [
 #|         {
-#|             "code": "IntegrityError",
-#|             "message": "
-#|                 (psycopg2.errors.ForeignKeyViolation)
-#|                 insert or update on table "dimensions/base/City"
-#|                 violates foreign key constraint
-#|                 "fk_dimensions/base/Location_id"
-#|
-#|                 DETAIL:
-#|                     Key (_id)=(467db78a-e1c4-409d-a0de-4dac885a2d8b)
-#|                     is not present in table "dimensions/base/Location".
-#|
-#|                 SQL:
-#|                     INSERT INTO "dimensions/base/City" (
-#|                         _txn,
-#|                         _created,
-#|                         _id,
-#|                         _revision,
-#|                         id
-#|                     )
-#|                     VALUES (
-#|                         %(_txn)s,
-#|                         TIMEZONE('utc', CURRENT_TIMESTAMP),
-#|                         %(_id)s,
-#|                         %(_revision)s,
-#|                         %(id)s
-#|                     )
-#|
-#|                 parameters:
-#|                     {
-#|                         '_txn': UUID('68a85ce1-50d4-4d05-abc2-bf9ca69cabea'),
-#|                         '_id': UUID('467db78a-e1c4-409d-a0de-4dac885a2d8b'),
-#|                         '_revision': '40505c9b-0ca5-4ee1-8cae-e81ef2da85c1',
-#|                         'id': 24
-#|                     }
-#|             "
+#|             "code": "ReferencedObjectNotFound",
+#|             "context": {
+#|                 "attribute": null,
+#|                 "component": "spinta.components.Property",
+#|                 "dataset": "backends/postgresql/base/write",
+#|                 "entity": "",
+#|                 "id": "306189ae-f07d-4b79-ae1d-78f5f5816bc8",
+#|                 "manifest": "default",
+#|                 "model": "backends/postgresql/base/write/City",
+#|                 "property": "_id",
+#|                 "schema": "24"
+#|             },
+#|             "message": "Referenced object '306189ae-f07d-4b79-ae1d-78f5f5816bc8' not found.",
+#|             "template": "Referenced object {id!r} not found.",
+#|             "type": "property"
 #|         }
 #|     ]
 #| }
-# FIXME: This should not be a 500 error. Should be ReferencedObjectNotFound. See:
-#        https://github.com/atviriduomenys/spinta/issues/363
-tail -100 $BASEDIR/spinta.log
-#| Traceback (most recent call last):
-#|   File "sqlalchemy/engine/base.py", line 1771, in _execute_context
-#|     self.dialect.do_execute(
-#|   File "sqlalchemy/engine/default.py", line 717, in do_execute
-#|     cursor.execute(statement, parameters)
-#| psycopg2.errors.ForeignKeyViolation:
-#|     insert or update on table "backends/postgresql/base/write/City" violates
-#|     foreign key constraint "fk_backends/postgresql/base/write/Location_id"
-#| 
-#| The above exception was the direct cause of the following exception:
-#| 
-#| Traceback (most recent call last):
-#|   File "spinta/api.py", line 94, in homepage
-#|     return await create_http_response(context, params, request)
-#|   File "spinta/utils/response.py", line 201, in create_http_response
-#|     return await commands.push(
-#|   File "spinta/commands/write.py", line 102, in push
-#|     status_code, response = await simple_response(
-#|   File "spinta/commands/write.py", line 1180, in simple_response
-#|     results = await alist(aslice(results, 2))
-#|   File "spinta/commands/write.py", line 187, in push_stream
-#|     async for data in dstream:
-#|   File "spinta/backends/postgresql/commands/changes.py", line 25, in create_changelog_entry
-#|     async for data in dstream:
-#|   File "spinta/backends/postgresql/commands/write.py", line 32, in insert
-#|     connection.execute(qry, patch)
-#|   File "sqlalchemy/engine/base.py", line 1263, in execute
-#|     return meth(self, multiparams, params, _EMPTY_EXECUTION_OPTS)
-#|   File "sqlalchemy/engine/default.py", line 717, in do_execute
-#|     cursor.execute(statement, parameters)
-#| sqlalchemy.exc.IntegrityError: (psycopg2.errors.ForeignKeyViolation)
-#|     insert or update on table "backends/postgresql/base/write/City" violates
-#|     foreign key constraint "fk_backends/postgresql/base/write/Location_id"
 
 
 http POST "$SERVER/$DATASET/City" $AUTH _id=$VILNIUS id:=24
