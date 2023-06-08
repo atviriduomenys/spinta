@@ -1,3 +1,4 @@
+import json
 import os
 import pathlib
 import tempfile
@@ -1594,4 +1595,93 @@ def test_inspect_with_manifest_backends(
          |   |   | name     | string  |      | NAME    |         | open    | Country name
          |   |   | code     | string  |      |         |         | open    | Country code
 ''')
+    assert a == b
+
+
+def test_inspect_json_model_ref_change(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path):
+    json_manifest = [
+        {
+            "name": "Lithuania",
+            "code": "LT",
+            "location": {
+                "latitude": 54.5,
+                "longitude": 12.6
+            },
+            "cities": [
+                {
+                    "name": "Vilnius",
+                    "weather": {
+                        "temperature": 24.7,
+                        "wind_speed": 12.4
+                    }
+                },
+                {
+                    "name": "Kaunas",
+                    "weather": {
+                        "temperature": 29.7,
+                        "wind_speed": 11.4
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Latvia",
+            "code": "LV",
+            "cities": [
+                {
+                    "name": "Riga"
+                }
+            ]
+        }
+    ]
+    path = tmp_path / 'manifest.json'
+    path.write_text(json.dumps(json_manifest))
+
+    result_file_path = tmp_path / 'result.csv'
+    # Configure Spinta.
+    rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
+           d | r | m      | property            | type                   | ref    | source              
+           datasets/json/inspect                |                        |        |
+             | resource                         | json                   |        | {path}
+                                                |                        |        |
+             |   | Pos    |                     |                        | code   | .
+             |   |        | name                | string required unique |        | name
+             |   |        | code                | string required unique |        | code
+             |   |        | location_latitude   | number unique          |        | location.latitude
+             |   |        | location_longitude  | number unique          |        | location.longitude
+                                                |                        |        |
+             |   | Cities |                     |                        |        | cities
+             |   |        | name                | string required unique |        | name
+             |   |        | weather_temperature | number unique          |        | weather.temperature
+             |   |        | weather_wind_speed  | number unique          |        | weather.wind_speed
+           ''')
+
+    cli.invoke(rc, [
+        'inspect',
+        tmp_path / 'manifest.csv',
+        '-o', tmp_path / 'result.csv',
+    ])
+    # Check what was detected.
+    manifest = load_manifest(rc, result_file_path)
+    manifest.datasets['datasets/json/inspect'].resources['resource'].external = 'resource.json'
+    a, b = compare_manifest(manifest, f'''
+d | r | model  | property            | type                   | ref    | source
+datasets/json/inspect           |                        |        |
+  | resource                    | json                   |        | resource.json
+                                |                        |        |
+  |   | Pos                     |                        | code   | .
+  |   |   | name                | string required unique |        | name
+  |   |   | code                | string required unique |        | code
+  |   |   | location_latitude   | number unique          |        | location.latitude
+  |   |   | location_longitude  | number unique          |        | location.longitude
+                                |                        |        |
+  |   | Cities                  |                        |        | cities
+  |   |   | name                | string required unique |        | name
+  |   |   | weather_temperature | number unique          |        | weather.temperature
+  |   |   | weather_wind_speed  | number unique          |        | weather.wind_speed
+  |   |   | parent              | ref                    | Pos    | ..
+    ''')
     assert a == b
