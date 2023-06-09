@@ -16,7 +16,7 @@ from responses import POST
 from responses import RequestsMock
 
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.push import _PushRow, _reset_pushed
+from spinta.cli.push import _PushRow, _reset_pushed, _read_rows, _iter_deleted_rows, _get_deleted_row_counts
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
@@ -45,18 +45,18 @@ def geodb():
         'miestas': [
             sa.Column('id', sa.Integer, primary_key=True),
             sa.Column('pavadinimas', sa.Text),
-            sa.Column('salis', sa.Text),
+            sa.Column('salis', sa.Integer, sa.ForeignKey("salis.kodas"), nullable=False),
         ],
     }) as db:
         db.write('salis', [
-            {'kodas': 'lt', 'pavadinimas': 'Lietuva'},
-            {'kodas': 'lv', 'pavadinimas': 'Latvija'},
-            {'kodas': 'ee', 'pavadinimas': 'Estija'},
+            {'id': 0, 'kodas': 'lt', 'pavadinimas': 'Lietuva'},
+            {'id': 1, 'kodas': 'lv', 'pavadinimas': 'Latvija'},
+            {'id': 2, 'kodas': 'ee', 'pavadinimas': 'Estija'},
         ])
         db.write('miestas', [
-            {'salis': 'lt', 'pavadinimas': 'Vilnius'},
-            {'salis': 'lv', 'pavadinimas': 'Ryga'},
-            {'salis': 'ee', 'pavadinimas': 'Talinas'},
+            {'id': 0, 'salis': 0, 'pavadinimas': 'Vilnius'},
+            {'id': 1, 'salis': 1, 'pavadinimas': 'Ryga'},
+            {'id': 2, 'salis': 2, 'pavadinimas': 'Talinas'},
         ])
         yield db
 
@@ -469,200 +469,73 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     )]
 
 
-def test_push_delete_with_dependent_objects(rc: RawConfig, responses: RequestsMock):
-    context, manifest = load_manifest_and_context(rc, '''
-     m  | property         | type   | ref                     | source    | prepare                 | access
-     Country               |        | code                    | COUNTRY   |                         | open
-        | name             | string |                         | NAME      |                         |
-        | code             | string |                         | CODE      |                         |
-        | continent        | string |                         | CONTINENT |                         |
-     City                  |        | name, country           | CITY      | country.code='lt'       | open
-        | name             | string |                         | NAME      |                         |
-        | country_code     | string |                         | COUNTRY   |                         |
-        | continent        | string |                         | CONTINENT |                         |
-        | country          | ref    | Country[continent,code] |           | continent, country_code |
-    ''')
+def test_push_delete_with_dependent_objects(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    table = '''
+     d | r | b | m  | property         | type   | ref                     | source     | access
+     datasets/gov/deleteTest           |        |                         |            |
+       | data                          | sql    |                         |            |
+       |   |                           |        |                         |            |
+       |   |   | Country               |        | code                    | salis      | open
+       |   |   |    | name             | string |                         | pavadinimas|
+       |   |   |    | code             | string |                         | kodas      |
+       |   |   | City                  |        | name, country           | miestas    | open
+       |   |   |    | name             | string |                         | pavadinimas|
+       |   |   |    | country          | ref    | Country[code]           | salis      |
+    '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
 
-    city = manifest.models['City']
-    country = manifest.models['Country']
-    models = [city, country]
+    localrc = create_rc(rc, tmp_path, geodb)
 
-    state = _State(*_init_push_state('sqlite://', models))
-    conn = state.engine.connect()
-    context.set('push.state.conn', conn)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
 
-    rev_city = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
-    rev_country = '45e8d4d6-bb6c-42cd-8ad8-09049bbed6bd'
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteTest',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
 
-    CITY = '4d741843-4e94-4890-81d9-5af7c5b5989a'
-    COUNTRY = '9b64b9e5-8c8b-4c0e-972c-70c8757f9dd5'
+    remote.app.authmodel('datasets/gov/deleteTest/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/Country')
+    assert len(listdata(resp)) == 3
 
-    city_table = state.metadata.tables[city.name]
-    country_table = state.metadata.tables[country.name]
+    remote.app.authmodel('datasets/gov/deleteTest/City', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/City')
+    assert len(listdata(resp)) == 3
 
-    client = requests.Session()
-    server = 'https://example.com/'
+    conn = geodb.engine.connect()
 
-    conn.execute(country_table.insert().values(
-        id=COUNTRY,
-        revision=rev_country,
-        checksum='CREATED',
-        pushed=datetime.datetime.now(),
-        error=False,
-    ))
+    conn.execute(geodb.tables['salis'].delete().where(geodb.tables['salis'].c.id == 1))
+    conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 2))
 
-    country_rows = [
-        _PushRow(country, {
-            '_type': country.name,
-            '_id': COUNTRY,
-            'name': 'Lithuania',
-            'code': 'lt',
-            'continent': 'Europe'
-        }, op="insert", error=True, saved=True),
-    ]
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteTest',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
 
-    responses.add(
-        POST, server,
-        json={
-            '_data': [{
-                '_type': country.name,
-                '_id': COUNTRY,
-                '_revision': rev_country,
-                'name': 'Lithuania',
-                'code': 'lt',
-                'continent': 'Europe',
-            }],
-        },
-        match=[_matcher({
-            '_op': 'insert',
-            '_type': country.name,
-            '_id': COUNTRY,
-            'name': 'Lithuania',
-            'code': 'lt',
-            'continent': 'Europe',
-        })],
-    )
+    remote.app.authmodel('datasets/gov/deleteTest/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/Country')
+    assert len(listdata(resp)) == 1
 
-    _push(
-        context,
-        client,
-        server,
-        models,
-        country_rows,
-        state=state,
-    )
-
-    query = sa.select([country_table.c.id, country_table.c.revision, country_table.c.error])
-    assert list(conn.execute(query)) == [(COUNTRY, rev_country, False)]
-
-    conn.execute(city_table.insert().values(
-        id=CITY,
-        revision=rev_city,
-        checksum='CREATED',
-        pushed=datetime.datetime.now(),
-        error=False,
-    ))
-
-    city_rows = [
-        _PushRow(city, {
-            '_type': city.name,
-            '_id': CITY,
-            'name': 'Vilnius',
-            'country_code': 'lt',
-            'continent': 'Europe',
-            'country': {'_id': COUNTRY}
-        }, op="insert", error=True, saved=True),
-    ]
-
-    responses.add(
-        POST, server,
-        json={
-            '_data': [{
-                '_type': city.name,
-                '_id': CITY,
-                '_revision': rev_city,
-                'name': 'Vilnius',
-                'country_code': 'lt',
-                'continent': 'Europe',
-                'country': {'_id': COUNTRY}
-            }],
-        },
-        match=[_matcher({
-            '_op': 'insert',
-            '_type': city.name,
-            '_id': CITY,
-            'name': 'Vilnius',
-            'country_code': 'lt',
-            'continent': 'Europe',
-            'country': {'_id': COUNTRY}
-        })],)
-
-    _push(
-        context,
-        client,
-        server,
-        models,
-        city_rows,
-        state=state,
-    )
-
-    query = sa.select([city_table.c.id, city_table.c.revision, city_table.c.error])
-    assert list(conn.execute(query)) == [(CITY, rev_city, False)]
-
-    responses.add(
-        POST, server,
-        json={
-            '_data': [{
-                '_type': city.name,
-                '_id': CITY,
-                '_revision': rev_city,
-            },
-                {
-                '_type': country.name,
-                '_id': COUNTRY,
-                '_revision': rev_country,
-            }],
-        },
-        match=[_matcher({
-            '_op': 'delete',
-            '_type': city.name,
-            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')"
-        }),
-            _matcher({
-                '_op': 'delete',
-                '_type': country.name,
-                '_where': "eq(_id, '9b64b9e5-8c8b-4c0e-972c-70c8757f9dd5')"
-            })
-        ],
-    )
-
-    rows = [
-        _PushRow(city, {
-            '_op': 'delete',
-            '_type': city.name,
-            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
-        }, op="delete", saved=True),
-        _PushRow(country, {
-            '_op': 'delete',
-            '_type': country.name,
-            '_where': "eq(_id, '9b64b9e5-8c8b-4c0e-972c-70c8757f9dd5')",
-        }, op="delete", saved=True),
-    ]
-
-    _push(
-        context,
-        client,
-        server,
-        models,
-        rows,
-        state=state,
-    )
-
-    query = sa.select([city_table.c.id, city_table.c.revision, city_table.c.error])
-    assert list(conn.execute(query)) == []
-
-    query = sa.select([country_table.c.id, country_table.c.revision, country_table.c.error])
-    assert list(conn.execute(query)) == []
+    remote.app.authmodel('datasets/gov/deleteTest/City', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/City')
+    assert len(listdata(resp)) == 1
 
 
 def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
