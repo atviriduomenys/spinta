@@ -112,7 +112,7 @@ def test_xml_allowed_namespace(rc: RawConfig, tmp_path: Path):
     path.write_text(xml)
 
     manifest = load_manifest(rc, path)
-    manifest.datasets["dataset"].resources["resource"].external = "manifest.json"
+    manifest.datasets["dataset"].resources["resource"].external = "manifest.xml"
     a, b = compare_manifest(manifest, f'''
 d | r | model   | property     | type           | ref   | source                 | uri
 dataset                  |                |       |                        |
@@ -153,7 +153,7 @@ def test_xml_disallowed_namespace(rc: RawConfig, tmp_path: Path):
     path.write_text(xml)
 
     manifest = load_manifest(rc, path)
-    manifest.datasets["dataset"].resources["resource"].external = "manifest.json"
+    manifest.datasets["dataset"].resources["resource"].external = "manifest.xml"
     a, b = compare_manifest(manifest, f'''
 d | r | model   | property           | type                | ref   | source                 | uri
 dataset                        |                     |       |                        |

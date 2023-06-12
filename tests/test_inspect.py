@@ -1721,7 +1721,7 @@ def test_inspect_xml_model_ref_change(
     # Configure Spinta.
     rc = configure(rc, None, tmp_path / 'manifest.csv', f'''
            d | r | m      | property             | type                   | ref    | source              
-           datasets/json/inspect                 |                        |        |
+           datasets/xml/inspect                  |                        |        |
              | resource                          | xml                    |        | {path}
                                                  |                        |        |
              |   | Country |                     |                        | code   | /countries/country
@@ -1743,11 +1743,11 @@ def test_inspect_xml_model_ref_change(
     ])
     # Check what was detected.
     manifest = load_manifest(rc, result_file_path)
-    manifest.datasets['datasets/json/inspect'].resources['resource'].external = 'resource.json'
+    manifest.datasets['datasets/xml/inspect'].resources['resource'].external = 'resource.xml'
     a, b = compare_manifest(manifest, f'''
 d | r | model  | property            | type                   | ref    | source
-datasets/json/inspect           |                        |        |
-  | resource                    | json                   |        | resource.json
+datasets/xml/inspect            |                        |        |
+  | resource                    | xml                    |        | resource.xml
                                 |                        |        |
   |   | Country                 |                        | code   | /countries/country
   |   |   | name                | string required unique |        | @name
