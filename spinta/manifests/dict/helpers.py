@@ -26,17 +26,16 @@ def read_schema(manifest_type: DictFormat, path: str):
         seperator="",
         recursive_descent="",
         model_source_prefix="",
+        namespace_seperator=":",
         remove_array_suffix=False,
         check_namespace=False,
-        namespace_prefix="",
-        detect_model=is_model_json
+        namespace_prefixes={},
+        detect_model=is_model
     )
     if manifest_type == DictFormat.JSON:
         converted = json.loads(value)
         mapping_meta["seperator"] = "."
         mapping_meta["recursive_descent"] = "."
-        mapping_meta["is_blank_node"] = _is_blank_node(converted)
-        mapping_meta["detect_model"] = is_model_json
 
     elif manifest_type in (DictFormat.XML, DictFormat.HTML):
         converted = xmltodict.parse(value)
@@ -48,7 +47,6 @@ def read_schema(manifest_type: DictFormat, path: str):
         mapping_meta["namespace_prefixes"] = {
             "xmlns": ["xmlns", "@xmlns"]
         }
-        mapping_meta["detect_model"] = is_model_xml
 
     namespaces = extract_namespaces(converted, mapping_meta)
     prefixes = {}
@@ -64,7 +62,7 @@ def read_schema(manifest_type: DictFormat, path: str):
         "resource": "resource",
         "models": {}
     }
-
+    mapping_meta["is_blank_node"] = _is_blank_node(converted)
     create_type_detectors(dataset_structure, converted, mapping_meta)
 
     yield None, {
@@ -85,24 +83,24 @@ def read_schema(manifest_type: DictFormat, path: str):
 
     for model in dataset_structure["models"].values():
         for model_source, m in model.items():
-            new_model = to_model_name(m["name"])
+            new_model = to_model_name(_name_without_namespace(m["name"], mapping_meta))
             new_model = dedup_model(new_model)
             mapped_models[(m['name'], model_source)] = new_model
 
     for model in dataset_structure["models"].values():
         for model_source, m in model.items():
-            if model_source == ".":
+            if model_source == mapping_meta["blank_node_source"]:
                 blank_model = mapped_models[(m["name"], model_source)]
             dedup_prop = Deduplicator('_{}')
             converted_props = {}
             for prop in m["properties"].values():
-                new_prop = to_property_name(prop["name"])
+                new_prop = to_property_name(_name_without_namespace(prop["name"], mapping_meta))
                 new_prop = dedup_prop(new_prop)
                 extra = {}
                 type_detector = prop["type_detector"]
                 if type_detector.get_type() == "ref":
                     if prop['name'] in dataset_structure["models"].keys():
-                        model_name = mapped_models[prop['name'], prop['extra']]
+                        model_name = _name_without_namespace(mapped_models[prop['name'], prop['extra']], mapping_meta)
                         ref_model = f'{dataset_structure["dataset"]}/{model_name}'
                     else:
                         ref_model = f'{dataset_structure["dataset"]}/{blank_model}'
@@ -122,7 +120,8 @@ def read_schema(manifest_type: DictFormat, path: str):
             fixed_external_source = m["source"]
             if mapping_meta["remove_array_suffix"]:
                 fixed_external_source = fixed_external_source.replace("[]", "")
-            fixed_external_source = f'{mapping_meta["model_source_prefix"]}{fixed_external_source}'
+            if not fixed_external_source.startswith("."):
+                fixed_external_source = f'{mapping_meta["model_source_prefix"]}{fixed_external_source}'
             yield None, {
                 'type': 'model',
                 'name': f'{dataset_structure["dataset"]}/{mapped_models[(m["name"], model_source)]}',
@@ -165,6 +164,7 @@ class _MappingMeta(TypedDict):
     model_source_prefix: str
     check_namespace: bool
     namespace_prefixes: dict
+    namespace_seperator: str
     detect_model: Callable
 
 
@@ -175,20 +175,18 @@ class _MappingScope(TypedDict):
     property_name: str
 
 
-def is_model_json(data):
+def _name_without_namespace(name: str, mapping_meta: _MappingMeta):
+    if mapping_meta["namespace_seperator"] in name:
+        for prefixes in mapping_meta["namespace_prefixes"].values():
+            for prefix in prefixes:
+                if name.startswith(prefix):
+                    return name.split(mapping_meta["namespace_seperator"])[-1]
+    return name
+
+
+def is_model(data):
     if isinstance(data, list) and _is_list_of_dicts(data):
         return True
-    return False
-
-
-def is_model_xml(data):
-    normal = is_model_json(data)
-    if normal:
-        return True
-    if isinstance(data, dict):
-        for key, item in data.items():
-            if not isinstance(item, (dict, list)):
-                return True
     return False
 
 
@@ -242,7 +240,8 @@ def check_missing_prop_required(dataset: _MappedDataset, values: dict, mapping_s
             model_name
         )
         if mapping_scope["model_name"] == "" and mapping_meta["is_blank_node"]:
-            model_source = "."
+            model_name = mapping_meta["blank_node_name"]
+            model_source = mapping_meta["blank_node_source"]
         key_values = []
         for k, v in values.items():
             new_val = _create_name_with_prefix(
@@ -320,7 +319,7 @@ def _detect_type(dataset: _MappedDataset, mapping_scope: _MappingScope, mapping_
     )
     if model_name == "":
         model_name = mapping_meta["blank_node_name"]
-        model_source = "."
+        model_source = mapping_meta["blank_node_source"]
     dataset["models"][model_name][model_source]["properties"][prop_name]["type_detector"].detect(value)
 
 
@@ -363,10 +362,11 @@ def setup_model_type_detectors(dataset: _MappedDataset, values: Union[dict, list
 
                 old_mapping_scope = new_mapping_scope.copy()
                 old_mapping_scope["property_name"] = mapping_scope["property_name"]
-                if mapping_scope["property_name"] == "" and mapping_meta["is_blank_node"]:
+
+                if old_mapping_scope["property_name"] == "" and mapping_meta["is_blank_node"]:
                     old_mapping_scope["property_name"] = "parent"
                     set_type_detector(dataset, old_mapping_scope, mapping_meta, is_ref=True)
-                else:
+                elif old_mapping_scope["property_name"] != "":
                     set_type_detector(dataset, old_mapping_scope, mapping_meta, is_ref=True)
             else:
                 if isinstance(value, list):
@@ -437,9 +437,9 @@ def set_type_detector(dataset: _MappedDataset, mapping_scope: _MappingScope, map
             mapping_scope["property_name"]
         )
         prop_source = prop_name
-        if model_name == "":
+        if model_name == "" and mapping_meta["is_blank_node"]:
             model_name = mapping_meta["blank_node_name"]
-            model_source = "."
+            model_source = mapping_meta["blank_node_source"]
         extra = ""
         if is_ref:
             extra = ""
