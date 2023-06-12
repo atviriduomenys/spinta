@@ -83,7 +83,7 @@ def read_schema(manifest_type: DictFormat, path: str):
 
     for model in dataset_structure["models"].values():
         for model_source, m in model.items():
-            new_model = to_model_name(_name_without_namespace(m["name"], mapping_meta))
+            new_model = to_model_name(_name_without_namespace(m["name"], mapping_meta, prefixes))
             new_model = dedup_model(new_model)
             mapped_models[(m['name'], model_source)] = new_model
 
@@ -94,13 +94,13 @@ def read_schema(manifest_type: DictFormat, path: str):
             dedup_prop = Deduplicator('_{}')
             converted_props = {}
             for prop in m["properties"].values():
-                new_prop = to_property_name(_name_without_namespace(prop["name"], mapping_meta))
+                new_prop = to_property_name(_name_without_namespace(prop["name"], mapping_meta, prefixes))
                 new_prop = dedup_prop(new_prop)
                 extra = {}
                 type_detector = prop["type_detector"]
                 if type_detector.get_type() == "ref":
                     if prop['name'] in dataset_structure["models"].keys():
-                        model_name = _name_without_namespace(mapped_models[prop['name'], prop['extra']], mapping_meta)
+                        model_name = _name_without_namespace(mapped_models[prop['name'], prop['extra']], mapping_meta, prefixes)
                         ref_model = f'{dataset_structure["dataset"]}/{model_name}'
                     else:
                         ref_model = f'{dataset_structure["dataset"]}/{blank_model}'
@@ -175,12 +175,12 @@ class _MappingScope(TypedDict):
     property_name: str
 
 
-def _name_without_namespace(name: str, mapping_meta: _MappingMeta):
+def _name_without_namespace(name: str, mapping_meta: _MappingMeta, prefixes: dict):
     if mapping_meta["namespace_seperator"] in name:
-        for prefixes in mapping_meta["namespace_prefixes"].values():
-            for prefix in prefixes:
-                if name.startswith(prefix):
-                    return name.split(mapping_meta["namespace_seperator"])[-1]
+        for prefix in prefixes.keys():
+            namespace = f'{prefix}{mapping_meta["namespace_seperator"]}'
+            if namespace in name:
+                return name.replace(namespace, '')
     return name
 
 
