@@ -1746,19 +1746,19 @@ def test_inspect_xml_model_ref_change(
     manifest.datasets['datasets/json/inspect'].resources['resource'].external = 'resource.json'
     a, b = compare_manifest(manifest, f'''
 d | r | model  | property            | type                   | ref    | source
-datasets/json/inspect           |                        |         |
-  | resource                    | json                   |         | resource.json
-                                |                        |         |
-  |   | Country                 |                        | code    | /countries/country
-  |   |   | name                | string required unique |         | @name
-  |   |   | code                | string required unique |         | @code
-  |   |   | location_latitude   | number unique          |         | location/@latitude
-  |   |   | location_longitude  | number unique          |         | location/@longitude
-                                |                        |         |
-  |   | City                    |                        |         | /countries/country/city
-  |   |   | name                | string required unique |         | @name
-  |   |   | weather_temperature | number unique          |         | weather/temperature
-  |   |   | weather_wind_speed  | number unique          |         | weather/wind_speed
+datasets/json/inspect           |                        |        |
+  | resource                    | json                   |        | resource.json
+                                |                        |        |
+  |   | Country                 |                        | code   | /countries/country
+  |   |   | name                | string required unique |        | @name
+  |   |   | code                | string required unique |        | @code
+  |   |   | location_latitude   | number unique          |        | location/@latitude
+  |   |   | location_longitude  | number unique          |        | location/@longitude
+                                |                        |        |
+  |   | City                    |                        |        | /countries/country/city
+  |   |   | name                | string required unique |        | @name
+  |   |   | weather_temperature | number unique          |        | weather/temperature
+  |   |   | weather_wind_speed  | number unique          |        | weather/wind_speed
   |   |   | country             | ref                    | Country | ..
     ''')
     assert a == b
