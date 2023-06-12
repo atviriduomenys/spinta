@@ -1751,7 +1751,7 @@ datasets/json/inspect           |                        |        |
                                 |                        |        |
   |   | Country                 |                        | code   | /countries/country
   |   |   | name                | string required unique |        | @name
-  |   |   | code                | string required unique |        | @code
+  |   |   | code                | string required        |        | @code
   |   |   | location_latitude   | number unique          |        | location/@latitude
   |   |   | location_longitude  | number unique          |        | location/@longitude
                                 |                        |        |

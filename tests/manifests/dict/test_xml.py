@@ -72,7 +72,7 @@ def test_xml_blank_node(rc: RawConfig, tmp_path: Path):
     manifest = load_manifest(rc, path)
     manifest.datasets["dataset"].resources["resource"].external = "manifest.xml"
     a, b = compare_manifest(manifest, f'''
-d | r | model   | property     | type           | ref     | source
+d | r | model   | property                        | type                    | ref    | source
 dataset                                     |                         |        |
   | resource                                | xml                     |        | manifest.xml
                                             |                         |        |
@@ -114,7 +114,7 @@ def test_xml_allowed_namespace(rc: RawConfig, tmp_path: Path):
     manifest = load_manifest(rc, path)
     manifest.datasets["dataset"].resources["resource"].external = "manifest.json"
     a, b = compare_manifest(manifest, f'''
-d | r | model   | property     | type           | ref     | source | uri
+d | r | model   | property     | type           | ref   | source                 | uri
 dataset                  |                |       |                        |
   |                      | prefix         | xsi   |                        | http://www.example.com/xmlns/xsi
   |                      |                | xmlns |                        | http://www.example.com/xmlns
@@ -155,7 +155,7 @@ def test_xml_disallowed_namespace(rc: RawConfig, tmp_path: Path):
     manifest = load_manifest(rc, path)
     manifest.datasets["dataset"].resources["resource"].external = "manifest.json"
     a, b = compare_manifest(manifest, f'''
-d | r | model   | property     | type           | ref     | source | uri
+d | r | model   | property           | type                | ref   | source                 | uri
 dataset                        |                     |       |                        |
   |                            | prefix              | xmlns |                        | http://www.example.com/xmlns
   |                            |                     | new   |                        | http://www.example.com/xmlns/new
@@ -214,7 +214,7 @@ def test_xml_inherit_nested(rc: RawConfig, tmp_path: Path):
     manifest = load_manifest(rc, path)
     manifest.datasets["dataset"].resources["resource"].external = "manifest.xml"
     a, b = compare_manifest(manifest, f'''
-d | r | model   | property     | type           | ref     | source | uri
+d | r | model   | property        | type                    | ref     | source
 dataset                     |                         |         |
   | resource                | xml                     |         | manifest.xml
                             |                         |         |

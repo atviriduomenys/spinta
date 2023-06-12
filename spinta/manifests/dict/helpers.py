@@ -206,7 +206,7 @@ def extract_namespaces(data: Any, mapping_meta: _MappingMeta):
                 parent = _find_parent_key(mapping_meta["namespace_prefixes"], key)
                 if parent is not None:
                     if key not in keys_to_remove.keys():
-                        return_key = key.split(":")
+                        return_key = key.split(mapping_meta["namespace_seperator"])
                         if len(return_key) == 1:
                             return_key = [parent]
                         keys_to_remove[key] = (return_key[-1], value)
