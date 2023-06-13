@@ -159,6 +159,7 @@ TYPES = [
     (sa.Numeric, 'number'),
     (sa.Text, 'string'),
     (sa.Time, 'time'),
+    (sa.LargeBinary, 'binary'),
     (sa.VARCHAR, 'string'),
     (sa.CHAR, 'string'),
     (mysql.BIT, 'string'),

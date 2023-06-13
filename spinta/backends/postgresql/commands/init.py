@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from spinta import commands
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType, PrimaryKey
+from spinta.types.datatype import DataType, PrimaryKey, Ref
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
@@ -37,9 +37,16 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.extend(column)
         elif column is not None:
             columns.append(column)
+
     if model.unique:
         for val in model.unique:
-            columns.append(sa.UniqueConstraint(*val))
+            prop_list = []
+            for prop in val:
+                name = prop.name
+                if isinstance(prop.dtype, Ref):
+                    name = f'{name}.{prop.dtype.refprops[0].name}'
+                prop_list.append(name)
+            columns.append(sa.UniqueConstraint(*prop_list))
     # Create main table.
     main_table_name = get_pg_name(get_table_name(model))
     pkey_type = commands.get_primary_key_type(context, backend)
@@ -55,6 +62,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
+
 
 @commands.prepare.register(Context, PostgreSQL, DataType)
 def prepare(context: Context, backend: PostgreSQL, dtype: DataType):

@@ -6,7 +6,12 @@ from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import NAMEDATALEN
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers import get_pg_sequence_name
+from spinta.core.config import RawConfig
+from spinta.testing.client import create_test_client
+from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import get_error_codes, get_error_context
+
+from _pytest.fixtures import FixtureRequest
 
 
 def get_model(name: str):
@@ -193,3 +198,78 @@ def test_patch(app):
     assert 'title' not in resp_data
     # revision must be the same, since nothing has changed
     assert resp_data['_revision'] == revision
+
+
+def test_exceptions_unique_constraint_single_column(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+        d | r | b | m | property | type   | ref     | access  | uri
+        example/unique/single    |        |         |         |
+          |   |   | Country      |        | name    |         | 
+          |   |   |   | name     | string |         | open    | 
+        ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/unique/single', ['insert'])
+
+    app.post('/example/unique/single/Country', json={'name': 'Lithuania'})
+    response = app.post('/example/unique/single/Country', json={'name': 'Lithuania'})
+    assert response.status_code == 400
+    assert response.json() == {
+        "errors": [{
+            "type": "property",
+            "code": "UniqueConstraint",
+            "template": "Given value already exists.",
+            "context": {
+                "component": "spinta.components.Property",
+                "manifest": "default",
+                "schema": "3",
+                "dataset": "example/unique/single",
+                "model": "example/unique/single/Country",
+                "entity": "",
+                "property": "name",
+                "attribute": ""
+            },
+            "message": "Given value already exists."
+        }]
+    }
+
+
+def test_exceptions_unique_constraint_multiple_columns(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+        d | r | b | m | property | type    | ref      | access  | uri
+        example/unique/multiple  |         |          |         |
+          |   |   | Country      |         | name, id |         | 
+          |   |   |   | name     | string  |          | open    | 
+          |   |   |   | id       | integer |          | open    | 
+        ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/unique/multiple', ['insert'])
+
+    app.post('/example/unique/multiple/Country', json={'name': 'Lithuania', 'id': 0})
+    response = app.post('/example/unique/multiple/Country', json={'name': 'Lithuania', 'id': 0})
+    assert response.status_code == 400
+    assert response.json() == {
+        "errors": [{
+            "type": "model",
+            "code": "CompositeUniqueConstraint",
+            "template": "Given values for composition of properties ({properties}) already exist.",
+            "context": {
+                "component": "spinta.components.Model",
+                "manifest": "default",
+                "schema": "3",
+                "dataset": "example/unique/multiple",
+                "model": "example/unique/multiple/Country",
+                "entity": "",
+                "properties": "name,id",
+            },
+            "message": "Given values for composition of properties (name,id) already exist."
+        }]
+    }
+

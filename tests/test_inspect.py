@@ -1674,7 +1674,7 @@ datasets/json/inspect           |                        |        |
                                 |                        |        |
   |   | Pos                     |                        | code   | .
   |   |   | name                | string required unique |        | name
-  |   |   | code                | string required unique |        | code
+  |   |   | code                | string required        |        | code
   |   |   | location_latitude   | number unique          |        | location.latitude
   |   |   | location_longitude  | number unique          |        | location.longitude
                                 |                        |        |
