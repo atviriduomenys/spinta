@@ -26,26 +26,30 @@
 {% if empty %}
     <div>No data.</div>
 {% elif params.pk %}
-    {% for row in data %}
     <table class="table">
+        <thead>
+        <tr>
+            {% for cell in header %}
+                <th>{{ cell }}</th>
+            {% endfor %}
+        </tr>
+        </thead>
         <tbody>
-        {% for title, cell in zip(header, row) %}
+        {% for row in data %}
             <tr>
-                <th>{{ title }}</th>
-                <td{% if cell.color %} style="background-color: {{ cell.color.value }}"{% endif %}>
-                    {% if column in ('id', 'type') %}
-                        <strong>{{ cell.value }}</strong>
-                    {% elif cell.link %}
-                        <a href="{{ cell.link }}">{{ cell.value }}</a>
-                    {% else %}
-                        {{ cell.value }}
-                    {% endif %}
-                </td>
+                {% for cell in row %}
+                    <td{% if cell.color %} style="background-color: {{ cell.color.value }}"{% endif %}>
+                        {% if cell.link %}
+                            <a href="{{ cell.link }}">{{ cell.value }}</a>
+                        {% else %}
+                            {{ cell.value }}
+                        {% endif %}
+                    </td>
+                {% endfor %}
             </tr>
         {% endfor %}
         </tbody>
     </table>
-    {% endfor %}
 {% else %}
     <table class="table">
         <thead>
