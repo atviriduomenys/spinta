@@ -54,9 +54,9 @@ def geodb():
             {'id': 2, 'kodas': 'ee', 'pavadinimas': 'Estija'},
         ])
         db.write('miestas', [
-            {'id': 0, 'salis': 0, 'pavadinimas': 'Vilnius'},
-            {'id': 1, 'salis': 1, 'pavadinimas': 'Ryga'},
-            {'id': 2, 'salis': 2, 'pavadinimas': 'Talinas'},
+            {'id': 0, 'salis': 'lt', 'pavadinimas': 'Vilnius'},
+            {'id': 1, 'salis': 'lv', 'pavadinimas': 'Ryga'},
+            {'id': 2, 'salis': 'ee', 'pavadinimas': 'Talinas'},
         ])
         yield db
 
@@ -486,15 +486,16 @@ def test_push_delete_with_dependent_objects(
        |   |   | Country               |        | code                    | salis      | open
        |   |   |    | name             | string |                         | pavadinimas|
        |   |   |    | code             | string |                         | kodas      |
-       |   |   | City                  |        | name, country           | miestas    | open
+       |   |   |    |                  |        |                         |            |
+       |   |   | City                  |        | name                    | miestas    | open
        |   |   |    | name             | string |                         | pavadinimas|
-       |   |   |    | country          | ref    | Country[code]           | salis      |
+       |   |   |    | country          | ref    | Country                 | salis      |
     '''
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
 
     localrc = create_rc(rc, tmp_path, geodb)
 
-    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
     request.addfinalizer(remote.app.context.wipe_all)
 
     assert remote.url == 'https://example.com/'
@@ -517,8 +518,9 @@ def test_push_delete_with_dependent_objects(
 
     conn = geodb.engine.connect()
 
-    conn.execute(geodb.tables['salis'].delete().where(geodb.tables['salis'].c.id == 1))
+    conn.execute(geodb.tables['salis'].delete().where(geodb.tables['salis'].c.id == 2))
     conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 2))
+    conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 1))
 
     result = cli.invoke(localrc, [
         'push',
@@ -526,12 +528,13 @@ def test_push_delete_with_dependent_objects(
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--no-progress-bar',
+        '--stop-on-error'
     ])
     assert result.exit_code == 0
 
     remote.app.authmodel('datasets/gov/deleteTest/Country', ['getall'])
     resp = remote.app.get('/datasets/gov/deleteTest/Country')
-    assert len(listdata(resp)) == 1
+    assert len(listdata(resp)) == 2
 
     remote.app.authmodel('datasets/gov/deleteTest/City', ['getall'])
     resp = remote.app.get('/datasets/gov/deleteTest/City')
