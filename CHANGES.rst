@@ -6,6 +6,11 @@ Changes
 0.1.51 (unreleased)
 ===================
 
+Improvements:
+
+- Recognize CHAR data types (`#469`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/469
 
 
 0.1.50 (2023-05-22)

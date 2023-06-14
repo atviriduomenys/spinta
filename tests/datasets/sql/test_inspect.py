@@ -1,7 +1,11 @@
-import frictionless
 import sqlalchemy as sa
+from sqlalchemy.dialects import mysql
+
+import frictionless
 from geoalchemy2.types import Geometry
+
 from spinta.datasets.backends.sql.frictionless import GeoSqlStorage
+from spinta.manifests.sql.helpers import _get_type
 
 
 def test_geometry_type():
@@ -20,3 +24,7 @@ def test_time_type():
     storage._SqlStorage__metadata = metadata
     package = frictionless.Package.from_storage(storage)
     assert package.resources[0].schema.fields[0].type == 'time'
+
+
+def test_char_type():
+    assert _get_type(mysql.CHAR()) == 'string'

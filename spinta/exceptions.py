@@ -568,13 +568,17 @@ class UnableToCast(UserError):
     template = "Unable to cast {value} to {type} type."
 
 
+class NotImplementedFeature(BaseError):
+    template = "{feature} is not implemented yet."
+
+
 class ReferencedObjectNotFound(UserError):
     template = "Referenced object {id!r} not found."
 
 
 class ReferringObjectFound(UserError):
-    template = "Object {id!r} is still being referenced in table {model!r}"
+    template = "Object {id!r} is still being referenced in table {model!r}."
 
 
-class NotImplementedFeature(BaseError):
-    template = "{feature} is not implemented yet."
+class CompositeUniqueConstraint(UserError):
+    template = "Given values for composition of properties ({properties}) already exist."

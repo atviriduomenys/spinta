@@ -44,7 +44,8 @@ CONFIG = {
             'xlsx': 'spinta.manifests.tabular.components:XlsxManifest',
             'gsheets': 'spinta.manifests.tabular.components:GsheetsManifest',
             'sql': 'spinta.manifests.sql.components:SqlManifest',
-            'memory': 'spinta.manifests.memory.components:MemoryManifest'
+            'memory': 'spinta.manifests.memory.components:MemoryManifest',
+            'json': 'spinta.manifests.dict.components:JsonManifest'
         },
         'backends': {
             # In memory backends mostly usable in tests
