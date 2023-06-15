@@ -1,11 +1,12 @@
 import pytest
 import sqlalchemy as sa
+from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
-from tests.datasets.test_sql import configure_remote_server, create_rc
+from tests.datasets.test_sql import configure_remote_server, create_rc, create_client
 
 
 @pytest.fixture(scope='module')
@@ -28,7 +29,7 @@ def geodb():
             {'kodas': 'ee', 'pavadinimas': 'Estija', 'id': 3},
         ])
         db.write('cities', [
-            {'name': 'Vilnius', 'country': 2},
+            {'name': 'Vilnius', 'country': 'lt'},
         ])
         yield db
 
@@ -319,6 +320,7 @@ def test_push_ref_with_level_4(
     assert len(listdata(resp_city, 'id', 'name', 'country')) == 1
     assert '_id' in listdata(resp_city, 'country')[0].keys()
 
+
 def test_push_with_resource_check(
     postgresql,
     rc,
@@ -371,24 +373,23 @@ def test_push_with_resource_check(
 
     remote.app.authmodel('datasets/gov/exampleRes/countryRes', ['getall'])
     resp_res = remote.app.get('/datasets/gov/exampleRes/countryRes')
+    assert len(listdata(resp_res)) == 3
 
     remote.app.authmodel('datasets/gov/exampleNoRes/countryNoRes', ['getall'])
     resp_no_res = remote.app.get('/datasets/gov/exampleNoRes/countryNoRes')
-
-    assert len(listdata(resp_res)) == 3
     assert len(listdata(resp_no_res)) == 0
 
 
 def test_push_ref_with_level(
     postgresql,
-    rc,
+    rc: RawConfig,
     cli: SpintaCliRunner,
     responses,
     tmp_path,
     geodb,
     request
 ):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    table = '''
     d | r | b | m | property | type    | ref                             | source         | level | access
     leveldataset             |         |                                 |                |       |
       | db                   | sql     |                                 |                |       |
@@ -401,7 +402,16 @@ def test_push_ref_with_level(
       |   |   | Country      |         | code                            |                | 4     |
       |   |   |   | code     | string  |                                 |                | 4     | open
       |   |   |   | name     | string  |                                 |                | 2     | open
-    '''))
+    '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+
+    app = create_client(rc, tmp_path, geodb)
+    app.authmodel('leveldataset', ['getall'])
+    resp = app.get('leveldataset/City')
+    assert listdata(resp, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': 'lt'})
+
+    resp = app.get('leveldataset/countries/Country')
+    assert resp.status_code == 400
 
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb)
@@ -414,16 +424,6 @@ def test_push_ref_with_level(
     assert remote.url == 'https://example.com/'
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'leveldataset',
-        '-o', remote.url,
-        '--credentials', remote.credsfile,
-        '--no-progress-bar',
-    ])
-    assert result.exit_code == 0
-
-    result = cli.invoke(localrc, [
-        'push',
-        '-d', 'leveldataset/countries',
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--no-progress-bar',
@@ -435,5 +435,9 @@ def test_push_ref_with_level(
 
     assert resp_city.status_code == 200
     assert listdata(resp_city, 'name') == ['Vilnius']
-    assert len(listdata(resp_city, 'id', 'name', 'country')) == 1
-    assert 'code' in listdata(resp_city, 'country')[0].keys()
+    assert listdata(resp_city, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': 'lt'})
+
+    remote.app.authmodel('leveldataset/countries', ['getall', 'search'])
+    resp_city = remote.app.get('leveldataset/countries/Country')
+    assert resp_city.status_code == 200
+    assert listdata(resp_city) == []
