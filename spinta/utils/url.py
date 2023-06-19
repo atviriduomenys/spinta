@@ -25,7 +25,7 @@ RULES = {
     },
     # In batch requests, return summary of what was done.
     'summary': {
-        'maxargs': 0,
+        'maxargs': 1,
     },
     # In batch requests, continue execution even if some actions fail.
     'fault-tolerant': {

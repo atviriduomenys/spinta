@@ -418,3 +418,33 @@ async def changes(
     )
 
     return render(context, request, model, params, rows, action=action)
+
+
+@commands.summary.register(Context, Request, Model)
+async def summary(
+    context: Context,
+    request: Request,
+    model: Model,
+    *,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    commands.authorize(context, action, model)
+    backend = model.backend
+
+    prop = params.select[0]
+
+    accesslog: AccessLog = context.get('accesslog')
+    accesslog.request(
+        # XXX: Read operations does not have a transaction, but it
+        #      is needed for loging.
+        txn=str(uuid.uuid4()),
+        model=model.model_type(),
+        action=action.value,
+    )
+    if params.head:
+        rows = []
+    else:
+        rows = commands.summary(context, model, backend, prop=prop)
+    rows = log_response(context, rows)
+    return render(context, request, model, params, rows, action=action)

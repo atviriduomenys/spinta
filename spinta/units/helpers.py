@@ -1,6 +1,6 @@
 import re
 
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, Time
 from spinta.types.datatype import Date
 from spinta.types.datatype import DateTime
 from spinta.types.geometry.components import Geometry
@@ -156,7 +156,7 @@ def is_si_unit(unit: str) -> bool:
 
 
 def is_unit(dtype: DataType, unit: str) -> bool:
-    if isinstance(dtype, (Date, DateTime)):
+    if isinstance(dtype, (Date, DateTime, Time)):
         return is_time_unit(unit)
     if isinstance(dtype, (Integer, Number, Geometry)):
         return is_si_unit(unit)
