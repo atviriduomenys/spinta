@@ -1014,3 +1014,374 @@ def test_summary_date_empty(rc: RawConfig, postgresql: str, request: FixtureRequ
     json_response = response.json()
     assert len(json_response["_data"]) == 0
     assert json_response["_data"] == []
+
+
+def test_summary_ref_level_4_no_uri(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property   | type   | ref       | access | uri | level
+            example/summary/ref        |        |           |        |     |
+              |   |   | Test           |        |           |        |     |
+              |   |   |   | value_test | ref    | Ref       | open   |     | 4
+              |   |   | Ref            |        | value_ref |        |     |
+              |   |   |   | value_ref  | string |           | open   |     | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/ref', ['insert', 'getall', 'search'])
+    resp_0 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_0"})
+    resp_1 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_1"})
+    resp_2 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_2"})
+
+    id_0 = resp_0.json()["_id"]
+    id_1 = resp_1.json()["_id"]
+    id_2 = resp_2.json()["_id"]
+
+    app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_0
+    }})
+    app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_0
+    }})
+    resp_middle = app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_1
+    }})
+    resp_last = app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_2
+    }})
+    response = app.get('/example/summary/ref/Test/:summary/value_test')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'bin': id_0,
+        'count': 2,
+        '_type': 'example/summary/ref/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'bin': id_1,
+        'count': 1,
+        '_type': 'example/summary/ref/Test',
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'bin': id_2,
+        'count': 1,
+        '_type': 'example/summary/ref/Test',
+        '_id': resp_last.json()["_id"],
+    })
+
+
+def test_summary_ref_level_4_with_uri(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property   | type   | ref       | access | uri
+            example/summary/ref        |        |           |        |
+                                       | prefix | dct       |        | http://purl.org/dc/dcmitype/
+                                       |        | dcat      |        | http://www.w3.org/ns/dcat#
+              |   |   | Test           |        |           |        |
+              |   |   |   | value_test | ref    | Ref       | open   |
+              |   |   | Ref            |        | value_ref |        | dct:label
+              |   |   |   | value_ref  | string |           | open   |
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/ref', ['insert', 'getall', 'search'])
+    resp_0 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_0"})
+    resp_1 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_1"})
+    resp_2 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_2"})
+
+    id_0 = resp_0.json()["_id"]
+    id_1 = resp_1.json()["_id"]
+    id_2 = resp_2.json()["_id"]
+
+    app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_0
+    }})
+    app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_0
+    }})
+    resp_middle = app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_1
+    }})
+    resp_last = app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_2
+    }})
+    response = app.get('/example/summary/ref/Test/:summary/value_test')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'bin': id_0,
+        'count': 2,
+        'label': 'http://purl.org/dc/dcmitype/label',
+        '_type': 'example/summary/ref/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'bin': id_1,
+        'count': 1,
+        'label': 'http://purl.org/dc/dcmitype/label',
+        '_type': 'example/summary/ref/Test',
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'bin': id_2,
+        'count': 1,
+        'label': 'http://purl.org/dc/dcmitype/label',
+        '_type': 'example/summary/ref/Test',
+        '_id': resp_last.json()["_id"],
+    })
+
+
+def test_summary_ref_level_4_with_uri_wrong(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property   | type   | ref       | access | uri
+            example/summary/ref        |        |           |        |
+                                       | prefix | dct       |        | http://purl.org/dc/dcmitype/
+                                       |        | dcat      |        | http://www.w3.org/ns/dcat#
+              |   |   | Test           |        |           |        |
+              |   |   |   | value_test | ref    | Ref       | open   |
+              |   |   | Ref            |        | value_ref |        | test:label
+              |   |   |   | value_ref  | string |           | open   |
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/ref', ['insert', 'getall', 'search'])
+    resp_0 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_0"})
+    resp_1 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_1"})
+    resp_2 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_2"})
+
+    id_0 = resp_0.json()["_id"]
+    id_1 = resp_1.json()["_id"]
+    id_2 = resp_2.json()["_id"]
+
+    app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_0
+    }})
+    app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_0
+    }})
+    resp_middle = app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_1
+    }})
+    resp_last = app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_2
+    }})
+    response = app.get('/example/summary/ref/Test/:summary/value_test')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'bin': id_0,
+        'count': 2,
+        '_type': 'example/summary/ref/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'bin': id_1,
+        'count': 1,
+        '_type': 'example/summary/ref/Test',
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'bin': id_2,
+        'count': 1,
+        '_type': 'example/summary/ref/Test',
+        '_id': resp_last.json()["_id"],
+    })
+
+
+def test_summary_ref_level_4_with_uri_url(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property   | type   | ref       | access | uri
+            example/summary/ref        |        |           |        |
+                                       | prefix | dct       |        | http://purl.org/dc/dcmitype/
+                                       |        | dcat      |        | http://www.w3.org/ns/dcat#
+              |   |   | Test           |        |           |        |
+              |   |   |   | value_test | ref    | Ref       | open   |
+              |   |   | Ref            |        | value_ref |        | https://www.google.com/
+              |   |   |   | value_ref  | string |           | open   |
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/ref', ['insert', 'getall', 'search'])
+    resp_0 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_0"})
+    resp_1 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_1"})
+    resp_2 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_2"})
+
+    id_0 = resp_0.json()["_id"]
+    id_1 = resp_1.json()["_id"]
+    id_2 = resp_2.json()["_id"]
+
+    app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_0
+    }})
+    app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_0
+    }})
+    resp_middle = app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_1
+    }})
+    resp_last = app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_2
+    }})
+    response = app.get('/example/summary/ref/Test/:summary/value_test')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'bin': id_0,
+        'count': 2,
+        'label': 'https://www.google.com/',
+        '_type': 'example/summary/ref/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'bin': id_1,
+        'count': 1,
+        'label': 'https://www.google.com/',
+        '_type': 'example/summary/ref/Test',
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'bin': id_2,
+        'count': 1,
+        'label': 'https://www.google.com/',
+        '_type': 'example/summary/ref/Test',
+        '_id': resp_last.json()["_id"],
+    })
+
+
+def test_summary_ref_level_3_no_uri(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property   | type   | ref       | access | uri | level
+            example/summary/ref3        |        |           |        |     |
+              |   |   | Test           |        |           |        |     |
+              |   |   |   | value_test | ref    | Ref       | open   |     | 3
+              |   |   | Ref            |        | value_ref |        |     |
+              |   |   |   | value_ref  | string |           | open   |     | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/ref3', ['insert', 'getall', 'search'])
+    app.post('/example/summary/ref3/Ref', json={'value_ref': "test_0"})
+    app.post('/example/summary/ref3/Ref', json={'value_ref': "test_1"})
+    app.post('/example/summary/ref3/Ref', json={'value_ref': "test_2"})
+
+    app.post('/example/summary/ref3/Test', json={'value_test': {
+        "value_ref": "test_0"
+    }})
+    app.post('/example/summary/ref3/Test', json={'value_test': {
+        "value_ref": "test_0"
+    }})
+    resp_middle = app.post('/example/summary/ref3/Test', json={'value_test': {
+        "value_ref": "test_1"
+    }})
+    resp_last = app.post('/example/summary/ref3/Test', json={'value_test': {
+        "value_ref": "test_2"
+    }})
+    response = app.get('/example/summary/ref3/Test/:summary/value_test')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'bin': "test_0",
+        'count': 2,
+        '_type': 'example/summary/ref3/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'bin': "test_1",
+        'count': 1,
+        '_type': 'example/summary/ref3/Test',
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'bin': "test_2",
+        'count': 1,
+        '_type': 'example/summary/ref3/Test',
+        '_id': resp_last.json()["_id"],
+    })
+
+
+def test_summary_ref_level_3_multiple_ref_props(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property   | type   | ref       | access | uri | level
+            example/summary/ref3multi        |        |           |        |     |
+              |   |   | Test           |        |           |        |     |
+              |   |   |   | value_test | ref    | Ref       | open   |     | 3
+              |   |   | Ref            |        | value_ref, value_t |        |     |
+              |   |   |   | value_ref  | string |           | open   |     | 
+              |   |   |   | value_t  | string |           | open   |     | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/ref3multi', ['insert', 'getall', 'search'])
+    app.post('/example/summary/ref3multi/Ref', json={'value_ref': "test_0", "value_t": "asd"})
+    app.post('/example/summary/ref3multi/Ref', json={'value_ref': "test_1"})
+    app.post('/example/summary/ref3multi/Ref', json={'value_ref': "test_2"})
+
+    app.post('/example/summary/ref3multi/Test', json={'value_test': {
+        "value_ref": "test_0",
+        "value_t": "asd"
+    }})
+    app.post('/example/summary/ref3multi/Test', json={'value_test': {
+        "value_ref": "test_0",
+        "value_t": "asd"
+    }})
+    app.post('/example/summary/ref3multi/Test', json={'value_test': {
+        "value_ref": "test_1"
+    }})
+    app.post('/example/summary/ref3multi/Test', json={'value_test': {
+        "value_ref": "test_2"
+    }})
+    response = app.get('/example/summary/ref3multi/Test/:summary/value_test')
+    assert response.status_code == 500
+
+
+def test_summary_ref_missing(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property   | type   | ref       | access | uri | level
+            example/summary/ref        |        |           |        |     |
+              |   |   | Test           |        |           |        |     |
+              |   |   |   | value_test | ref    | Ref       | open   |     | 4
+              |   |   | Ref            |        | value_ref |        |     |
+              |   |   |   | value_ref  | string |           | open   |     | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/ref', ['insert', 'getall', 'search'])
+    resp_0 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_0"})
+    app.post('/example/summary/ref/Ref', json={'value_ref': "test_1"})
+    resp_2 = app.post('/example/summary/ref/Ref', json={'value_ref': "test_2"})
+
+    id_0 = resp_0.json()["_id"]
+    id_2 = resp_2.json()["_id"]
+
+    app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_0
+    }})
+    app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_0
+    }})
+    resp_last = app.post('/example/summary/ref/Test', json={'value_test': {
+        "_id": id_2
+    }})
+    response = app.get('/example/summary/ref/Test/:summary/value_test')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 2
+    assert dict_equals(json_response["_data"][0], {
+        'bin': id_0,
+        'count': 2,
+        '_type': 'example/summary/ref/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'bin': id_2,
+        'count': 1,
+        '_type': 'example/summary/ref/Test',
+        '_id': resp_last.json()["_id"],
+    })
+
+
+def test_summary_ref_empty(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property   | type   | ref       | access | uri | level
+            example/summary/ref        |        |           |        |     |
+              |   |   | Test           |        |           |        |     |
+              |   |   |   | value_test | ref    | Ref       | open   |     | 4
+              |   |   | Ref            |        | value_ref |        |     |
+              |   |   |   | value_ref  | string |           | open   |     | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/ref', ['insert', 'getall', 'search'])
+    app.post('/example/summary/ref/Ref', json={'value_ref': "test_0"})
+    app.post('/example/summary/ref/Ref', json={'value_ref': "test_1"})
+    app.post('/example/summary/ref/Ref', json={'value_ref': "test_2"})
+
+    response = app.get('/example/summary/ref/Test/:summary/value_test')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 0
+    assert json_response["_data"] == []

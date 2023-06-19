@@ -1,6 +1,5 @@
 import calendar
 import datetime
-import re
 
 from spinta.backends.helpers import get_table_name
 from spinta.types.datatype import Integer, Number, Boolean, String, Date, DateTime, Time, Ref
@@ -10,6 +9,7 @@ from spinta.components import Model
 from spinta.exceptions import NotFoundError, PropertyNotFound, NotImplementedFeature
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.units.helpers import split_time_unit
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 
 from dateutil.relativedelta import relativedelta
@@ -241,9 +241,11 @@ def _handle_time_units_not_given(model_prop: Property, value):
 
 
 def _handle_time_units_given(model_prop: Property, value):
-    items = _split_string(model_prop.unit)
+    items = split_time_unit(model_prop.unit)
+    if items is None:
+        return None
     number = items[0]
-    unit_type = items[2]
+    unit_type = items[1]
     time_units = ['H', 'T', 'S', 'L', 'U', 'N']
     date_units = ['Y', 'Q', 'M', 'W', 'D']
     if isinstance(model_prop.dtype, Time) and unit_type not in time_units:
@@ -271,18 +273,6 @@ def _handle_time_units_given(model_prop: Property, value):
         return value + datetime.timedelta(milliseconds=int(number) * 100)
     elif unit_type == 'U':
         return value + datetime.timedelta(microseconds=int(number) * 100)
-
-
-split_unit_pattern = re.compile(r'^(\d+)(.*?)([a-zA-Z]+)$')
-
-
-def _split_string(string):
-    match = split_unit_pattern.match(string)
-    if match:
-        groups = match.groups()
-        return groups[0], groups[1], groups[2]
-    else:
-        return None
 
 
 def _handle_time_summary(connection, model_prop: Property):
@@ -360,30 +350,45 @@ def summary(
     connection = context.get('transaction').connection
 
     try:
-
         prop = dtype.prop.name
+        key = "_id"
+        if dtype.prop.level and dtype.prop.level < 4:
+            if len(dtype.refprops) > 1:
+                raise NotImplementedFeature(dtype.prop, feature="Ability to get summary for Ref type Property, when level is 3 and below and there are multiple refprops")
+            key = dtype.refprops[0].name
         model = get_table_name(dtype.prop)
-        result = connection.execute(f'''
-        SELECT * FROM "{model}"''')
-        for item in result:
-            data = flat_dicts_to_nested(dict(item))
-            print(data)
+        uri = dtype.model.uri
+        prefixes = dtype.model.external.dataset.prefixes
+        label = None
+        if uri and ":" in uri:
+            if uri.startswith(('http://', 'https://')):
+                label = uri
+            else:
+                split = uri.split(":")
+                if split[0] in prefixes.keys():
+                    label = f'{prefixes[split[0]].uri}{split[1]}'
+
         result = connection.execute(f'''
                 SELECT 
-                    "{prop}._id" as bin, 
+                    "{prop}.{key}" as bin, 
                     COUNT(model.*) AS count, 
-                    (ARRAY_AGG(model._id))[1] AS _id
+                    (ARRAY_AGG(model._id))[1] AS _id,
+                    MIN(model._created) as created_at
                 FROM
                     "{model}" AS model 
                     GROUP BY 
-                        "{prop}._id"
+                        "{prop}.{key}"
                     ORDER BY
-                        count DESC
+                        count DESC,
+                        created_at ASC
                     LIMIT 10;
                 ''')
         for item in result:
             data = flat_dicts_to_nested(dict(item))
-            print(data)
+
+            del data["created_at"]
+            if label:
+                data["label"] = label
             if data["count"] != 1:
                 del data["_id"]
             data['_type'] = dtype.prop.model.model_type()
