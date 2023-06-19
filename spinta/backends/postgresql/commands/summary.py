@@ -73,7 +73,7 @@ def _handle_numeric_summary(connection, model_prop: Property):
             # reason for 'max_value + min(0.01, bin_size*0.01)', is that WIDTH_BUCKET max is not inclusive, so you need to increase it by small amount
             result = connection.execute(f'''
                 SELECT 
-                    WIDTH_BUCKET("{prop}", {min_value}, {max_value + min(0.01, bin_size*0.01)}, 100) AS bucket, 
+                    WIDTH_BUCKET("{prop}", {min_value}, {max_value + min(0.01, bin_size * 0.01)}, 100) AS bucket, 
                     COUNT(*) AS count,
                     (ARRAY_AGG(_id))[1] AS _id
                 FROM "{model}" 
@@ -148,7 +148,8 @@ def summary(
     connection = context.get('transaction').connection
 
     if not dtype.prop.enum:
-        raise NotImplementedFeature(dtype.prop, feature="Ability to generate summary for String type properties that do not have Enum")
+        raise NotImplementedFeature(dtype.prop,
+                                    feature="Ability to generate summary for String type properties that do not have Enum")
     enum_list = []
     for key, value in dtype.prop.enum.items():
         enum_list.append(value.prepare)
@@ -213,12 +214,15 @@ def summary(
 
 def _handle_time_units(model_prop: Property, value):
     unit = model_prop.unit
+
     if not unit:
         return _handle_time_units_not_given(model_prop, value)
     else:
         given = _handle_time_units_given(model_prop, value)
+        if not given:
+            return _handle_time_units_not_given(model_prop, value)
         if isinstance(model_prop.dtype, Time):
-            if given.hour < value.hour:
+            if given.date() != value.date():
                 return _handle_time_units_not_given(model_prop, value)
         return given
 
@@ -229,6 +233,8 @@ def _handle_time_units_not_given(model_prop: Property, value):
     else:
         if (value + datetime.timedelta(minutes=100)).hour < value.hour:
             if (value + datetime.timedelta(seconds=100)).hour < value.hour:
+                if (value + datetime.timedelta(milliseconds=100)).hour < value.hour:
+                    return value + datetime.timedelta(microseconds=100)
                 return value + datetime.timedelta(milliseconds=100)
             return value + datetime.timedelta(seconds=100)
         return value + datetime.timedelta(minutes=100)
@@ -238,6 +244,13 @@ def _handle_time_units_given(model_prop: Property, value):
     items = _split_string(model_prop.unit)
     number = items[0]
     unit_type = items[2]
+    time_units = ['H', 'T', 'S', 'L', 'U', 'N']
+    date_units = ['Y', 'Q', 'M', 'W', 'D']
+    if isinstance(model_prop.dtype, Time) and unit_type not in time_units:
+        return None
+    elif isinstance(model_prop.dtype, Date) and unit_type not in date_units:
+        return None
+
     if unit_type == 'Y':
         return value + relativedelta(years=int(number) * 100)
     elif unit_type == 'Q':
@@ -256,10 +269,14 @@ def _handle_time_units_given(model_prop: Property, value):
         return value + relativedelta(seconds=int(number) * 100)
     elif unit_type == 'L':
         return value + datetime.timedelta(milliseconds=int(number) * 100)
+    elif unit_type == 'U':
+        return value + datetime.timedelta(microseconds=int(number) * 100)
+
+
+split_unit_pattern = re.compile(r'^(\d+)(.*?)([a-zA-Z]+)$')
 
 
 def _split_string(string):
-    split_unit_pattern = re.compile(r'^(\d+)(.*?)([a-zA-Z]+)$')
     match = split_unit_pattern.match(string)
     if match:
         groups = match.groups()
@@ -270,7 +287,6 @@ def _split_string(string):
 
 def _handle_time_summary(connection, model_prop: Property):
     try:
-        print(model_prop.__dict__)
         prop = model_prop.name
         model = get_table_name(model_prop)
         min_value = None
@@ -292,11 +308,13 @@ def _handle_time_summary(connection, model_prop: Property):
         else:
             if min_value == max_value:
                 max_value = _handle_time_units(model_prop, min_value)
+
             bin_size = (max_value - min_value) / 100
             half_bin_size = bin_size / 2
             seq_start = calendar.timegm(min_value.timetuple())
             seq_end = calendar.timegm(max_value.timetuple())
             seq_step = bin_size.total_seconds()
+
             # reason for 'max_value + min(0.01, bin_size*0.01)', is that WIDTH_BUCKET max is not inclusive, so you need to increase it by small amount
             result = connection.execute(f'''
                 SELECT 

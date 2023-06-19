@@ -1,3 +1,5 @@
+import pytest
+
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
@@ -26,6 +28,62 @@ def dict_equals(dict1: dict, dict2: dict, epsilon=1e-9):
             return False
 
     return True
+
+
+time_units_data = {
+    'minutes': ('5T', '10:00:00', '10:02:30', '18:17:30'),
+    'seconds': ('15S', '10:00:00', '10:00:07.500000', '10:24:52.500000'),
+    'milliseconds': ('200L', '10:00:00', '10:00:00.100000', '10:00:19.900000'),
+    'microseconds': ('400U', '10:00:00', '2023-01-08 00:00:00', '2026-10-25 00:00:00')
+}
+
+time_ignore_units_data = {
+    'years': ('2Y', '10:00:00', '10:00:30', '11:39:30'),
+    'months': ('2M', '10:00:00', '10:00:30', '11:39:30'),
+    'quarters': ('2Q', '10:00:00', '10:00:30', '11:39:30'),
+    'weeks': ('2W', '10:00:00', '10:00:30', '11:39:30'),
+    'days': ('2D', '10:00:00', '10:00:30', '11:39:30'),
+    'hours': ('1H', '10:00:00', '10:00:30', '11:39:30'),
+    'minutes out of bounds': ('5T', '22:00:00', '22:00:30', '23:39:30'),
+    'seconds out of bounds': ('15S', '23:50:00', '23:50:00.500000', '23:51:39.500000'),
+    'milliseconds out of bounds': ('200L', '23:59:59', '23:59:59.000500', '23:59:59.099500'),
+    'microseconds out of bounds': ('90000U', '23:59:59', '23:59:59.000500', '23:59:59.099500'),
+    'nanoseconds (not implemented)': ('800N', '23:59:59', '23:59:59.000500', '23:59:59.099500')
+}
+
+datetime_units_data = {
+    'years': ('10Y', '2023-01-01T00:00:00', '2028-01-01 05:02:24', '3017-12-31 18:57:36'),
+    'months': ('2M', '2023-01-01T00:00:00', '2023-01-31 10:26:24', '2039-08-01 13:33:36'),
+    'quarters': ('3Q', '2023-01-01T00:00:00', '2023-05-17 23:16:48', '2097-08-17 00:43:12'),
+    'weeks': ('2W', '2023-01-01T00:00:00', '2023-01-08 00:00:00', '2026-10-25 00:00:00'),
+    'days': ('14D', '2023-01-01T00:00:00', '2023-01-08 00:00:00', '2026-10-25 00:00:00'),
+    'hours': ('60H', '2023-01-01T00:00:00', '2023-01-02 06:00:00', '2023-09-06 18:00:00'),
+    'minutes': ('15T', '2023-01-01T00:00:00', '2023-01-01 00:07:30', '2023-01-02 00:52:30'),
+    'seconds': ('20S', '2023-01-01T00:00:00', '2023-01-01 00:00:10', '2023-01-01 00:33:10'),
+    'milliseconds': ('450L', '2023-01-01T00:00:00', '2023-01-01 00:00:00.225000', '2023-01-01 00:00:44.775000'),
+    'microseconds': ('800U', '2023-01-01T00:00:00', '2023-01-01 00:00:00.000400', '2023-01-01 00:00:00.079600'),
+}
+
+datetime_ignore_units_data = {
+    "nanoseconds (not implemented)": ('10N', '2023-01-01T00:00:00', '2023-01-01 12:00:00', '2023-04-10 12:00:00'),
+}
+
+date_units_data = {
+    'years': ('10Y', '2023-01-01', '2028-01-01 05:02:24', '3017-12-31 18:57:36'),
+    'months': ('2M', '2023-01-01', '2023-01-31 10:26:24', '2039-08-01 13:33:36'),
+    'quarters': ('3Q', '2023-01-01', '2023-05-17 23:16:48', '2097-08-17 00:43:12'),
+    'weeks': ('2W', '2023-01-01', '2023-01-08 00:00:00', '2026-10-25 00:00:00'),
+    'days': ('14D', '2023-01-01', '2023-01-08 00:00:00', '2026-10-25 00:00:00'),
+}
+
+date_ignore_units_data = {
+    'hours': ('60H', '2023-01-01', '2023-01-01 12:00:00', '2023-04-10 12:00:00'),
+    'minutes': ('15T', '2023-01-01', '2023-01-01 12:00:00', '2023-04-10 12:00:00'),
+    'seconds': ('20S', '2023-01-01', '2023-01-01 12:00:00', '2023-04-10 12:00:00'),
+    'milliseconds': ('450L', '2023-01-01', '2023-01-01 12:00:00', '2023-04-10 12:00:00'),
+    'microseconds': ('800U', '2023-01-01', '2023-01-01 12:00:00', '2023-04-10 12:00:00'),
+    "nanoseconds (not implemented)": ('10N', '2023-01-01', '2023-01-01 12:00:00', '2023-04-10 12:00:00')
+}
 
 
 def test_summary_integer_no_fraction(rc: RawConfig, postgresql: str, request: FixtureRequest):
@@ -576,237 +634,74 @@ def test_summary_time(rc: RawConfig, postgresql: str, request: FixtureRequest):
     })
 
 
-def test_summary_time_single_given_no_units_minutes(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.parametrize("ref, given, expected_0, expected_99", time_units_data.values(), ids=time_units_data.keys())
+def test_summary_time_single_given_custom_units(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    ref: str,
+    given: str,
+    expected_0: str,
+    expected_99: str
+):
+    context = bootstrap_manifest(rc, f'''
             d | r | b | m | property | type   | ref     | access  | uri
             example/summary/time    |        |         |         |
               |   |   | Test       |        |      |         | 
-              |   |   |   | value    | time |   | open    | 
+              |   |   |   | value    | time | {ref} | open    | 
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authmodel('example/summary/time', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/time/Test', json={'value': '18:00:00'})
+    resp = app.post('/example/summary/time/Test', json={'value': given})
     response = app.get('/example/summary/time/Test/:summary/value')
     json_response = response.json()
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
-        'bin': '18:00:30',
+        'bin': expected_0,
         'count': 1,
         '_type': 'example/summary/time/Test',
-        "_id": resp.json()["_id"]
+        '_id': resp.json()["_id"],
     })
     assert dict_equals(json_response["_data"][99], {
-        'bin': '19:39:30',
+        'bin': expected_99,
         'count': 0,
-        '_type': 'example/summary/time/Test'
+        '_type': 'example/summary/time/Test',
     })
 
 
-def test_summary_time_single_given_no_units_seconds(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.parametrize("ref, given, expected_0, expected_99", time_ignore_units_data.values(),
+                         ids=time_ignore_units_data.keys())
+def test_summary_time_single_given_custom_units(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    ref: str,
+    given: str,
+    expected_0: str,
+    expected_99: str
+):
+    context = bootstrap_manifest(rc, f'''
             d | r | b | m | property | type   | ref     | access  | uri
             example/summary/time    |        |         |         |
               |   |   | Test       |        |      |         | 
-              |   |   |   | value    | time |   | open    | 
+              |   |   |   | value    | time | {ref} | open    | 
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authmodel('example/summary/time', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/time/Test', json={'value': '23:00:00'})
+    resp = app.post('/example/summary/time/Test', json={'value': given})
     response = app.get('/example/summary/time/Test/:summary/value')
     json_response = response.json()
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
-        'bin': '23:00:00.500000',
+        'bin': expected_0,
         'count': 1,
         '_type': 'example/summary/time/Test',
-        "_id": resp.json()["_id"]
+        '_id': resp.json()["_id"],
     })
     assert dict_equals(json_response["_data"][99], {
-        'bin': '23:01:39.500000',
+        'bin': expected_99,
         'count': 0,
-        '_type': 'example/summary/time/Test'
-    })
-
-
-def test_summary_time_single_given_no_units_milliseconds(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
-            d | r | b | m | property | type   | ref     | access  | uri
-            example/summary/time    |        |         |         |
-              |   |   | Test       |        |      |         | 
-              |   |   |   | value    | time |   | open    | 
-            ''', backend=postgresql, request=request)
-    app = create_test_client(context)
-    app.authmodel('example/summary/time', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/time/Test', json={'value': '23:59:59'})
-    response = app.get('/example/summary/time/Test/:summary/value')
-    json_response = response.json()
-    assert len(json_response["_data"]) == 100
-    assert dict_equals(json_response["_data"][0], {
-        'bin': '23:59:59.000500',
-        'count': 1,
         '_type': 'example/summary/time/Test',
-        "_id": resp.json()["_id"]
-    })
-    assert dict_equals(json_response["_data"][99], {
-        'bin': '23:59:59.099500',
-        'count': 0,
-        '_type': 'example/summary/time/Test'
-    })
-
-
-def test_summary_time_single_given_custom_units_minutes(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
-            d | r | b | m | property | type   | ref     | access  | uri
-            example/summary/time    |        |         |         |
-              |   |   | Test       |        |      |         | 
-              |   |   |   | value    | time | 5T | open    | 
-            ''', backend=postgresql, request=request)
-    app = create_test_client(context)
-    app.authmodel('example/summary/time', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/time/Test', json={'value': '10:00:00'})
-    response = app.get('/example/summary/time/Test/:summary/value')
-    json_response = response.json()
-    assert len(json_response["_data"]) == 100
-    assert dict_equals(json_response["_data"][0], {
-        'bin': '10:02:30',
-        'count': 1,
-        '_type': 'example/summary/time/Test',
-        "_id": resp.json()["_id"]
-    })
-    assert dict_equals(json_response["_data"][99], {
-        'bin': '18:17:30',
-        'count': 0,
-        '_type': 'example/summary/time/Test'
-    })
-
-
-def test_summary_time_single_given_custom_units_minutes_ignore(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
-            d | r | b | m | property | type   | ref     | access  | uri
-            example/summary/time    |        |         |         |
-              |   |   | Test       |        |      |         | 
-              |   |   |   | value    | time | 5T | open    | 
-            ''', backend=postgresql, request=request)
-    app = create_test_client(context)
-    app.authmodel('example/summary/time', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/time/Test', json={'value': '22:00:00'})
-    response = app.get('/example/summary/time/Test/:summary/value')
-    json_response = response.json()
-    assert len(json_response["_data"]) == 100
-    assert dict_equals(json_response["_data"][0], {
-        'bin': '22:00:30',
-        'count': 1,
-        '_type': 'example/summary/time/Test',
-        "_id": resp.json()["_id"]
-    })
-    assert dict_equals(json_response["_data"][99], {
-        'bin': '23:39:30',
-        'count': 0,
-        '_type': 'example/summary/time/Test'
-    })
-
-
-def test_summary_time_single_given_custom_units_seconds(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
-            d | r | b | m | property | type   | ref     | access  | uri
-            example/summary/time    |        |         |         |
-              |   |   | Test       |        |      |         | 
-              |   |   |   | value    | time | 15S | open    | 
-            ''', backend=postgresql, request=request)
-    app = create_test_client(context)
-    app.authmodel('example/summary/time', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/time/Test', json={'value': '10:00:00'})
-    response = app.get('/example/summary/time/Test/:summary/value')
-    json_response = response.json()
-    assert len(json_response["_data"]) == 100
-    assert dict_equals(json_response["_data"][0], {
-        'bin': '10:00:07.500000',
-        'count': 1,
-        '_type': 'example/summary/time/Test',
-        "_id": resp.json()["_id"]
-    })
-    assert dict_equals(json_response["_data"][99], {
-        'bin': '10:24:52.500000',
-        'count': 0,
-        '_type': 'example/summary/time/Test'
-    })
-
-
-def test_summary_time_single_given_custom_units_seconds_ignore(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
-            d | r | b | m | property | type   | ref     | access  | uri
-            example/summary/time    |        |         |         |
-              |   |   | Test       |        |      |         | 
-              |   |   |   | value    | time | 15S | open    | 
-            ''', backend=postgresql, request=request)
-    app = create_test_client(context)
-    app.authmodel('example/summary/time', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/time/Test', json={'value': '23:50:00'})
-    response = app.get('/example/summary/time/Test/:summary/value')
-    json_response = response.json()
-    assert len(json_response["_data"]) == 100
-    assert dict_equals(json_response["_data"][0], {
-        'bin': '23:50:00.500000',
-        'count': 1,
-        '_type': 'example/summary/time/Test',
-        "_id": resp.json()["_id"]
-    })
-    assert dict_equals(json_response["_data"][99], {
-        'bin': '23:51:39.500000',
-        'count': 0,
-        '_type': 'example/summary/time/Test'
-    })
-
-
-def test_summary_time_single_given_custom_units_milliseconds(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
-            d | r | b | m | property | type   | ref     | access  | uri
-            example/summary/time    |        |         |         |
-              |   |   | Test       |        |      |         | 
-              |   |   |   | value    | time | 200L | open    | 
-            ''', backend=postgresql, request=request)
-    app = create_test_client(context)
-    app.authmodel('example/summary/time', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/time/Test', json={'value': '10:00:00'})
-    response = app.get('/example/summary/time/Test/:summary/value')
-    json_response = response.json()
-    assert len(json_response["_data"]) == 100
-    assert dict_equals(json_response["_data"][0], {
-        'bin': '10:00:00.100000',
-        'count': 1,
-        '_type': 'example/summary/time/Test',
-        "_id": resp.json()["_id"]
-    })
-    assert dict_equals(json_response["_data"][99], {
-        'bin': '10:00:19.900000',
-        'count': 0,
-        '_type': 'example/summary/time/Test'
-    })
-
-
-def test_summary_time_single_given_custom_units_milliseconds_ignore(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
-            d | r | b | m | property | type   | ref     | access  | uri
-            example/summary/time    |        |         |         |
-              |   |   | Test       |        |      |         | 
-              |   |   |   | value    | time | 200L | open    | 
-            ''', backend=postgresql, request=request)
-    app = create_test_client(context)
-    app.authmodel('example/summary/time', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/time/Test', json={'value': '23:59:59'})
-    response = app.get('/example/summary/time/Test/:summary/value')
-    json_response = response.json()
-    assert len(json_response["_data"]) == 100
-    assert dict_equals(json_response["_data"][0], {
-        'bin': '23:59:59.000500',
-        'count': 1,
-        '_type': 'example/summary/time/Test',
-        "_id": resp.json()["_id"]
-    })
-    assert dict_equals(json_response["_data"][99], {
-        'bin': '23:59:59.099500',
-        'count': 0,
-        '_type': 'example/summary/time/Test'
     })
 
 
@@ -886,79 +781,236 @@ def test_summary_datetime_single_given_no_units(rc: RawConfig, postgresql: str, 
     })
 
 
-def test_summary_datetime_single_given_custom_units_years(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.parametrize("ref, given, expected_0, expected_99", datetime_units_data.values(),
+                         ids=datetime_units_data.keys())
+def test_summary_datetime_single_given_custom_units(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    ref: str,
+    given: str,
+    expected_0: str,
+    expected_99: str
+):
+    context = bootstrap_manifest(rc, f'''
             d | r | b | m | property | type   | ref     | access  | uri
             example/summary/datetime    |        |         |         |
               |   |   | Test       |        |      |         | 
-              |   |   |   | value    | datetime | 10Y | open    | 
+              |   |   |   | value    | datetime | {ref} | open    | 
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authmodel('example/summary/datetime', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/datetime/Test', json={'value': '2023-01-01T00:00:00'})
+    resp = app.post('/example/summary/datetime/Test', json={'value': given})
     response = app.get('/example/summary/datetime/Test/:summary/value')
     json_response = response.json()
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
-        'bin': '2028-01-01 05:02:24',
+        'bin': expected_0,
         'count': 1,
         '_type': 'example/summary/datetime/Test',
         '_id': resp.json()["_id"],
     })
     assert dict_equals(json_response["_data"][99], {
-        'bin': '3017-12-31 18:57:36',
+        'bin': expected_99,
         'count': 0,
         '_type': 'example/summary/datetime/Test',
     })
 
 
-def test_summary_datetime_single_given_custom_units_months(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
+@pytest.mark.parametrize("ref, given, expected_0, expected_99", datetime_ignore_units_data.values(),
+                         ids=datetime_ignore_units_data.keys())
+def test_summary_datetime_single_given_custom_units_ignore(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    ref: str,
+    given: str,
+    expected_0: str,
+    expected_99: str
+):
+    context = bootstrap_manifest(rc, f'''
             d | r | b | m | property | type   | ref     | access  | uri
             example/summary/datetime    |        |         |         |
               |   |   | Test       |        |      |         | 
-              |   |   |   | value    | datetime | 2M | open    | 
+              |   |   |   | value    | datetime | {ref} | open    | 
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authmodel('example/summary/datetime', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/datetime/Test', json={'value': '2023-01-01T00:00:00'})
+    resp = app.post('/example/summary/datetime/Test', json={'value': given})
     response = app.get('/example/summary/datetime/Test/:summary/value')
     json_response = response.json()
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
-        'bin': '2023-01-31 10:26:24',
+        'bin': expected_0,
         'count': 1,
         '_type': 'example/summary/datetime/Test',
         '_id': resp.json()["_id"],
     })
     assert dict_equals(json_response["_data"][99], {
-        'bin': '2039-08-01 13:33:36',
+        'bin': expected_99,
         'count': 0,
         '_type': 'example/summary/datetime/Test',
     })
 
 
-def test_summary_datetime_single_given_custom_units_quarters(rc: RawConfig, postgresql: str, request: FixtureRequest):
+def test_summary_datetime_empty(rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(rc, '''
             d | r | b | m | property | type   | ref     | access  | uri
             example/summary/datetime    |        |         |         |
               |   |   | Test       |        |      |         | 
-              |   |   |   | value    | datetime | 3Q | open    | 
+              |   |   |   | value    | datetime | 200L | open    | 
             ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authmodel('example/summary/datetime', ['insert', 'getall', 'search'])
-    resp = app.post('/example/summary/datetime/Test', json={'value': '2023-01-01T00:00:00'})
     response = app.get('/example/summary/datetime/Test/:summary/value')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 0
+    assert json_response["_data"] == []
+
+
+def test_summary_date(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/date    |        |         |         |
+              |   |   | Test       |        |      |         | 
+              |   |   |   | value    | date |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/date', ['insert', 'getall', 'search'])
+    app.post('/example/summary/date/Test', json={'value': '2023-01-01'})
+    app.post('/example/summary/date/Test', json={'value': '2023-01-02'})
+    resp_middle = app.post('/example/summary/date/Test', json={'value': '2023-08-01'})
+    resp_last = app.post('/example/summary/date/Test', json={'value': '2024-01-08'})
+    response = app.get('/example/summary/date/Test/:summary/value')
     json_response = response.json()
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
-        'bin': '2023-05-17 23:16:48',
+        'bin': '2023-01-02 20:38:24',
+        'count': 2,
+        '_type': 'example/summary/date/Test'
+    })
+    assert dict_equals(json_response["_data"][56], {
+        'bin': '2023-07-30 04:19:12',
         'count': 1,
-        '_type': 'example/summary/datetime/Test',
+        '_type': 'example/summary/date/Test',
+        '_id': resp_middle.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][99], {
+        'bin': '2024-01-06 03:21:36',
+        'count': 1,
+        '_type': 'example/summary/date/Test',
+        '_id': resp_last.json()["_id"],
+    })
+
+
+def test_summary_date_single_given_no_units(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/date    |        |         |         |
+              |   |   | Test       |        |      |         | 
+              |   |   |   | value    | date |   | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/date', ['insert', 'getall', 'search'])
+    resp = app.post('/example/summary/date/Test', json={'value': '2023-01-01'})
+    response = app.get('/example/summary/date/Test/:summary/value')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 100
+    assert dict_equals(json_response["_data"][0], {
+        'bin': '2023-01-01 12:00:00',
+        'count': 1,
+        '_type': 'example/summary/date/Test',
         '_id': resp.json()["_id"],
     })
     assert dict_equals(json_response["_data"][99], {
-        'bin': '2097-08-17 00:43:12',
+        'bin': '2023-04-10 12:00:00',
         'count': 0,
-        '_type': 'example/summary/datetime/Test',
+        '_type': 'example/summary/date/Test',
     })
+
+
+@pytest.mark.parametrize("ref, given, expected_0, expected_99", date_units_data.values(),
+                         ids=date_units_data.keys())
+def test_summary_date_single_given_custom_units(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    ref: str,
+    given: str,
+    expected_0: str,
+    expected_99: str
+):
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/date    |        |         |         |
+              |   |   | Test       |        |      |         | 
+              |   |   |   | value    | date | {ref} | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/date', ['insert', 'getall', 'search'])
+    resp = app.post('/example/summary/date/Test', json={'value': given})
+    response = app.get('/example/summary/date/Test/:summary/value')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 100
+    assert dict_equals(json_response["_data"][0], {
+        'bin': expected_0,
+        'count': 1,
+        '_type': 'example/summary/date/Test',
+        '_id': resp.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][99], {
+        'bin': expected_99,
+        'count': 0,
+        '_type': 'example/summary/date/Test',
+    })
+
+
+@pytest.mark.parametrize("ref, given, expected_0, expected_99", date_ignore_units_data.values(),
+                         ids=date_ignore_units_data.keys())
+def test_summary_date_single_given_custom_units_ignore(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    ref: str,
+    given: str,
+    expected_0: str,
+    expected_99: str
+):
+    context = bootstrap_manifest(rc, f'''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/date    |        |         |         |
+              |   |   | Test       |        |      |         | 
+              |   |   |   | value    | date | {ref} | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/date', ['insert', 'getall', 'search'])
+    resp = app.post('/example/summary/date/Test', json={'value': given})
+    response = app.get('/example/summary/date/Test/:summary/value')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 100
+    assert dict_equals(json_response["_data"][0], {
+        'bin': expected_0,
+        'count': 1,
+        '_type': 'example/summary/date/Test',
+        '_id': resp.json()["_id"],
+    })
+    assert dict_equals(json_response["_data"][99], {
+        'bin': expected_99,
+        'count': 0,
+        '_type': 'example/summary/date/Test',
+    })
+
+
+def test_summary_date_empty(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/date    |        |         |         |
+              |   |   | Test       |        |      |         | 
+              |   |   |   | value    | date | 200L | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/date', ['insert', 'getall', 'search'])
+    response = app.get('/example/summary/date/Test/:summary/value')
+    json_response = response.json()
+    assert len(json_response["_data"]) == 0
+    assert json_response["_data"] == []
