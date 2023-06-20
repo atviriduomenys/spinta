@@ -974,9 +974,8 @@ def create_exception(
 @overload
 def summary(
     context: Context,
-    model: Model,
     request: Request,
-    *,
+    model: Model,
     action: Action,
     params: UrlParams,
 ) -> Response:
@@ -1004,5 +1003,5 @@ def summary(
 
 
 @command()
-def summary(*args, **kwargs) -> None:
+def summary(*args) -> None:
     """Create summary for property"""
