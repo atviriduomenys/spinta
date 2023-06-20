@@ -1488,6 +1488,64 @@ def test_summary_geometry_with_srid(rc: RawConfig, postgresql: str, request: Fix
     })
 
 
+def test_summary_geometry_linestring(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry(linestring) |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    app.post('/example/summary/geometry/Test', json={'value': 'LINESTRING(0 0, 100 100)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'LINESTRING(0 100, 100 0)'})
+    resp = app.post('/example/summary/geometry/Test', json={'value': 'LINESTRING(0 0, 0 100)'})
+    response = app.get('/example/summary/geometry/Test/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 2
+    assert dict_equals(json_response["_data"][0], {
+        'cluster': 2,
+        'centroid': 'POINT(50 50)',
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'cluster': 1,
+        'centroid': 'POINT(0 50)',
+        '_id': resp.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+
+
+def test_summary_geometry_polygon(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry(polygon) |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    app.post('/example/summary/geometry/Test', json={'value': 'POLYGON((0 0, 100 0, 100 100, 0 100, 0 0))'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POLYGON((25 25, 75 25, 75 75, 25 75, 25 25))'})
+    resp = app.post('/example/summary/geometry/Test', json={'value': 'POLYGON((0 0, 0 90, 90 0, 0 0))'})
+    response = app.get('/example/summary/geometry/Test/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 2
+    assert dict_equals(json_response["_data"][0], {
+        'cluster': 2,
+        'centroid': 'POINT(50 50)',
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'cluster': 1,
+        'centroid': 'POINT(30 30)',
+        '_id': resp.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+
+
 def test_summary_geometry_bbox_encapsulate_all(rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(rc, '''
             d | r | b | m | property | type   | ref     | access  | uri

@@ -460,9 +460,10 @@ def summary(
                 ''')
         for item in result:
             data = flat_dicts_to_nested(dict(item))
-            if data["cluster"] != 1:
-                del data["_id"]
-            data['_type'] = dtype.prop.model.model_type()
-            yield data
+            if data["cluster"]:
+                if data["cluster"] != 1:
+                    del data["_id"]
+                data['_type'] = dtype.prop.model.model_type()
+                yield data
     except NotFoundError:
         raise ItemDoesNotExist(dtype.prop.model, id=dtype.prop.name)
