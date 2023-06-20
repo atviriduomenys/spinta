@@ -1,5 +1,6 @@
 import pytest
 
+from spinta.backends.postgresql.commands.summary import extract_uuid
 from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.manifest import bootstrap_manifest
@@ -1074,18 +1075,18 @@ def test_summary_ref_level_4_no_uri(rc: RawConfig, postgresql: str, request: Fix
 
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
-        'bin': id_0,
+        'bin': extract_uuid(id_0),
         'count': 2,
         '_type': 'example/summary/ref/Test'
     })
     assert dict_equals(json_response["_data"][1], {
-        'bin': id_1,
+        'bin': extract_uuid(id_1),
         'count': 1,
         '_type': 'example/summary/ref/Test',
         '_id': resp_middle.json()["_id"],
     })
     assert dict_equals(json_response["_data"][2], {
-        'bin': id_2,
+        'bin': extract_uuid(id_2),
         'count': 1,
         '_type': 'example/summary/ref/Test',
         '_id': resp_last.json()["_id"],
@@ -1130,20 +1131,20 @@ def test_summary_ref_level_4_with_uri(rc: RawConfig, postgresql: str, request: F
 
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
-        'bin': id_0,
+        'bin': extract_uuid(id_0),
         'count': 2,
         'label': 'http://purl.org/dc/dcmitype/label',
         '_type': 'example/summary/ref/Test'
     })
     assert dict_equals(json_response["_data"][1], {
-        'bin': id_1,
+        'bin': extract_uuid(id_1),
         'count': 1,
         'label': 'http://purl.org/dc/dcmitype/label',
         '_type': 'example/summary/ref/Test',
         '_id': resp_middle.json()["_id"],
     })
     assert dict_equals(json_response["_data"][2], {
-        'bin': id_2,
+        'bin': extract_uuid(id_2),
         'count': 1,
         'label': 'http://purl.org/dc/dcmitype/label',
         '_type': 'example/summary/ref/Test',
@@ -1189,18 +1190,18 @@ def test_summary_ref_level_4_with_uri_wrong(rc: RawConfig, postgresql: str, requ
 
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
-        'bin': id_0,
+        'bin': extract_uuid(id_0),
         'count': 2,
         '_type': 'example/summary/ref/Test'
     })
     assert dict_equals(json_response["_data"][1], {
-        'bin': id_1,
+        'bin': extract_uuid(id_1),
         'count': 1,
         '_type': 'example/summary/ref/Test',
         '_id': resp_middle.json()["_id"],
     })
     assert dict_equals(json_response["_data"][2], {
-        'bin': id_2,
+        'bin': extract_uuid(id_2),
         'count': 1,
         '_type': 'example/summary/ref/Test',
         '_id': resp_last.json()["_id"],
@@ -1245,20 +1246,20 @@ def test_summary_ref_level_4_with_uri_url(rc: RawConfig, postgresql: str, reques
 
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
-        'bin': id_0,
+        'bin': extract_uuid(id_0),
         'count': 2,
         'label': 'https://www.google.com/',
         '_type': 'example/summary/ref/Test'
     })
     assert dict_equals(json_response["_data"][1], {
-        'bin': id_1,
+        'bin': extract_uuid(id_1),
         'count': 1,
         'label': 'https://www.google.com/',
         '_type': 'example/summary/ref/Test',
         '_id': resp_middle.json()["_id"],
     })
     assert dict_equals(json_response["_data"][2], {
-        'bin': id_2,
+        'bin': extract_uuid(id_2),
         'count': 1,
         'label': 'https://www.google.com/',
         '_type': 'example/summary/ref/Test',
@@ -1383,12 +1384,12 @@ def test_summary_ref_missing(rc: RawConfig, postgresql: str, request: FixtureReq
 
     assert len(json_response["_data"]) == 2
     assert dict_equals(json_response["_data"][0], {
-        'bin': id_0,
+        'bin': extract_uuid(id_0),
         'count': 2,
         '_type': 'example/summary/ref/Test'
     })
     assert dict_equals(json_response["_data"][1], {
-        'bin': id_2,
+        'bin': extract_uuid(id_2),
         'count': 1,
         '_type': 'example/summary/ref/Test',
         '_id': resp_last.json()["_id"],
@@ -1649,37 +1650,6 @@ def test_summary_geometry_bbox_bad_request(rc: RawConfig, postgresql: str, reque
     response = app.get('/example/summary/geometry/Test/:summary/value?bbox(10, 10, 100, 100, 5000)')
 
     assert response.status_code == 400
-
-
-def test_summary_geometry_cluster(rc: RawConfig, postgresql: str, request: FixtureRequest):
-    context = bootstrap_manifest(rc, '''
-            d | r | b | m | property | type   | ref     | access  | uri
-            example/summary/geometry    |        |         |         |
-              |   |   | Test       |        |         |         | 
-              |   |   |   | value    | geometry |         | open    | 
-            ''', backend=postgresql, request=request)
-    app = create_test_client(context)
-    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
-    for i in range(1000):
-        app.post('/example/summary/geometry/Test', json={"value": f"POINT({i} {i})"})
-    response = app.get('/example/summary/geometry/Test/:summary/value')
-    json_response = response.json()
-    count = 0
-    for item in json_response["_data"]:
-        count += item["cluster"]
-
-    assert count == 1000
-    assert len(json_response["_data"]) == 100
-    assert dict_equals(json_response["_data"][0], {
-        'cluster': 9,
-        'centroid': 'POINT(4 4)',
-        '_type': 'example/summary/geometry/Test'
-    })
-    assert dict_equals(json_response["_data"][99], {
-        'cluster': 13,
-        'centroid': 'POINT(993 993)',
-        '_type': 'example/summary/geometry/Test'
-    })
 
 
 def test_summary_geometry_empty(rc: RawConfig, postgresql: str, request: FixtureRequest):

@@ -400,6 +400,8 @@ def summary(
             data = flat_dicts_to_nested(dict(item))
 
             del data["created_at"]
+            if key == "_id":
+                data["bin"] = extract_uuid(str(data["bin"]))
             if label:
                 data["label"] = label
             if data["count"] != 1:
@@ -408,6 +410,10 @@ def summary(
             yield data
     except NotFoundError:
         raise ItemDoesNotExist(dtype.prop.model, id=dtype.prop.name)
+
+
+def extract_uuid(uuid: str) -> str:
+    return uuid[:8]
 
 
 @commands.summary.register(Context, Geometry, PostgreSQL)
