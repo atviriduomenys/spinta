@@ -582,3 +582,11 @@ class ReferringObjectFound(UserError):
 
 class CompositeUniqueConstraint(UserError):
     template = "Given values for composition of properties ({properties}) already exist."
+
+
+class UnknownRequestQuery(UserError):
+    template = "Request '{request}' does not support '{query}' query."
+
+
+class InvalidRequestQuery(UserError):
+    template = "Query {query} requires this {format} format."

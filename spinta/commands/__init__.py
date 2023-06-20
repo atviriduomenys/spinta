@@ -988,8 +988,7 @@ def summary(
     context: Context,
     model: Model,
     backend: Backend,
-    *,
-    prop: str
+    **kwargs
 ):
     pass
 
@@ -998,11 +997,12 @@ def summary(
 def summary(
     context: Context,
     dtype: DataType,
-    backend: Backend
+    backend: Backend,
+    **kwargs
 ):
     pass
 
 
 @command()
-def summary(*args) -> None:
+def summary(*args, **kwargs) -> None:
     """Create summary for property"""

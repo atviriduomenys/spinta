@@ -6,9 +6,11 @@ from spinta.types.datatype import Integer, Number, Boolean, String, Date, DateTi
 from spinta import commands
 from spinta.components import Context, Property
 from spinta.components import Model
-from spinta.exceptions import NotFoundError, PropertyNotFound, NotImplementedFeature
+from spinta.exceptions import NotFoundError, PropertyNotFound, NotImplementedFeature, InvalidRequestQuery, \
+    UnknownRequestQuery
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.types.geometry.components import Geometry
 from spinta.units.helpers import split_time_unit
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 
@@ -20,14 +22,17 @@ def summary(
     context: Context,
     model: Model,
     backend: PostgreSQL,
-    *,
-    prop: str = "",
+    **kwargs,
 ):
-    if prop in model.properties.keys():
-        summary_property = model.properties[prop]
+    if kwargs["args"]["prop"] in model.properties.keys():
+        summary_property = model.properties[kwargs["args"]["prop"]]
     else:
-        raise PropertyNotFound(model, property=prop)
-    result = commands.summary(context, summary_property.dtype, backend)
+        raise PropertyNotFound(model, property=kwargs["args"]["prop"])
+    for key in kwargs["args"].keys():
+        if key != "prop":
+            if key != "bbox":
+                raise UnknownRequestQuery(request="summary", query=key)
+    result = commands.summary(context, summary_property.dtype, backend, args=kwargs["args"])
 
     return result
 
@@ -36,7 +41,8 @@ def summary(
 def summary(
     context: Context,
     dtype: Integer,
-    backend: PostgreSQL
+    backend: PostgreSQL,
+    **kwargs
 ):
     connection = context.get('transaction').connection
     yield from _handle_numeric_summary(connection, dtype.prop)
@@ -46,7 +52,8 @@ def summary(
 def summary(
     context: Context,
     dtype: Number,
-    backend: PostgreSQL
+    backend: PostgreSQL,
+    **kwargs
 ):
     connection = context.get('transaction').connection
     yield from _handle_numeric_summary(connection, dtype.prop)
@@ -107,7 +114,8 @@ def _handle_numeric_summary(connection, model_prop: Property):
 def summary(
     context: Context,
     dtype: Boolean,
-    backend: PostgreSQL
+    backend: PostgreSQL,
+    **kwargs
 ):
     connection = context.get('transaction').connection
     try:
@@ -143,7 +151,8 @@ def summary(
 def summary(
     context: Context,
     dtype: String,
-    backend: PostgreSQL
+    backend: PostgreSQL,
+    **kwargs
 ):
     connection = context.get('transaction').connection
 
@@ -186,7 +195,8 @@ def summary(
 def summary(
     context: Context,
     dtype: Date,
-    backend: PostgreSQL
+    backend: PostgreSQL,
+    **kwargs
 ):
     connection = context.get('transaction').connection
     yield from _handle_time_summary(connection, dtype.prop)
@@ -196,7 +206,8 @@ def summary(
 def summary(
     context: Context,
     dtype: DateTime,
-    backend: PostgreSQL
+    backend: PostgreSQL,
+    **kwargs
 ):
     connection = context.get('transaction').connection
     yield from _handle_time_summary(connection, dtype.prop)
@@ -206,7 +217,8 @@ def summary(
 def summary(
     context: Context,
     dtype: Time,
-    backend: PostgreSQL
+    backend: PostgreSQL,
+    **kwargs
 ):
     connection = context.get('transaction').connection
     yield from _handle_time_summary(connection, dtype.prop)
@@ -345,7 +357,8 @@ def _handle_time_summary(connection, model_prop: Property):
 def summary(
     context: Context,
     dtype: Ref,
-    backend: PostgreSQL
+    backend: PostgreSQL,
+    **kwargs
 ):
     connection = context.get('transaction').connection
 
@@ -390,6 +403,59 @@ def summary(
             if label:
                 data["label"] = label
             if data["count"] != 1:
+                del data["_id"]
+            data['_type'] = dtype.prop.model.model_type()
+            yield data
+    except NotFoundError:
+        raise ItemDoesNotExist(dtype.prop.model, id=dtype.prop.name)
+
+
+@commands.summary.register(Context, Geometry, PostgreSQL)
+def summary(
+    context: Context,
+    dtype: Geometry,
+    backend: PostgreSQL,
+    **kwargs
+):
+    connection = context.get('transaction').connection
+    try:
+        prop = dtype.prop.name
+        model = get_table_name(dtype.prop)
+        bounding_box = ""
+        if "bbox" in kwargs["args"]:
+            bbox = kwargs["args"]["bbox"]
+            if isinstance(bbox, list) and len(bbox) == 4:
+                bounding_box = f'WHERE ST_Intersects("{prop}", ST_MakeEnvelope({bbox[0]}, {bbox[1]}, {bbox[2]}, {bbox[3]}))'
+            else:
+                raise InvalidRequestQuery(query="bbox", format="bbox(min_lon, min_lat, max_lon, max_lat)")
+
+        count_exec = connection.execute(f'SELECT COUNT(DISTINCT "{prop}") FROM "{model}" {bounding_box}')
+        count = 0
+        for item in count_exec:
+            count = item[0]
+
+        result = connection.execute(f'''
+                WITH clusters AS (
+                    SELECT 
+                    ST_ClusterKMeans(
+                        model."{prop}",
+                        {min(100, count)}
+                    ) OVER() AS cluster_id,
+                    model."{prop}" AS geom,
+                    model._id AS _id
+                    FROM "{model}" AS model
+                    {bounding_box}
+                )
+                SELECT 
+                    ST_NumGeometries(ST_Collect(geom)) as cluster,
+                    ST_AsText(ST_Centroid(ST_Collect(geom))) AS centroid,
+                    (ARRAY_AGG(clusters._id))[1] AS _id
+                FROM clusters
+                GROUP BY cluster_id;
+                ''')
+        for item in result:
+            data = flat_dicts_to_nested(dict(item))
+            if data["cluster"] != 1:
                 del data["_id"]
             data['_type'] = dtype.prop.model.model_type()
             yield data
