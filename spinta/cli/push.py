@@ -115,6 +115,9 @@ def push(
     max_error_count: int = Option(50, '--max-errors', help=(
         "If errors exceed given number, push command will be stopped."
     )),
+    syncronize: bool = Option(False, '--sync', help=(
+        "Update push sync state, in {data_path}/push/{remote}.db"
+    )),
 ):
     """Push data to external data store"""
     if chunk_size:
@@ -140,6 +143,7 @@ def push(
     if not state:
         ensure_data_dir(config.data_path / 'push')
         state = config.data_path / 'push' / f'{creds.remote}.db'
+    # if not syncronize:
     state = f'sqlite:///{state}'
 
     manifest = store.manifest
@@ -170,7 +174,7 @@ def push(
         models = list(reversed(list(models)))
 
         if state:
-            state = _State(*_init_push_state(state, models))
+            state = _State(*_init_push_state(state, models, syncronize))
             context.attach('push.state.conn', state.engine.begin)
             _reset_pushed(context, models, state.metadata)
 
@@ -759,23 +763,27 @@ def _add_stop_time(
 def _init_push_state(
     dburi: str,
     models: List[Model],
+    sync: False
 ) -> Tuple[sa.engine.Engine, sa.MetaData]:
     engine = sa.create_engine(dburi)
     metadata = sa.MetaData(engine)
     inspector = sa.inspect(engine)
-    for model in models:
-        table = sa.Table(
-            model.name, metadata,
-            sa.Column('id', sa.Unicode, primary_key=True),
-            sa.Column('checksum', sa.Unicode),
-            sa.Column('revision', sa.Unicode),
-            sa.Column('pushed', sa.DateTime),
-            sa.Column('error', sa.Boolean),
-            sa.Column('data', sa.Text)
-        )
-        migrate_table(engine, metadata, inspector, table, renames={
-            'rev': 'checksum',
-        })
+    if not sync:
+        for model in models:
+            table = sa.Table(
+                model.name, metadata,
+                sa.Column('id', sa.Unicode, primary_key=True),
+                sa.Column('checksum', sa.Unicode),
+                sa.Column('revision', sa.Unicode),
+                sa.Column('pushed', sa.DateTime),
+                sa.Column('error', sa.Boolean),
+                sa.Column('data', sa.Text)
+            )
+            migrate_table(engine, metadata, inspector, table, renames={
+                'rev': 'checksum',
+            })
+    else:
+        print("Hello???")
 
     return engine, metadata
 
