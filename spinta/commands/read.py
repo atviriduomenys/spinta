@@ -37,9 +37,7 @@ async def getall(
     params: UrlParams,
 ) -> Response:
     commands.authorize(context, action, model)
-
     backend = model.backend
-
     if isinstance(backend, ExternalBackend):
         # XXX: `add_count` is a hack, because, external backends do not
         #      support it yet.
