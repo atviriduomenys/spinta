@@ -31,6 +31,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import UrlParams
+from spinta.exceptions import SourceNotProvided
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.renderer import render
@@ -246,6 +247,8 @@ def traverse_ns_models(
             if resource_check:
                 if model.external.name and model.external.resource:
                     yield model
+                else:
+                    raise SourceNotProvided(model)
             else:
                 yield model
     for ns_ in ns.names.values():

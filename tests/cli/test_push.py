@@ -29,7 +29,7 @@ def geodb():
             {'kodas': 'ee', 'pavadinimas': 'Estija', 'id': 3},
         ])
         db.write('cities', [
-            {'name': 'Vilnius', 'country': 'lt'},
+            {'name': 'Vilnius', 'country': 2},
         ])
         yield db
 
@@ -230,7 +230,7 @@ def test_push_ref_with_level_3(
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
-    level3dataset             |          |          |             |       |
+    level3dataset            |          |          |             |       |
       | db                   | sql      |          |             |       |
       |   |   | City         |          | id       | cities      | 4     |
       |   |   |   | id       | integer  |          | id          | 4     | open
@@ -266,7 +266,7 @@ def test_push_ref_with_level_3(
 
     assert resp_city.status_code == 200
     assert listdata(resp_city, 'name') == ['Vilnius']
-    assert len(listdata(resp_city, 'id', 'name', 'country')) == 1
+    assert listdata(resp_city, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'id': 2})
     assert 'id' in listdata(resp_city, 'country')[0].keys()
 
 
@@ -281,7 +281,7 @@ def test_push_ref_with_level_4(
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
-    level4dataset             |          |          |             |       |
+    level4dataset            |          |          |             |       |
       | db                   | sql      |          |             |       |
       |   |   | City         |          | id       | cities      | 4     |
       |   |   |   | id       | integer  |          | id          | 4     | open
@@ -408,7 +408,7 @@ def test_push_ref_with_level(
     app = create_client(rc, tmp_path, geodb)
     app.authmodel('leveldataset', ['getall'])
     resp = app.get('leveldataset/City')
-    assert listdata(resp, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': 'lt'})
+    assert listdata(resp, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': 2})
 
     resp = app.get('leveldataset/countries/Country')
     assert resp.status_code == 400
@@ -435,7 +435,7 @@ def test_push_ref_with_level(
 
     assert resp_city.status_code == 200
     assert listdata(resp_city, 'name') == ['Vilnius']
-    assert listdata(resp_city, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': 'lt'})
+    assert listdata(resp_city, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': '2'})
 
     remote.app.authmodel('leveldataset/countries', ['getall', 'search'])
     resp_city = remote.app.get('leveldataset/countries/Country')
