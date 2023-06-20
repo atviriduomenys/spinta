@@ -102,6 +102,7 @@ def test_summary_integer_no_fraction(rc: RawConfig, postgresql: str, request: Fi
     resp_1000 = app.post('/example/summary/integer/Test', json={'value': 1000})
     response = app.get('/example/summary/integer/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': 5,
@@ -144,6 +145,7 @@ def test_summary_integer_with_fraction(rc: RawConfig, postgresql: str, request: 
     resp_64 = app.post('/example/summary/integer/Test', json={'value': 64})
     response = app.get('/example/summary/integer/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': 0.32,
@@ -189,6 +191,7 @@ def test_summary_integer_empty(rc: RawConfig, postgresql: str, request: FixtureR
     app.post('/example/summary/integer/Test', json={})
     response = app.get('/example/summary/integer/Test/:summary/value')
     json_response = response.json()
+
     assert json_response["_data"] == []
 
 
@@ -204,6 +207,7 @@ def test_summary_integer_single_item(rc: RawConfig, postgresql: str, request: Fi
     resp_64 = app.post('/example/summary/integer/Test', json={'value': 64})
     response = app.get('/example/summary/integer/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': 64.5,
@@ -234,6 +238,7 @@ def test_summary_number_no_fraction(rc: RawConfig, postgresql: str, request: Fix
     resp_1000 = app.post('/example/summary/number/Test', json={'value': 1.0})
     response = app.get('/example/summary/number/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': 0.005,
@@ -276,6 +281,7 @@ def test_summary_number_with_fraction(rc: RawConfig, postgresql: str, request: F
     resp_64 = app.post('/example/summary/number/Test', json={'value': 0.64})
     response = app.get('/example/summary/number/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': 0.0032,
@@ -321,6 +327,7 @@ def test_summary_number_empty(rc: RawConfig, postgresql: str, request: FixtureRe
     app.post('/example/summary/number/Test', json={})
     response = app.get('/example/summary/number/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 0
 
 
@@ -336,6 +343,7 @@ def test_summary_number_single_item(rc: RawConfig, postgresql: str, request: Fix
     resp_5 = app.post('/example/summary/number/Test', json={'value': 5})
     response = app.get('/example/summary/number/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': 5.5,
@@ -614,6 +622,7 @@ def test_summary_time(rc: RawConfig, postgresql: str, request: FixtureRequest):
     resp_last = app.post('/example/summary/time/Test', json={'value': '22:12:00'})
     response = app.get('/example/summary/time/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': '10:03:39.600000',
@@ -655,6 +664,7 @@ def test_summary_time_single_given_custom_units(
     resp = app.post('/example/summary/time/Test', json={'value': given})
     response = app.get('/example/summary/time/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': expected_0,
@@ -691,6 +701,7 @@ def test_summary_time_single_given_custom_units(
     resp = app.post('/example/summary/time/Test', json={'value': given})
     response = app.get('/example/summary/time/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': expected_0,
@@ -716,6 +727,7 @@ def test_summary_time_empty(rc: RawConfig, postgresql: str, request: FixtureRequ
     app.authmodel('example/summary/time', ['insert', 'getall', 'search'])
     response = app.get('/example/summary/time/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 0
     assert json_response["_data"] == []
 
@@ -735,6 +747,7 @@ def test_summary_datetime(rc: RawConfig, postgresql: str, request: FixtureReques
     resp_last = app.post('/example/summary/datetime/Test', json={'value': '2023-12-29T22:12:00'})
     response = app.get('/example/summary/datetime/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': '2023-01-03 05:30:03.600000',
@@ -767,6 +780,7 @@ def test_summary_datetime_single_given_no_units(rc: RawConfig, postgresql: str, 
     resp = app.post('/example/summary/datetime/Test', json={'value': '2023-01-01T10:00:00'})
     response = app.get('/example/summary/datetime/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': '2023-01-01 22:00:00',
@@ -803,6 +817,7 @@ def test_summary_datetime_single_given_custom_units(
     resp = app.post('/example/summary/datetime/Test', json={'value': given})
     response = app.get('/example/summary/datetime/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': expected_0,
@@ -839,6 +854,7 @@ def test_summary_datetime_single_given_custom_units_ignore(
     resp = app.post('/example/summary/datetime/Test', json={'value': given})
     response = app.get('/example/summary/datetime/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': expected_0,
@@ -864,6 +880,7 @@ def test_summary_datetime_empty(rc: RawConfig, postgresql: str, request: Fixture
     app.authmodel('example/summary/datetime', ['insert', 'getall', 'search'])
     response = app.get('/example/summary/datetime/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 0
     assert json_response["_data"] == []
 
@@ -883,6 +900,7 @@ def test_summary_date(rc: RawConfig, postgresql: str, request: FixtureRequest):
     resp_last = app.post('/example/summary/date/Test', json={'value': '2024-01-08'})
     response = app.get('/example/summary/date/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': '2023-01-02 20:38:24',
@@ -915,6 +933,7 @@ def test_summary_date_single_given_no_units(rc: RawConfig, postgresql: str, requ
     resp = app.post('/example/summary/date/Test', json={'value': '2023-01-01'})
     response = app.get('/example/summary/date/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': '2023-01-01 12:00:00',
@@ -951,6 +970,7 @@ def test_summary_date_single_given_custom_units(
     resp = app.post('/example/summary/date/Test', json={'value': given})
     response = app.get('/example/summary/date/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': expected_0,
@@ -987,6 +1007,7 @@ def test_summary_date_single_given_custom_units_ignore(
     resp = app.post('/example/summary/date/Test', json={'value': given})
     response = app.get('/example/summary/date/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 100
     assert dict_equals(json_response["_data"][0], {
         'bin': expected_0,
@@ -1012,6 +1033,7 @@ def test_summary_date_empty(rc: RawConfig, postgresql: str, request: FixtureRequ
     app.authmodel('example/summary/date', ['insert', 'getall', 'search'])
     response = app.get('/example/summary/date/Test/:summary/value')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 0
     assert json_response["_data"] == []
 
@@ -1049,6 +1071,7 @@ def test_summary_ref_level_4_no_uri(rc: RawConfig, postgresql: str, request: Fix
     }})
     response = app.get('/example/summary/ref/Test/:summary/value_test')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
         'bin': id_0,
@@ -1104,6 +1127,7 @@ def test_summary_ref_level_4_with_uri(rc: RawConfig, postgresql: str, request: F
     }})
     response = app.get('/example/summary/ref/Test/:summary/value_test')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
         'bin': id_0,
@@ -1162,6 +1186,7 @@ def test_summary_ref_level_4_with_uri_wrong(rc: RawConfig, postgresql: str, requ
     }})
     response = app.get('/example/summary/ref/Test/:summary/value_test')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
         'bin': id_0,
@@ -1217,6 +1242,7 @@ def test_summary_ref_level_4_with_uri_url(rc: RawConfig, postgresql: str, reques
     }})
     response = app.get('/example/summary/ref/Test/:summary/value_test')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
         'bin': id_0,
@@ -1269,6 +1295,7 @@ def test_summary_ref_level_3_no_uri(rc: RawConfig, postgresql: str, request: Fix
     }})
     response = app.get('/example/summary/ref3/Test/:summary/value_test')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 3
     assert dict_equals(json_response["_data"][0], {
         'bin': "test_0",
@@ -1320,6 +1347,7 @@ def test_summary_ref_level_3_multiple_ref_props(rc: RawConfig, postgresql: str, 
         "value_ref": "test_2"
     }})
     response = app.get('/example/summary/ref3multi/Test/:summary/value_test')
+
     assert response.status_code == 500
 
 
@@ -1352,6 +1380,7 @@ def test_summary_ref_missing(rc: RawConfig, postgresql: str, request: FixtureReq
     }})
     response = app.get('/example/summary/ref/Test/:summary/value_test')
     json_response = response.json()
+
     assert len(json_response["_data"]) == 2
     assert dict_equals(json_response["_data"][0], {
         'bin': id_0,
@@ -1383,5 +1412,229 @@ def test_summary_ref_empty(rc: RawConfig, postgresql: str, request: FixtureReque
 
     response = app.get('/example/summary/ref/Test/:summary/value_test')
     json_response = response.json()
+    assert len(json_response["_data"]) == 0
+    assert json_response["_data"] == []
+
+
+def test_summary_geometry_no_srid(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    resp_10_20 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(10 20)'})
+    resp_40_80 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(40 80)'})
+    response = app.get('/example/summary/geometry/Test/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'cluster': 2,
+        'centroid': 'POINT(0 0)',
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'cluster': 1,
+        'centroid': 'POINT(10 20)',
+        "_id": resp_10_20.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'cluster': 1,
+        'centroid': 'POINT(40 80)',
+        "_id": resp_40_80.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+
+
+def test_summary_geometry_with_srid(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry_srid    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry(3346) |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry_srid', ['insert', 'getall', 'search'])
+    app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(0 0)'})
+    app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(0 0)'})
+    resp_10_20 = app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(10 20)'})
+    resp_40_80 = app.post('/example/summary/geometry_srid/Test', json={'value': 'POINT(40 80)'})
+    response = app.get('/example/summary/geometry_srid/Test/:summary/value')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'cluster': 2,
+        'centroid': 'POINT(0 0)',
+        '_type': 'example/summary/geometry_srid/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'cluster': 1,
+        'centroid': 'POINT(10 20)',
+        "_id": resp_10_20.json()["_id"],
+        '_type': 'example/summary/geometry_srid/Test'
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'cluster': 1,
+        'centroid': 'POINT(40 80)',
+        "_id": resp_40_80.json()["_id"],
+        '_type': 'example/summary/geometry_srid/Test'
+    })
+
+
+def test_summary_geometry_bbox_encapsulate_all(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    resp_10_20 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(10 20)'})
+    resp_40_80 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(40 80)'})
+    response = app.get('/example/summary/geometry/Test/:summary/value?bbox(0, 0, 100, 100)')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'cluster': 2,
+        'centroid': 'POINT(0 0)',
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'cluster': 1,
+        'centroid': 'POINT(10 20)',
+        "_id": resp_10_20.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'cluster': 1,
+        'centroid': 'POINT(40 80)',
+        "_id": resp_40_80.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+
+
+def test_summary_geometry_bbox_encapsulate_none(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(10 20)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(40 80)'})
+    response = app.get('/example/summary/geometry/Test/:summary/value?bbox(100, 100, 200, 200)')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 0
+    assert json_response["_data"] == []
+
+
+def test_summary_geometry_bbox_encapsulate_partial(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    resp_10_20 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(10 20)'})
+    resp_40_80 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(40 80)'})
+    response = app.get('/example/summary/geometry/Test/:summary/value?bbox(10, 10, 100, 100)')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 2
+    assert dict_equals(json_response["_data"][0], {
+        'cluster': 1,
+        'centroid': 'POINT(10 20)',
+        "_id": resp_10_20.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'cluster': 1,
+        'centroid': 'POINT(40 80)',
+        "_id": resp_40_80.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+
+
+def test_summary_geometry_bbox_bad_request(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(10 20)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(40 80)'})
+    response = app.get('/example/summary/geometry/Test/:summary/value?bbox(10, 10, 100, 100, 5000)')
+
+    assert response.status_code == 400
+
+
+def test_summary_geometry_cluster(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    for i in range(1000):
+        app.post('/example/summary/geometry/Test', json={"value": f"POINT({i} {i})"})
+    response = app.get('/example/summary/geometry/Test/:summary/value')
+    json_response = response.json()
+    count = 0
+    for item in json_response["_data"]:
+        count += item["cluster"]
+
+    assert count == 1000
+    assert len(json_response["_data"]) == 100
+    assert dict_equals(json_response["_data"][0], {
+        'cluster': 9,
+        'centroid': 'POINT(4 4)',
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][99], {
+        'cluster': 13,
+        'centroid': 'POINT(993 993)',
+        '_type': 'example/summary/geometry/Test'
+    })
+
+
+def test_summary_geometry_empty(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    response = app.get('/example/summary/geometry/Test/:summary/value')
+    json_response = response.json()
+
     assert len(json_response["_data"]) == 0
     assert json_response["_data"] == []

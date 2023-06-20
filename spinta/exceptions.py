@@ -161,8 +161,6 @@ def _render_template(error: BaseError):
         return error.template.format(**context)
 
 
-
-
 class MultipleErrors(Exception):
 
     def __init__(self, errors: Iterable[BaseError]):
@@ -589,4 +587,4 @@ class UnknownRequestQuery(UserError):
 
 
 class InvalidRequestQuery(UserError):
-    template = "Query {query} requires this {format} format."
+    template = "Query '{query}' requires '{format}' format."

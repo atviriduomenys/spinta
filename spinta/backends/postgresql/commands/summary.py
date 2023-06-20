@@ -425,7 +425,10 @@ def summary(
         if "bbox" in kwargs["args"]:
             bbox = kwargs["args"]["bbox"]
             if isinstance(bbox, list) and len(bbox) == 4:
-                bounding_box = f'WHERE ST_Intersects("{prop}", ST_MakeEnvelope({bbox[0]}, {bbox[1]}, {bbox[2]}, {bbox[3]}))'
+                if dtype.srid:
+                    bounding_box = f'WHERE ST_Intersects("{prop}", ST_MakeEnvelope({bbox[0]}, {bbox[1]}, {bbox[2]}, {bbox[3]}, {dtype.srid}))'
+                else:
+                    bounding_box = f'WHERE ST_Intersects("{prop}", ST_MakeEnvelope({bbox[0]}, {bbox[1]}, {bbox[2]}, {bbox[3]}))'
             else:
                 raise InvalidRequestQuery(query="bbox", format="bbox(min_lon, min_lat, max_lon, max_lat)")
 
@@ -442,7 +445,8 @@ def summary(
                         {min(100, count)}
                     ) OVER() AS cluster_id,
                     model."{prop}" AS geom,
-                    model._id AS _id
+                    model._id AS _id,
+                    model._created as created_at
                     FROM "{model}" AS model
                     {bounding_box}
                 )
@@ -451,7 +455,8 @@ def summary(
                     ST_AsText(ST_Centroid(ST_Collect(geom))) AS centroid,
                     (ARRAY_AGG(clusters._id))[1] AS _id
                 FROM clusters
-                GROUP BY cluster_id;
+                GROUP BY cluster_id
+                ORDER BY MIN(clusters.created_at);
                 ''')
         for item in result:
             data = flat_dicts_to_nested(dict(item))
