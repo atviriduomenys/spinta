@@ -3,14 +3,44 @@
 Changes
 #######
 
-0.1.51 (unreleased)
+0.1.51 (2023-06-20)
 ===================
+
+New features:
+
+- Add support for `param` dimension (`#210`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/210
+
+- Spinta inspect now supports JSON data as schema source (`#98`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/98
+
 
 Improvements:
 
-- Recognize CHAR data types (`#469`__).
+- Recognize CHAR and BYTES data types (`#469`__).
 
   __ https://github.com/atviriduomenys/spinta/issues/469
+
+
+- Allow writing data to models with base (`#205`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/205
+
+
+Bug fixes:
+
+- Fix spint push with ref type set to level 3 or below (`#460`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/460
+
+
+- Automatically add unique constraints for all primary keys specified in
+  model.ref (`#371`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/371
+
 
 
 0.1.50 (2023-05-22)
