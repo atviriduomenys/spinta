@@ -429,7 +429,6 @@ def test_push_ref_with_level(
         '--no-progress-bar',
     ])
     assert result.exit_code == 0
-
     remote.app.authmodel('leveldataset/City', ['getall', 'search'])
     resp_city = remote.app.get('leveldataset/City')
 
@@ -437,7 +436,12 @@ def test_push_ref_with_level(
     assert listdata(resp_city, 'name') == ['Vilnius']
     assert listdata(resp_city, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': '2'})
 
+    # test local get error
+    app.authmodel('leveldataset/countries', ['getall', 'search'])
+    resp_city = app.get('leveldataset/countries/Country')
+    assert resp_city.status_code == 400
+
+    # test remote get error
     remote.app.authmodel('leveldataset/countries', ['getall', 'search'])
     resp_city = remote.app.get('leveldataset/countries/Country')
-    assert resp_city.status_code == 200
-    assert listdata(resp_city) == []
+    assert resp_city.status_code == 400

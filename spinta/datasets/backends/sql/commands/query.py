@@ -29,7 +29,7 @@ from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import PropertyNotFound
+from spinta.exceptions import PropertyNotFound, SourceNotProvided
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import UnableToCast
 from spinta.types.datatype import DataType
@@ -622,6 +622,8 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
         elif prop.is_reserved():
             # Reserved properties never have external source.
             result = env.call('select', prop.dtype)
+        elif prop.external is None:
+            raise SourceNotProvided(prop)
         else:
             # If `source` is not given, return None.
             result = Selected(prop=prop, prep=None)
