@@ -3,8 +3,12 @@
 Changes
 #######
 
-0.1.52 (unreleased)
+0.1.52 (2023-06-21)
 ===================
+
+Improvements:
+
+- Recognize Oracle ROWID data type.
 
 
 0.1.51 (2023-06-20)
