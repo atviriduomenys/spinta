@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Set
 from typing import Type
 from typing import Union, List, Tuple
@@ -39,6 +40,7 @@ from spinta.exceptions import AuthorizedClientsOnly
 from spinta.exceptions import BasicAuthRequired
 from spinta.utils import passwords
 from spinta.utils.scopes import name_to_scope
+from spinta.utils.types import is_str_uuid
 
 log = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML(typ='safe')
@@ -369,17 +371,26 @@ def create_access_token(
 
 def query_client(context: Context, client: str) -> Client:
     config = context.get('config')
-    client_file = config.config_path / 'clients' / f'{client}.yml'
+    path = config.config_path / 'clients'
+    client_file = get_client_file_path(path, client)
     try:
         data = yaml.load(client_file)
     except FileNotFoundError:
         raise (InvalidClientError(description='Invalid client id or secret'))
-
     if not isinstance(data['scopes'], list):
         raise Exception(f'Client {client_file} scopes must be list of scopes.')
     client = Client(id_=client, secret_hash=data['client_secret_hash'],
                     scopes=data['scopes'])
     return client
+
+
+def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
+    is_uuid = is_str_uuid(client)
+    if is_uuid:
+        client_file = path / 'id' / client[:2] / client[2:4] / f'{client[4:]}.yml'
+    else:
+        client_file = path / f'{client}.yml'
+    return client_file
 
 
 def check_scope(context: Context, scope: str):
@@ -413,6 +424,26 @@ def get_scope_name(
             'action': action.value,
         },
     )
+
+
+def get_clients_list(path:pathlib.Path) -> list:
+    items = os.listdir(path)
+    ids = []
+    for item in items:
+        if item.endswith('.yml'):
+            ids.append(item[:-4])
+    if 'id' in items:
+        id_items = os.listdir(f'{path}\\id')
+        for id0 in id_items:
+            if len(id0) == 2:
+                id0_items = os.listdir(f'{path}\\id\\{id0}')
+                for id1 in id0_items:
+                    if len(id1) == 2:
+                        id1_items = os.listdir(f'{path}\\id\\{id0}\\{id1}')
+                        for uuid_item in id1_items:
+                            if uuid_item.endswith('.yml') and len(uuid_item) == 36:
+                                ids.append(f'{id0}{id1}{uuid_item[:-4]}')
+    return ids
 
 
 def authorized(
@@ -525,7 +556,7 @@ class KeyFileExists(Exception):
 
 
 def client_exists(path: pathlib.Path, client: str) -> bool:
-    client_file = path / f'{client}.yml'
+    client_file = get_client_file_path(path, client)
     return client_file.exists()
 
 
@@ -537,10 +568,21 @@ def create_client_file(
     *,
     add_secret: bool = False,
 ) -> Tuple[pathlib.Path, dict]:
-    client_file = path / f'{client}.yml'
+    client_file = get_client_file_path(path, client)
 
     if client_file.exists():
         raise ClientExist(f"{client_file} file already exists.")
+
+    if is_str_uuid(client):
+        id_path = path.joinpath("id")
+        if not id_path.exists():
+            id_path.mkdir(exist_ok=True)
+        first = id_path.joinpath(client[:2])
+        if not first.exists():
+            first.mkdir(exist_ok=True)
+        second = first.joinpath(client[2:4])
+        if not second.exists():
+            second.mkdir(exist_ok=True)
 
     secret = secret or passwords.gensecret(32)
     secret_hash = passwords.crypt(secret)

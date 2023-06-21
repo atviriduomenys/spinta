@@ -584,5 +584,6 @@ class CompositeUniqueConstraint(UserError):
     template = "Given values for composition of properties ({properties}) already exist."
 
 
-class NotImplementedFeature(BaseError):
-    template = "{feature} is not implemented yet."
+class InsufficientPermission(UserError):
+    status_code = 403
+    template = "You do not have a permission to access this."

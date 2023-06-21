@@ -1,9 +1,12 @@
+import os
+from pathlib import Path
 from typing import Type
 
 import pkg_resources as pres
 import logging
 
 from authlib.common.errors import AuthlibHTTPError
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -15,21 +18,23 @@ from starlette.staticfiles import StaticFiles
 from starlette.routing import Route, Mount
 from starlette.middleware import Middleware
 
-from spinta import components
-from spinta.auth import AuthorizationServer
+from spinta import components, commands
+from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, get_client_file_path, \
+    client_exists
 from spinta.auth import ResourceProtector
 from spinta.auth import BearerTokenValidator
 from spinta.auth import get_auth_request
 from spinta.auth import get_auth_token
 from spinta.commands import prepare, get_version
 from spinta.components import Context
-from spinta.exceptions import BaseError, MultipleErrors, error_response
+from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
 from spinta.utils.response import create_http_response
 from spinta.accesslog import create_accesslog
 from spinta.exceptions import NoAuthServer
+from spinta.utils.types import is_str_uuid
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +62,115 @@ async def version(request: Request):
 
 
 async def auth_token(request: Request):
+    auth_server = request.state.context.get('auth.server')
+    if auth_server.enabled():
+        return auth_server.create_token_response({
+            'method': request.method,
+            'url': str(request.url.replace(query='')),
+            'body': dict(await request.form()),
+            'headers': request.headers,
+        })
+    else:
+        raise NoAuthServer()
+
+
+async def auth_clients(request: Request):
+    context: Context = request.state.context
+
+    context.set('auth.request', get_auth_request({
+        'method': request.method,
+        'url': str(request.url.replace(query='')),
+        'body': None,
+        'headers': request.headers,
+    }))
+    token = get_auth_token(context)
+    context.set('auth.token', token)
+    check_scope(context, 'auth_clients')
+
+
+def _auth_client_context(request: Request) -> Context:
+    context: Context = request.state.context
+    context.set('auth.request', get_auth_request({
+        'method': request.method,
+        'url': str(request.url.replace(query='')),
+        'body': None,
+        'headers': request.headers,
+    }))
+    context.set('auth.token', get_auth_token(context))
+    return context
+
+
+async def auth_clients_add(request: Request):
+    context = _auth_client_context(request)
+
+
+async def auth_clients_get_all(request: Request):
+    try:
+        context = _auth_client_context(request)
+        check_scope(context, 'auth_clients')
+        config = context.get('config')
+        commands.load(context, config)
+
+        path = config.config_path / 'clients'
+        ids = get_clients_list(path)
+        return_values = []
+        for client_path in ids:
+            client = query_client(context, client_path)
+            return_values.append({
+                "client_id": client.id
+            })
+        return JSONResponse(return_values)
+
+    except InsufficientScopeError:
+        raise InsufficientPermission()
+
+
+async def auth_clients_get_specific(request: Request):
+    try:
+        context = _auth_client_context(request)
+        token = context.get('auth.token')
+        client_id = request.path_params["client"]
+        if client_id != token.get_client_id():
+            check_scope(context, 'auth_clients')
+        config = context.get('config')
+        commands.load(context, config)
+
+        client = query_client(context, client_id)
+        return_value = {
+            "client_id": client.id,
+            "scopes": list(client.scopes)
+        }
+        return JSONResponse(return_value)
+
+    except InsufficientScopeError:
+        raise InsufficientPermission()
+
+
+async def auth_clients_delete_specific(request: Request):
+    try:
+        context = _auth_client_context(request)
+        client_id = request.path_params["client"]
+        check_scope(context, 'auth_clients')
+        config = context.get('config')
+        commands.load(context, config)
+
+        path = config.config_path / 'clients'
+        query_client(context, client_id)
+        if client_exists(path, client_id):
+            remove_path = get_client_file_path(config.config_path / 'clients', client_id)
+            os.remove(remove_path)
+            # if is_str_uuid(client_id):
+            #     if not any(Path(remove_path.parent).iterdir()):
+            #         os.remove(remove_path.parent)
+            #         if not any(Path(remove_path.parent.parent).iterdir()):
+            #             os.remove(remove_path.parent.parent)
+        return Response(status_code=204)
+
+    except InsufficientScopeError:
+        raise InsufficientPermission()
+
+
+async def auth_clients_specific(request: Request):
     auth_server = request.state.context.get('auth.server')
     if auth_server.enabled():
         return auth_server.create_token_response({
@@ -188,6 +302,10 @@ def init(context: Context):
         Route('/version', version, methods=['GET']),
         Route('/auth/token', auth_token, methods=['POST']),
         Route('/_srid/{srid:int}/{x:float}/{y:float}', srid_check, methods=['GET']),
+        Route('/auth/clients', auth_clients_get_all, methods=['GET']),
+        Route('/auth/clients', auth_clients_add, methods=['POST']),
+        Route('/auth/clients/{client}', auth_clients_get_specific, methods=['GET']),
+        Route('/auth/clients/{client}', auth_clients_delete_specific, methods=['DELETE'])
     ]
 
     if config.docs_path:
