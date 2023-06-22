@@ -31,7 +31,6 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import UrlParams
-from spinta.exceptions import SourceNotProvided
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.renderer import render
