@@ -587,3 +587,16 @@ class CompositeUniqueConstraint(UserError):
 class InsufficientPermission(UserError):
     status_code = 403
     template = "You do not have a permission to access this."
+
+
+class InsufficientPermissionForUpdate(UserError):
+    status_code = 403
+    template = "You do not have a permission to update '{field}' field."
+
+
+class UnknownPropertyInRequest(UserError):
+    template = "Property '{property}' is not part of allowed properties: '{properties}'"
+
+
+class ClientAlreadyExists(UserError):
+    template = "Client with '{client_id}' client_id already exists."

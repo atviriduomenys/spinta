@@ -387,7 +387,10 @@ def query_client(context: Context, client: str) -> Client:
 def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
     is_uuid = is_str_uuid(client)
     if is_uuid:
-        client_file = path / 'id' / client[:2] / client[2:4] / f'{client[4:]}.yml'
+        if (path / f'{client}.yml').exists():
+            client_file = path / f'{client}.yml'
+        else:
+            client_file = path / 'id' / client[:2] / client[2:4] / f'{client[4:]}.yml'
     else:
         client_file = path / f'{client}.yml'
     return client_file
@@ -574,15 +577,7 @@ def create_client_file(
         raise ClientExist(f"{client_file} file already exists.")
 
     if is_str_uuid(client):
-        id_path = path.joinpath("id")
-        if not id_path.exists():
-            id_path.mkdir(exist_ok=True)
-        first = id_path.joinpath(client[:2])
-        if not first.exists():
-            first.mkdir(exist_ok=True)
-        second = first.joinpath(client[2:4])
-        if not second.exists():
-            second.mkdir(exist_ok=True)
+        os.makedirs(path / "id" / client[:2] / client[2:4], exist_ok=True)
 
     secret = secret or passwords.gensecret(32)
     secret_hash = passwords.crypt(secret)
