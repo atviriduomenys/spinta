@@ -622,8 +622,6 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
         elif prop.is_reserved():
             # Reserved properties never have external source.
             result = env.call('select', prop.dtype)
-        elif prop.external is None:
-            raise SourceNotProvided(prop)
         else:
             # If `source` is not given, return None.
             result = Selected(prop=prop, prep=None)

@@ -165,7 +165,7 @@ def push(
 
         from spinta.types.namespace import traverse_ns_models
 
-        models = traverse_ns_models(context, ns, Action.SEARCH, dataset, resource_check=True)
+        models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
         models = sort_models_by_refs(models)
         models = list(reversed(list(models)))
 

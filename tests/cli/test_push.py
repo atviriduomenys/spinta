@@ -380,7 +380,7 @@ def test_push_with_resource_check(
     assert len(listdata(resp_no_res)) == 0
 
 
-def test_push_ref_with_level(
+def test_push_ref_with_level_no_source(
     postgresql,
     rc: RawConfig,
     cli: SpintaCliRunner,
@@ -435,13 +435,3 @@ def test_push_ref_with_level(
     assert resp_city.status_code == 200
     assert listdata(resp_city, 'name') == ['Vilnius']
     assert listdata(resp_city, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': '2'})
-
-    # test local get error
-    app.authmodel('leveldataset/countries', ['getall', 'search'])
-    resp_city = app.get('leveldataset/countries/Country')
-    assert resp_city.status_code == 400
-
-    # test remote get error
-    remote.app.authmodel('leveldataset/countries', ['getall', 'search'])
-    resp_city = remote.app.get('leveldataset/countries/Country')
-    assert resp_city.status_code == 400
