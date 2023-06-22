@@ -582,7 +582,3 @@ class ReferringObjectFound(UserError):
 
 class CompositeUniqueConstraint(UserError):
     template = "Given values for composition of properties ({properties}) already exist."
-
-
-class SourceNotProvided(UserError):
-    template = "Data is not able to be fetched because model has no source"
