@@ -4,6 +4,7 @@ from typing import Type
 
 from ruamel.yaml import YAML
 
+from spinta.auth import client_exists
 from spinta.formats.components import Format
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.core.config import DEFAULT_DATA_PATH
@@ -100,6 +101,6 @@ def load(context: Context, config: Config) -> Config:
 
 @check.register(Context, components.Config)
 def check(context: Context, config: components.Config):
-    if config.default_auth_client and not (config.config_path / 'clients' / f'{config.default_auth_client}.yml').exists():
+    if config.default_auth_client and not client_exists(config.config_path / 'clients', config.default_auth_client):
         clients_dir = config.config_path / 'clients'
         raise Exception(f"default_auth_client {config.default_auth_client!r} does not exist in {clients_dir}.")
