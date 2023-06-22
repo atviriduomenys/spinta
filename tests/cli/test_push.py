@@ -410,9 +410,6 @@ def test_push_ref_with_level_no_source(
     resp = app.get('leveldataset/City')
     assert listdata(resp, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': 2})
 
-    resp = app.get('leveldataset/countries/Country')
-    assert resp.status_code == 400
-
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb)
 
