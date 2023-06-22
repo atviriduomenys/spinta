@@ -10,28 +10,29 @@ docker-compose ps
 docker-compose up -d
 unset SPINTA_CONFIG
 poetry run pytest -vvx --tb=short tests
-#| 1178 passed, 34 skipped, 4 warnings in 201.63s (0:03:21)
+#| 1218 passed, 34 skipped, 5 warnings in 207.65s (0:03:27)
 docker-compose down
 
-# Current version
-version=0.1.49
-xdg-open https://github.com/atviriduomenys/spinta/compare/$version..master
-xdg-open https://github.com/atviriduomenys/spinta/compare/$version...master
+CURRENT_VERSION=0.1.51
+NEXT_VERSION=0.1.52
+FUTURE_VERSION=0.1.53
+
+# Check what was changed and update CHANGES.rst
+xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION..master
+xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...master
 # Update CHANGES.rst
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
 
-# New version
-version=0.1.50
 ed pyproject.toml <<EOF
 /^version = /c
-version = "$version"
+version = "$NEXT_VERSION"
 .
 wq
 EOF
 ed CHANGES.rst <<EOF
 /unreleased/c
-$version ($(date +%Y-%m-%d))
+$NEXT_VERSION ($(date +%Y-%m-%d))
 .
 wq
 EOF
@@ -39,23 +40,22 @@ git diff
 
 poetry build
 poetry publish
-git commit -a -m "Releasing version $version"
+xdg-open https://pypi.org/project/spinta/
+git commit -a -m "Releasing version $NEXT_VERSION"
 git push origin master
-git tag -a $version -m "Releasing version $version"
-git push origin $version
+git tag -a $NEXT_VERSION -m "Releasing version $NEXT_VERSION"
+git push origin $NEXT_VERSION
 
-# Next version (after new one)
-version=0.1.51
 ed pyproject.toml <<EOF
 /^version = /c
-version = "$version.dev0"
+version = "$FUTURE_VERSION.dev0"
 .
 wq
 EOF
 ed CHANGES.rst <<EOF
 /^###/a
 
-$version (unreleased)
+$FUTURE_VERSION (unreleased)
 ===================
 
 .
@@ -63,6 +63,6 @@ wq
 EOF
 head CHANGES.rst
 git diff
-git commit -a -m "Prepare for the next $version release"
+git commit -a -m "Prepare for the next $FUTURE_VERSION release"
 git push origin master
 git log -n3
