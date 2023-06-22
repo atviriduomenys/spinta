@@ -238,11 +238,15 @@ def traverse_ns_models(
     resource: Optional[str] = None,
     *,
     internal: bool = False,
+    source_check: bool = False
 ):
     models = (ns.models or {})
     for model in models.values():
         if _model_matches_params(context, model, action, dataset_, resource, internal):
-            if model.external:
+            if source_check:
+                if model.external:
+                    yield model
+            else:
                 yield model
     for ns_ in ns.names.values():
         if not internal and ns_.name.startswith('_'):
