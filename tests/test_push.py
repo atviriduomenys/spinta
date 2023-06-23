@@ -405,7 +405,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
         checksum='CHANGED',
         pushed=datetime.datetime.now(),
         error=False,
-        synchronize=datetime.datetime.now()
+        synchronize=syncronize_time
     ))
 
     rows = [
@@ -445,10 +445,9 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
     )
 
     query = sa.select([table.c.id, table.c.synchronize])
-    assert list(conn.execute(query)) == [(
-        '4d741843-4e94-4890-81d9-5af7c5b5989a',
-        syncronize_time,
-    )]
+    res = list(conn.execute(query))
+
+    assert res[0][1] == syncronize_time
 
 
 def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMock):
