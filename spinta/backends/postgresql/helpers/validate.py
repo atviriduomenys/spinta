@@ -15,6 +15,9 @@ def pg_check_unique_constraint(
     data: DataItem,
     value: str,
 ):
+    """
+    DISABLED SINCE UNIQUE CONSTRAINT CHECK IS HANDLED AT POSTGRESQL LEVEL
+
     table = backend.get_table(prop)
 
     if (
@@ -34,3 +37,4 @@ def pg_check_unique_constraint(
     result = backend.get(connection, table.c[name], condition, default=default)
     if result is not default:
         raise UniqueConstraint(prop)
+    """
