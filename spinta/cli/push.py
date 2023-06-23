@@ -764,8 +764,7 @@ def _add_stop_time(
 
 def _init_push_state(
     dburi: str,
-    models: List[Model],
-    sync: False
+    models: List[Model]
 ) -> Tuple[sa.engine.Engine, sa.MetaData]:
     engine = sa.create_engine(dburi)
     metadata = sa.MetaData(engine)
