@@ -174,7 +174,7 @@ def push(
         models = list(reversed(list(models)))
 
         if state:
-            state = _State(*_init_push_state(state, models, synchronize))
+            state = _State(*_init_push_state(state, models))
             context.attach('push.state.conn', state.engine.begin)
             _reset_pushed(context, models, state.metadata)
 
@@ -876,7 +876,7 @@ def _check_push_state(
                                 synchronize=datetime.datetime.now()
                             )
                         )
-                        continue
+
             yield row
 
 

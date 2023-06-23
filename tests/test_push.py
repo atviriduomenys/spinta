@@ -383,6 +383,205 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
     )]
 
 
+def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    syncronize_time = datetime.datetime.now()
+
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id='4d741843-4e94-4890-81d9-5af7c5b5989a',
+        checksum='CHANGED',
+        pushed=datetime.datetime.now(),
+        error=False,
+        synchronize=datetime.datetime.now()
+    ))
+
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        }),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'patch',
+            '_type': model.name,
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
+        })],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+        syncronize=False
+    )
+
+    query = sa.select([table.c.id, table.c.synchronize])
+    assert list(conn.execute(query)) == [(
+        '4d741843-4e94-4890-81d9-5af7c5b5989a',
+        syncronize_time,
+    )]
+
+
+def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id='4d741843-4e94-4890-81d9-5af7c5b5989a',
+        checksum='CHANGED',
+        pushed=datetime.datetime.now(),
+        error=False
+    ))
+
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        }),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'patch',
+            '_type': model.name,
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
+        })],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+        syncronize=False
+    )
+
+    query = sa.select([table.c.id, table.c.checksum, table.c.synchronize])
+    res = list(conn.execute(query))
+
+    assert res[0][1] != "CHANGED"
+    assert res[0][2] is not None
+
+
+def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+    time_before_sync_push = datetime.datetime.now()
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id='4d741843-4e94-4890-81d9-5af7c5b5989a',
+        checksum='CHANGED',
+        pushed=datetime.datetime.now(),
+        error=False,
+        synchronize=time_before_sync_push
+    ))
+
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        }),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'patch',
+            '_type': model.name,
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
+        })],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+        syncronize=True
+    )
+
+    query = sa.select([table.c.id, table.c.checksum, table.c.synchronize])
+    res = list(conn.execute(query))
+
+    assert res[0][1] != "CHANGED"
+
+
 def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     context, manifest = load_manifest_and_context(rc, '''
     m | property | type   | access
