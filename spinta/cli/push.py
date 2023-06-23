@@ -115,7 +115,7 @@ def push(
     max_error_count: int = Option(50, '--max-errors', help=(
         "If errors exceed given number, push command will be stopped."
     )),
-    syncronize: bool = Option(False, '--sync', help=(
+    synchronize: bool = Option(False, '--sync', help=(
         "Update push sync state, in {data_path}/push/{remote}.db"
     )),
 ):
@@ -143,7 +143,7 @@ def push(
     if not state:
         ensure_data_dir(config.data_path / 'push')
         state = config.data_path / 'push' / f'{creds.remote}.db'
-    # if not syncronize:
+
     state = f'sqlite:///{state}'
 
     manifest = store.manifest
@@ -174,7 +174,7 @@ def push(
         models = list(reversed(list(models)))
 
         if state:
-            state = _State(*_init_push_state(state, models, syncronize))
+            state = _State(*_init_push_state(state, models, synchronize))
             context.attach('push.state.conn', state.engine.begin)
             _reset_pushed(context, models, state.metadata)
 
@@ -206,6 +206,7 @@ def push(
             dry_run=dry_run,
             stop_on_error=stop_on_error,
             error_counter=error_counter,
+            syncronize=synchronize
         )
 
         if error_counter.has_errors():
@@ -277,13 +278,14 @@ def _push(
     chunk_size: Optional[int] = None,   # split into chunks of given size in bytes
     dry_run: bool = False,              # do not send or write anything
     stop_on_error: bool = False,        # raise error immediately
-    error_counter: ErrorCounter = None
+    error_counter: ErrorCounter = None,
+    syncronize: bool = False
 ) -> None:
     if stop_time:
         rows = _add_stop_time(rows, stop_time)
 
     if state:
-        rows = _check_push_state(context, rows, state.metadata)
+        rows = _check_push_state(context, rows, state.metadata, syncronize)
 
     rows = _prepare_rows_for_push(rows)
 
@@ -768,22 +770,20 @@ def _init_push_state(
     engine = sa.create_engine(dburi)
     metadata = sa.MetaData(engine)
     inspector = sa.inspect(engine)
-    if not sync:
-        for model in models:
-            table = sa.Table(
-                model.name, metadata,
-                sa.Column('id', sa.Unicode, primary_key=True),
-                sa.Column('checksum', sa.Unicode),
-                sa.Column('revision', sa.Unicode),
-                sa.Column('pushed', sa.DateTime),
-                sa.Column('error', sa.Boolean),
-                sa.Column('data', sa.Text)
-            )
-            migrate_table(engine, metadata, inspector, table, renames={
-                'rev': 'checksum',
-            })
-    else:
-        print("Hello???")
+    for model in models:
+        table = sa.Table(
+            model.name, metadata,
+            sa.Column('id', sa.Unicode, primary_key=True),
+            sa.Column('checksum', sa.Unicode),
+            sa.Column('revision', sa.Unicode),
+            sa.Column('pushed', sa.DateTime),
+            sa.Column('error', sa.Boolean),
+            sa.Column('data', sa.Text),
+            sa.Column('synchronize', sa.DateTime)
+        )
+        migrate_table(engine, metadata, inspector, table, renames={
+            'rev': 'checksum',
+        })
 
     return engine, metadata
 
@@ -804,6 +804,7 @@ def _get_data_checksum(data: dict):
 class _Saved(NamedTuple):
     revision: str
     checksum: str
+    synchronize: str
 
 
 def _reset_pushed(
@@ -826,6 +827,7 @@ def _check_push_state(
     context: Context,
     rows: Iterable[_PushRow],
     metadata: sa.MetaData,
+    synchronize: bool = False
 ):
     conn = context.get('push.state.conn')
 
@@ -834,11 +836,12 @@ def _check_push_state(
         if model_type:
             table = metadata.tables[model_type]
 
-            query = sa.select([table.c.id, table.c.revision, table.c.checksum])
+            query = sa.select([table.c.id, table.c.revision, table.c.checksum, table.c.synchronize])
             saved_rows = {
                 state[table.c.id]: _Saved(
                     state[table.c.revision],
                     state[table.c.checksum],
+                    state[table.c.synchronize]
                 )
                 for state in conn.execute(query)
             }
@@ -855,7 +858,7 @@ def _check_push_state(
                     row.op = "patch"
                     row.saved = True
                     row.data['_revision'] = saved.revision
-                    if saved.checksum == row.checksum:
+                    if saved.checksum == row.checksum and saved.synchronize is not None:
                         conn.execute(
                             table.update().
                             where(table.c.id == _id).
@@ -864,7 +867,17 @@ def _check_push_state(
                             )
                         )
                         continue  # Nothing has changed.
-
+                    elif (synchronize and saved.checksum != row.checksum) or saved.synchronize is None:
+                        conn.execute(
+                            table.update().
+                            where(table.c.id == _id).
+                            values(
+                                checksum=row.checksum,
+                                pushed=datetime.datetime.now(),
+                                synchronize=datetime.datetime.now()
+                            )
+                        )
+                        continue
             yield row
 
 
