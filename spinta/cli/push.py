@@ -857,7 +857,7 @@ def _check_push_state(
                     row.op = "patch"
                     row.saved = True
                     row.data['_revision'] = saved.revision
-                    if saved.checksum == row.checksum and saved.synchronize is not None:
+                    if saved.checksum == row.checksum:
                         conn.execute(
                             table.update().
                             where(table.c.id == _id).
