@@ -104,50 +104,42 @@ class PgQueryBuilder(Env):
             lrkey = self.backend.get_column(ltable, fpr.left)
             rmodel = fpr.right.model
 
-            rtable = self.backend.get_table(rmodel).alias()
+            if rmodel.base:
+                rtable = self.get_joined_base_table(rmodel, prop.right.basename, from_Fk=True)
+            else:
+                rtable = self.backend.get_table(rmodel).alias()
+
             rpkey = self.backend.get_column(rtable, rmodel.properties['_id'])
 
             condition = lrkey == rpkey
             self.joins[fpr.name] = rtable
             self.from_ = self.from_.outerjoin(rtable, condition)
 
-            base_model = get_property_base_model(rmodel, prop.right.basename)
-            if base_model:
-                return self.get_joined_base_table(base_model, prop.right.basename)
-
             return self.joins[fpr.name]
 
-    def get_joined_base_table(self, model: Model, prop: str, original_model=None):
+    def get_joined_base_table(self, model: Model, prop: str, from_Fk = False):
         inherit_model = model
         base_model = get_property_base_model(inherit_model, prop)
-
-        if not original_model:
-            original_model = model
 
         if not base_model:
             raise PropertyNotFound(prop)
 
-        if base_model.name in self.joins:
-            return self.joins[base_model.name]
-
-        if original_model:
-            ltable = self.backend.get_table(original_model)
-            lrkey = self.backend.get_column(ltable, original_model.properties['_id'])
-        else:
-            ltable = self.backend.get_table(inherit_model)
-            lrkey = self.backend.get_column(ltable, inherit_model.properties['_id'])
+        ltable = self.backend.get_table(inherit_model)
+        lrkey = self.backend.get_column(ltable, inherit_model.properties['_id'])
 
         rtable = self.backend.get_table(base_model).alias()
         rpkey = self.backend.get_column(rtable, base_model.properties['_id'])
 
+        if base_model.name in self.joins:
+            if self.joins[base_model.name] == rtable:
+                return self.joins[base_model.name]
+
         condition = lrkey == rpkey
         self.joins[base_model.name] = rtable
-        self.from_ = self.from_.outerjoin(rtable, condition)
+        if not from_Fk:
+            self.from_ = self.from_.outerjoin(rtable, condition)
 
-        if not base_model.base:
-            return self.joins[base_model.name]
-
-        return self.get_joined_base_table(base_model, prop, original_model)
+        return self.joins[base_model.name]
 
 
 class ForeignProperty:

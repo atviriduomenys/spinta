@@ -296,6 +296,7 @@ def test_join_with_base(
     context = bootstrap_manifest(rc, '''
     d | r | b | m | property   | type                 | ref     | prepare   | access
     datasets/basetest          |                      |         |           |
+      |   |   |   |            |                      |         |           |
       |   |   | Place          |                      | id      |           |
       |   |   |   | id         | integer              |         |           | open
       |   |   |   | name       | string               |         |           | open
@@ -312,6 +313,9 @@ def test_join_with_base(
       |   |   |   |            |                      |         | "country" |
       |   |   |   |            |                      |         |           |
       |   | Location           |                      | name    |           |
+      |   |   | Test           |                      | id      |           |
+      |   |   |   | id         | integer              |         |           | open
+      |   |   |   | name       |                      |         |           | open
       |   |   |   |            |                      |         |           |
       |   |   | Country        |                      | id      |           |
       |   |   |   | id         | integer              |         |           | open
@@ -323,12 +327,15 @@ def test_join_with_base(
       |   |   |   | name       |                      |         |           | open
       |   |   |   | population |                      |         |           | open
       |   |   |   | country    | ref                  | Country |           | open
+      |   |   |   | testfk     | ref                  | Test    |           | open
+      |   |   |   |            |                      |         |           |
     ''', backend=postgresql, request=request)
 
     app = create_test_client(context)
     app.authorize(['spinta_insert', 'spinta_getall', 'spinta_wipe', 'spinta_search', 'spinta_set_meta_fields'])
     LTU = "d55e65c6-97c9-4cd3-99ff-ae34e268289b"
     VLN = "2074d66e-0dfd-4233-b1ec-199abc994d0c"
+    TST = "2074d66e-0dfd-4233-b1ec-199abc994d0e"
 
     resp = app.post('/datasets/basetest/Place', json={
         '_id': LTU,
@@ -339,20 +346,20 @@ def test_join_with_base(
 
     resp = app.post('/datasets/basetest/Location', json={
         '_id': LTU,
-        'id': 2,
+        'id': 1,
         'population': 2862380,
     })
     assert resp.status_code == 201
 
     resp = app.post('/datasets/basetest/Country', json={
         '_id': LTU,
-        'id': 3,
+        'id': 1,
     })
     assert resp.status_code == 201
 
     resp = app.post('/datasets/basetest/Place', json={
         '_id': VLN,
-        'id': 1,
+        'id': 2,
         'name': 'Vilnius',
         'koord': "SRID=4326;POINT (54.68677 25.29067)"
     })
@@ -360,34 +367,50 @@ def test_join_with_base(
 
     resp = app.post('/datasets/basetest/Location', json={
         '_id': VLN,
-        'id': 42,
-        'name': 'Vilnius',
+        'id': 2,
         'population': 625349,
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Place', json={
+        '_id': TST,
+        'id': 3,
+        'name': 'TestFK',
+        'koord': "SRID=4326;POINT (54.68677 25.29067)"
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Location', json={
+        '_id': TST,
+        'id': 3,
+        'population': 625349,
+    })
+    assert resp.status_code == 201
+
+    resp = app.post('/datasets/basetest/Test', json={
+        '_id': TST,
+        'id': 3,
     })
     assert resp.status_code == 201
 
     resp = app.post('/datasets/basetest/City', json={
         '_id': VLN,
-        'id': 24,
-        'name': "Vilnius",
+        'id': 2,
         'country': {'_id': LTU},
-        'population': 625349,
+        'testfk': {'_id': TST}
     })
     assert resp.status_code == 201
 
-    resp = app.post('/datasets/basetest/City', json={
-        '_id': "2074d66e-0dfd-4233-b1ec-199abc994d0c",
-        'id': 24,
-        'name': "Vilnius",
-        'population': 625349,
-    })
-    assert resp.status_code is not None
-
     resp = app.get('/datasets/basetest/Location?select(_id,id,name,population,type)')
     assert resp.status_code == 200
-    assert listdata(resp, 'name', sort='name') == ['Lithuania', 'Vilnius']
+    assert listdata(resp, 'name', sort='name') == ['Lithuania', 'TestFK', 'Vilnius']
 
-    resp = app.get('/datasets/basetest/City?select(id,name,country.name)')
+    resp = app.get('/datasets/basetest/City?select(id,name,country.name,testfk.name)')
+    assert resp.status_code == 200
+    assert listdata(resp, 'name', 'country.name', 'testfk.name')[0] == ('Vilnius', 'Lithuania', 'TestFK')
+
+    print()
+    resp = app.get('/datasets/basetest/City?select(_id,id,name,population,type,koord)')
     assert resp.status_code == 200
     assert listdata(resp, 'name', sort='name')[0] == 'Vilnius'
 
