@@ -307,6 +307,7 @@ def test_join_with_base(
       |   |   | Location       |                      | id      |           |
       |   |   |   | id         | integer              |         |           | open
       |   |   |   | name       |                      |         |           | open
+      |   |   |   | koord      |                      |         |           | open
       |   |   |   | population | integer              |         |           | open
       |   |   |   | type       | string               |         |           | open
       |   |   |   |            | enum                 |         | "city"    |
@@ -326,6 +327,8 @@ def test_join_with_base(
       |   |   |   | id         | integer              |         |           | open
       |   |   |   | name       |                      |         |           | open
       |   |   |   | population |                      |         |           | open
+      |   |   |   | koord      |                      |         |           | open
+      |   |   |   | type       |                      |         |           | open
       |   |   |   | country    | ref                  | Country |           | open
       |   |   |   | testfk     | ref                  | Test    |           | open
       |   |   |   |            |                      |         |           |
@@ -409,10 +412,9 @@ def test_join_with_base(
     assert resp.status_code == 200
     assert listdata(resp, 'name', 'country.name', 'testfk.name')[0] == ('Vilnius', 'Lithuania', 'TestFK')
 
-    print()
     resp = app.get('/datasets/basetest/City?select(_id,id,name,population,type,koord)')
     assert resp.status_code == 200
-    assert listdata(resp, 'name', sort='name')[0] == 'Vilnius'
+    assert listdata(resp, 'name','population', 'koord', sort='name')[0] == ('Vilnius', 625349, 'POINT (54.68677 25.29067)')
 
 
 @pytest.mark.skip('todo')

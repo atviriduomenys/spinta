@@ -184,3 +184,4 @@ def test_sort_models_by_ref_with_base(rc: RawConfig):
         'datasets/basetest/Country',
         'datasets/basetest/Place',
     ]
+
