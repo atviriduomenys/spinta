@@ -90,7 +90,11 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         pass
 
     def _query_client(self, client_name):
-        return query_client(get_clients_path(self._context.get('config')), client_name, is_name=True)
+        path = get_clients_path(self._context.get('config'))
+        is_name = True
+        if client_exists(path, client_name):
+            is_name = False
+        return query_client(path, client_name, is_name=is_name)
 
     def _save_token(self, token, request):
         pass
