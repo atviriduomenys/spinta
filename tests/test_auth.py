@@ -310,4 +310,4 @@ def test_http_basic_auth(basic_auth):
 
 def test_get_client_file_path_uuid(tmp_path):
     file_name = "a6c06c3a-3aa4-4704-b144-4fc23e2152f7"
-    assert str(get_client_file_path(get_clients_path(tmp_path), file_name)) == tmp_path / 'clients' / 'id' / 'a6' / 'c0' / '6c3a-3aa4-4704-b144-4fc23e2152f7.yml'
+    assert str(get_client_file_path(get_clients_path(tmp_path), file_name)) == str(tmp_path / 'clients' / 'id' / 'a6' / 'c0' / '6c3a-3aa4-4704-b144-4fc23e2152f7.yml')
