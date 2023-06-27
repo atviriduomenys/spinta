@@ -598,5 +598,9 @@ class UnknownPropertyInRequest(UserError):
     template = "Property '{property}' is not part of allowed properties: '{properties}'"
 
 
+class ClientWithNameAlreadyExists(UserError):
+    template = "Client with name '{client_name}' already exists."
+
+
 class ClientAlreadyExists(UserError):
-    template = "Client with '{client_id}' client_id already exists."
+    template = "Client '{client_id}' already exists."

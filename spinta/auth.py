@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import os
+import shutil
+import uuid
+from typer import echo
 from typing import Set
 from typing import Type
 from typing import Union, List, Tuple
@@ -35,7 +38,7 @@ from spinta.components import Config
 from spinta.components import ScopeFormatterFunc
 from spinta.core.enums import Access
 from spinta.components import Context, Action, Namespace, Model, Property
-from spinta.exceptions import InvalidToken, NoTokenValidationKey
+from spinta.exceptions import InvalidToken, NoTokenValidationKey, ClientWithNameAlreadyExists, ClientAlreadyExists
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.exceptions import BasicAuthRequired
 from spinta.utils import passwords
@@ -43,7 +46,12 @@ from spinta.utils.scopes import name_to_scope
 from spinta.utils.types import is_str_uuid
 
 log = logging.getLogger(__name__)
-yaml = ruamel.yaml.YAML(typ='safe')
+yaml = ruamel.yaml.YAML(typ="safe")
+
+yml = ruamel.yaml.YAML()
+yml.indent(mapping=2, sequence=4, offset=2)
+yml.width = 80
+yml.explicit_start = False
 
 
 class AuthorizationServer(rfc6749.AuthorizationServer):
@@ -81,8 +89,8 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
     def send_signal(self, *args, **kwargs):
         pass
 
-    def _query_client(self, client_id):
-        return query_client(self._context, client_id)
+    def _query_client(self, client_name):
+        return query_client(self._context, client_name, is_name=True)
 
     def _save_token(self, token, request):
         pass
@@ -127,11 +135,13 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
 
 class Client(rfc6749.ClientMixin):
     id: str
+    name: str
     secret_hash: str
     scopes: Set[str]
 
-    def __init__(self, *, id_: str, secret_hash: str, scopes: List[str]):
+    def __init__(self, *, id_: str, name_: str, secret_hash: str, scopes: List[str]):
         self.id = id_
+        self.name = name_
         self.secret_hash = secret_hash
         self.scopes = set(scopes)
 
@@ -270,7 +280,7 @@ def get_token_from_http_basic_auth(context: Context, request: OAuth2Request):
 
     # Get client.
     try:
-        client = query_client(context, client)
+        client = query_client(context, client, is_name=True)
     except InvalidClientError:
         raise BasicAuthRequired()
 
@@ -333,7 +343,7 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True):
 def create_client_access_token(context: Context, client: Union[str, Client]):
     private_key = load_key(context, KeyType.private)
     if isinstance(client, str):
-        client = query_client(context, client)
+        client = query_client(context, client, is_name=True)
     expires_in = int(datetime.timedelta(days=10).total_seconds())
     return create_access_token(context, private_key, client.id, expires_in, client.scopes)
 
@@ -369,9 +379,16 @@ def create_access_token(
     return jwt.encode(header, payload, private_key).decode('ascii')
 
 
-def query_client(context: Context, client: str) -> Client:
+def query_client(context: Context, client: str, is_name: bool = False) -> Client:
     config = context.get('config')
     path = config.config_path / 'clients'
+    if is_name:
+        keymap_path = get_keymap_path(path)
+        if keymap_path.exists():
+            data = yaml.load(keymap_path)
+            if client not in data.keys():
+                raise (InvalidClientError(description='Invalid client name'))
+            client = data[client]
     client_file = get_client_file_path(path, client)
     try:
         data = yaml.load(client_file)
@@ -379,20 +396,18 @@ def query_client(context: Context, client: str) -> Client:
         raise (InvalidClientError(description='Invalid client id or secret'))
     if not isinstance(data['scopes'], list):
         raise Exception(f'Client {client_file} scopes must be list of scopes.')
-    client = Client(id_=client, secret_hash=data['client_secret_hash'],
+    client_id = data["client_id"]
+    client_name = data["client_name"] if ("client_name" in data.keys() and data["client_name"]) else None
+    client = Client(id_=client_id, name_=client_name, secret_hash=data['client_secret_hash'],
                     scopes=data['scopes'])
     return client
 
 
 def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
     is_uuid = is_str_uuid(client)
+    client_file = path / 'unknown' / f'{client}.yml'
     if is_uuid:
-        if (path / f'{client}.yml').exists():
-            client_file = path / f'{client}.yml'
-        else:
-            client_file = path / 'id' / client[:2] / client[2:4] / f'{client[4:]}.yml'
-    else:
-        client_file = path / f'{client}.yml'
+        client_file = path / 'id' / client[:2] / client[2:4] / f'{client[4:]}.yml'
     return client_file
 
 
@@ -429,12 +444,9 @@ def get_scope_name(
     )
 
 
-def get_clients_list(path:pathlib.Path) -> list:
+def get_clients_list(path: pathlib.Path) -> list:
     items = os.listdir(path)
     ids = []
-    for item in items:
-        if item.endswith('.yml'):
-            ids.append(item[:-4])
     if 'id' in items:
         id_items = os.listdir(f'{path}\\id')
         for id0 in id_items:
@@ -560,47 +572,214 @@ class KeyFileExists(Exception):
 
 def client_exists(path: pathlib.Path, client: str) -> bool:
     client_file = get_client_file_path(path, client)
-    return client_file.exists()
+    if client_file.exists():
+        return True
+    return False
+
+
+def client_name_exists(path: pathlib.Path, client: str) -> bool:
+    keymap_path = get_keymap_path(path)
+    if keymap_path.exists():
+        keymap = yaml.load(keymap_path)
+        if client in keymap.keys():
+            return True
+    return False
 
 
 def create_client_file(
     path: pathlib.Path,
-    client: str,
+    name: str,
+    client_id: str,
     secret: str = None,
     scopes: List[str] = None,
     *,
     add_secret: bool = False,
 ) -> Tuple[pathlib.Path, dict]:
-    client_file = get_client_file_path(path, client)
+    client_file = get_client_file_path(path, client_id)
+    keymap_path = get_keymap_path(path)
 
     if client_file.exists():
-        raise ClientExist(f"{client_file} file already exists.")
+        raise ClientAlreadyExists(client_id=client_file)
 
-    if is_str_uuid(client):
-        os.makedirs(path / "id" / client[:2] / client[2:4], exist_ok=True)
+    keymap = {}
+    if keymap_path.exists():
+        keymap = yaml.load(keymap_path)
+
+    if client_name_exists(path, name):
+        raise ClientWithNameAlreadyExists(client_name=name)
+
+    os.makedirs(path / "helpers", exist_ok=True)
+    os.makedirs(path / "id" / client_id[:2] / client_id[2:4], exist_ok=True)
 
     secret = secret or passwords.gensecret(32)
     secret_hash = passwords.crypt(secret)
 
     data = write = {
-        'client_id': client,
+        'client_id': client_id,
+        'client_name': name,
         'client_secret': secret,
         'client_secret_hash': secret_hash,
         'scopes': scopes or [],
     }
+    keymap[name] = client_id
 
     if not add_secret:
         write = data.copy()
         del write['client_secret']
-
-    yml = ruamel.yaml.YAML()
-    yml.indent(mapping=2, sequence=4, offset=2)
-    yml.width = 80
-    yml.explicit_start = False
     yml.dump(write, client_file)
+    yml.dump(keymap, keymap_path)
 
     return client_file, data
 
 
 class ClientExist(Exception):
     pass
+
+
+def delete_client_file(path: pathlib.Path, client_id: str):
+    if client_exists(path, client_id):
+        keymap_path = get_keymap_path(path)
+        remove_path = get_client_file_path(path, client_id)
+        if keymap_path.exists():
+            keymap = yaml.load(keymap_path)
+            changed = False
+            keymap_values = list(keymap.values())
+            keymap_keys = list(keymap.keys())
+            if client_id in keymap_values:
+                del keymap[keymap_keys[keymap_values.index(client_id)]]
+                changed = True
+
+            if changed:
+                yml.dump(keymap, keymap_path)
+        os.remove(remove_path)
+        try:
+            level_1 = remove_path.parent
+            level_2 = remove_path.parent.parent
+            level_1.rmdir()
+            level_2.rmdir()
+        except Exception:
+            '''
+                Remove only empty folders
+            '''
+    else:
+        raise (InvalidClientError(description='Invalid client id or secret'))
+
+
+def update_client_file(
+    context: Context,
+    path: pathlib.Path,
+    client_id: str,
+    name: str,
+    secret: str,
+    scopes: list
+):
+    if client_exists(path, client_id):
+        client = query_client(context, client_id)
+        keymap_path = get_keymap_path(path)
+
+        new_name = name if name else client.name
+        new_secret_hash = passwords.crypt(secret) if secret else client.secret_hash
+        new_scopes = scopes if scopes is not None else client.scopes
+
+        client_path = get_client_file_path(path, client_id)
+        keymap = {}
+        if keymap_path.exists():
+            keymap = yaml.load(keymap_path)
+        if new_name != client.name:
+            if client_name_exists(path, new_name):
+                raise ClientWithNameAlreadyExists(client_name=new_name)
+
+        new_data = {
+            "client_id": client.id,
+            "client_name": new_name,
+            "client_secret_hash": new_secret_hash,
+            "scopes": list(new_scopes)
+        }
+
+        yml.dump(new_data, client_path)
+        if keymap:
+            changed = False
+            if client_id in keymap.keys():
+                if client_id != new_name:
+                    del keymap[client_id]
+                    keymap[new_name] = client.id
+                    changed = True
+
+            if changed:
+                yml.dump(keymap, keymap_path)
+        return new_data
+    else:
+        raise (InvalidClientError(description='Invalid client id or secret'))
+
+
+def migrate_old_client_file(path: pathlib.Path, client_file: str):
+    try:
+        old_data = yaml.load(path / client_file)
+    except FileNotFoundError:
+        raise (InvalidClientError(description='Invalid client id or secret'))
+
+    old_path = path / client_file
+
+    old_data["client_name"] = old_data["client_id"]
+    if not is_str_uuid(old_data["client_id"]):
+        old_data["client_id"] = str(uuid.uuid4())
+    new_client_file = old_data["client_id"]
+
+    new_path = path / 'id' / new_client_file[:2] / new_client_file[2:4] / f'{new_client_file[4:]}.yml'
+
+    os.makedirs(path / 'id' / new_client_file[:2] / new_client_file[2:4], exist_ok=True)
+    shutil.copyfile(old_path, new_path)
+
+    with open(new_path) as fp:
+        data = yaml.load(fp)
+    data["client_id"] = old_data["client_id"]
+    data["client_name"] = old_data["client_name"]
+    yml.dump({
+        "client_id": data["client_id"],
+        "client_name": data["client_name"],
+        "client_secret_hash": data["client_secret_hash"],
+        "scopes": data["scopes"]
+    }, new_path)
+
+
+def create_client_file_name_id_mapping(path: pathlib.Path):
+    os.makedirs(path / 'helpers', exist_ok=True)
+    keymap_path = get_keymap_path(path)
+
+    items = os.listdir(path)
+    keymap = {}
+    if 'id' in items:
+        id_items = os.listdir(path / 'id')
+        for id0 in id_items:
+            if len(id0) == 2:
+                id0_items = os.listdir(path / 'id' / id0)
+                for id1 in id0_items:
+                    if len(id1) == 2:
+                        id1_items = os.listdir(path / 'id' / id0 / id1)
+                        for uuid_item in id1_items:
+                            if uuid_item.endswith('.yml') and len(uuid_item) == 36:
+                                try:
+                                    data = yaml.load(path / 'id' / id0 / id1 / uuid_item)
+                                    keymap[data["client_name"]] = data["client_id"]
+                                except FileNotFoundError:
+                                    raise (InvalidClientError(description='Invalid client id or secret'))
+    yml.dump(keymap, keymap_path)
+
+
+def handle_auth_client_files(context: Context):
+    config = context.get('config')
+    path = config.config_path / 'clients'
+
+    if not (path / 'id').exists():
+        items = os.listdir(path)
+        if items:
+            echo("Client file migrations has started")
+            for item in items:
+                if item.endswith('.yml'):
+                    migrate_old_client_file(path, item)
+
+    create_client_file_name_id_mapping(path)
+
+
+def get_keymap_path(path: pathlib.Path):
+    return path / 'helpers' / 'keymap.yml'

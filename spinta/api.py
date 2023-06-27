@@ -21,8 +21,8 @@ from starlette.routing import Route, Mount
 from starlette.middleware import Middleware
 
 from spinta import components, commands
-from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, get_client_file_path, \
-    client_exists, create_client_file
+from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, \
+    client_exists, create_client_file, delete_client_file, update_client_file
 from spinta.auth import ResourceProtector
 from spinta.auth import BearerTokenValidator
 from spinta.auth import get_auth_request
@@ -30,15 +30,13 @@ from spinta.auth import get_auth_token
 from spinta.commands import prepare, get_version
 from spinta.components import Context
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, \
-    UnknownPropertyInRequest, ClientAlreadyExists, InsufficientPermissionForUpdate
+    UnknownPropertyInRequest, InsufficientPermissionForUpdate
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
-from spinta.utils import passwords
 from spinta.utils.response import create_http_response
 from spinta.accesslog import create_accesslog
 from spinta.exceptions import NoAuthServer
-from spinta.utils.types import is_str_uuid
 
 log = logging.getLogger(__name__)
 
@@ -104,17 +102,17 @@ async def auth_clients_add(request: Request):
         path = config.config_path / 'clients'
         data = await request.json()
         for key in data.keys():
-            if key not in ('client_id', 'secret', 'scopes'):
-                raise UnknownPropertyInRequest(property=key, properties=('client_id', 'secret', 'scopes'))
+            if key not in ('client_name', 'secret', 'scopes'):
+                raise UnknownPropertyInRequest(property=key, properties=('client_name', 'secret', 'scopes'))
+        client_id = str(uuid.uuid4())
+        name = data["client_name"] if ("client_name" in data.keys() and data["client_name"]) else client_id
 
-        client_id = ("client_id" in data.keys() and data["client_id"]) or str(uuid.uuid4())
         while client_exists(path, client_id):
-            if "client_id" in data.keys() and data["client_id"]:
-                raise ClientAlreadyExists(client_id=client_id)
             client_id = str(uuid.uuid4())
 
         client_file, client_ = create_client_file(
             path,
+            name,
             client_id,
             data["secret"] if "secret" in data.keys() else None,
             data["scopes"] if "scopes" in data.keys() else None,
@@ -122,6 +120,7 @@ async def auth_clients_add(request: Request):
 
         return JSONResponse({
             "client_id": client_["client_id"],
+            "client_name": name,
             "scopes": client_["scopes"]
         })
 
@@ -142,7 +141,8 @@ async def auth_clients_get_all(request: Request):
         for client_path in ids:
             client = query_client(context, client_path)
             return_values.append({
-                "client_id": client.id
+                "client_id": client.id,
+                "client_name": client.name
             })
         return JSONResponse(return_values)
 
@@ -154,15 +154,17 @@ async def auth_clients_get_specific(request: Request):
     try:
         context = _auth_client_context(request)
         token = context.get('auth.token')
+        config = context.get('config')
+        commands.load(context, config)
+
         client_id = request.path_params["client"]
         if client_id != token.get_client_id():
             check_scope(context, 'auth_clients')
-        config = context.get('config')
-        commands.load(context, config)
 
         client = query_client(context, client_id)
         return_value = {
             "client_id": client.id,
+            "client_name": client.name,
             "scopes": list(client.scopes)
         }
         return JSONResponse(return_value)
@@ -180,10 +182,7 @@ async def auth_clients_delete_specific(request: Request):
         commands.load(context, config)
 
         path = config.config_path / 'clients'
-        query_client(context, client_id)
-        if client_exists(path, client_id):
-            remove_path = get_client_file_path(config.config_path / 'clients', client_id)
-            os.remove(remove_path)
+        delete_client_file(path, client_id)
         return Response(status_code=204)
 
     except InsufficientScopeError:
@@ -196,6 +195,10 @@ async def auth_clients_patch_specific(request: Request):
         token = context.get('auth.token')
         client_id = request.path_params["client"]
 
+        config = context.get('config')
+        commands.load(context, config)
+        path = config.config_path / 'clients'
+
         has_permission = True
         try:
             check_scope(context, 'auth_clients')
@@ -206,50 +209,26 @@ async def auth_clients_patch_specific(request: Request):
 
         data = await request.json()
         for key in data.keys():
-            if key not in ('client_id', 'secret', 'scopes'):
+            if key not in ('client_name', 'secret', 'scopes'):
                 properties = ('secret')
                 if has_permission:
-                    properties = ('client_id', 'secret', 'scopes')
+                    properties = ('client_name', 'secret', 'scopes')
                 raise UnknownPropertyInRequest(property=key, properties=properties)
             elif key != 'secret' and not has_permission:
                 raise InsufficientPermissionForUpdate(field=key)
 
-        config = context.get('config')
-        commands.load(context, config)
-        path = config.config_path / 'clients'
-
-        client = query_client(context, client_id)
-        client_id = data["client_id"] if ("client_id" in data.keys() and data["client_id"]) else client.id
-
-        old_path = get_client_file_path(path, client.id)
-        new_path = get_client_file_path(path, client_id)
-        if client_id != client.id:
-            if client_exists(path, client_id):
-                raise ClientAlreadyExists(client_id=client_id)
-            if is_str_uuid(client_id):
-                os.makedirs(path / 'id' / client_id[:2] / client_id[2:4], exist_ok=True)
-            shutil.move(old_path, new_path)
-
-        yml = ruamel.yaml.YAML()
-        yml.indent(mapping=2, sequence=4, offset=2)
-        yml.width = 80
-        yml.explicit_start = False
-
-        scopes = data["scopes"] if ("scopes" in data.keys()) else client.scopes
-        if not scopes:
-            scopes = []
-        secret = passwords.crypt(data["secret"]) if ("secret" in data.keys() and data["secret"]) else client.secret_hash
-
-        with open(new_path) as fp:
-            data = yml.load(fp)
-        data["client_id"] = client_id
-        data["client_secret_hash"] = secret
-        data["scopes"] = list(scopes)
-        yml.dump(data, new_path)
-
+        new_data = update_client_file(
+            context,
+            path,
+            client_id,
+            name=data["client_name"] if "client_name" in data.keys() and data["client_name"] else None,
+            secret=data["secret"] if "secret" in data.keys() and data["secret"] else None,
+            scopes=data["scopes"] if "scopes" in data.keys() and data["scopes"] is not None else None,
+        )
         return_value = {
-            "client_id": data["client_id"],
-            "scopes": data["scopes"]
+            "client_id": new_data["client_id"],
+            "client_name": new_data["client_name"],
+            "scopes": list(new_data["scopes"])
         }
         return JSONResponse(return_value)
 

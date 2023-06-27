@@ -143,7 +143,8 @@ def client_add(
         else:
             path = pathlib.Path(path)
 
-        name = name or str(uuid.uuid4())
+        client_id = str(uuid.uuid4())
+        name = name or client_id
 
         if scope == '-':
             scope = click.get_text_stream('stdin').read()
@@ -155,6 +156,7 @@ def client_add(
         client_file, client_ = create_client_file(
             path,
             name,
+            client_id,
             secret,
             scope,
             add_secret=add_secret,

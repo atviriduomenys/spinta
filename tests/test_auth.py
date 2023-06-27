@@ -2,6 +2,7 @@ import io
 import json
 import pathlib
 import shutil
+import uuid
 
 import pytest
 import ruamel.yaml
@@ -10,6 +11,7 @@ from authlib.jose import jwk
 from authlib.jose import jwt
 
 from spinta import auth
+from spinta.auth import get_client_file_path
 from spinta.components import Action
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.utils import get_error_codes
@@ -249,9 +251,11 @@ def basic_auth(backends, rc, tmp_path, request):
     shutil.copytree(str(confdir / 'keys'), str(tmp_path / 'keys'))
 
     (tmp_path / 'clients').mkdir()
+    new_id = uuid.uuid4()
     auth.create_client_file(
         tmp_path / 'clients',
-        client='default',
+        name='default',
+        client_id=str(new_id),
         secret='secret',
         scopes=['spinta_getall'],
         add_secret=True,
@@ -307,3 +311,8 @@ def test_http_basic_auth(basic_auth):
     client = basic_auth
     resp = client.get('/reports', auth=('default', 'secret'))
     assert resp.status_code == 200, resp.json()
+
+
+def test_get_client_file_path_uuid(tmp_path):
+    file_name = "a6c06c3a-3aa4-4704-b144-4fc23e2152f7"
+    assert str(get_client_file_path(tmp_path / 'clients', file_name)) == f'{tmp_path}\\clients\\id\\a6\\c0\\6c3a-3aa4-4704-b144-4fc23e2152f7.yml'
