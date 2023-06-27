@@ -243,9 +243,11 @@ def get_auth_token(context: Context) -> Token:
 
     config = context.get('config')
     if config.default_auth_client and 'authorization' not in request.headers:
-        token = create_client_access_token(context, config.default_auth_client)
-        request.headers = request.headers.mutablecopy()
-        request.headers['authorization'] = f'Bearer {token}'
+        default_id = get_client_id_from_name(config.config_path / 'clients', config.default_auth_client)
+        if default_id:
+            token = create_client_access_token(context, default_id)
+            request.headers = request.headers.mutablecopy()
+            request.headers['authorization'] = f'Bearer {token}'
 
     elif config.http_basic_auth:
         token = get_token_from_http_basic_auth(context, request)
@@ -343,7 +345,7 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True):
 def create_client_access_token(context: Context, client: Union[str, Client]):
     private_key = load_key(context, KeyType.private)
     if isinstance(client, str):
-        client = query_client(context, client, is_name=True)
+        client = query_client(context, client)
     expires_in = int(datetime.timedelta(days=10).total_seconds())
     return create_access_token(context, private_key, client.id, expires_in, client.scopes)
 
@@ -473,7 +475,7 @@ def authorized(
     token = context.get('auth.token')
 
     # Unauthorized clients can only access open nodes.
-    unauthorized = token.get_client_id() == config.default_auth_client
+    unauthorized = token.get_client_id() == get_client_id_from_name(config.config_path / 'clients', config.default_auth_client)
 
     open_node = node.access >= Access.open
     if unauthorized and not open_node:
@@ -779,6 +781,15 @@ def handle_auth_client_files(context: Context):
                     migrate_old_client_file(path, item)
 
     create_client_file_name_id_mapping(path)
+
+
+def get_client_id_from_name(path: pathlib.Path, client_name: str):
+    keymap_path = get_keymap_path(path)
+    if keymap_path.exists():
+        keymap = yaml.load(keymap_path)
+        if client_name in keymap.keys():
+            return keymap[client_name]
+    return None
 
 
 def get_keymap_path(path: pathlib.Path):

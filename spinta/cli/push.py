@@ -33,6 +33,7 @@ from typer import echo
 
 from spinta import exceptions
 from spinta import spyna
+from spinta.auth import get_client_id_from_name
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow
 from spinta.cli.helpers.data import count_rows
@@ -158,6 +159,7 @@ def push(
 
     with context:
         auth_client = auth or config.default_auth_client
+        auth_client = get_client_id_from_name(config.config_path / 'clients', auth_client)
         require_auth(context, auth_client)
 
         _attach_backends(context, store, manifest)
