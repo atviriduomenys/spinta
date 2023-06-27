@@ -774,15 +774,16 @@ def handle_auth_client_files(context: Context):
     config = context.get('config')
     path = get_clients_path(config)
 
-    if not (path / 'id').exists():
-        items = os.listdir(path)
-        if items:
-            echo("Client file migrations has started")
-            for item in items:
-                if item.endswith('.yml'):
-                    migrate_old_client_file(path, item)
+    if path.exists():
+        if not (path / 'id').exists():
+            items = os.listdir(path)
+            if items:
+                echo("Client file migrations has started")
+                for item in items:
+                    if item.endswith('.yml'):
+                        migrate_old_client_file(path, item)
 
-    create_client_file_name_id_mapping(path)
+        create_client_file_name_id_mapping(path)
 
 
 def get_client_id_from_name(path: pathlib.Path, client_name: str):

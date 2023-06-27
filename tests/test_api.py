@@ -15,7 +15,7 @@ from spinta.formats.html.helpers import short_id
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import get_html_tree
-from spinta.testing.utils import get_error_codes, get_error_context
+from spinta.testing.utils import get_error_codes, get_error_context, error
 from spinta.testing.manifest import prepare_manifest
 from spinta.testing.data import pushdata
 from spinta.utils.nestedstruct import flatten
@@ -1349,12 +1349,14 @@ def test_auth_clients_create_authorized_incorrect(
         "client_name": "exists"
     })
     assert resp.status_code == 400
+    assert error(resp) == "ClientWithNameAlreadyExists"
 
     resp = app.post('/auth/clients', json={
         "client_name": "exist",
         "new_field": "FIELD"
     })
     assert resp.status_code == 400
+    assert error(resp) == "UnknownPropertyInRequest"
 
     # Clean up
     clean_up_auth_client(context, resp_created.json()["client_id"])
@@ -1373,6 +1375,7 @@ def test_auth_clients_create_unauthorized(
         ]
     })
     assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermission"
 
 
 def test_auth_clients_delete_unauthorized(
@@ -1389,6 +1392,7 @@ def test_auth_clients_delete_unauthorized(
     app.authorize([], strict_set=True)
     resp = app.delete(f'/auth/clients/{resp_create.json()["client_id"]}')
     assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermission"
 
     # Clean up
     clean_up_auth_client(context, resp_create.json()["client_id"])
@@ -1416,6 +1420,7 @@ def test_auth_clients_delete_authorized_incorrect(
     app.authorize(["spinta_auth_clients"])
     resp = app.delete('/auth/clients/non-existent')
     assert resp.status_code == 400
+    assert error(resp) == "InvalidClientError"
 
 
 def test_auth_clients_get_authorized(
@@ -1461,6 +1466,7 @@ def test_auth_clients_get_unauthorized(
     app.authorize(creds=("normal", "secret"), strict_set=True)
     resp = app.get(f'/auth/clients/{resp_created.json()["client_id"]}')
     assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermission"
 
     resp = app.get(f'/auth/clients/{resp_created_own.json()["client_id"]}')
     assert resp.status_code == 200
@@ -1542,6 +1548,7 @@ def test_auth_clients_get_all_unauthorized(
 
     resp = app.get('/auth/clients')
     assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermission"
 
     # Clean up
     clean_up_auth_client(context, resp_one.json()["client_id"])
@@ -1631,6 +1638,7 @@ def test_auth_clients_update_authorized_admin_incorrect(
         "client_name": "TEST"
     })
     assert resp.status_code == 400
+    assert error(resp) == "ClientWithNameAlreadyExists"
     # Clean up
     clean_up_auth_client(context, resp_test.json()["client_id"])
     clean_up_auth_client(context, resp_new.json()["client_id"])
@@ -1693,6 +1701,7 @@ def test_auth_clients_update_authorized_incorrect(
         "client_name": "NEW"
     })
     assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermissionForUpdate"
 
     resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
         "scopes": [
@@ -1700,11 +1709,13 @@ def test_auth_clients_update_authorized_incorrect(
         ]
     })
     assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermissionForUpdate"
 
     resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
         "something": "else"
     })
     assert resp.status_code == 400
+    assert error(resp) == "UnknownPropertyInRequest"
 
     # Clean up
     clean_up_auth_client(context, resp_created.json()["client_id"])
@@ -1730,6 +1741,7 @@ def test_auth_clients_update_unauthorized(
         "secret": "NEW"
     })
     assert resp.status_code == 403
+    assert error(resp) == "InsufficientPermission"
 
     # Clean up
     clean_up_auth_client(context, resp_created.json()["client_id"])

@@ -161,7 +161,7 @@ def test_invalid_client(app):
 
     assert resp.json() == {
         "error": "invalid_client",
-        "error_description": "Invalid client id or secret"
+        "error_description": "Invalid client name"
     }
 
 
