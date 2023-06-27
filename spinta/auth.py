@@ -90,7 +90,7 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
         pass
 
     def _query_client(self, client_name):
-        return query_client(self._context, client_name, is_name=True)
+        return query_client(get_clients_path(self._context.get('config')), client_name, is_name=True)
 
     def _save_token(self, token, request):
         pass
@@ -243,7 +243,7 @@ def get_auth_token(context: Context) -> Token:
 
     config = context.get('config')
     if config.default_auth_client and 'authorization' not in request.headers:
-        default_id = get_client_id_from_name(config.config_path / 'clients', config.default_auth_client)
+        default_id = get_client_id_from_name(get_clients_path(config), config.default_auth_client)
         if default_id:
             token = create_client_access_token(context, default_id)
             request.headers = request.headers.mutablecopy()
@@ -282,7 +282,8 @@ def get_token_from_http_basic_auth(context: Context, request: OAuth2Request):
 
     # Get client.
     try:
-        client = query_client(context, client, is_name=True)
+        config = context.get('config')
+        client = query_client(get_clients_path(config), client, is_name=True)
     except InvalidClientError:
         raise BasicAuthRequired()
 
@@ -381,9 +382,7 @@ def create_access_token(
     return jwt.encode(header, payload, private_key).decode('ascii')
 
 
-def query_client(context: Context, client: str, is_name: bool = False) -> Client:
-    config = context.get('config')
-    path = config.config_path / 'clients'
+def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Client:
     if is_name:
         keymap_path = get_keymap_path(path)
         if keymap_path.exists():
@@ -475,7 +474,7 @@ def authorized(
     token = context.get('auth.token')
 
     # Unauthorized clients can only access open nodes.
-    unauthorized = token.get_client_id() == get_client_id_from_name(config.config_path / 'clients', config.default_auth_client)
+    unauthorized = token.get_client_id() == get_client_id_from_name(get_clients_path(config), config.default_auth_client)
 
     open_node = node.access >= Access.open
     if unauthorized and not open_node:
@@ -676,7 +675,8 @@ def update_client_file(
     scopes: list
 ):
     if client_exists(path, client_id):
-        client = query_client(context, client_id)
+        config = context.get("config")
+        client = query_client(get_clients_path(config), client_id)
         keymap_path = get_keymap_path(path)
 
         new_name = name if name else client.name
@@ -770,7 +770,7 @@ def create_client_file_name_id_mapping(path: pathlib.Path):
 
 def handle_auth_client_files(context: Context):
     config = context.get('config')
-    path = config.config_path / 'clients'
+    path = get_clients_path(config)
 
     if not (path / 'id').exists():
         items = os.listdir(path)
@@ -794,3 +794,10 @@ def get_client_id_from_name(path: pathlib.Path, client_name: str):
 
 def get_keymap_path(path: pathlib.Path):
     return path / 'helpers' / 'keymap.yml'
+
+
+def get_clients_path(path: Union[Config, pathlib.Path]):
+    if isinstance(path, pathlib.Path):
+        return path / 'clients'
+    return path.config_path / 'clients'
+

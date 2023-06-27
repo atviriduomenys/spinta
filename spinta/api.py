@@ -22,7 +22,7 @@ from starlette.middleware import Middleware
 
 from spinta import components, commands
 from spinta.auth import AuthorizationServer, check_scope, query_client, get_clients_list, \
-    client_exists, create_client_file, delete_client_file, update_client_file
+    client_exists, create_client_file, delete_client_file, update_client_file, get_clients_path
 from spinta.auth import ResourceProtector
 from spinta.auth import BearerTokenValidator
 from spinta.auth import get_auth_request
@@ -99,7 +99,7 @@ async def auth_clients_add(request: Request):
         config = context.get('config')
         commands.load(context, config)
 
-        path = config.config_path / 'clients'
+        path = get_clients_path(config)
         data = await request.json()
         for key in data.keys():
             if key not in ('client_name', 'secret', 'scopes'):
@@ -135,11 +135,11 @@ async def auth_clients_get_all(request: Request):
         config = context.get('config')
         commands.load(context, config)
 
-        path = config.config_path / 'clients'
+        path = get_clients_path(config)
         ids = get_clients_list(path)
         return_values = []
         for client_path in ids:
-            client = query_client(context, client_path)
+            client = query_client(path, client_path)
             return_values.append({
                 "client_id": client.id,
                 "client_name": client.name
@@ -161,7 +161,8 @@ async def auth_clients_get_specific(request: Request):
         if client_id != token.get_client_id():
             check_scope(context, 'auth_clients')
 
-        client = query_client(context, client_id)
+        path = get_clients_path(config)
+        client = query_client(path, client_id)
         return_value = {
             "client_id": client.id,
             "client_name": client.name,
@@ -181,7 +182,7 @@ async def auth_clients_delete_specific(request: Request):
         config = context.get('config')
         commands.load(context, config)
 
-        path = config.config_path / 'clients'
+        path = get_clients_path(config)
         delete_client_file(path, client_id)
         return Response(status_code=204)
 
@@ -197,7 +198,7 @@ async def auth_clients_patch_specific(request: Request):
 
         config = context.get('config')
         commands.load(context, config)
-        path = config.config_path / 'clients'
+        path = get_clients_path(config)
 
         has_permission = True
         try:

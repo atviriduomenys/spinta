@@ -7,7 +7,7 @@ from typing import cast
 
 import pytest
 
-from spinta.auth import query_client, delete_client_file
+from spinta.auth import query_client, delete_client_file, get_clients_path
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.formats.html.components import Cell
@@ -61,13 +61,13 @@ def _cleaned_context(
 
 def clean_up_auth_client(context: Context, client_id: str):
     config = context.get('config')
-    path = config.config_path / 'clients'
+    path = get_clients_path(config)
     delete_client_file(path, client_id)
 
 
 def ensure_clients_dont_exist(context: Context, client_ids: list):
     config = context.get('config')
-    path = config.config_path / 'clients'
+    path = get_clients_path(config)
     keymap_path = path / 'helpers' / 'keymap.yml'
     if keymap_path.exists():
         keymap = yaml.load(keymap_path)

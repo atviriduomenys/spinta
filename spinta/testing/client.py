@@ -30,7 +30,7 @@ from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.testing.context import TestContext
 from spinta.testing.context import create_test_context
-from spinta.auth import create_client_file
+from spinta.auth import create_client_file, get_clients_path
 from spinta.testing.config import create_config_path
 
 
@@ -100,7 +100,7 @@ def create_remote_server(
 
     if scopes:
         client_file, client = create_client_file(
-            confdir / 'clients',
+            get_clients_path(confdir),
             client_id=str(uuid.uuid4()),
             name=client,
             secret=secret,
