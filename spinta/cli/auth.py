@@ -141,6 +141,7 @@ def client_add(
             path = get_clients_path(config)
             path.mkdir(exist_ok=True)
         else:
+            path = pathlib.Path(path)
             if not str(path).endswith('clients'):
                 path = get_clients_path(path)
 

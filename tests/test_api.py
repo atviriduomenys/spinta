@@ -1302,6 +1302,7 @@ def test_auth_clients_create_authorized_correct(
     scopes: list,
     secret: str
 ):
+    path = get_clients_path(context.get('config'))
     if client_name:
         ensure_clients_dont_exist(context, [client_name])
     app.authorize(["spinta_auth_clients"])
@@ -1326,7 +1327,7 @@ def test_auth_clients_create_authorized_correct(
     if not client_name:
         assert is_str_uuid(resp_client_name)
     if secret:
-        client = query_client(context, client=resp_json["client_id"])
+        client = query_client(path, client=resp_json["client_id"])
         assert client.check_client_secret(secret)
 
     # Clean up
@@ -1562,6 +1563,7 @@ def test_auth_clients_update_authorized_admin_correct(
     scopes: list,
     secret: str
 ):
+    path = get_clients_path(context.get("config"))
     ensure_clients_dont_exist(context, ["TEST", client_name])
     app.authorize(["spinta_auth_clients"])
     resp = app.post('/auth/clients', json={
@@ -1592,7 +1594,7 @@ def test_auth_clients_update_authorized_admin_correct(
     }
     if not client_name:
         assert resp_client_name == "TEST"
-    client = query_client(context, client=resp_json["client_id"])
+    client = query_client(path, client=resp_json["client_id"])
     if secret:
         assert client.check_client_secret(secret)
     else:
@@ -1638,6 +1640,7 @@ def test_auth_clients_update_authorized_correct(
     context: Context,
     app: TestClient
 ):
+    path = get_clients_path(context.get("config"))
     ensure_clients_dont_exist(context, ["TEST"])
     app.authorize(["spinta_auth_clients"])
     resp = app.post('/auth/clients', json={
@@ -1663,7 +1666,7 @@ def test_auth_clients_update_authorized_correct(
             "spinta_getall"
         ]
     }
-    client = query_client(context, client=resp_json["client_id"])
+    client = query_client(path, client=resp_json["client_id"])
     assert client.check_client_secret("NEW_SECRET")
 
     # Clean up

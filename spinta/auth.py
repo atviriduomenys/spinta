@@ -346,7 +346,7 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True):
 def create_client_access_token(context: Context, client: Union[str, Client]):
     private_key = load_key(context, KeyType.private)
     if isinstance(client, str):
-        client = query_client(context, client)
+        client = query_client(get_clients_path(context.get('config')), client)
     expires_in = int(datetime.timedelta(days=10).total_seconds())
     return create_access_token(context, private_key, client.id, expires_in, client.scopes)
 
@@ -406,6 +406,7 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
 
 def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
     is_uuid = is_str_uuid(client)
+    print(path)
     client_file = path / 'unknown' / f'{client}.yml'
     if is_uuid:
         client_file = path / 'id' / client[:2] / client[2:4] / f'{client[4:]}.yml'
@@ -596,6 +597,7 @@ def create_client_file(
     *,
     add_secret: bool = False,
 ) -> Tuple[pathlib.Path, dict]:
+    print(path)
     client_file = get_client_file_path(path, client_id)
     keymap_path = get_keymap_path(path)
 
