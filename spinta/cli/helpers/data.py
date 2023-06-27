@@ -11,6 +11,7 @@ from typing import Tuple
 
 import tqdm
 
+import spinta.components
 from spinta import commands
 from spinta import components
 from spinta.cli.helpers.errors import ErrorCounter
@@ -32,6 +33,8 @@ def _get_row_count(
     model: components.Model,
 ) -> int:
     query = Expr('select', Expr('count'))
+    if isinstance(model, spinta.components.Base):
+        model = model.model
     stream = commands.getall(context, model, model.backend, query=query)
     for data in stream:
         return data['count()']
@@ -76,6 +79,9 @@ def _read_model_data(
         query = None
     else:
         query = Expr('limit', limit)
+
+    if isinstance(model, spinta.components.Base):
+        model = model.model
 
     stream = commands.getall(context, model, model.backend, query=query)
 

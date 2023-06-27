@@ -17,6 +17,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from toposort import toposort
 
+import spinta.components
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
@@ -239,10 +240,15 @@ def traverse_ns_models(
     *,
     internal: bool = False,
 ):
-    models = (ns.models or {})
+    models = (ns.manifest.models or {})
     for model in models.values():
-        if _model_matches_params(context, model, action, dataset_, resource, internal):
-            yield model
+        if _model_matches_params(context, model, action, dataset_, resource, internal, True if model.base else False):
+            if model.base:
+                tmp_model_base_list = [model, model.base]
+                for tmp_model in tmp_model_base_list:
+                    yield tmp_model
+            else:
+                yield model
     for ns_ in ns.names.values():
         if not internal and ns_.name.startswith('_'):
             continue
@@ -263,7 +269,11 @@ def _model_matches_params(
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
     internal: bool = False,
+    base: bool = False
 ):
+    if base:
+        return True
+
     if not internal and model.name.startswith('_'):
         return False
 
@@ -441,6 +451,7 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
 
 
 def iter_model_refs(model: Model) -> Iterator[Ref]:
-    for prop in model.properties.values():
-        if prop.dtype.name == 'ref':
-            yield prop.dtype
+    if not isinstance(model, spinta.components.Base):
+        for prop in model.properties.values():
+            if prop.dtype.name == 'ref':
+                yield prop.dtype
