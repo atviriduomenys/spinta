@@ -450,13 +450,13 @@ def get_clients_list(path: pathlib.Path) -> list:
     items = os.listdir(path)
     ids = []
     if 'id' in items:
-        id_items = os.listdir(f'{path}\\id')
+        id_items = os.listdir(path / 'id')
         for id0 in id_items:
             if len(id0) == 2:
-                id0_items = os.listdir(f'{path}\\id\\{id0}')
+                id0_items = os.listdir(path / 'id' / id0)
                 for id1 in id0_items:
                     if len(id1) == 2:
-                        id1_items = os.listdir(f'{path}\\id\\{id0}\\{id1}')
+                        id1_items = os.listdir(path / 'id' / id0 / id1)
                         for uuid_item in id1_items:
                             if uuid_item.endswith('.yml') and len(uuid_item) == 36:
                                 ids.append(f'{id0}{id1}{uuid_item[:-4]}')

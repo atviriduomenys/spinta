@@ -14,6 +14,7 @@ from typer import Option
 from typer import echo
 
 from spinta import commands
+from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context, Property, Node, Namespace
 from spinta.components import Mode
@@ -73,38 +74,40 @@ def inspect(
         mode=Mode.external,
         backend=backend,
     )
-    store = load_manifest(context, ensure_config_dir=True)
-    old = store.manifest
-    manifest = Manifest()
-    init_manifest(context, manifest, 'inspect')
-    commands.merge(context, manifest, manifest, old, has_manifest_priority)
+    with context:
+        require_auth(context, auth)
+        store = load_manifest(context, ensure_config_dir=True)
+        old = store.manifest
+        manifest = Manifest()
+        init_manifest(context, manifest, 'inspect')
+        commands.merge(context, manifest, manifest, old, has_manifest_priority)
 
-    if not resources:
-        resources = []
-        for ds in old.datasets.values():
-            for resource in ds.resources.values():
-                external = resource.external
-                if external == '' and resource.backend:
-                    external = resource.backend.config['dsn']
-                if not any(res.external == external for res in resources):
-                    resources.append(ResourceTuple(type=resource.type, external=external, prepare=resource.prepare))
+        if not resources:
+            resources = []
+            for ds in old.datasets.values():
+                for resource in ds.resources.values():
+                    external = resource.external
+                    if external == '' and resource.backend:
+                        external = resource.backend.config['dsn']
+                    if not any(res.external == external for res in resources):
+                        resources.append(ResourceTuple(type=resource.type, external=external, prepare=resource.prepare))
 
-    if resources:
-        for resource in resources:
-            _merge(context, manifest, manifest, resource, has_manifest_priority)
+        if resources:
+            for resource in resources:
+                _merge(context, manifest, manifest, resource, has_manifest_priority)
 
-    # Sort models for render
-    sorted_models = {}
-    for key, model in manifest.models.items():
-        if key not in sorted_models.keys():
-            if model.external and model.external.resource:
-                resource = model.external.resource
-                for resource_key, resource_model in resource.models.items():
-                    if resource_key not in sorted_models.keys():
-                        sorted_models[resource_key] = resource_model
-            else:
-                sorted_models[key] = model
-    manifest.objects['model'] = sorted_models
+        # Sort models for render
+        sorted_models = {}
+        for key, model in manifest.models.items():
+            if key not in sorted_models.keys():
+                if model.external and model.external.resource:
+                    resource = model.external.resource
+                    for resource_key, resource_model in resource.models.items():
+                        if resource_key not in sorted_models.keys():
+                            sorted_models[resource_key] = resource_model
+                else:
+                    sorted_models[key] = model
+        manifest.objects['model'] = sorted_models
 
     if output:
         write_tabular_manifest(output, manifest)
