@@ -63,13 +63,15 @@ def test_genkeys(rc, cli: SpintaCliRunner, tmp_path):
 def test_client_add_old(rc, cli: SpintaCliRunner, tmp_path):
     result = cli.invoke(rc, ['client', 'add', '-p', tmp_path, '-n', 'test'])
 
-    client_file = pathlib.Path(str(next(tmp_path.iterdir())))
+    for child in tmp_path.glob('**/*'):
+        client_file = child
     assert f'client created and saved to:\n\n    {client_file}' in result.output
 
     yaml = ruamel.yaml.YAML(typ='safe')
     client = yaml.load(client_file)
     assert client == {
         'client_id': client['client_id'],
+        'client_name': 'test',
         'client_secret_hash': client['client_secret_hash'],
         'scopes': [],
     }
@@ -86,6 +88,7 @@ def test_client_add(rc, cli: SpintaCliRunner, tmp_path):
     client = yaml.load(client_file)
     assert client == {
         'client_id': client['client_id'],
+        'client_name': client['client_id'],
         'client_secret_hash': client['client_secret_hash'],
         'scopes': [],
     }
