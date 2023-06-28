@@ -108,7 +108,7 @@ def create_remote_server(
             add_secret=True,
         )
         secret = client['client_secret']
-        client = client['client_id']
+        client = client['client_name']
 
     if credsfile:
         if credsfile is True:
