@@ -604,3 +604,7 @@ class ClientWithNameAlreadyExists(UserError):
 
 class ClientAlreadyExists(UserError):
     template = "Client '{client_id}' already exists."
+
+
+class EmptyPassword(UserError):
+    template = "Client password cannot be empty."

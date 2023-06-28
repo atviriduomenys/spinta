@@ -1290,11 +1290,10 @@ def test_delete_batch(
 
 @pytest.mark.parametrize('client_name, scopes, secret', [
     ("test_client_id", ["spinta_getall"], "secret"),
-    (None, None, None),
-    ("test_only_client", None, None),
-    (None, ["spinta_getall"], None),
+    ("test_only_client", None, "req"),
+    (None, ["spinta_getall"], "req"),
     (None, None, "onlysecret")
-], ids=["all given", "none given", "only name", "only scope", "only secret"])
+], ids=["all given", "only name", "only scope", "only secret"])
 def test_auth_clients_create_authorized_correct(
     context: Context,
     app: TestClient,
@@ -1341,22 +1340,38 @@ def test_auth_clients_create_authorized_incorrect(
     ensure_clients_dont_exist(context, ["exists"])
     app.authorize(["spinta_auth_clients"])
     resp_created = app.post('/auth/clients', json={
-        "client_name": "exists"
+        "client_name": "exists",
+        "secret": "secret"
     })
     assert resp_created.status_code == 200
 
     resp = app.post('/auth/clients', json={
-        "client_name": "exists"
+        "client_name": "exists",
+        "secret": "secret"
     })
     assert resp.status_code == 400
     assert error(resp) == "ClientWithNameAlreadyExists"
 
     resp = app.post('/auth/clients', json={
         "client_name": "exist",
+        "secret": "secret",
         "new_field": "FIELD"
     })
     assert resp.status_code == 400
     assert error(resp) == "UnknownPropertyInRequest"
+
+    resp = app.post('/auth/clients', json={
+        "client_name": "exist0"
+    })
+    assert resp.status_code == 400
+    assert error(resp) == "EmptyPassword"
+
+    resp = app.post('/auth/clients', json={
+        "client_name": "exist1",
+        "secret": ""
+    })
+    assert resp.status_code == 400
+    assert error(resp) == "EmptyPassword"
 
     # Clean up
     clean_up_auth_client(context, resp_created.json()["client_id"])
@@ -1385,7 +1400,8 @@ def test_auth_clients_delete_unauthorized(
     ensure_clients_dont_exist(context, ["to_delete"])
     app.authorize(["spinta_auth_clients"])
     resp_create = app.post('/auth/clients', json={
-        "client_name": "to_delete"
+        "client_name": "to_delete",
+        "secret": "secret"
     })
     assert resp_create.status_code == 200
 
@@ -1405,7 +1421,8 @@ def test_auth_clients_delete_authorized_correct(
     ensure_clients_dont_exist(context, ["to_delete"])
     app.authorize(["spinta_auth_clients"])
     resp = app.post('/auth/clients', json={
-        "client_name": "to_delete"
+        "client_name": "to_delete",
+        "secret": "secret"
     })
     assert resp.status_code == 200
 
@@ -1430,7 +1447,8 @@ def test_auth_clients_get_authorized(
     ensure_clients_dont_exist(context, ["to_get"])
     app.authorize(["spinta_auth_clients"])
     resp_created = app.post('/auth/clients', json={
-        "client_name": "to_get"
+        "client_name": "to_get",
+        "secret": "secret"
     })
     resp = app.get(f'/auth/clients/{resp_created.json()["client_id"]}')
     resp_json = resp.json()
@@ -1453,7 +1471,8 @@ def test_auth_clients_get_unauthorized(
     ensure_clients_dont_exist(context, ["to_get", 'normal'])
     app.authorize(["spinta_auth_clients"])
     resp_created = app.post('/auth/clients', json={
-        "client_name": "to_get"
+        "client_name": "to_get",
+        "secret": "secret"
     })
     assert resp_created.status_code == 200
 
@@ -1489,15 +1508,18 @@ def test_auth_clients_get_all_authorized(
     app.authorize(["spinta_auth_clients"])
 
     resp_one = app.post('/auth/clients', json={
-        "client_name": "one"
+        "client_name": "one",
+        "secret": "secret"
     })
     assert resp_one.status_code == 200
     resp_two = app.post('/auth/clients', json={
-        "client_name": "two"
+        "client_name": "two",
+        "secret": "secret"
     })
     assert resp_two.status_code == 200
     resp_three = app.post('/auth/clients', json={
-        "client_name": "three"
+        "client_name": "three",
+        "secret": "secret"
     })
     assert resp_three.status_code == 200
 
@@ -1536,11 +1558,13 @@ def test_auth_clients_get_all_unauthorized(
     })
     assert resp_one.status_code == 200
     resp_two = app.post('/auth/clients', json={
-        "client_name": "two"
+        "client_name": "two",
+        "secret": "secret"
     })
     assert resp_two.status_code == 200
     resp_three = app.post('/auth/clients', json={
-        "client_name": "three"
+        "client_name": "three",
+        "secret": "secret"
     })
     assert resp_three.status_code == 200
 
@@ -1716,6 +1740,12 @@ def test_auth_clients_update_authorized_incorrect(
     })
     assert resp.status_code == 400
     assert error(resp) == "UnknownPropertyInRequest"
+
+    resp = app.patch(f'/auth/clients/{resp_created.json()["client_id"]}', json={
+        "secret": ""
+    })
+    assert resp.status_code == 400
+    assert error(resp) == "EmptyPassword"
 
     # Clean up
     clean_up_auth_client(context, resp_created.json()["client_id"])

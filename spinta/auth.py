@@ -598,7 +598,6 @@ def create_client_file(
     *,
     add_secret: bool = False,
 ) -> Tuple[pathlib.Path, dict]:
-    print(path)
     client_file = get_client_file_path(path, client_id)
     keymap_path = get_keymap_path(path)
 

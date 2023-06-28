@@ -30,7 +30,7 @@ from spinta.auth import get_auth_token
 from spinta.commands import prepare, get_version
 from spinta.components import Context
 from spinta.exceptions import BaseError, MultipleErrors, error_response, InsufficientPermission, \
-    UnknownPropertyInRequest, InsufficientPermissionForUpdate
+    UnknownPropertyInRequest, InsufficientPermissionForUpdate, EmptyPassword
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
@@ -110,11 +110,14 @@ async def auth_clients_add(request: Request):
         while client_exists(path, client_id):
             client_id = str(uuid.uuid4())
 
+        if "secret" in data.keys() and not data["secret"] or "secret" not in data.keys():
+            raise EmptyPassword
+
         client_file, client_ = create_client_file(
             path,
             name,
             client_id,
-            data["secret"] if "secret" in data.keys() else None,
+            data["secret"],
             data["scopes"] if "scopes" in data.keys() else None,
         )
 
@@ -217,6 +220,9 @@ async def auth_clients_patch_specific(request: Request):
                 raise UnknownPropertyInRequest(property=key, properties=properties)
             elif key != 'secret' and not has_permission:
                 raise InsufficientPermissionForUpdate(field=key)
+
+        if "secret" in data.keys() and not data["secret"]:
+            raise EmptyPassword
 
         new_data = update_client_file(
             context,
