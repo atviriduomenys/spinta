@@ -64,7 +64,8 @@ def test_client_add_old(rc, cli: SpintaCliRunner, tmp_path):
     result = cli.invoke(rc, ['client', 'add', '-p', tmp_path, '-n', 'test'])
 
     for child in tmp_path.glob('**/*'):
-        client_file = child
+        if not str(child).endswith("keymap.yml"):
+            client_file = child
     assert f'client created and saved to:\n\n    {client_file}' in result.output
 
     yaml = ruamel.yaml.YAML(typ='safe')
@@ -81,7 +82,8 @@ def test_client_add(rc, cli: SpintaCliRunner, tmp_path):
     result = cli.invoke(rc, ['client', 'add', '-p', tmp_path])
 
     for child in tmp_path.glob('**/*'):
-        client_file = child
+        if not str(child).endswith("keymap.yml"):
+            client_file = child
     assert f'client created and saved to:\n\n    {client_file}' in result.output
 
     yaml = ruamel.yaml.YAML(typ='safe')
