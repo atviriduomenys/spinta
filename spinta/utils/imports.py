@@ -23,3 +23,11 @@ def full_class_name(obj: Any) -> str:
     else:
         klass = obj
     return f'{klass.__module__}.{klass.__name__}'
+
+
+def use(group_name, module_name):
+    try:
+        module = importlib.import_module(module_name)
+        return module
+    except Exception as e:
+        print(e)
