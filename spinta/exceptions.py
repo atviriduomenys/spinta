@@ -586,7 +586,7 @@ class CompositeUniqueConstraint(UserError):
 
 class PackageMissing(UserError):
     template = "You are missing {module} module. In order to use {feature} functionality you need to install additional packages:\n " \
-               "please use the following command: pip install {dependency}"
+               "please use the following command: poetry install --with {feature}"
 
 
 class ModuleNotInGroup(UserError):
