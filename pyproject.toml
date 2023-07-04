@@ -202,10 +202,10 @@ optional = true
 pytz = "^2022.2.1"
 
 # Docs
-[tool.poetry.group.docs]
-optional = true
-
-[tool.poetry.group.docs.dependencies]
+#[tool.poetry.group.docs]
+#optional = true
+#
+#[tool.poetry.group.docs.dependencies]
 sphinx = "^5.2.3"
 sphinx-autobuild = "^2021.3.14"
 sphinxcontrib-httpdomain = "^1.8.0"
