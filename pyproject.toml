@@ -96,7 +96,7 @@ typer = "^0.6.1"
 optional = true
 
 [tool.poetry.group.yaml.dependencies]
-"ruamel.yaml" = "^0.17.21"
+"ruamel_yaml" = "^0.17.21"
 # FIXME: https://setuptools.readthedocs.io/en/latest/history.html#v58-0-0
 #        simpleeval package uses use_2to3 thus it is not compatbile with
 #        setuptools>=58
