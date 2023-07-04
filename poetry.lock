@@ -1748,17 +1748,6 @@ files = [
 ]
 
 [[package]]
-name = "objprint"
-version = "0.1.4"
-description = "A library that can print Python objects in human readable format"
-optional = false
-python-versions = ">=3.6"
-files = [
-    {file = "objprint-0.1.4-py3-none-any.whl", hash = "sha256:af46c3b002098db11d9a7340bc728848ec97f3bb278a460169ff9482719a6e9d"},
-    {file = "objprint-0.1.4.tar.gz", hash = "sha256:df237e330ff78b9661a9b84d2ee3aa6fcda56d6f185793e3942e78cea7601ff4"},
-]
-
-[[package]]
 name = "openpyxl"
 version = "3.1.2"
 description = "A Python library to read/write Excel 2010 xlsx/xlsm files"
@@ -3539,4 +3528,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "0cd3f35b23471f43f8338ad20cb763e7839d1cbffe03d9e5fafd732f90319d54"
+content-hash = "b072ef3afb1171114c1fe22f6c40f5e5679690b20930bae517fd16f9a63dc05b"

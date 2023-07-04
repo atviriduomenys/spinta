@@ -10,9 +10,7 @@ from itertools import islice
 from traceback import format_stack
 from spinta.utils.imports import use
 
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from typing import Any, Dict, Iterator, TextIO, Type
+from typing import Any, Dict, Iterator, TextIO, Type
 
 from pygments import highlight
 from pygments.formatters.terminal256 import Terminal256Formatter
