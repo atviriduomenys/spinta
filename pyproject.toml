@@ -47,6 +47,7 @@ rdflib = '^6.3.2'
 jsonpatch = "^1.32"
 
 #HTTP
+objprint = "^0.2.2"
 [tool.poetry.group.http]
 optional = true
 
