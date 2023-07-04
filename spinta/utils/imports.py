@@ -27,7 +27,7 @@ def full_class_name(obj: Any) -> str:
     return f'{klass.__module__}.{klass.__name__}'
 
 
-def use(group_name, module_name):
+def use(group_name, module_name, package=None):
     DEPENDENCIES = {
         'htpp': ['spinta[http]'],
         'log': ['spinta[log]'],
@@ -85,7 +85,6 @@ def use(group_name, module_name):
             'asyncpg': 'postgres',
             'psycopg2-binary': 'postgres',
             'sqlalchemy': 'postgres',
-            'hello': 'postgres'
         },
         'mongo': {
             'pymongo': 'mongo',
@@ -136,9 +135,12 @@ def use(group_name, module_name):
 
     needed_modules = PACKAGES[group_name]
     dependency = DEPENDENCIES[group_name]
+    full_module_name = module_name
+    if '.' in module_name:
+        module_name = module_name.split('.')[0]
     if module_name in needed_modules:
         try:
-            module = importlib.import_module(module_name)
+            module = importlib.import_module(full_module_name, package=package)
         except Exception as e:
             raise PackageMissing(feature=group_name, dependency=dependency[0])
         return module
