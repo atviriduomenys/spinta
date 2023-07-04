@@ -585,7 +585,7 @@ class CompositeUniqueConstraint(UserError):
 
 
 class PackageMissing(UserError):
-    template = "In order to use {feature} functionality you need to install additional packages:\n " \
+    template = "You are missing {module} module. In order to use {feature} functionality you need to install additional packages:\n " \
                "please use the following command: pip install {dependency}"
 
 
