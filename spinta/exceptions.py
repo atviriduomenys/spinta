@@ -584,5 +584,10 @@ class CompositeUniqueConstraint(UserError):
     template = "Given values for composition of properties ({properties}) already exist."
 
 
-class NotImplementedFeature(BaseError):
-    template = "{feature} is not implemented yet."
+class PackageMissing(UserError):
+    template = "In order to use {feature} functionality you need to install additional packages:\n " \
+               "please use the following command: pip install {dependency}"
+
+
+class ModuleNotInGroup(UserError):
+    template = "The module {module} does not belong to the group {group}."

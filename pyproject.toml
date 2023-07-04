@@ -201,6 +201,21 @@ optional = true
 [tool.poetry.group.test.dependencies]
 pytz = "^2022.2.1"
 
+# Docs
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^5.2.3"
+sphinx-autobuild = "^2021.3.14"
+sphinxcontrib-httpdomain = "^1.8.0"
+memory-profiler = "^0.58.0"
+mypy = "^0.812"
+cssselect = "^1.1.0"
+objprint = "^0.1.4"
+sphinx-rtd-theme = "^1.0.0"
+sqlalchemy-stubs = "^0.4"
+
 [tool.poetry.group.dev.dependencies]
 ipdb = "^0.13.9"
 ipython = "^8.5.0"
@@ -214,17 +229,6 @@ snoop = "^0.4.2"
 # https://github.com/kvesteri/sqlalchemy-utils/issues/472
 sqlalchemy-utils = "~0.37"
 python-dotenv = "^0.21.0"
-
-# Docs
-sphinx = "^5.2.3"
-sphinx-autobuild = "^2021.3.14"
-sphinxcontrib-httpdomain = "^1.8.0"
-memory-profiler = "^0.58.0"
-mypy = "^0.812"
-cssselect = "^1.1.0"
-objprint = "^0.1.4"
-sphinx-rtd-theme = "^1.0.0"
-sqlalchemy-stubs = "^0.4"
 
 [_tool.poetry.extras]
 [build-system]
