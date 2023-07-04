@@ -4,25 +4,25 @@ import os
 import re
 import sys
 import time as time_module
+import pprintpp
 from itertools import chain
 from itertools import islice
 from traceback import format_stack
-from typing import Any
-from typing import Dict
-from typing import Iterator
-from typing import TextIO
-from typing import Type
+from spinta.utils.imports import use
 
-import objprint
-import pprintpp
-import sqlparse
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Any, Dict, Iterator, TextIO, Type
+
 from pygments import highlight
 from pygments.formatters.terminal256 import Terminal256Formatter
 from pygments.lexers.python import Python3Lexer
 from pygments.lexers.python import Python3TracebackLexer
 from pygments.lexers.sql import PostgresLexer
-from sqlalchemy.sql import ClauseElement
 
+objprint = use('docs', 'objprint')
+sqlparse = use('sql', 'sqlparse')
+ClauseElement = use('postgres', 'sqlalchemy.sql', 'ClauseElement')
 
 objprint.config(honor_existing=False, depth=1)
 
