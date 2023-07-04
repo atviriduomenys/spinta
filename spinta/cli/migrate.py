@@ -1,6 +1,9 @@
 import asyncio
-from typing import List
+import json
+import os
+from typing import List, TypedDict, Dict
 from typing import Optional
+from typer import Option
 
 import click
 from typer import Argument
@@ -8,7 +11,7 @@ from typer import Context as TyperContext
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.store import load_store
+from spinta.cli.helpers.store import load_store, load_manifest
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.core.context import configure_context
 
@@ -51,14 +54,29 @@ def migrate(
     manifests: Optional[List[str]] = Argument(None, help=(
         "Manifest files to load"
     )),
+    plan: bool = Option(False, '-p', '--plan', help=(
+        "If added, prints SQL code instead of executing it"
+    ), is_flag=True),
+    rename: str = Option(None, '-r', '--rename', help=(
+        "JSON file, that maps manifest node renaming (models, properties)"
+    ))
 ):
     """Migrate schema change to backends"""
     context = configure_context(ctx.obj, manifests)
-    store = prepare_manifest(context, ensure_config_dir=True)
+    store = prepare_manifest(context)
     with context:
         require_auth(context)
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(commands.migrate(context, store.manifest))
+        manifest = store.manifest
+        backend = manifest.backend
+        migrate_meta = MigrateMeta(
+            plan=plan,
+            rename=MigrateRename(
+                path=rename
+            )
+        )
+        if backend:
+            context.attach(f'transaction.{backend.name}', backend.begin)
+            commands.migrate(context, manifest, backend, migrate_meta)
 
 
 def freeze(ctx: TyperContext):
@@ -75,3 +93,82 @@ def freeze(ctx: TyperContext):
         require_auth(context)
         commands.freeze(context, store.manifest)
     click.echo("Done.")
+
+
+class MigrateTableRename(TypedDict):
+    name: str
+    new_name: str
+    columns: Dict[str, str]
+
+
+class MigrateRename:
+    tables: Dict[str, MigrateTableRename]
+
+    def __init__(self, path: str):
+        self.tables = {}
+        self.parse_json_file(path)
+
+    def insert_table(self, table_name: str):
+        self.tables[table_name] = MigrateTableRename(
+            name=table_name,
+            new_name=table_name,
+            columns={}
+        )
+
+    def insert_column(self, table_name: str, column_name: str, new_column_name: str):
+        if table_name not in self.tables.keys():
+            self.insert_table(table_name)
+        if column_name == "":
+            self.tables[table_name]["new_name"] = new_column_name
+        else:
+            self.tables[table_name]["columns"][column_name] = new_column_name
+
+    def get_column_name(self, table_name: str, column_name: str):
+        if table_name in self.tables.keys():
+            table = self.tables[table_name]
+            if column_name in table["columns"].keys():
+                return table["columns"][column_name]
+        return column_name
+
+    def get_old_column_name(self, table_name: str, column_name: str):
+        if table_name in self.tables.keys():
+            table = self.tables[table_name]
+            for column, new_column_name in table["columns"].items():
+                if new_column_name == column_name:
+                    return column
+        return column_name
+
+    def get_table_name(self, table_name: str):
+        if table_name in self.tables.keys():
+            return self.tables[table_name]["new_name"]
+        return table_name
+
+    def get_old_table_name(self, table_name: str):
+        for key, data in self.tables.items():
+            if data["new_name"] == table_name:
+                return key
+        return table_name
+
+    def parse_json_file(self, path: str):
+        if path:
+            if path.endswith(".json"):
+                if os.path.exists(path):
+                    with open(path, 'r') as f:
+                        data = json.loads(f.read())
+                        for table, table_data in data.items():
+                            self.insert_table(table)
+                            for column, column_data in table_data.items():
+                                self.insert_column(table, column, column_data)
+                else:
+                    raise Exception("FILE NOT FOUND")
+            else:
+                raise Exception("FILE NEEDS TO BE JSON FORMAT")
+
+
+class MigrateMeta:
+    plan: bool
+    rename: MigrateRename
+
+    def __init__(self, plan: bool, rename: MigrateRename):
+        self.plan = plan
+        self.rename = rename
