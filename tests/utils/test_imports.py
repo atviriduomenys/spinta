@@ -1,5 +1,4 @@
 import importlib
-from spinta.exceptions import ModuleNotInGroup
 import pytest
 from spinta.utils.imports import use
 
