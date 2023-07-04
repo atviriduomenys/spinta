@@ -139,8 +139,8 @@ def use(group_name, module_name):
     if module_name in needed_modules:
         try:
             module = importlib.import_module(module_name)
-        except PackageMissing:
-            raise PackageMissing(feature=group_name, dependency=dependency)
+        except Exception as e:
+            raise PackageMissing(feature=group_name, dependency=dependency[0])
         return module
     else:
         raise ModuleNotInGroup(module=module_name, group=group_name)
