@@ -212,7 +212,6 @@ sphinxcontrib-httpdomain = "^1.8.0"
 memory-profiler = "^0.58.0"
 mypy = "^0.812"
 cssselect = "^1.1.0"
-objprint = "^0.1.4"
 sphinx-rtd-theme = "^1.0.0"
 sqlalchemy-stubs = "^0.4"
 
