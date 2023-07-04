@@ -47,7 +47,6 @@ rdflib = '^6.3.2'
 jsonpatch = "^1.32"
 
 #HTTP
-objprint = "^0.2.2"
 [tool.poetry.group.http]
 optional = true
 
@@ -215,6 +214,7 @@ mypy = "^0.812"
 cssselect = "^1.1.0"
 sphinx-rtd-theme = "^1.0.0"
 sqlalchemy-stubs = "^0.4"
+objprint = "^0.2.2"
 
 [tool.poetry.group.dev.dependencies]
 ipdb = "^0.13.9"
