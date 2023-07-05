@@ -29,7 +29,7 @@ def full_class_name(obj: Any) -> str:
 
 def use(group_name, module_name, package=None):
     DEPENDENCIES = {
-        'htpp': ['spinta[http]'],
+        'http': ['spinta[http]'],
         'log': ['spinta[log]'],
         'pii': ['spinta[pii]'],
         'cli': ['spinta[cli]'],
@@ -48,6 +48,7 @@ def use(group_name, module_name, package=None):
         'test': ['spinta[test]'],
         'docs': ['spinta[docs]']
     }
+
     PACKAGES = {
         'http': {
             'starlette': 'http',
