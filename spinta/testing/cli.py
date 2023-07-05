@@ -6,11 +6,14 @@ import sys
 import traceback
 
 import pytest
-from typer.testing import CliRunner
+
+from spinta.utils.imports import use
 
 from spinta.cli import main
 from spinta.core.config import RawConfig
 from spinta.testing.context import create_test_context
+
+CliRunner = use('cli', 'typer.testing', 'CliRunner')
 
 
 def _prepare_args(args: List[Any]) -> List[str]:
