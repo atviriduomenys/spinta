@@ -1,20 +1,13 @@
 import pathlib
 import re
 import uuid
+import tqdm
+
 from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Optional
 from typing import TypedDict
-
-import phonenumbers
-import tqdm
-from phonenumbers import NumberParseException
-from typer import Context as TyperContext
-from typer import Argument
-from typer import Option
-from typer import Typer
-from typer import echo
 
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow
@@ -33,8 +26,17 @@ from spinta.manifests.tabular.helpers import render_tabular_manifest
 from spinta.manifests.tabular.helpers import write_tabular_manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
+from spinta.utils.imports import use
 from spinta.utils.nin import is_nin_lt
 
+phonenumbers = use('pii', 'phonenumbers')
+NumberParseException = use('pii', 'phonenumbers', 'NumberParseException')
+
+TyperContext = use('cli', 'typer', 'Context')
+Argument = use('cli', 'typer', 'Argument')
+Option = use('cli', 'typer', 'Option')
+Typer = use('cli', 'typer', 'Typer')
+echo = use('cli', 'typer', 'echo')
 
 app = Typer()
 
