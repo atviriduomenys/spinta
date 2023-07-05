@@ -12,10 +12,6 @@ from typing import Iterator
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 
-from starlette.datastructures import URL, Headers
-from starlette.requests import Request
-from starlette.responses import Response
-
 from spinta import spyna
 from spinta import commands
 from spinta import exceptions
@@ -33,6 +29,7 @@ from spinta.urlparams import get_model_by_name
 from spinta.utils.aiotools import agroupby
 from spinta.utils.aiotools import aslice, alist, aiter
 from spinta.utils.errors import report_error
+from spinta.utils.imports import use
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.streams import splitlines
 from spinta.utils.schema import NotAvailable, NA
@@ -43,6 +40,11 @@ from spinta.formats.components import Format
 
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
+
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
+Headers = use('http', 'starlette.responses', 'URL')
+URL = use('http', 'starlette.datastructures', 'Headers')
 
 
 STREAMING_CONTENT_TYPES = [

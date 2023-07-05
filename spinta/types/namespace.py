@@ -12,9 +12,6 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import TypedDict
-
-from starlette.requests import Request
-from starlette.responses import Response
 from toposort import toposort
 
 from spinta import commands
@@ -36,6 +33,10 @@ from spinta.nodes import load_node
 from spinta.renderer import render
 from spinta.types.datatype import Ref
 from spinta.accesslog import log_response
+from spinta.utils.imports import use
+
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
 
 
 class NamespaceData(TypedDict):
