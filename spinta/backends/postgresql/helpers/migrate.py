@@ -123,13 +123,53 @@ class CreateIndexMigrationAction(MigrationAction):
         op.create_index(index_name=self.index_name, table_name=self.table_name, columns=self.columns)
 
 
+class DowngradeTransferDataMigrationAction(MigrationAction):
+    def __init__(self, table_name: str, foreign_table_name: str, columns: List[str]):
+        set_string = ""
+        for column in columns:
+            set_string += f'\n"{column}"={column}'
+
+        self.query = f'''
+        UPDATE "{table_name}"
+        SET {set_string}
+        FROM "{foreign_table_name}"
+        WHERE "{table_name}._id" = "{foreign_table_name}._id"
+        '''
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
+
+
+class UpgradeTransferDataMigrationAction(MigrationAction):
+    def __init__(self, table_name: str, foreign_table_name: str, columns: List[str]):
+        where_string = []
+        for column in columns:
+            where_string.append(f'\n"{column}"={column}')
+
+        self.query = f'''
+        UPDATE "{table_name}"
+        SET "{table_name}._id"="{foreign_table_name}._id"
+        FROM "{foreign_table_name}"
+        WHERE {'AND'.join(where_string)}
+        '''
+
+    def execute(self, op: Operations):
+        op.execute(self.query)
+
+
 class MigrationHandler:
     def __init__(self):
         self.migrations: List[MigrationAction] = []
+        self.foreign_key_migration: List[MigrationAction] = []
 
-    def add_action(self, action: MigrationAction):
-        self.migrations.append(action)
+    def add_action(self, action: MigrationAction, foreign_key: bool = False):
+        if foreign_key:
+            self.foreign_key_migration.append(action)
+        else:
+            self.migrations.append(action)
 
     def run_migrations(self, op: Operations):
         for migration in self.migrations:
+            migration.execute(op)
+        for migration in self.foreign_key_migration:
             migration.execute(op)
