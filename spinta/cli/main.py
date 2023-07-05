@@ -5,11 +5,6 @@ import pathlib
 from typing import List
 from typing import Optional
 
-from typer import Context as TyperContext
-from typer import Option
-from typer import Typer
-from typer import echo
-
 import spinta
 from spinta.cli import auth
 from spinta.cli import config
@@ -25,6 +20,13 @@ from spinta.cli.init import init
 from spinta.cli.show import show
 from spinta.cli.helpers.typer import add
 from spinta.core.context import create_context
+from spinta.utils.imports import use
+
+TyperContext = use('cli', 'typer', 'Context')
+Argument = use('cli', 'typer', 'Argument')
+Option = use('cli', 'typer', 'Option')
+Typer = use('cli', 'typer', 'Typer')
+echo = use('cli', 'typer', 'echo')
 
 log = logging.getLogger(__name__)
 
