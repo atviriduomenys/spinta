@@ -10,9 +10,6 @@ from typing import TypeVar
 from typing import Union
 from typing import overload
 
-from starlette.requests import Request
-from starlette.responses import Response
-
 from spinta.exceptions import BaseError
 from spinta.typing import ObjectData
 from spinta.components import Node, DataItem
@@ -22,6 +19,7 @@ from spinta.dispatcher import command
 from spinta.manifests.components import ManifestSchema
 from spinta.manifests.components import NodeSchema
 from spinta.components import Namespace
+from spinta.utils.imports import use
 
 if TYPE_CHECKING:
     from spinta.components import Store
@@ -41,6 +39,8 @@ if TYPE_CHECKING:
     from spinta.core.ufuncs import Expr
     from spinta.dimensions.enum.components import EnumItem
 
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
 
 T = TypeVar('T')
 
