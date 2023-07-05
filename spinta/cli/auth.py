@@ -3,7 +3,6 @@ import pathlib
 import sys
 import uuid
 
-from authlib.jose import jwt
 from spinta import commands
 from spinta.auth import KeyFileExists
 from spinta.auth import KeyType
@@ -25,6 +24,7 @@ Typer = use('cli', 'typer', 'Typer')
 echo = use('cli', 'typer', 'echo')
 Exit = use('cli', 'typer', 'Exit')
 click = use('cli', 'click')
+jwt = use('http', 'authlib.jose', 'jwt')
 
 
 def genkeys(
