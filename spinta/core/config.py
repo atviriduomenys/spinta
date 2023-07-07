@@ -12,15 +12,16 @@ import enum
 import sys
 from typing import NamedTuple
 
-from ruamel.yaml import YAML
 import pkg_resources as pres
 
 from spinta.components import Mode
-from spinta.utils.imports import importstr
+from spinta.utils.imports import importstr, use
 from spinta.utils.schema import NA
 
 if typing.TYPE_CHECKING:
     from spinta.manifests.components import ManifestPath
+
+YAML = use('yaml', 'ruamel.yaml', 'YAML')
 
 Schema = Dict[str, Any]
 Key = Tuple[str]
