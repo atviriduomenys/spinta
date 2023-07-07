@@ -23,6 +23,7 @@ before_script:
   #        See: https://github.com/python-poetry/poetry/issues/4511
   - poetry config experimental.new-installer false
   - poetry run pip install 'setuptools==57.5.0'
+  - poetry run pip install typer
   - poetry install -vv
 
 test:
