@@ -71,7 +71,7 @@ def use(group_name, module_name, package=None):
             'typer': 'cli'
         },
         'yaml': {
-            'ruamel.yaml': 'yaml'
+            'ruamel': 'yaml'
         },
         'sql': {
             'sqlparse': 'sql'
