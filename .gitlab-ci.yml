@@ -25,6 +25,7 @@ before_script:
   - poetry run pip install 'setuptools==57.5.0'
   - poetry install -vv
   - poetry install --with cli
+  - poetry install --with yaml
 
 test:
   variables:
