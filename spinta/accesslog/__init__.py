@@ -10,13 +10,16 @@ from typing import TypeVar
 from typing import AsyncIterator
 from typing import overload
 
-import psutil
-from starlette.requests import Request
-
 from spinta import commands
 from spinta.auth import Token
 from spinta.components import Context, Config
 from spinta.components import UrlParams
+from spinta.utils.imports import use
+
+psutil = use('log', 'psutil')
+Typer = use('cli', 'typer', 'Typer')
+echo = use('cli', 'typer', 'echo')
+Request = use('http', 'starlette.requests', 'Request')
 
 
 class AccessLog:
