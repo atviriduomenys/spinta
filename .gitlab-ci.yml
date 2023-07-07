@@ -24,7 +24,7 @@ before_script:
   - poetry config experimental.new-installer false
   - poetry run pip install 'setuptools==57.5.0'
   - poetry install -vv
-  - poetry install --only logs
+  - poetry install --only log
 
 test:
   variables:
