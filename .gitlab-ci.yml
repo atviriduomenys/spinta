@@ -16,6 +16,7 @@ cache:
 before_script:
   - python --version
   - pip install poetry
+  - pip install ruamel.yaml
   - poetry --version
   # FIXME: https://setuptools.readthedocs.io/en/latest/history.html#v58-0-0
   #        simpleeval package uses use_2to3 thus it is not compatible with
@@ -25,7 +26,6 @@ before_script:
   - poetry run pip install 'setuptools==57.5.0'
   - poetry install -vv
   - poetry install --with cli
-  - poetry install --with yaml
 
 test:
   variables:
