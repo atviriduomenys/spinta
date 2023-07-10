@@ -183,6 +183,15 @@ class CreateForeignKeyMigrationAction(MigrationAction):
         )
 
 
+class RenameSequenceMigrationAction(MigrationAction):
+    def __init__(self, old_name: str, new_name: str):
+        self.query = f'ALTER SEQUENCE "{old_name}" RENAME TO "{new_name}"'
+
+    def execute(self, op: Operations):
+        replaced = self.query.replace(":", "\:")
+        op.execute(replaced)
+
+
 class MigrationHandler:
     def __init__(self):
         self.migrations: List[MigrationAction] = []

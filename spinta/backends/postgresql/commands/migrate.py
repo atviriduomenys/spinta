@@ -220,6 +220,10 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
                 old_table_name=old_changelog_name,
                 new_table_name=new_changelog_name
             ))
+            handler.add_action(ma.RenameSequenceMigrationAction(
+                old_name=f'{old_changelog_name}__id_seq',
+                new_name=f'{new_changelog_name}__id_seq'
+            ))
             _drop_all_indexes_and_constraints(inspector, old_changelog_name, new_changelog_name, handler)
 
 
@@ -457,6 +461,13 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
 def _drop_all_indexes_and_constraints(inspector: Inspector, table: str, new_table: str, handler: MigrationHandler):
     constraints = inspector.get_unique_constraints(table)
     removed = []
+    foreign_keys = inspector.get_foreign_keys(table)
+    for key in foreign_keys:
+        handler.add_action(ma.DropConstraintMigrationAction(
+            table_name=new_table,
+            constraint_name=key["name"]
+        ), True)
+
     for constraint in constraints:
         removed.append(constraint["name"])
         handler.add_action(
@@ -515,6 +526,14 @@ def _handle_foreign_key_constraints(inspector: Inspector, manifest: Manifest, ha
                             constraint_name=key["name"]
                         ), True)
                         break
+        else:
+            for key in foreign_keys:
+                if key["constrained_columns"] == ["_id"]:
+                    handler.add_action(ma.DropConstraintMigrationAction(
+                        table_name=source_table,
+                        constraint_name=key["name"]
+                    ), True)
+                    break
 
         required_ref_props = {}
         for prop in model.properties.values():
