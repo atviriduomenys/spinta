@@ -125,15 +125,19 @@ class CreateIndexMigrationAction(MigrationAction):
 
 class DowngradeTransferDataMigrationAction(MigrationAction):
     def __init__(self, table_name: str, foreign_table_name: str, columns: List[str]):
-        set_string = ""
+        set_string = []
+        main_ref = ""
         for column in columns:
-            set_string += f'\n"{column}"={column}'
+            split = column.split(".")
+            main_ref = '.'.join(split[:-1])
+            split = split[-1]
+            set_string.append(f'\n"{main_ref}.{split}" = new."{split}"')
 
         self.query = f'''
-        UPDATE "{table_name}"
-        SET {set_string}
-        FROM "{foreign_table_name}"
-        WHERE "{table_name}._id" = "{foreign_table_name}._id"
+        UPDATE "{table_name}" AS old
+        SET {','.join(set_string)}
+        FROM "{foreign_table_name}" as new
+        WHERE old."{main_ref}._id" = new."_id"
         '''
 
     def execute(self, op: Operations):
@@ -143,18 +147,40 @@ class DowngradeTransferDataMigrationAction(MigrationAction):
 class UpgradeTransferDataMigrationAction(MigrationAction):
     def __init__(self, table_name: str, foreign_table_name: str, columns: List[str]):
         where_string = []
+        main_ref = ""
         for column in columns:
-            where_string.append(f'\n"{column}"={column}')
+            split = column.split(".")
+            main_ref = '.'.join(split[:-1])
+            split = split[-1]
+            where_string.append(f'\nold."{main_ref}.{split}" = new."{split}"')
 
         self.query = f'''
-        UPDATE "{table_name}"
-        SET "{table_name}._id"="{foreign_table_name}._id"
-        FROM "{foreign_table_name}"
-        WHERE {'AND'.join(where_string)}
+        UPDATE "{table_name}" AS old
+        SET "{main_ref}._id" = new."_id"
+        FROM "{foreign_table_name}" AS new
+        WHERE {' AND '.join(where_string)}
         '''
 
     def execute(self, op: Operations):
         op.execute(self.query)
+
+
+class CreateForeignKeyMigrationAction(MigrationAction):
+    def __init__(self, source_table: str, referent_table: str, constraint_name: str, local_cols: list, remote_cols: list):
+        self.constraint_name = constraint_name
+        self.source_table = source_table
+        self.referent_table = referent_table
+        self.local_cols = local_cols
+        self.remote_cols = remote_cols
+
+    def execute(self, op: Operations):
+        op.create_foreign_key(
+            constraint_name=self.constraint_name,
+            source_table=self.source_table,
+            referent_table=self.referent_table,
+            local_cols=self.local_cols,
+            remote_cols=self.remote_cols
+        )
 
 
 class MigrationHandler:

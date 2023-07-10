@@ -124,18 +124,22 @@ class MigrateRename:
             self.tables[table_name]["columns"][column_name] = new_column_name
 
     def get_column_name(self, table_name: str, column_name: str):
+        new_name = column_name.split(".")
         if table_name in self.tables.keys():
             table = self.tables[table_name]
-            if column_name in table["columns"].keys():
-                return table["columns"][column_name]
+            if new_name[0] in table["columns"].keys():
+                new_name[0] = table["columns"][new_name[0]]
+                return '.'.join(new_name)
         return column_name
 
     def get_old_column_name(self, table_name: str, column_name: str):
+        new_name = column_name.split(".")
         if table_name in self.tables.keys():
             table = self.tables[table_name]
             for column, new_column_name in table["columns"].items():
-                if new_column_name == column_name:
-                    return column
+                if new_column_name == new_name[0]:
+                    new_name[0] = column
+                    return '.'.join(new_name)
         return column_name
 
     def get_table_name(self, table_name: str):
