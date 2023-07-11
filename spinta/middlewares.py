@@ -1,9 +1,10 @@
-from starlette.types import ASGIApp
-from starlette.types import Receive
-from starlette.types import Scope
-from starlette.types import Send
-
+from spinta.utils.imports import use
 from spinta.components import Context
+
+ASGIApp = use('http', 'starlette.types', 'ASGIApp')
+Receive = use('http', 'starlette.types', 'Receive')
+Scope = use('http', 'starlette.types', 'Scope')
+Send = use('http', 'starlette.types', 'Send')
 
 
 class ContextMiddleware:

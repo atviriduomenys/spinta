@@ -7,7 +7,6 @@ from typing import Tuple
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from starlette.requests import Request
 
 from spinta import commands
 from spinta.components import Action
@@ -32,6 +31,9 @@ from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
 from spinta.utils.data import take
+from spinta.utils.imports import use
+
+Request = use('http', 'starlette.requests', 'Request')
 
 
 def _get_data_table(context: dict):

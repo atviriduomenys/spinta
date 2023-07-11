@@ -7,8 +7,6 @@ from typing import Optional
 
 from lxml import etree
 from lxml.etree import Element, QName
-from starlette.requests import Request
-from starlette.responses import StreamingResponse
 
 from spinta import commands
 from spinta.backends.components import SelectTree
@@ -29,7 +27,11 @@ from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
+from spinta.utils.imports import use
 from spinta.utils.schema import NotAvailable
+
+Request = use('http', 'starlette.requests', 'Request')
+StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse')
 
 RDF = "rdf"
 PAV = "pav"

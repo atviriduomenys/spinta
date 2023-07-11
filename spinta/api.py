@@ -5,16 +5,6 @@ import logging
 
 from authlib.common.errors import AuthlibHTTPError
 
-from starlette.applications import Starlette
-from starlette.exceptions import HTTPException
-from starlette.requests import Request
-from starlette.responses import Response, JSONResponse
-from starlette.responses import RedirectResponse
-from starlette.templating import Jinja2Templates
-from starlette.staticfiles import StaticFiles
-from starlette.routing import Route, Mount
-from starlette.middleware import Middleware
-
 from spinta import components
 from spinta.auth import AuthorizationServer
 from spinta.auth import ResourceProtector
@@ -27,9 +17,22 @@ from spinta.exceptions import BaseError, MultipleErrors, error_response
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
+from spinta.utils.imports import use
 from spinta.utils.response import create_http_response
 from spinta.accesslog import create_accesslog
 from spinta.exceptions import NoAuthServer
+
+Starlette = use('http', 'starlette.applications', 'Starlette')
+HTTPException = use('http', 'starlette.exceptions', 'HTTPException')
+JSONResponse = use('http', 'starlette.responses', 'JSONResponse')
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
+RedirectResponse = use('http', 'starlette.responses', 'RedirectResponse')
+Jinja2Templates = use('http', 'starlette.templating', 'Jinja2Templates')
+StaticFiles = use('http', 'starlette.staticfiles', 'StaticFiles')
+Route = use('http', 'starlette.routing', 'Route')
+Mount = use('http', 'starlette.routing', 'Mount')
+Middleware = use('http', 'starlette.middleware', 'Middleware')
 
 log = logging.getLogger(__name__)
 

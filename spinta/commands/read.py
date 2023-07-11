@@ -2,10 +2,6 @@ import uuid
 from typing import overload
 from pathlib import Path
 
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.responses import FileResponse
-
 from spinta import commands
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
@@ -25,6 +21,11 @@ from spinta.exceptions import UnavailableSubresource
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.utils.data import take
+from spinta.utils.imports import use
+
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
+FileResponse = use('http', 'starlette.responses', 'FileResponse')
 
 
 @commands.getall.register(Context, Model, Request)

@@ -1,7 +1,5 @@
 import cgi
 
-from starlette.requests import Request
-
 from spinta import commands
 from spinta.accesslog import AccessLog
 from spinta.backends.fs.components import FileSystem
@@ -17,6 +15,9 @@ from spinta.components import Context, DataSubItem
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.files import DatabaseFile
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.utils.imports import use
+
+Request = use('http', 'starlette.requests', 'Request')
 
 
 @commands.push.register(Context, Request, File, PostgreSQL)

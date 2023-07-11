@@ -6,8 +6,6 @@ from typing import Union
 import itertools
 import urllib.parse
 
-from starlette.requests import Request
-
 from spinta.commands import prepare
 from spinta.components import Action
 from spinta.components import Config
@@ -21,6 +19,9 @@ from spinta.commands import is_object_id
 from spinta import exceptions
 from spinta import spyna
 from spinta.exceptions import ModelNotFound
+from spinta.utils.imports import use
+
+Request = use('http', 'starlette.requests', 'Request')
 
 
 @prepare.register(Context, UrlParams, Version, Request)

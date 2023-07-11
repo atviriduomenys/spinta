@@ -14,8 +14,6 @@ import base64
 
 import ruamel.yaml
 
-from starlette.responses import JSONResponse
-from starlette.exceptions import HTTPException
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
@@ -38,7 +36,11 @@ from spinta.exceptions import InvalidToken, NoTokenValidationKey
 from spinta.exceptions import AuthorizedClientsOnly
 from spinta.exceptions import BasicAuthRequired
 from spinta.utils import passwords
+from spinta.utils.imports import use
 from spinta.utils.scopes import name_to_scope
+
+HTTPException = use('http', 'starlette.exceptions', 'HTTPException')
+JSONResponse = use('http', 'starlette.responses', 'JSONResponse')
 
 log = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML(typ='safe')

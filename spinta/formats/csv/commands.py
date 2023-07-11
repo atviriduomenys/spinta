@@ -3,11 +3,6 @@ from typing import Any
 from typing import Dict
 from typing import Iterator
 
-import itertools
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.responses import StreamingResponse
-
 from spinta import commands
 from spinta.components import Action
 from spinta.components import Context
@@ -16,8 +11,13 @@ from spinta.components import UrlParams
 from spinta.formats.csv.components import Csv
 from spinta.formats.csv.components import IterableFile
 from spinta.formats.helpers import get_model_tabular_header
+from spinta.utils.imports import use
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.response import aiter
+
+Request = use('http', 'starlette.requests', 'Request')
+Response = use('http', 'starlette.responses', 'Response')
+StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse')
 
 
 @commands.render.register(Context, Request, Model, Csv)

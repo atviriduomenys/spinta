@@ -13,8 +13,6 @@ from typing import TypeVar
 import pkg_resources as pres
 from itertools import chain
 from itertools import count
-from starlette.requests import Request
-from starlette.templating import Jinja2Templates
 
 from spinta import commands
 from spinta.backends.components import SelectTree
@@ -49,8 +47,12 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
+from spinta.utils.imports import use
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.schema import NotAvailable
+
+Request = use('http', 'starlette.requests', 'Request')
+Jinja2Templates = use('http', 'starlette.templating', 'Jinja2Templates')
 
 
 def _get_model_reserved_props(action: Action) -> List[str]:

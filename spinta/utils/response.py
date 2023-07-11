@@ -3,8 +3,6 @@ from io import TextIOWrapper
 from typing import cast
 
 import itertools
-from starlette.datastructures import UploadFile
-from starlette.requests import Request
 
 from spinta import commands
 from spinta import exceptions
@@ -18,6 +16,10 @@ from spinta.exceptions import BaseError
 from spinta.exceptions import NoBackendConfigured
 from spinta.exceptions import error_response
 from spinta.renderer import render
+from spinta.utils.imports import use
+
+Request = use('http', 'starlette.requests', 'Request')
+UploadFile = use('http', 'starlette.datastructures', 'UploadFile')
 
 
 async def _check_post(context: Context, request: Request, params: UrlParams):
