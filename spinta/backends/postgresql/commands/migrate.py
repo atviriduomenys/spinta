@@ -26,11 +26,6 @@ from spinta.manifests.components import Manifest
 from spinta.backends.postgresql.components import PostgreSQL
 
 
-def _convert_tables_to_pg_name(names: list):
-    for i, item in enumerate(names):
-        names[i] = get_pg_name(item)
-
-
 @commands.migrate.register(Context, Manifest, PostgreSQL, MigrateMeta)
 def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_meta: MigrateMeta):
     conn = context.get(f'transaction.{backend.name}')
@@ -121,7 +116,10 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
             if new_prop and new_prop.name.startswith('_'):
                 continue
             if old_prop:
-                old_prop = old.columns.get(rename.get_old_column_name(old.name, old_prop))
+                if new_prop and old_prop == get_column_name(new_prop):
+                    old_prop = old.columns.get(old_prop)
+                else:
+                    old_prop = old.columns.get(rename.get_old_column_name(old.name, old_prop))
             if not new_prop:
                 commands.migrate(context, backend, inspector, old, old_prop, new_prop, handler, rename, False)
             else:
@@ -334,8 +332,7 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
     old_name = rename.get_old_column_name(table.name, new.prop.name)
     for item in old:
         table_name = rename.get_table_name(table.name)
-
-        nullable = new.required if new.required != item.nullable else None
+        nullable = new.required if new.required == item.nullable else None
         new_name = column_name if not item.name.startswith(column_name) else None
         if nullable is not None or new_name is not None:
             handler.add_action(ma.AlterColumnMigrationAction(
@@ -527,11 +524,34 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                     table_name=table_name,
                     columns=[column_name]
                 ), foreign_key)
-
     else:
         if new.unique:
             handler.add_action(ma.CreateUniqueConstraintMigrationAction(
                 constraint_name=unique_name,
+                table_name=table_name,
+                columns=[column_name]
+            ), foreign_key)
+
+    index_name = f'idx_{table_name}_{column_name}'
+    old_index_name = f'idx_{table.name}_{old.name}'
+    indexes = inspector.get_indexes(table_name=table.name)
+    if any(index["name"] == old_index_name for index in indexes):
+        if not new.index or table_name != table.name:
+            handler.add_action(
+                ma.DropIndexMigrationAction(
+                    index_name=old_index_name,
+                    table_name=table_name
+                ), foreign_key)
+            if new.index:
+                handler.add_action(ma.CreateIndexMigrationAction(
+                    index_name=index_name,
+                    table_name=table_name,
+                    columns=[column_name]
+                ), foreign_key)
+    else:
+        if new.index:
+            handler.add_action(ma.CreateIndexMigrationAction(
+                index_name=index_name,
                 table_name=table_name,
                 columns=[column_name]
             ), foreign_key)
@@ -545,6 +565,18 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
         table_name=table_name,
         column=new,
     ), foreign_key)
+    if new.unique:
+        handler.add_action(ma.CreateUniqueConstraintMigrationAction(
+            constraint_name=f'{table_name}_{new.name}_key',
+            table_name=table_name,
+            columns=[new.name]
+        ))
+    if new.index:
+        handler.add_action(ma.CreateIndexMigrationAction(
+            table_name=table_name,
+            columns=[new.name],
+            index_name=f'idx_{table_name}_{new.name}'
+        ))
 
 
 @commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, NotAvailable, MigrationHandler, MigrateRename, bool)
@@ -573,6 +605,14 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                     handler.add_action(ma.DropConstraintMigrationAction(
                         table_name=table_name,
                         constraint_name=constraint["name"],
+                    ), foreign_key)
+        if old.index:
+            indexes = inspector.get_indexes(table_name=table.name)
+            for index in indexes:
+                if old.name in index["column_names"]:
+                    handler.add_action(ma.DropIndexMigrationAction(
+                        table_name=table_name,
+                        index_name=index["name"]
                     ), foreign_key)
 
 
@@ -687,9 +727,9 @@ def _handle_foreign_key_constraints(inspector: Inspector, manifest: Manifest, ha
                     name = f"fk_{source_table}_{prop.name}._id"
                     required_ref_props[name] = {
                         "name": name,
-                        "constrained_columns": [f'{prop.name}.{refprop.name}' for refprop in prop.dtype.refprops] if prop.dtype.model.external and prop.dtype.model.external.unknown_primary_key else [f"{prop.name}._id"],
+                        "constrained_columns": [f"{prop.name}._id"],
                         "referred_table": prop.dtype.model.name,
-                        "referred_columns": [refprop.name for refprop in prop.dtype.refprops] if prop.dtype.model.external and prop.dtype.model.external.unknown_primary_key else ["_id"]
+                        "referred_columns": ["_id"]
                     }
 
         for key in foreign_keys:
