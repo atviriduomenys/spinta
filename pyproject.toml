@@ -50,7 +50,7 @@ sqlparse = "^0.4.3"
 
 #HTTP
 [tool.poetry.group.http]
-#optional = true
+optional = true
 
 [tool.poetry.group.http.dependencies]
 starlette = "^0.21.0"
