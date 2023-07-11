@@ -607,8 +607,49 @@ class PropertyReader(TabularReader):
         # Denormalized form
         if "." in self.name and not self.data['type']:
             self.data['type'] = 'denorm'
-
-        self.state.model.data['properties'][row['property']] = self.data
+        if "." in self.name:
+            self.state.model.data['properties'][row['property']] = self.data
+            splited_denom_prop = self.name.split('.')
+            if splited_denom_prop[0] not in self.state.model.data['properties']:
+                tmp_model = self.state.model.name
+                self.state.model.data['properties'][splited_denom_prop[0]].update({
+                    'type': dtype['type'],
+                    'properties': {
+                        splited_denom_prop[0]: {
+                            'id': {'type': 'string'},
+                            'type': row['type'] if row['type'] != '' else 'denorm',
+                            'model': tmp_model.strip(str(self.state.model.state.dataset.name) + '/')
+                        },
+                    },
+                })
+            if splited_denom_prop[0] not in self.state.model.data['properties']:
+                if splited_denom_prop[1] not in self.state.model.data['properties'][splited_denom_prop[0]]:
+                    self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]] = {
+                       'properties': {
+                           splited_denom_prop[1]: {
+                               'type': row['type'] if row['type'] != '' else 'denorm',
+                               'foreign': True if row['type'] == '' else False
+                           }
+                       }
+                    }
+            if splited_denom_prop[0] not in self.state.model.data['properties']:
+                if splited_denom_prop[1] in self.state.model.data['properties'][splited_denom_prop[0]] and len(
+                    splited_denom_prop) > 2:
+                    if splited_denom_prop[2] not in self.state.model.data['properties'][splited_denom_prop[0]][
+                        splited_denom_prop[1]]:
+                        self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]] = {
+                            splited_denom_prop[1]: {
+                                'partial': True,
+                                'properties': {
+                                    splited_denom_prop[2]: {
+                                        'type': row['type'] if row['type'] != '' else 'denorm',
+                                        'foreign': True if row['type'] == '' else False
+                                    }
+                                }
+                            }
+                        }
+        else:
+            self.state.model.data['properties'][row['property']] = self.data
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
@@ -2025,7 +2066,7 @@ def _write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w') as f:
+    with path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)
