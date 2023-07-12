@@ -624,30 +624,31 @@ class PropertyReader(TabularReader):
                 })
             if splited_denom_prop[0] not in self.state.model.data['properties']:
                 if splited_denom_prop[1] not in self.state.model.data['properties'][splited_denom_prop[0]]:
-                    self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]] = {
-                       'properties': {
-                           splited_denom_prop[1]: {
-                               'type': row['type'] if row['type'] != '' else 'denorm',
-                               'foreign': True if row['type'] == '' else False
-                           }
-                       }
-                    }
+                    self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]].update({
+                    'type': dtype['type'],
+                    'properties': {
+                        splited_denom_prop[0]: {
+                            'id': {'type': 'string'},
+                            'type': row['type'] if row['type'] != '' else 'denorm',
+                            'model': tmp_model.strip(str(self.state.model.state.dataset.name) + '/')
+                        },
+                    },
+                })
             if splited_denom_prop[0] not in self.state.model.data['properties']:
                 if splited_denom_prop[1] in self.state.model.data['properties'][splited_denom_prop[0]] and len(
                     splited_denom_prop) > 2:
                     if splited_denom_prop[2] not in self.state.model.data['properties'][splited_denom_prop[0]][
                         splited_denom_prop[1]]:
-                        self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]] = {
-                            splited_denom_prop[1]: {
-                                'partial': True,
-                                'properties': {
-                                    splited_denom_prop[2]: {
-                                        'type': row['type'] if row['type'] != '' else 'denorm',
-                                        'foreign': True if row['type'] == '' else False
-                                    }
-                                }
-                            }
-                        }
+                        self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]].update({
+                            'type': dtype['type'],
+                            'properties': {
+                                splited_denom_prop[0]: {
+                                    'id': {'type': 'string'},
+                                    'type': row['type'] if row['type'] != '' else 'denorm',
+                                    'model': tmp_model.strip(str(self.state.model.state.dataset.name) + '/')
+                                },
+                            },
+                })
         else:
             self.state.model.data['properties'][row['property']] = self.data
 
