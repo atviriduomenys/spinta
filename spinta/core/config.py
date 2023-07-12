@@ -13,10 +13,12 @@ import sys
 from typing import NamedTuple
 
 import pkg_resources as pres
-from ruamel.yaml import YAML
+# from ruamel.yaml import YAML
 from spinta.components import Mode
-from spinta.utils.imports import importstr
+from spinta.utils.imports import importstr, use
 from spinta.utils.schema import NA
+
+YAML = use('yaml', 'ruamel.yaml', 'YAML')
 
 if typing.TYPE_CHECKING:
     from spinta.manifests.components import ManifestPath
