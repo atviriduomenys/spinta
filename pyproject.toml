@@ -50,7 +50,7 @@ sqlparse = "^0.4.3"
 
 #HTTP
 [tool.poetry.group.http]
-optional = false
+optional = true
 
 [tool.poetry.group.http.dependencies]
 starlette = "^0.21.0"
@@ -92,7 +92,7 @@ typer = "^0.6.1"
 
 # YAML
 [tool.poetry.group.yaml]
-optional = false
+optional = true
 
 [tool.poetry.group.yaml.dependencies]
 "ruamel.yaml" = "^0.17.21"
