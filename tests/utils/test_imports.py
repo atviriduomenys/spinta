@@ -15,6 +15,12 @@ def test_use_correct_specific_package():
     assert inspector == module
 
 
+def test_use_correct_specific_package_ruamel():
+    YAML = use('yaml', 'ruamel.yaml', 'YAML')
+    module = importlib.import_module('ruamel.yaml', package='YAML')
+    assert YAML == module
+
+
 def test_use_non_existant_package():
     with pytest.raises(Exception) as e:
         use('postgres', 'test')
