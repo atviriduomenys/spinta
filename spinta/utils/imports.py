@@ -35,7 +35,7 @@ def use(group_name, module_name, package=None):
         'cli': ['spinta[cli]'],
         'yaml': ['spinta[yaml]'],
         'sql': ['spinta[sql]'],
-        'excel': ['spinta[exce]'],
+        'excel': ['spinta[excel]'],
         'postgres': ['spinta[postgres]'],
         'mongo': ['spinta[mongo]'],
         'datasets': ['spinta[datasets]'],
@@ -71,7 +71,7 @@ def use(group_name, module_name, package=None):
             'typer': 'cli'
         },
         'yaml': {
-            'ruamel-yaml': 'yaml'
+            'ruamel': 'yaml'
         },
         'sql': {
             'sqlparse': 'sql'

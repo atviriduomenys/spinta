@@ -18,7 +18,7 @@ from spinta.components import Mode
 from spinta.utils.imports import importstr, use
 from spinta.utils.schema import NA
 
-YAML = use('yaml', 'ruamel-yaml', 'YAML')
+YAML = use('yaml', 'ruamel.yaml', 'YAML')
 
 if typing.TYPE_CHECKING:
     from spinta.manifests.components import ManifestPath
