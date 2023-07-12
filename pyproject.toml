@@ -92,7 +92,7 @@ typer = "^0.6.1"
 
 # YAML
 [tool.poetry.group.yaml]
-optional = true
+optional = false
 
 [tool.poetry.group.yaml.dependencies]
 "ruamel.yaml" = "^0.17.21"
