@@ -73,7 +73,7 @@ def use(group_name, module_name, package=None):
             'typer': 'cli'
         },
         'yaml': {
-            'ruamel.yaml': 'yaml'
+            'ruamel': 'yaml'
         },
         'sql': {
             'sqlparse': 'sql'
@@ -140,7 +140,7 @@ def use(group_name, module_name, package=None):
     dependency = DEPENDENCIES[group_name]
 
     absolute_name = importlib.util.resolve_name(module_name, package)
-    if absolute_name in needed_modules:
+    if absolute_name.split('.')[0] in needed_modules:
         try:
             return sys.modules[absolute_name]
         except KeyError:
@@ -161,5 +161,6 @@ def use(group_name, module_name, package=None):
         spec.loader.exec_module(module)
         if path is not None:
             setattr(parent_module, child_name, module)
+        return module
     else:
         raise ModuleNotInGroup(module=module_name, group=group_name)
