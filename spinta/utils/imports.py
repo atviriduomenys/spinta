@@ -1,4 +1,6 @@
 import importlib
+import sys
+from importlib import util
 import inspect
 from typing import Any
 from typing import Type
@@ -71,7 +73,7 @@ def use(group_name, module_name, package=None):
             'typer': 'cli'
         },
         'yaml': {
-            'ruamel': 'yaml'
+            'ruamel.yaml': 'yaml'
         },
         'sql': {
             'sqlparse': 'sql'
@@ -136,15 +138,28 @@ def use(group_name, module_name, package=None):
 
     needed_modules = PACKAGES[group_name]
     dependency = DEPENDENCIES[group_name]
-    full_module_name = module_name
-    if '.' in module_name:
-        module_name = module_name.split('.')[0]
-    if module_name in needed_modules:
+
+    absolute_name = importlib.util.resolve_name(module_name, package)
+    if absolute_name in needed_modules:
         try:
-            module = importlib.import_module(full_module_name, package=package)
-        except Exception as e:
-            raise e
-        #     raise PackageMissing(feature=group_name, dependency=dependency[0], module=module_name)
-        return module
+            return sys.modules[absolute_name]
+        except KeyError:
+            pass
+        path = None
+        if '.' in absolute_name:
+            parent_name, _, child_name = absolute_name.rpartition('.')
+            parent_module = importlib.import_module(parent_name)
+            path = parent_module.__spec__.submodule_search_locations
+        for finder in sys.meta_path:
+            spec = finder.find_spec(absolute_name, path)
+            if spec is not None:
+                break
+        else:
+            raise PackageMissing(feature=group_name, dependency=dependency[0], module=module_name)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[absolute_name] = module
+        spec.loader.exec_module(module)
+        if path is not None:
+            setattr(parent_module, child_name, module)
     else:
         raise ModuleNotInGroup(module=module_name, group=group_name)
