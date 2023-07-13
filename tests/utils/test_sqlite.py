@@ -7,8 +7,11 @@ from spinta.utils.sqlite import migrate_table
 
 from spinta.utils.imports import use
 
-sa = use('postgres', 'sqlalchemy')
-Inspector = use('postgres', 'sqlalchemy.engine.reflection', 'Inspector')
+import sqlalchemy as sa
+from sqlalchemy.engine.reflection import Inspector
+
+# sa = use('postgres', 'sqlalchemy')
+# Inspector = use('postgres', 'sqlalchemy.engine.reflection', 'Inspector')
 
 
 @pytest.mark.parametrize("copy", [True, False])

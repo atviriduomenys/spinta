@@ -18,9 +18,14 @@ from pygments.lexers.python import Python3Lexer
 from pygments.lexers.python import Python3TracebackLexer
 from pygments.lexers.sql import PostgresLexer
 
-objprint = use('docs', 'objprint')
-sqlparse = use('sql', 'sqlparse')
-ClauseElement = use('postgres', 'sqlalchemy.sql', 'ClauseElement')
+import objprint
+import pprintpp
+import sqlparse
+from sqlalchemy.sql import ClauseElement
+
+# objprint = use('docs', 'objprint')
+# sqlparse = use('sql', 'sqlparse')
+# ClauseElement = use('postgres', 'sqlalchemy.sql', 'ClauseElement')
 
 objprint.config(honor_existing=False, depth=1)
 
