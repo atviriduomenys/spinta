@@ -392,7 +392,6 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
     if not isinstance(new_columns, list):
         new_columns = [new_columns]
     table_name = rename.get_table_name(table.name)
-    foreign_keys = inspector.get_foreign_keys(table.name)
     old_prop_name = rename.get_old_column_name(table.name, get_column_name(new.prop))
 
     old_names = {}
@@ -409,13 +408,6 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
             column = old[0]
             new_column = new_columns[0]
             commands.migrate(context, backend, inspector, table, column, new_column, handler, rename, True)
-            if column.name != new_column.name or table_name != table.name:
-                for key in foreign_keys:
-                    if key["constrained_columns"] == [column.name]:
-                        handler.add_action(ma.DropConstraintMigrationAction(
-                            table_name=table_name,
-                            constraint_name=key["name"]
-                        ), True)
         else:
             column_list = []
             drop_list = []
@@ -437,13 +429,6 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                 ), True)
             for col in drop_list:
                 commands.migrate(context, backend, inspector, table, col, NA, handler, rename, True)
-
-            for key in foreign_keys:
-                if key["constrained_columns"] == column_list:
-                    handler.add_action(ma.DropConstraintMigrationAction(
-                        table_name=table_name,
-                        constraint_name=key["name"]
-                    ), True)
     else:
         if len(old) == 1 and old[0].name == f'{old_prop_name}._id':
             requires_drop = True
@@ -484,12 +469,6 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                         commands.migrate(context, backend, inspector, table, old_prop, new_prop, handler, rename, True)
             for drop in drop_list:
                 commands.migrate(context, backend, inspector, table, drop, NA, handler, rename, True)
-        for key in foreign_keys:
-            if key["constrained_columns"] == [f'{old_prop_name}._id']:
-                handler.add_action(ma.DropConstraintMigrationAction(
-                    table_name=table_name,
-                    constraint_name=key["name"]
-                ), True)
 
 
 @commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, DataType, MigrationHandler, MigrateRename)

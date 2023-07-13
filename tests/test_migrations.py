@@ -1,5 +1,7 @@
 from pathlib import Path
 from pprint import pprint
+import sqlalchemy_utils as su
+import pytest
 
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
@@ -8,8 +10,35 @@ from spinta.testing.tabular import create_tabular_manifest
 
 import sqlalchemy as sa
 
+TEST_POSTGRESQL_DSN = "postgresql://admin:admin123@localhost:54321/spinta_tests_migration"
+TEST_POSTGRESQL_EXTENSIONS_DSN = "postgresql://admin:admin123@localhost:54321/spinta_tests_migration"
 
-def configure(rc, path, dsn, manifest):
+
+@pytest.fixture(scope='session')
+def postgresql_migrate() -> str:
+    dsn: str = TEST_POSTGRESQL_DSN
+    if su.database_exists(dsn):
+        _prepare_postgresql(TEST_POSTGRESQL_EXTENSIONS_DSN)
+        yield dsn
+    else:
+        su.create_database(dsn)
+        _prepare_postgresql(TEST_POSTGRESQL_EXTENSIONS_DSN)
+        yield dsn
+        su.drop_database(dsn)
+
+
+def _prepare_postgresql(dsn: str) -> None:
+    engine = sa.create_engine(dsn)
+    with engine.connect() as conn:
+        conn.execute(sa.text('DROP SCHEMA "public" CASCADE'))
+        conn.execute(sa.text('CREATE SCHEMA "public";'))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
+
+
+def configure(rc, path, manifest):
     override_manifest(path, manifest)
     return rc.fork({
         'manifests': {
@@ -24,7 +53,7 @@ def configure(rc, path, dsn, manifest):
         'backends': {
             'default': {
                 'type': 'postgresql',
-                'dsn': dsn
+                'dsn': TEST_POSTGRESQL_DSN
             },
         },
     })
@@ -65,7 +94,7 @@ def _get_table_foreign_key_constraint_columns(table: sa.Table):
 
 
 def test_migrate_create_simple_datatype_model(
-    postgresql: str,
+    postgresql_migrate: str,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
@@ -73,12 +102,11 @@ def test_migrate_create_simple_datatype_model(
     initial_manifest = '''
      d | r | b | m | property   | type    | ref     | source     | prepare
     '''
-    rc = configure(rc, tmp_path, postgresql, initial_manifest)
+    rc = configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
-
     override_manifest(tmp_path, '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -142,7 +170,7 @@ def test_migrate_create_simple_datatype_model(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -151,7 +179,7 @@ def test_migrate_create_simple_datatype_model(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -220,7 +248,7 @@ def test_migrate_create_simple_datatype_model(
 
 
 def test_migrate_add_simple_column(
-    postgresql: str,
+    postgresql_migrate: str,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
@@ -231,13 +259,13 @@ def test_migrate_add_simple_column(
                      |   |   | Test |              |
                      |   |   |      | someText     | string
     '''
-    rc = configure(rc, tmp_path, postgresql, initial_manifest)
+    rc = configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -270,7 +298,7 @@ def test_migrate_add_simple_column(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -284,7 +312,7 @@ def test_migrate_add_simple_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -301,7 +329,7 @@ def test_migrate_add_simple_column(
 
 
 def test_migrate_remove_simple_column(
-    postgresql: str,
+    postgresql_migrate: str,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
@@ -313,13 +341,13 @@ def test_migrate_remove_simple_column(
                      |   |   |      | someText     | string
                      |   |   |      | someInteger  | integer
     '''
-    rc = configure(rc, tmp_path, postgresql, initial_manifest)
+    rc = configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -354,7 +382,7 @@ def test_migrate_remove_simple_column(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -372,7 +400,7 @@ def test_migrate_remove_simple_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -390,7 +418,7 @@ def test_migrate_remove_simple_column(
 
 
 def test_migrate_multiple_times_remove_simple_column(
-    postgresql: str,
+    postgresql_migrate: str,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
@@ -402,13 +430,13 @@ def test_migrate_multiple_times_remove_simple_column(
                      |   |   |      | someText     | string
                      |   |   |      | someInteger  | integer
     '''
-    rc = configure(rc, tmp_path, postgresql, initial_manifest)
+    rc = configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -443,7 +471,7 @@ def test_migrate_multiple_times_remove_simple_column(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -457,7 +485,7 @@ def test_migrate_multiple_times_remove_simple_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -482,7 +510,7 @@ def test_migrate_multiple_times_remove_simple_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -515,7 +543,7 @@ def test_migrate_multiple_times_remove_simple_column(
         '\n'
         'COMMIT;\n'
         '\n')
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         meta.reflect()
@@ -528,7 +556,7 @@ def test_migrate_multiple_times_remove_simple_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -547,7 +575,7 @@ def test_migrate_multiple_times_remove_simple_column(
 
 
 def test_migrate_model_ref_unique_constraint(
-    postgresql: str,
+    postgresql_migrate: str,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
@@ -555,7 +583,7 @@ def test_migrate_model_ref_unique_constraint(
     initial_manifest = '''
      d               | r | b | m    | property     | type   | ref
     '''
-    rc = configure(rc, tmp_path, postgresql, initial_manifest)
+    rc = configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -649,7 +677,7 @@ def test_migrate_model_ref_unique_constraint(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -699,7 +727,7 @@ def test_migrate_model_ref_unique_constraint(
         '\n'
         'COMMIT;\n'
         '\n')
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -721,7 +749,7 @@ def test_migrate_model_ref_unique_constraint(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -745,7 +773,7 @@ def test_migrate_model_ref_unique_constraint(
 
 
 def test_migrate_add_unique_constraint(
-    postgresql: str,
+    postgresql_migrate: str,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
@@ -756,13 +784,13 @@ def test_migrate_add_unique_constraint(
                      |   |   | Test |              |
                      |   |   |      | someText     | string
     '''
-    rc = configure(rc, tmp_path, postgresql, initial_manifest)
+    rc = configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -794,7 +822,7 @@ def test_migrate_add_unique_constraint(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -806,7 +834,7 @@ def test_migrate_add_unique_constraint(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -819,7 +847,7 @@ def test_migrate_add_unique_constraint(
 
 
 def test_migrate_remove_unique_constraint(
-    postgresql: str,
+    postgresql_migrate: str,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
@@ -830,13 +858,13 @@ def test_migrate_remove_unique_constraint(
                      |   |   | Test |              |
                      |   |   |      | someText     | string unique
     '''
-    rc = configure(rc, tmp_path, postgresql, initial_manifest)
+    rc = configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -870,7 +898,7 @@ def test_migrate_remove_unique_constraint(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -882,7 +910,7 @@ def test_migrate_remove_unique_constraint(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -895,7 +923,7 @@ def test_migrate_remove_unique_constraint(
 
 
 def test_migrate_create_models_with_ref(
-    postgresql: str,
+    postgresql_migrate: str,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
@@ -903,7 +931,7 @@ def test_migrate_create_models_with_ref(
     initial_manifest = '''
      d               | r | b | m    | property     | type | ref | level
     '''
-    rc = configure(rc, tmp_path, postgresql, initial_manifest)
+    rc = configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1032,7 +1060,7 @@ def test_migrate_create_models_with_ref(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1062,9 +1090,13 @@ def test_migrate_create_models_with_ref(
                                            constraint["referred_column_names"]] for constraint in columns
         )
 
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/RefOne',
+                                'migrate/example/RefOne/:changelog', 'migrate/example/RefTwo',
+                                'migrate/example/RefTwo/:changelog'])
+
 
 def test_migrate_remove_ref_column(
-    postgresql: str,
+    postgresql_migrate: str,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
@@ -1085,13 +1117,13 @@ def test_migrate_remove_ref_column(
                      |   |   |        | someText     | string        |                      |
                      |   |   |        | someRef      | ref           | Test                 | 3
     '''
-    rc = configure(rc, tmp_path, postgresql, initial_manifest)
+    rc = configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1147,7 +1179,7 @@ def test_migrate_remove_ref_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1199,7 +1231,7 @@ def test_migrate_remove_ref_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migrate).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1207,3 +1239,432 @@ def test_migrate_remove_ref_column(
         columns = tables['migrate/example/RefTwo'].columns
         assert {'someText', '__someRef.someText', '__someRef.someNumber'}.issubset(columns.keys())
         assert not {'someRef.someText', 'someRef.someNumber'}.issubset(columns.keys())
+
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/RefOne',
+                                'migrate/example/RefOne/:changelog', 'migrate/example/RefTwo',
+                                'migrate/example/RefTwo/:changelog'])
+
+
+def test_migrate_adjust_ref_levels(
+    postgresql_migrate: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    initial_manifest = '''
+     d               | r | b | m      | property     | type          | ref                  | level
+     migrate/example |   |   |        |              |               |                      |
+                     |   |   | Test   |              |               | someText, someNumber |
+                     |   |   |        | someText     | string        |                      |
+                     |   |   |        | someInteger  | integer       |                      |
+                     |   |   |        | someNumber   | number        |                      |
+                     |   |   |        |              |               |                      |
+                     |   |   | Ref    |              |               |                      |
+                     |   |   |        | someText     | string        |                      |
+                     |   |   |        | someRef      | ref           | Test                 | 4
+    '''
+    rc = configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+    insert_values = [
+        {
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "someText": "test1",
+            "someInteger": 0,
+            "someNumber": 1.0
+        },
+        {
+            "_id": "b574111d-bd2f-4c94-9249-d9a0de49bd5b",
+            "someText": "test2",
+            "someInteger": 1,
+            "someNumber": 2.0
+        },
+        {
+            "_id": "1686c00c-0c59-413a-aa30-f5605488cc77",
+            "someText": "test3",
+            "someInteger": 0,
+            "someNumber": 1.0
+        },
+    ]
+    ref_insert = [
+        {
+            "_id": "350e7a87-28a5-4645-a659-2daa8e4bbe55",
+            "someRef._id": "197109d9-add8-49a5-ab19-3ddc7589ce7e"
+        },
+        {
+            "_id": "72d5dc33-a074-43f0-882f-e06abd34113b",
+            "someRef._id": "b574111d-bd2f-4c94-9249-d9a0de49bd5b"
+        },
+        {
+            "_id": "478be0be-6ab9-4c03-8551-53d881567743",
+            "someRef._id": "1686c00c-0c59-413a-aa30-f5605488cc77"
+        },
+    ]
+
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        table = tables['migrate/example/Test']
+        for item in insert_values:
+            conn.execute(table.insert().values(item))
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == insert_values[i]["_id"]
+            assert item["someText"] == insert_values[i]["someText"]
+            assert item["someInteger"] == insert_values[i]["someInteger"]
+            assert item["someNumber"] == insert_values[i]["someNumber"]
+
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
+                'migrate/example/Ref/:changelog'}.issubset(tables.keys())
+        columns = table.columns
+        assert {'someText', 'someNumber', 'someInteger'}.issubset(columns.keys())
+
+        table = tables['migrate/example/Ref']
+        for item in ref_insert:
+            conn.execute(table.insert().values(item))
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == ref_insert[i]["_id"]
+            assert item["someRef._id"] == insert_values[i]["_id"]
+        columns = table.columns
+        assert {'someText', 'someRef._id'}.issubset(columns.keys())
+
+        columns = _get_table_foreign_key_constraint_columns(table)
+        assert any(
+            [['someRef._id'], ['_id']] == [constraint["column_names"], constraint["referred_column_names"]] for
+            constraint in columns
+        )
+
+    override_manifest(tmp_path, '''
+     d               | r | b | m      | property     | type          | ref                  | level
+     migrate/example |   |   |        |              |               |                      |
+                     |   |   | Test   |              |               | someText, someNumber |
+                     |   |   |        | someText     | string        |                      |
+                     |   |   |        | someInteger  | integer       |                      |
+                     |   |   |        | someNumber   | number        |                      |
+                     |   |   |        |              |               |                      |
+                     |   |   | Ref    |              |               |                      |
+                     |   |   |        | someText     | string        |                      |
+                     |   |   |        | someRef      | ref           | Test                 | 3
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef.someText" TEXT;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef.someNumber" FLOAT;\n'
+        '\n'
+        'UPDATE "migrate/example/Ref" AS old\n'
+        '        SET \n'
+        '"someRef.someText" = new."someText",\n'
+        '"someRef.someNumber" = new."someNumber"\n'
+        '        FROM "migrate/example/Test" as new\n'
+        '        WHERE old."someRef._id" = new."_id";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME "someRef._id" TO "__someRef._id";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
+        '"fk_migrate/example/Ref_someRef._id";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        table = tables['migrate/example/Ref']
+        columns = table.columns
+        assert {'someText', '__someRef._id', 'someRef.someText', 'someRef.someNumber'}.issubset(columns.keys())
+        assert not {'someRef._id'}.issubset(columns.keys())
+
+        columns = _get_table_foreign_key_constraint_columns(table)
+        assert not any(
+            [['someRef._id'], ['_id']] == [constraint["column_names"], constraint["referred_column_names"]] for
+            constraint in columns
+        )
+        assert not any(
+            [['__someRef._id'], ['_id']] == [constraint["column_names"], constraint["referred_column_names"]] for
+            constraint in columns
+        )
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == ref_insert[i]["_id"]
+            assert item["someRef.someText"] == insert_values[i]["someText"]
+            assert item["someRef.someNumber"] == insert_values[i]["someNumber"]
+
+    override_manifest(tmp_path, '''
+     d               | r | b | m      | property     | type          | ref                  | level
+     migrate/example |   |   |        |              |               |                      |
+                     |   |   | Test   |              |               | someText, someNumber |
+                     |   |   |        | someText     | string        |                      |
+                     |   |   |        | someInteger  | integer       |                      |
+                     |   |   |        | someNumber   | number        |                      |
+                     |   |   |        |              |               |                      |
+                     |   |   | Ref    |              |               |                      |
+                     |   |   |        | someText     | string        |                      |
+                     |   |   |        | someRef      | ref           | Test                 | 4
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    pprint(result.output)
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef._id" UUID;\n'
+        '\n'
+        'UPDATE "migrate/example/Ref" AS old\n'
+        '        SET "someRef._id" = new."_id"\n'
+        '        FROM "migrate/example/Test" AS new\n'
+        '        WHERE \n'
+        'old."someRef.someText" = new."someText" AND \n'
+        'old."someRef.someNumber" = new."someNumber";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someText" TO '
+        '"__someRef.someText";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME "someRef.someNumber" TO '
+        '"__someRef.someNumber";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
+        '"fk_migrate/example/Ref_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
+        '"migrate/example/Test" (_id);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+
+        table = tables['migrate/example/Ref']
+        columns = table.columns
+        assert {'someText', '__someRef._id', 'someRef._id', '__someRef.someText', '__someRef.someNumber'}.issubset(
+            columns.keys())
+        assert not {'someRef.someText', 'someRef.someNumber'}.issubset(columns.keys())
+
+        columns = _get_table_foreign_key_constraint_columns(table)
+        assert any(
+            [['someRef._id'], ['_id']] == [constraint["column_names"], constraint["referred_column_names"]] for
+            constraint in columns
+        )
+
+        result = conn.execute(table.select())
+        for i, item in enumerate(result):
+            item = dict(item)
+            assert item["_id"] == ref_insert[i]["_id"]
+            assert item["someRef._id"] == insert_values[i]["_id"]
+
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Ref',
+                                'migrate/example/Ref/:changelog'])
+
+
+def test_migrate_create_models_with_base(
+    postgresql_migrate: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    initial_manifest = '''
+     d               | r | b | m    | property     | type | ref | level
+    '''
+    rc = configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    override_manifest(tmp_path, '''
+     d               | r | b    | m    | property     | type          | ref                  | level
+     migrate/example |   |      |      |              |               |                      |
+                     |   |      | Base |              |               | someText, someNumber |
+                     |   |      |      | someText     | string        |                      |
+                     |   |      |      | someInteger  | integer       |                      |
+                     |   |      |      | someNumber   | number        |                      |
+                     |   | Base |      |              |               |                      |
+                     |   |      | Test |              |               |                      |
+                     |   |      |      | someText     |               |                      |
+
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'CREATE TABLE "migrate/example/Base" (\n'
+        '    _txn UUID, \n'
+        '    _created TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    _updated TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    _id UUID NOT NULL, \n'
+        '    _revision TEXT, \n'
+        '    "someText" TEXT, \n'
+        '    "someInteger" INTEGER, \n'
+        '    "someNumber" FLOAT, \n'
+        '    PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Base__txn" ON "migrate/example/Base" '
+        '(_txn);\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Base" ADD CONSTRAINT '
+        '"migrate/example/Base_someText_someNumber_key" UNIQUE ("someText", '
+        '"someNumber");\n'
+        '\n'
+        'CREATE TABLE "migrate/example/Base/:changelog" (\n'
+        '    _id BIGSERIAL NOT NULL, \n'
+        '    _revision VARCHAR, \n'
+        '    _txn UUID, \n'
+        '    _rid UUID, \n'
+        '    datetime TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    action VARCHAR(8), \n'
+        '    data JSONB, \n'
+        '    PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Base/:changelog__txn" ON '
+        '"migrate/example/Base/:changelog" (_txn);\n'
+        '\n'
+        'CREATE TABLE "migrate/example/Test" (\n'
+        '    _txn UUID, \n'
+        '    _created TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    _updated TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    _id UUID NOT NULL, \n'
+        '    _revision TEXT, \n'
+        '    PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
+        '(_txn);\n'
+        '\n'
+        'CREATE TABLE "migrate/example/Test/:changelog" (\n'
+        '    _id BIGSERIAL NOT NULL, \n'
+        '    _revision VARCHAR, \n'
+        '    _txn UUID, \n'
+        '    _rid UUID, \n'
+        '    datetime TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    action VARCHAR(8), \n'
+        '    data JSONB, \n'
+        '    PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
+        '"migrate/example/Test/:changelog" (_txn);\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ADD CONSTRAINT '
+        '"fk_migrate/example/Base_id" FOREIGN KEY(_id) REFERENCES '
+        '"migrate/example/Base" (_id);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Base',
+                'migrate/example/Base/:changelog'}.issubset(tables.keys())
+
+        columns = _get_table_foreign_key_constraint_columns(tables['migrate/example/Test'])
+        assert any(
+            [['_id'], ['_id']] == [constraint["column_names"], constraint["referred_column_names"]] for
+            constraint in columns
+        )
+
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Base',
+                                'migrate/example/Base/:changelog'])
+
+
+def test_migrate_remove_base_from_model(
+    postgresql_migrate: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    initial_manifest = '''
+ d               | r | b    | m    | property     | type          | ref                  | level
+     migrate/example |   |      |      |              |               |                      |
+                     |   |      | Base |              |               | someText, someNumber |
+                     |   |      |      | someText     | string        |                      |
+                     |   |      |      | someInteger  | integer       |                      |
+                     |   |      |      | someNumber   | number        |                      |
+                     |   | Base |      |              |               |                      |
+                     |   |      | Test |              |               |                      |
+                     |   |      |      | someText     | string        |                      |
+    '''
+    rc = configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    override_manifest(tmp_path, '''
+     d               | r | b    | m    | property     | type          | ref                  | level
+     migrate/example |   |      |      |              |               |                      |
+                     |   |      | Base |              |               | someText, someNumber |
+                     |   |      |      | someText     | string        |                      |
+                     |   |      |      | someInteger  | integer       |                      |
+                     |   |      |      | someNumber   | number        |                      |
+                     |   |      |      |              |               |                      |
+                     |   |      | Test |              |               |                      |
+                     |   |      |      | someText     | string        |                      |
+
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
+        '"fk_migrate/example/Base_id";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Base',
+                'migrate/example/Base/:changelog'}.issubset(tables.keys())
+
+        columns = _get_table_foreign_key_constraint_columns(tables['migrate/example/Test'])
+        assert not any(
+            [['_id'], ['_id']] == [constraint["column_names"], constraint["referred_column_names"]] for
+            constraint in columns
+        )
+
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Base',
+                                'migrate/example/Base/:changelog'])
