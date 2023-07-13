@@ -237,6 +237,7 @@ jinja2 = "^3.1.2"
 GeoAlchemy2 = "^0.9.4"
 fsspec = "^2022.5.0"
 Shapely = "^1.8.0"
+psycopg2-binary = "^2.9.3"
 
 # Dev
 [tool.poetry.group.dev]
