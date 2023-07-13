@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from spinta.core.ufuncs import Expr
     from spinta.dimensions.enum.components import EnumItem
 
-Request = use('http', 'starlette.requests', 'Request')
+Request = use('http', 'starlette.requests', 'Request').Request
 Response = use('http', 'starlette.responses', 'Response')
 
 T = TypeVar('T')

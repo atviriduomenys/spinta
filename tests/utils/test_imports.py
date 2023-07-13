@@ -21,6 +21,12 @@ def test_use_correct_specific_package_ruamel():
     assert YAML == module
 
 
+def test_use_correct_specific_package_starlette_request():
+    from starlette.requests import Request
+    module = importlib.import_module('starlette.requests', package='Request')
+    assert Request == module
+
+
 def test_use_non_existant_package():
     with pytest.raises(Exception) as e:
         use('postgres', 'test')

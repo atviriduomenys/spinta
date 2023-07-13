@@ -35,7 +35,7 @@ from spinta.types.datatype import Ref
 from spinta.accesslog import log_response
 from spinta.utils.imports import use
 
-Request = use('http', 'starlette.requests', 'Request')
+Request = use('http', 'starlette.requests', 'Request').Request
 Response = use('http', 'starlette.responses', 'Response')
 
 

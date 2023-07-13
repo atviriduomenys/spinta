@@ -18,7 +18,7 @@ from spinta.exceptions import error_response
 from spinta.renderer import render
 from spinta.utils.imports import use
 
-Request = use('http', 'starlette.requests', 'Request')
+Request = use('http', 'starlette.requests', 'Request').Request
 UploadFile = use('http', 'starlette.datastructures', 'UploadFile')
 
 

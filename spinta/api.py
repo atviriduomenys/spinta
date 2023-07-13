@@ -25,10 +25,10 @@ from spinta.exceptions import NoAuthServer
 Starlette = use('http', 'starlette.applications', 'Starlette')
 HTTPException = use('http', 'starlette.exceptions', 'HTTPException')
 JSONResponse = use('http', 'starlette.responses', 'JSONResponse')
-Request = use('http', 'starlette.requests', 'Request')
+Request = use('http', 'starlette.requests', 'Request').Request
 Response = use('http', 'starlette.responses', 'Response')
 RedirectResponse = use('http', 'starlette.responses', 'RedirectResponse')
-Jinja2Templates = use('http', 'starlette.templating', 'Jinja2Templates')
+Jinja2Templates = use('http', 'starlette.templating', 'Jinja2Templates').Jinja2Templates
 StaticFiles = use('http', 'starlette.staticfiles', 'StaticFiles')
 Route = use('http', 'starlette.routing', 'Route')
 Mount = use('http', 'starlette.routing', 'Mount')

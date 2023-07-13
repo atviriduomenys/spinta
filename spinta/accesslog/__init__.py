@@ -19,7 +19,7 @@ from spinta.utils.imports import use
 psutil = use('log', 'psutil')
 Typer = use('cli', 'typer', 'Typer')
 echo = use('cli', 'typer', 'echo')
-Request = use('http', 'starlette.requests', 'Request')
+Request = use('http', 'starlette.requests', 'Request').Request
 
 
 class AccessLog:

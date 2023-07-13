@@ -30,7 +30,7 @@ from spinta.types.datatype import Number
 from spinta.utils.imports import use
 from spinta.utils.schema import NotAvailable
 
-Request = use('http', 'starlette.requests', 'Request')
+Request = use('http', 'starlette.requests', 'Request').Request
 StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse')
 
 RDF = "rdf"

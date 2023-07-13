@@ -21,7 +21,7 @@ from spinta import spyna
 from spinta.exceptions import ModelNotFound
 from spinta.utils.imports import use
 
-Request = use('http', 'starlette.requests', 'Request')
+Request = use('http', 'starlette.requests', 'Request').Request
 
 
 @prepare.register(Context, UrlParams, Version, Request)

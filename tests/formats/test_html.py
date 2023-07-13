@@ -34,7 +34,7 @@ from spinta.utils.data import take
 from spinta.utils.imports import use
 from starlette.requests import Request
 
-# Request = use('http', 'starlette.requests', 'Request')
+# Request = use('http', 'starlette.requests', 'Request').Request
 
 
 def _get_data_table(context: dict):

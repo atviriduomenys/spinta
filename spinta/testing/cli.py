@@ -13,7 +13,7 @@ from spinta.cli import main
 from spinta.core.config import RawConfig
 from spinta.testing.context import create_test_context
 
-CliRunner = use('cli', 'typer.testing', 'CliRunner')
+CliRunner = use('cli', 'typer.testing', 'CliRunner').CliRunner
 
 
 def _prepare_args(args: List[Any]) -> List[str]:
