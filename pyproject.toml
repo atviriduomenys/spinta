@@ -46,7 +46,7 @@ rdflib = '^6.3.2'
 # used for migrations, probably should be removed in near future
 jsonpatch = "^1.32"
 objprint = "^0.2.2"
-sqlparse = "^0.4.3"
+toml = "^0.10.2"
 
 #HTTP
 [tool.poetry.group.http]
@@ -106,6 +106,7 @@ optional = true
 optional = true
 
 [tool.poetry.group.sql.dependencies]
+sqlparse = "^0.4.3"
 
 # Excel
 [tool.poetry.group.excel]

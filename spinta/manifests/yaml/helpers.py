@@ -7,16 +7,11 @@ import uuid
 
 import jsonpatch
 
-from ruamel.yaml import YAML
-from ruamel.yaml.parser import ParserError
-from ruamel.yaml.scanner import ScannerError
-from ruamel.yaml.error import YAMLError
-from ruamel.yaml.scalarstring import walk_tree
-
 from spinta import spyna
 from spinta import exceptions
 from spinta.exceptions import InvalidManifestFile
 from spinta.manifests.yaml.components import InlineManifest
+from spinta.utils.imports import use
 from spinta.utils.itertools import last
 from spinta.utils.path import is_ignored
 from spinta.components import Context
@@ -24,6 +19,12 @@ from spinta.components import Context
 if TYPE_CHECKING:
     from spinta.migrations import SchemaVersion
     from spinta.manifests.yaml.components import YamlManifest
+
+YAML = use('yaml', 'ruamel.yaml', 'YAML')
+ParserError = use('yaml', 'ruamel.yaml.parser', 'YAML')
+ScannerError = use('yaml', 'ruamel.yaml.scanner', 'YAML')
+YAMLError = use('yaml', 'ruamel.yaml.error', 'YAML')
+walk_tree = use('yaml', 'ruamel.yaml.scalarstring', 'YAML')
 
 yaml = YAML(typ='safe')
 
