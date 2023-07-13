@@ -202,6 +202,8 @@ optional = true
 
 [tool.poetry.group.test.dependencies]
 pytz = "^2022.2.1"
+"ruamel.yaml" = "^0.17.21"
+sqlparse = "^0.4.3"
 
 # Docs
 [tool.poetry.group.docs]
