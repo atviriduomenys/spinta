@@ -14,6 +14,7 @@ from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.store import load_store, load_manifest
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.core.context import configure_context
+from spinta.manifests.components import Manifest
 
 
 def bootstrap(
@@ -74,6 +75,8 @@ def migrate(
                 path=rename
             )
         )
+        _validate_migrate_rename(migrate_meta.rename, manifest)
+
         if backend:
             context.attach(f'transaction.{backend.name}', backend.begin)
             commands.migrate(context, manifest, backend, migrate_meta)
@@ -176,3 +179,14 @@ class MigrateMeta:
     def __init__(self, plan: bool, rename: MigrateRename):
         self.plan = plan
         self.rename = rename
+
+
+def _validate_migrate_rename(rename: MigrateRename, manifest: Manifest):
+    tables = rename.tables.values()
+    for table in tables:
+        if table["new_name"] not in manifest.models.keys():
+            raise Exception("TABLE DOESNT EXIST")
+        model = manifest.models[table["new_name"]]
+        for column in table["columns"].values():
+            if column not in model.properties.keys():
+                raise Exception("PROPERTY DOESNT EXIST")

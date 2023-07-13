@@ -1,5 +1,7 @@
 from typing import Any, List
 
+import geoalchemy2.types
+
 from spinta.backends.components import BackendFeatures
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
@@ -25,6 +27,10 @@ from spinta.components import Context, Model, Property
 from spinta.manifests.components import Manifest
 from spinta.backends.postgresql.components import PostgreSQL
 
+EXCLUDED_MODELS = (
+    'spatial_ref_sys'
+)
+
 
 @commands.migrate.register(Context, Manifest, PostgreSQL, MigrateMeta)
 def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_meta: MigrateMeta):
@@ -40,7 +46,10 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
 
     tables = []
     for table in table_names:
-        tables.append(migrate_meta.rename.get_table_name(table))
+        name = migrate_meta.rename.get_table_name(table)
+        if name not in manifest.models.keys():
+            name = table
+        tables.append(name)
 
     models = zipitems(
         tables,
@@ -51,6 +60,8 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
     for items in models:
         for old_model, new_model in items:
             if old_model and any(value in old_model for value in (TableType.CHANGELOG.value, TableType.FILE.value)):
+                continue
+            if old_model and old_model in EXCLUDED_MODELS:
                 continue
             old = NA
             if old_model:
@@ -125,6 +136,7 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
             else:
                 commands.migrate(context, backend, inspector, old, old_prop, new_prop, handler, rename)
 
+    required_unique_constraints = []
     if new.unique:
         for val in new.unique:
             prop_list = []
@@ -136,17 +148,24 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
             constraints = inspector.get_unique_constraints(old.name)
             constraint_name = f'{old.name}_{"_".join(prop_list)}_key'
             if old.name != table_name:
-                if any(constraint['name'] == constraint_name for constraint in constraints):
-                    handler.add_action(ma.DropConstraintMigrationAction(
-                        table_name=table_name,
-                        constraint_name=constraint_name
-                    ))
                 constraint_name = f'{table_name}_{"_".join(prop_list)}_key'
+            required_unique_constraints.append(constraint_name)
             if not any(constraint['name'] == constraint_name for constraint in constraints):
                 handler.add_action(ma.CreateUniqueConstraintMigrationAction(
                     table_name=table_name,
                     constraint_name=constraint_name,
                     columns=prop_list
+                ))
+
+    # Clean up old multi constraints for non required models (happens when model.ref is changed)
+    # Solo unique constraints are handled with property migrate
+    if not old.name.startswith("_"):
+        unique_constraints = inspector.get_unique_constraints(old.name)
+        for constraint in unique_constraints:
+            if constraint["name"] not in required_unique_constraints and len(constraint["column_names"]) > 1:
+                handler.add_action(ma.DropConstraintMigrationAction(
+                    table_name=table_name,
+                    constraint_name=constraint["name"]
                 ))
 
 
@@ -496,8 +515,12 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
     new_type = new.type.compile(dialect=postgresql.dialect())
     old_type = old.type.compile(dialect=postgresql.dialect())
 
+    # Convert sa.Float, to postgresql DOUBLE PRECISION type
+    if isinstance(new.type, sa.Float):
+        new_type = 'DOUBLE PRECISION'
+
     nullable = new.nullable if new.nullable != old.nullable else None
-    type_ = new.type if new_type != old_type else None
+    type_ = new.type if old_type != new_type else None
     new_name = column_name if old.name != new.name else None
 
     if nullable is not None or type_ is not None or new_name is not None:
@@ -535,21 +558,22 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
     index_name = f'idx_{table_name}_{column_name}'
     old_index_name = f'idx_{table.name}_{old.name}'
     indexes = inspector.get_indexes(table_name=table.name)
+    index_required = isinstance(new.type, geoalchemy2.types.Geometry)
     if any(index["name"] == old_index_name for index in indexes):
-        if not new.index or table_name != table.name:
+        if not index_required or table_name != table.name:
             handler.add_action(
                 ma.DropIndexMigrationAction(
                     index_name=old_index_name,
                     table_name=table_name
                 ), foreign_key)
-            if new.index:
+            if index_required:
                 handler.add_action(ma.CreateIndexMigrationAction(
                     index_name=index_name,
                     table_name=table_name,
                     columns=[column_name]
                 ), foreign_key)
     else:
-        if new.index:
+        if index_required:
             handler.add_action(ma.CreateIndexMigrationAction(
                 index_name=index_name,
                 table_name=table_name,
@@ -571,7 +595,8 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
             table_name=table_name,
             columns=[new.name]
         ))
-    if new.index:
+    index_required = isinstance(new.type, geoalchemy2.types.Geometry)
+    if index_required:
         handler.add_action(ma.CreateIndexMigrationAction(
             table_name=table_name,
             columns=[new.name],
@@ -606,7 +631,8 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                         table_name=table_name,
                         constraint_name=constraint["name"],
                     ), foreign_key)
-        if old.index:
+        index_required = isinstance(old.type, geoalchemy2.types.Geometry)
+        if index_required:
             indexes = inspector.get_indexes(table_name=table.name)
             for index in indexes:
                 if old.name in index["column_names"]:
