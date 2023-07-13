@@ -220,6 +220,7 @@ pytz = "^2022.2.1"
 sqlparse = "^0.4.3"
 starlette = "^0.21.0"
 cryptography = "^41.0.2"
+authlib = "~0.11"
 
 # Dev
 [tool.poetry.group.dev]
