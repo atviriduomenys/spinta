@@ -127,9 +127,8 @@ optional = true
 alembic = "^1.8.1"
 asyncpg = "^0.22.0"
 psycopg2-binary = "^2.9.3"
-# FIXME: https://github.com/python-poetry/poetry/issues/4402
-# sqlalchemy = "~1.4"
 sqlalchemy = "~1.4"
+# FIXME: https://github.com/python-poetry/poetry/issues/4402
 
 # Mongo
 [tool.poetry.group.mongo]
