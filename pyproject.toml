@@ -106,7 +106,7 @@ optional = true
 optional = true
 
 [tool.poetry.group.sql.dependencies]
-sqlparse = "^0.4.3"
+sqlparse = {version="^0.4.3", extras=['all']}
 
 # Excel
 [tool.poetry.group.excel]
@@ -232,7 +232,7 @@ pytest-mock = "^3.9.0"
 responses = "^0.21.0"
 snoop = "^0.4.2"
 # https://github.com/kvesteri/sqlalchemy-utils/issues/472
-sqlalchemy-utils = "~0.37"
+#sqlalchemy-utils = "~0.37"
 python-dotenv = "^0.21.0"
 
 [_tool.poetry.extras]
