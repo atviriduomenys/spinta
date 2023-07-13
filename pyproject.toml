@@ -232,6 +232,7 @@ phonenumbers = "^8.12.56"
 msgpack = "^1.0.4"
 alembic = "^1.8.1"
 lxml = "^4.9.1"
+httpx = "^0.23.0"
 
 # Dev
 [tool.poetry.group.dev]
