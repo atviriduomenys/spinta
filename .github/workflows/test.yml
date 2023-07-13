@@ -47,7 +47,7 @@ jobs:
         pip install poetry
         poetry --version
         poetry install -vv
-        poetry install --all-extras
+        poetry install --with sql
         
     - name: Test with pytest
       env:
