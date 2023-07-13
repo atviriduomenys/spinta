@@ -219,6 +219,7 @@ pytz = "^2022.2.1"
 "ruamel.yaml" = "^0.17.21"
 sqlparse = "^0.4.3"
 starlette = "^0.21.0"
+cryptography = "^41.0.2"
 
 # Dev
 [tool.poetry.group.dev]
