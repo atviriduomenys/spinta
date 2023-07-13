@@ -221,6 +221,7 @@ sqlparse = "^0.4.3"
 starlette = "^0.21.0"
 cryptography = "^41.0.2"
 authlib = "~0.11"
+psutil = "^5.9.3"
 
 # Dev
 [tool.poetry.group.dev]
