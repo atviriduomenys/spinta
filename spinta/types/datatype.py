@@ -415,15 +415,9 @@ def rename_metadata(context: Context, data: dict) -> dict:
     return data
 
 
-@load.register(Context, Property, dict)
-def load(context: Context, prop: Property, data: dict):
-    dtype = load(context, Partial(), data)
-
-
 @load.register(Context, Partial, dict)
 def load(context: Context, dtype: Partial, data: dict):
-    if isinstance(data, dict):
-        dtype.properties = {
-            name: load(context, Property(), prop)
-            for name, prop in data.get('properties', {}).items()
-        }
+    dtype.properties = {
+        name: load(context, Property(), prop)
+        for name, prop in data.get('properties', {}).items()
+    }
