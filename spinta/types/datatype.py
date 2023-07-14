@@ -420,7 +420,8 @@ def load(context: Context, prop: Property, data: dict):
 
 
 def load(context: Context, dtype: Partial, data: dict):
-    dtype.properties = {
-        name: load(context, Property(), prop)
-        for name, prop in data.get('properties', {}).items()
-    }
+    if isinstance(data, dict):
+        dtype.properties = {
+            name: load(context, Property(), prop)
+            for name, prop in data.get('properties', {}).items()
+        }
