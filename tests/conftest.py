@@ -17,10 +17,10 @@ from pygments.formatters.terminal256 import Terminal256Formatter
 from pygments.lexers.python import Python3Lexer
 from pygments.lexers.python import Python3TracebackLexer
 from pygments.lexers.sql import PostgresLexer
+from sqlalchemy.sql import ClauseElement
 
 objprint = use('docs', 'objprint')
 sqlparse = use('sql', 'sqlparse')
-ClauseElement = use('postgres', 'sqlalchemy.sql', 'ClauseElement').ClauseElement
 
 objprint.config(honor_existing=False, depth=1)
 
