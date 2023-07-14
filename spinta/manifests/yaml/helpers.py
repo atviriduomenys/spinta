@@ -20,11 +20,11 @@ if TYPE_CHECKING:
     from spinta.migrations import SchemaVersion
     from spinta.manifests.yaml.components import YamlManifest
 
-YAML = use('yaml', 'ruamel.yaml', 'YAML')
-ParserError = use('yaml', 'ruamel.yaml.parser', 'YAML')
-ScannerError = use('yaml', 'ruamel.yaml.scanner', 'YAML')
-YAMLError = use('yaml', 'ruamel.yaml.error', 'YAML')
-walk_tree = use('yaml', 'ruamel.yaml.scalarstring', 'YAML')
+YAML = use('yaml', 'ruamel.yaml', 'YAML').YAML
+ParserError = use('yaml', 'ruamel.yaml.parser', 'ParserError').ParserError
+ScannerError = use('yaml', 'ruamel.yaml.scanner', 'ScannerError').ScannerError
+YAMLError = use('yaml', 'ruamel.yaml.error', 'YAMLError').YAMLError
+walk_tree = use('yaml', 'ruamel.yaml.scalarstring', 'walk_tree').walk_tree
 
 yaml = YAML(typ='safe')
 
