@@ -152,6 +152,10 @@ def load_node(
             if mixed:
                 remainder[name] = data[name]
                 continue
+            elif isinstance(data[name], dict):
+                for n in data[name]:
+                    remainder[n] = data[name]
+                    continue
             else:
                 raise exceptions.UnknownParameter(node, param=name)
         schema = node_schema[name]

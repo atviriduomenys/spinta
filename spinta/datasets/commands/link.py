@@ -5,6 +5,8 @@ from spinta.components import Context
 from spinta.core.access import link_access_param
 from spinta.datasets.components import Dataset, Resource, Entity, Attribute
 from spinta.exceptions import MissingReference
+from spinta.types.datatype import Partial, Ref
+from spinta.components import Property
 
 
 @commands.link.register(Context, Dataset)
@@ -56,3 +58,13 @@ def link(context: Context, entity: Entity):
 @commands.link.register(Context, Attribute)
 def link(context: Context, attribute: Attribute):
     pass
+
+
+def link(context: Context, prop: Property):
+    if isinstance(prop.dtype, Partial):
+        if isinstance(prop.parent.dtype, Ref):
+            props = prop.dtype.properties
+            prop.dtype = prop.parent.dtype.models.properties[prop.name].copy()
+            prop.dtype.properties = props
+        else:
+            raise "Partial property can only exist on Ref"

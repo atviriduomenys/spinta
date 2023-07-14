@@ -218,6 +218,10 @@ class Array(DataType):
             raise exceptions.InvalidValue(self)
 
 
+class Partial(DataType):
+    pass
+
+
 class Object(DataType):
     schema = {
         'properties': {'type': 'object'},
@@ -409,3 +413,14 @@ def get_error_context(dtype: DataType, *, prefix='this'):
 @commands.rename_metadata.register(Context, dict)
 def rename_metadata(context: Context, data: dict) -> dict:
     return data
+
+
+def load(context: Context, prop: Property, data: dict):
+    dtype = load(context, Partial(), data)
+
+
+def load(context: Context, dtype: Partial, data: dict):
+    dtype.properties = {
+        name: load(context, Property(), prop)
+        for name, prop in data.get('properties', {}).items()
+    }

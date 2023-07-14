@@ -564,10 +564,11 @@ class PropertyReader(TabularReader):
             )
 
         if row['property'] in self.state.model.data['properties']:
-            self.error(
-                f"Property {self.name!r} with the same name is already "
-                f"defined for this {self.state.model.name!r} model."
-            )
+            if str(row['property'] + '.') in self.state.model.data['properties'] and row['type'] != '':
+                self.error(
+                    f"Property {self.name!r} with the same name is already "
+                    f"defined for this {self.state.model.name!r} model."
+                )
         dtype = _get_type_repr(row['type'])
         dtype = _parse_dtype_string(dtype)
         if dtype['error']:
@@ -650,7 +651,8 @@ class PropertyReader(TabularReader):
                             },
                 })
         else:
-            self.state.model.data['properties'][row['property']] = self.data
+            if row['property'] not in self.state.model.data['properties']:
+                self.state.model.data['properties'][row['property']] = self.data
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
