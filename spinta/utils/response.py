@@ -19,7 +19,7 @@ from spinta.renderer import render
 from spinta.utils.imports import use
 
 Request = use('http', 'starlette.requests', 'Request').Request
-UploadFile = use('http', 'starlette.datastructures', 'UploadFile')
+UploadFile = use('http', 'starlette.datastructures', 'UploadFile').UploadFile
 
 
 async def _check_post(context: Context, request: Request, params: UrlParams):

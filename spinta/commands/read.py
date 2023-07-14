@@ -24,8 +24,8 @@ from spinta.utils.data import take
 from spinta.utils.imports import use
 
 Request = use('http', 'starlette.requests', 'Request').Request
-Response = use('http', 'starlette.responses', 'Response')
-FileResponse = use('http', 'starlette.responses', 'FileResponse')
+Response = use('http', 'starlette.responses', 'Response').Response
+FileResponse = use('http', 'starlette.responses', 'FileResponse').FileResponse
 
 
 @commands.getall.register(Context, Model, Request)

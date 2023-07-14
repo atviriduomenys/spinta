@@ -16,8 +16,8 @@ from spinta.utils.nestedstruct import flatten
 from spinta.utils.response import aiter
 
 Request = use('http', 'starlette.requests', 'Request').Request
-Response = use('http', 'starlette.responses', 'Response')
-StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse')
+Response = use('http', 'starlette.responses', 'Response').Response
+StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse').StreamingResponse
 
 
 @commands.render.register(Context, Request, Model, Csv)

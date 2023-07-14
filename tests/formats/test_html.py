@@ -32,9 +32,8 @@ from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
 from spinta.utils.data import take
 from spinta.utils.imports import use
-from starlette.requests import Request
 
-# Request = use('http', 'starlette.requests', 'Request').Request
+Request = use('http', 'starlette.requests', 'Request').Request
 
 
 def _get_data_table(context: dict):

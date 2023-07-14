@@ -52,7 +52,7 @@ from spinta.utils.nestedstruct import flatten
 from spinta.utils.schema import NotAvailable
 
 Request = use('http', 'starlette.requests', 'Request').Request
-Jinja2Templates = use('http', 'starlette.templating', 'Jinja2Templates')
+Jinja2Templates = use('http', 'starlette.templating', 'Jinja2Templates').Jinja2Templates
 
 
 def _get_model_reserved_props(action: Action) -> List[str]:

@@ -9,7 +9,7 @@ from spinta.utils.imports import use
 from spinta.utils.response import aiter, peek_and_stream
 
 Request = use('http', 'starlette.requests', 'Request').Request
-StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse')
+StreamingResponse = use('http', 'starlette.responses', 'StreamingResponse').StreamingResponse
 
 
 @commands.render.register(Context, Request, Model, JsonLines)

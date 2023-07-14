@@ -39,8 +39,8 @@ from spinta.utils import passwords
 from spinta.utils.imports import use
 from spinta.utils.scopes import name_to_scope
 
-HTTPException = use('http', 'starlette.exceptions', 'HTTPException')
-JSONResponse = use('http', 'starlette.responses', 'JSONResponse')
+HTTPException = use('http', 'starlette.exceptions', 'HTTPException').HTTPException
+JSONResponse = use('http', 'starlette.responses', 'JSONResponse').JSONResponse
 
 log = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML(typ='safe')

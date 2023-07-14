@@ -1,7 +1,6 @@
 import pathlib
 import re
 import uuid
-import tqdm
 
 from typing import Any
 from typing import Dict
@@ -30,14 +29,14 @@ from spinta.utils.imports import use
 from spinta.utils.nin import is_nin_lt
 
 phonenumbers = use('pii', 'phonenumbers')
-NumberParseException = use('pii', 'phonenumbers', 'NumberParseException')
+tqdm = use('datasets', 'tqdm')
+echo = use('cli', 'typer', 'echo')
 
-TyperContext = use('cli', 'typer', 'Context')
+NumberParseException = use('pii', 'phonenumbers', 'NumberParseException').NumberParseException
+TyperContext = use('cli', 'typer', 'Context').Context
 Argument = use('cli', 'typer', 'Argument').Argument
 Option = use('cli', 'typer', 'Option').Option
 Typer = use('cli', 'typer', 'Typer').Typer
-echo = use('cli', 'typer', 'echo')
-
 app = Typer()
 
 

@@ -18,7 +18,6 @@ from spinta import exceptions
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_async_response
 from spinta.auth import check_scope
-from spinta.backends import check_type_value
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
@@ -41,10 +40,10 @@ from spinta.formats.components import Format
 if typing.TYPE_CHECKING:
     from spinta.backends.postgresql.components import WriteTransaction
 
-Request = use('http', 'starlette.requests', 'Request').Request
-Response = use('http', 'starlette.responses', 'Response')
-URL = use('http', 'starlette.responses', 'URL').URL
+URL = use('http', 'starlette.datastructures', 'URL').URL
 Headers = use('http', 'starlette.datastructures', 'Headers').Headers
+Request = use('http', 'starlette.requests', 'Request').Request
+Response = use('http', 'starlette.responses', 'Response').Response
 
 
 STREAMING_CONTENT_TYPES = [

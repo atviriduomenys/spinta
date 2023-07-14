@@ -17,14 +17,14 @@ from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.utils.imports import use
 
-TyperContext = use('cli', 'typer', 'Context')
+TyperContext = use('cli', 'typer', 'Context').Context
 Argument = use('cli', 'typer', 'Argument').Argument
 Option = use('cli', 'typer', 'Option').Option
 Typer = use('cli', 'typer', 'Typer').Typer
-echo = use('cli', 'typer', 'echo')
-Exit = use('cli', 'typer', 'Exit')
+Exit = use('cli', 'typer', 'Exit').Exit
 click = use('cli', 'click')
 jwt = use('http', 'authlib.jose', 'jwt')
+echo = use('cli', 'typer', 'echo')
 
 
 def genkeys(
