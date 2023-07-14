@@ -241,6 +241,7 @@ psycopg2-binary = "^2.9.3"
 pymongo = "^4.2.0"
 pyproj = "^3.4.0"
 ujson = "^5.5.0"
+dask = {extras = ["dataframe"], version = "^2023.3.2"}
 
 # Dev
 [tool.poetry.group.dev]
