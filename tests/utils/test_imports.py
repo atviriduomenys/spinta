@@ -21,9 +21,9 @@ def test_use_correct_specific_package_ruamel():
     assert YAML == module
 
 
-def test_use_correct_specific_package_starlette_request():
+def test_use_class_import_starlette_request():
     from starlette.requests import Request
-    module = importlib.import_module('starlette.requests', package='Request')
+    module = importlib.import_module('starlette.requests', package='Request').Request
     assert Request == module
 
 
