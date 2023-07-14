@@ -10,9 +10,7 @@ import pytest
 from spinta.cli import main
 from spinta.core.config import RawConfig
 from spinta.testing.context import create_test_context
-from spinta.utils.imports import use
-
-CliRunner = use('cli', 'typer.testing', 'CliRunner').CliRunner
+from typer.testing import CliRunner
 
 
 def _prepare_args(args: List[Any]) -> List[str]:
