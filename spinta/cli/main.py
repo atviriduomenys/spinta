@@ -22,11 +22,11 @@ from spinta.cli.helpers.typer import add
 from spinta.core.context import create_context
 from spinta.utils.imports import use
 
-TyperContext = use('cli', 'typer', 'Context')
+TyperContext = use('cli', 'typer', 'Context').Context
 Argument = use('cli', 'typer', 'Argument').Argument
 Option = use('cli', 'typer', 'Option').Option
 Typer = use('cli', 'typer', 'Typer').Typer
-echo = use('cli', 'typer', 'echo')
+echo = use('cli', 'typer', 'echo').echo
 
 log = logging.getLogger(__name__)
 

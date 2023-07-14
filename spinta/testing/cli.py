@@ -7,11 +7,10 @@ import traceback
 
 import pytest
 
-from spinta.utils.imports import use
-
 from spinta.cli import main
 from spinta.core.config import RawConfig
 from spinta.testing.context import create_test_context
+from spinta.utils.imports import use
 
 CliRunner = use('cli', 'typer.testing', 'CliRunner').CliRunner
 
