@@ -7,22 +7,22 @@ from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
+from geoalchemy2.shape import to_shape
 
 import sqlalchemy as sa
 
 TEST_POSTGRESQL_DSN = "postgresql://admin:admin123@localhost:54321/spinta_tests_migration"
-TEST_POSTGRESQL_EXTENSIONS_DSN = "postgresql://admin:admin123@localhost:54321/spinta_tests_migration"
 
 
 @pytest.fixture(scope='session')
 def postgresql_migrate() -> str:
     dsn: str = TEST_POSTGRESQL_DSN
     if su.database_exists(dsn):
-        _prepare_postgresql(TEST_POSTGRESQL_EXTENSIONS_DSN)
+        _prepare_postgresql(dsn)
         yield dsn
     else:
         su.create_database(dsn)
-        _prepare_postgresql(TEST_POSTGRESQL_EXTENSIONS_DSN)
+        _prepare_postgresql(dsn)
         yield dsn
         su.drop_database(dsn)
 
@@ -1668,3 +1668,270 @@ def test_migrate_remove_base_from_model(
 
         _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Base',
                                 'migrate/example/Base/:changelog'])
+
+
+def test_migrate_create_models_with_file_type(
+    postgresql_migrate: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    initial_manifest = '''
+     d               | r | b | m    | property     | type | ref | source
+    '''
+    rc = configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    override_manifest(tmp_path, '''
+     d               | r | b    | m    | property       | type    | ref                  | source
+     migrate/example |   |      |      |                |         |                      |
+                     |   |      | Test |                |         | someText, someNumber |
+                     |   |      |      | someText       | string  |                      |
+                     |   |      |      | someInteger    | integer |                      |
+                     |   |      |      | someNumber     | number  |                      |
+                     |   |      |      | flag           | file    |                      |
+                     |   |      |      | new            | file    |                      | file()
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'CREATE TABLE "migrate/example/Test/:file/flag" (\n'
+        '    _id UUID NOT NULL, \n'
+        '    _block BYTEA, \n'
+        '    PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        'CREATE TABLE "migrate/example/Test/:file/new" (\n'
+        '    _id UUID NOT NULL, \n'
+        '    _block BYTEA, \n'
+        '    PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        'CREATE TABLE "migrate/example/Test" (\n'
+        '    _txn UUID, \n'
+        '    _created TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    _updated TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    _id UUID NOT NULL, \n'
+        '    _revision TEXT, \n'
+        '    "someText" TEXT, \n'
+        '    "someInteger" INTEGER, \n'
+        '    "someNumber" FLOAT, \n'
+        '    "flag._id" VARCHAR, \n'
+        '    "flag._content_type" VARCHAR, \n'
+        '    "flag._size" BIGINT, \n'
+        '    "flag._bsize" INTEGER, \n'
+        '    "flag._blocks" UUID[], \n'
+        '    "new._id" VARCHAR, \n'
+        '    "new._content_type" VARCHAR, \n'
+        '    "new._size" BIGINT, \n'
+        '    "new._bsize" INTEGER, \n'
+        '    "new._blocks" UUID[], \n'
+        '    PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Test__txn" ON "migrate/example/Test" '
+        '(_txn);\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ADD CONSTRAINT '
+        '"migrate/example/Test_someText_someNumber_key" UNIQUE ("someText", '
+        '"someNumber");\n'
+        '\n'
+        'CREATE TABLE "migrate/example/Test/:changelog" (\n'
+        '    _id BIGSERIAL NOT NULL, \n'
+        '    _revision VARCHAR, \n'
+        '    _txn UUID, \n'
+        '    _rid UUID, \n'
+        '    datetime TIMESTAMP WITHOUT TIME ZONE, \n'
+        '    action VARCHAR(8), \n'
+        '    data JSONB, \n'
+        '    PRIMARY KEY (_id)\n'
+        ');\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Test/:changelog__txn" ON '
+        '"migrate/example/Test/:changelog" (_txn);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Test/:file/flag',
+                'migrate/example/Test/:file/new'}.issubset(tables.keys())
+        table = tables['migrate/example/Test']
+        columns = table.columns
+        assert {'someText', 'someInteger', 'someNumber', 'flag._id', 'flag._content_type', 'flag._size', 'flag._bsize',
+                'flag._blocks', 'new._id', 'new._content_type', 'new._size', 'new._bsize', 'new._blocks'}.issubset(
+            columns.keys())
+
+        _clean_up_tables(meta,
+                         ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Test/:file/flag',
+                          'migrate/example/Test/:file/new'])
+
+
+def test_migrate_remove_file_type(
+    postgresql_migrate: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type    | ref                  | source
+     migrate/example |   |      |      |                |         |                      |
+                     |   |      | Test |                |         | someText, someNumber |
+                     |   |      |      | someText       | string  |                      |
+                     |   |      |      | someInteger    | integer |                      |
+                     |   |      |      | someNumber     | number  |                      |
+                     |   |      |      | flag           | file    |                      |
+                     |   |      |      | new            | file    |                      | file()
+    '''
+    rc = configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    override_manifest(tmp_path, '''
+     d               | r | b    | m    | property       | type    | ref                  | source
+     migrate/example |   |      |      |                |         |                      |
+                     |   |      | Test |                |         | someText, someNumber |
+                     |   |      |      | someText       | string  |                      |
+                     |   |      |      | someInteger    | integer |                      |
+                     |   |      |      | someNumber     | number  |                      |
+                     |   |      |      | flag           | file    |                      |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "new._id" TO "__new._id";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "new._content_type" TO '
+        '"__new._content_type";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "new._size" TO "__new._size";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "new._bsize" TO "__new._bsize";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "new._blocks" TO "__new._blocks";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test/:file/new" RENAME TO '
+        '"migrate/example/Test/:file/__new";\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Test/:file/flag',
+                'migrate/example/Test/:file/__new'}.issubset(tables.keys())
+        assert not {'migrate/example/Test/:file/new'}.issubset(tables.keys())
+        table = tables['migrate/example/Test']
+        columns = table.columns
+        assert {'someText', 'someInteger', 'someNumber', 'flag._id', 'flag._content_type', 'flag._size', 'flag._bsize',
+                'flag._blocks', '__new._id', '__new._content_type', '__new._size', '__new._bsize',
+                '__new._blocks'}.issubset(
+            columns.keys())
+        assert not {'new._id', 'new._content_type', 'new._size', 'new._bsize', 'new._blocks'}.issubset(
+            columns.keys())
+
+        _clean_up_tables(meta,
+                         ['migrate/example/Test', 'migrate/example/Test/:changelog', 'migrate/example/Test/:file/flag',
+                          'migrate/example/Test/:file/__new'])
+
+
+def test_migrate_modify_geometry_type(
+    postgresql_migrate: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type     | ref | source
+     migrate/example |   |      |      |                |          |     |
+                     |   |      | Test |                |          |     |
+                     |   |      |      | someText       | string   |     |
+                     |   |      |      | someGeo        | geometry |     |
+    '''
+    rc = configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+        conn.execute(table.insert().values({
+            "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
+            "someText": "Vilnius",
+            "someGeo": "POINT(54.687046 25.282911)"
+        }))
+
+        result = conn.execute(table.select())
+        for item in result:
+            assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
+            assert item["someText"] == "Vilnius"
+            assert to_shape(item["someGeo"]).wkt == "POINT (54.687046 25.282911)"
+
+    override_manifest(tmp_path, '''
+     d               | r | b    | m    | property       | type           | ref | source
+     migrate/example |   |      |      |                |                |     |
+                     |   |      | Test |                |                |     |
+                     |   |      |      | someText       | string         |     |
+                     |   |      |      | someGeo        | geometry(3346) |     |
+    ''')
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p'
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE '
+        'geometry(GEOMETRY,3346) USING ST_Transform(ST_SetSRID("someGeo", 4326), '
+        '3346);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+
+        table = tables["migrate/example/Test"]
+
+        result = conn.execute(table.select())
+        for item in result:
+            assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
+            assert item["someText"] == "Vilnius"
+            assert to_shape(item["someGeo"]).wkt == "POINT (3685723.49000339 3186425.321775446)"
+
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])

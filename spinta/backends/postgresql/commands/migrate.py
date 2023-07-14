@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import JSONB, BIGINT, ARRAY
 from sqlalchemy.dialects import postgresql
 
 from spinta.cli.migrate import MigrateMeta, MigrateRename
-from spinta.types.datatype import DataType, Ref, File, Inherit
+from spinta.types.datatype import DataType, Ref, File, Inherit, Array, Object
 from spinta.utils.schema import NotAvailable, NA
 
 from alembic.migration import MigrationContext
@@ -50,7 +50,6 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
         if name not in manifest.models.keys():
             name = table
         tables.append(name)
-
     models = zipitems(
         tables,
         manifest.models.keys(),
@@ -75,7 +74,8 @@ def migrate(context: Context, manifest: Manifest, backend: PostgreSQL, migrate_m
 
 
 @commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, Model, MigrationHandler, MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa.Table, new: Model, handler: MigrationHandler, rename: MigrateRename):
+def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa.Table, new: Model,
+            handler: MigrationHandler, rename: MigrateRename):
     columns = []
     table_name = rename.get_table_name(old.name)
 
@@ -170,7 +170,8 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
 
 
 @commands.migrate.register(Context, PostgreSQL, Inspector, NotAvailable, Model, MigrationHandler, MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: NotAvailable, new: Model, handler: MigrationHandler, rename: MigrateRename):
+def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: NotAvailable, new: Model,
+            handler: MigrationHandler, rename: MigrateRename):
     table_name = get_pg_name(get_table_name(new))
 
     pkey_type = commands.get_primary_key_type(context, backend)
@@ -179,27 +180,7 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: No
     for prop in new.properties.values():
         if not prop.name.startswith("_"):
             if isinstance(prop.dtype, File):
-                name = get_column_name(prop)
-                nullable = not prop.dtype.required
-                columns += [
-                    sa.Column(f'{name}._id', sa.String, nullable=nullable),
-                    sa.Column(f'{name}._content_type', sa.String, nullable=nullable),
-                    sa.Column(f'{name}._size', BIGINT, nullable=nullable)
-                ]
-                if BackendFeatures.FILE_BLOCKS in prop.dtype.backend.features:
-                    columns += [
-                        sa.Column(f'{name}._bsize', sa.Integer, nullable=nullable),
-                        sa.Column(f'{name}._blocks', ARRAY(pkey_type, ), nullable=nullable),
-                    ]
-                new_table = get_pg_name(f'{table_name}{TableType.FILE.value}/{name}')
-                if not inspector.has_table(new_table):
-                    handler.add_action(ma.CreateTableMigrationAction(
-                        table_name=new_table,
-                        columns=[
-                            sa.Column('_id', pkey_type, primary_key=True),
-                            sa.Column('_block', sa.LargeBinary)
-                        ]
-                    ))
+                columns += _handle_new_file_type(context, backend, inspector, prop, pkey_type, handler)
             else:
                 cols = commands.prepare(context, backend, prop)
                 if isinstance(cols, list):
@@ -242,7 +223,8 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: No
 
 
 @commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, MigrationHandler, MigrateRename)
-def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa.Table, new: NotAvailable, handler: MigrationHandler, rename: MigrateRename):
+def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa.Table, new: NotAvailable,
+            handler: MigrationHandler, rename: MigrateRename):
     old_name = old.name
     remove_name = _get_remove_name(old_name)
 
@@ -292,19 +274,22 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
                 _drop_all_indexes_and_constraints(inspector, table, new_name, handler)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, Property, MigrationHandler, MigrateRename)
+@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, Property, MigrationHandler,
+                           MigrateRename)
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
             old: sa.Column, new: Property, handler: MigrationHandler, rename: MigrateRename):
     commands.migrate(context, backend, inspector, table, old, new.dtype, handler, rename)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, Property, MigrationHandler, MigrateRename)
+@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, Property, MigrationHandler,
+                           MigrateRename)
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
             old: NotAvailable, new: Property, handler: MigrationHandler, rename: MigrateRename):
     commands.migrate(context, backend, inspector, table, old, new.dtype, handler, rename)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, File, MigrationHandler, MigrateRename)
+@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, File, MigrationHandler,
+                           MigrateRename)
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
             old: NotAvailable, new: File, handler: MigrationHandler, rename: MigrateRename):
     name = get_column_name(new.prop)
@@ -387,7 +372,6 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
 @commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, list, Ref, MigrationHandler, MigrateRename)
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
             old: List[sa.Column], new: Ref, handler: MigrationHandler, rename: MigrateRename):
-
     new_columns = commands.prepare(context, backend, new.prop)
     if not isinstance(new_columns, list):
         new_columns = [new_columns]
@@ -471,44 +455,55 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                 commands.migrate(context, backend, inspector, table, drop, NA, handler, rename, True)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, DataType, MigrationHandler, MigrateRename)
+@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, DataType, MigrationHandler,
+                           MigrateRename)
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
             old: NotAvailable, new: DataType, handler: MigrationHandler, rename: MigrateRename):
     column = commands.prepare(context, backend, new.prop)
     commands.migrate(context, backend, inspector, table, old, column, handler, rename, False)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, DataType, MigrationHandler, MigrateRename)
+@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, DataType, MigrationHandler,
+                           MigrateRename)
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
             old: sa.Column, new: DataType, handler: MigrationHandler, rename: MigrateRename):
     column = commands.prepare(context, backend, new.prop)
     commands.migrate(context, backend, inspector, table, old, column, handler, rename, False)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, sa.Column, MigrationHandler, MigrateRename, bool)
+@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, sa.Column, MigrationHandler,
+                           MigrateRename, bool)
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: sa.Column, new: sa.Column, handler: MigrationHandler, rename: MigrateRename, foreign_key: bool = False):
+            old: sa.Column, new: sa.Column, handler: MigrationHandler, rename: MigrateRename,
+            foreign_key: bool = False):
     column_name = rename.get_column_name(table.name, old.name)
     table_name = rename.get_table_name(table.name)
 
     new_type = new.type.compile(dialect=postgresql.dialect())
     old_type = old.type.compile(dialect=postgresql.dialect())
-
+    using = ""
     # Convert sa.Float, to postgresql DOUBLE PRECISION type
     if isinstance(new.type, sa.Float):
         new_type = 'DOUBLE PRECISION'
+    if isinstance(old.type, geoalchemy2.types.Geometry) and isinstance(new.type, geoalchemy2.types.Geometry):
+        if old.type.srid != new.type.srid:
+            srid_name = f'"{old.name}"'
+            if old.type.srid == -1:
+                srid_name = f'ST_SetSRID({srid_name}, 4326)'
+            using = f'ST_Transform({srid_name}, {new.type.srid})'
 
     nullable = new.nullable if new.nullable != old.nullable else None
     type_ = new.type if old_type != new_type else None
     new_name = column_name if old.name != new.name else None
 
-    if nullable is not None or type_ is not None or new_name is not None:
+    if nullable is not None or type_ is not None or new_name is not None or using != "":
         handler.add_action(ma.AlterColumnMigrationAction(
             table_name=table_name,
             column_name=old.name,
             nullable=nullable,
             type_=type_,
-            new_column_name=new_name
+            new_column_name=new_name,
+            using=using
         ), foreign_key)
 
     unique_name = f'{table_name}_{column_name}_key'
@@ -560,9 +555,11 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
             ), foreign_key)
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, sa.Column, MigrationHandler, MigrateRename, bool)
+@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, sa.Column, MigrationHandler,
+                           MigrateRename, bool)
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: NotAvailable, new: sa.Column, handler: MigrationHandler, rename: MigrateRename, foreign_key: bool = False):
+            old: NotAvailable, new: sa.Column, handler: MigrationHandler, rename: MigrateRename,
+            foreign_key: bool = False):
     table_name = rename.get_table_name(table.name)
     handler.add_action(ma.AddColumnMigrationAction(
         table_name=table_name,
@@ -583,9 +580,11 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
         ))
 
 
-@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, NotAvailable, MigrationHandler, MigrateRename, bool)
+@commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, sa.Column, NotAvailable, MigrationHandler,
+                           MigrateRename, bool)
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
-            old: sa.Column, new: NotAvailable, handler: MigrationHandler, rename: MigrateRename, foreign_key: bool = False):
+            old: sa.Column, new: NotAvailable, handler: MigrationHandler, rename: MigrateRename,
+            foreign_key: bool = False):
     if not old.name.startswith("_"):
         table_name = rename.get_table_name(table.name)
         columns = inspector.get_columns(table.name)
@@ -677,7 +676,8 @@ def _clean_up_file_type(inspector: Inspector, manifest: Manifest, handler: Migra
                     ))
 
 
-def _handle_foreign_key_constraints(inspector: Inspector, manifest: Manifest, handler: MigrationHandler, rename: MigrateRename):
+def _handle_foreign_key_constraints(inspector: Inspector, manifest: Manifest, handler: MigrationHandler,
+                                    rename: MigrateRename):
     for model in manifest.models.values():
         source_table = get_pg_name(get_table_name(model))
         old_name = rename.get_old_table_name(source_table)
@@ -746,7 +746,8 @@ def _handle_foreign_key_constraints(inspector: Inspector, manifest: Manifest, ha
                     ), True)
                 else:
                     constraint = required_ref_props[key["name"]]
-                    if key["constrained_columns"] == constraint["constrained_columns"] and key["referred_table"] == constraint["referred_table"] and key["referred_columns"] == constraint["referred_columns"]:
+                    if key["constrained_columns"] == constraint["constrained_columns"] and key["referred_table"] == \
+                        constraint["referred_table"] and key["referred_columns"] == constraint["referred_columns"]:
                         del required_ref_props[key["name"]]
                     else:
                         handler.add_action(ma.DropConstraintMigrationAction(
@@ -779,6 +780,91 @@ def _create_changelog_table(context: Context, new: Model, handler: MigrationHand
             sa.Column('data', JSONB)
         ]
     ))
+
+
+def _handle_new_file_type(context: Context, backend: PostgreSQL, inspector: Inspector, prop: Property, pkey_type: Any, handler: MigrationHandler) -> list:
+    name = get_column_name(prop)
+    nullable = not prop.dtype.required
+    columns = []
+    columns += [
+        sa.Column(f'{name}._id', sa.String, nullable=nullable),
+        sa.Column(f'{name}._content_type', sa.String, nullable=nullable),
+        sa.Column(f'{name}._size', BIGINT, nullable=nullable)
+    ]
+    if BackendFeatures.FILE_BLOCKS in prop.dtype.backend.features:
+        columns += [
+            sa.Column(f'{name}._bsize', sa.Integer, nullable=nullable),
+            sa.Column(f'{name}._blocks', ARRAY(pkey_type, ), nullable=nullable),
+        ]
+    new_table = get_pg_name(get_table_name(prop, TableType.FILE))
+    if not inspector.has_table(new_table):
+        handler.add_action(ma.CreateTableMigrationAction(
+            table_name=new_table,
+            columns=[
+                sa.Column('_id', pkey_type, primary_key=True),
+                sa.Column('_block', sa.LargeBinary)
+            ]
+        ))
+    return columns
+
+
+def _handle_new_array_type(context: Context, backend: PostgreSQL, inspector: Inspector, prop: Property, pkey_type: Any, handler: MigrationHandler):
+    columns = []
+    if isinstance(prop.dtype, Array) and prop.dtype.items:
+        if prop.list is None:
+            columns.append(sa.Column(prop.place, JSONB))
+
+        if isinstance(prop.dtype.items.dtype, File):
+            new_columns = _handle_new_file_type(context, backend, inspector, prop.dtype.items, pkey_type, handler)
+        elif isinstance(prop.dtype.items.dtype, Array):
+            new_columns = _handle_new_array_type(context, backend, inspector, prop.dtype.items, pkey_type, handler)
+        elif isinstance(prop.dtype.items.dtype, Object):
+            new_columns = _handle_new_object_type(context, backend, inspector, prop.dtype.items, pkey_type, handler)
+        else:
+            new_columns = commands.prepare(context, backend, prop.dtype.items)
+        if not isinstance(new_columns, list):
+            new_columns = [new_columns]
+        for column in new_columns:
+            if not isinstance(column, sa.Column):
+                new_columns.remove(column)
+
+        new_table = get_pg_name(get_table_name(prop, TableType.LIST))
+        if not inspector.has_table(new_table):
+            main_table_name = get_pg_name(get_table_name(prop.model))
+            handler.add_action(ma.CreateTableMigrationAction(
+                table_name=new_table,
+                columns=[
+                    sa.Column('_txn', pkey_type, index=True),
+                    sa.Column('_rid', pkey_type, sa.ForeignKey(
+                        f'{main_table_name}._id', ondelete='CASCADE',
+                    )),
+                    *new_columns
+                ]
+            ))
+    return columns
+
+
+def _handle_new_object_type(context: Context, backend: PostgreSQL, inspector: Inspector, prop: Property, pkey_type: Any, handler: MigrationHandler):
+    columns = []
+    if isinstance(prop.dtype, Object) and prop.dtype.properties:
+        for new_prop in prop.dtype.properties.values():
+            if prop.name.startswith('_') and prop.name not in ('_revision',):
+                continue
+            if isinstance(new_prop.dtype, File):
+                columns = _handle_new_file_type(context, backend, inspector, new_prop, pkey_type, handler)
+            elif isinstance(new_prop.dtype, Array):
+                columns = _handle_new_array_type(context, backend, inspector, new_prop, pkey_type, handler)
+            elif isinstance(new_prop.dtype, Object):
+                columns = _handle_new_object_type(context, backend, inspector, new_prop, pkey_type, handler)
+            else:
+                columns = commands.prepare(context, backend, new_prop)
+
+            if not isinstance(columns, list):
+                columns = [columns]
+            for column in columns:
+                if not isinstance(column, sa.Column):
+                    columns.remove(column)
+    return columns
 
 
 def _model_name_key(model: str) -> str:

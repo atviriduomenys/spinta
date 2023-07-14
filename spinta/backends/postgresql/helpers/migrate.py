@@ -58,12 +58,13 @@ class DropColumnMigrationAction(MigrationAction):
 
 class AlterColumnMigrationAction(MigrationAction):
     def __init__(self, table_name: str, column_name: str, nullable: bool = None, new_column_name: str = None,
-                 type_=None):
+                 type_=None, using: str = ""):
         self.table_name = table_name
         self.column_name = column_name
         self.nullable = nullable
         self.new_column_name = new_column_name
         self.type_ = type_
+        self.using = using
 
     def execute(self, op: Operations):
         op.alter_column(
@@ -71,7 +72,8 @@ class AlterColumnMigrationAction(MigrationAction):
             column_name=self.column_name,
             nullable=self.nullable,
             new_column_name=self.new_column_name,
-            type_=self.type_
+            type_=self.type_,
+            postgresql_using=self.using
         )
 
 
