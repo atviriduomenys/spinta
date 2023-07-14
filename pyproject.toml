@@ -242,6 +242,7 @@ pymongo = "^4.2.0"
 pyproj = "^3.4.0"
 ujson = "^5.5.0"
 dask = {extras = ["dataframe"], version = "^2023.3.2"}
+cssselect = "^1.1.0"
 
 # Dev
 [tool.poetry.group.dev]
