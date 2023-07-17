@@ -50,9 +50,7 @@ def test_manifest_loading(postgresql, rc, cli: SpintaCliRunner, tmp_path, reques
             },
         },
     })
-
     cli.invoke(rc, ['freeze'])
-    cli.invoke(rc, ['migrate'])
 
     context = create_test_context(rc)
 
