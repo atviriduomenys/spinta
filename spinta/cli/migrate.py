@@ -11,9 +11,10 @@ from typer import Context as TyperContext
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.store import load_store, load_manifest
+from spinta.cli.helpers.store import load_store
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.core.context import configure_context
+from spinta.exceptions import FileNotFound, ModelNotFound, PropertyNotFound
 from spinta.manifests.components import Manifest
 
 
@@ -158,18 +159,15 @@ class MigrateRename:
 
     def parse_json_file(self, path: str):
         if path:
-            if path.endswith(".json"):
-                if os.path.exists(path):
-                    with open(path, 'r') as f:
-                        data = json.loads(f.read())
-                        for table, table_data in data.items():
-                            self.insert_table(table)
-                            for column, column_data in table_data.items():
-                                self.insert_column(table, column, column_data)
-                else:
-                    raise Exception("FILE NOT FOUND")
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    data = json.loads(f.read())
+                    for table, table_data in data.items():
+                        self.insert_table(table)
+                        for column, column_data in table_data.items():
+                            self.insert_column(table, column, column_data)
             else:
-                raise Exception("FILE NEEDS TO BE JSON FORMAT")
+                raise FileNotFound(file=path)
 
 
 class MigrateMeta:
@@ -185,8 +183,8 @@ def _validate_migrate_rename(rename: MigrateRename, manifest: Manifest):
     tables = rename.tables.values()
     for table in tables:
         if table["new_name"] not in manifest.models.keys():
-            raise Exception("TABLE DOESNT EXIST")
+            raise ModelNotFound(model=table["new_name"])
         model = manifest.models[table["new_name"]]
         for column in table["columns"].values():
             if column not in model.properties.keys():
-                raise Exception("PROPERTY DOESNT EXIST")
+                raise PropertyNotFound(property=column)

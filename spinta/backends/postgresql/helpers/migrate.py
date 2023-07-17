@@ -58,7 +58,7 @@ class DropColumnMigrationAction(MigrationAction):
 
 class AlterColumnMigrationAction(MigrationAction):
     def __init__(self, table_name: str, column_name: str, nullable: bool = None, new_column_name: str = None,
-                 type_=None, using: str = ""):
+                 type_=None, using: str = None):
         self.table_name = table_name
         self.column_name = column_name
         self.nullable = nullable

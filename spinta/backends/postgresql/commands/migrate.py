@@ -124,13 +124,11 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: sa
     )
     for items in props:
         for old_prop, new_prop in items:
+
             if new_prop and new_prop.name.startswith('_'):
                 continue
             if old_prop:
-                if new_prop and old_prop == get_column_name(new_prop):
-                    old_prop = old.columns.get(old_prop)
-                else:
-                    old_prop = old.columns.get(rename.get_old_column_name(old.name, old_prop))
+                old_prop = old.columns.get(rename.get_old_column_name(old.name, old_prop))
             if not new_prop:
                 commands.migrate(context, backend, inspector, old, old_prop, new_prop, handler, rename, False)
             else:
@@ -337,7 +335,8 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
     for item in old:
         table_name = rename.get_table_name(table.name)
         nullable = new.required if new.required == item.nullable else None
-        new_name = column_name if not item.name.startswith(column_name) else None
+        item_name = item.name
+        new_name = item_name.replace(item_name.split(".")[0], column_name) if not item_name.startswith(column_name) else None
         if nullable is not None or new_name is not None:
             handler.add_action(ma.AlterColumnMigrationAction(
                 table_name=table_name,
@@ -376,13 +375,14 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
     if not isinstance(new_columns, list):
         new_columns = [new_columns]
     table_name = rename.get_table_name(table.name)
+    old_ref_table = rename.get_old_table_name(get_table_name(new.model))
     old_prop_name = rename.get_old_column_name(table.name, get_column_name(new.prop))
 
     old_names = {}
     new_names = {}
     for item in old:
         base_name = item.name.split(".")
-        name = f'{rename.get_column_name(table.name, base_name[0])}.{base_name[1]}'
+        name = f'{rename.get_column_name(table.name, base_name[0])}.{rename.get_column_name(old_ref_table, base_name[1])}'
         old_names[name] = item
     for item in new_columns:
         new_names[item.name] = item
@@ -476,27 +476,29 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
 def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: sa.Table,
             old: sa.Column, new: sa.Column, handler: MigrationHandler, rename: MigrateRename,
             foreign_key: bool = False):
-    column_name = rename.get_column_name(table.name, old.name)
+    column_name = new.name
     table_name = rename.get_table_name(table.name)
-
     new_type = new.type.compile(dialect=postgresql.dialect())
     old_type = old.type.compile(dialect=postgresql.dialect())
-    using = ""
+    using = None
     # Convert sa.Float, to postgresql DOUBLE PRECISION type
     if isinstance(new.type, sa.Float):
         new_type = 'DOUBLE PRECISION'
     if isinstance(old.type, geoalchemy2.types.Geometry) and isinstance(new.type, geoalchemy2.types.Geometry):
         if old.type.srid != new.type.srid:
             srid_name = f'"{old.name}"'
+            srid = new.type.srid
             if old.type.srid == -1:
                 srid_name = f'ST_SetSRID({srid_name}, 4326)'
-            using = f'ST_Transform({srid_name}, {new.type.srid})'
+            if new.type.srid == -1:
+                srid = 4326
+            using = f'ST_Transform({srid_name}, {srid})'
 
     nullable = new.nullable if new.nullable != old.nullable else None
     type_ = new.type if old_type != new_type else None
     new_name = column_name if old.name != new.name else None
 
-    if nullable is not None or type_ is not None or new_name is not None or using != "":
+    if nullable is not None or type_ is not None or new_name is not None or using is not None:
         handler.add_action(ma.AlterColumnMigrationAction(
             table_name=table_name,
             column_name=old.name,

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from pprint import pprint
 import sqlalchemy_utils as su
@@ -38,7 +39,7 @@ def _prepare_postgresql(dsn: str) -> None:
         conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
 
 
-def configure(rc, path, manifest):
+def _configure(rc, path, manifest):
     override_manifest(path, manifest)
     return rc.fork({
         'manifests': {
@@ -71,6 +72,10 @@ def _clean_up_tables(meta: sa.MetaData, tables: list):
     meta.drop_all(tables=table_list)
 
 
+def float_equals(a: float, b: float, epsilon=1e-9):
+    return abs(a - b) < epsilon
+
+
 def _get_table_unique_constraint_columns(table: sa.Table):
     constraint_columns = []
     for constraint in table.constraints:
@@ -87,6 +92,7 @@ def _get_table_foreign_key_constraint_columns(table: sa.Table):
             column_names = [column.name for column in constraint.columns]
             element_names = [element.column.name for element in constraint.elements]
             constraint_columns.append({
+                'constraint_name': constraint.name,
                 'column_names': column_names,
                 'referred_column_names': element_names
             })
@@ -102,7 +108,7 @@ def test_migrate_create_simple_datatype_model(
     initial_manifest = '''
      d | r | b | m | property   | type    | ref     | source     | prepare
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -259,7 +265,7 @@ def test_migrate_add_simple_column(
                      |   |   | Test |              |
                      |   |   |      | someText     | string
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -341,7 +347,7 @@ def test_migrate_remove_simple_column(
                      |   |   |      | someText     | string
                      |   |   |      | someInteger  | integer
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -430,7 +436,7 @@ def test_migrate_multiple_times_remove_simple_column(
                      |   |   |      | someText     | string
                      |   |   |      | someInteger  | integer
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -583,7 +589,7 @@ def test_migrate_model_ref_unique_constraint(
     initial_manifest = '''
      d               | r | b | m    | property     | type   | ref
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -784,7 +790,7 @@ def test_migrate_add_unique_constraint(
                      |   |   | Test |              |
                      |   |   |      | someText     | string
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -858,7 +864,7 @@ def test_migrate_remove_unique_constraint(
                      |   |   | Test |              |
                      |   |   |      | someText     | string unique
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -931,7 +937,7 @@ def test_migrate_create_models_with_ref(
     initial_manifest = '''
      d               | r | b | m    | property     | type | ref | level
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1117,7 +1123,7 @@ def test_migrate_remove_ref_column(
                      |   |   |        | someText     | string        |                      |
                      |   |   |        | someRef      | ref           | Test                 | 3
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1263,7 +1269,7 @@ def test_migrate_adjust_ref_levels(
                      |   |   |        | someText     | string        |                      |
                      |   |   |        | someRef      | ref           | Test                 | 4
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1491,7 +1497,7 @@ def test_migrate_create_models_with_base(
     initial_manifest = '''
      d               | r | b | m    | property     | type | ref | level
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1619,7 +1625,7 @@ def test_migrate_remove_base_from_model(
                      |   |      | Test |              |               |                      |
                      |   |      |      | someText     | string        |                      |
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1679,7 +1685,7 @@ def test_migrate_create_models_with_file_type(
     initial_manifest = '''
      d               | r | b | m    | property     | type | ref | source
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1796,7 +1802,7 @@ def test_migrate_remove_file_type(
                      |   |      |      | flag           | file    |                      |
                      |   |      |      | new            | file    |                      | file()
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1866,13 +1872,15 @@ def test_migrate_modify_geometry_type(
     tmp_path: Path
 ):
     initial_manifest = '''
-     d               | r | b    | m    | property       | type     | ref | source
-     migrate/example |   |      |      |                |          |     |
-                     |   |      | Test |                |          |     |
-                     |   |      |      | someText       | string   |     |
-                     |   |      |      | someGeo        | geometry |     |
+     d               | r | b    | m    | property       | type           | ref | source
+     migrate/example |   |      |      |                |                |     |
+                     |   |      | Test |                |                |     |
+                     |   |      |      | someText       | string         |     |
+                     |   |      |      | someGeo        | geometry       |     |
+                     |   |      |      | someGeoLt      | geometry(3346) |     |
+                     |   |      |      | someGeoWorld   | geometry(4326) |     |
     '''
-    rc = configure(rc, tmp_path, initial_manifest)
+    rc = _configure(rc, tmp_path, initial_manifest)
 
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
@@ -1888,14 +1896,24 @@ def test_migrate_modify_geometry_type(
         conn.execute(table.insert().values({
             "_id": "197109d9-add8-49a5-ab19-3ddc7589ce7e",
             "someText": "Vilnius",
-            "someGeo": "POINT(54.687046 25.282911)"
+            "someGeo": "POINT(15 15)",
+            "someGeoLt": "SRID=3346;POINT(-471246.92725520115 1678519.8837915037)",
+            "someGeoWorld": "SRID=4326;POINT(15 15)"
         }))
 
         result = conn.execute(table.select())
         for item in result:
             assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
             assert item["someText"] == "Vilnius"
-            assert to_shape(item["someGeo"]).wkt == "POINT (54.687046 25.282911)"
+            some_geo_values = to_shape(item["someGeo"]).wkt[7:-1].split(" ")
+            some_geo_lt_values = to_shape(item["someGeoLt"]).wkt[7:-1].split(" ")
+            some_geo_world_values = to_shape(item["someGeoWorld"]).wkt[7:-1].split(" ")
+            assert float_equals(float(some_geo_values[0]), 15)
+            assert float_equals(float(some_geo_values[1]), 15)
+            assert float_equals(float(some_geo_lt_values[0]), -471246.92725520115)
+            assert float_equals(float(some_geo_lt_values[1]), 1678519.8837915037)
+            assert float_equals(float(some_geo_world_values[0]), 15)
+            assert float_equals(float(some_geo_world_values[1]), 15)
 
     override_manifest(tmp_path, '''
      d               | r | b    | m    | property       | type           | ref | source
@@ -1903,17 +1921,26 @@ def test_migrate_modify_geometry_type(
                      |   |      | Test |                |                |     |
                      |   |      |      | someText       | string         |     |
                      |   |      |      | someGeo        | geometry(3346) |     |
+                     |   |      |      | someGeoLt      | geometry       |     |
+                     |   |      |      | someGeoWorld   | geometry(3346) |     |
     ''')
 
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p'
     ])
+    pprint(result.output)
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
         'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeo" TYPE '
         'geometry(GEOMETRY,3346) USING ST_Transform(ST_SetSRID("someGeo", 4326), '
         '3346);\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeoLt" TYPE '
+        'geometry(GEOMETRY,-1) USING ST_Transform("someGeoLt", 4326);\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ALTER COLUMN "someGeoWorld" TYPE '
+        'geometry(GEOMETRY,3346) USING ST_Transform("someGeoWorld", 3346);\n'
         '\n'
         'COMMIT;\n'
         '\n')
@@ -1932,6 +1959,277 @@ def test_migrate_modify_geometry_type(
         for item in result:
             assert item["_id"] == "197109d9-add8-49a5-ab19-3ddc7589ce7e"
             assert item["someText"] == "Vilnius"
-            assert to_shape(item["someGeo"]).wkt == "POINT (3685723.49000339 3186425.321775446)"
+            some_geo_values = to_shape(item["someGeo"]).wkt[7:-1].split(" ")
+            some_geo_lt_values = to_shape(item["someGeoLt"]).wkt[7:-1].split(" ")
+            some_geo_world_values = to_shape(item["someGeoWorld"]).wkt[7:-1].split(" ")
+            assert float_equals(float(some_geo_values[0]), -471246.92725520115)
+            assert float_equals(float(some_geo_values[1]), 1678519.8837915037)
+            assert float_equals(float(some_geo_lt_values[0]), 15)
+            assert float_equals(float(some_geo_lt_values[1]), 15)
+            assert float_equals(float(some_geo_world_values[0]), -471246.92725520115)
+            assert float_equals(float(some_geo_world_values[1]), 1678519.8837915037)
 
         _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
+
+
+def test_migrate_rename_model(
+    postgresql_migrate: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type     | ref | source
+     migrate/example |   |      |      |                |          |     |
+                     |   |      | Ref  |                |          |     |
+                     |   |      |      | someText       | string   |     |
+                     |   |      |      |                |          |     |
+                     |   |      | Test |                |          |     |
+                     |   |      |      | someText       | string   |     |
+                     |   |      |      | someFile       | file     |     |
+                     |   |      |      | someRef        | ref      | Ref |
+    '''
+    rc = _configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Ref', 'migrate/example/Test', 'migrate/example/Test/:changelog',
+                'migrate/example/Test/:file/someFile'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+
+        constraints = _get_table_foreign_key_constraint_columns(table)
+        assert any(constraint["constraint_name"] == 'fk_migrate/example/Test_someRef._id' for constraint in constraints)
+
+    override_manifest(tmp_path, '''
+     d               | r | b    | m      | property       | type     | ref    | source
+     migrate/example |   |      |        |                |          |        |
+                     |   |      | NewRef |                |          |        |
+                     |   |      |        | someText       | string   |        |
+                     |   |      |        |                |          |        |
+                     |   |      | New    |                |          |        |
+                     |   |      |        | someText       | string   |        |
+                     |   |      |        | someFile       | file     |        |
+                     |   |      |        | someRef        | ref      | NewRef |
+    ''')
+
+    rename_file = {
+        "migrate/example/Test": {
+            "": "migrate/example/New"
+        },
+        "migrate/example/Ref": {
+            "": "migrate/example/NewRef"
+        },
+    }
+    path = tmp_path / 'rename.json'
+    path.write_text(json.dumps(rename_file))
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
+    ])
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME TO "migrate/example/NewRef";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref/:changelog" RENAME TO '
+        '"migrate/example/NewRef/:changelog";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME TO "migrate/example/New";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test/:changelog" RENAME TO '
+        '"migrate/example/New/:changelog";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test/:file" RENAME TO '
+        '"migrate/example/New/:file/someFile";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/New" DROP CONSTRAINT '
+        '"fk_migrate/example/Test_someRef._id";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/New" ADD CONSTRAINT '
+        '"fk_migrate/example/New_someRef._id" FOREIGN KEY("someRef._id") REFERENCES '
+        '"migrate/example/NewRef" (_id);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/New', 'migrate/example/New/:changelog',
+                'migrate/example/New/:file/someFile', 'migrate/example/NewRef'}.issubset(tables.keys())
+
+        assert not {'migrate/example/Test', 'migrate/example/Test/:changelog',
+                    'migrate/example/Test/:file/someFile', 'migrate/example/Ref'}.issubset(tables.keys())
+
+        table = tables["migrate/example/New"]
+
+        constraints = _get_table_foreign_key_constraint_columns(table)
+        assert any(constraint["constraint_name"] == 'fk_migrate/example/New_someRef._id' for constraint in constraints)
+        assert not any(
+            constraint["constraint_name"] == 'fk_migrate/example/Test_someRef._id' for constraint in constraints)
+
+        _clean_up_tables(meta, ['migrate/example/New', 'migrate/example/New/:changelog',
+                                'migrate/example/New/:file/someFile', 'migrate/example/NewRef'])
+
+
+def test_migrate_rename_property(
+    postgresql_migrate: str,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path
+):
+    initial_manifest = '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Ref  |                |          | someText |
+                     |   |      |      | someText       | string   |          |
+                     |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | someText       | string   |          |
+                     |   |      |      | someFile       | file     |          |
+                     |   |      |      | someRef        | ref      | Ref      | 3
+                     |   |      |      | someOther      | ref      | Ref      | 4
+    '''
+    rc = _configure(rc, tmp_path, initial_manifest)
+
+    cli.invoke(rc, [
+        'bootstrap', f'{tmp_path}/manifest.csv'
+    ])
+
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Ref', 'migrate/example/Test', 'migrate/example/Test/:changelog',
+                'migrate/example/Test/:file/someFile'}.issubset(
+            tables.keys())
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'someText', 'someRef.someText', 'someOther._id', 'someFile._id', 'someFile._content_type',
+                'someFile._size',
+                'someFile._bsize', 'someFile._blocks'}.issubset(columns.keys())
+
+        constraints = _get_table_foreign_key_constraint_columns(table)
+        assert any(
+            constraint["constraint_name"] == 'fk_migrate/example/Test_someOther._id' for constraint in constraints)
+
+    override_manifest(tmp_path, '''
+     d               | r | b    | m    | property       | type     | ref      | level
+     migrate/example |   |      |      |                |          |          |
+                     |   |      | Ref  |                |          | newText  |
+                     |   |      |      | newText        | string   |          |
+                     |   |      |      |                |          |          |
+                     |   |      | Test |                |          |          |
+                     |   |      |      | newText        | string   |          |
+                     |   |      |      | newFile        | file     |          |
+                     |   |      |      | newRef         | ref      | Ref      | 3
+                     |   |      |      | newOther       | ref      | Ref      | 4
+    ''')
+
+    rename_file = {
+        "migrate/example/Test": {
+            "someText": "newText",
+            "someFile": "newFile",
+            "someRef": "newRef",
+            "someOther": "newOther"
+        },
+        "migrate/example/Ref": {
+            "someText": "newText"
+        },
+    }
+    path = tmp_path / 'rename.json'
+    path.write_text(json.dumps(rename_file))
+
+    result = cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv', '-p', '-r', path
+    ])
+    pprint(result.output)
+    assert result.output.endswith(
+        'BEGIN;\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" RENAME "someText" TO "newText";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
+        '"migrate/example/Ref_someText_key";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Ref" ADD CONSTRAINT '
+        '"migrate/example/Ref_newText_key" UNIQUE ("newText");\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "someFile._id" TO "newFile._id";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "someFile._content_type" TO '
+        '"newFile._content_type";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "someFile._size" TO '
+        '"newFile._size";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "someFile._bsize" TO '
+        '"newFile._bsize";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "someFile._blocks" TO '
+        '"newFile._blocks";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test/:file/someFile" RENAME TO '
+        '"migrate/example/Test/:file/newFile";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "someText" TO "newText";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "someRef.someText" TO '
+        '"newRef.newText";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" RENAME "someOther._id" TO '
+        '"newOther._id";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
+        '"fk_migrate/example/Test_someOther._id";\n'
+        '\n'
+        'ALTER TABLE "migrate/example/Test" ADD CONSTRAINT '
+        '"fk_migrate/example/Test_newOther._id" FOREIGN KEY("newOther._id") '
+        'REFERENCES "migrate/example/Ref" (_id);\n'
+        '\n'
+        'COMMIT;\n'
+        '\n')
+
+    cli.invoke(rc, [
+        'migrate', f'{tmp_path}/manifest.csv'
+    ])
+    with sa.create_engine(postgresql_migrate).connect() as conn:
+        meta = sa.MetaData(conn)
+        meta.reflect()
+        tables = meta.tables
+        assert {'migrate/example/Test', 'migrate/example/Test/:changelog',
+                'migrate/example/Test/:file/newFile', 'migrate/example/Ref'}.issubset(tables.keys())
+
+        table = tables["migrate/example/Ref"]
+        columns = table.columns
+        assert {'newText'}.issubset(
+            columns.keys())
+        assert not {'someText'}.issubset(
+            columns.keys())
+
+        table = tables["migrate/example/Test"]
+        columns = table.columns
+        assert {'newText', 'newOther._id', 'newRef.newText', 'newFile._id', 'newFile._content_type', 'newFile._size',
+                'newFile._bsize', 'newFile._blocks'}.issubset(columns.keys())
+        assert not {'someText', 'someOther._id', 'someRef.someText', 'someFile._id', 'someFile._content_type',
+                    'someFile._size', 'someFile._bsize', 'someFile._blocks'}.issubset(columns.keys())
+
+        constraints = _get_table_foreign_key_constraint_columns(table)
+        assert any(
+            constraint["constraint_name"] == 'fk_migrate/example/Test_newOther._id' for constraint in constraints)
+        assert not any(
+            constraint["constraint_name"] == 'fk_migrate/example/Test_someOther._id' for constraint in constraints)
+
+        _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog',
+                                'migrate/example/Test/:file/newFile', 'migrate/example/Ref'])
