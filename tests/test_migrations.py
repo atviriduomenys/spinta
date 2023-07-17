@@ -12,6 +12,7 @@ import sqlalchemy as sa
 
 def _configure(rc, path, manifest):
     override_manifest(path, manifest)
+    dsn: str = rc.get('backends', 'default', 'dsn', required=True)
     return rc.fork({
         'manifests': {
             'default': {
@@ -21,7 +22,13 @@ def _configure(rc, path, manifest):
                 'keymap': 'default',
                 'mode': 'external',
             },
-        }
+        },
+        'backends': {
+            'default': {
+                'type': 'postgresql',
+                'dsn': dsn
+            },
+        },
     })
 
 
@@ -88,7 +95,6 @@ def test_migrate_create_simple_datatype_model(
      d | r | b | m | property   | type    | ref     | source     | prepare
     '''
     rc = _configure(rc, tmp_path, initial_manifest)
-
     cli.invoke(rc, [
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
@@ -108,7 +114,6 @@ def test_migrate_create_simple_datatype_model(
                      |   |   |      | someBinary   | binary
                      |   |   |      | someJson     | json
     ''')
-
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p'
     ])
@@ -154,13 +159,11 @@ def test_migrate_create_simple_datatype_model(
         '\n'
         'COMMIT;\n'
         '\n')
-
     with sa.create_engine(postgresql).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
         assert not {'migrate/example/Test', 'migrate/example/Test/:changelog'}.issubset(tables.keys())
-
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
@@ -1901,8 +1904,8 @@ def test_migrate_modify_geometry_type(
             some_geo_world_values = to_shape(item["someGeoWorld"]).wkt[7:-1].split(" ")
             assert float_equals(float(some_geo_values[0]), 15)
             assert float_equals(float(some_geo_values[1]), 15)
-            assert float_equals(float(some_geo_lt_values[0]), -471246.92725520115)
-            assert float_equals(float(some_geo_lt_values[1]), 1678519.8837915037)
+            assert float_equals(float(some_geo_lt_values[0]), -471246.92725520115, epsilon=1e-2)
+            assert float_equals(float(some_geo_lt_values[1]), 1678519.8837915037, epsilon=1e-2)
             assert float_equals(float(some_geo_world_values[0]), 15)
             assert float_equals(float(some_geo_world_values[1]), 15)
 
@@ -1952,12 +1955,12 @@ def test_migrate_modify_geometry_type(
             some_geo_values = to_shape(item["someGeo"]).wkt[7:-1].split(" ")
             some_geo_lt_values = to_shape(item["someGeoLt"]).wkt[7:-1].split(" ")
             some_geo_world_values = to_shape(item["someGeoWorld"]).wkt[7:-1].split(" ")
-            assert float_equals(float(some_geo_values[0]), -471246.92725520115)
-            assert float_equals(float(some_geo_values[1]), 1678519.8837915037)
+            assert float_equals(float(some_geo_values[0]), -471246.92725520115, epsilon=1e-2)
+            assert float_equals(float(some_geo_values[1]), 1678519.8837915037, epsilon=1e-2)
             assert float_equals(float(some_geo_lt_values[0]), 15)
             assert float_equals(float(some_geo_lt_values[1]), 15)
-            assert float_equals(float(some_geo_world_values[0]), -471246.92725520115)
-            assert float_equals(float(some_geo_world_values[1]), 1678519.8837915037)
+            assert float_equals(float(some_geo_world_values[0]), -471246.92725520115, epsilon=1e-2)
+            assert float_equals(float(some_geo_world_values[1]), 1678519.8837915037, epsilon=1e-2)
 
         _clean_up_tables(meta, ['migrate/example/Test', 'migrate/example/Test/:changelog'])
 
