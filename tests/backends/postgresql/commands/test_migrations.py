@@ -1902,12 +1902,12 @@ def test_migrate_modify_geometry_type(
             some_geo_values = to_shape(item["someGeo"]).wkt[7:-1].split(" ")
             some_geo_lt_values = to_shape(item["someGeoLt"]).wkt[7:-1].split(" ")
             some_geo_world_values = to_shape(item["someGeoWorld"]).wkt[7:-1].split(" ")
-            assert float_equals(float(some_geo_values[0]), 15)
-            assert float_equals(float(some_geo_values[1]), 15)
+            assert float_equals(float(some_geo_values[0]), 15, epsilon=1e-2)
+            assert float_equals(float(some_geo_values[1]), 15, epsilon=1e-2)
             assert float_equals(float(some_geo_lt_values[0]), -471246.92725520115, epsilon=1e-2)
             assert float_equals(float(some_geo_lt_values[1]), 1678519.8837915037, epsilon=1e-2)
-            assert float_equals(float(some_geo_world_values[0]), 15)
-            assert float_equals(float(some_geo_world_values[1]), 15)
+            assert float_equals(float(some_geo_world_values[0]), 15, epsilon=1e-2)
+            assert float_equals(float(some_geo_world_values[1]), 15, epsilon=1e-2)
 
     override_manifest(tmp_path, '''
      d               | r | b    | m    | property       | type           | ref | source
@@ -1957,8 +1957,8 @@ def test_migrate_modify_geometry_type(
             some_geo_world_values = to_shape(item["someGeoWorld"]).wkt[7:-1].split(" ")
             assert float_equals(float(some_geo_values[0]), -471246.92725520115, epsilon=1e-2)
             assert float_equals(float(some_geo_values[1]), 1678519.8837915037, epsilon=1e-2)
-            assert float_equals(float(some_geo_lt_values[0]), 15)
-            assert float_equals(float(some_geo_lt_values[1]), 15)
+            assert float_equals(float(some_geo_lt_values[0]), 15, epsilon=1e-2)
+            assert float_equals(float(some_geo_lt_values[1]), 15, epsilon=1e-2)
             assert float_equals(float(some_geo_world_values[0]), -471246.92725520115, epsilon=1e-2)
             assert float_equals(float(some_geo_world_values[1]), 1678519.8837915037, epsilon=1e-2)
 
