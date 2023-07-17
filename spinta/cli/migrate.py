@@ -65,7 +65,7 @@ def migrate(
 ):
     """Migrate schema change to backends"""
     context = configure_context(ctx.obj, manifests)
-    store = prepare_manifest(context)
+    store = prepare_manifest(context, ensure_config_dir=True)
     with context:
         require_auth(context)
         manifest = store.manifest
