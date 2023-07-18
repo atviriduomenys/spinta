@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import pytest
 
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
@@ -8,11 +9,43 @@ from spinta.testing.tabular import create_tabular_manifest
 from geoalchemy2.shape import to_shape
 
 import sqlalchemy as sa
+from sqlalchemy.engine.url import make_url, URL
+import sqlalchemy_utils as su
+
+
+MIGRATION_DATABASE = "spinta_tests_migration"
+
+
+@pytest.fixture(scope='module')
+def postgresql_migration(rc) -> URL:
+    url = make_url(rc.get('backends', 'default', 'dsn', required=True))
+    url = url.set(database=MIGRATION_DATABASE)
+
+    if su.database_exists(url):
+        _prepare_migration_postgresql(url)
+        yield url
+    else:
+        su.create_database(url)
+        _prepare_migration_postgresql(url)
+        yield url
+        su.drop_database(url)
+
+
+def _prepare_migration_postgresql(dsn: URL) -> None:
+    engine = sa.create_engine(dsn)
+    with engine.connect() as conn:
+        conn.execute(sa.text("DROP SCHEMA public CASCADE"))
+        conn.execute(sa.text("CREATE SCHEMA public"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_topology"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS fuzzystrmatch"))
+        conn.execute(sa.text("CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder"))
 
 
 def _configure(rc, path, manifest):
     override_manifest(path, manifest)
-    dsn: str = rc.get('backends', 'default', 'dsn', required=True)
+    url = make_url(rc.get('backends', 'default', 'dsn', required=True))
+    url = url.set(database=MIGRATION_DATABASE)
     return rc.fork({
         'manifests': {
             'default': {
@@ -26,7 +59,7 @@ def _configure(rc, path, manifest):
         'backends': {
             'default': {
                 'type': 'postgresql',
-                'dsn': dsn
+                'dsn': url
             },
         },
     })
@@ -71,8 +104,8 @@ def _get_table_foreign_key_constraint_columns(table: sa.Table):
     return constraint_columns
 
 
-def cleanup_tables(postgresql: str):
-    with sa.create_engine(postgresql).connect() as conn:
+def cleanup_tables(postgresql_migration: URL):
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -85,12 +118,12 @@ def cleanup_tables(postgresql: str):
 
 
 def test_migrate_create_simple_datatype_model(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d | r | b | m | property   | type    | ref     | source     | prepare
     '''
@@ -159,7 +192,7 @@ def test_migrate_create_simple_datatype_model(
         '\n'
         'COMMIT;\n'
         '\n')
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -167,7 +200,7 @@ def test_migrate_create_simple_datatype_model(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -236,12 +269,12 @@ def test_migrate_create_simple_datatype_model(
 
 
 def test_migrate_add_simple_column(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -254,7 +287,7 @@ def test_migrate_add_simple_column(
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -287,7 +320,7 @@ def test_migrate_add_simple_column(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -301,7 +334,7 @@ def test_migrate_add_simple_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -318,12 +351,12 @@ def test_migrate_add_simple_column(
 
 
 def test_migrate_remove_simple_column(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -337,7 +370,7 @@ def test_migrate_remove_simple_column(
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -372,7 +405,7 @@ def test_migrate_remove_simple_column(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -390,7 +423,7 @@ def test_migrate_remove_simple_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -408,12 +441,12 @@ def test_migrate_remove_simple_column(
 
 
 def test_migrate_multiple_times_remove_simple_column(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -427,7 +460,7 @@ def test_migrate_multiple_times_remove_simple_column(
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -462,7 +495,7 @@ def test_migrate_multiple_times_remove_simple_column(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -476,7 +509,7 @@ def test_migrate_multiple_times_remove_simple_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -501,7 +534,7 @@ def test_migrate_multiple_times_remove_simple_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -534,7 +567,7 @@ def test_migrate_multiple_times_remove_simple_column(
         '\n'
         'COMMIT;\n'
         '\n')
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         meta.reflect()
@@ -547,7 +580,7 @@ def test_migrate_multiple_times_remove_simple_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -566,12 +599,12 @@ def test_migrate_multiple_times_remove_simple_column(
 
 
 def test_migrate_model_ref_unique_constraint(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m    | property     | type   | ref
     '''
@@ -669,7 +702,7 @@ def test_migrate_model_ref_unique_constraint(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -719,7 +752,7 @@ def test_migrate_model_ref_unique_constraint(
         '\n'
         'COMMIT;\n'
         '\n')
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -741,7 +774,7 @@ def test_migrate_model_ref_unique_constraint(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -765,12 +798,12 @@ def test_migrate_model_ref_unique_constraint(
 
 
 def test_migrate_add_unique_constraint(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -783,7 +816,7 @@ def test_migrate_add_unique_constraint(
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -814,7 +847,7 @@ def test_migrate_add_unique_constraint(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -826,7 +859,7 @@ def test_migrate_add_unique_constraint(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -839,12 +872,12 @@ def test_migrate_add_unique_constraint(
 
 
 def test_migrate_remove_unique_constraint(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m    | property     | type
      migrate/example |   |   |      |              |
@@ -857,7 +890,7 @@ def test_migrate_remove_unique_constraint(
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -891,7 +924,7 @@ def test_migrate_remove_unique_constraint(
         'COMMIT;\n'
         '\n')
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -903,7 +936,7 @@ def test_migrate_remove_unique_constraint(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -916,12 +949,12 @@ def test_migrate_remove_unique_constraint(
 
 
 def test_migrate_create_models_with_ref(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m    | property     | type | ref | level
     '''
@@ -1054,7 +1087,7 @@ def test_migrate_create_models_with_ref(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1090,12 +1123,12 @@ def test_migrate_create_models_with_ref(
 
 
 def test_migrate_remove_ref_column(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m      | property     | type          | ref                  | level
      migrate/example |   |   |        |              |               |                      |
@@ -1118,7 +1151,7 @@ def test_migrate_remove_ref_column(
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1174,7 +1207,7 @@ def test_migrate_remove_ref_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1226,7 +1259,7 @@ def test_migrate_remove_ref_column(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1241,12 +1274,12 @@ def test_migrate_remove_ref_column(
 
 
 def test_migrate_adjust_ref_levels(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m      | property     | type          | ref                  | level
      migrate/example |   |   |        |              |               |                      |
@@ -1299,7 +1332,7 @@ def test_migrate_adjust_ref_levels(
         },
     ]
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1380,7 +1413,7 @@ def test_migrate_adjust_ref_levels(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1450,7 +1483,7 @@ def test_migrate_adjust_ref_levels(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1478,12 +1511,12 @@ def test_migrate_adjust_ref_levels(
 
 
 def test_migrate_create_models_with_base(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m    | property     | type | ref | level
     '''
@@ -1581,7 +1614,7 @@ def test_migrate_create_models_with_base(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1599,12 +1632,12 @@ def test_migrate_create_models_with_base(
 
 
 def test_migrate_remove_base_from_model(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
  d               | r | b    | m    | property     | type          | ref                  | level
      migrate/example |   |      |      |              |               |                      |
@@ -1650,7 +1683,7 @@ def test_migrate_remove_base_from_model(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1668,12 +1701,12 @@ def test_migrate_remove_base_from_model(
 
 
 def test_migrate_create_models_with_file_type(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b | m    | property     | type | ref | source
     '''
@@ -1761,7 +1794,7 @@ def test_migrate_create_models_with_file_type(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1779,12 +1812,12 @@ def test_migrate_create_models_with_file_type(
 
 
 def test_migrate_remove_file_type(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b    | m    | property       | type    | ref                  | source
      migrate/example |   |      |      |                |         |                      |
@@ -1837,7 +1870,7 @@ def test_migrate_remove_file_type(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1859,12 +1892,12 @@ def test_migrate_remove_file_type(
 
 
 def test_migrate_modify_geometry_type(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b    | m    | property       | type           | ref | source
      migrate/example |   |      |      |                |                |     |
@@ -1880,7 +1913,7 @@ def test_migrate_modify_geometry_type(
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1941,7 +1974,7 @@ def test_migrate_modify_geometry_type(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -1966,12 +1999,12 @@ def test_migrate_modify_geometry_type(
 
 
 def test_migrate_rename_model(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b    | m    | property       | type     | ref | source
      migrate/example |   |      |      |                |          |     |
@@ -1989,7 +2022,7 @@ def test_migrate_rename_model(
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -2056,7 +2089,7 @@ def test_migrate_rename_model(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -2078,12 +2111,12 @@ def test_migrate_rename_model(
 
 
 def test_migrate_rename_property(
-    postgresql: str,
+    postgresql_migration: URL,
     rc: RawConfig,
     cli: SpintaCliRunner,
     tmp_path: Path
 ):
-    cleanup_tables(postgresql)
+    cleanup_tables(postgresql_migration)
     initial_manifest = '''
      d               | r | b    | m    | property       | type     | ref      | level
      migrate/example |   |      |      |                |          |          |
@@ -2102,7 +2135,7 @@ def test_migrate_rename_property(
         'bootstrap', f'{tmp_path}/manifest.csv'
     ])
 
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
@@ -2198,7 +2231,7 @@ def test_migrate_rename_property(
     cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv'
     ])
-    with sa.create_engine(postgresql).connect() as conn:
+    with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
         meta.reflect()
         tables = meta.tables
