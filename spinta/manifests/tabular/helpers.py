@@ -609,12 +609,13 @@ class PropertyReader(TabularReader):
         if "." in self.name and not self.data['type']:
             self.data['type'] = 'denorm'
         if "." in self.name:
-            self.state.model.data['properties'][row['property']] = self.data
             splited_denom_prop = self.name.split('.')
             if splited_denom_prop[0] not in self.state.model.data['properties']:
+                self.state.model.data['properties'][splited_denom_prop[0]] = {}
+                self.state.model.data['properties'][splited_denom_prop[0]].update(self.data)
                 tmp_model = self.state.model.name
                 self.state.model.data['properties'][splited_denom_prop[0]].update({
-                    'type': dtype['type'],
+                    'type': 'ref',
                     'properties': {
                         splited_denom_prop[0]: {
                             'id': {'type': 'string'},
@@ -623,6 +624,8 @@ class PropertyReader(TabularReader):
                         },
                     },
                 })
+            else:
+                self.state.model.data['properties'][row['property']] = self.data
             if splited_denom_prop[0] not in self.state.model.data['properties']:
                 if splited_denom_prop[1] not in self.state.model.data['properties'][splited_denom_prop[0]]:
                     self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]].update({
@@ -635,6 +638,8 @@ class PropertyReader(TabularReader):
                         },
                     },
                 })
+            else:
+                self.state.model.data['properties'][row['property']] = self.data
             if splited_denom_prop[0] not in self.state.model.data['properties']:
                 if splited_denom_prop[1] in self.state.model.data['properties'][splited_denom_prop[0]] and len(
                     splited_denom_prop) > 2:
@@ -650,6 +655,8 @@ class PropertyReader(TabularReader):
                                 },
                             },
                 })
+            else:
+                self.state.model.data['properties'][row['property']] = self.data
         else:
             if row['property'] not in self.state.model.data['properties']:
                 self.state.model.data['properties'][row['property']] = self.data

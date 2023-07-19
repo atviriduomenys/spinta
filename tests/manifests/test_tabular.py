@@ -1,6 +1,6 @@
 import pytest
 
-from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, ReferencedPropertyNotFound
+from spinta.exceptions import InvalidManifestFile, ModelReferenceNotFound, ReferencedPropertyNotFound
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest, compare_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
@@ -413,7 +413,7 @@ def test_with_denormalized_data(tmp_path, rc):
     
     
 def test_with_denormalized_data_ref_error(tmp_path, rc):
-    with pytest.raises(NoRefPropertyForDenormProperty) as e:
+    with pytest.raises(ModelReferenceNotFound) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property               | type   | ref       | access
         example                                |        |           |
@@ -425,10 +425,7 @@ def test_with_denormalized_data_ref_error(tmp_path, rc):
           |   |   |   | name                   | string |           | open
           |   |   |   | country.name           |        |           | open
         ''')
-    assert e.value.message == (
-        "Property 'country' with type 'ref' or 'object' must be defined "
-        "before defining property 'country.name'."
-    )
+    assert e.value.message == "Model reference 'None' not found."
 
 
 def test_with_denormalized_data_undefined_error(tmp_path, rc):

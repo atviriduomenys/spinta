@@ -158,7 +158,10 @@ def load_node(
                     continue
             else:
                 raise exceptions.UnknownParameter(node, param=name)
-        schema = node_schema[name]
+        try:
+            schema = node_schema[name]
+        except:
+            pass
         if schema.get('parent'):
             attr = schema.get('attr', name)
             assert parent is not None, node
