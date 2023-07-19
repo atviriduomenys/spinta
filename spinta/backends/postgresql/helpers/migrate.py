@@ -116,13 +116,14 @@ class CreatePrimaryKeyMigrationAction(MigrationAction):
 
 
 class CreateIndexMigrationAction(MigrationAction):
-    def __init__(self, table_name: str, index_name: str, columns: List[str]):
+    def __init__(self, table_name: str, index_name: str, columns: List[str], using: str = None):
         self.table_name = table_name
         self.index_name = index_name
         self.columns = columns
+        self.using = using
 
     def execute(self, op: Operations):
-        op.create_index(index_name=self.index_name, table_name=self.table_name, columns=self.columns)
+        op.create_index(index_name=self.index_name, table_name=self.table_name, columns=self.columns, postgresql_using=self.using)
 
 
 class DowngradeTransferDataMigrationAction(MigrationAction):

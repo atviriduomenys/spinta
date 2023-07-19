@@ -38,6 +38,7 @@ def get_pg_foreign_key(
             column_type,
             nullable=nullable,
             unique=prop.dtype.unique,
+            index=True
         ),
         sa.ForeignKeyConstraint(
             [column_name], [f'{table_name}._id'],

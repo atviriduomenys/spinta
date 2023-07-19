@@ -188,7 +188,6 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, old: No
                 else:
                     if isinstance(cols, sa.Column):
                         columns.append(cols)
-
     handler.add_action(ma.CreateTableMigrationAction(
         table_name=table_name,
         columns=[
@@ -508,53 +507,102 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
             using=using
         ), foreign_key)
 
+    renamed = _check_if_renamed(table.name, table_name, old.name, new.name)
     unique_name = f'{table_name}_{column_name}_key'
-    old_unique_name = f'{table.name}_{old.name}_key'
-    unique_constraints = inspector.get_unique_constraints(table_name=table.name)
-    if any(constraint["name"] == old_unique_name for constraint in unique_constraints):
-        if not new.unique or table_name != table.name:
-            handler.add_action(ma.DropConstraintMigrationAction(
-                constraint_name=old_unique_name,
-                table_name=table_name
-            ), foreign_key)
-            if new.unique:
+    removed = []
+    if renamed:
+        unique_constraints = inspector.get_unique_constraints(table_name=table.name)
+        for constraint in unique_constraints:
+            if constraint["column_names"] == [old.name]:
+                removed.append(constraint["name"])
+                handler.add_action(ma.DropConstraintMigrationAction(
+                    constraint_name=constraint["name"],
+                    table_name=table_name
+                ), foreign_key)
+                unique_name = _rename_index_name(constraint["name"], table.name, table_name, old.name, new.name)
+                if new.unique:
+                    handler.add_action(ma.CreateUniqueConstraintMigrationAction(
+                        constraint_name=unique_name,
+                        table_name=table_name,
+                        columns=[column_name]
+                    ), foreign_key)
+    else:
+        if new.unique:
+            if not any(constraint["column_names"] == [column_name] for constraint in inspector.get_unique_constraints(table_name=table.name)) and not any(index["column_names"] == [column_name] and index["unique"] for index in inspector.get_indexes(table_name=table.name)):
                 handler.add_action(ma.CreateUniqueConstraintMigrationAction(
                     constraint_name=unique_name,
                     table_name=table_name,
                     columns=[column_name]
                 ), foreign_key)
-    else:
-        if new.unique:
-            handler.add_action(ma.CreateUniqueConstraintMigrationAction(
-                constraint_name=unique_name,
-                table_name=table_name,
-                columns=[column_name]
-            ), foreign_key)
+        else:
+            for constraint in inspector.get_unique_constraints(table_name=table.name):
+                if constraint["column_names"] == [column_name]:
+                    removed.append(constraint["name"])
+                    handler.add_action(ma.DropConstraintMigrationAction(
+                        constraint_name=unique_name,
+                        table_name=table_name,
+                    ), foreign_key)
+            for index in inspector.get_indexes(table_name=table.name):
+                if index["column_names"] == [column_name] and index["unique"] and index["name"] not in removed:
+                    index_name = index["name"]
+                    handler.add_action(ma.DropIndexMigrationAction(
+                        index_name=index_name,
+                        table_name=table_name,
+                    ), foreign_key)
+                    handler.add_action(ma.CreateIndexMigrationAction(
+                        index_name=index_name,
+                        table_name=table_name,
+                        columns=[column_name]
+                    ), foreign_key)
 
-    index_name = f'idx_{table_name}_{column_name}'
-    old_index_name = f'idx_{table.name}_{old.name}'
-    indexes = inspector.get_indexes(table_name=table.name)
-    index_required = isinstance(new.type, geoalchemy2.types.Geometry)
-    if any(index["name"] == old_index_name for index in indexes):
-        if not index_required or table_name != table.name:
-            handler.add_action(
-                ma.DropIndexMigrationAction(
-                    index_name=old_index_name,
-                    table_name=table_name
-                ), foreign_key)
-            if index_required:
+    index_name = f'ix_{table_name}_{column_name}'
+    if renamed:
+        indexes = inspector.get_indexes(table_name=table.name)
+        for index in indexes:
+            if index["column_names"] == [old.name] and index["name"] not in removed:
+                handler.add_action(
+                    ma.DropIndexMigrationAction(
+                        index_name=index["name"],
+                        table_name=table_name
+                    ), foreign_key)
+                index_name = _rename_index_name(index["name"], table.name, table_name, old.name, new.name)
+                if new.index:
+                    handler.add_action(ma.CreateIndexMigrationAction(
+                        index_name=index_name,
+                        table_name=table_name,
+                        columns=[column_name]
+                    ), foreign_key)
+                elif isinstance(new.type, geoalchemy2.types.Geometry):
+                    handler.add_action(ma.CreateIndexMigrationAction(
+                        index_name=index_name,
+                        table_name=table_name,
+                        columns=[column_name],
+                        using="gist"
+                    ), foreign_key)
+    else:
+        if new.index:
+            if not any(index["column_names"] == [column_name] for index in inspector.get_indexes(table_name=table.name)):
                 handler.add_action(ma.CreateIndexMigrationAction(
                     index_name=index_name,
                     table_name=table_name,
                     columns=[column_name]
                 ), foreign_key)
-    else:
-        if index_required:
-            handler.add_action(ma.CreateIndexMigrationAction(
-                index_name=index_name,
-                table_name=table_name,
-                columns=[column_name]
-            ), foreign_key)
+        elif isinstance(new.type, geoalchemy2.types.Geometry):
+            if not any(index["column_names"] == [column_name] for index in inspector.get_indexes(table_name=table.name)):
+                handler.add_action(ma.CreateIndexMigrationAction(
+                    index_name=index_name,
+                    table_name=table_name,
+                    columns=[column_name],
+                    using="gist"
+                ), foreign_key)
+        else:
+            for index in inspector.get_indexes(table_name=table.name):
+                if index["column_names"] == [column_name] and index["name"] not in removed:
+                    if not (index["unique"] and new.unique):
+                        handler.add_action(ma.DropIndexMigrationAction(
+                            index_name=index["name"],
+                            table_name=table_name,
+                        ), foreign_key)
 
 
 @commands.migrate.register(Context, PostgreSQL, Inspector, sa.Table, NotAvailable, sa.Column, MigrationHandler,
@@ -578,7 +626,8 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
         handler.add_action(ma.CreateIndexMigrationAction(
             table_name=table_name,
             columns=[new.name],
-            index_name=f'idx_{table_name}_{new.name}'
+            index_name=f'idx_{table_name}_{new.name}',
+            using='gist'
         ))
 
 
@@ -602,7 +651,13 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
             column_name=old.name,
             new_column_name=remove_name
         ), foreign_key)
-
+        indexes = inspector.get_indexes(table_name=table.name)
+        for index in indexes:
+            if index["column_names"] == [old.name]:
+                handler.add_action(ma.DropIndexMigrationAction(
+                    table_name=table_name,
+                    index_name=index["name"],
+                ), foreign_key)
         if old.unique:
             unique_constraints = inspector.get_unique_constraints(table_name=table.name)
             for constraint in unique_constraints:
@@ -610,15 +665,6 @@ def migrate(context: Context, backend: PostgreSQL, inspector: Inspector, table: 
                     handler.add_action(ma.DropConstraintMigrationAction(
                         table_name=table_name,
                         constraint_name=constraint["name"],
-                    ), foreign_key)
-        index_required = isinstance(old.type, geoalchemy2.types.Geometry)
-        if index_required:
-            indexes = inspector.get_indexes(table_name=table.name)
-            for index in indexes:
-                if old.name in index["column_names"]:
-                    handler.add_action(ma.DropIndexMigrationAction(
-                        table_name=table_name,
-                        index_name=index["name"]
                     ), foreign_key)
 
 
@@ -676,6 +722,7 @@ def _clean_up_file_type(inspector: Inspector, manifest: Manifest, handler: Migra
                         old_table_name=table,
                         new_table_name=new_name
                     ))
+                    _drop_all_indexes_and_constraints(inspector, table, new_name, handler)
 
 
 def _handle_foreign_key_constraints(inspector: Inspector, manifest: Manifest, handler: MigrationHandler,
@@ -839,7 +886,7 @@ def _handle_new_array_type(context: Context, backend: PostgreSQL, inspector: Ins
                     sa.Column('_txn', pkey_type, index=True),
                     sa.Column('_rid', pkey_type, sa.ForeignKey(
                         f'{main_table_name}._id', ondelete='CASCADE',
-                    )),
+                    ), index=True),
                     *new_columns
                 ]
             ))
@@ -867,6 +914,16 @@ def _handle_new_object_type(context: Context, backend: PostgreSQL, inspector: In
                 if not isinstance(column, sa.Column):
                     columns.remove(column)
     return columns
+
+
+def _check_if_renamed(old_table: str, new_table: str, old_property: str, new_property:str):
+    return old_table != new_table or old_property != new_property
+
+
+def _rename_index_name(index: str, old_table: str, new_table: str, old_property: str, new_property:str):
+    new = index.replace(old_table, new_table)
+    new = new.replace(old_property, new_property)
+    return new
 
 
 def _model_name_key(model: str) -> str:

@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+
 import pytest
 
 from spinta.core.config import RawConfig
@@ -11,7 +12,6 @@ from geoalchemy2.shape import to_shape
 import sqlalchemy as sa
 from sqlalchemy.engine.url import make_url, URL
 import sqlalchemy_utils as su
-
 
 MIGRATION_DATABASE = "spinta_tests_migration"
 
@@ -1034,6 +1034,9 @@ def test_migrate_create_models_with_ref(
         'CREATE INDEX "ix_migrate/example/RefOne__txn" ON "migrate/example/RefOne" '
         '(_txn);\n'
         '\n'
+        'CREATE INDEX "ix_migrate/example/RefOne_someRef._id" ON '
+        '"migrate/example/RefOne" ("someRef._id");\n'
+        '\n'
         'CREATE TABLE "migrate/example/RefOne/:changelog" (\n'
         '    _id BIGSERIAL NOT NULL, \n'
         '    _revision VARCHAR, \n'
@@ -1197,6 +1200,8 @@ def test_migrate_remove_ref_column(
         '\n'
         'ALTER TABLE "migrate/example/RefOne" RENAME "someRef._id" TO '
         '"__someRef._id";\n'
+        '\n'
+        'DROP INDEX "ix_migrate/example/RefOne_someRef._id";\n'
         '\n'
         'ALTER TABLE "migrate/example/RefOne" DROP CONSTRAINT '
         '"fk_migrate/example/RefOne_someRef._id";\n'
@@ -1387,7 +1392,6 @@ def test_migrate_adjust_ref_levels(
     result = cli.invoke(rc, [
         'migrate', f'{tmp_path}/manifest.csv', '-p'
     ])
-
     assert result.output.endswith(
         'BEGIN;\n'
         '\n'
@@ -1403,6 +1407,8 @@ def test_migrate_adjust_ref_levels(
         '        WHERE old."someRef._id" = new."_id";\n'
         '\n'
         'ALTER TABLE "migrate/example/Ref" RENAME "someRef._id" TO "__someRef._id";\n'
+        '\n'
+        'DROP INDEX "ix_migrate/example/Ref_someRef._id";\n'
         '\n'
         'ALTER TABLE "migrate/example/Ref" DROP CONSTRAINT '
         '"fk_migrate/example/Ref_someRef._id";\n'
@@ -1459,6 +1465,9 @@ def test_migrate_adjust_ref_levels(
         'BEGIN;\n'
         '\n'
         'ALTER TABLE "migrate/example/Ref" ADD COLUMN "someRef._id" UUID;\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Ref_someRef._id" ON "migrate/example/Ref" '
+        '("someRef._id");\n'
         '\n'
         'UPDATE "migrate/example/Ref" AS old\n'
         '        SET "someRef._id" = new."_id"\n'
@@ -2076,6 +2085,11 @@ def test_migrate_rename_model(
         'ALTER TABLE "migrate/example/Test/:file" RENAME TO '
         '"migrate/example/New/:file/someFile";\n'
         '\n'
+        'DROP INDEX "ix_migrate/example/Test_someRef._id";\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/New_someRef._id" ON "migrate/example/New" '
+        '("someRef._id");\n'
+        '\n'
         'ALTER TABLE "migrate/example/New" DROP CONSTRAINT '
         '"fk_migrate/example/Test_someRef._id";\n'
         '\n'
@@ -2218,6 +2232,11 @@ def test_migrate_rename_property(
         'ALTER TABLE "migrate/example/Test" RENAME "someOther._id" TO '
         '"newOther._id";\n'
         '\n'
+        'DROP INDEX "ix_migrate/example/Test_someOther._id";\n'
+        '\n'
+        'CREATE INDEX "ix_migrate/example/Test_newOther._id" ON '
+        '"migrate/example/Test" ("newOther._id");\n'
+        '\n'
         'ALTER TABLE "migrate/example/Test" DROP CONSTRAINT '
         '"fk_migrate/example/Test_someOther._id";\n'
         '\n'
@@ -2229,7 +2248,7 @@ def test_migrate_rename_property(
         '\n')
 
     cli.invoke(rc, [
-        'migrate', f'{tmp_path}/manifest.csv'
+        'migrate', f'{tmp_path}/manifest.csv', '-r', path
     ])
     with sa.create_engine(postgresql_migration).connect() as conn:
         meta = sa.MetaData(conn)
