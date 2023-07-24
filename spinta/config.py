@@ -46,7 +46,8 @@ CONFIG = {
             'gsheets': 'spinta.manifests.tabular.components:GsheetsManifest',
             'sql': 'spinta.manifests.sql.components:SqlManifest',
             'memory': 'spinta.manifests.memory.components:MemoryManifest',
-            'json': 'spinta.manifests.dict.components:JsonManifest'
+            'json': 'spinta.manifests.dict.components:JsonManifest',
+            'internal': 'spinta.manifests.internal_sql.components:InternalSQLManifest'
         },
         'backends': {
             # In memory backends mostly usable in tests

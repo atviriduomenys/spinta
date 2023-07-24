@@ -22,6 +22,7 @@ from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
 from spinta.types.owner import Owner
 from spinta.types.project import Project
+from spinta.utils.schema import NA
 
 
 class DatasetGiven:
@@ -113,7 +114,7 @@ class Resource(External):
     level: Level
     access: Access
     external: str
-    prepare: str
+    prepare: Expr
     models: Dict[str, Model]
     given: ResourceGiven
     lang: LangData = None
@@ -122,7 +123,7 @@ class Resource(External):
     schema = {
         'type': {'type': 'string'},
         'dataset': {'parent': True},
-        'prepare': {'type': 'spyna'},
+        'prepare': {'type': 'spyna', 'default': NA},
 
         # Backend name specified in `ref` column, points to previously defined
         # backend or to a configured stored backend.
@@ -186,7 +187,7 @@ class Entity(External):
         'dataset': {'type': 'ref', 'ref': 'context.nodes.dataset'},
         'resource': {'type': 'ref', 'ref': 'dataset.resources'},
         'name': {'type': 'string', 'default': None},
-        'prepare': {'type': 'spyna', 'default': None},
+        'prepare': {'type': 'spyna', 'default': NA},
         'params': {
             'type': 'array',
             'items': {'type': 'object'},
@@ -206,10 +207,10 @@ class Entity(External):
 class Attribute(External):
     prop: Property          # property
     name: str               # property.source
-    prepare: Expr = None    # property.prepare
+    prepare: Expr = NA    # property.prepare
 
     schema = {
         'prop': {'parent': True},
         'name': {'default': None},
-        'prepare': {'type': 'spyna', 'default': None},
+        'prepare': {'type': 'spyna', 'default': NA},
     }

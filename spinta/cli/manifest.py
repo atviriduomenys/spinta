@@ -12,6 +12,8 @@ from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.core.enums import Access
+from spinta.manifests.internal_sql.components import InternalSQLManifest
+from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
 from spinta.manifests.tabular.components import ManifestColumn
 from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.helpers import datasets_to_tabular
@@ -62,25 +64,65 @@ def copy(
     verbose = True
     if not output:
         verbose = False
-
-    rows = _read_csv_files(
-        context,
-        manifests,
-        external=source,
-        access=access,
-        format_names=format_names,
-        order_by=order_by,
-        rename_duplicates=rename_duplicates,
-        verbose=verbose,
-    )
+    internal = InternalSQLManifest.detect_from_path(output)
+    if output and internal:
+        rows = _read_and_return_manifest(
+            context,
+            manifests,
+            external=source,
+            access=access,
+            format_names=format_names,
+            order_by=order_by,
+            rename_duplicates=rename_duplicates,
+            verbose=verbose,
+        )
+    else:
+        rows = _read_and_return_rows(
+            context,
+            manifests,
+            external=source,
+            access=access,
+            format_names=format_names,
+            order_by=order_by,
+            rename_duplicates=rename_duplicates,
+            verbose=verbose,
+        )
 
     if output:
-        write_tabular_manifest(output, rows)
+        if internal:
+            write_internal_sql_manifest(output, rows)
+        else:
+            write_tabular_manifest(output, rows)
     else:
         echo(render_tabular_manifest_rows(rows, cols))
 
 
-def _read_csv_files(
+def _read_and_return_manifest(
+    context: Context,
+    manifests: List[str],
+    *,
+    external: bool = True,
+    access: Access = Access.private,
+    format_names: bool = False,
+    order_by: ManifestColumn = None,
+    rename_duplicates: bool = False,
+    verbose: bool = True,
+) -> Iterator[ManifestRow]:
+    context = configure_context(context, manifests)
+    store = load_manifest(
+        context,
+        rename_duplicates=rename_duplicates,
+        load_internal=False,
+        verbose=verbose,
+    )
+
+    if format_names:
+        reformat_names(context, store.manifest)
+
+    return store.manifest
+
+
+def _read_and_return_rows(
     context: Context,
     manifests: List[str],
     *,
