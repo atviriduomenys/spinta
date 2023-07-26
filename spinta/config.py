@@ -42,9 +42,11 @@ CONFIG = {
             'csv': 'spinta.manifests.tabular.components:CsvManifest',
             'ascii': 'spinta.manifests.tabular.components:AsciiManifest',
             'xlsx': 'spinta.manifests.tabular.components:XlsxManifest',
+            'rdf': 'spinta.manifests.rdf.components:RdfManifest',
             'gsheets': 'spinta.manifests.tabular.components:GsheetsManifest',
             'sql': 'spinta.manifests.sql.components:SqlManifest',
-            'memory': 'spinta.manifests.memory.components:MemoryManifest'
+            'memory': 'spinta.manifests.memory.components:MemoryManifest',
+            'json': 'spinta.manifests.dict.components:JsonManifest'
         },
         'backends': {
             # In memory backends mostly usable in tests

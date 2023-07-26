@@ -8,6 +8,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.datasets.backends.helpers import handle_ref_key_assignment
 from spinta.typing import ObjectData
 from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
@@ -102,14 +103,18 @@ def getall(
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = keymap.encode(sel.prop.model.model_type(), val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        if sel.prop.dtype.model.external.pkeys == sel.prop.dtype.refprops or len(
-                            sel.prop.dtype.refprops) > len(sel.prop.dtype.model.external.pkeys):
-                            val = keymap.encode(sel.prop.dtype.model.name, val)
-                        else:
-                            table = backend.get_table(model, str(sel.prop.dtype.model.external.name))
-                            pk = conn.execute(_get_params_values(table, val)).scalar()
-                            val = keymap.encode(sel.prop.dtype.model.model_type(), pk)
-                        val = {'_id': val}
+# <<<<<<< HEAD
+#                         if sel.prop.dtype.model.external.pkeys == sel.prop.dtype.refprops or len(
+#                             sel.prop.dtype.refprops) > len(sel.prop.dtype.model.external.pkeys):
+#                             val = keymap.encode(sel.prop.dtype.model.name, val)
+#                         else:
+#                             table = backend.get_table(model, str(sel.prop.dtype.model.external.name))
+#                             pk = conn.execute(_get_params_values(table, val)).scalar()
+#                             val = keymap.encode(sel.prop.dtype.model.model_type(), pk)
+#                         val = {'_id': val}
+# =======
+                        val = handle_ref_key_assignment(keymap, val, sel.prop)
+# >>>>>>> origin/master
                 res[key] = val
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)

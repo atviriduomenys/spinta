@@ -1,15 +1,13 @@
-from typing import AsyncIterator, cast
+from typing import AsyncIterator
 
-import psycopg2
 from sqlalchemy import exc
 from spinta import commands, exceptions
+from spinta.commands import create_exception
 from spinta.types.datatype import Denorm
 from spinta.utils.data import take
-from spinta.components import Context, Model, DataItem, DataSubItem, Property
+from spinta.components import Context, Model, DataItem, DataSubItem
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
-from spinta.backends.postgresql.helpers.extractors import extract_error_property_name, extract_error_ref_id, \
-    extract_error_model
 
 
 @commands.insert.register(Context, Model, PostgreSQL)
@@ -43,21 +41,12 @@ async def insert(
             )
             connection.execute(qry, patch)
             commands.after_write(context, model, backend, data=data)
-        except exc.IntegrityError as error:
+        except exc.DatabaseError as error:
             rollback_full = True
             savepoint.rollback()
-            if isinstance(error.orig, psycopg2.errors.ForeignKeyViolation):
-                error_message = error.orig.diag.message_detail
-                error_property_name = extract_error_property_name(error_message)
-                error_ref_id = extract_error_ref_id(error_message)
-                error_property = model.properties.get(error_property_name)
-                exception = exceptions.ReferencedObjectNotFound(error_property, id=error_ref_id)
-                error_list.append(exception)
-                data.error = exception
-            else:
-                # Might need to append it to error_list, but these errors are not part of BaseError class
-                raise error
-
+            exception = create_exception(data, error)
+            error_list.append(exception)
+            data.error = exception
             if len(error_list) >= max_error_count:
                 yield data
                 savepoint_transaction_start.rollback()
@@ -91,7 +80,6 @@ async def update(
         if not data.patch:
             yield data
             continue
-
         try:
             savepoint = connection.begin_nested()
             pk = data.saved['_id']
@@ -110,20 +98,12 @@ async def update(
                     f"{result.rowcount} rows."
                 )
             commands.after_write(context, model, backend, data=data)
-        except exc.IntegrityError as error:
+        except exc.DatabaseError as error:
             rollback_full = True
             savepoint.rollback()
-            if isinstance(error.orig, psycopg2.errors.ForeignKeyViolation):
-                error_message = error.orig.diag.message_detail
-                error_property_name = extract_error_property_name(error_message)
-                error_ref_id = extract_error_ref_id(error_message)
-                error_property = model.properties.get(error_property_name)
-                exception = exceptions.ReferencedObjectNotFound(error_property, id=error_ref_id)
-                error_list.append(exception)
-                data.error = exception
-            else:
-                # Might need to append it to error_list, but these errors are not part of BaseError class
-                raise error
+            exception = create_exception(data, error)
+            error_list.append(exception)
+            data.error = exception
 
             if len(error_list) >= max_error_count:
                 yield data
@@ -163,18 +143,12 @@ async def delete(
                 where(table.c._id == data.saved['_id'])
             )
             commands.after_write(context, model, backend, data=data)
-        except exc.IntegrityError as error:
+        except exc.DatabaseError as error:
             rollback_full = True
             savepoint.rollback()
-            if isinstance(error.orig, psycopg2.errors.ForeignKeyViolation):
-                error_message = error.orig.diag.message_detail
-                error_model = extract_error_model(error_message)
-                exception = exceptions.ReferringObjectFound(model.properties.get("_id"), model=error_model, id=data.saved.get("_id"))
-                error_list.append(exception)
-                data.error = exception
-            else:
-                # Might need to append it to error_list, but these errors are not part of BaseError class
-                raise error
+            exception = create_exception(data, error)
+            error_list.append(exception)
+            data.error = exception
 
             if len(error_list) >= max_error_count:
                 yield data
