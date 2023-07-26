@@ -302,6 +302,14 @@ class InvalidManifestFile(BaseError):
     template = "Error while parsing {eid!r} manifest entry: {error}"
 
 
+class LatitudeOutOfRange(BaseError):
+    template = "Latitude coordinates is out of range"
+
+
+class LongitudeOutOfRange(BaseError):
+    template = "Longitude coordinates is out of range"
+
+
 class ManifestFileDoesNotExist(BaseError):
     template = "Manifest file {path} does not exist."
 
