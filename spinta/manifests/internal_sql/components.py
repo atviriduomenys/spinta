@@ -5,7 +5,7 @@ import sqlalchemy as sa
 
 
 class InternalSQLManifest(Manifest):
-    type = 'internal_sql'
+    type = 'internal'
     path: Optional[str] = None
 
     @staticmethod

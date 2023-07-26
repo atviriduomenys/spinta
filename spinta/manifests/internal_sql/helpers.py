@@ -40,8 +40,8 @@ def _read_all_sql_manifest_rows(
     *,
     rename_duplicates: bool = True
 ):
-    rows = conn.execute('SELECT * FROM _manifest')
-    converted = convert_sql_to_tabular_rows(rows)
+    rows = conn.execute(sa.text('SELECT *, prepare is NULL as prepare_is_null FROM _manifest'))
+    converted = convert_sql_to_tabular_rows(list(rows))
     yield from _read_tabular_manifest_rows(path=path, rows=converted, rename_duplicates=rename_duplicates)
 
 
@@ -834,7 +834,7 @@ def to_row(keys, values) -> InternalManifestRow:
 
 
 def to_row_tabular(keys, values) -> ManifestRow:
-    value = {k: unparse(_value_or_empty(values.get(k))) if k == "prepare" and values.get(k) is not None else _value_or_empty(values.get(k)) for k in keys}
+    value = {k: unparse(values.get("prepare")) if k == "prepare" and not values.get("prepare_is_null") and values.get("prepare_is_null") is not None else _value_or_empty(values.get(k)) for k in keys}
     return value
 
 
