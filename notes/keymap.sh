@@ -31,11 +31,11 @@ sqlite3 $BASEDIR/db.sqlite "SELECT * FROM countries;"
 #| | 1  | lt   | Lithuania |
 #| +----+------+-----------+
 sqlite3 $BASEDIR/db.sqlite "SELECT * FROM cities;"
-#| +---------+---------+
-#| |  name   | country |
-#| +---------+---------+
-#| | Vilnius | lt      |
-#| +---------+---------+
+#| +---------+------------+--------------+--------------+
+#| |  name   | country_id | country_code | country_name |
+#| +---------+------------+--------------+--------------+
+#| | Vilnius | 1          | lt           | Lithuania    |
+#| +---------+------------+--------------+--------------+
 
 
 cat > $BASEDIR/manifest.txt <<EOF
@@ -55,6 +55,9 @@ EOF
 poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
 cat $BASEDIR/manifest.csv
 poetry run spinta show
+
+
+rm $BASEDIR/keymap.db
 
 
 test -n "$PID" && kill $PID
@@ -77,51 +80,32 @@ http GET "$SERVER/$DATASET/City?select(_id,country)&format(ascii)"
 http GET "$SERVER/$DATASET/City?select(_id,country_code)&format(ascii)"
 #| _id                                   country_code._id                    
 #| ------------------------------------  ------------------------------------
-#| 1cf0595b-85e7-4ba3-9a38-87197482d7ae  6a754172-d97e-4527-ac6b-1d87f0951ea2
-# FIXME: country_code._id should be 0a8198af-a55a-4c98-a783-43b23e60aaff
+#| 1cf0595b-85e7-4ba3-9a38-87197482d7ae  0a8198af-a55a-4c98-a783-43b23e60aaff
 
 http GET "$SERVER/$DATASET/City?select(_id,country_name)&format(ascii)"
 #| _id                                   country_name._id                    
 #| ------------------------------------  ------------------------------------
-#| 1cf0595b-85e7-4ba3-9a38-87197482d7ae  d6a9258a-6f57-41e9-b043-8af7cb3f85a2
-# FIXME: country_name._id should be 0a8198af-a55a-4c98-a783-43b23e60aaff
+#| 1cf0595b-85e7-4ba3-9a38-87197482d7ae  0a8198af-a55a-4c98-a783-43b23e60aaff
 
 sqlite3 $BASEDIR/keymap.db "select name from sqlite_master where type = 'table' order by name;"
-#| +----------------------+
-#| |         name         |
-#| +----------------------+
-#| | keymap/City          |
-#| | keymap/Country       |
-#| | keymap/Country._code |
-#| | keymap/Country._name |
-#| | keymap/Country.code  |
-#| | keymap/Country.name  |
-#| +----------------------+
-# FIXME: what are `_code` and `_name`?
+#| +----------------+
+#| |      name      |
+#| +----------------+
+#| | keymap/City    |
+#| | keymap/Country |
+#| +----------------+
 
-sqlite3 $BASEDIR/keymap.db 'SELECT *, hex(value) FROM "'$DATASET'/Country";'
-#| +--------------------------------------+------------------------------------------+-------+------------+
-#| |                 key                  |                   hash                   | value | hex(value) |
-#| +--------------------------------------+------------------------------------------+-------+------------+
-#| | 0a8198af-a55a-4c98-a783-43b23e60aaff | bf8b4530d8d246dd74ac53a13471bba17941dff7 |       | 01         |
-#| +--------------------------------------+------------------------------------------+-------+------------+
+sqlite3 $BASEDIR/keymap.db 'SELECT * FROM "'$DATASET'/City";'
+#| +--------------------------------------+------------------------------------------+---------+
+#| |                 key                  |                   hash                   |  value  |
+#| +--------------------------------------+------------------------------------------+---------+
+#| | 1f8afb14-1ea6-4659-a98d-4186291d168b | 1ec9ba27d21240ccf8337a17d0b70c037e49d990 | �Vilnius |
+#| +--------------------------------------+------------------------------------------+---------+
 
-sqlite3 $BASEDIR/keymap.db 'SELECT *, hex(value) FROM "'$DATASET'/Country._code";'
-#| +--------------------------------------+------------------------------------------+-------+------------+
-#| |                 key                  |                   hash                   | value | hex(value) |
-#| +--------------------------------------+------------------------------------------+-------+------------+
-#| | 6a754172-d97e-4527-ac6b-1d87f0951ea2 | 7b14047ce12579e28dae962a25b010b3ace48367 | �lt    | A26C74     |
-#| +--------------------------------------+------------------------------------------+-------+------------+
+sqlite3 $BASEDIR/keymap.db 'SELECT * FROM "'$DATASET'/Country";'
+#| +--------------------------------------+------------------------------------------+-------+
+#| |                 key                  |                   hash                   | value |
+#| +--------------------------------------+------------------------------------------+-------+
+#| | c05ca751-6fcd-464d-9c9a-70be3996a34a | bf8b4530d8d246dd74ac53a13471bba17941dff7 |       |
+#| +--------------------------------------+------------------------------------------+-------+
 
-sqlite3 $BASEDIR/keymap.db 'SELECT *, hex(value) FROM "'$DATASET'/Country.code";'
-# (empty)
-
-sqlite3 $BASEDIR/keymap.db 'SELECT *, hex(value) FROM "'$DATASET'/Country._name";'
-#| +--------------------------------------+------------------------------------------+-----------+----------------------+
-#| |                 key                  |                   hash                   |   value   |      hex(value)      |
-#| +--------------------------------------+------------------------------------------+-----------+----------------------+
-#| | d6a9258a-6f57-41e9-b043-8af7cb3f85a2 | e4b44f3d2abb6178f578b558915e5c63f329c2c3 | �Lithuania | A94C69746875616E6961 |
-#| +--------------------------------------+------------------------------------------+-----------+----------------------+
-
-sqlite3 $BASEDIR/keymap.db 'SELECT *, hex(value) FROM "'$DATASET'/Country.name";'
-# (empty)
