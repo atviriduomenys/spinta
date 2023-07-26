@@ -174,3 +174,7 @@ def test_true_expr():
 def test_null_expr():
     ast = parse('null')
     assert ast is None
+
+
+def test_normal_text():
+    check("'TEST'")

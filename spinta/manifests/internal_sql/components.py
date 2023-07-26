@@ -34,7 +34,7 @@ ACCESS: Final = 'access'
 URI: Final = 'uri'
 TITLE: Final = 'title'
 DESCRIPTION: Final = 'description'
-ManifestColumn = Literal[
+InternalManifestColumn = Literal[
     'id',
     'parent',
     'depth',
@@ -52,7 +52,7 @@ ManifestColumn = Literal[
     'title',
     'description',
 ]
-MANIFEST_COLUMNS: List[ManifestColumn] = [
+INTERNAL_MANIFEST_COLUMNS: List[InternalManifestColumn] = [
     ID,
     PARENT,
     DEPTH,
@@ -71,4 +71,4 @@ MANIFEST_COLUMNS: List[ManifestColumn] = [
     DESCRIPTION,
 ]
 
-ManifestRow = Dict[ManifestColumn, str]
+InternalManifestRow = Dict[InternalManifestColumn, str]

@@ -26,8 +26,9 @@ from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.helpers import get_manifest_from_type, init_manifest
-from spinta.manifests.tabular.helpers import render_tabular_manifest
-from spinta.manifests.tabular.helpers import write_tabular_manifest
+from spinta.manifests.internal_sql.components import InternalSQLManifest
+from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
+from spinta.manifests.tabular.helpers import write_tabular_manifest, render_tabular_manifest
 from spinta.types.datatype import Ref, DataType, Array, Object, Denorm
 from spinta.utils.naming import Deduplicator
 from spinta.utils.schema import NA
@@ -107,7 +108,10 @@ def inspect(
     manifest.objects['model'] = sorted_models
 
     if output:
-        write_tabular_manifest(output, manifest)
+        if InternalSQLManifest.detect_from_path(output):
+            write_internal_sql_manifest(output, manifest)
+        else:
+            write_tabular_manifest(output, manifest)
     else:
         echo(render_tabular_manifest(manifest))
 

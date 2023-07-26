@@ -1,6 +1,6 @@
 import uuid
 from operator import itemgetter
-from typing import Optional, List, Iterator, Dict, Any
+from typing import Optional, List, Iterator, Dict, Any, Tuple
 
 import sqlalchemy as sa
 from sqlalchemy.sql.elements import Null
@@ -9,18 +9,19 @@ from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
 from spinta.components import Namespace, Base, Model, Property
 from spinta.core.enums import Access
+from spinta.core.ufuncs import Expr
 from spinta.datasets.components import Dataset, Resource
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
-from spinta.manifests.internal_sql.components import ManifestRow, MANIFEST_COLUMNS, ManifestColumn
-from spinta.manifests.tabular.helpers import State, ManifestReader, READERS, ENUMS_ORDER_BY, \
-    sort, MODELS_ORDER_BY, DATASETS_ORDER_BY, to_relative_model_name, PROPERTIES_ORDER_BY, _get_type_repr
+from spinta.manifests.internal_sql.components import InternalManifestRow, INTERNAL_MANIFEST_COLUMNS, InternalManifestColumn
+from spinta.manifests.tabular.components import ManifestRow, MANIFEST_COLUMNS
+from spinta.manifests.tabular.helpers import ENUMS_ORDER_BY, sort, MODELS_ORDER_BY, DATASETS_ORDER_BY, to_relative_model_name, PROPERTIES_ORDER_BY, _get_type_repr, _read_tabular_manifest_rows
 from sqlalchemy_utils import UUIDType
 
-from spinta.spyna import parse
+from spinta.spyna import unparse
 from spinta.types.datatype import Ref
 from spinta.utils.data import take
 from spinta.utils.schema import NotAvailable, NA
@@ -39,22 +40,9 @@ def _read_all_sql_manifest_rows(
     *,
     rename_duplicates: bool = True
 ):
-    rows = conn.engine('SELECT * FROM _manifest')
-    state = State()
-    state.rename_duplicates = rename_duplicates
-    reader = ManifestReader(state, path, '1')
-    reader.read({})
-    yield from state.release(reader)
-
-    for row in rows:
-        row[row["dim"]] = row["name"]
-        dimension = row["dim"]
-        Reader = READERS[dimension]
-        reader = Reader(state, path, row["id"])
-        reader.read(row)
-        yield from state.release(reader)
-
-    yield from state.release()
+    rows = conn.execute('SELECT * FROM _manifest')
+    converted = convert_sql_to_tabular_rows(rows)
+    yield from _read_tabular_manifest_rows(path=path, rows=converted, rename_duplicates=rename_duplicates)
 
 
 def write_internal_sql_manifest(dsn: str, manifest: Manifest):
@@ -111,12 +99,11 @@ def datasets_to_sql(
     external: bool = True,  # clean content of source and prepare
     access: Access = Access.private,
     internal: bool = False,  # internal models with _ prefix like _txn
-    order_by: ManifestColumn = None,
-) -> Iterator[ManifestRow]:
+    order_by: InternalManifestColumn = None,
+) -> Iterator[InternalManifestRow]:
     yield from _prefixes_to_sql(manifest.prefixes)
     yield from _backends_to_sql(manifest.backends)
     yield from _namespaces_to_sql(manifest.namespaces)
-
     yield from _enums_to_sql(
         manifest.enums,
         external=external,
@@ -312,10 +299,10 @@ def _prefixes_to_sql(
     depth: int = 0,
     path: str = None,
     mpath: str = None
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     for name, prefix in prefixes.items():
         item_id = _handle_id(prefix.id)
-        yield torow(MANIFEST_COLUMNS, {
+        yield to_row(INTERNAL_MANIFEST_COLUMNS, {
             'id': item_id,
             'parent': parent_id,
             'depth': depth,
@@ -338,14 +325,14 @@ def _namespaces_to_sql(
     depth: int = 0,
     path: str = None,
     mpath: str = None
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     namespaces = {
         k: ns
         for k, ns in namespaces.items() if not ns.generated
     }
     for name, ns in namespaces.items():
         item_id = _handle_id(ns.id)
-        yield torow(MANIFEST_COLUMNS, {
+        yield to_row(INTERNAL_MANIFEST_COLUMNS, {
             'id': item_id,
             'parent': parent_id,
             'depth': depth,
@@ -369,8 +356,8 @@ def _enums_to_sql(
     mpath: str = None,
     external: bool = True,
     access: Access = Access.private,
-    order_by: ManifestColumn = None,
-) -> Iterator[ManifestRow]:
+    order_by: InternalManifestColumn = None,
+) -> Iterator[InternalManifestRow]:
     if enums is None:
         return
     for name, enum in enums.items():
@@ -378,7 +365,7 @@ def _enums_to_sql(
         new_parent_id = _handle_id("")
         mpath_name = name if name else str(new_parent_id)
         new_mpath = '/'.join([mpath, mpath_name] if mpath else [mpath_name])
-        yield torow(MANIFEST_COLUMNS, {
+        yield to_row(INTERNAL_MANIFEST_COLUMNS, {
             'id': new_parent_id,
             'parent': parent_id,
             'depth': depth,
@@ -395,7 +382,7 @@ def _enums_to_sql(
                 continue
             new_item_id = _handle_id("")
             new_item_mpath = '/'.join([new_mpath, str(new_item_id)] if new_mpath else [str(new_item_id)])
-            yield torow(MANIFEST_COLUMNS, {
+            yield to_row(INTERNAL_MANIFEST_COLUMNS, {
                 'id': new_item_id,
                 'parent': new_parent_id,
                 'depth': depth + 1,
@@ -417,12 +404,12 @@ def _lang_to_sql(
     depth: int = 0,
     path: str = None,
     mpath: str = None,
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     if lang is None:
         return
     for name, data in sorted(lang.items(), key=itemgetter(0)):
         item_id = _handle_id("")
-        yield torow(MANIFEST_COLUMNS, {
+        yield to_row(INTERNAL_MANIFEST_COLUMNS, {
             'id': item_id,
             'parent': parent_id,
             'depth': depth + 1,
@@ -445,14 +432,14 @@ def _comments_to_sql(
     depth: int = 0,
     path: str = None,
     mpath: str = None
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     if comments is None:
         return
     for comment in comments:
         if comment.access < access:
             return
         new_id = _handle_id(comment.id)
-        yield torow(MANIFEST_COLUMNS, {
+        yield to_row(INTERNAL_MANIFEST_COLUMNS, {
             'id': new_id,
             'parent': parent_id,
             'depth': depth,
@@ -475,10 +462,10 @@ def _backends_to_sql(
     depth: int = 0,
     path: str = None,
     mpath: str = None
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     for name, backend in backends.items():
         new_id = _handle_id("")
-        yield torow(MANIFEST_COLUMNS, {
+        yield to_row(INTERNAL_MANIFEST_COLUMNS, {
             'id': new_id,
             'parent': parent_id,
             'depth': depth,
@@ -500,12 +487,12 @@ def _dataset_to_sql(
     depth: int = 0,
     external: bool = True,
     access: Access = Access.private,
-    order_by: ManifestColumn = None,
-) -> Iterator[ManifestRow]:
+    order_by: InternalManifestColumn = None,
+) -> Iterator[InternalManifestRow]:
     dataset_id = _handle_id(dataset.id)
     new_path = '/'.join([path, dataset.name] if path else [dataset.name])
     new_mpath = '/'.join([mpath, dataset.name] if mpath else [dataset.name])
-    yield torow(MANIFEST_COLUMNS, {
+    yield to_row(INTERNAL_MANIFEST_COLUMNS, {
         'id': dataset_id,
         'parent': parent_id,
         'depth': depth,
@@ -540,7 +527,7 @@ def _params_to_sql(
     depth: int = 0,
     path: str = None,
     mpath: str = None
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     if not params_data:
         return
     for param, values in params_data.items():
@@ -551,7 +538,7 @@ def _params_to_sql(
             prepare = _handle_prepare(values["prepare"][i])
             if not (isinstance(values["prepare"][i], NotAvailable) and values['source'][i] is None):
                 if i == 0:
-                    yield torow(MANIFEST_COLUMNS, {
+                    yield to_row(INTERNAL_MANIFEST_COLUMNS, {
                         'id': param_base_id,
                         'parent': parent_id,
                         'depth': depth,
@@ -566,7 +553,7 @@ def _params_to_sql(
                         'title': values["title"],
                         'description': values["description"]
                     })
-                yield torow(MANIFEST_COLUMNS, {
+                yield to_row(INTERNAL_MANIFEST_COLUMNS, {
                     'id': new_id,
                     'parent': param_base_id,
                     'depth': depth + 1,
@@ -586,11 +573,11 @@ def _resource_to_sql(
     mpath: str = None,
     external: bool = True,
     access: Access = Access.private,
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     backend = resource.backend
     new_mpath = '/'.join([mpath, resource.name] if mpath else [resource.name])
     item_id = _handle_id("")
-    yield torow(MANIFEST_COLUMNS, {
+    yield to_row(INTERNAL_MANIFEST_COLUMNS, {
         'id': item_id,
         'parent': parent_id,
         'depth': depth,
@@ -627,7 +614,7 @@ def _base_to_sql(
     depth: int = 0,
     path: str = None,
     mpath: str = None
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     item_id = _handle_id("")
     new_mpath = '/'.join([mpath, base.name] if mpath else [base.name])
     data = {
@@ -642,7 +629,7 @@ def _base_to_sql(
     }
     if base.pk:
         data['ref'] = ', '.join([pk.place for pk in base.pk])
-    yield torow(MANIFEST_COLUMNS, data)
+    yield to_row(INTERNAL_MANIFEST_COLUMNS, data)
     yield from _lang_to_sql(base.lang, parent_id=item_id, depth=depth + 1, path=path, mpath=new_mpath)
 
 
@@ -650,12 +637,12 @@ def _model_to_sql(
     model: Model,
     external: bool = True,
     access: Access = Access.private,
-    order_by: ManifestColumn = None,
+    order_by: InternalManifestColumn = None,
     parent_id: uuid.UUID = None,
     depth: int = 0,
     path: str = None,
     mpath: str = None
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     item_id = _handle_id(model.id)
     name = model.name
     if model.external and model.external.dataset:
@@ -699,7 +686,7 @@ def _model_to_sql(
     if model.external:
         if not model.external.unknown_primary_key:
             hide_list = [model.external.pkeys]
-    yield torow(MANIFEST_COLUMNS, data)
+    yield to_row(INTERNAL_MANIFEST_COLUMNS, data)
     yield from _params_to_sql(model.params, parent_id=item_id, depth=depth + 1, path=new_path, mpath=new_mpath)
     yield from _comments_to_sql(model.comments, access=access, parent_id=item_id, depth=depth + 1, path=new_path,
                                 mpath=new_mpath)
@@ -728,13 +715,13 @@ def _unique_to_sql(
     depth: int = 0,
     path: str = None,
     mpath: str = None
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     if not model_unique_data:
         return
     for row in model_unique_data:
         if row not in hide_list:
             item_id = _handle_id("")
-            yield torow(MANIFEST_COLUMNS, {
+            yield to_row(INTERNAL_MANIFEST_COLUMNS, {
                 'id': item_id,
                 'parent': parent_id,
                 'depth': depth,
@@ -751,12 +738,12 @@ def _property_to_sql(
     prop: Property,
     external: bool = True,
     access: Access = Access.private,
-    order_by: ManifestColumn = None,
+    order_by: InternalManifestColumn = None,
     parent_id: uuid.UUID = None,
     depth: int = 0,
     path: str = None,
     mpath: str = None
-) -> Iterator[ManifestRow]:
+) -> Iterator[InternalManifestRow]:
     if prop.name.startswith('_'):
         return
 
@@ -814,7 +801,7 @@ def _property_to_sql(
     elif prop.unit is not None:
         data['ref'] = prop.given.unit
 
-    yield torow(MANIFEST_COLUMNS, data)
+    yield to_row(INTERNAL_MANIFEST_COLUMNS, data)
     yield from _comments_to_sql(prop.comments, access=access, parent_id=item_id, depth=depth + 1, path=new_path,
                                 mpath=new_mpath)
     yield from _lang_to_sql(prop.lang, parent_id=item_id, depth=depth + 1, path=new_path, mpath=new_mpath)
@@ -836,13 +823,248 @@ def _value_or_null(value: Any):
     return None
 
 
-def torow(keys, values) -> ManifestRow:
+def _value_or_empty(value: Any):
+    if isinstance(value, Null) or value or value is False or value == 0:
+        return value
+    return ''
+
+
+def to_row(keys, values) -> InternalManifestRow:
     return {k: _value_or_null(values.get(k)) for k in keys}
+
+
+def to_row_tabular(keys, values) -> ManifestRow:
+    value = {k: unparse(_value_or_empty(values.get(k))) if k == "prepare" and values.get(k) is not None else _value_or_empty(values.get(k)) for k in keys}
+    return value
 
 
 def _handle_prepare(prepare: Any):
     if isinstance(prepare, NotAvailable):
         prepare = sa.null()
-    else:
-        prepare = parse(prepare)
+    elif isinstance(prepare, Expr):
+        prepare = prepare.todict()
     return prepare
+
+
+def convert_sql_to_tabular_rows(rows: list) -> Iterator[Tuple[str, List[str]]]:
+    previous_row = {}
+    data_row = {}
+    enum_data = {}
+    param_data = {}
+    meta_dimensions = {
+        "current": None,
+        "previous": None,
+        'dataset': None,
+        'resource': None,
+        'base': None
+    }
+    yield 1, MANIFEST_COLUMNS
+    line = 2
+    for i, row in enumerate(rows):
+        row = dict(row)
+        _update_meta_dimensions(meta_dimensions, row)
+        is_first = row["dim"] != previous_row.get("dim")
+        base, resource, dataset = _requires_end_marker(row, meta_dimensions)
+        if dataset:
+            yield line, list(to_row_tabular(MANIFEST_COLUMNS, {'dataset': '/'}).values())
+            line += 1
+        elif resource:
+            yield line, list(to_row_tabular(MANIFEST_COLUMNS, {'resource': '/'}).values())
+            line += 1
+        elif base:
+            yield line, list(to_row_tabular(MANIFEST_COLUMNS, {'base': '/'}).values())
+            line += 1
+        if _requires_seperator(row, previous_row, meta_dimensions):
+            yield line, list(to_row_tabular(MANIFEST_COLUMNS, {}).values())
+            line += 1
+        dimension = row["dim"]
+        if dimension == "prefix":
+            data_row = _convert_prefixes(row, is_first)
+        elif dimension == "ns":
+            data_row = _convert_namespaces(row, is_first)
+        elif dimension == "lang":
+            data_row = _convert_lang(row, is_first)
+        elif dimension == "comment":
+            data_row = _convert_comment(row, is_first)
+        elif dimension == "resource":
+            data_row = _convert_resource(row)
+        elif dimension == "enum":
+            enum_data = row
+        elif dimension == "enum.item":
+            data_row = _convert_enum(row, enum_data, is_first)
+        elif dimension == "unique":
+            data_row = _convert_unique(row)
+        elif dimension == "param":
+            param_data = row
+        elif dimension == "param.item":
+            data_row = _convert_param(row, param_data, is_first)
+        elif dimension == "dataset":
+            data_row = _convert_dataset(row)
+        elif dimension == "base":
+            data_row = _convert_base(row)
+        elif dimension == "property":
+            data_row = _convert_property(row)
+        elif dimension == "model":
+            data_row = _convert_model(row)
+        previous_row = row
+        if dimension != "enum" and dimension != "param":
+            yield line, list(data_row.values())
+            line += 1
+
+
+def _update_meta_dimensions(meta_dimensions: dict, row: InternalManifestRow):
+    if row["dim"] == "dataset":
+        meta_dimensions["dataset"] = row["depth"]
+        meta_dimensions["resource"] = None
+        meta_dimensions["base"] = None
+    elif row["dim"] == "resource":
+        meta_dimensions["resource"] = row["depth"]
+        meta_dimensions["base"] = None
+    elif row["dim"] == "base":
+        meta_dimensions["base"] = row["depth"]
+
+    if meta_dimensions["current"] != row["dim"] and row["dim"] in [
+        "dataset", "resource", "base", "model", "property"
+    ]:
+        meta_dimensions["previous"] = meta_dimensions["current"]
+        meta_dimensions["current"] = row["dim"]
+
+
+def _requires_end_marker(row: InternalManifestRow, meta_dimensions: dict):
+    base_end_marker = False
+    resource_end_marker = False
+    dataset_end_marker = False
+    if row["dim"] not in ["dataset", "resource", "base", "property", "enum.item", "param.item"]:
+        depth = row["depth"]
+        if meta_dimensions["base"]:
+            if depth <= meta_dimensions["base"]:
+                meta_dimensions["base"] = None
+                base_end_marker = True
+        if meta_dimensions["resource"]:
+            if depth <= meta_dimensions["resource"]:
+                meta_dimensions["resource"] = None
+                resource_end_marker = True
+        if meta_dimensions["dataset"]:
+            if depth <= meta_dimensions["dataset"]:
+                meta_dimensions["dataset"] = None
+                dataset_end_marker = True
+    return base_end_marker, resource_end_marker, dataset_end_marker
+
+
+def _requires_seperator(row: InternalManifestRow, previous_row: InternalManifestRow, meta_dimensions: dict):
+    primary_list = (None, "dataset", "resource", "base", "model", "property")
+
+    def is_primary_dimension(dimension: str):
+        if dimension in primary_list:
+            return primary_list.index(dimension)
+        return -1
+
+    if row["dim"] == previous_row.get("dim"):
+        return False
+
+    previous_dim = is_primary_dimension(previous_row.get("dim"))
+    current_dim = is_primary_dimension(row["dim"])
+    if previous_row.get("dim") == "base":
+        return False
+    elif row["dim"] == "resource":
+        return False
+    elif current_dim > previous_dim != -1:
+        return False
+    elif current_dim == -1 and previous_dim != -1:
+        return False
+    elif current_dim == -1 and previous_dim == -1:
+        if (previous_row.get("dim") == "enum" and row["dim"] == "enum.item") or (previous_row.get("dim") == "param" and row["dim"] == "param.item"):
+            return False
+    elif current_dim != -1 and primary_list[current_dim] == "property" and previous_dim == -1:
+        return False
+    elif previous_dim == -1 and meta_dimensions["previous"] == meta_dimensions["current"]:
+        return False
+    return True
+
+
+def _convert_model(row: InternalManifestRow):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    new["model"] = row["name"]
+    return new
+
+
+def _convert_property(row: InternalManifestRow):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    new["property"] = row["name"]
+    return new
+
+
+def _convert_base(row: InternalManifestRow):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    new["base"] = row["name"]
+    return new
+
+
+def _convert_dataset(row: InternalManifestRow):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    new["dataset"] = row["name"]
+    return new
+
+
+def _convert_param(row: InternalManifestRow, param_data: InternalManifestRow, first: bool = False):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    if not first:
+        new["type"] = ''
+        new["ref"] = ''
+        new["title"] = ''
+        new["description"] = ''
+    else:
+        new["ref"] = param_data["ref"]
+        new["title"] = param_data["title"]
+        new["description"] = param_data["description"]
+    return new
+
+
+def _convert_unique(row: InternalManifestRow):
+    return to_row_tabular(MANIFEST_COLUMNS, row)
+
+
+def _convert_enum(row: InternalManifestRow, enum_data: InternalManifestRow, first: bool = False):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    if not first:
+        new["type"] = ''
+        new["ref"] = ''
+    else:
+        new["type"] = "enum"
+        new["ref"] = enum_data["ref"]
+    return new
+
+
+def _convert_resource(row: InternalManifestRow):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    new["resource"] = row["name"]
+    return new
+
+
+def _convert_comment(row: InternalManifestRow, first: bool = False):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    if not first:
+        new["type"] = ''
+    return new
+
+
+def _convert_lang(row: InternalManifestRow, first: bool = False):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    if not first:
+        new["type"] = ''
+        new["ref"] = ''
+    return new
+
+
+def _convert_namespaces(row: InternalManifestRow, first: bool = False):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    if not first:
+        new["type"] = ''
+    return new
+
+
+def _convert_prefixes(row: InternalManifestRow, first: bool = False):
+    new = to_row_tabular(MANIFEST_COLUMNS, row)
+    if not first:
+        new["type"] = ''
+    return new
