@@ -173,7 +173,7 @@ TYPES = [
     (postgresql.UUID, 'string'),
     (Geometry, 'geometry'),
     (oracle.ROWID, 'string'),
-    (oracle.RAW, 'string'),
+    (oracle.RAW, 'binary'),
 ]
 
 
