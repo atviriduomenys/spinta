@@ -92,7 +92,6 @@ def getall(
         expr = env.resolve(query)
         where = env.execute(expr)
         qry = env.build(where)
-        pk = None
         for row in conn.execute(qry):
             res = {
                 '_type': model.model_type(),
@@ -102,19 +101,9 @@ def getall(
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = keymap.encode(sel.prop.model.model_type(), val)
+                        pk = val
                     elif isinstance(sel.prop.dtype, Ref):
-# <<<<<<< HEAD
-#                         if sel.prop.dtype.model.external.pkeys == sel.prop.dtype.refprops or len(
-#                             sel.prop.dtype.refprops) > len(sel.prop.dtype.model.external.pkeys):
-#                             val = keymap.encode(sel.prop.dtype.model.name, val)
-#                         else:
-#                             table = backend.get_table(model, str(sel.prop.dtype.model.external.name))
-#                             pk = conn.execute(_get_params_values(table, val)).scalar()
-#                             val = keymap.encode(sel.prop.dtype.model.model_type(), pk)
-#                         val = {'_id': val}
-# =======
-                        val = handle_ref_key_assignment(keymap, val, sel.prop)
-# >>>>>>> origin/master
+                        val = handle_ref_key_assignment(keymap, val, sel.prop, pk)
                 res[key] = val
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)

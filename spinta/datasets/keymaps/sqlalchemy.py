@@ -66,13 +66,7 @@ class SqlAlchemyKeyMap(KeyMap):
         query = sa.select([table.c.key]).where(table.c.hash == hash)
         key = self.conn.execute(query).scalar()
         if primary_key:
-            self.conn.execute(table.insert(), {
-                'key': primary_key,
-                'hash': hash,
-                'value': value,
-                })
-            return primary_key
-
+            return key
         if key is None:
             key = str(uuid.uuid4())
             self.conn.execute(table.insert(), {
