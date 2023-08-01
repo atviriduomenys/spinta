@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from geoalchemy2.types import Geometry
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects import oracle
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.types import TypeEngine
 
@@ -159,6 +160,8 @@ TYPES = [
     (sa.Numeric, 'number'),
     (sa.Text, 'string'),
     (sa.Time, 'time'),
+    (sa.LargeBinary, 'binary'),
+    (sa.String, 'string'),
     (sa.VARCHAR, 'string'),
     (sa.CHAR, 'string'),
     (mysql.BIT, 'string'),
@@ -169,6 +172,8 @@ TYPES = [
     (postgresql.JSONB, 'object'),
     (postgresql.UUID, 'string'),
     (Geometry, 'geometry'),
+    (oracle.ROWID, 'string'),
+    (oracle.RAW, 'binary'),
 ]
 
 

@@ -277,6 +277,21 @@ def simple_data_check(
         raise exceptions.InvalidRefValue(prop, value=value)
 
 
+@commands.simple_data_check.register(Context, DataItem, Inherit, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: Inherit,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if prop.name in data.given.keys():
+        raise exceptions.NotImplementedFeature(prop, feature="Ability to indirectly modify base parameters")
+
+
+
+
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
 def complex_data_check(
     context: Context,
@@ -1062,7 +1077,7 @@ def get_property_base_model(model: Model, name: str):
     while model.base and model.base.parent:
         model = model.base.parent
         if name in model.properties and not isinstance(
-            model.properties[name],
+            model.properties[name].dtype,
             Inherit
         ):
             base_model = model
