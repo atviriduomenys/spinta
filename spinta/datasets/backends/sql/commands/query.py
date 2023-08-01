@@ -704,7 +704,6 @@ def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
         table = env.backend.get_table(dtype.model)
         column = env.backend.get_column(table, dtype.model.properties['id'], select=True)
         return Selected(
-            item=env.add_column(column),
             prop=dtype.model.properties['_id'],
             prep=env.call('select', fpr, fpr.right.prop),
         )
