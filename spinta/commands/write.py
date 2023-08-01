@@ -1,12 +1,13 @@
 import cgi
 import typing
-from typing import Any
-from typing import AsyncIterator, Union, Optional
-from typing import overload
 
 import itertools
 import json
 import pathlib
+
+from typing import Any
+from typing import AsyncIterator, Union, Optional
+from typing import overload
 from typing import Dict
 from typing import Iterator
 
@@ -26,12 +27,14 @@ from spinta.backends import check_type_value
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend, BackendFeatures
+from spinta.cli.helpers.store import prepare_manifest
+from spinta.commands import getall
 from spinta.components import Context, Node, UrlParams, Action, DataItem, Namespace, Model, Property, DataStream, DataSubItem
+from spinta.datasets.backends.helpers import detect_backend_from_content_type, get_stream_for_direct_upload
 from spinta.renderer import render
 from spinta.types.datatype import DataType, Object, Array, File, Ref, ExternalRef, Denorm, Inherit
 from spinta.urlparams import get_model_by_name
-from spinta.utils.aiotools import agroupby
-from spinta.utils.aiotools import aslice, alist, aiter
+from spinta.utils.aiotools import agroupby, aslice, alist, aiter
 from spinta.utils.errors import report_error
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.streams import splitlines
@@ -60,7 +63,7 @@ async def push(
     backend: (type(None), Backend),
     *,
     action: Action,
-    params: UrlParams,
+    params: UrlParams
 ) -> Response:
 
     # A hotfix after changes push signature from push(Context, Request,
@@ -73,10 +76,15 @@ async def push(
         scope = scope.prop
 
     stop_on_error = not params.fault_tolerant
-    if is_streaming_request(request):
+    content_type = get_content_type_from_request(request)
+    if is_streaming_request(content_type):
         stream = _read_request_stream(
             context, request, scope, action, stop_on_error,
         )
+    if is_not_streaming_request(request):
+        backend = detect_backend_from_content_type(context, content_type)
+        rows = getall(context, scope, backend)
+        stream = get_stream_for_direct_upload(context, rows, content_type)
     else:
         stream = _read_request_body(
             context, request, scope, action, params, stop_on_error,
@@ -212,15 +220,24 @@ def _stream_group_key(data: DataItem):
     return data.model, data.prop, data.backend, data.action
 
 
-def is_streaming_request(request: Request):
+def get_content_type_from_request(request: Request):
     content_type = request.headers.get('content-type')
     if content_type:
         content_type = cgi.parse_header(content_type)[0]
+    return content_type
+
+
+def is_streaming_request(content_type):
     return content_type in STREAMING_CONTENT_TYPES
 
 
+def is_not_streaming_request(content_type):
+    return content_type not in STREAMING_CONTENT_TYPES
+
+
 async def is_batch(request: Request, node: Node):
-    if is_streaming_request(request):
+    content_type = get_content_type_from_request(request)
+    if is_streaming_request(content_type):
         return True
 
     ct = request.headers.get('content-type')

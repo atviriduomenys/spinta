@@ -1,9 +1,11 @@
 from typing import Any
-from spinta.components import Property
+from spinta.cli.helpers.store import prepare_manifest
+from spinta.components import Property, Context
 from spinta.datasets.backends.notimpl.components import BackendNotImplemented
 from spinta.datasets.components import ExternalBackend
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import NotImplementedFeature
+from spinta.formats.helpers import get_format_by_content_type
 
 
 def handle_ref_key_assignment(keymap: KeyMap, value: Any, prop: Property) -> dict:
@@ -37,3 +39,17 @@ def detect_backend_from_content_type(context, content_type):
     raise ValueError(
         f"Can't find a matching external backend for the given content type {content_type!r}"
     )
+
+
+def get_stream_for_direct_upload(
+    context: Context,
+    rows,
+    content_type
+):
+    from spinta.commands.write import write
+    store = prepare_manifest(context)
+    manifest = store.manifest
+    root = manifest.objects['ns']['']
+    fmt = get_format_by_content_type(context, content_type)
+    stream = write(context, root, rows, changed=True, fmt=fmt)
+    return stream

@@ -154,3 +154,11 @@ def get_model_tabular_header(
             )
         header = list(_get_model_header(model, names, select, reserved))
     return header
+
+
+def get_format_by_content_type(context, content_type):
+    config = context.get('config')
+    formats = config.components['exporters']
+    for fmt in formats.values():
+        if content_type in fmt.accept_types:
+            return fmt
