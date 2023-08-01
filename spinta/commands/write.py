@@ -51,6 +51,7 @@ if typing.TYPE_CHECKING:
 STREAMING_CONTENT_TYPES = [
     'application/x-jsonlines',
     'application/x-ndjson',
+    'application/json'
 ]
 
 
@@ -83,7 +84,7 @@ async def push(
         )
     if is_not_streaming_request(request):
         backend = detect_backend_from_content_type(context, content_type)
-        rows = getall(context, scope, backend)
+        rows = commands.getall(context, scope, backend)
         stream = get_stream_for_direct_upload(context, rows, content_type)
     else:
         stream = _read_request_body(
