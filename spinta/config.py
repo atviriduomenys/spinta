@@ -47,7 +47,8 @@ CONFIG = {
             'sql': 'spinta.manifests.sql.components:SqlManifest',
             'memory': 'spinta.manifests.memory.components:MemoryManifest',
             'json': 'spinta.manifests.dict.components:JsonManifest',
-            'internal': 'spinta.manifests.internal_sql.components:InternalSQLManifest'
+            'xml': 'spinta.manifests.dict.components:XmlManifest',
+            'internal': 'spinta.manifests.internal_sql.components:InternalSQLManifest',
         },
         'backends': {
             # In memory backends mostly usable in tests
