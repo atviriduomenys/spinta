@@ -51,7 +51,6 @@ if typing.TYPE_CHECKING:
 STREAMING_CONTENT_TYPES = [
     'application/x-jsonlines',
     'application/x-ndjson',
-    'application/json'
 ]
 
 
@@ -229,6 +228,7 @@ def get_content_type_from_request(request: Request):
 
 
 def is_streaming_request(content_type):
+    content_type = cgi.parse_header(content_type)[0]
     return content_type in STREAMING_CONTENT_TYPES
 
 
