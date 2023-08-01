@@ -1,3 +1,4 @@
+import io
 import json
 import pathlib
 
@@ -295,7 +296,7 @@ def _parse_json_with_params(data, source: list, model_props: dict):
 def _get_data_xml(url: str, source: str, model_props: Dict):
     if url.startswith(('http', 'https')):
         f = requests.get(url)
-        return _parse_xml(f.raw, source, model_props)
+        return _parse_xml(io.BytesIO(f.content), source, model_props)
     else:
         with open(url, 'rb') as f:
             return _parse_xml(f, source, model_props)
