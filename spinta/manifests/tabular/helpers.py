@@ -38,7 +38,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Property
 from spinta.core.enums import Access
-from spinta.core.ufuncs import unparse
+from spinta.core.ufuncs import unparse, Expr
 from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
@@ -310,6 +310,7 @@ class ResourceReader(TabularReader):
             )
 
         self.data = {
+            'id': row['id'],
             'type': row['type'],
             'name': self.name,
             'dsn': row['source'],
@@ -327,6 +328,7 @@ class ResourceReader(TabularReader):
             self.error("Resource with the same name already defined in ")
 
         self.data = {
+            'id': row['id'],
             'type': row['type'],
             'backend': row['ref'],
             'external': row['source'],
@@ -340,10 +342,14 @@ class ResourceReader(TabularReader):
         dataset['resources'][self.name] = self.data
 
     def release(self, reader: TabularReader = None) -> bool:
+        if self.state.dataset is None:
+            return True
         return reader is None or isinstance(reader, (
             ManifestReader,
             DatasetReader,
             ResourceReader,
+            EnumReader,
+            PrefixReader
         )) or (isinstance(reader, ModelReader) and self.name == '/')
 
     def enter(self) -> None:
@@ -367,6 +373,7 @@ class BaseReader(TabularReader):
             dataset = dataset.data if dataset else None
 
             self.data = {
+                'id': row['id'],
                 'name': self.name,
                 'model': get_relative_model_name(dataset, row['base']),
                 'pk': (
@@ -420,6 +427,7 @@ class ModelReader(TabularReader):
             'id': row['id'],
             'name': name,
             'base': {
+                'id': base.data["id"],
                 'name': base.name,
                 'parent': base.data['model'],
                 'pk': base.data['pk'],
@@ -579,6 +587,7 @@ class PropertyReader(TabularReader):
             dtype['type'] = 'inherit'
 
         self.data = {
+            'id': row['id'],
             'type': dtype['type'],
             'type_args': dtype['type_args'],
             'prepare': _parse_spyna(self, row[PREPARE]),
@@ -846,6 +855,7 @@ class EnumReader(TabularReader):
             self.error(f"Enum's do not have a level, but level {row[LEVEL]!r} is given.")
 
         self.data = {
+            'id': row[ID],
             'name': self.name,
             'source': row[SOURCE],
             'prepare': _parse_spyna(self, row[PREPARE]),
@@ -903,6 +913,7 @@ class LangReader(TabularReader):
             ModelReader,
             PropertyReader,
             EnumReader,
+            LangReader
         )):
             self.error(f'Language metadata is not supported on {reader.type}.')
             return
@@ -1426,6 +1437,7 @@ def _backends_to_tabular(
 ) -> Iterator[ManifestRow]:
     for name, backend in backends.items():
         yield torow(DATASET, {
+            'id': backend.config.get('id'),
             'type': backend.type,
             'resource': name,
             'source': backend.config.get('dsn'),
@@ -1447,6 +1459,7 @@ def _namespaces_to_tabular(
     first = True
     for name, ns in namespaces.items():
         yield torow(DATASET, {
+            'id': ns.id,
             'type': ns.type if first else '',
             'ref': name,
             'title': ns.title,
@@ -1484,6 +1497,7 @@ def _enums_to_tabular(
             if item.access is not None and item.access < access:
                 continue
             yield torow(DATASET, {
+                'id': item.id,
                 'type': 'enum' if first else '',
                 'ref': name if first else '',
                 'source': item.source if external else '',
@@ -1611,6 +1625,7 @@ def _resource_to_tabular(
 ) -> Iterator[ManifestRow]:
     backend = resource.backend
     yield torow(DATASET, {
+        'id': resource.id,
         'resource': resource.name,
         'source': resource.external if external else '',
         'prepare': unparse(resource.prepare or NA) if external else '',
@@ -1638,6 +1653,7 @@ def _base_to_tabular(
     base: Base,
 ) -> Iterator[ManifestRow]:
     data = {
+        'id': base.id,
         'base': base.name
     }
     if base.pk:
@@ -1660,6 +1676,7 @@ def _property_to_tabular(
         return
 
     data = {
+        'id': prop.id,
         'property': prop.place,
         'type': _get_type_repr(prop.dtype),
         'level': prop.level.value if prop.level else "",

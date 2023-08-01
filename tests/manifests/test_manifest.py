@@ -1,34 +1,67 @@
+import pathlib
+
 import pytest
 
 from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, ReferencedPropertyNotFound
+from spinta.manifests.components import Manifest
+from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
+from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.manifest import load_manifest, compare_manifest
+from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
 
-def check(tmp_path, rc, table):
+def create_sql_manifest(
+    manifest: Manifest,
+    path: pathlib.Path
+):
+    db = Sqlite('sqlite:///' + str(path))
+    with db.engine.connect():
+        write_internal_sql_manifest(db.dsn, manifest)
+
+
+def setup_tabular_manifest(rc, tmp_path, table):
     create_tabular_manifest(tmp_path / 'manifest.csv', table)
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    return load_manifest(rc, tmp_path / 'manifest.csv')
+
+
+def setup_internal_manifest(rc, tmp_path, manifest):
+    create_sql_manifest(manifest, tmp_path / 'db.sqlite')
+    return load_manifest(rc, 'sqlite:///' + str(tmp_path / 'db.sqlite'))
+
+
+def check(tmp_path, rc, table, tabular: bool = True):
+    manifest = setup_tabular_manifest(rc, tmp_path, table)
+    if not tabular:
+        manifest = setup_internal_manifest(rc, tmp_path, manifest)
     assert manifest == table
 
 
-def test_loading(tmp_path, rc):
+manifest_type = {
+    "tabular": True,
+    "internal_sql": False
+}
+
+
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_loading(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
-    id | d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
-       | datasets/gov/example     |             |           |            |         |       | open   |     | Example |
-       |   | data                 |             |           | postgresql | default |       | open   |     | Data    |
-       |                          |             |           |            |         |       |        |     |         |
-       |   |   |   | country      |             | code='lt' |            | code    |       | open   |     | Country |
-       |   |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
-       |   |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
-       |                          |             |           |            |         |       |        |     |         |
-       |   |   |   | city         |             |           |            | name    |       | open   |     | City    |
-       |   |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
-       |   |   |   |   | country  | šalis       |           | ref        | country | 4     | open   |     | Country |
-    ''')
+     d | r | b | m | property | source      | prepare   | type       | ref     | level | access | uri | title   | description
+     datasets/gov/example     |             |           |            |         |       | open   |     | Example |
+       | data                 |             |           | postgresql | default |       | open   |     | Data    |
+                              |             |           |            |         |       |        |     |         |
+       |   |   | country      |             | code='lt' |            | code    |       | open   |     | Country |
+       |   |   |   | code     | kodas       | lower()   | string     |         | 3     | open   |     | Code    |
+       |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
+                              |             |           |            |         |       |        |     |         |
+       |   |   | city         |             |           |            | name    |       | open   |     | City    |
+       |   |   |   | name     | pavadinimas |           | string     |         | 3     | open   |     | Name    |
+       |   |   |   | country  | šalis       |           | ref        | country | 4     | open   |     | Country |
+    ''', is_tabular)
 
 
-def test_uri(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_uri(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type       | ref     | uri
     datasets/gov/example     |            |         |
@@ -44,18 +77,20 @@ def test_uri(tmp_path, rc):
       |   |   | City         |            | name    |
       |   |   |   | name     | string     |         | locn:geographicName
       |   |   |   | country  | ref        | Country |
-    ''')
+    ''', is_tabular)
 
 
-def test_backends(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_backends(is_tabular, tmp_path, rc):
     check(tmp_path, rc, f'''
     d | r | b | m | property | type | ref | source
       | default              | sql  |     | sqlite:///{tmp_path}/db
                              |      |     |
-    ''')
+    ''', is_tabular)
 
 
-def test_backends_with_models(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_backends_with_models(is_tabular, tmp_path, rc):
     check(tmp_path, rc, f'''
     d | r | b | m | property | type   | ref | source
       | default              | sql    |     | sqlite:///{tmp_path}/db
@@ -63,20 +98,22 @@ def test_backends_with_models(tmp_path, rc):
       |   |   | country      |        |     | code
       |   |   |   | code     | string |     |
       |   |   |   | name     | string |     |
-    ''')
+    ''', is_tabular)
 
 
-def test_ns(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_ns(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type | ref                  | title               | description
                              | ns   | datasets             | All datasets        | All external datasets.
                              |      | datasets/gov         | Government datasets | All government datasets.
                              |      | datasets/gov/example | Example             |
                              |      |                      |                     |
-    ''')
+    ''', is_tabular)
 
 
-def test_ns_with_models(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_ns_with_models(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type   | ref                  | title               | description
                              | ns     | datasets             | All datasets        | All external datasets.
@@ -88,10 +125,11 @@ def test_ns_with_models(tmp_path, rc):
                              |        |                      |                     |
       |   |   | Country      |        |                      |                     |
       |   |   |   | name     | string |                      |                     |
-    ''')
+    ''', is_tabular)
 
 
-def test_enum(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_enum(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property     | type   | source | prepare | access  | title | description
     datasets/gov/example         |        |        |         |         |       |
@@ -102,10 +140,11 @@ def test_enum(tmp_path, rc):
       |   |   |   | driving_side | string |        |         |         |       |
                                  | enum   | l      | 'left'  | open    | Left  | Left side.
                                  |        | r      | 'right' | private | Right | Right side.
-    ''')
+    ''', is_tabular)
 
 
-def test_enum_ref(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_enum_ref(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property     | type   | ref     | source | prepare | access  | title | description
                                  | enum   | side    | l      | 'left'  | open    | Left  | Left side.
@@ -117,10 +156,11 @@ def test_enum_ref(tmp_path, rc):
       |   |   | Country          |        |         |        |         |         |       |
       |   |   |   | name         | string |         |        |         |         |       |
       |   |   |   | driving_side | string | side    |        |         |         |       |
-    ''')
+    ''', is_tabular)
 
 
-def test_lang(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_lang(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type   | ref     | prepare | title       | description
     datasets/gov/example     |        |         |         | Example     | Example dataset.
@@ -137,10 +177,11 @@ def test_lang(tmp_path, rc):
                              | lang   | lt      |         | Kairė       | Kairė pusė.
                              | enum   |         | 'right' | Right       | Right side.
                              | lang   | lt      |         | Dešinė      | Dešinė pusė.
-    ''')
+    ''', is_tabular)
 
 
-def test_enum_negative(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_enum_negative(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type    | prepare | title
     datasets/gov/example     |         |         |
@@ -149,20 +190,22 @@ def test_enum_negative(tmp_path, rc):
       |   |   |   | value    | integer |         |
                              | enum    | 1       | Positive
                              |         | -1      | Negative
-    ''')
+    ''', is_tabular)
 
 
-def test_units(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_units(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type    | ref
     datasets/gov/example     |         |
                              |         |
       |   |   | City         |         |
       |   |   |   | founded  | date    | 1Y
-    ''')
+    ''', is_tabular)
 
 
-def test_boolean_enum(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_boolean_enum(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type    | ref   | source | prepare
     datasets/gov/example     |         |       |        |
@@ -172,10 +215,11 @@ def test_boolean_enum(tmp_path, rc):
                              |         |       |        |
       |   |   | Bool         |         |       |        |
       |   |   |   | value    | boolean | bool  |        |
-    ''')
+    ''', is_tabular)
 
 
-def test_enum_with_unit_name(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_enum_with_unit_name(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type    | ref   | source | prepare
     datasets/gov/example     |         |       |        |
@@ -184,10 +228,11 @@ def test_enum_with_unit_name(tmp_path, rc):
                              |         |       |        |
       |   |   | Bool         |         |       |        |
       |   |   |   | value    | integer | m     |        |
-    ''')
+    ''', is_tabular)
 
 
-def test_comment(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_comment(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type    | source | prepare | access  | title      | description
     datasets/gov/example     |         |        |         |         |            |
@@ -200,24 +245,26 @@ def test_comment(tmp_path, rc):
                              | comment | Name1  |         | private | 2022-01-01 | Comment 1.
       |   |   |   | value    | integer |        |         |         |            |
                              | comment | Name2  |         |         | 2022-01-02 | Comment 2.
-    ''')
+    ''', is_tabular)
 
 
-def test_prop_type_not_given(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_type_not_given(is_tabular, tmp_path, rc):
     with pytest.raises(InvalidManifestFile) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property | type
         datasets/gov/example     |
           |   |   | Bool         |
           |   |   |   | value    |
-        ''')
+        ''', is_tabular)
     assert e.value.context['error'] == (
         "Type is not given for 'value' property in "
         "'datasets/gov/example/Bool' model."
     )
 
 
-def test_prop_type_required(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_prop_type_required(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type
     example                  |
@@ -225,20 +272,22 @@ def test_prop_type_required(tmp_path, rc):
       |   |   | City         |
       |   |   |   | name     | string required
       |   |   |   | place    | geometry(point) required
-    ''')
+    ''', is_tabular)
 
 
-def test_time_type(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_time_type(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type
     example                  |
                              |
       |   |   | Time         |
       |   |   |   | prop     | time
-    ''')
+    ''', is_tabular)
 
 
-def test_property_unique_add(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_property_unique_add(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property            | type
     example                             |
@@ -246,21 +295,23 @@ def test_property_unique_add(tmp_path, rc):
       |   |   | City                    |
       |   |   |   | prop_with_unique    | string unique
       |   |   |   | prop_not_unique     | string
-    ''')
+    ''', is_tabular)
 
 
-def test_property_unique_add_wrong_type(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_property_unique_add_wrong_type(is_tabular, tmp_path, rc):
     with pytest.raises(TabularManifestError) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property | type
         datasets/gov/example     |
           |   |   | City         |
           |   |   |   | value    | string unikue
-        ''')
+        ''', is_tabular)
     assert 'TabularManifestError' in str(e)
 
 
-def test_property_with_ref_unique(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_property_with_ref_unique(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -276,10 +327,11 @@ def test_property_with_ref_unique(tmp_path, rc):
                              | unique             | name, country        |
       |   |   |   | name     | string             |                      | locn:geographicName
       |   |   |   | country  | ref                | Country              |
-    ''')
+    ''', is_tabular)
 
 
-def test_property_with_multi_ref_unique(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_property_with_multi_ref_unique(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -299,10 +351,11 @@ def test_property_with_multi_ref_unique(tmp_path, rc):
       |   |   |   | text     | string             |                      | locn:geographicName
       |   |   |   | another  | string             |                      | locn:geographicName
       |   |   |   | country  | ref                | Country              |
-    ''')
+    ''', is_tabular)
 
 
-def test_property_with_ref_with_unique(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_property_with_ref_with_unique(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -318,10 +371,11 @@ def test_property_with_ref_with_unique(tmp_path, rc):
                              | unique             | country              |
       |   |   |   | name     | string             |                      | locn:geographicName
       |   |   |   | country  | ref                | Country              |
-    ''')
+    ''', is_tabular)
 
 
-def test_unique_prop_remove_when_model_ref_single(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_unique_prop_remove_when_model_ref_single(is_tabular, tmp_path, rc):
     table = '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -336,8 +390,9 @@ def test_unique_prop_remove_when_model_ref_single(tmp_path, rc):
       |   |   |   | name     | string             |                      |
       |   |   |   | country  | ref                | Country              |
     '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    manifest = setup_tabular_manifest(rc, tmp_path, table)
+    if not is_tabular:
+        manifest = setup_internal_manifest(rc, tmp_path, manifest)
     assert manifest == '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -353,7 +408,8 @@ def test_unique_prop_remove_when_model_ref_single(tmp_path, rc):
     '''
 
 
-def test_unique_prop_remove_when_model_ref_multi(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_unique_prop_remove_when_model_ref_multi(is_tabular, tmp_path, rc):
     table = '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -372,8 +428,9 @@ def test_unique_prop_remove_when_model_ref_multi(tmp_path, rc):
       |   |   |   | id       | string             |                      |
       |   |   |   | country  | ref                | Country              |
     '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
-    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    manifest = setup_tabular_manifest(rc, tmp_path, table)
+    if not is_tabular:
+        manifest = setup_internal_manifest(rc, tmp_path, manifest)
     assert manifest == '''
     d | r | b | m | property | type               | ref                  | uri
     datasets/gov/example     |                    |                      |
@@ -392,7 +449,8 @@ def test_unique_prop_remove_when_model_ref_multi(tmp_path, rc):
     '''
 
 
-def test_with_denormalized_data(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_with_denormalized_data(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property               | type   | ref       | access
     example                                |        |           |
@@ -409,10 +467,11 @@ def test_with_denormalized_data(tmp_path, rc):
       |   |   |   | country                | ref    | Country   | open
       |   |   |   | country.name           |        |           | open
       |   |   |   | country.continent.name |        |           | open
-    ''')
-    
-    
-def test_with_denormalized_data_ref_error(tmp_path, rc):
+    ''', is_tabular)
+
+
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_with_denormalized_data_ref_error(is_tabular, tmp_path, rc):
     with pytest.raises(NoRefPropertyForDenormProperty) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property               | type   | ref       | access
@@ -424,14 +483,15 @@ def test_with_denormalized_data_ref_error(tmp_path, rc):
           |   |   | City                       |        |           |
           |   |   |   | name                   | string |           | open
           |   |   |   | country.name           |        |           | open
-        ''')
+        ''', is_tabular)
     assert e.value.message == (
         "Property 'country' with type 'ref' or 'object' must be defined "
         "before defining property 'country.name'."
     )
 
 
-def test_with_denormalized_data_undefined_error(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_with_denormalized_data_undefined_error(is_tabular, tmp_path, rc):
     with pytest.raises(ReferencedPropertyNotFound) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property               | type   | ref       | access
@@ -449,14 +509,15 @@ def test_with_denormalized_data_undefined_error(tmp_path, rc):
           |   |   |   | country                | ref    | Country   | open
           |   |   |   | country.name           |        |           | open
           |   |   |   | country.continent.size |        |           | open
-        ''')
+        ''', is_tabular)
     assert e.value.message == (
         "Property 'country.continent.size' not found."
     )
     assert e.value.context['ref'] == "{'property': 'size', 'model': 'example/Continent'}"
 
 
-def test_with_base(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_with_base(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref
     datasets/gov/example       |         |
@@ -487,10 +548,11 @@ def test_with_base(tmp_path, rc):
       |   |   |   | id         | integer |
       |   |   |   | name       | string  |
       |   |   |   | population | integer |
-    ''')
+    ''', is_tabular)
 
 
-def test_end_marker(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_end_marker(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref
     datasets/gov/example       |         |
@@ -519,10 +581,11 @@ def test_end_marker(tmp_path, rc):
       |   |   |   | id         | integer |
       |   |   |   | name       | string  |
       |   |   |   | population | integer |
-    ''')
+    ''', is_tabular)
 
 
-def test_model_param_list(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_model_param_list(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source | prepare
     datasets/gov/example       |         |         |        |
@@ -534,10 +597,11 @@ def test_model_param_list(tmp_path, rc):
       |   |   |   | id         | integer |         |        |
       |   |   |   | name       | string  |         |        |
       |   |   |   | population | integer |         |        |
-    ''')
+    ''', is_tabular)
 
 
-def test_model_param_list_with_source(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_model_param_list_with_source(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source | prepare
     datasets/gov/example       |         |         |        |
@@ -550,10 +614,11 @@ def test_model_param_list_with_source(tmp_path, rc):
       |   |   |   | id         | integer |         |        |
       |   |   |   | name       | string  |         |        |
       |   |   |   | population | integer |         |        |
-    ''')
+    ''', is_tabular)
 
 
-def test_model_param_multiple(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_model_param_multiple(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
@@ -567,10 +632,11 @@ def test_model_param_multiple(tmp_path, rc):
       |   |   |   | id         | integer |         |          |
       |   |   |   | name       | string  |         |          |
       |   |   |   | population | integer |         |          |
-    ''')
+    ''', is_tabular)
 
 
-def test_resource_param(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_resource_param(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
@@ -586,10 +652,11 @@ def test_resource_param(tmp_path, rc):
       |   |   |   | id         | integer |         |          |
       |   |   |   | name       | string  |         |          |
       |   |   |   | population | integer |         |          |
-    ''')
+    ''', is_tabular)
 
 
-def test_resource_param_multiple(tmp_path, rc):
+@pytest.mark.parametrize("is_tabular", manifest_type.values(), ids=manifest_type.keys())
+def test_resource_param_multiple(is_tabular, tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source   | prepare
     datasets/gov/example       |         |         |          |
@@ -607,4 +674,4 @@ def test_resource_param_multiple(tmp_path, rc):
       |   |   |   | id         | integer |         |          |
       |   |   |   | name       | string  |         |          |
       |   |   |   | population | integer |         |          |
-    ''')
+    ''', is_tabular)

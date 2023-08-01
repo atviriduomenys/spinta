@@ -16,9 +16,11 @@ from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
-from spinta.manifests.internal_sql.components import InternalManifestRow, INTERNAL_MANIFEST_COLUMNS, InternalManifestColumn
+from spinta.manifests.internal_sql.components import InternalManifestRow, INTERNAL_MANIFEST_COLUMNS, \
+    InternalManifestColumn
 from spinta.manifests.tabular.components import ManifestRow, MANIFEST_COLUMNS
-from spinta.manifests.tabular.helpers import ENUMS_ORDER_BY, sort, MODELS_ORDER_BY, DATASETS_ORDER_BY, to_relative_model_name, PROPERTIES_ORDER_BY, _get_type_repr, _read_tabular_manifest_rows
+from spinta.manifests.tabular.helpers import ENUMS_ORDER_BY, sort, MODELS_ORDER_BY, DATASETS_ORDER_BY, \
+    to_relative_model_name, PROPERTIES_ORDER_BY, _get_type_repr, _read_tabular_manifest_rows
 from sqlalchemy_utils import UUIDType
 
 from spinta.spyna import unparse
@@ -34,13 +36,43 @@ def read_schema(path: str):
         yield from _read_all_sql_manifest_rows(path, conn)
 
 
+def get_table_structure(meta: sa.MetaData):
+    table = sa.Table(
+        '_manifest',
+        meta,
+        sa.Column("id", UUIDType, primary_key=True),
+        sa.Column("parent", UUIDType),
+        sa.Column("depth", sa.Integer),
+        sa.Column("path", sa.String),
+        sa.Column("mpath", sa.String),
+        sa.Column("dim", sa.String),
+        sa.Column("name", sa.String),
+        sa.Column("type", sa.String),
+        sa.Column("ref", sa.String),
+        sa.Column("source", sa.String),
+        sa.Column("prepare", sa.JSON),
+        sa.Column("level", sa.Integer),
+        sa.Column("access", sa.String),
+        sa.Column("uri", sa.String),
+        sa.Column("title", sa.String),
+        sa.Column("description", sa.String)
+    )
+    return table
+
+
 def _read_all_sql_manifest_rows(
     path: Optional[str],
     conn: sa.engine.Connection,
     *,
     rename_duplicates: bool = True
 ):
-    rows = conn.execute(sa.text('SELECT *, prepare is NULL as prepare_is_null FROM _manifest'))
+    meta = sa.MetaData(conn)
+    table = get_table_structure(meta)
+    stmt = sa.select([
+        table,
+        sa.literal_column("prepare IS NULL").label("prepare_is_null")]
+    )
+    rows = conn.execute(stmt)
     converted = convert_sql_to_tabular_rows(list(rows))
     yield from _read_tabular_manifest_rows(path=path, rows=converted, rename_duplicates=rename_duplicates)
 
@@ -57,34 +89,14 @@ def write_internal_sql_manifest(dsn: str, manifest: Manifest):
         if create_table:
             meta.clear()
             meta.reflect()
-            table = sa.Table(
-                '_manifest',
-                meta,
-                sa.Column("id", UUIDType, primary_key=True),
-                sa.Column("parent", UUIDType),
-                sa.Column("depth", sa.Integer),
-                sa.Column("path", sa.String),
-                sa.Column("mpath", sa.String),
-                sa.Column("dim", sa.String),
-                sa.Column("name", sa.String),
-                sa.Column("type", sa.String),
-                sa.Column("ref", sa.String),
-                sa.Column("source", sa.String),
-                sa.Column("prepare", sa.JSON),
-                sa.Column("level", sa.Integer),
-                sa.Column("access", sa.String),
-                sa.Column("uri", sa.String),
-                sa.Column("title", sa.String),
-                sa.Column("description", sa.String)
-            )
+            table = get_table_structure(meta)
             table.create()
-
         rows = datasets_to_sql(manifest)
         for row in rows:
             conn.execute(table.insert().values(row))
 
 
-def _handle_id(item_id: str):
+def _handle_id(item_id: Any):
     if item_id:
         if is_str_uuid(item_id):
             return uuid.UUID(item_id, version=4)
@@ -157,13 +169,12 @@ def datasets_to_sql(
                             dataset["path"] = item["path"]
                             dataset["mpath"] = item["mpath"]
                             dataset["depth"] = item["depth"]
-            elif dataset["item"] is not None and \
-                model.external.dataset is None:
+            if not model.external.dataset:
                 dataset["item"] = None
                 resource["item"] = None
                 base["item"] = None
 
-            if external and model.external and model.external.resource and (
+            if external and model.external.resource and (
                 resource["item"] is None or
                 resource["item"].name != model.external.resource.name
             ):
@@ -193,13 +204,10 @@ def datasets_to_sql(
                             resource["path"] = item["path"]
                             resource["mpath"] = item["mpath"]
                             resource["depth"] = item["depth"]
-
-            elif external and \
-                model.external and \
-                model.external.resource is None and \
-                dataset["item"] is not None and \
-                resource["item"] is not None:
-                base["item"] = None
+            elif external:
+                if not model.external.resource:
+                    resource["item"] = None
+                    base["item"] = None
 
         if model.base and (not base["item"] or model.base.name != base["item"].name):
             base["item"] = model.base
@@ -234,22 +242,19 @@ def datasets_to_sql(
             base["item"] = None
         parent_id = None
         depth = 0
-        path = ''
+        path = dataset["path"] if dataset["item"] else ""
         mpath = ''
         if base["item"]:
             parent_id = base["id"]
             depth = base["depth"] + 1
-            path = base["path"]
             mpath = base["mpath"]
         elif resource["item"]:
             parent_id = resource["id"]
             depth = resource["depth"] + 1
-            path = resource["path"]
             mpath = resource["mpath"]
         elif dataset["item"]:
             parent_id = dataset["id"]
             depth = dataset["depth"] + 1
-            path = dataset["path"]
             mpath = dataset["mpath"]
         yield from _model_to_sql(
             model,
@@ -380,7 +385,7 @@ def _enums_to_sql(
         for item in items:
             if item.access is not None and item.access < access:
                 continue
-            new_item_id = _handle_id("")
+            new_item_id = _handle_id(item.id)
             new_item_mpath = '/'.join([new_mpath, str(new_item_id)] if new_mpath else [str(new_item_id)])
             yield to_row(INTERNAL_MANIFEST_COLUMNS, {
                 'id': new_item_id,
@@ -395,7 +400,7 @@ def _enums_to_sql(
                 'title': item.title,
                 'description': item.description,
             })
-            yield from _lang_to_sql(item.lang, path=path, mpath=new_mpath, depth=depth + 2, parent_id=new_item_id)
+            yield from _lang_to_sql(item.lang, path=path, mpath=new_item_mpath, depth=depth + 2, parent_id=new_item_id)
 
 
 def _lang_to_sql(
@@ -408,11 +413,11 @@ def _lang_to_sql(
     if lang is None:
         return
     for name, data in sorted(lang.items(), key=itemgetter(0)):
-        item_id = _handle_id("")
+        item_id = _handle_id(data.get("id"))
         yield to_row(INTERNAL_MANIFEST_COLUMNS, {
             'id': item_id,
             'parent': parent_id,
-            'depth': depth + 1,
+            'depth': depth,
             'path': path,
             'mpath': '/'.join([mpath, name] if mpath else [name]),
             'dim': 'lang',
@@ -445,6 +450,7 @@ def _comments_to_sql(
             'depth': depth,
             'path': path,
             'mpath': '/'.join([mpath, str(new_id)] if mpath else [str(new_id)]),
+            'name': comment.parent if comment.parent else None,
             'dim': 'comment',
             'type': 'comment',
             'ref': comment.parent,
@@ -464,7 +470,7 @@ def _backends_to_sql(
     mpath: str = None
 ) -> Iterator[InternalManifestRow]:
     for name, backend in backends.items():
-        new_id = _handle_id("")
+        new_id = _handle_id(backend.config.get("id"))
         yield to_row(INTERNAL_MANIFEST_COLUMNS, {
             'id': new_id,
             'parent': parent_id,
@@ -534,7 +540,9 @@ def _params_to_sql(
         param_base_id = _handle_id("")
         new_mpath = '/'.join([mpath, param] if mpath else [param])
         for i in range(len(values["source"])):
-            new_id = _handle_id("")
+            new_id = _handle_id('')
+            if "id" in values.keys():
+                new_id = _handle_id(values["id"][i])
             prepare = _handle_prepare(values["prepare"][i])
             if not (isinstance(values["prepare"][i], NotAvailable) and values['source'][i] is None):
                 if i == 0:
@@ -549,7 +557,6 @@ def _params_to_sql(
                         'type': 'param',
                         'ref': param,
                         'source': values["source"][i],
-                        'prepare': prepare,
                         'title': values["title"],
                         'description': values["description"]
                     })
@@ -558,7 +565,7 @@ def _params_to_sql(
                     'parent': param_base_id,
                     'depth': depth + 1,
                     'path': path,
-                    'mpath': '/'.join([new_mpath, new_id] if new_mpath else [new_id]),
+                    'mpath': '/'.join([new_mpath, str(new_id)] if new_mpath else [str(new_id)]),
                     'dim': 'param.item',
                     'source': values["source"][i],
                     'prepare': prepare
@@ -576,7 +583,7 @@ def _resource_to_sql(
 ) -> Iterator[InternalManifestRow]:
     backend = resource.backend
     new_mpath = '/'.join([mpath, resource.name] if mpath else [resource.name])
-    item_id = _handle_id("")
+    item_id = _handle_id(resource.id)
     yield to_row(INTERNAL_MANIFEST_COLUMNS, {
         'id': item_id,
         'parent': parent_id,
@@ -615,13 +622,14 @@ def _base_to_sql(
     path: str = None,
     mpath: str = None
 ) -> Iterator[InternalManifestRow]:
-    item_id = _handle_id("")
+    item_id = _handle_id(base.id)
+    new_path = '/'.join([path, base.name] if path else [base.name])
     new_mpath = '/'.join([mpath, base.name] if mpath else [base.name])
     data = {
         'id': item_id,
         'parent': parent_id,
         'depth': depth,
-        'path': path,
+        'path': new_path,
         'mpath': new_mpath,
         'dim': 'base',
         'name': base.name,
@@ -630,7 +638,7 @@ def _base_to_sql(
     if base.pk:
         data['ref'] = ', '.join([pk.place for pk in base.pk])
     yield to_row(INTERNAL_MANIFEST_COLUMNS, data)
-    yield from _lang_to_sql(base.lang, parent_id=item_id, depth=depth + 1, path=path, mpath=new_mpath)
+    yield from _lang_to_sql(base.lang, parent_id=item_id, depth=depth + 1, path=new_path, mpath=new_mpath)
 
 
 def _model_to_sql(
@@ -726,7 +734,7 @@ def _unique_to_sql(
                 'parent': parent_id,
                 'depth': depth,
                 'path': path,
-                'mpath': '/'.join([mpath, item_id] if mpath else [item_id]),
+                'mpath': '/'.join([mpath, str(item_id)] if mpath else [item_id]),
                 'dim': 'unique',
                 'type': 'unique',
                 'ref': ', '.join([r.name for r in row]),
@@ -750,7 +758,7 @@ def _property_to_sql(
     if prop.access < access:
         return
 
-    item_id = _handle_id("")
+    item_id = _handle_id(prop.id)
     new_path = '/'.join([path, prop.place] if path else [prop.place])
     new_mpath = '/'.join([mpath, prop.place] if mpath else [prop.place])
     data = {
@@ -834,8 +842,13 @@ def to_row(keys, values) -> InternalManifestRow:
 
 
 def to_row_tabular(keys, values) -> ManifestRow:
-    value = {k: unparse(values.get("prepare")) if k == "prepare" and not values.get("prepare_is_null") and values.get("prepare_is_null") is not None else _value_or_empty(values.get(k)) for k in keys}
-    return value
+    result = {}
+    for key in keys:
+        if key == "prepare" and values.get("prepare_is_null") is not None and not values.get("prepare_is_null"):
+            result[key] = unparse(values.get("prepare"))
+        else:
+            result[key] = _value_or_empty(values.get(key))
+    return result
 
 
 def _handle_prepare(prepare: Any):
@@ -922,7 +935,6 @@ def _update_meta_dimensions(meta_dimensions: dict, row: InternalManifestRow):
         meta_dimensions["base"] = None
     elif row["dim"] == "base":
         meta_dimensions["base"] = row["depth"]
-
     if meta_dimensions["current"] != row["dim"] and row["dim"] in [
         "dataset", "resource", "base", "model", "property"
     ]:
@@ -936,15 +948,15 @@ def _requires_end_marker(row: InternalManifestRow, meta_dimensions: dict):
     dataset_end_marker = False
     if row["dim"] not in ["dataset", "resource", "base", "property", "enum.item", "param.item"]:
         depth = row["depth"]
-        if meta_dimensions["base"]:
+        if meta_dimensions["base"] is not None:
             if depth <= meta_dimensions["base"]:
                 meta_dimensions["base"] = None
                 base_end_marker = True
         if meta_dimensions["resource"]:
-            if depth <= meta_dimensions["resource"]:
+            if depth <= meta_dimensions["resource"] is not None:
                 meta_dimensions["resource"] = None
                 resource_end_marker = True
-        if meta_dimensions["dataset"]:
+        if meta_dimensions["dataset"] is not None:
             if depth <= meta_dimensions["dataset"]:
                 meta_dimensions["dataset"] = None
                 dataset_end_marker = True
@@ -973,6 +985,8 @@ def _requires_seperator(row: InternalManifestRow, previous_row: InternalManifest
     elif current_dim == -1 and previous_dim != -1:
         return False
     elif current_dim == -1 and previous_dim == -1:
+        if previous_row.get("dim") == "lang" or row.get("dim") == "lang":
+            return False
         if (previous_row.get("dim") == "enum" and row["dim"] == "enum.item") or (previous_row.get("dim") == "param" and row["dim"] == "param.item"):
             return False
     elif current_dim != -1 and primary_list[current_dim] == "property" and previous_dim == -1:
@@ -1014,9 +1028,10 @@ def _convert_param(row: InternalManifestRow, param_data: InternalManifestRow, fi
         new["title"] = ''
         new["description"] = ''
     else:
-        new["ref"] = param_data["ref"]
-        new["title"] = param_data["title"]
-        new["description"] = param_data["description"]
+        new["type"] = 'param'
+        new["ref"] = _value_or_empty(param_data["ref"])
+        new["title"] = _value_or_empty(param_data["title"])
+        new["description"] = _value_or_empty(param_data["description"])
     return new
 
 

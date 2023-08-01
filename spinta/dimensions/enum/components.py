@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from spinta.components import Model
-from spinta.components import Node
+from spinta.components import Model, ExtraMetaData
 from spinta.core.enums import Access
 from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import Expr
@@ -19,7 +18,7 @@ class EnumValueGiven:
     access: str = None
 
 
-class EnumItem(Node):
+class EnumItem(ExtraMetaData):
     source: str
     prepare: Expr
     access: Access = None

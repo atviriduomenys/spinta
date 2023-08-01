@@ -8,12 +8,11 @@ import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
 
 from spinta.backends.components import Backend
-from spinta.components import EntryId
+from spinta.components import EntryId, ExtraMetaData
 from spinta.components import Namespace
 from spinta.dimensions.lang.components import LangData
 from spinta.components import MetaData
 from spinta.components import Model
-from spinta.components import Node
 from spinta.components import Property
 from spinta.core.enums import Access
 from spinta.core.ufuncs import Expr
@@ -97,7 +96,7 @@ class ExternalBackend(Backend):
     schema: sa.MetaData = None
 
 
-class External(Node):
+class External(ExtraMetaData):
     pass
 
 
@@ -152,6 +151,7 @@ class Resource(External):
         'title': {'type': 'string'},
         'description': {'type': 'string'},
         'comments': {},
+        'lang': {'type': 'object'},
     }
 
     def __init__(self):
