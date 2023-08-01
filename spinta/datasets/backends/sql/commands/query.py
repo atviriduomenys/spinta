@@ -701,8 +701,6 @@ def select(env: SqlQueryBuilder, dtype: Ref, prep: Any) -> Selected:
 def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
     if dtype.model.get_name_without_ns() == dtype.prop.name.capitalize():
         fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
-        table = env.backend.get_table(dtype.model)
-        column = env.backend.get_column(table, dtype.model.properties['id'], select=True)
         return Selected(
             prop=dtype.model.properties['_id'],
             prep=env.call('select', fpr, fpr.right.prop),

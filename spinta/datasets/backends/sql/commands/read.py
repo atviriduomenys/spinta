@@ -110,8 +110,3 @@ def getall(
             yield res
 
 
-def _get_params_values(table, val):
-    primary_keys = [t.name for t in table.c if t.primary_key]
-    columns = [t.name for t in table.c if t.name and not t.primary_key]
-    where_clause = [table.c[column] == val for column in columns]
-    return sa.select(table.c[primary_keys[0]]).filter(sa.or_(*where_clause))
