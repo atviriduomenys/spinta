@@ -60,12 +60,26 @@ class SqlAlchemyKeyMap(KeyMap):
             if value is None:
                 return None
             value = _encode_value(value)
+        tmp_name = None
+        if '.' in name:
+            tmp_name = name
+            name = name.split('.')[0]
         table = self.get_table(name)
         value = msgpack.dumps(value, strict_types=True)
         hash = hashlib.sha1(value).hexdigest()
-        query = sa.select([table.c.key]).where(table.c.hash == hash)
+        if tmp_name is not None:
+            query = sa.select([table.c.key]).where(table.c.key == primary_key)
+        else:
+            query = sa.select([table.c.key]).where(table.c.hash == hash)
         key = self.conn.execute(query).scalar()
         if primary_key:
+            if tmp_name is not None:
+                table = self.get_table(tmp_name)
+                self.conn.execute(table.insert(), {
+                    'key': primary_key,
+                    'hash': hash,
+                    'value': value,
+                })
             return key
         if key is None:
             key = str(uuid.uuid4())

@@ -12,7 +12,8 @@ def test_scalar():
         xkey = kmap.encode('datasets/gov/example/Country.code', 'lt', pkey)
         assert pkey == xkey
         assert kmap.decode('datasets/gov/example/Country', pkey) == [1, 'lt']
-        assert kmap.decode('datasets/gov/example/Country.code', pkey) == 'lt'
+        assert kmap.decode('datasets/gov/example/Country.code', xkey) == 'lt'
+
 
 def test_list():
     context = Context('test')
