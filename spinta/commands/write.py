@@ -51,6 +51,7 @@ if typing.TYPE_CHECKING:
 STREAMING_CONTENT_TYPES = [
     'application/x-jsonlines',
     'application/x-ndjson',
+    'application/json'
 ]
 
 
