@@ -82,7 +82,7 @@ async def push(
         stream = _read_request_stream(
             context, request, scope, action, stop_on_error,
         )
-    if is_not_streaming_request(request):
+    elif is_not_streaming_request(request):
         backend = detect_backend_from_content_type(context, content_type)
         rows = commands.getall(context, scope, backend)
         stream = get_stream_for_direct_upload(context, rows, content_type)
@@ -234,6 +234,7 @@ def is_streaming_request(content_type):
 
 
 def is_not_streaming_request(content_type):
+    content_type = cgi.parse_header(content_type)[0]
     return content_type not in STREAMING_CONTENT_TYPES
 
 
