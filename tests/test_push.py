@@ -16,7 +16,7 @@ from responses import POST
 from responses import RequestsMock
 
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.push import _PushRow, _reset_pushed
+from spinta.cli.push import _PushRow, _reset_pushed, _read_rows, _iter_deleted_rows, _get_deleted_row_counts
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
@@ -24,9 +24,41 @@ from spinta.cli.push import _send_request
 from spinta.cli.push import _push
 from spinta.cli.push import _State
 from spinta.core.config import RawConfig
-from spinta.testing.datasets import Sqlite
+from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.data import listdata
+from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.tabular import create_tabular_manifest
+from tests.datasets.test_sql import create_rc, configure_remote_server
+
+
+@pytest.fixture(scope='module')
+def geodb():
+    with create_sqlite_db({
+        'salis': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('kodas', sa.Text),
+            sa.Column('pavadinimas', sa.Text),
+        ],
+        'miestas': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('pavadinimas', sa.Text),
+            sa.Column('salis', sa.Integer, sa.ForeignKey("salis.kodas"), nullable=False),
+        ],
+    }) as db:
+        db.write('salis', [
+            {'id': 0, 'kodas': 'lt', 'pavadinimas': 'Lietuva'},
+            {'id': 1, 'kodas': 'lv', 'pavadinimas': 'Latvija'},
+            {'id': 2, 'kodas': 'ee', 'pavadinimas': 'Estija'},
+        ])
+        db.write('miestas', [
+            {'id': 0, 'salis': 'lt', 'pavadinimas': 'Vilnius'},
+            {'id': 1, 'salis': 'lv', 'pavadinimas': 'Ryga'},
+            {'id': 2, 'salis': 'ee', 'pavadinimas': 'Talinas'},
+        ])
+        yield db
 
 
 @pytest.mark.skip('datasets')
@@ -435,6 +467,78 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
         rev_before,
         True,
     )]
+
+
+def test_push_delete_with_dependent_objects(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    table = '''
+     d | r | b | m  | property         | type   | ref                     | source     | access
+     datasets/gov/deleteTest           |        |                         |            |
+       | data                          | sql    |                         |            |
+       |   |                           |        |                         |            |
+       |   |   | Country               |        | code                    | salis      | open
+       |   |   |    | name             | string |                         | pavadinimas|
+       |   |   |    | code             | string |                         | kodas      |
+       |   |   |    |                  |        |                         |            |
+       |   |   | City                  |        | name                    | miestas    | open
+       |   |   |    | name             | string |                         | pavadinimas|
+       |   |   |    | country          | ref    | Country                 | salis      |
+    '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteTest',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('datasets/gov/deleteTest/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/Country')
+    assert len(listdata(resp)) == 3
+
+    remote.app.authmodel('datasets/gov/deleteTest/City', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/City')
+    assert len(listdata(resp)) == 3
+
+    conn = geodb.engine.connect()
+
+    conn.execute(geodb.tables['salis'].delete().where(geodb.tables['salis'].c.id == 2))
+    conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 2))
+    conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 1))
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteTest',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+        '--stop-on-error'
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('datasets/gov/deleteTest/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/Country')
+    assert len(listdata(resp)) == 2
+
+    remote.app.authmodel('datasets/gov/deleteTest/City', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/City')
+    assert len(listdata(resp)) == 1
 
 
 def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
