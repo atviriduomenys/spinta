@@ -37,7 +37,7 @@ def geodb():
         ],
         'miestas': [
             sa.Column('id', sa.Integer, primary_key=True),
-            sa.Column('pavadinimas', sa.dialects.postgresql.JSONB),
+            sa.Column('pavadinimas', sa.Text),
             sa.Column('salis', sa.Text),
         ],
     }) as db:
