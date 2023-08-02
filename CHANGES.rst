@@ -3,8 +3,14 @@
 Changes
 #######
 
-0.1.54 (unreleased)
+0.1.54 (2023-08-02)
 ===================
+
+Bug fixes:
+
+- Fixed `KeyError` with unique constrains for `ref` properties (`#500`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/500
 
 
 0.1.53 (2023-08-01)

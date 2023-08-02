@@ -4,22 +4,23 @@ git checkout master
 git pull
 
 git tag -l -n1 | sort -h | tail -n5
-export CURRENT_VERSION=0.1.52
-export NEXT_VERSION=0.1.53
-export FUTURE_VERSION=0.1.54
+export CURRENT_VERSION=0.1.53
+export    NEXT_VERSION=0.1.54
+export  FUTURE_VERSION=0.1.55
 
 head CHANGES.rst
 
 # Check what was changed and update CHANGES.rst
 xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION..master
 xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...master
-# Update CHANGES.rst
 
 docker-compose ps
 docker-compose up -d
 unset SPINTA_CONFIG
 poetry run pytest -vvx --tb=short tests
-#| 1232 passed, 34 skipped, 8 warnings in 203.33s (0:03:23)
+#| 1232 passed, 34 skipped, 8 warnings in 202.54s (0:03:22)
+
+# Update CHANGES.rst
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -84,10 +85,10 @@ cat get_data_gov_lt.in | xargs spinta copy -o $BASEDIR/manifest.csv
 spinta check
 
 # Reset database
+psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta'
+psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta'
 psql -h localhost -p 54321 -U admin spinta <<EOF
 BEGIN TRANSACTION;
-  DROP SCHEMA "public" CASCADE;
-  CREATE SCHEMA "public";
   CREATE EXTENSION IF NOT EXISTS postgis;
   CREATE EXTENSION IF NOT EXISTS postgis_topology;
   CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
@@ -112,8 +113,8 @@ xdg-open http://localhost:8000/datasets/gov
 test -n "$PID" && kill $PID
 unset SPINTA_CONFIG
 cd -
+exit
 docker-compose down
-deactivate
 
 
 ed pyproject.toml <<EOF
