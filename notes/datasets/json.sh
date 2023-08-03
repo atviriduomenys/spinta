@@ -21,18 +21,80 @@ http -b get https://api.vilnius.lt/api/calendar/get-non-working-days
 #| }
 
 poetry run spinta inspect -r json https://api.vilnius.lt/api/calendar/get-non-working-days
-#| │ /home/sirex/dev/data/spinta/spinta/manifests/dict/helpers.py:14 in read_schema                   │
-#| │                                                                                                  │
-#| │    11                                                                                            │
-#| │    12 def read_schema(manifest_type: DictFormat, path: str):                                     │
-#| │    13 │   if path.startswith(('http://', 'https://')):                                           │
-#| │ ❱  14 │   │   value = urlopen(path).read()                                                       │
-#| │    15 │   else:                                                                                  │
-#| │    16 │   │   with pathlib.Path(path).open(encoding='utf-8-sig') as f:                           │
-#| │    17 │   │   │   value = f.read()                                                               │
-#| │                                                                                                  │
-#| │ ╭────────────────────────────────── locals ──────────────────────────────────╮                   │
-#| │ │ manifest_type = <DictFormat.JSON: 'json'>                                  │                   │
-#| │ │          path = 'https://api.vilnius.lt/api/calendar/get-non-working-days' │                   │
-#| │ ╰────────────────────────────────────────────────────────────────────────────╯                   │
-#| HTTPError: HTTP Error 403: Forbidden
+#| id | d | r | b | m | property            | type                   | ref | source                                                   | prepare | level | access | uri | title | description
+#|    | dataset                             |                        |     |                                                          |         |       |        |     |       |
+#|    |   | resource                        | json                   |     | https://api.vilnius.lt/api/calendar/get-non-working-days |         |       |        |     |       |
+#|    |                                     |                        |     |                                                          |         |       |        |     |       |
+#|    |   |   |   | NonWorkingDates         |                        |     | nonWorkingDates                                          |         |       |        |     |       |
+#|    |   |   |   |   | date                | date required unique   |     | date                                                     |         |       |        |     |       |
+#|    |   |   |   |   | name                | string required unique |     | name                                                     |         |       |        |     |       |
+#|    |                                     |                        |     |                                                          |         |       |        |     |       |
+#|    |   |   |   | WorkingHolidayDates     |                        |     | workingHolidayDates                                      |         |       |        |     |       |
+#|    |   |   |   |   | date                | date required unique   |     | date                                                     |         |       |        |     |       |
+#|    |   |   |   |   | name                | string required        |     | name                                                     |         |       |        |     |       |
+
+
+cat > $BASEDIR/manifest.txt <<EOF
+d | r | b | m | property | type                 | ref  | source                                                   | prepare | level | access
+$DATASET                 |                      |      |                                                          |         |       |
+  | resource             | json                 |      | https://api.vilnius.lt/api/calendar/get-non-working-days |         |       |
+                         |                      |      |                                                          |         |       |
+  |   |   | Holiday      |                      | date | nonWorkingDates                                          |         | 4     |
+  |   |   |   | date     | date required unique |      | date                                                     |         | 4     | open
+  |   |   |   | name     | string required      |      | name                                                     |         | 4     | open
+                         |                      |      |                                                          |         |       |
+  |   |   | Workday      |                      | date | workingHolidayDates                                      |         | 4     |
+  |   |   |   | date     | date required unique |      | date                                                     |         | 4     | open
+  |   |   |   | name     | string required      |      | name                                                     |         | 4     | open
+EOF
+poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
+cat $BASEDIR/manifest.csv
+poetry run spinta show $BASEDIR/manifest.csv
+
+# Run server with external mode (read from db.sqlite directly)
+test -n "$PID" && kill $PID
+poetry run spinta run --mode external $BASEDIR/manifest.csv &>> $BASEDIR/spinta.log &; PID=$!
+tail -50 $BASEDIR/spinta.log
+
+# notes/spinta/client.sh    Configure client
+
+http GET "$SERVER/$DATASET/Holiday?limit(10)&format(ascii)"
+#| date        name                              
+#| ----------  ----------------------------------
+#| 2023-01-01  Naujieji metai
+#| 2023-02-16  Lietuvos nepriklausomybės atkūrimo diena
+#| 2023-03-11  Lietuvos valstybės atkūrimo diena
+#| 2023-04-09  Velykos
+#| 2023-04-10  antroji Velykų diena
+#| 2023-05-01  Tarptautinė darbo diena
+#| 2023-06-24  Joninės/Rasos
+#| 2023-07-06  Valstybės (Lietuvos karaliaus Mindaugo karūnavimo) diena
+#| 2023-08-15  Žolinė (Švč. Mergelės Marijos ėmimo į dangų diena)
+#| 2023-11-01  Visų šventųjų diena
+#| 2023-11-02  Mirusiųjų atminimo (Vėlinių) diena
+
+http GET "$SERVER/$DATASET/Workday?select(date,name)&limit(10)&format(ascii)"
+#| HTTP/1.1 500 Internal Server Error
+#| 
+#| {
+#|     "errors": [
+#|         {
+#|             "code": "NotImplementedError",
+#|             "message": "Could not find signature for and: <DaskDataFrameQueryBuilder, Expr>"
+#|         }
+#|     ]
+#| }
+# TODO: Implemente `select`.
+
+http GET "$SERVER/$DATASET/Workday?limit(10)&format(ascii)"
+#| date        name            
+#| ----------  ----------------
+#| 2022-12-31  Naujųjų Metų išvakarės
+#| 2023-02-14  Valentino diena
+#| 2023-02-21  Užgavėnės
+#| 2023-03-26  Vasaros laikas prasideda
+#| 2023-04-07  Didysis Penktadienis
+#| 2023-04-08  Didysis Šeštadienis
+#| 2023-10-29  Vasaros laikas baigiasi
+#| 2023-10-31  Helovinas
+#| 2023-12-31  Naujųjų Metų išvakarės
