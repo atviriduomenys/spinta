@@ -82,21 +82,21 @@ async def push(
         stream = _read_request_stream(
             context, request, scope, action, stop_on_error,
         )
-    elif is_direct_upload(request):
-        backend = detect_backend_from_content_type(context, content_type)
-        rows = commands.getall(context, scope, backend)
-        stream = get_stream_for_direct_upload(context, rows, content_type)
     else:
-        stream = _read_request_body(
-            context, request, scope, action, params, stop_on_error,
-        )
+        if is_direct_upload(content_type):
+            backend = detect_backend_from_content_type(context, content_type)
+        if backend:
+            rows = commands.getall(context, scope, backend)
+            stream = get_stream_for_direct_upload(context, rows, request, params, content_type)
+        else:
+            stream = _read_request_body(
+                context, request, scope, action, params, stop_on_error,
+            )
     dstream = push_stream(context, stream,
                           stop_on_error=stop_on_error,
                           url=request.url,
                           headers=request.headers)
-
     dstream = log_async_response(context, dstream)
-
     batch = False
     if params.summary:
         status_code, response = await _summary_response(context, dstream)

@@ -5,7 +5,7 @@ from spinta.datasets.backends.notimpl.components import BackendNotImplemented
 from spinta.datasets.components import ExternalBackend
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import NotImplementedFeature
-from spinta.formats.helpers import get_format_by_content_type
+from spinta.formats.helpers import get_response_type_as_format_class
 
 
 def handle_ref_key_assignment(keymap: KeyMap, value: Any, prop: Property) -> dict:
@@ -35,7 +35,7 @@ def detect_backend_from_content_type(context, content_type):
     for backend in backends.values():
         if issubclass(backend, ExternalBackend) and not issubclass(backend, BackendNotImplemented):
             if backend.accept_types and content_type in backend.accept_types:
-                return backend
+                return backend()
     raise ValueError(
         f"Can't find a matching external backend for the given content type {content_type!r}"
     )
@@ -44,12 +44,14 @@ def detect_backend_from_content_type(context, content_type):
 def get_stream_for_direct_upload(
     context: Context,
     rows,
+    request,
+    params,
     content_type
 ):
     from spinta.commands.write import write
     store = prepare_manifest(context)
     manifest = store.manifest
     root = manifest.objects['ns']['']
-    fmt = get_format_by_content_type(context, content_type)
+    fmt = get_response_type_as_format_class(context, request, params, content_type)
     stream = write(context, root, rows, changed=True, fmt=fmt)
     return stream
