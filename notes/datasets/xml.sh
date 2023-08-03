@@ -60,53 +60,31 @@ tail -50 $BASEDIR/spinta.log
 
 # notes/spinta/client.sh    Configure client
 
-http GET "$SERVER/$DATASET/SeimoKadencija"
-#| HTTP/1.1 500 Internal Server Error
+http GET "$SERVER/$DATASET/SeimoKadencija?limit(1)"
+#| HTTP/1.1 200 OK
 #| 
 #| {
-#|     "errors": [
+#|     "_data": [
 #|         {
-#|             "code": "XMLSyntaxError",
-#|             "message": "no element found (line 0)"
+#|             "_base": null,
+#|             "_id": "42e43c2a-0bb5-40a4-9c0a-bd07d14745f1",
+#|             "_revision": null,
+#|             "_type": "datasets/xml/SeimoKadencija",
+#|             "data_iki": "1992-11-22",
+#|             "data_nuo": "1990-03-10",
+#|             "id": 1,
+#|             "pavadinimas": "1990–1992 metų kadencija"
+#|         },
+#|         {
+#|             "_base": null,
+#|             "_id": "4fbafcc0-2bae-4564-8e8b-13a9ab5902a8",
+#|             "_revision": null,
+#|             "_type": "datasets/xml/SeimoKadencija",
+#|             "data_iki": "1996-11-22",
+#|             "data_nuo": "1992-11-24",
+#|             "id": 2,
+#|             "pavadinimas": "1992–1996 metų kadencija"
 #|         }
 #|     ]
+# FIXME: `limit(1)` was given, but 2 objects returned, instead of 1.
 #| }
-tail -200 $BASEDIR/spinta.log
-#| Traceback (most recent call last):
-#|   File "spinta/api.py", line 95, in homepage
-#|     return await create_http_response(context, params, request)
-#|   File "spinta/utils/response.py", line 153, in create_http_response
-#|     return await commands.getall(
-#|   File "spinta/commands/read.py", line 125, in getall
-#|     return render(context, request, model, params, rows, action=action)
-#|   File "spinta/renderer.py", line 23, in render
-#|     return commands.render(
-#|   File "multipledispatch/dispatcher.py", line 278, in __call__
-#|     return func(*args, **kwargs)
-#|   File "spinta/formats/json/commands.py", line 25, in render
-#|     return _render(
-#|   File "spinta/formats/json/commands.py", line 52, in _render
-#|     aiter(peek_and_stream(fmt(data))),
-#|           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-#|   File "spinta/utils/response.py", line 223, in peek_and_stream
-#|     peek = list(itertools.islice(stream, 2))
-#|   File "spinta/formats/json/components.py", line 16, in __call__
-#|     for i, row in enumerate(data):
-#|   File "spinta/accesslog/__init__.py", line 162, in log_response
-#|     for row in rows:
-#|   File "spinta/commands/read.py", line 110, in <genexpr>
-#|     rows = (
-#|   File "spinta/datasets/backends/dataframe/commands/read.py", line 398, in getall
-#|     yield from _dask_get_all(context, query, df, backend, model, builder)
-#|   File "spinta/datasets/backends/dataframe/commands/read.py", line 435, in _dask_get_all
-#|     for i, row in qry.iterrows():
-#|   File "spinta/datasets/backends/dataframe/commands/read.py", line 298, in _get_data_xml
-#|     return _parse_xml(f.raw, source, model_props)
-#|   File "spinta/datasets/backends/dataframe/commands/read.py", line 138, in _parse_xml
-#|     for action, elem in etree.iterparse(data, events=('start', 'end'), remove_blank_text=True):
-#|   File "src/lxml/iterparse.pxi", line 210, in lxml.etree.iterparse.__next__
-#|   File "src/lxml/iterparse.pxi", line 195, in lxml.etree.iterparse.__next__
-#|   File "src/lxml/iterparse.pxi", line 226, in lxml.etree.iterparse._read_more_events
-#|   File "src/lxml/parser.pxi", line 1395, in lxml.etree._FeedParser.close
-#|   File "<string>", line 0
-#| lxml.etree.XMLSyntaxError: no element found
