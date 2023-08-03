@@ -33,7 +33,7 @@ def detect_backend_from_content_type(context, content_type):
     config = context.get('config')
     backends = config.components['backends']
     for backend in backends.values():
-        if issubclass(backend, ExternalBackend) and backend != BackendNotImplemented:
+        if issubclass(backend, ExternalBackend) and not issubclass(backend, BackendNotImplemented):
             if backend.accept_types and content_type in backend.accept_types:
                 return backend
     raise ValueError(

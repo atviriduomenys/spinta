@@ -9,7 +9,7 @@ from spinta.testing.client import create_test_client
 from spinta.testing.manifest import prepare_manifest
 
 
-def test_direct_data_upload_csv(
+def test_direct_data_upload_csv_via_form(
     rc: RawConfig,
     tmp_path: Path,
 ):
@@ -44,12 +44,10 @@ def test_direct_data_upload_csv(
                             headers=headers,
                             files={'file': ('data.csv', file, 'text/csv')})
 
-    if os.path.exists(file_path):
-        os.remove(file_path)
     assert response.status_code == 200
 
 
-def test_direct_data_upload_csv_2(
+def test_direct_data_upload_csv_via_body(
     rc: RawConfig,
     tmp_path: Path,
 ):
@@ -74,5 +72,4 @@ def test_direct_data_upload_csv_2(
             )
     headers = {'Content-type': 'text/csv'}
     response = app.post('/example/direct/data/City', content=data, headers=headers)
-    print()
     assert response.status_code == 200

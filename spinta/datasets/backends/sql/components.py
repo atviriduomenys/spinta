@@ -12,9 +12,6 @@ from spinta.exceptions import PropertyNotFound
 
 class Sql(ExternalBackend):
     type: str = 'sql'
-    accept_types = {
-        'text/xml',
-    }
     engine: Engine = None
     schema: sa.MetaData = None
     dbschema: str = None  # Database schema name
