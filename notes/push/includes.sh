@@ -56,10 +56,29 @@ http GET "$SERVER/$DATASET/City?limit(5)&format(ascii)"
 #| push/includes/City  1cacb9c9-4350-4df2-8b5b-678c5669d731  ∅          ∅      1   Vilnius  lt
 
 http GET "$SERVER/$DATASET/countries/Country?format(ascii)"
-#| HTTP/1.1 200 OK
+#| HTTP/1.1 500 Internal Server Error
 #| 
 #| {
-#|     "_data": []
+#|     "errors": [
+#|         {
+#|             "code": "ProgrammingError",
+#|             "message": "
+#|                 (psycopg2.errors.UndefinedTable)
+#|                     relation push/includes/countries/Country does not exist
+#| 
+#|                 LINE 2:
+#|                     FROM push/includes/countries/Country
+#| 
+#|                 SQL:
+#|                     SELECT
+#|                         push/includes/countries/Country._id,
+#|                         push/includes/countries/Country._revision,
+#|                         push/includes/countries/Country.code,
+#|                         push/includes/countries/Country.name
+#|                     FROM push/includes/countries/Country
+#|             "
+#|         }
+#|     ]
 #| }
 # FIXME: In external mode, this should return 400 error, because source is not set, so we can't get data.
 
@@ -80,53 +99,19 @@ http GET "$SERVER/$DATASET/City?limit(5)&format(ascii)"
 http GET "$SERVER/$DATASET/countries/Country?format(ascii)"
 
 poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
-#| 2023-05-12 13:56:41,105 ERROR: Error when sending and receiving data. Model push/includes/City, data:                                                                     
-#|  {
-#|     '_id': '1cacb9c9-4350-4df2-8b5b-678c5669d731',
-#|     '_op': 'insert',
-#|     '_type': 'push/includes/City',
-#|     'country': {'_id': '6fbef53b-efa6-4c8c-b13c-37e78197e089'},
-# FIXME: This should be: 'country': {'code': '6fbef53b-efa6-4c8c-b13c-37e78197e089'}
-#        See: https://github.com/atviriduomenys/spinta/issues/208
-#             https://github.com/atviriduomenys/spinta/blob/66d8696ce5a889ceaad9ad9fe4b8def5e6f16ad8/notes/types/ref/external.sh#L111
-#|     'id': 1,
-#|     'name': 'Vilnius',
-#| }
-#| Server response (status=400):
-#|     {
-#|         'errors': [
-#|             {
-#|                 'code': 'FieldNotInResource',
-#|                 'context': {
-#|                     'attribute': 'country',
-#|                     'component': 'spinta.components.Property',
-#|                     'dataset': 'push/includes',
-#|                     'entity': 'cities',
-#|                     'id': '1cacb9c9-4350-4df2-8b5b-678c5669d731',
-#|                     'manifest': 'default',
-#|                     'model': 'push/includes/City',
-#|                     'property': '_id',
-#|                     'resource': 'db',
-#|                     'resource.backend': 'push/includes/db',
-#|                     'schema': '5',
-#|                 },
-#|                 'message': "Unknown property '_id'.",
-#|                 'template': 'Unknown property {property!r}.',
-#|                 'type': 'property',
-#|             },
-#|         ],
-#|     }
-ERROR: Error on _get_row_count({model.name}).
+#| 2023-08-03 17:21:56,569 ERROR: Error on _get_row_count({model.name}).
 #| Traceback (most recent call last):
 #|   File "multipledispatch/dispatcher.py", line 269, in __call__
 #|     func = self._cache[types]
+#|            ~~~~~~~~~~~^^^^^^^
 #| KeyError: (<class 'spinta.backends.postgresql.commands.query.PgQueryBuilder'>, <class 'NoneType'>)
 #| 
 #| During handling of the above exception, another exception occurred:
 #| 
 #| Traceback (most recent call last):
-#|   File "spinta/core/ufuncs.py", line 216, in call
+#|   File "/home/sirex/dev/data/spinta/spinta/core/ufuncs.py", line 216, in call
 #|     return ufunc(self, *args, **kwargs)
+#|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #|   File "multipledispatch/dispatcher.py", line 273, in __call__
 #|     raise NotImplementedError(
 #| NotImplementedError: Could not find signature for select: <PgQueryBuilder, NoneType>
@@ -134,22 +119,28 @@ ERROR: Error on _get_row_count({model.name}).
 #| During handling of the above exception, another exception occurred:
 #| 
 #| Traceback (most recent call last):
-#|   File "spinta/cli/helpers/data.py", line 51, in count_rows
+#|   File "/home/sirex/dev/data/spinta/spinta/cli/helpers/data.py", line 51, in count_rows
 #|     count = _get_row_count(context, model)
-#|   File "spinta/cli/helpers/data.py", line 36, in _get_row_count
+#|             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#|   File "/home/sirex/dev/data/spinta/spinta/cli/helpers/data.py", line 36, in _get_row_count
 #|     for data in stream:
-#|   File "spinta/backends/postgresql/commands/read.py", line 51, in getall
+#|   File "/home/sirex/dev/data/spinta/spinta/backends/postgresql/commands/read.py", line 51, in getall
 #|     expr = env.resolve(query)
-#|   File "spinta/core/ufuncs.py", line 242, in resolve
+#|            ^^^^^^^^^^^^^^^^^^
+#|   File "/home/sirex/dev/data/spinta/spinta/core/ufuncs.py", line 242, in resolve
 #|     return ufunc(self, expr)
+#|            ^^^^^^^^^^^^^^^^^
 #|   File "multipledispatch/dispatcher.py", line 278, in __call__
 #|     return func(*args, **kwargs)
-#|   File "spinta/backends/postgresql/commands/query.py", line 285, in select
+#|            ^^^^^^^^^^^^^^^^^^^^^
+#|   File "/home/sirex/dev/data/spinta/spinta/backends/postgresql/commands/query.py", line 285, in select
 #|     selected = env.call('select', arg)
-#|   File "spinta/core/ufuncs.py", line 218, in call
+#|                ^^^^^^^^^^^^^^^^^^^^^^^
+#|   File "/home/sirex/dev/data/spinta/spinta/core/ufuncs.py", line 218, in call
 #|     raise UnknownMethod(expr=str(Expr(name, *args, **kwargs)), name=name)
 #| spinta.exceptions.UnknownMethod: Unknown method 'select' with args select(null).
 #|   Context:
 #|     expr: select(null)
 #|     name: select
-# FIXME:
+#| 
+#| PUSH: 100%|#############| 1/1 [00:00<00:00, 308.38it/s]
