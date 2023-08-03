@@ -38,52 +38,79 @@ psql -h localhost -p 54321 -U admin spinta -c '\d "'$DATASET'/Country"'
 #|      Column      |            Type             | Collation | Nullable | Default 
 #| -----------------+-----------------------------+-----------+----------+---------
 #|  name            | text                        |           |          | 
-#|  languages[]._id | uuid                        |           |          | 
-#| Foreign-key constraints:
-#|     "fk_types/array/Country_languages[]._id"
-#|         FOREIGN KEY ("languages[]._id")
-#|         REFERENCES "types/array/Language"(_id)
+#| Referenced by:
+#|     TABLE "types/array/Language/:list/countries[]"
+#|       CONSTRAINT "types/array/Language/:list/countries[]_countries[]._id_fkey"
+#|         FOREIGN KEY ("countries[]._id")
+#|           REFERENCES "types/array/Country"(_id) ON DELETE CASCADE
 psql -h localhost -p 54321 -U admin spinta -c '\d "'$DATASET'/Language/:list/countries[]"'
+#|       Table "public.types/array/Language/:list/countries[]"
 #|           Column          | Type | Collation | Nullable | Default 
 #| --------------------------+------+-----------+----------+---------
 #|  _txn                     | uuid |           |          | 
-# XXX: Probably _txn should not be here?
 #|  types/array/Language._id | uuid |           |          | 
 #|  countries[]._id          | uuid |           |          | 
-#| Indexes:
-#|     "ix_types/array/Language/:list/countries[]__txn" btree (_txn)
 #| Foreign-key constraints:
-#|     "types/array/Language/:list/countr_types/array/Language._id_fkey" FOREIGN KEY ("types/array/Language._id") REFERENCES "types/array/Language"(_id) ON DELETE CASCADE
-#|     "types/array/Language/:list/countries[]_countries[]._id_fkey" FOREIGN KEY ("countries[]._id") REFERENCES "types/array/Country"(_id) ON DELETE CASCADE
+#|     "types/array/Language/:list/countr_types/array/Language._id_fkey"
+#|       FOREIGN KEY ("types/array/Language._id")
+#|         REFERENCES "types/array/Language"(_id)
+#|         ON DELETE CASCADE
+#|     "types/array/Language/:list/countries[]_countries[]._id_fkey"
+#|       FOREIGN KEY ("countries[]._id")
+#|         REFERENCES "types/array/Country"(_id)
+#|         ON DELETE CASCADE
 
 # notes/spinta/server.sh    Add client
 # notes/spinta/server.sh    Run server
 # notes/spinta/client.sh    Configure client
 
 http GET "$SERVER/$DATASET/Language?format(ascii)"
-#| HTTP/1.1 200 OK
-#|
-#| http: error: ChunkedEncodingError: ("Connection broken: InvalidChunkLength(got length b'', 0 bytes read)", InvalidChunkLength(got length b'', 0 bytes read))
-# TODO: https://github.com/atviriduomenys/spinta/issues/360
+#| HTTP/1.1 404 Not Found
+#| 
+#| {
+#|     "errors": [
+#|         {
+#|             "code": "PropertyNotFound",
+#|             "context": {
+#|                 "attribute": "",
+#|                 "component": "spinta.types.datatype.BackRef",
+#|                 "dataset": "types/array",
+#|                 "entity": "",
+#|                 "manifest": "default",
+#|                 "model": "types/array/Language",
+#|                 "property": "countries[]",
+#|                 "schema": "4",
+#|                 "type": "backref"
+#|             },
+#|             "message": "Property 'countries[]' not found.",
+#|             "template": "Property {property!r} not found.",
+#|             "type": "type"
+#|         }
+#|     ]
+#| }
 
 
-http POST "$SERVER/$DATASET/Language" $AUTH name=Lithuanian
+LTL=c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0
+http POST "$SERVER/$DATASET/Language" $AUTH _id=$LTL name=Lithuanian
 #| HTTP/1.1 201 Created
 #| 
 #| {
-#|     "_id": "6a2c388f-3aea-42d4-8dcc-7534d6367e81",
-#|     "_revision": "02be4400-f991-494d-bdc1-3824ae9edbfc",
+#|     "_id": "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0",
+#|     "_revision": "4a825ed1-0936-4668-ab80-c3bd424ec3ef",
 #|     "_type": "types/array/Language",
 #|     "countries[]": null,
 #|     "name": "Lithuanian"
 #| }
+REV=$(http GET "$SERVER/$DATASET/Language/$LTL" | jq -r '._revision')
 
 
-http POST "$SERVER/$DATASET/Country" $AUTH <<'EOF'
+LTC=d73306fb-4ee5-483d-9bad-d86f98e1869c
+http POST "$SERVER/$DATASET/Country" $AUTH <<EOF
 {
+    "_id": "$LTC",
     "name": "Lithuania",
     "languages": [
-        {"_id": "6a2c388f-3aea-42d4-8dcc-7534d6367e81"}
+        {"_id": "$LTL"}
     ]
 }
 EOF
@@ -236,3 +263,13 @@ tail -80 $BASEDIR/spinta.log
 
 
 http GET "$SERVER/$DATASET/Country"
+#| HTTP/1.1 500 Internal Server Error
+#| 
+#| {
+#|     "errors": [
+#|         {
+#|             "code": "KeyError",
+#|             "message": "'languages[]._id'"
+#|         }
+#|     ]
+#| }
