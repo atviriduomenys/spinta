@@ -20,7 +20,6 @@ poetry run spinta show
 # notes/spinta/server.sh    Run server
 # notes/spinta/client.sh    Configure client
 
-uuidgen
 ID=6b1b4150-2aae-47b2-b28f-e750a28536e5
 http POST "$SERVER/$DATASET/City" $AUTH _id=$ID id:=1 name=Vilnius
 REV=$(http GET "$SERVER/$DATASET/City/$ID" | jq -r ._revision)
@@ -34,4 +33,3 @@ http GET "$SERVER/$DATASET/City/$ID/:changes?format(ascii)"
 xdg-open http://localhost$SERVER/$DATASET/City/:changes
 xdg-open http://localhost$SERVER/$DATASET/City/$ID/:changes
 xdg-open http://localhost$SERVER/$DATASET/City/$ID
-# FIXME: This should be shown as previously.
