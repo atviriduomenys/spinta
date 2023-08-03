@@ -4,6 +4,9 @@ from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormPropert
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest, compare_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
+from spinta.core.config import RawConfig
+from _pytest.fixtures import FixtureRequest
+from spinta.testing.manifest import bootstrap_manifest
 
 
 def check(tmp_path, rc, table):
@@ -608,3 +611,45 @@ def test_resource_param_multiple(tmp_path, rc):
       |   |   |   | name       | string  |         |          |
       |   |   |   | population | integer |         |          |
     ''')
+
+
+def test_bootstrap_manifest_with_ref_unique_constraint(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+id | d | r | b | m | property        | type    | ref         | source                                                         | prepare | level | access | uri | title | description
+   | datasets/gov/rc/ar/pastatas     |         |             |                                                                |         |       |        |     |       |
+   |   | pastatas                    | csv     |             | https://www.registrucentras.lt/aduomenys/?byla=adr_stat_lr.csv |         |       |        |     |       |
+   |                                 |         |             |                                                                |         |       |        |     |       |
+   |   |   |   | Pastatas            |         | aob_kodas   | adr_stat_lr                                                    |         |       |        |     |       |
+   |   |   |   |   | sav_kodas       | ref     | Savivaldybe | SAV_KODAS                                                      |         | 4     | open   |     |       |
+   |   |   |   |   | aob_kodas       | ref     | Adresas     |                                                                |         | 4     | open   |     |       |
+   |   |   |   |   | nr              | string  |             | NR                                                             |         | 3     | open   |     |       |
+   |   |   |   |   | korpuso_nr      | string  |             | KORPUSO_NR                                                     |         | 3     | open   |     |       |
+   |   |   |   |   | pasto_kodas     | string  |             | PASTO_KODAS                                                    |         | 3     | open   |     |       |
+   |   |   |   |   | nuo             | date    |             | NUO                                                            |         | 3     | open   |     |       |
+   |   |   |   |   | aob_nuo         | date    |             | AOB_NUO                                                        |         | 3     | open   |     |       |
+   |                                 |         |             |                                                                |         |       |        |     |       |
+   |   |   |   | Savivaldybe         |         | sav_kodas   |                                                                |         | 4     |        |     |       |
+   |   |   |   |   | sav_kodas       | integer |             |                                                                |         | 4     | open   |     |       |
+   |   |   |   |   | tipas           | string  |             |                                                                |         | 3     | open   |     |       |
+   |   |   |   |   | tipo_santrumpa  | string  |             |                                                                |         | 3     | open   |     |       |
+   |   |   |   |   | pavadinimas     | string  |             |                                                                |         | 3     | open   |     |       |
+   |   |   |   |   | apskritis       | ref     | Apskritis   |                                                                |         | 4     | open   |     |       |
+   |   |   |   |   | sav_nuo         | date    | D           |                                                                |         | 4     | open   |     |       |
+   |                                 |         |             |                                                                |         |       |        |     |       |
+   |   |   |   | Adresas             |         | aob_kodas   |                                                                |         | 4     |        |     |       |
+   |   |   |   |   | tipas           | integer |             |                                                                |         | 4     | open   |     |       |
+   |   |   |   |   | aob_kodas       | integer |             |                                                                |         | 4     | open   |     |       |
+   |   |   |   |   | aob_data_nuo    | date    | D           |                                                                |         | 4     | open   |     |       |
+   |   |   |   |   | aob_data_iki    | date    | D           |                                                                |         | 4     | open   |     |       |
+   |                                 |         |             |                                                                |         |       |        |     |       |
+   |   |   |   | Apskritis           |         | adm_kodas   |                                                                |         | 4     |        |     |       |
+   |   |   |   |   | adm_kodas       | integer |             |                                                                |         | 4     | open   |     |       |
+   |   |   |   |   | tipas           | string  |             |                                                                |         | 3     | open   |     |       |
+   |   |   |   |   | santrumpa       | string  |             |                                                                |         | 3     | open   |     |       |
+   |   |   |   |   | pavadinimas     | string  |             |                                                                |         | 3     | open   |     |       |
+   |   |   |   |   | adm_nuo         | date    | D           |                                                                |         | 4     | open   |     |       |
+    ''', backend=postgresql, request=request)
