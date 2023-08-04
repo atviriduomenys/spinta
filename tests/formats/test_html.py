@@ -1,5 +1,6 @@
 import base64
 import hashlib
+from lxml import html
 from typing import Any
 from typing import Dict
 from typing import List
@@ -615,3 +616,51 @@ def test_recursive_refs(rc: RawConfig):
             color=None,
         ),
     }
+
+
+def test_show_single_object(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+) -> Tuple[TestClient, str]:
+
+    context = bootstrap_manifest(rc, '''
+        d | r | b | m | property    | type    | ref     | access
+        example                     |         |         |
+          |   |   | City            |         | id      |
+          |   |   |   | id          | integer |         | open
+          |   |   |   | name        | string  |         | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/City', [
+        'insert',
+        'getall',
+        'getone',
+        'changes',
+        'search',
+    ])
+    record_id = '6b1b4150-2aae-47b2-b28f-e750a28536e5'
+    # Add a file
+    resp = app.post('example/City', json={
+        '_id': record_id,
+        'id': 1,
+        'name': 'Vilnius',
+    })
+
+    assert resp.status_code == 201
+
+    resp_for_rec = app.get('example/City/{0}'.format(record_id))
+
+    resp_html_tree_single_object_id = html.fromstring(resp_for_rec.content)
+    result = resp_html_tree_single_object_id.xpath('//table//tbody//tr//th')
+    assert resp_html_tree_single_object_id != []
+
+    resp = app.get(f'example/City/{record_id}/:changes', headers={
+        'Accept': 'text/html',
+    })
+
+    resp_html_tree = html.fromstring(resp.content)
+
+    result = resp_html_tree.xpath('//table//thead')
+    assert result != []
