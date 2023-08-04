@@ -1597,7 +1597,6 @@ def test_inspect_with_views(
          |   | Country       |         |           | COUNTRY    |         |         |
          |   |   | code      | string  |           | CODE       |         |         |
          |   |   | continent | ref     | Continent | CONTINENT  |         |         |
-                             |         |           |            |         |         |
        dbsqlite/views        |         |           |            |         |         |
          | resource1         | sql     |           | sqlite     |         |         |
                              |         |           |            |         |         |
