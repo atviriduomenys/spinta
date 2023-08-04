@@ -47,6 +47,8 @@ poetry run spinta show
 # notes/spinta/server.sh    Run server
 # notes/spinta/client.sh    Configure client
 
+alias query='psql -h localhost -p 54321 -U admin spinta'
+
 query -c '\dt "'$DATASET'"*'
 #|  Schema |                Name                 | Type  | Owner 
 #| --------+-------------------------------------+-------+-------
@@ -136,7 +138,7 @@ http POST "$SERVER/$DATASET/Country"  $AUTH _id=$LTU id:=3
 
 http POST "$SERVER/$DATASET/Place" $AUTH \
     _id=$VLN \
-    id:=1 \
+    id:=2 \
     name="Vilnius" \
     koord="SRID=4326;POINT (54.68677 25.29067)"
 #| HTTP/1.1 201 Created
@@ -151,15 +153,17 @@ http POST "$SERVER/$DATASET/Place" $AUTH \
 #| }
 
 query -c 'SELECT * FROM "'$DATASET'/Place"'
-#|                  _id                  |              _revision               | id |  name   |                       koord                        
-#| --------------------------------------+--------------------------------------+----+---------+----------------------------------------------------
-#|  2074d66e-0dfd-4233-b1ec-199abc994d0c | 2263e065-e813-4ef2-b43c-9699fc4ed212 |  1 | Vilnius | 0101000020E6100000DDEF5014E8574B40A6ED5F59694A3940
+#|                  _id                  | id |   name    |                       koord                        
+#| --------------------------------------+----+-----------+----------------------------------------------------
+#|  2fcc3da3-be88-4715-83c9-a45bcbeeb3c3 |  1 | Lithuania | 
+#|  2074d66e-0dfd-4233-b1ec-199abc994d0c |  2 | Vilnius   | 0101000020E6100000DDEF5014E8574B40A6ED5F59694A3940
 
 
 http GET "$SERVER/$DATASET/Place?format(ascii)"
-#| _id                                   _revision                             id  name     koord
-#| ------------------------------------  ------------------------------------  --  -------  -------------------------
-#| 2074d66e-0dfd-4233-b1ec-199abc994d0c  2263e065-e813-4ef2-b43c-9699fc4ed212  1   Vilnius  POINT (54.68677 25.29067)
+#| _id                                   id  name       koord      
+#| ------------------------------------  --  ---------  -------------------------
+#| 2fcc3da3-be88-4715-83c9-a45bcbeeb3c3  1   Lithuania  ∅
+#| 2074d66e-0dfd-4233-b1ec-199abc994d0c  2   Vilnius    POINT (54.68677 25.29067)
 
 
 http POST "$SERVER/$DATASET/Location" $AUTH \
@@ -167,27 +171,41 @@ http POST "$SERVER/$DATASET/Location" $AUTH \
     id:=42 \
     name="Vilnius" \
     population:=625349
-#| HTTP/1.1 201 Created
+#| HTTP/1.1 500 Internal Server Error
 #| 
 #| {
-#|     "_id": "2074d66e-0dfd-4233-b1ec-199abc994d0c",
-#|     "_revision": "dcd6e164-5189-4291-b61c-b84d5c1b576c",
-#|     "_type": "dimensions/base/Location",
-#|     "id": 42,
-#|     "name": "Vilnius",
-#|     "population": 625349,
-#|     "type": null
+#|     "errors": [
+#|         {
+#|             "code": "NotImplementedFeature",
+#|             "context": {
+#|                 "attribute": "",
+#|                 "component": "spinta.components.Property",
+#|                 "dataset": "dimensions/base",
+#|                 "entity": "",
+#|                 "feature": "Ability to indirectly modify base parameters",
+#|                 "manifest": "default",
+#|                 "model": "dimensions/base/Location",
+#|                 "property": "name",
+#|                 "schema": "10"
+#|             },
+#|             "message": "Ability to indirectly modify base parameters is not implemented yet.",
+#|             "template": "{feature} is not implemented yet.",
+#|             "type": "property"
+#|         }
+#|     ]
 #| }
+# FIXME: This should not be an error, because we do not modify base, we just use
+#        _base.name as identifier, which exists in Place.
 
 query -c 'SELECT * FROM "'$DATASET'/Location"'
-#|                  _id                  |              _revision               | id | population | type 
-#| --------------------------------------+--------------------------------------+----+------------+------
-#|  2074d66e-0dfd-4233-b1ec-199abc994d0c | 8303ac22-90f4-4f0a-92a7-08d6b49430fe | 42 |     625349 | 
+#|                  _id                  | id | population | type 
+#| --------------------------------------+----+------------+------
+#|  2fcc3da3-be88-4715-83c9-a45bcbeeb3c3 |  2 |    2862380 | 
 
 http GET "$SERVER/$DATASET/Location?format(ascii)"
-#| _id                                   _revision                             id  name     population  type
-#| ------------------------------------  ------------------------------------  --  -------  ----------  ----
-#| 2074d66e-0dfd-4233-b1ec-199abc994d0c  8303ac22-90f4-4f0a-92a7-08d6b49430fe  42  Vilnius  625349      ∅
+#| _id                                   id  name       population  type
+#| ------------------------------------  --  ---------  ----------  ----
+#| 2fcc3da3-be88-4715-83c9-a45bcbeeb3c3  2   Lithuania  2862380     ∅
 
 
 REV=$(http GET "$SERVER/$DATASET/Location/$VLN" | jq -r ._revision)
