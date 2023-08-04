@@ -98,7 +98,7 @@ class DaskDataFrameQueryBuilder(Env):
         df = self.dataframe
 
         if self.limit is not None:
-            df = df.loc[:self.limit]
+            df = df.loc[:self.limit - 1]
         #
         if self.offset is not None:
             df = df.loc[self.offset:]

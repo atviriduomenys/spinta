@@ -3,6 +3,7 @@ import datetime
 import decimal
 import pathlib
 import uuid
+import dateutil
 from typing import Any
 from typing import AsyncIterator
 from typing import Dict
@@ -35,7 +36,7 @@ from spinta.components import Property
 from spinta.exceptions import ConflictingValue, RequiredProperty
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
-from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit
+from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, Integer
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -1259,6 +1260,133 @@ def cast_backend_to_python(
     if data != data:
         return None
     return data
+
+
+@commands.cast_backend_to_python.register(Context, DateTime, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: DateTime,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
+    if data != data:
+        return None
+    if isinstance(data, str):
+        try:
+            return dateutil.parser.parse(data)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Time, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Time,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
+    if data != data:
+        return None
+    if isinstance(data, str):
+        try:
+            return dateutil.parser.parse(data).time()
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Date, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Date,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
+    if data != data:
+        return None
+    if isinstance(data, str):
+        try:
+            return dateutil.parser.parse(data).date()
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Integer, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Integer,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
+    if data != data:
+        return None
+    if isinstance(data, str):
+        try:
+            if "," in data and "." not in data and data.count(",") == 1:
+                data = data.replace(",", ".")
+            elif "," in data:
+                data = data.replace(",", "")
+            return int(data)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Number, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Number,
+    backend: Backend,
+    data: Any,
+) -> Any:
+    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
+    if data != data:
+        return None
+    if isinstance(data, str):
+        try:
+            if "," in data and "." not in data and data.count(",") == 1:
+                data = data.replace(",", ".")
+            elif "," in data:
+                data = data.replace(",", "")
+            return float(data)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Ref, Backend, object)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Ref,
+    backend: Backend,
+    data: Dict[str, Any],
+) -> Any:
+    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
+    if data != data:
+        return None
+    result = {}
+    for key, value in data.items():
+        converted = value
+        new_type = None
+        for item in dtype.refprops:
+            if item.name == key:
+                new_type = item.dtype
+                break
+        if new_type:
+            converted = commands.cast_backend_to_python(
+                context,
+                new_type,
+                backend,
+                value
+            )
+        result[key] = converted
+    return result
 
 
 @commands.cast_backend_to_python.register(Context, Object, Backend, dict)
