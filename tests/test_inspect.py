@@ -1586,7 +1586,7 @@ def test_inspect_with_views(
     manifest.datasets['dbsqlite/views'].resources['resource1'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
        d | r | m | property  | type    | ref    | source     | prepare | access  | title
-       dbsqlite              |         |        |            |         |         | Example
+       dbsqlite              |         |        |            |         |         |
          | resource1         | sql     |        | sqlite     |         |         |
                              |         |        |            |         |         |
          |   | Continent     |         | id     | CONTINENT  |         |         |
@@ -1597,7 +1597,7 @@ def test_inspect_with_views(
          |   | Country       |         |        | COUNTRY    |         |         |
          |   |   | code      | string  |        | CODE       |         |         |
                              |         |        |            |         |         |
-       dbsqlite/views        |         |        |            |         |         | Example
+       dbsqlite/views        |         |        |            |         |         |
          | resource1         | sql     |        | sqlite     |         |         |
                              |         |        |            |         |         |
          |   | TestView      |         |        | TestView   |         |         |
