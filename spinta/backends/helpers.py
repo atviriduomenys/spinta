@@ -1,3 +1,5 @@
+import uuid
+
 from typing import Any
 from typing import Dict
 from typing import Iterable
@@ -312,3 +314,10 @@ def get_table_name(
     else:
         name = model.model_type() + ttype.value
     return name
+
+
+def is_uuid(value: str):
+    try:
+        return uuid.UUID(value).version == 4
+    except ValueError:
+        return False

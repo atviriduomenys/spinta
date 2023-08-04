@@ -304,6 +304,7 @@ class Store:
     internal: InternalManifest = None
     accesslog: AccessLog = None
     backends: Dict[str, Backend]
+    keymaps: Dict[str, KeyMap]
 
     def __init__(self):
         self.config = None
