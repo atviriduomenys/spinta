@@ -1585,25 +1585,26 @@ def test_inspect_with_views(
     manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     manifest.datasets['dbsqlite/views'].resources['resource1'].external = 'sqlite'
     a, b = compare_manifest(manifest, f'''
-       d | r | m | property  | type    | ref    | source     | prepare | access  | title
-       dbsqlite              |         |        |            |         |         |
-         | resource1         | sql     |        | sqlite     |         |         |
-                             |         |        |            |         |         |
-         |   | Continent     |         | id     | CONTINENT  |         |         |
-         |   |   | code      | string  |        | CODE       |         |         |
-         |   |   | id        | integer |        | ID         |         |         |
-         |   |   | name      | string  |        | NAME       |         |         |
-                             |         |        |            |         |         |
-         |   | Country       |         |        | COUNTRY    |         |         |
-         |   |   | code      | string  |        | CODE       |         |         |
-                             |         |        |            |         |         |
-       dbsqlite/views        |         |        |            |         |         |
-         | resource1         | sql     |        | sqlite     |         |         |
-                             |         |        |            |         |         |
-         |   | TestView      |         |        | TestView   |         |         |
-         |   |   | code      | string  |        | CODE       |         |         |
-         |   |   | continent | integer |        | CONTINENT  |         |         |
-         |   |   | name      | string  |        | NAME       |         |         |
+       d | r | m | property  | type    | ref       | source     | prepare | access  | title
+       dbsqlite              |         |           |            |         |         |
+         | resource1         | sql     |           | sqlite     |         |         |
+                             |         |           |            |         |         |
+         |   | Continent     |         | id        | CONTINENT  |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | id        | integer |           | ID         |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
+                             |         |           |            |         |         |
+         |   | Country       |         |           | COUNTRY    |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | continent | ref     | Continent | CONTINENT  |         |         |
+                             |         |           |            |         |         |
+       dbsqlite/views        |         |           |            |         |         |
+         | resource1         | sql     |           | sqlite     |         |         |
+                             |         |           |            |         |         |
+         |   | TestView      |         |           | TestView   |         |         |
+         |   |   | code      | string  |           | CODE       |         |         |
+         |   |   | continent | integer |           | CONTINENT  |         |         |
+         |   |   | name      | string  |           | NAME       |         |         |
 
 ''')
     assert a == b
