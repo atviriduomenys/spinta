@@ -7,6 +7,7 @@ from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
 from tests.datasets.test_sql import configure_remote_server, create_rc, create_client
+from spinta.testing.pytest import postgresql, rc, cli, responses
 
 
 @pytest.fixture(scope='module')
@@ -432,3 +433,8 @@ def test_push_ref_with_level_no_source(
     assert resp_city.status_code == 200
     assert listdata(resp_city, 'name') == ['Vilnius']
     assert listdata(resp_city, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': '2'})
+
+    remote.app.authmodel('leveldataset/countries/Country', ['getall', 'search'])
+    resp_country = remote.app.get('leveldataset/countries/Country')
+
+    assert resp_country.status_code == 400
