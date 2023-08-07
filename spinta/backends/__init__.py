@@ -1420,24 +1420,25 @@ def cast_backend_to_python(
     backend: Backend,
     data: Dict[str, Any],
 ) -> Any:
-
-    result = {}
-    for key, value in data.items():
-        converted = value
-        new_type = None
-        for item in dtype.refprops:
-            if item.name == key:
-                new_type = item.dtype
-                break
-        if new_type:
-            converted = commands.cast_backend_to_python(
-                context,
-                new_type,
-                backend,
-                value
-            )
-        result[key] = converted
-    return result
+    if data:
+        result = {}
+        for key, value in data.items():
+            converted = value
+            new_type = None
+            for item in dtype.refprops:
+                if item.name == key:
+                    new_type = item.dtype
+                    break
+            if new_type:
+                converted = commands.cast_backend_to_python(
+                    context,
+                    new_type,
+                    backend,
+                    value
+                )
+            result[key] = converted
+        return result
+    return data
 
 
 @commands.cast_backend_to_python.register(Context, Object, Backend, dict)
@@ -1447,15 +1448,17 @@ def cast_backend_to_python(
     backend: Backend,
     data: Dict[str, Any],
 ) -> Dict[str, Any]:
-    return {
-        k: commands.cast_backend_to_python(
-            context,
-            dtype.properties[k].dtype,
-            backend,
-            v,
-        ) if k in dtype.properties else v
-        for k, v in data.items()
-    }
+    if data:
+        return {
+            k: commands.cast_backend_to_python(
+                context,
+                dtype.properties[k].dtype,
+                backend,
+                v,
+            ) if k in dtype.properties else v
+            for k, v in data.items()
+        }
+    return data
 
 
 @commands.cast_backend_to_python.register(Context, Array, Backend, list)
@@ -1465,15 +1468,17 @@ def cast_backend_to_python(
     backend: Backend,
     data: List[Any],
 ) -> List[Any]:
-    return [
-        commands.cast_backend_to_python(
-            context,
-            dtype.items.dtype,
-            backend,
-            v,
-        )
-        for v in data
-    ]
+    if data:
+        return [
+            commands.cast_backend_to_python(
+                context,
+                dtype.items.dtype,
+                backend,
+                v,
+            )
+            for v in data
+        ]
+    return data
 
 
 def _check_if_nan(value: Any) -> bool:
