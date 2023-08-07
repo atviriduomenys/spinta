@@ -1,12 +1,16 @@
+import pathlib
+
 import pytest
 import sqlalchemy as sa
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.client import create_test_client
+from spinta.testing.context import create_test_context
 from spinta.testing.data import listdata
-from spinta.testing.datasets import create_sqlite_db
+from spinta.testing.datasets import create_sqlite_db, Sqlite
 from spinta.testing.tabular import create_tabular_manifest
-from tests.datasets.test_sql import configure_remote_server, create_rc, create_client
+from tests.datasets.test_sql import configure_remote_server, create_rc
 from spinta.testing.pytest import postgresql, rc, cli, responses
 
 
@@ -50,6 +54,12 @@ def errordb():
             {'kodas': 'lt', 'pavadinimas': 'Estija'},
         ])
         yield db
+
+
+def create_client(rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite):
+    rc = create_rc(rc, tmp_path, geodb)
+    context = create_test_context(rc)
+    return create_test_client(context)
 
 
 def test_push_with_progress_bar(
