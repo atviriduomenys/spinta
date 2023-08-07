@@ -133,7 +133,16 @@ async def create_http_response(
                 action=action,
                 params=params,
             )
-
+        elif params.summary:
+            model = params.model
+            action = params.action
+            return await commands.summary(
+                context,
+                request,
+                model,
+                action=action,
+                params=params
+            )
         else:
             _enforce_limit(context, params)
             action = params.action
