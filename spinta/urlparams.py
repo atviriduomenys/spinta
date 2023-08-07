@@ -183,6 +183,8 @@ def _prepare_urlparams_from_path(params: UrlParams):
                 params.formatparams[arg['name']] = _read_format_params(arg['args'][0])
         elif name == 'summary':
             params.summary = True
+            if args:
+                params.select = args
         elif name == 'fault-tolerant':
             params.fault_tolerant = True
         elif name == 'wipe':

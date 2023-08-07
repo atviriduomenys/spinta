@@ -1,3 +1,4 @@
+from typing import overload
 
 import sqlalchemy as sa
 
@@ -14,8 +15,10 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
+from spinta.datasets.enums import Level
 
 
+@overload
 @commands.prepare.register(Context, PostgreSQL, Manifest)
 def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
     # Prepare backend for models.
@@ -24,6 +27,7 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
             commands.prepare(context, backend, model)
 
 
+@overload
 @commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     columns = []
@@ -39,14 +43,18 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             columns.append(column)
 
     if model.unique:
-        for val in model.unique:
+        for constraint in model.unique:
             prop_list = []
-            for prop in val:
+            for prop in constraint:
                 name = prop.name
                 if isinstance(prop.dtype, Ref):
-                    name = f'{name}.{prop.dtype.refprops[0].name}'
+                    if prop.level is None or prop.level > Level.open:
+                        name = f'{name}._id'
+                    else:
+                        name = f'{name}.{prop.dtype.refprops[0].name}'
                 prop_list.append(name)
             columns.append(sa.UniqueConstraint(*prop_list))
+
     # Create main table.
     main_table_name = get_pg_name(get_table_name(model))
     pkey_type = commands.get_primary_key_type(context, backend)
@@ -64,6 +72,7 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
 
 
+@overload
 @commands.prepare.register(Context, PostgreSQL, DataType)
 def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
     if dtype.name in UNSUPPORTED_TYPES:
@@ -75,6 +84,7 @@ def prepare(context: Context, backend: PostgreSQL, dtype: DataType):
         'date': sa.Date,
         'time': sa.Time,
         'datetime': sa.DateTime,
+        'temporal': sa.DateTime,
         'integer': sa.Integer,
         'number': sa.Float,
         'boolean': sa.Boolean,
@@ -101,6 +111,7 @@ def get_primary_key_type(context: Context, backend: PostgreSQL):
     return UUID()
 
 
+@overload
 @commands.prepare.register(Context, PostgreSQL, PrimaryKey)
 def prepare(context: Context, backend: PostgreSQL, dtype: PrimaryKey):
     pkey_type = commands.get_primary_key_type(context, backend)

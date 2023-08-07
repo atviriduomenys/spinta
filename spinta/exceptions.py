@@ -161,8 +161,6 @@ def _render_template(error: BaseError):
         return error.template.format(**context)
 
 
-
-
 class MultipleErrors(Exception):
 
     def __init__(self, errors: Iterable[BaseError]):
@@ -586,3 +584,12 @@ class NotImplementedFeature(BaseError):
 
 class SourceCannotBeList(BaseError):
     template = "Source can't be a list, use prepare instead."
+
+    
+class UnknownRequestQuery(UserError):
+    template = "Request '{request}' does not support '{query}' query."
+
+
+class InvalidRequestQuery(UserError):
+    template = "Query '{query}' requires '{format}' format."
+
