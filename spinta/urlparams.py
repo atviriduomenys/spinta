@@ -135,7 +135,17 @@ def _prepare_urlparams_from_path(params: UrlParams):
                     )
                 params.limit, params.offset = map(int, args)
             elif len(args) == 1:
-                params.limit = int(args[0])
+                try:
+                    limit = int(args[0])
+                    if limit <= 0:
+                        raise Exception
+                    params.limit = limit
+                except Exception:
+                    raise exceptions.InvalidValue(
+                        operator='limit',
+                        message="Limit must be a number higher than 0"
+                    )
+
             else:
                 raise exceptions.InvalidValue(
                     operator='limit',
