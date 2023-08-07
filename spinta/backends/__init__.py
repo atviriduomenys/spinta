@@ -11,6 +11,8 @@ from typing import Iterable
 from typing import List
 from typing import Optional
 
+from shapely import wkt
+
 from spinta import commands
 from spinta import exceptions
 from spinta.backends.components import Backend
@@ -36,7 +38,7 @@ from spinta.components import Property
 from spinta.exceptions import ConflictingValue, RequiredProperty
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
-from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, Integer
+from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, Integer, Boolean
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -49,6 +51,8 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.types.geometry.components import Geometry
+from spinta.utils.config import asbool
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA
@@ -1256,8 +1260,7 @@ def cast_backend_to_python(
     backend: Backend,
     data: Any,
 ) -> Any:
-    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
-    if data != data:
+    if _check_if_nan(data):
         return None
     return data
 
@@ -1269,12 +1272,11 @@ def cast_backend_to_python(
     backend: Backend,
     data: Any,
 ) -> Any:
-    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
-    if data != data:
+    if _check_if_nan(data):
         return None
     if isinstance(data, str):
         try:
-            return dateutil.parser.parse(data)
+            return dateutil.parser.isoparse(data)
         except:
             return data
     return data
@@ -1287,12 +1289,12 @@ def cast_backend_to_python(
     backend: Backend,
     data: Any,
 ) -> Any:
-    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
-    if data != data:
+    if _check_if_nan(data):
         return None
-    if isinstance(data, str):
+    if isinstance(data, str) and ":" in data:
         try:
-            return dateutil.parser.parse(data).time()
+            isoparser = dateutil.parser.isoparser()
+            return isoparser.parse_isotime(data)
         except:
             return data
     return data
@@ -1305,12 +1307,12 @@ def cast_backend_to_python(
     backend: Backend,
     data: Any,
 ) -> Any:
-    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
-    if data != data:
+    if _check_if_nan(data):
         return None
     if isinstance(data, str):
         try:
-            return dateutil.parser.parse(data).date()
+            isoparser = dateutil.parser.isoparser()
+            return isoparser.parse_isodate(data)
         except:
             return data
     return data
@@ -1323,16 +1325,16 @@ def cast_backend_to_python(
     backend: Backend,
     data: Any,
 ) -> Any:
-    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
-    if data != data:
+    if _check_if_nan(data):
         return None
     if isinstance(data, str):
         try:
+            new = data
             if "," in data and "." not in data and data.count(",") == 1:
-                data = data.replace(",", ".")
+                new = data.replace(",", ".")
             elif "," in data:
-                data = data.replace(",", "")
-            return int(data)
+                new = data.replace(",", "")
+            return int(new)
         except:
             return data
     return data
@@ -1345,16 +1347,67 @@ def cast_backend_to_python(
     backend: Backend,
     data: Any,
 ) -> Any:
-    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
-    if data != data:
+    if _check_if_nan(data):
         return None
     if isinstance(data, str):
         try:
+            new = data
             if "," in data and "." not in data and data.count(",") == 1:
-                data = data.replace(",", ".")
+                new = data.replace(",", ".")
             elif "," in data:
-                data = data.replace(",", "")
-            return float(data)
+                new = data.replace(",", "")
+            return float(new)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Binary, Backend, str)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Binary,
+    backend: Backend,
+    data: str,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return base64.b64decode(data)
+        except Exception as e:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Boolean, Backend, str)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Boolean,
+    backend: Backend,
+    data: str,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return asbool(data)
+        except:
+            return data
+    return data
+
+
+@commands.cast_backend_to_python.register(Context, Geometry, Backend, str)
+def cast_backend_to_python(
+    context: Context,
+    dtype: Geometry,
+    backend: Backend,
+    data: str,
+) -> Any:
+    if _check_if_nan(data):
+        return None
+    if isinstance(data, str):
+        try:
+            return wkt.loads(data)
         except:
             return data
     return data
@@ -1367,9 +1420,7 @@ def cast_backend_to_python(
     backend: Backend,
     data: Dict[str, Any],
 ) -> Any:
-    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
-    if data != data:
-        return None
+
     result = {}
     for key, value in data.items():
         converted = value
@@ -1425,11 +1476,8 @@ def cast_backend_to_python(
     ]
 
 
-@commands.cast_backend_to_python.register(Context, Binary, Backend, str)
-def cast_backend_to_python(
-    context: Context,
-    dtype: Binary,
-    backend: Backend,
-    data: str,
-) -> bytes:
-    return base64.b64decode(data)
+def _check_if_nan(value: Any) -> bool:
+    # Check for nan values, IEEE 754 defines that comparing with nan always returns false
+    if value != value:
+        return True
+    return False
