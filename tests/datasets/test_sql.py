@@ -16,8 +16,7 @@ from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
-from spinta.testing.client import create_test_client
-from spinta.testing.context import create_test_context
+from spinta.testing.client import create_client, create_rc
 from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
 from spinta.manifests.tabular.helpers import striptable
@@ -52,27 +51,6 @@ def geodb():
             {'salis': 'ee', 'pavadinimas': 'Talinas'},
         ])
         yield db
-
-
-def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite) -> RawConfig:
-    return rc.fork({
-        'manifests': {
-            'default': {
-                'type': 'tabular',
-                'path': str(tmp_path / 'manifest.csv'),
-                'backend': 'sql',
-                'keymap': 'default',
-            },
-        },
-        'backends': {
-            'sql': {
-                'type': 'sql',
-                'dsn': db.dsn,
-            },
-        },
-        # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
-        'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
-    })
 
 
 def configure_remote_server(
@@ -119,12 +97,6 @@ def configure_remote_server(
         ],
         credsfile=True,
     )
-
-
-def create_client(rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite):
-    rc = create_rc(rc, tmp_path, geodb)
-    context = create_test_context(rc)
-    return create_test_client(context)
 
 
 def test_filter(rc, tmp_path, geodb):

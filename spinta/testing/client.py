@@ -31,6 +31,7 @@ from spinta.testing.context import TestContext
 from spinta.testing.context import create_test_context
 from spinta.auth import create_client_file
 from spinta.testing.config import create_config_path
+from spinta.testing.datasets import Sqlite
 
 
 def create_test_client(
@@ -196,3 +197,30 @@ def get_html_tree(resp: requests.Response) -> Union[
     lxml.html.HtmlMixin,
 ]:
     return lxml.html.fromstring(resp.text)
+
+
+def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite) -> RawConfig:
+    return rc.fork({
+        'manifests': {
+            'default': {
+                'type': 'tabular',
+                'path': str(tmp_path / 'manifest.csv'),
+                'backend': 'sql',
+                'keymap': 'default',
+            },
+        },
+        'backends': {
+            'sql': {
+                'type': 'sql',
+                'dsn': db.dsn,
+            },
+        },
+        # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
+        'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
+    })
+
+
+def create_client(rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite):
+    rc = create_rc(rc, tmp_path, geodb)
+    context = create_test_context(rc)
+    return create_test_client(context)
