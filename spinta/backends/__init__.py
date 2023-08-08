@@ -11,6 +11,7 @@ from typing import Iterable
 from typing import List
 from typing import Optional
 
+import shapely.geometry.base
 from shapely import wkt
 
 from spinta import commands
@@ -734,6 +735,20 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     return base64.b64encode(value).decode('ascii')
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, Geometry, shapely.geometry.base.BaseGeometry)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: Geometry,
+    value: shapely.geometry.base.BaseGeometry,
+    data: Dict[str, Any],
+    *,
+    action: Action,
+    select: dict = None,
+):
+    return value.wkt
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, (dict, type(None)))

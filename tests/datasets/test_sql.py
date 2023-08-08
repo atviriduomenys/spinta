@@ -2608,12 +2608,12 @@ def test_point(
     })
     sqlite.write('data', [{
         'id': 1,
-        'x': 4,
-        'y': 2,
+        'x': 4.5,
+        'y': 2.5,
     }])
 
     app = create_client(rc, tmp_path, sqlite)
     app.authmodel(dataset, ['getall'])
 
     resp = app.get(f'/{dataset}/Data')
-    assert listdata(resp) == [(1, 'POINT (4.0 2.0)')]
+    assert listdata(resp) == [(1, 'POINT (4.5 2.5)')]
