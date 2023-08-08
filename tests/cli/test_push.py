@@ -3,11 +3,10 @@ import sqlalchemy as sa
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_client, create_rc
+from spinta.testing.client import create_client, create_rc, configure_remote_server
 from spinta.testing.data import listdata
-from spinta.testing.datasets import create_sqlite_db, Sqlite
+from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
-from tests.datasets.test_sql import configure_remote_server
 from spinta.testing.pytest import postgresql, rc, cli, responses
 
 

@@ -199,6 +199,52 @@ def get_html_tree(resp: requests.Response) -> Union[
     return lxml.html.fromstring(resp.text)
 
 
+def configure_remote_server(
+    cli,
+    local_rc: RawConfig,
+    rc: RawConfig,
+    tmp_path: pathlib.Path,
+    responses,
+    remove_source: bool = True
+):
+    invoke_props = [
+        'copy',
+        '--access', 'open',
+        '-o', tmp_path / 'remote.csv',
+        tmp_path / 'manifest.csv',
+    ]
+    if remove_source:
+        invoke_props.append('--no-source')
+    cli.invoke(local_rc, invoke_props)
+
+    # Create remote server with PostgreSQL backend
+    remote_rc = rc.fork({
+        'manifests': {
+            'default': {
+                'type': 'tabular',
+                'path': str(tmp_path / 'remote.csv'),
+                'backend': 'default',
+            },
+        },
+        'backends': ['default'],
+    })
+    return create_remote_server(
+        remote_rc,
+        tmp_path,
+        responses,
+        scopes=[
+            'spinta_set_meta_fields',
+            'spinta_getone',
+            'spinta_getall',
+            'spinta_search',
+            'spinta_insert',
+            'spinta_patch',
+            'spinta_delete',
+        ],
+        credsfile=True,
+    )
+
+
 def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite) -> RawConfig:
     return rc.fork({
         'manifests': {

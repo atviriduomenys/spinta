@@ -16,13 +16,12 @@ from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
-from spinta.testing.client import create_client, create_rc
+from spinta.testing.client import create_client, create_rc, create_remote_server
 from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
-from spinta.testing.client import create_remote_server
 from spinta.utils.schema import NA
 
 
@@ -51,52 +50,6 @@ def geodb():
             {'salis': 'ee', 'pavadinimas': 'Talinas'},
         ])
         yield db
-
-
-def configure_remote_server(
-    cli,
-    local_rc: RawConfig,
-    rc: RawConfig,
-    tmp_path: pathlib.Path,
-    responses,
-    remove_source: bool = True
-):
-    invoke_props = [
-        'copy',
-        '--access', 'open',
-        '-o', tmp_path / 'remote.csv',
-        tmp_path / 'manifest.csv',
-    ]
-    if remove_source:
-        invoke_props.append('--no-source')
-    cli.invoke(local_rc, invoke_props)
-
-    # Create remote server with PostgreSQL backend
-    remote_rc = rc.fork({
-        'manifests': {
-            'default': {
-                'type': 'tabular',
-                'path': str(tmp_path / 'remote.csv'),
-                'backend': 'default',
-            },
-        },
-        'backends': ['default'],
-    })
-    return create_remote_server(
-        remote_rc,
-        tmp_path,
-        responses,
-        scopes=[
-            'spinta_set_meta_fields',
-            'spinta_getone',
-            'spinta_getall',
-            'spinta_search',
-            'spinta_insert',
-            'spinta_patch',
-            'spinta_delete',
-        ],
-        credsfile=True,
-    )
 
 
 def test_filter(rc, tmp_path, geodb):
