@@ -31,7 +31,7 @@ from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
-from tests.datasets.test_sql import create_rc, configure_remote_server
+from spinta.testing.client import create_rc, configure_remote_server
 
 
 @pytest.fixture(scope='module')
