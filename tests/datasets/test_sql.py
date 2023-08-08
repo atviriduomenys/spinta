@@ -16,7 +16,7 @@ from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
-from spinta.testing.client import create_client, create_rc, create_remote_server
+from spinta.testing.client import create_client, create_rc, configure_remote_server
 from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
 from spinta.manifests.tabular.helpers import striptable
