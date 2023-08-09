@@ -23,7 +23,6 @@ from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
-from spinta.testing.pytest import postgresql, rc, cli, responses
 
 
 @pytest.fixture(scope='module')
