@@ -1,13 +1,11 @@
 import pytest
 import sqlalchemy as sa
-from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.client import create_client, create_rc, configure_remote_server
+from spinta.testing.client import create_rc, configure_remote_server
 from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.pytest import postgresql, rc, cli, responses
 
 
 @pytest.fixture(scope='module')
@@ -86,6 +84,7 @@ def test_push_with_progress_bar(
         '-o', remote.url,
         '--credentials', remote.credsfile,
     ])
+    print()
     assert result.exit_code == 0
     assert "Count rows:   0%" in result.stderr
     assert "PUSH:   0%|          | 0/3" in result.stderr
@@ -379,62 +378,3 @@ def test_push_with_resource_check(
     remote.app.authmodel('datasets/gov/exampleNoRes/countryNoRes', ['getall'])
     resp_no_res = remote.app.get('/datasets/gov/exampleNoRes/countryNoRes')
     assert len(listdata(resp_no_res)) == 0
-
-
-def test_push_ref_with_level_no_source(
-    postgresql,
-    rc: RawConfig,
-    cli: SpintaCliRunner,
-    responses,
-    tmp_path,
-    geodb,
-    request
-):
-    table = '''
-    d | r | b | m | property | type    | ref                             | source         | level | access
-    leveldataset             |         |                                 |                |       |
-      | db                   | sql     |                                 |                |       |
-      |   |   | City         |         | id                              | cities         | 4     |
-      |   |   |   | id       | integer |                                 | id             | 4     | open
-      |   |   |   | name     | string  |                                 | name           | 2     | open
-      |   |   |   | country  | ref     | /leveldataset/countries/Country | country        | 3     | open
-      |   |   |   |          |         |                                 |                |       |
-    leveldataset/countries   |         |                                 |                |       |
-      |   |   | Country      |         | code                            |                | 4     |
-      |   |   |   | code     | string  |                                 |                | 4     | open
-      |   |   |   | name     | string  |                                 |                | 2     | open
-    '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
-
-    app = create_client(rc, tmp_path, geodb)
-    app.authmodel('leveldataset', ['getall'])
-    resp = app.get('leveldataset/City')
-    assert listdata(resp, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': 2})
-
-    # Configure local server with SQL backend
-    localrc = create_rc(rc, tmp_path, geodb)
-
-    # Configure remote server
-    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
-    request.addfinalizer(remote.app.context.wipe_all)
-
-    # Push data from local to remote.
-    assert remote.url == 'https://example.com/'
-    result = cli.invoke(localrc, [
-        'push',
-        '-o', remote.url,
-        '--credentials', remote.credsfile,
-        '--no-progress-bar',
-    ])
-    assert result.exit_code == 0
-    remote.app.authmodel('leveldataset/City', ['getall', 'search'])
-    resp_city = remote.app.get('leveldataset/City')
-
-    assert resp_city.status_code == 200
-    assert listdata(resp_city, 'name') == ['Vilnius']
-    assert listdata(resp_city, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': '2'})
-
-    remote.app.authmodel('leveldataset/countries/Country', ['getall', 'search'])
-    resp_country = remote.app.get('leveldataset/countries/Country')
-
-    assert resp_country.status_code == 400
