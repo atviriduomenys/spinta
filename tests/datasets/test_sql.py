@@ -39,6 +39,11 @@ def geodb():
             sa.Column('pavadinimas', sa.Text),
             sa.Column('salis', sa.Text),
         ],
+        'cities': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name', sa.Text),
+            sa.Column('country', sa.Integer),
+        ]
     }) as db:
         db.write('salis', [
             {'kodas': 'lt', 'pavadinimas': 'Lietuva'},
@@ -49,6 +54,9 @@ def geodb():
             {'salis': 'lt', 'pavadinimas': 'Vilnius'},
             {'salis': 'lv', 'pavadinimas': 'Ryga'},
             {'salis': 'ee', 'pavadinimas': 'Talinas'},
+        ])
+        db.write('cities', [
+            {'name': 'Vilnius', 'country': 2},
         ])
         yield db
 
@@ -2543,6 +2551,65 @@ def test_point(
 
     resp = app.get(f'/{dataset}/Data')
     assert listdata(resp) == [(1, 'POINT (4.0 2.0)')]
+
+
+def test_push_with_resource_check(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property  | type   | ref     | source       | access
+    datasets/gov/exampleRes   |        |         |              |
+      | data                  | sql    |         |              |
+      |   |   | countryRes    |        | code    | salis        |
+      |   |   |   | code      | string |         | kodas        | open
+      |   |   |   | name      | string |         | pavadinimas  | open
+      |   |                   |        |         |              |
+    datasets/gov/exampleNoRes |        |         |              |
+      |   |   | countryNoRes  |        |         |              |
+      |   |   |   | code      | string |         |              | open
+      |   |   |   | name      | string |         |              | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/exampleRes',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/exampleNoRes',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('datasets/gov/exampleRes/countryRes', ['getall'])
+    resp_res = remote.app.get('/datasets/gov/exampleRes/countryRes')
+    assert len(listdata(resp_res)) == 3
+
+    remote.app.authmodel('datasets/gov/exampleNoRes/countryNoRes', ['getall'])
+    resp_no_res = remote.app.get('/datasets/gov/exampleNoRes/countryNoRes')
+    assert len(listdata(resp_no_res)) == 0
 
 
 def test_push_ref_with_level_no_source(

@@ -84,7 +84,7 @@ def test_push_with_progress_bar(
         '-o', remote.url,
         '--credentials', remote.credsfile,
     ])
-    print()
+
     assert result.exit_code == 0
     assert "Count rows:   0%" in result.stderr
     assert "PUSH:   0%|          | 0/3" in result.stderr
@@ -319,62 +319,3 @@ def test_push_ref_with_level_4(
     assert listdata(resp_city, 'name') == ['Vilnius']
     assert len(listdata(resp_city, 'id', 'name', 'country')) == 1
     assert '_id' in listdata(resp_city, 'country')[0].keys()
-
-
-def test_push_with_resource_check(
-    postgresql,
-    rc,
-    cli: SpintaCliRunner,
-    responses,
-    tmp_path,
-    geodb,
-    request
-):
-    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
-    d | r | b | m | property  | type   | ref     | source       | access
-    datasets/gov/exampleRes   |        |         |              |
-      | data                  | sql    |         |              |
-      |   |   | countryRes    |        | code    | salis        |
-      |   |   |   | code      | string |         | kodas        | open
-      |   |   |   | name      | string |         | pavadinimas  | open
-      |   |                   |        |         |              |
-    datasets/gov/exampleNoRes |        |         |              |
-      |   |   | countryNoRes  |        |         |              |
-      |   |   |   | code      | string |         |              | open
-      |   |   |   | name      | string |         |              | open
-    '''))
-
-    # Configure local server with SQL backend
-    localrc = create_rc(rc, tmp_path, geodb)
-
-    # Configure remote server
-    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses)
-    request.addfinalizer(remote.app.context.wipe_all)
-
-    # Push data from local to remote.
-    assert remote.url == 'https://example.com/'
-    result = cli.invoke(localrc, [
-        'push',
-        '-d', 'datasets/gov/exampleRes',
-        '-o', remote.url,
-        '--credentials', remote.credsfile,
-        '--no-progress-bar',
-    ])
-    assert result.exit_code == 0
-
-    result = cli.invoke(localrc, [
-        'push',
-        '-d', 'datasets/gov/exampleNoRes',
-        '-o', remote.url,
-        '--credentials', remote.credsfile,
-        '--no-progress-bar',
-    ])
-    assert result.exit_code == 0
-
-    remote.app.authmodel('datasets/gov/exampleRes/countryRes', ['getall'])
-    resp_res = remote.app.get('/datasets/gov/exampleRes/countryRes')
-    assert len(listdata(resp_res)) == 3
-
-    remote.app.authmodel('datasets/gov/exampleNoRes/countryNoRes', ['getall'])
-    resp_no_res = remote.app.get('/datasets/gov/exampleNoRes/countryNoRes')
-    assert len(listdata(resp_no_res)) == 0
