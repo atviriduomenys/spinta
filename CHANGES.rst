@@ -3,14 +3,82 @@
 Changes
 #######
 
-0.1.51 (unreleased)
+0.1.54 (unreleased)
+===================
+
+
+0.1.53 (2023-08-01)
+===================
+
+New features:
+
+- Add support for RDF as manifest format (`#336`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/336
+
+- Add support for XML as manifest format (`#89`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/89
+
+Improvements:
+
+- Delete push target objects in correct order (`#458`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/458
+
+Bug fixes:
+
+- Add support for Oracle RAW type (`#493`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/493
+
+
+0.1.52 (2023-06-21)
 ===================
 
 Improvements:
 
-- Recognize CHAR data types (`#469`__).
+- Recognize Oracle ROWID data type.
+
+
+0.1.51 (2023-06-20)
+===================
+
+New features:
+
+- Add support for `param` dimension (`#210`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/210
+
+- Spinta inspect now supports JSON data as schema source (`#98`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/98
+
+
+Improvements:
+
+- Recognize CHAR and BYTES data types (`#469`__).
 
   __ https://github.com/atviriduomenys/spinta/issues/469
+
+
+- Allow writing data to models with base (`#205`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/205
+
+
+Bug fixes:
+
+- Fix spint push with ref type set to level 3 or below (`#460`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/460
+
+
+- Automatically add unique constraints for all primary keys specified in
+  model.ref (`#371`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/371
+
 
 
 0.1.50 (2023-05-22)

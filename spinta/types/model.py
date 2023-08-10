@@ -198,7 +198,7 @@ def link(context: Context, base: Base):
     base.pk = [
         base.parent.properties[pk]
         for pk in base.pk
-    ]
+    ] if base.pk else []
 
 
 @commands.load.register(Context, Property, dict, Manifest)
