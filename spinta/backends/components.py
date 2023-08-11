@@ -55,4 +55,8 @@ class Backend:
         raise NotImplementedError
 
 
+class NoBackend(Backend):
+    pass
+
+
 SelectTree = Optional[Dict[str, 'SelectTree']]

@@ -45,6 +45,8 @@ from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
 from spinta.types.datatype import Ref
+from spinta.backends.components import NoBackend
+from spinta.datasets.components import ExternalBackend
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -161,7 +163,6 @@ def link(context: Context, model: Model):
         else:
             model.backend = model.manifest.store.backends[model.backend]
     elif (
-        model.mode == Mode.external and
         model.external and
         model.external.resource and
         model.external.resource.backend
@@ -169,6 +170,13 @@ def link(context: Context, model: Model):
         model.backend = model.external.resource.backend
     else:
         model.backend = model.manifest.backend
+
+    if model.mode == Mode.external:
+        if not isinstance(model.backend, ExternalBackend):
+            model.backend = NoBackend()
+    else:
+        if isinstance(model.backend, ExternalBackend):
+            model.backend = NoBackend()
 
     if model.external and model.external.dataset:
         link_access_param(model, itertools.chain(
