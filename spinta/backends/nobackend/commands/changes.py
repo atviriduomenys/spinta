@@ -1,14 +1,14 @@
 from typing import AsyncIterator
 
 from spinta import commands
-from spinta.components import Context, Property, DataItem
+from spinta.components import Context, Property, Model, DataItem
 from spinta.backends.nobackend.components import NoBackend
 
 
-@commands.create_changelog_entry.register(Context, Property, NoBackend)
+@commands.create_changelog_entry.register(Context, (Model, Property), NoBackend)
 def create_changelog_entry(
     context: Context,
-    model: Property,
+    model: (Model, Property),
     backend: NoBackend,
     *,
     dstream: AsyncIterator[DataItem],
