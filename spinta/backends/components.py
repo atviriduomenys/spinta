@@ -5,6 +5,8 @@ from typing import Dict
 from typing import Optional
 from typing import Set
 
+from spinta.typing import ObjectData
+
 
 class BackendOrigin(enum.Enum):
     """Origin where backend was defined.
@@ -53,10 +55,6 @@ class Backend:
 
     def bootstrapped(self):
         raise NotImplementedError
-
-
-class NoBackend(Backend):
-    pass
 
 
 SelectTree = Optional[Dict[str, 'SelectTree']]

@@ -588,3 +588,7 @@ class UnknownRequestQuery(UserError):
 
 class InvalidRequestQuery(UserError):
     template = "Query '{query}' requires '{format}' format."
+
+
+class TableHasNoSource(UserError):
+    template = "Table '{name}' does not exist, because it has no source in the manifest"

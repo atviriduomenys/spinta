@@ -45,7 +45,7 @@ from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
 from spinta.types.datatype import Ref
-from spinta.backends.components import NoBackend
+from spinta.backends.nobackend.components import NoBackend
 from spinta.datasets.components import ExternalBackend
 
 if TYPE_CHECKING:

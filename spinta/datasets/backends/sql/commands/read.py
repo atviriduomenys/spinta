@@ -5,6 +5,7 @@ from typing import Iterator
 from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
+from spinta.backends.nobackend.components import NoBackend
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
@@ -19,7 +20,7 @@ from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
 from spinta.dimensions.enum.helpers import get_prop_enum
-from spinta.exceptions import ValueNotInEnum
+from spinta.exceptions import ValueNotInEnum, TableHasNoSource
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.ufuncs.helpers import merge_formulas
@@ -87,6 +88,8 @@ def getall(
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
     for params in iterparams(context, model):
         table = model.external.name.format(**params)
+        if isinstance(backend, NoBackend):
+            raise TableHasNoSource(name=table)
         table = backend.get_table(model, table)
 
         env = builder.init(backend, table)
