@@ -1,6 +1,6 @@
 from spinta.backends.helpers import get_table_name
 from spinta.backends.nobackend.components import NoBackend
-from spinta.exceptions import TableHasNoSource
+from spinta.exceptions import BackendNotGiven
 from spinta import commands
 from spinta.core.ufuncs import Expr
 from spinta.components import Context
@@ -16,7 +16,7 @@ def getall(
     query: Expr = None,
 ):
     table = get_table_name(model)
-    raise TableHasNoSource(table)
+    raise BackendNotGiven(table)
 
 
 @commands.getone.register(Context, Model, NoBackend)
@@ -28,7 +28,7 @@ def getone(
     id_: str,
 ):
     table = get_table_name(model)
-    raise TableHasNoSource(table)
+    raise BackendNotGiven(table)
 
 
 @commands.changes.register(Context, Model, NoBackend)
@@ -42,4 +42,4 @@ def changes(
     offset: int = -10,
 ):
     table = get_table_name(model)
-    raise TableHasNoSource(table)
+    raise BackendNotGiven(table)

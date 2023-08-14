@@ -590,5 +590,5 @@ class InvalidRequestQuery(UserError):
     template = "Query '{query}' requires '{format}' format."
 
 
-class TableHasNoSource(UserError):
-    template = "Table '{name}' does not exist, because it has no source in the manifest"
+class BackendNotGiven(UserError):
+    template = "Model {model} does not have a backend or resource set, this means model is external or you simple set a backend in configuration."

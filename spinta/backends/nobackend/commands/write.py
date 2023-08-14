@@ -4,7 +4,7 @@ from spinta import commands
 from spinta.backends.helpers import get_table_name
 from spinta.components import Context, Model, DataItem, DataSubItem
 from spinta.backends.nobackend.components import NoBackend
-from spinta.exceptions import TableHasNoSource
+from spinta.exceptions import BackendNotGiven
 
 
 @commands.insert.register(Context, Model, NoBackend)
@@ -17,7 +17,7 @@ async def insert(
     stop_on_error: bool = True,
 ):
     table = get_table_name(model)
-    raise TableHasNoSource(table)
+    raise BackendNotGiven(table)
 
 
 @commands.update.register(Context, Model, NoBackend)
@@ -30,7 +30,7 @@ async def update(
     stop_on_error: bool = True,
 ):
     table = get_table_name(model)
-    raise TableHasNoSource(table)
+    raise BackendNotGiven(table)
 
 
 @commands.delete.register(Context, Model, NoBackend)
@@ -43,7 +43,7 @@ async def delete(
     stop_on_error: bool = True,
 ):
     table = get_table_name(model)
-    raise TableHasNoSource(table)
+    raise BackendNotGiven(table)
 
 
 @commands.before_write.register(Context, Model, NoBackend)
@@ -55,7 +55,7 @@ def before_write(
     data: DataSubItem,
 ) -> dict:
     table = get_table_name(model)
-    raise TableHasNoSource(table)
+    raise BackendNotGiven(table)
 
 
 @commands.after_write.register(Context, Model, NoBackend)
@@ -67,4 +67,4 @@ def after_write(
     data: DataSubItem,
 ) -> dict:
     table = get_table_name(model)
-    raise TableHasNoSource(table)
+    raise BackendNotGiven(table)
