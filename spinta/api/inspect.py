@@ -9,8 +9,7 @@ from typing import Tuple
 from spinta import commands
 from spinta.components import Context, UrlParams
 from spinta.datasets.inspect.helpers import create_manifest_from_inspect
-from spinta.exceptions import UnexpectedFormKeys, RequiredFormKey, InvalidFormKeyCombination, \
-    RequiredFormKeyWithCondition, MissingFormKeys
+from spinta.exceptions import UnexpectedFormKeys, InvalidFormKeyCombination, RequiredFormKeyWithCondition, MissingFormKeys
 from spinta.manifests.components import ManifestPath
 
 
@@ -30,10 +29,6 @@ def _validate_form_data(form: FormData):
     if not set(form.keys()).issubset(allowed_values):
         unknown_keys = list(form.keys() - allowed_values)
         raise UnexpectedFormKeys(allowed_keys=allowed_values, unknown_keys=unknown_keys)
-
-    # Check Required form data
-    if 'dataset' not in form.keys():
-        raise RequiredFormKey(key='dataset')
 
 
 class InspectRequestForm:
@@ -134,6 +129,11 @@ class InspectRequestForm:
         if self.resource_path and not self.resource_type:
             raise RequiredFormKeyWithCondition(
                 key="resource.type",
+                condition="'resource.source' or 'resource.file' keys are given"
+            )
+        if self.resource_path and not self.dataset:
+            raise RequiredFormKeyWithCondition(
+                key="dataset",
                 condition="'resource.source' or 'resource.file' keys are given"
             )
 

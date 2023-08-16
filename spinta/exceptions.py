@@ -594,10 +594,6 @@ class UnexpectedFormKeys(UserError):
     template = "Unexpected keys: {unknown_keys}, only keys that are allowed are: {allowed_keys}."
 
 
-class RequiredFormKey(UserError):
-    template = "'{key}' key is required in this form."
-
-
 class RequiredFormKeyWithCondition(UserError):
     template = "'{key}' key is required when {condition}."
 
