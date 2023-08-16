@@ -23,6 +23,7 @@ from spinta.auth import authorized
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import BackendFeatures
+from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Action
 from spinta.components import Config
@@ -244,7 +245,7 @@ def traverse_ns_models(
     for model in models.values():
         if _model_matches_params(context, model, action, dataset_, resource, internal):
             if source_check:
-                if model.external:
+                if model.backend and not isinstance(model.backend, NoBackend):
                     yield model
             else:
                 yield model

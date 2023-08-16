@@ -44,27 +44,3 @@ async def delete(
 ):
     table = get_table_name(model)
     raise BackendNotGiven(table)
-
-
-@commands.before_write.register(Context, Model, NoBackend)
-def before_write(
-    context: Context,
-    model: Model,
-    backend: NoBackend,
-    *,
-    data: DataSubItem,
-) -> dict:
-    table = get_table_name(model)
-    raise BackendNotGiven(table)
-
-
-@commands.after_write.register(Context, Model, NoBackend)
-def after_write(
-    context: Context,
-    model: Model,
-    backend: NoBackend,
-    *,
-    data: DataSubItem,
-) -> dict:
-    table = get_table_name(model)
-    raise BackendNotGiven(table)
