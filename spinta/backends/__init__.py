@@ -274,7 +274,8 @@ def simple_data_check(
     value: object,
 ) -> None:
     if value and not isinstance(value, dict):
-        raise exceptions.InvalidRefValue(prop, value=value)
+        if not isinstance(value, list):
+            raise exceptions.InvalidRefValue(prop, value=value)
 
 
 @commands.simple_data_check.register(Context, DataItem, Inherit, Property, Backend, object)
@@ -593,7 +594,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    assert isinstance(value, (str, int, float, bool, type(None))), (
+    assert isinstance(value, (str, int, float, bool, type(None), list)), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
         f"model={dtype.prop.model!r}, dtype={dtype!r}"

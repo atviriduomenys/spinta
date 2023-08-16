@@ -32,6 +32,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Date
 from spinta.types.datatype import PrimaryKey
+from spinta.types.datatype import BackRef
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.components import BackendFeatures
@@ -383,8 +384,18 @@ def select(env, dtype, leaf):
 @ufunc.resolver(PgQueryBuilder, Ref)
 def select(env, dtype):
     table = env.backend.get_table(env.model)
-    column = table.c[dtype.prop.place + '._id']
+    if '[]' in dtype.prop.name:
+        column = table.c['_id']
+    else:
+        column = table.c[dtype.prop.place + '._id']
     return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, BackRef)
+def select(env, dtype):
+    table = env.backend.get_table(env.model)
+    column = table.c['_id']
+    return Selected(column, dtype.prop.model.flatprops[dtype.prop.name])
 
 
 @ufunc.resolver(PgQueryBuilder, ExternalRef)
