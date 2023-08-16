@@ -1,4 +1,4 @@
-import csv
+import io
 import pathlib
 from typing import Any
 from typing import Dict
@@ -13,23 +13,22 @@ from spinta.components import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
-from spinta.formats.csv.components import Csv
-from spinta.formats.csv.components import IterableFile
 from spinta.formats.helpers import get_model_tabular_header
+from spinta.formats.xlsx.components import Xlsx
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.constants import DATASET
-from spinta.manifests.tabular.helpers import datasets_to_tabular, write_csv
+from spinta.manifests.tabular.helpers import datasets_to_tabular, write_xlsx
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.response import aiter
 
 
-@commands.render.register(Context, Request, Model, Csv)
+@commands.render.register(Context, Request, Model, Xlsx)
 def render(
     context: Context,
     request: Request,
     model: Model,
-    fmt: Csv,
+    fmt: Xlsx,
     *,
     action: Action,
     params: UrlParams,
@@ -38,20 +37,23 @@ def render(
     headers: Dict[str, str] = None,
 ) -> Response:
     headers = headers or {}
-    headers['Content-Disposition'] = f'attachment; filename="{model.basename}.csv"'
+    headers['Content-Disposition'] = f'attachment; filename="{model.basename}.xlsx"'
+
+    rows = flatten(data)
+    cols = get_model_tabular_header(context, model, action, params)
     return StreamingResponse(
-        aiter(_render_model_csv(context, model, action, params, data)),
+        aiter(_render_xlsx(rows, cols)),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,
     )
 
 
-@commands.render.register(Context, Manifest, Csv)
+@commands.render.register(Context, Manifest, Xlsx)
 def render(
     context: Context,
     manifest: Manifest,
-    fmt: Csv,
+    fmt: Xlsx,
     *,
     action: Action = None,
     params: UrlParams = None,
@@ -63,40 +65,23 @@ def render(
     rows = ({c: row[c] for c in DATASET} for row in rows)
     if not path:
         headers = headers or {}
-        headers['Content-Disposition'] = f'attachment; filename="{manifest.name}.csv"'
+        headers['Content-Disposition'] = f'attachment; filename="{manifest.name}.xlsx"'
         return StreamingResponse(
-            aiter(_render_manifest_csv(rows)),
+            aiter(_render_xlsx(rows, DATASET)),
             status_code=status_code,
             media_type=fmt.content_type,
             headers=headers,
         )
     else:
-        write_csv(pathlib.Path(path), rows, DATASET)
+        write_xlsx(pathlib.Path(path), rows, DATASET)
 
 
-def _render_manifest_csv(
-    rows: Iterator[ManifestRow]
+def _render_xlsx(
+    rows: Iterator[ManifestRow],
+    cols: list
 ):
-    stream = IterableFile()
-    writer = csv.DictWriter(stream, fieldnames=DATASET)
-    writer.writeheader()
-    writer.writerows(rows)
-    yield from stream
-
-
-def _render_model_csv(
-    context: Context,
-    model: Model,
-    action: Action,
-    params: UrlParams,
-    data: Iterator[Dict[str, Any]],
-):
-    rows = flatten(data)
-    cols = get_model_tabular_header(context, model, action, params)
-
-    stream = IterableFile()
-    writer = csv.DictWriter(stream, fieldnames=cols)
-    writer.writeheader()
-    for row in rows:
-        writer.writerow(row)
-        yield from stream
+    stream = io.BytesIO()
+    write_xlsx(stream, rows, cols)
+    stream.seek(0)
+    for row in stream.readlines():
+        yield row

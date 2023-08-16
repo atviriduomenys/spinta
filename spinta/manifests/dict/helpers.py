@@ -1,19 +1,20 @@
 import pathlib
 import json
 
+import requests
 import xmltodict
 from typing import List, Dict, Union, TypedDict, Any, Tuple, Callable
 
-from urllib.request import urlopen
-
-from spinta.manifests.dict.components import DictFormat
+from spinta.manifests.dict.components import DictFormat, DictManifest
 from spinta.manifests.helpers import TypeDetector
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
 
-def read_schema(manifest_type: DictFormat, path: str):
+def read_schema(manifest: DictManifest):
+    manifest_type: DictFormat = manifest.format
+    path: str = manifest.path
     if path.startswith(('http://', 'https://')):
-        value = urlopen(path).read()
+        value = requests.get(path).text
     else:
         with pathlib.Path(path).open(encoding='utf-8-sig') as f:
             value = f.read()
@@ -58,7 +59,7 @@ def read_schema(manifest_type: DictFormat, path: str):
             'eid': i
         }
     dataset_structure: _MappedDataset = {
-        "dataset": "dataset",
+        "dataset": list(manifest.datasets.keys())[0] if manifest.datasets else "dataset",
         "resource": "resource",
         "models": {}
     }

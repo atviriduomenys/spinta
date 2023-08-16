@@ -588,3 +588,31 @@ class UnknownRequestQuery(UserError):
 
 class InvalidRequestQuery(UserError):
     template = "Query '{query}' requires '{format}' format."
+
+
+class UnexpectedFormKeys(UserError):
+    template = "Unexpected keys: {unknown_keys}, only keys that are allowed are: {allowed_keys}."
+
+
+class RequiredFormKey(UserError):
+    template = "'{key}' key is required in this form."
+
+
+class RequiredFormKeyWithCondition(UserError):
+    template = "'{key}' key is required when {condition}."
+
+
+class InvalidFormKeyCombination(UserError):
+    template = "Form only accepts one of the keys: {keys}."
+
+
+class MissingFormKeys(UserError):
+    template = "Form requires to have at least one of the keys: {keys}."
+
+
+class UnknownManifestType(BaseError):
+    template = "Can't find manifest component matching given type {type!r}."
+
+
+class UnknownManifestTypeFromPath(BaseError):
+    template = "Can't find manifest type matching given path {path!r}."

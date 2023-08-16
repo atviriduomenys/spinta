@@ -14,15 +14,17 @@ from sqlalchemy.dialects import oracle
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.types import TypeEngine
 
+from spinta.manifests.sql.components import SqlManifest
 from spinta.utils.naming import Deduplicator
 from spinta.utils.naming import to_dataset_name
 from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
 
 
-def read_schema(path: str):
+def read_schema(manifest: SqlManifest):
+    path = manifest.path
     url = sa.engine.make_url(path)
-    dataset = to_dataset_name(url.database) if url.database else 'dataset1'
+    dataset = list(manifest.datasets.keys())[0] if manifest.datasets else to_dataset_name(url.database) if url.database else 'dataset1'
     resource = 'resource1'
     yield None, {
         'type': 'dataset',

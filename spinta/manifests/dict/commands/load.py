@@ -25,7 +25,7 @@ def load(
     if manifest.path is None:
         return
 
-    schemas = read_schema(manifest.format, manifest.path)
+    schemas = read_schema(manifest)
     if into:
         load_manifest_nodes(context, into, schemas, source=manifest)
     else:

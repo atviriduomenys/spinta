@@ -86,7 +86,7 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     _resolve_path(context, params)
     params.format = get_response_type(context, request, params)
     config: Config = context.get('config')
-    params.fmt = config.exporters[params.format]
+    params.fmt = config.exporters[params.format if params.format else 'json']
 
 
 def _prepare_urlparams_from_path(params: UrlParams):
@@ -175,6 +175,8 @@ def _prepare_urlparams_from_path(params: UrlParams):
             params.summary = True
             if args:
                 params.select = args
+        elif name == 'inspect':
+            params.inspect = True
         elif name == 'fault-tolerant':
             params.fault_tolerant = True
         elif name == 'wipe':
@@ -311,5 +313,3 @@ def get_response_type(
         for media_type in media_types.lower().split(','):
             if media_type in formats:
                 return formats[media_type]
-
-    return 'json'

@@ -2013,14 +2013,14 @@ def write_tabular_manifest(
 
     rows = ({c: row[c] for c in cols} for row in rows)
     if path.endswith('.csv'):
-        _write_csv(pathlib.Path(path), rows, cols)
+        write_csv(pathlib.Path(path), rows, cols)
     elif path.endswith('.xlsx'):
-        _write_xlsx(pathlib.Path(path), rows, cols)
+        write_xlsx(pathlib.Path(path), rows, cols)
     else:
         raise ValueError(f"Unknown tabular manifest format {path!r}.")
 
 
-def _write_csv(
+def write_csv(
     path: pathlib.Path,
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
@@ -2031,12 +2031,13 @@ def _write_csv(
         writer.writerows(rows)
 
 
-def _write_xlsx(
-    path: pathlib.Path,
+def write_xlsx(
+    path: Any,
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
     workbook = xlsxwriter.Workbook(path, {
+        'in_memory': True,
         'strings_to_formulas': False,
         'strings_to_urls': False,
     })

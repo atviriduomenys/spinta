@@ -27,7 +27,6 @@ from spinta.exceptions import BaseError, MultipleErrors, error_response
 from spinta.middlewares import ContextMiddleware
 from spinta.urlparams import Version
 from spinta.urlparams import get_response_type
-from spinta.utils.response import create_http_response
 from spinta.accesslog import create_accesslog
 from spinta.exceptions import NoAuthServer
 
@@ -70,6 +69,7 @@ async def auth_token(request: Request):
 
 
 async def homepage(request: Request):
+    from spinta.utils.response import create_http_response
     context: Context = request.state.context
 
     context.set('auth.request', get_auth_request({
@@ -145,7 +145,7 @@ async def error(request, exc):
     response = {'errors': errors}
 
     fmt = get_response_type(request.state.context, request)
-    if fmt == 'json':
+    if fmt == 'json' or fmt is None:
         return JSONResponse(
             response,
             status_code=status_code,

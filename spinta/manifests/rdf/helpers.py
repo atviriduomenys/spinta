@@ -185,7 +185,7 @@ def read_rdf_manifest(
     schemas = []
     dataset = {
         'type': 'dataset',
-        'name': manifest.path.split('/')[-1].rsplit('.', 1)[0],
+        'name': list(manifest.datasets.keys())[0] if manifest.datasets else manifest.path.split('/')[-1].rsplit('.', 1)[0],
         'prefixes': {}
     }
     for i, (name, url) in enumerate(g.namespaces()):

@@ -71,7 +71,7 @@ def load(
     load_node(context, model, data)
     model.lang = load_lang_data(context, model.lang)
     model.comments = load_comments(model, model.comments)
-
+    model.given.name = data.get("given_name", None)
     if model.keymap:
         model.keymap = manifest.store.keymaps[model.keymap]
     else:
@@ -216,6 +216,7 @@ def load(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
     ))
+    prop.given.name = data.get("given_name", None)
     load_access_param(prop, prop.access, parents)
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)

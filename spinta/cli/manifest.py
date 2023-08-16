@@ -8,10 +8,12 @@ from typer import Option
 from typer import Typer
 from typer import echo
 
+from spinta.cli.helpers.manifest import convert_str_to_manifest_path
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.core.enums import Access
+from spinta.manifests.components import ManifestPath
 from spinta.manifests.tabular.components import ManifestColumn
 from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.helpers import datasets_to_tabular
@@ -63,6 +65,8 @@ def copy(
     if not output:
         verbose = False
 
+    manifests = convert_str_to_manifest_path(manifests)
+
     rows = _read_csv_files(
         context,
         manifests,
@@ -82,7 +86,7 @@ def copy(
 
 def _read_csv_files(
     context: Context,
-    manifests: List[str],
+    manifests: List[ManifestPath],
     *,
     external: bool = True,
     access: Access = Access.private,

@@ -473,6 +473,7 @@ class Base(Node):
 class ModelGiven:
     access: str = None
     pkeys: list[str] = None
+    name: str = None
 
 
 class Model(MetaData):
@@ -516,6 +517,7 @@ class Model(MetaData):
         'params': {'type': 'object'},
         'comments': {},
         'uri': {'type': 'string'},
+        'given_name': {'type': 'string', 'default': None},
     }
 
     def __init__(self):
@@ -547,6 +549,7 @@ class PropertyGiven:
     access: str = None
     enum: str = None
     unit: str = None
+    name: str = None
 
 
 class Property(Node):
@@ -592,6 +595,7 @@ class Property(Node):
         'units': {'type': 'string'},
         'lang': {'type': 'object'},
         'comments': {},
+        'given_name': {'type': 'string', 'default': None},
     }
 
     def __init__(self):
@@ -722,6 +726,9 @@ class UrlParams:
     # If True, then HTTP HEAD request was made, this means no data must be
     # returned only headers.
     head: bool = False
+
+    # If True, inspect POST request was made
+    inspect: bool = False
 
     query: List[Dict[str, Any]] = None
 

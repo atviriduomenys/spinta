@@ -8,7 +8,6 @@ from starlette.requests import Request
 
 from spinta import commands
 from spinta import exceptions
-from spinta.formats.components import Format
 from spinta.components import Action
 from spinta.components import Context
 from spinta.components import Node
@@ -17,6 +16,7 @@ from spinta.components import UrlParams
 from spinta.exceptions import BaseError
 from spinta.exceptions import NoBackendConfigured
 from spinta.exceptions import error_response
+from spinta.api.inspect import inspect_api
 from spinta.renderer import render
 
 
@@ -113,7 +113,6 @@ async def create_http_response(
         context.attach('transaction', manifest.backend.transaction)
 
         if params.changes:
-            _enforce_limit(context, params)
             return await commands.changes(
                 context,
                 params.model,
@@ -144,7 +143,6 @@ async def create_http_response(
                 params=params
             )
         else:
-            _enforce_limit(context, params)
             action = params.action
             model = params.model
             backend = model.backend
@@ -186,46 +184,38 @@ async def create_http_response(
             )
 
     else:
-        context.attach('transaction', manifest.backend.transaction, write=True)
-        action = params.action
-        if params.prop and params.propref:
-            return await commands.push(
-                context,
-                request,
-                params.prop.dtype,
-                params.model.backend,
-                action=action,
-                params=params,
-            )
-        elif params.prop:
-            return await commands.push(
-                context,
-                request,
-                params.prop.dtype,
-                params.prop.dtype.backend,
-                action=action,
-                params=params,
-            )
+        if request.method == 'POST' and params.inspect:
+            return await inspect_api(context, request, params)
         else:
-            return await commands.push(
-                context,
-                request,
-                params.model,
-                params.model.backend,
-                action=action,
-                params=params,
-            )
-
-
-def _enforce_limit(context: Context, params: UrlParams):
-    config = context.get('config')
-    fmt: Format = config.exporters[params.format]
-    # XXX: I think this is not the best way to enforce limit, maybe simply
-    #      an error should be raised?
-    # XXX: Max resource count should be configurable.
-    if not fmt.streamable and (params.limit is None or params.limit > 100):
-        params.limit = params.limit_enforced_to + 1
-        params.limit_enforced = True
+            context.attach('transaction', manifest.backend.transaction, write=True)
+            action = params.action
+            if params.prop and params.propref:
+                return await commands.push(
+                    context,
+                    request,
+                    params.prop.dtype,
+                    params.model.backend,
+                    action=action,
+                    params=params,
+                )
+            elif params.prop:
+                return await commands.push(
+                    context,
+                    request,
+                    params.prop.dtype,
+                    params.prop.dtype.backend,
+                    action=action,
+                    params=params,
+                )
+            else:
+                return await commands.push(
+                    context,
+                    request,
+                    params.model,
+                    params.model.backend,
+                    action=action,
+                    params=params,
+                )
 
 
 def peek_and_stream(stream):

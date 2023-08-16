@@ -30,7 +30,7 @@ def load(
             store = context.get('store')
             commands.load(context, store.internal, into=target)
 
-    schemas = read_schema(manifest.path)
+    schemas = read_schema(manifest)
 
     if into:
         log.info(

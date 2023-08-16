@@ -18,7 +18,7 @@ from spinta.datasets.components import Entity
 from spinta.datasets.components import Resource
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.prefix.helpers import load_prefixes
-from spinta.exceptions import ManifestFileDoesNotExist
+from spinta.exceptions import ManifestFileDoesNotExist, UnknownManifestTypeFromPath, UnknownManifestType
 from spinta.exceptions import UnknownKeyMap
 from spinta.manifests.components import ManifestSchema
 from spinta.nodes import get_node
@@ -112,6 +112,14 @@ def _configure_manifest(
     mode = rc.get('manifests', name, 'mode')
     if mode:
         manifest.mode = enum_by_name(manifest, 'mode', Mode, mode)
+    manifest_data = rc.get('manifests', name, 'manifest')
+    if manifest_data:
+        for item in manifest_data:
+            if item["type"] and item["type"] == "dataset":
+                dataset = Dataset()
+                dataset.name = item["name"]
+                dataset.manifest = manifest
+                manifest.datasets[item["name"]] = dataset
     for source in rc.get('manifests', name, 'sync', default=[], cast=list):
         if source in seen:
             raise Exception("Manifest sync cycle: " + ' -> '.join(seen + [source]))
@@ -314,9 +322,7 @@ def detect_manifest_from_path(rc: RawConfig, path: str) -> Type[Manifest]:
         )
         if Manifest_.detect_from_path(path):
             return Manifest_
-    raise ValueError(
-        f"Can't find manifest type matching given path {path!r}"
-    )
+    raise UnknownManifestTypeFromPath(path=path)
 
 
 def get_manifest_from_type(rc: RawConfig, type_: str) -> Type[Manifest]:
@@ -327,9 +333,7 @@ def get_manifest_from_type(rc: RawConfig, type_: str) -> Type[Manifest]:
         )
         if Manifest_.type == type_:
             return Manifest_
-    raise ValueError(
-        f"Can't find manifest component matching given type {type_!r}"
-    )
+    raise UnknownManifestType(type=type_)
 
 
 def check_manifest_path(manifest: Manifest, path: str) -> None:
