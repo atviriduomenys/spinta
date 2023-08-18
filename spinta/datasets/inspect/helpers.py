@@ -307,10 +307,12 @@ def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Model, h
     old_name = old.name
     if f'{old.ns.name}/{old.basename}' != old.name:
         name = f'{old.ns.name}/{old.basename}'
-        old.external.name = name
-        old.name = name
-        new.external.name = name
-        new.name = name
+        if old:
+            old.external.name = name
+            old.name = name
+        if new:
+            new.external.name = name
+            new.name = name
     if old.external and old.external.resource:
         resources = zipitems(
             old.external.dataset.resources.values(),

@@ -262,6 +262,7 @@ class DatasetReader(TabularReader):
                 'access': row['access'],
                 'title': row['title'],
                 'description': row['description'],
+                'given_name': row['dataset'],
                 'resources': {},
             }
 
@@ -335,6 +336,7 @@ class ResourceReader(TabularReader):
             'access': row['access'],
             'title': row['title'],
             'description': row['description'],
+            'given_name': self.name,
         }
 
         dataset['resources'][self.name] = self.data
@@ -441,6 +443,7 @@ class ModelReader(TabularReader):
                 'name': row['source'],
                 'prepare': _parse_spyna(self, row[PREPARE]),
             },
+            'given_name': name,
         }
         if resource and not dataset:
             self.data['backend'] = resource.name
@@ -589,6 +592,7 @@ class PropertyReader(TabularReader):
             'description': row['description'],
             'required': dtype['required'],
             'unique': dtype['unique'],
+            'given_name': self.name,
         }
         dataset = self.state.dataset.data if self.state.dataset else None
         if row['ref']:
@@ -1169,7 +1173,7 @@ def _read_csv_manifest(
         for i, row in enumerate(rows, 1):
             yield str(i), row
     else:
-        with pathlib.Path(path).open(encoding='utf-8') as f:
+        with pathlib.Path(path).open(encoding='utf-8', newline='') as f:
             rows = csv.reader(f)
             for i, row in enumerate(rows, 1):
                 yield str(i), row
@@ -2025,7 +2029,7 @@ def write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w') as f:
+    with path.open('w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)
