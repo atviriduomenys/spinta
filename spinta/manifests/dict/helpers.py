@@ -58,8 +58,9 @@ def read_schema(manifest: DictManifest):
             'uri': value,
             'eid': i
         }
+    given_dataset_name = list(manifest.datasets.keys())[0] if manifest.datasets else None
     dataset_structure: _MappedDataset = {
-        "dataset": list(manifest.datasets.keys())[0] if manifest.datasets else "dataset",
+        "dataset": given_dataset_name if given_dataset_name else "dataset",
         "resource": "resource",
         "models": {}
     }
@@ -76,6 +77,7 @@ def read_schema(manifest: DictManifest):
                 'external': path,
             },
         },
+        'given_name': given_dataset_name if given_dataset_name else None
     }
 
     dedup_model = Deduplicator('{}')

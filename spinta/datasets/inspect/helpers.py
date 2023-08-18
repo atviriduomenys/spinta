@@ -122,11 +122,17 @@ def merge(context: Context, manifest: Manifest, old: Manifest, new: Manifest, ha
     datasets = zipitems(
         old.datasets.values(),
         new.datasets.values(),
-        _dataset_resource_source_key,
+        _dataset_key,
     )
-
+    deduplicator = Deduplicator("{}")
     for ds in datasets:
         for o, n in ds:
+            if o:
+                deduplicator(o.name)
+            elif n and not o:
+                name = deduplicator(n.name)
+                n.name = name
+                n.ns.name = name
             commands.merge(context, manifest, o, n, has_manifest_priority)
 
 
@@ -188,11 +194,11 @@ def merge(context: Context, manifest: Manifest, old: Dataset, new: Dataset, has_
     models = zipitems(
         dataset_models,
         new.manifest.models.values(),
-        _model_source_key
+        _model_key
     )
     resource_list = []
     for res in new.resources.values():
-        resource_list.append(_resource_source_key(res))
+        resource_list.append(_resource_key(res))
     deduplicator = Deduplicator()
     for model in models:
         for om, nm in model:
@@ -200,7 +206,7 @@ def merge(context: Context, manifest: Manifest, old: Dataset, new: Dataset, has_
                 deduplicator(om.name)
             if om and not nm:
                 if om.external and om.external.resource:
-                    if _resource_source_key(om.external.resource) in resource_list:
+                    if _resource_key(om.external.resource) in resource_list:
                         om.external.name = None
             if not om and nm:
                 if nm.external:
@@ -298,20 +304,29 @@ def merge(context: Context, manifest: Manifest, old: Resource, new: NotAvailable
 def merge(context: Context, manifest: Manifest, old: NotAvailable, new: Model, has_manifest_priority: bool) -> None:
     old = copy(new)
     old.external = copy(old.external)
+    old_name = old.name
+    if f'{old.ns.name}/{old.basename}' != old.name:
+        name = f'{old.ns.name}/{old.basename}'
+        old.external.name = name
+        old.name = name
+        new.external.name = name
+        new.name = name
     if old.external and old.external.resource:
         resources = zipitems(
             old.external.dataset.resources.values(),
             [old.external.resource],
-            _resource_source_key
+            _resource_key
         )
         for res in resources:
             for old_res, new_res in res:
                 if old_res and new_res:
                     old.external.resource = old_res
+                    if old_name != old.name:
+                        if old_name in old_res.models:
+                            del old_res.models[old_name]
                     old_res.models[old.name] = old
     old.manifest = manifest
     manifest.models[old.name] = old
-
     _merge_model_properties(context, manifest, old, new, has_manifest_priority)
 
 
@@ -340,7 +355,7 @@ def merge(context: Context, manifest: Manifest, old: Model, new: Model, has_mani
             keys = zipitems(
                 old.properties.values(),
                 new.external.pkeys,
-                _property_source_key
+                _property_key
             )
             new_keys = []
             for key in keys:
@@ -421,7 +436,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Array) -> No
     models = zipitems(
         [merged.items.model],
         manifest.models.values(),
-        _model_source_key
+        _model_key
     )
     for model in models:
         for o, n in model:
@@ -429,7 +444,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Array) -> No
                 properties = zipitems(
                     merged.items,
                     o.properties.values(),
-                    _property_source_key
+                    _property_key
                 )
                 for prop in properties:
                     for po, pn in prop:
@@ -469,7 +484,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Object) -> N
         models = zipitems(
             [value.model],
             manifest.models.values(),
-            _model_source_key
+            _model_key
         )
         for model in models:
             for o, n in model:
@@ -477,7 +492,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Object) -> N
                     properties = zipitems(
                         merged.items,
                         o.properties.values(),
-                        _property_source_key
+                        _property_key
                     )
                     for prop in properties:
                         for po, pn in prop:
@@ -516,7 +531,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Ref) -> None
     models = zipitems(
         [merged.model],
         manifest.models.values(),
-        _model_source_key
+        _model_key
     )
     for model in models:
         for o, n in model:
@@ -531,7 +546,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Ref) -> None
                             properties = zipitems(
                                 merged.refprops,
                                 n.properties.values(),
-                                _property_source_key
+                                _property_key
                             )
                             for prop in properties:
                                 for po, pn in prop:
@@ -566,7 +581,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Denorm) -> N
     models = zipitems(
         [merged.rel_prop.model],
         manifest.models.values(),
-        _model_source_key
+        _model_key
     )
     for model in models:
         for o, n in model:
@@ -574,7 +589,7 @@ def merge(context: Context, manifest: Manifest, old: DataType, new: Denorm) -> N
                 properties = zipitems(
                     merged.items,
                     o.properties.values(),
-                    _property_source_key
+                    _property_key
                 )
                 for prop in properties:
                     for po, pn in prop:
@@ -631,15 +646,17 @@ def _merge_model_properties(
     properties = zipitems(
         old.properties.values(),
         new.properties.values(),
-        _property_source_key,
+        _property_key,
     )
     deduplicator = Deduplicator("_{}")
     for prop in properties:
         for o, n in prop:
             if n:
                 n = copy(n)
+                n.model = new
             if o:
                 deduplicator(o.basename)
+                o.model = old
             if n and not o:
                 name = deduplicator(n.basename)
                 n.model = old
@@ -675,14 +692,53 @@ def _merge_resources(
     resources = zipitems(
         old_resources,
         new_resources,
-        _resource_source_key,
+        _resource_key,
     )
+    deduplicator = Deduplicator("{}")
     for res in resources:
         for o, n in res:
+            if o:
+                deduplicator(o.name)
+            elif n:
+                n.name = deduplicator(n.name)
             commands.merge(context, manifest, o, n)
 
 
 TItem = TypeVar('TItem')
+
+
+class PriorityKey:
+    id: Any = None
+    name: str = None
+    source: Any = None
+
+    def __init__(self, _id=None, name=None, source=None):
+        self.id = _id
+        self.name = name
+        self.source = source
+
+    def __eq__(self, other):
+        if isinstance(other, PriorityKey):
+            if self.id and other.id:
+                if self.id == other.id:
+                    return True
+            if self.name and other.name:
+                if self.name == other.name:
+                    return True
+            if self.source and other.source:
+                if isinstance(other.source, List):
+                    if set(other.source).issubset(self.source):
+                        return True
+                else:
+                    if self.source == other.source:
+                        return True
+        return False
+
+    def __str__(self):
+        return f"PriorityKey(id: {self.id}, name: {self.name}, source: {self.source})"
+
+    def __hash__(self):
+        return hash(str(self))
 
 
 def zipitems(
@@ -694,7 +750,7 @@ def zipitems(
     res: Dict[
         Hashable,  # key
         List[
-            Tuple[
+            List[
                 Any,   # a
                 Any,   # b
             ]
@@ -712,7 +768,7 @@ def zipitems(
             else:
                 res[k] = [[v, NA]]
         else:
-            if k not in res.keys():
+            if k not in list(res.keys()):
                 res[k] = []
             res[k].append([v, NA])
     for v in b:
@@ -732,14 +788,20 @@ def zipitems(
             if not found:
                 res[k] = [[NA, v]]
         else:
-            if k in res:
+            if k in list(res.keys()):
+                index = k
+                if isinstance(k, PriorityKey):
+                    for item in res.keys():
+                        if item == k:
+                            index = item
+                            break
                 additional = []
-                for item in res[k]:
+                for item in res[index]:
                     if item[1] is NA:
                         item[1] = v
                     else:
                         additional.append([item[0], v])
-                res[k] += additional
+                res[index] += additional
             else:
                 res[k] = [[NA, v]]
     yield from res.values()
@@ -756,6 +818,16 @@ def _name_key(node: Node) -> str:
     return node.name
 
 
+def _dataset_key(dataset: Dataset) -> PriorityKey:
+    key = PriorityKey()
+    if dataset.id:
+        key.id = dataset.id
+    if dataset.given.name:
+        key.name = dataset.given.name
+    key.source = _dataset_resource_source_key(dataset)
+    return key
+
+
 def _dataset_resource_source_key(dataset: Dataset) -> Tuple:
     keys = []
     for resource in dataset.resources.values():
@@ -763,11 +835,31 @@ def _dataset_resource_source_key(dataset: Dataset) -> Tuple:
     return tuple(keys)
 
 
+def _property_key(prop: Property) -> PriorityKey:
+    key = PriorityKey()
+    if prop.id:
+        key.id = prop.id
+    if prop.given.name:
+        key.name = prop.given.name
+    key.source = _property_source_key(prop)
+    return key
+
+
 def _property_source_key(prop: Property) -> str:
     if prop.external and prop.external.name:
         return prop.external.name
     else:
         return prop.name
+
+
+def _resource_key(resource: Resource) -> PriorityKey:
+    key = PriorityKey()
+    if resource.id:
+        key.id = resource.id
+    if resource.given.name:
+        key.name = resource.given.name
+    key.source = _resource_source_key(resource)
+    return key
 
 
 def _resource_source_key(resource: Resource) -> str:
@@ -787,11 +879,14 @@ def _resource_source_key(resource: Resource) -> str:
     return result
 
 
-def _backend_dsn(backend: ExternalBackend) -> str:
-    dsn = backend.config['dsn']
-    if "@" in dsn:
-        dsn = dsn.split("@")[1]
-    return dsn
+def _model_key(model: Model) -> PriorityKey:
+    key = PriorityKey()
+    if model.id:
+        key.id = model.id
+    if model.given.name:
+        key.name = model.given.name
+    key.source = _model_source_key(model)
+    return key
 
 
 def _model_source_key(model: Model) -> str:
@@ -799,3 +894,13 @@ def _model_source_key(model: Model) -> str:
         return f'{_resource_source_key(model.external.resource)}/{model.external.name}'
     else:
         return model.name
+
+
+def _backend_dsn(backend: ExternalBackend) -> str:
+    dsn = backend.config['dsn']
+    if "@" in dsn:
+        dsn = dsn.split("@")[1]
+    return dsn
+
+
+

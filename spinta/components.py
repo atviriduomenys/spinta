@@ -553,6 +553,7 @@ class PropertyGiven:
 
 
 class Property(Node):
+    id: Any = None
     place: str = None  # Dotted property path
     title: str = None
     description: str = None

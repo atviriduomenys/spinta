@@ -9,6 +9,7 @@ import sqlalchemy as sa
 import pytest
 
 from spinta.core.config import RawConfig
+from spinta.datasets.inspect.helpers import PriorityKey
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.config import configure
@@ -595,7 +596,7 @@ def test_inspect_with_empty_config_dir(
     ])
 
     # Check what was detected.
-    manifest = load_manifest(rc, tmp_path / 'result.csv')
+    manifest = load_manifest(rc, tmp_path / 'result.csv', ensure_config_dir=True)
     manifest.datasets['dbsqlite'].resources['resource1'].external = 'sqlite'
     assert manifest == f'''
     d | r | b | m | property | type    | ref | source
@@ -1769,3 +1770,69 @@ datasets/xml/inspect            |                        |        |
   |   |   | country             | ref                    | Country | ..
     ''')
     assert a == b
+
+
+def test_zip():
+    old = PriorityKey()
+    new = PriorityKey()
+    assert old != new
+
+    old = PriorityKey(_id="5")
+    new = PriorityKey(source="5")
+    assert old != new
+
+    old = PriorityKey(_id="5")
+    new = PriorityKey(_id="5")
+    assert old == new
+
+    old = PriorityKey(_id="5", name="test")
+    new = PriorityKey(_id="2", name="test")
+    assert old == new
+
+    old = PriorityKey(_id="5", name="test")
+    new = PriorityKey(_id="2", name="testas")
+    assert old != new
+
+    old = PriorityKey(_id="5", name="test", source="asd")
+    new = PriorityKey(_id="2", name="testas", source="asd")
+    assert old == new
+
+    old = PriorityKey(name="test", source="asd")
+    new = PriorityKey(name="testas", source="asd")
+    assert old == new
+
+    old = PriorityKey(name="test", source="asd")
+    new = PriorityKey(name="testas", source="asds")
+    assert old != new
+
+    old = PriorityKey(name="test", source="asd")
+    new = PriorityKey(name="test", source="asds")
+    assert old == new
+
+    old = PriorityKey(source="asd")
+    new = PriorityKey(source="asds")
+    assert old != new
+
+    old = PriorityKey(source="asd")
+    new = PriorityKey(source="asd")
+    assert old == new
+
+    old = PriorityKey(source=["asd"])
+    new = PriorityKey(source=["asd"])
+    assert old == new
+
+    old = PriorityKey(source=["asd", "new"])
+    new = PriorityKey(source=["asd"])
+    assert old == new
+
+    old = PriorityKey(source=["asd"])
+    new = PriorityKey(source=["asd", "new"])
+    assert old != new
+
+    old = PriorityKey(source=["zxc"])
+    new = PriorityKey(source=["asd", "new"])
+    assert old != new
+
+    old = PriorityKey(source=["asd", "new"])
+    new = PriorityKey(source=["asd"])
+    assert old in [new]

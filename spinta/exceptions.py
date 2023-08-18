@@ -606,6 +606,10 @@ class MissingFormKeys(UserError):
     template = "Form requires to have at least one of the keys: {keys}."
 
 
+class InvalidInputData(UserError):
+    template = "'{key}' does not accept value: '{given}', {condition}"
+
+
 class UnknownManifestType(BaseError):
     template = "Can't find manifest component matching given type {type!r}."
 

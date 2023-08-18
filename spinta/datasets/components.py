@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Any
 from typing import List
 from typing import Optional
 
@@ -108,6 +108,7 @@ class ResourceGiven:
 
 
 class Resource(External):
+    id: Any = None
     eid: EntryId = None
     title: str
     description: str

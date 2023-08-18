@@ -7,9 +7,11 @@ from starlette.datastructures import UploadFile
 from typing import Tuple
 
 from spinta import commands
+from spinta.auth import check_scope
 from spinta.components import Context, UrlParams
 from spinta.datasets.inspect.helpers import create_manifest_from_inspect
-from spinta.exceptions import UnexpectedFormKeys, InvalidFormKeyCombination, RequiredFormKeyWithCondition, MissingFormKeys
+from spinta.exceptions import UnexpectedFormKeys, InvalidFormKeyCombination, RequiredFormKeyWithCondition, \
+    MissingFormKeys, InvalidInputData
 from spinta.manifests.components import ManifestPath
 
 
@@ -93,6 +95,8 @@ class InspectRequestForm:
             raise InvalidFormKeyCombination(keys=["manifest.file", "manifest.source"])
 
         if manifest_source:
+            if "http://" not in manifest_source and "https://" not in manifest_source:
+                raise InvalidInputData(key="manifest.source", given=manifest_source, condition="it must be URL")
             self.manifest_path = manifest_source
         elif manifest_file:
             tmp = tempfile.NamedTemporaryFile(delete=False)
@@ -113,6 +117,8 @@ class InspectRequestForm:
             raise InvalidFormKeyCombination(keys=["resource.file", "resource.source"])
 
         if resource_source:
+            if "http://" not in resource_source and "https://" not in resource_source:
+                raise InvalidInputData(key="resource.source", given=resource_source, condition="it must be URL")
             self.resource_path = resource_source
         elif resource_file:
             tmp = tempfile.NamedTemporaryFile(delete=False)
@@ -147,6 +153,7 @@ class InspectRequestForm:
 
 
 async def inspect_api(context: Context, request: Request, params: UrlParams):
+    check_scope(context, 'inspect')
     if params.format:
         fmt = params.fmt
     else:
