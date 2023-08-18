@@ -70,7 +70,7 @@ uvicorn = { version = "^0.18.3", optional = false }
 
 # PostgreSQL backend dependencies
 alembic = { version = "^1.8.1", optional = false }
-asyncpg = { version = "^0.22.0", optional = false }
+asyncpg = "^0.28.0"
 psycopg2-binary = { version = "^2.9.3", optional = false }
 # FIXME: https://github.com/python-poetry/poetry/issues/4402
 # sqlalchemy = "~1.4"
@@ -123,7 +123,7 @@ sphinx = "^5.2.3"
 sphinx-autobuild = "^2021.3.14"
 sphinxcontrib-httpdomain = "^1.8.0"
 memory-profiler = "^0.58.0"
-mypy = "^0.812"
+mypy = "^1.5.1"
 cssselect = "^1.1.0"
 objprint = "^0.1.4"
 sphinx-rtd-theme = "^1.0.0"

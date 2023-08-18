@@ -407,7 +407,6 @@ def query_client(path: pathlib.Path, client: str, is_name: bool = False) -> Clie
 
 def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
     is_uuid = is_str_uuid(client)
-    print(path)
     client_file = path / 'unknown' / f'{client}.yml'
     if is_uuid:
         client_file = path / 'id' / client[:2] / client[2:4] / f'{client[4:]}.yml'

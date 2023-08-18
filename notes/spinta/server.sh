@@ -77,6 +77,7 @@ spinta_update
 spinta_patch
 spinta_delete
 spinta_wipe
+spinta_auth_clients
 EOF
 
 

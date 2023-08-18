@@ -586,7 +586,7 @@ class CompositeUniqueConstraint(UserError):
 
 class InsufficientPermission(UserError):
     status_code = 403
-    template = "You do not have a permission to access this."
+    template = "You need to have {scope!r} in order to access this API endpoint."
 
 
 class InsufficientPermissionForUpdate(UserError):
