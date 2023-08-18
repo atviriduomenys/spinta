@@ -608,3 +608,11 @@ class ClientAlreadyExists(UserError):
 
 class EmptyPassword(UserError):
     template = "Client password cannot be empty."
+
+
+class UnknownRequestQuery(UserError):
+    template = "Request '{request}' does not support '{query}' query."
+
+
+class InvalidRequestQuery(UserError):
+    template = "Query '{query}' requires '{format}' format."

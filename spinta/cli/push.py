@@ -971,7 +971,7 @@ def _iter_deleted_rows(
     no_progress_bar: bool = False,
 ) -> Iterable[_PushRow]:
     conn = context.get('push.state.conn')
-
+    models = reversed(models)
     for model in models:
         table = metadata.tables[model.name]
         deleted_rows = conn.execute(

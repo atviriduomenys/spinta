@@ -228,6 +228,7 @@ def test_type_detector_not_datetime():
         "2023-04-27T12:10:50.100+01:00",
         "2023-04-27T12:10:50.132263+01:00",
         "2023-04-27T12:10:50.132263+0100",
+        "INVALID DATETIME",
     ]
 
     for item in given_values:
