@@ -1173,7 +1173,7 @@ def _read_csv_manifest(
         for i, row in enumerate(rows, 1):
             yield str(i), row
     else:
-        with pathlib.Path(path).open(encoding='utf-8', newline='') as f:
+        with pathlib.Path(path).open(encoding='utf-8') as f:
             rows = csv.reader(f)
             for i, row in enumerate(rows, 1):
                 yield str(i), row
@@ -2029,7 +2029,7 @@ def write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w', newline='') as f:
+    with path.open('w') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)
