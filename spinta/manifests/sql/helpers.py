@@ -21,10 +21,10 @@ from spinta.utils.naming import to_model_name
 from spinta.utils.naming import to_property_name
 
 
-def read_schema(manifest: SqlManifest):
+def read_schema(manifest: SqlManifest, dataset_name: str):
     path = manifest.path
     url = sa.engine.make_url(path)
-    dataset = list(manifest.datasets.keys())[0] if manifest.datasets else to_dataset_name(url.database) if url.database else 'dataset1'
+    dataset = dataset_name if dataset_name else to_dataset_name(url.database) if url.database else 'dataset1'
     resource = 'resource1'
     yield None, {
         'type': 'dataset',
@@ -35,6 +35,7 @@ def read_schema(manifest: SqlManifest):
                 'external': str(url.set(password='')),
             },
         },
+        'given_name': dataset_name
     }
 
     engine = sa.create_engine(path)

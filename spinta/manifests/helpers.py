@@ -112,14 +112,6 @@ def _configure_manifest(
     mode = rc.get('manifests', name, 'mode')
     if mode:
         manifest.mode = enum_by_name(manifest, 'mode', Mode, mode)
-    manifest_data = rc.get('manifests', name, 'manifest')
-    if manifest_data:
-        for item in manifest_data:
-            if item["type"] and item["type"] == "dataset":
-                dataset = Dataset()
-                dataset.name = item["name"]
-                dataset.manifest = manifest
-                manifest.datasets[item["name"]] = dataset
     for source in rc.get('manifests', name, 'sync', default=[], cast=list):
         if source in seen:
             raise Exception("Manifest sync cycle: " + ' -> '.join(seen + [source]))

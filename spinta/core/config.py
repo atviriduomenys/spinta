@@ -620,6 +620,8 @@ def configure_rc(
     if manifests or resources:
         sync = []
         inline = []
+        if dataset:
+            config['given_dataset_name'] = dataset
 
         if manifests:
             for i, path in enumerate(manifests):
@@ -630,11 +632,6 @@ def configure_rc(
                     'path': manifest.path,
                     'file': manifest.file,
                 }
-                if dataset:
-                    config[f'manifests.{manifest_name}']['manifest'] = [{
-                        'type': 'dataset',
-                        'name': dataset
-                    }]
                 sync.append(manifest_name)
 
         if resources:

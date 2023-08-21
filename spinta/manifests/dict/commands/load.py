@@ -25,7 +25,9 @@ def load(
     if manifest.path is None:
         return
 
-    schemas = read_schema(manifest)
+    dataset_name = context.get("rc").get("given_dataset_name")
+    schemas = read_schema(manifest, dataset_name)
+
     if into:
         load_manifest_nodes(context, into, schemas, source=manifest)
     else:

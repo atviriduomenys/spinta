@@ -10,7 +10,7 @@ from spinta.manifests.helpers import TypeDetector
 from spinta.utils.naming import Deduplicator, to_model_name, to_property_name
 
 
-def read_schema(manifest: DictManifest):
+def read_schema(manifest: DictManifest, dataset_name: str):
     manifest_type: DictFormat = manifest.format
     path: str = manifest.path
     if path.startswith(('http://', 'https://')):
@@ -58,9 +58,8 @@ def read_schema(manifest: DictManifest):
             'uri': value,
             'eid': i
         }
-    given_dataset_name = list(manifest.datasets.keys())[0] if manifest.datasets else None
     dataset_structure: _MappedDataset = {
-        "dataset": given_dataset_name if given_dataset_name else "dataset",
+        "dataset": dataset_name if dataset_name else "dataset",
         "resource": "resource",
         "models": {}
     }
@@ -77,7 +76,7 @@ def read_schema(manifest: DictManifest):
                 'external': path,
             },
         },
-        'given_name': given_dataset_name if given_dataset_name else None
+        'given_name': dataset_name
     }
 
     dedup_model = Deduplicator('{}')
