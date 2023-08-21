@@ -725,7 +725,7 @@ class PriorityKey:
                 if self.name == other.name:
                     return True
             if self.source and other.source:
-                if isinstance(other.source, tuple):
+                if isinstance(other.source, tuple) or isinstance(self.source, tuple):
                     if set(self.source).issubset(other.source) or set(other.source).issubset(self.source):
                         return True
                 else:

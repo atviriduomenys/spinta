@@ -1772,7 +1772,7 @@ datasets/xml/inspect            |                        |        |
     assert a == b
 
 
-def test_zip():
+def test_priority_key_eq():
     old = PriorityKey()
     new = PriorityKey()
     assert old != new
@@ -1817,22 +1817,22 @@ def test_zip():
     new = PriorityKey(source="asd")
     assert old == new
 
-    old = PriorityKey(source=["asd"])
-    new = PriorityKey(source=["asd"])
+    old = PriorityKey(source=tuple(["asd"]))
+    new = PriorityKey(source=tuple(["asd"]))
     assert old == new
 
-    old = PriorityKey(source=["asd", "new"])
-    new = PriorityKey(source=["asd"])
+    old = PriorityKey(source=("asd", "new"))
+    new = PriorityKey(source=tuple(["asd"]))
     assert old == new
 
-    old = PriorityKey(source=["asd"])
-    new = PriorityKey(source=["asd", "new"])
+    old = PriorityKey(source=tuple(["asd"]))
+    new = PriorityKey(source=("asd", "new"))
+    assert old == new
+
+    old = PriorityKey(source=tuple(["zxc"]))
+    new = PriorityKey(source=("asd", "new"))
     assert old != new
 
-    old = PriorityKey(source=["zxc"])
-    new = PriorityKey(source=["asd", "new"])
-    assert old != new
-
-    old = PriorityKey(source=["asd", "new"])
-    new = PriorityKey(source=["asd"])
+    old = PriorityKey(source=("asd", "new"))
+    new = PriorityKey(source=tuple(["asd"]))
     assert old in [new]
