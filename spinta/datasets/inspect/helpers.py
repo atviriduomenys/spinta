@@ -726,7 +726,7 @@ class PriorityKey:
                     return True
             if self.source and other.source:
                 if isinstance(other.source, tuple):
-                    if set(self.source).issubset(other.source):
+                    if set(self.source).issubset(other.source) or set(other.source).issubset(self.source):
                         return True
                 else:
                     if self.source == other.source:
@@ -824,7 +824,6 @@ def _dataset_key(dataset: Dataset) -> PriorityKey:
     if dataset.given.name:
         key.name = dataset.given.name
     key.source = _dataset_resource_source_key(dataset)
-    print(key)
     return key
 
 
