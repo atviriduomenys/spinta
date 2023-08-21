@@ -213,6 +213,7 @@ def merge(context: Context, manifest: Manifest, old: Dataset, new: Dataset, has_
                     nm.external.dataset = old
                     name = deduplicator(f"{nm.external.dataset.name}/{nm.basename}")
                     nm.name = name
+                    nm.ns.name = nm.external.dataset.name
             merge(context, manifest, om, nm, has_manifest_priority)
 
 
