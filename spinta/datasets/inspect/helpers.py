@@ -725,8 +725,8 @@ class PriorityKey:
                 if self.name == other.name:
                     return True
             if self.source and other.source:
-                if isinstance(other.source, List):
-                    if set(other.source).issubset(self.source):
+                if isinstance(other.source, tuple):
+                    if set(self.source).issubset(other.source):
                         return True
                 else:
                     if self.source == other.source:
@@ -791,7 +791,7 @@ def zipitems(
                 index = k
                 if isinstance(k, PriorityKey):
                     for item in res.keys():
-                        if item == k:
+                        if k == item:
                             index = item
                             break
                 additional = []
@@ -824,6 +824,7 @@ def _dataset_key(dataset: Dataset) -> PriorityKey:
     if dataset.given.name:
         key.name = dataset.given.name
     key.source = _dataset_resource_source_key(dataset)
+    print(key)
     return key
 
 
