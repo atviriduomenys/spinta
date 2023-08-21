@@ -767,9 +767,15 @@ def zipitems(
             else:
                 res[k] = [[v, NA]]
         else:
-            if k not in list(res.keys()):
-                res[k] = []
-            res[k].append([v, NA])
+            index = k
+            if isinstance(k, PriorityKey):
+                for item in res.keys():
+                    if k == item:
+                        index = item
+                        break
+            if index not in list(res.keys()):
+                res[index] = []
+            res[index].append([v, NA])
     for v in b:
         k = key(v)
         if isinstance(k, Tuple):
