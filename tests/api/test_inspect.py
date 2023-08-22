@@ -242,7 +242,7 @@ def test_inspect_resource_file(
     with open(tmp_path / 'manifest.json', "rb") as f:
         form_data = {
             "resource.type": "json",
-            "dataset": "new/dataset"
+            "dataset": "datasets/gov/aaa/atlieku_tvarkymas"
         }
         files = {
             "resource.file": ("manifest.json", f, "application/json")
@@ -254,8 +254,8 @@ def test_inspect_resource_file(
     assert resp.status_code == 200
     assert "text/csv" in resp.headers["Content-Type"]
     assert ('id,dataset,resource,base,model,property,type,ref,source,prepare,level,access,uri,title,description\r\n'
-            ',new/dataset,,,,,,,,,,,,,\r\n'
-            ',,resource,,,,json,,,,,,,,\r\n'
+            ',datasets/gov/aaa/atlieku_tvarkymas,,,,,,,,,,,,,\r\n'
+            ',,resource,,,,json,,https://get.data.gov.lt/datasets/gov/aaa/atlieku_tvarkymas,,,,,,\r\n'
             ',,,,,,,,,,,,,,\r\n'
             ',,,,Model1,,,,.,,,,,,\r\n'
             ',,,,,name,string required unique,,name,,,,,,\r\n'
@@ -267,7 +267,7 @@ def test_inspect_resource_file(
             ',,,,,name,string required unique,,name,,,,,,\r\n'
             ',,,,,weather_temperature,number unique,,weather.temperature,,,,,,\r\n'
             ',,,,,weather_wind_speed,number unique,,weather.wind_speed,,,,,,\r\n'
-            ',,,,,parent,ref,Model1,..,,,,,,') in resp.text
+            ',,,,,parent,ref,Model1,..,,,,,,\r\n') in resp.text
 
 
 def test_inspect_resource_file_format_xlsx(

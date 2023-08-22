@@ -187,4 +187,4 @@ def clean_up_source_for_return(manifest: Manifest):
     for dataset in manifest.datasets.values():
         for resource in dataset.resources.values():
             if resource.external and not ("http://" in resource.external or "https://" in resource.external):
-                resource.external = ""
+                resource.external = f"https://get.data.gov.lt/{dataset.name}"
