@@ -610,6 +610,10 @@ class InvalidInputData(UserError):
     template = "'{key}' does not accept value: '{given}', {condition}"
 
 
+class InvalidResourceSource(UserError):
+    template = "'{source}' is unacceptable resource source, it must be URL."
+
+
 class UnknownManifestType(BaseError):
     template = "Can't find manifest component matching given type {type!r}."
 
