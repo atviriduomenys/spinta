@@ -12,7 +12,7 @@ from spinta.components import Context, UrlParams
 from spinta.datasets.inspect.helpers import create_manifest_from_inspect
 from spinta.exceptions import UnexpectedFormKeys, InvalidFormKeyCombination, RequiredFormKeyWithCondition, \
     MissingFormKeys, InvalidInputData
-from spinta.manifests.components import ManifestPath
+from spinta.manifests.components import ManifestPath, Manifest
 
 
 def _validate_form_data(form: FormData):
@@ -166,9 +166,12 @@ async def inspect_api(context: Context, request: Request, params: UrlParams):
             dataset=inspect_data.dataset,
             manifest=inspect_data.get_manifest(),
             resources=inspect_data.get_resource(),
-            formula=inspect_data.resource_prepare
+            formula=inspect_data.resource_prepare,
+            only_url=True
         )
         inspect_data.clean_up()
+        clean_up_source_for_return(manifest)
+
         return commands.render(
             context,
             manifest,
@@ -180,3 +183,8 @@ async def inspect_api(context: Context, request: Request, params: UrlParams):
         raise e
 
 
+def clean_up_source_for_return(manifest: Manifest):
+    for dataset in manifest.datasets.values():
+        for resource in dataset.resources.values():
+            if resource.external and not ("http://" in resource.external or "https://" in resource.external):
+                resource.external = ""

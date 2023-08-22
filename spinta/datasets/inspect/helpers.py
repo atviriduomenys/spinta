@@ -17,6 +17,7 @@ from spinta.core.config import parse_resource_args
 from spinta.core.context import configure_context, create_context
 from spinta.datasets.components import Dataset, Resource, Attribute, Entity, ExternalBackend
 from spinta.dimensions.prefix.components import UriPrefix
+from spinta.exceptions import InvalidResourceSource
 from spinta.manifests.components import Manifest
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.helpers import get_manifest_from_type, init_manifest
@@ -34,7 +35,8 @@ def create_manifest_from_inspect(
     formula: str = None,
     dataset: str = None,
     auth: str = None,
-    priority: str = "manifest"
+    priority: str = "manifest",
+    only_url: bool = False,
 ):
     # Reset Context, to not have any outside influence from given
     rc = RawConfig()
@@ -65,6 +67,8 @@ def create_manifest_from_inspect(
                 if external == '' and resource.backend:
                     external = resource.backend.config['dsn']
                 if not any(res.external == external for res in resources):
+                    if only_url and not ("http://" in external or "https://" in external):
+                        raise InvalidResourceSource(source=external)
                     resources.append(ResourceTuple(type=resource.type, external=external, prepare=resource.prepare))
 
     if resources:
