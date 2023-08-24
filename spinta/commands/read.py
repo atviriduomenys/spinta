@@ -1,4 +1,3 @@
-import itertools
 import uuid
 from typing import overload, Optional, Iterator, Union, List, Tuple
 from pathlib import Path
@@ -12,7 +11,7 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, Page
+from spinta.components import Context, Node, Action, UrlParams, Page, ParamsPage
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr, asttoexpr
@@ -63,10 +62,11 @@ async def getall(
     if params.head:
         rows = []
     else:
-        if not params.count and params.page and backend.paginated:
-            rows = get_page(context, model, backend, params.page, expr)
-        elif model.page and model.page.by and backend.paginated and not params.count:
-            rows = paginate(context, model, backend, params.page, expr, params.limit)
+        if not params.count and backend.paginated and model.page and model.page.by:
+            if params.limit:
+                rows = paginate(context, model, backend, params.page, expr, params.limit)
+            else:
+                rows = get_page(context, model, backend, params.page, expr)
         else:
             rows = commands.getall(context, model, backend, query=expr)
 
@@ -126,6 +126,7 @@ async def getall(
         )
 
     rows = log_response(context, rows)
+    model.page.clear()
 
     return render(context, request, model, params, rows, action=action)
 
@@ -134,13 +135,16 @@ def get_page(
     context: Context,
     model: Model,
     backend: Backend,
-    page: Page,
+    page: ParamsPage,
     expr: Expr,
 ) -> Iterator[ObjectData]:
     config = context.get('config')
     page_size = config.push_page_size
-    size = page.size or model.page.size or page_size or 1000
-
+    if page:
+        size = page.size or model.page.size or page_size or 1000
+        model.page.update_values_from_params_page(page)
+    else:
+        size = model.page.size or page_size or 1000
     query = _get_pagination_sort_query(model, expr)
 
     count = 0
@@ -153,6 +157,7 @@ def get_page(
         rows = commands.getall(context, model, backend, query=page_query)
         for row in rows:
             count += 1
+            model.page.update_values_from_row(row)
             yield row
 
         if count < size and depth < len(model.page.by) - 1:
@@ -166,7 +171,7 @@ def paginate(
     context: Context,
     model: Model,
     backend: Backend,
-    page: Page,
+    page: ParamsPage,
     expr: Optional[Expr],
     limit: Optional[int],
 ) -> Iterator[ObjectData]:
@@ -174,12 +179,13 @@ def paginate(
     page_size = config.push_page_size
     if page:
         size = page.size or model.page.size or page_size or 1000
+        model.page.update_values_from_params_page(page)
     else:
         size = model.page.size or page_size or 1000
-
     query = _get_pagination_sort_query(model, expr)
     query = _get_pagination_select_query(model, query)
 
+    true_count = 0
     count = 0
     depth = 0
     end_loop = False
@@ -189,14 +195,24 @@ def paginate(
 
         rows = commands.getall(context, model, backend, query=page_query)
         for row in rows:
+            if limit and true_count >= limit:
+                end_loop = True
+                break
+
             count += 1
+            true_count += 1
+            model.page.update_values_from_row(row)
             yield row
 
-        if count < size and depth < len(model.page.by) - 1:
-            depth += 1
-            model.page.clear_till_depth(depth)
-        else:
-            end_loop = True
+        if not end_loop:
+            if depth < len(model.page.by) - 1:
+                depth += 1
+                model.page.clear_till_depth(depth)
+            elif limit and count >= size and true_count < limit:
+                count = 0
+                depth = 0
+            else:
+                end_loop = True
 
 
 def _get_pagination_sort_query(

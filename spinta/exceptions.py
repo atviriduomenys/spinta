@@ -562,3 +562,7 @@ class RemoteClientScopesNotGiven(RemoteClientError):
 
 class RequiredProperty(UserError):
     template = "Property is required."
+
+
+class InvalidPageParameterCount(UserError):
+    template = "Parameter 'page' requires {properties} to be entered."

@@ -611,10 +611,6 @@ def _read_rows_by_pages(
             row.op = 'insert'
             row.checksum = _get_data_checksum(row.data)
 
-            data = fix_data_for_json(row.data)
-            for page_by in model.page.by.values():
-                model.page.update_value(page_by.prop.name, data.get(page_by.prop.name))
-
             if state_row:
                 delete_cond = None
                 patch_cond = None

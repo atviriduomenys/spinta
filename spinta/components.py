@@ -14,6 +14,9 @@ import pathlib
 from typing import Type
 from typing import TypedDict
 
+from spinta.exceptions import InvalidPageParameterCount
+from spinta.utils.json import fix_data_for_json
+
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
@@ -495,8 +498,8 @@ class Page:
         self.by[by].value = value
 
     def set_values_from_list(self, values: list):
-        if len(values) > len(self.by.values()):
-            raise Exception
+        if len(values) != len(self.by.values()):
+            raise InvalidPageParameterCount(properties=list(self.by.keys()))
 
         for i, key in enumerate(self.by.keys()):
             if i + 1 <= len(values):
@@ -510,6 +513,27 @@ class Page:
         for i, item in enumerate(reversed(self.by.values())):
             if i < depth:
                 item.value = None
+
+    def update_values_from_row(self, row: dict):
+        row = fix_data_for_json(row)
+        for by, page_by in self.by.items():
+            self.update_value(by, row.get(page_by.prop.name))
+
+    def update_values_from_params_page(self, page: ParamsPage):
+        if page.values:
+            if len(page.values) != len(self.by):
+                raise InvalidPageParameterCount(properties=list(self.by.keys()))
+            for i, (by, page_by) in enumerate(self.by.items()):
+                self.update_value(by, page.values[i])
+
+
+class ParamsPage:
+    values: list
+    size: int
+
+    def __init__(self):
+        self.values = []
+        self.size = None
 
 
 class Model(MetaData):
@@ -764,7 +788,7 @@ class UrlParams:
 
     query: List[Dict[str, Any]] = None
 
-    page: Optional[Page] = None
+    page: Optional[ParamsPage] = None
 
     def changed_parsetree(self, change):
         ptree = {x['name']: x['args'] for x in (self.parsetree or [])}
