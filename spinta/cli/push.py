@@ -40,7 +40,7 @@ from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.commands.read import get_page
-from spinta.components import Action, Page
+from spinta.components import Action, ParamsPage
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
@@ -497,7 +497,7 @@ def _read_model_data_by_page(
     model: Model,
     limit: int = None,
     stop_on_error: bool = False,
-    page: Page = None,
+    page: ParamsPage = None,
 ) -> Iterable[Dict[str, Any]]:
 
     if limit is None:
@@ -589,8 +589,7 @@ def _read_rows_by_pages(
             context,
             model,
             limit,
-            stop_on_error,
-            page=model.page
+            stop_on_error
         )
         peek = next(rows, None)
         if peek is None:
