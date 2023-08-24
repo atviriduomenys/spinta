@@ -117,7 +117,7 @@ def push(
     incremental: bool = Option(False, '-i', '--incremental', help=(
         "Do an incremental push, only pushing objects from last page."
     )),
-    page=Option(None, '--page', help=(
+    page: Optional[List[str]] = Option(None, '--page', help=(
         "Page value from which rows will be pushed."
     )),
     page_model: str = Option(None, '--model', help=(
@@ -543,24 +543,17 @@ def _read_rows_by_pages(
     model_push_counter: tqdm.tqdm = None,
     incremental: bool = False,
     page_model: str = None,
-    page: Any = None,
+    page: List = None,
 ) -> Iterator[_PushRow]:
     conn = context.get('push.state.conn')
     table = metadata.tables['_page']
-
-    value = {}
     if incremental:
         if (
             page and
             page_model and
-            page_model == model.name and
-            len(model.page.by) == 1
+            page_model == model.name
         ):
-            prop = list(model.page.by.values())[0]
-            value = {
-                prop.name: page
-            }
-            model.page.value = [page]
+            model.page.set_values_from_list(page)
         else:
             page = conn.execute(
                 sa.select([table.c.value]).
@@ -568,8 +561,8 @@ def _read_rows_by_pages(
                     table.c.model == model.name
                 )
             ).scalar()
-            value = json.loads(page) if page else {}
-            model.page.value = list(value.values())
+            values = json.loads(page) if page else {}
+            _load_page_from_dict(model, values)
     else:
         # reset page value
         conn.execute(
@@ -579,13 +572,11 @@ def _read_rows_by_pages(
                 table.c.model == model.name
             )
         )
-
     model_table = metadata.tables[model.name]
     state_rows = _get_state_rows(
         context,
         model,
         model_table,
-        value
     )
 
     push_page = False
@@ -621,19 +612,15 @@ def _read_rows_by_pages(
             row.checksum = _get_data_checksum(row.data)
 
             data = fix_data_for_json(row.data)
-            value = {}
-            for prop in model.page.by.values():
-                value.update({
-                    prop.name: data.get(prop.name)
-                })
-            model.page.value = list(value.values())
+            for page_by in model.page.by.values():
+                model.page.update_value(page_by.prop.name, data.get(page_by.prop.name))
 
             if state_row:
                 delete_cond = None
                 patch_cond = None
-                for by, prop in model.page.by.items():
-                    state_val = state_row[model_table.c[f"page.{prop.name}"]]
-                    source_val = value.get(prop.name)
+                for by, page_by in model.page.by.items():
+                    state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
+                    source_val = page_by.value
 
                     if state_val is not None and source_val is not None:
                         if by.startswith('-'):
@@ -658,7 +645,6 @@ def _read_rows_by_pages(
                         row,
                         state_rows,
                         state_row,
-                        value,
                         delete_cond,
                     )
                     state_row = next(state_rows, None)
@@ -683,21 +669,20 @@ def _get_state_rows(
     context: Context,
     model: Model,
     table: sa.Table,
-    value: dict,
 ) -> sa.engine.LegacyCursorResult:
     conn = context.get('push.state.conn')
 
     where = []
     order_by = []
-    for by, prop in model.page.by.items():
+    for by, page_by in model.page.by.items():
         if by.startswith('-'):
-            if value.get(prop.name):
-                where.append(table.c[f"page.{prop.name}"] < value.get(prop.name))
-            order_by.append(sa.desc(table.c[f"page.{prop.name}"]))
+            if page_by.value:
+                where.append(table.c[f"page.{page_by.prop.name}"] < page_by.value)
+            order_by.append(sa.desc(table.c[f"page.{page_by.prop.name}"]))
         else:
-            if value.get(prop.name):
-                where.append(table.c[f"page.{prop.name}"] > value.get(prop.name))
-            order_by.append(sa.asc(table.c[f"page.{prop.name}"]))
+            if page_by.value:
+                where.append(table.c[f"page.{page_by.prop.name}"] > page_by.value)
+            order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
 
     if where:
         state_rows = conn.execute(
@@ -719,7 +704,6 @@ def _get_delete_rows(
     row: _PushRow,
     rows: sa.engine.LegacyCursorResult,
     state_row: sa.engine.LegacyRow,
-    value: dict,
     delete_cond: bool,
 ):
     while state_row and delete_cond:
@@ -727,9 +711,9 @@ def _get_delete_rows(
 
         state_row = next(rows, None)
         if state_row:
-            for by, prop in model.page.by.items():
-                state_val = state_row[table.c[f"page.{prop.name}"]]
-                source_val = value.get(prop.name)
+            for by, page_by in model.page.by.items():
+                state_val = state_row[table.c[f"page.{page_by.prop.name}"]]
+                source_val = page_by.value
 
                 if state_val is not None and source_val is not None:
                     if by.startswith('-'):
@@ -1083,10 +1067,10 @@ def _init_push_state(
     for model in models:
         pagination_cols = []
         if model.page and model.page.by and model.backend.paginated:
-            for prop in model.page.by.values():
-                type = types.get(prop.dtype.name, sa.Text)
+            for page_by in model.page.by.values():
+                type = types.get(page_by.prop.dtype.name, sa.Text)
                 pagination_cols.append(
-                    sa.Column(f"page.{prop.name}", type)
+                    sa.Column(f"page.{page_by.prop.name}", type)
                 )
 
         table = sa.Table(
@@ -1217,8 +1201,8 @@ def _save_push_state(
 
         if row.model.page and row.model.page.by:
             page = {
-                f"page.{prop.name}": row.data.get(prop.name)
-                for prop in row.model.page.by.values()
+                f"page.{page_by.prop.name}": row.data.get(page_by.prop.name)
+                for page_by in row.model.page.by.values()
             }
         else:
             page = {}
@@ -1295,10 +1279,10 @@ def _save_page_values(
             if pagination_props:
                 data = fix_data_for_json(row.data)
                 value = {}
-                for prop in pagination_props:
-                    if data.get(prop.name) is not None:
+                for page_by in pagination_props:
+                    if data.get(page_by.prop.name) is not None:
                         value.update({
-                            prop.name: data.get(prop.name)
+                            page_by.prop.name: data.get(page_by.prop.name)
                         })
                 if value:
                     value = json.dumps(value)
@@ -1317,7 +1301,7 @@ def _save_page_values(
                             page_table.insert().
                             values(
                                 model=model.name,
-                                property=','.join([prop.name for prop in pagination_props]),
+                                property=','.join([page_by.prop.name for page_by in pagination_props]),
                                 value=value
                             )
                         )
@@ -1521,3 +1505,11 @@ def _prepare_rows_with_errors(
                     op="insert",
                     error=True
                 )
+
+
+def _load_page_from_dict(model: Model, values: dict):
+    model.page.clear()
+    for key, item in values.items():
+        prop = model.properties.get(key)
+        if prop:
+            model.page.add_prop(key, prop, item)

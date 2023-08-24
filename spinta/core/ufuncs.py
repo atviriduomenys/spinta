@@ -15,6 +15,7 @@ from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
     from spinta.components import Context, Model
+from spinta.components import PageBy
 
 
 class Expr:
@@ -338,7 +339,7 @@ class LoadBuilder(Env):
             if arg in self.model.properties:
                 prop = self.model.properties[arg]
                 self.model.page.by.update({
-                    key: prop
+                    key: PageBy(prop)
                 })
             else:
                 raise FieldNotInResource(self.model, property=arg)

@@ -392,7 +392,8 @@ def compare(
 @ufunc.resolver(SqlQueryBuilder, DataType, object, names=COMPARE)
 def compare(env: SqlQueryBuilder, op: str, dtype: DataType, value: Any):
     column = env.backend.get_column(env.table, dtype.prop)
-    return _sa_compare(op, column, value)
+    if value:
+        return _sa_compare(op, column, value)
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, DataType, object, names=COMPARE)

@@ -471,15 +471,45 @@ class ModelGiven:
     pkeys: list[str] = None
 
 
+class PageBy:
+    prop: Property
+    value: Any
+
+    def __init__(self, prop: Property, value: Any = None):
+        self.prop = prop
+        self.value = value
+
+
 class Page:
-    by: Dict[str, Property]
+    by: Dict[str, PageBy]
     size: int
-    value: List
 
     def __init__(self):
         self.by = {}
         self.size = None
-        self.value = []
+
+    def add_prop(self, by: str, prop: Property, value: Any = None):
+        self.by[by] = PageBy(prop, value)
+
+    def update_value(self, by: str, value: Any):
+        self.by[by].value = value
+
+    def set_values_from_list(self, values: list):
+        if len(values) > len(self.by.values()):
+            raise Exception
+
+        for i, key in enumerate(self.by.keys()):
+            if i + 1 <= len(values):
+                self.update_value(key, values[i])
+
+    def clear(self):
+        for item in self.by.values():
+            item.value = None
+
+    def clear_till_depth(self, depth: int):
+        for i, item in enumerate(reversed(self.by.values())):
+            if i < depth:
+                item.value = None
 
 
 class Model(MetaData):
