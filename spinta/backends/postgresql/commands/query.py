@@ -524,15 +524,16 @@ def compare(env, op: str, fpr: ForeignProperty, value: Any):
 
 @ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=COMPARE)
 def compare(env, op, dtype, value):
-    value = str(value)
-    try:
-        uuid.UUID(value)
-    except ValueError:
-        raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
+    if value:
+        value = str(value)
+        try:
+            uuid.UUID(value)
+        except ValueError:
+            raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
 
-    column = env.backend.get_column(env.table, dtype.prop)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
+        column = env.backend.get_column(env.table, dtype.prop)
+        cond = _sa_compare(op, column, value)
+        return _prepare_condition(env, dtype.prop, cond)
 
 
 @ufunc.resolver(PgQueryBuilder, (Integer, String, Date, DateTime), object, names=['eq', 'ne', 'lt', 'le', 'gt', 'ge'])
