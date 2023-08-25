@@ -653,8 +653,10 @@ def _read_rows_by_pages(
             if push_row:
                 yield row
 
-            push_counter.update(1)
-            model_push_counter.update(1)
+            if push_counter:
+                push_counter.update(1)
+            if model_push_counter:
+                model_push_counter.update(1)
 
         if state_row:
             for state_row in itertools.chain([state_row], state_rows):
