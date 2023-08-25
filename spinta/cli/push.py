@@ -468,6 +468,87 @@ def _get_model_rows(
         push_counter.close()
 
 
+def _iter_model_rows(
+    context: Context,
+    models: List[Model],
+    counts: Dict[str, int],
+    metadata: sa.MetaData,
+    limit: int = None,
+    *,
+    stop_on_error: bool = False,
+    no_progress_bar: bool = False,
+    push_counter: tqdm.tqdm = None,
+    incremental: bool = False,
+    page_model: str = None,
+    page: Any = None,
+) -> Iterator[ModelRow]:
+    for model in models:
+        model_push_counter = None
+        if not no_progress_bar:
+            count = counts.get(model.name)
+            model_push_counter = tqdm.tqdm(desc=model.name, ascii=True, total=count, leave=False)
+
+        if model.page and model.page.by:
+            rows = _read_rows_by_pages(
+                context,
+                model,
+                metadata,
+                limit,
+                stop_on_error,
+                push_counter,
+                model_push_counter,
+                incremental,
+                page_model,
+                page,
+            )
+            for row in rows:
+                yield row
+
+        if model_push_counter is not None:
+            model_push_counter.close()
+
+
+def _read_model_data_by_page(
+    context: Context,
+    model: Model,
+    limit: int = None,
+    stop_on_error: bool = False,
+    page: ParamsPage = None,
+) -> Iterable[Dict[str, Any]]:
+
+    if limit is None:
+        query = None
+    else:
+        query = Expr('limit', limit)
+
+    stream = get_page(
+        context,
+        model,
+        model.backend,
+        page,
+        query,
+    )
+
+    if stop_on_error:
+        stream = peek(stream)
+    else:
+        try:
+            stream = peek(stream)
+        except Exception:
+            log.exception(f"Error when reading data from model {model.name}")
+            return
+
+    yield from stream
+
+
+def _rows_to_push_rows(
+    model: Model,
+    rows: Iterable[Dict[str, Any]]
+) -> Iterator[_PushRow]:
+    for row in rows:
+        yield _PushRow(model, row)
+
+
 def _read_rows_by_pages(
     context: Context,
     model: Model,
