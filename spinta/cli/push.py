@@ -183,7 +183,6 @@ def push(
         if state:
             state = _State(*_init_push_state(state, models))
             context.attach('push.state.conn', state.engine.begin)
-            _reset_pushed(context, models, state.metadata)
 
         error_counter = ErrorCounter(max_count=max_error_count)
 
@@ -345,14 +344,6 @@ def _read_rows(
         error_counter=error_counter,
     )
 
-    yield PUSH_NOW
-    yield from _get_deleted_rows(
-        models,
-        context,
-        state.metadata,
-        no_progress_bar=no_progress_bar,
-    )
-
     for i in range(1, retry_count + 1):
         yield PUSH_NOW
         counts = (
@@ -459,10 +450,8 @@ def _get_model_rows(
         page_model=page_model,
         page=page,
     )
-    if not no_progress_bar:
-        rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
-    for model, row in rows:
-        yield _PushRow(model, row)
+    for row in rows:
+        yield row
 
     if push_counter is not None:
         push_counter.close()
@@ -539,14 +528,6 @@ def _read_model_data_by_page(
             return
 
     yield from stream
-
-
-def _rows_to_push_rows(
-    model: Model,
-    rows: Iterable[Dict[str, Any]]
-) -> Iterator[_PushRow]:
-    for row in rows:
-        yield _PushRow(model, row)
 
 
 def _read_rows_by_pages(
@@ -674,6 +655,10 @@ def _read_rows_by_pages(
 
             push_counter.update(1)
             model_push_counter.update(1)
+
+        if state_row:
+            for state_row in itertools.chain([state_row], state_rows):
+                yield _prepare_deleted_row(model, state_row[model_table.c.id])
 
 
 def _get_state_rows(
@@ -1318,34 +1303,6 @@ def _save_page_values(
                         )
                         saved = True
 
-            yield row
-
-
-def _get_deleted_rows(
-    models: List[Model],
-    context: Context,
-    metadata: sa.MetaData,
-    no_progress_bar: bool = False,
-):
-    counts = (
-        _get_deleted_row_counts(
-            models,
-            context,
-            metadata
-        )
-    )
-    total_count = sum(counts.values())
-    if total_count > 0:
-        rows = _iter_deleted_rows(
-            models,
-            context,
-            metadata,
-            counts,
-            no_progress_bar
-        )
-        if not no_progress_bar:
-            rows = tqdm.tqdm(rows, 'PUSH DELETED', ascii=True, total=total_count)
-        for row in rows:
             yield row
 
 
