@@ -36,6 +36,8 @@ from spinta import spyna
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow, count_rows
 from spinta.cli.helpers.data import ensure_data_dir
+from spinta.cli.helpers.data import iter_model_rows
+from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
@@ -56,6 +58,7 @@ from spinta.utils.json import fix_data_for_json
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.units import tobytes
 from spinta.utils.units import toseconds
+from spinta.utils.sqlite import migrate_table
 
 log = logging.getLogger(__name__)
 
@@ -180,8 +183,9 @@ def push(
         if state:
             state = _State(*_init_push_state(state, models))
             context.attach('push.state.conn', state.engine.begin)
+            _reset_pushed(context, models, state.metadata)
 
-        error_counter = _ErrorCounter(max_error_count)
+        error_counter = ErrorCounter(max_count=max_error_count)
 
         rows = _read_rows(
             context,
@@ -214,17 +218,13 @@ def push(
             error_counter=error_counter,
         )
 
+        if error_counter.has_errors():
+            raise Exit(code=1)
+
 
 class _State(NamedTuple):
     engine: sa.engine.Engine
     metadata: sa.MetaData
-
-
-class _ErrorCounter:
-    count: int      # Shows how many errors can still occur
-
-    def __init__(self, count: int):
-        self.count = count
 
 
 class _PushRow:
@@ -287,10 +287,13 @@ def _push(
     chunk_size: Optional[int] = None,   # split into chunks of given size in bytes
     dry_run: bool = False,              # do not send or write anything
     stop_on_error: bool = False,        # raise error immediately
-    error_counter: _ErrorCounter = None
+    error_counter: ErrorCounter = None
 ) -> None:
     if stop_time:
         rows = _add_stop_time(rows, stop_time)
+
+    if state:
+        rows = _check_push_state(context, rows, state.metadata)
 
     rows = _prepare_rows_for_push(rows)
 
@@ -324,7 +327,7 @@ def _read_rows(
     stop_on_error: bool = False,
     retry_count: int = 5,
     no_progress_bar: bool = False,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
     incremental: bool = False,
     page_model: str = None,
     page: Any = None,
@@ -339,6 +342,15 @@ def _read_rows(
         incremental=incremental,
         page_model=page_model,
         page=page,
+        error_counter=error_counter,
+    )
+
+    yield PUSH_NOW
+    yield from _get_deleted_rows(
+        models,
+        context,
+        state.metadata,
+        no_progress_bar=no_progress_bar,
     )
 
     for i in range(1, retry_count + 1):
@@ -371,7 +383,7 @@ def _read_rows(
 def _push_rows(
     rows: Iterator[_PushRow],
     stop_on_error: bool = False,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> None:
     while True:
         try:
@@ -382,7 +394,7 @@ def _push_rows(
             if stop_on_error:
                 raise
             log.exception("Error while reading data.")
-        if error_counter and error_counter.count <= 0:
+        if error_counter and error_counter.has_reached_max():
             break
 
 
@@ -418,6 +430,7 @@ def _get_model_rows(
     incremental: bool = False,
     page_model: str = None,
     page: Any = None,
+    error_counter: ErrorCounter = None
 ) -> Iterator[_PushRow]:
     counts = (
         count_rows(
@@ -425,6 +438,7 @@ def _get_model_rows(
             models,
             limit,
             stop_on_error=stop_on_error,
+            error_counter=error_counter,
         )
         if not no_progress_bar
         else {}
@@ -445,92 +459,13 @@ def _get_model_rows(
         page_model=page_model,
         page=page,
     )
-    for row in rows:
-        yield row
+    if not no_progress_bar:
+        rows = tqdm.tqdm(rows, 'PUSH', ascii=True, total=sum(counts.values()))
+    for model, row in rows:
+        yield _PushRow(model, row)
 
     if push_counter is not None:
         push_counter.close()
-
-
-def _iter_model_rows(
-    context: Context,
-    models: List[Model],
-    counts: Dict[str, int],
-    metadata: sa.MetaData,
-    limit: int = None,
-    *,
-    stop_on_error: bool = False,
-    no_progress_bar: bool = False,
-    push_counter: tqdm.tqdm = None,
-    incremental: bool = False,
-    page_model: str = None,
-    page: Any = None,
-) -> Iterator[ModelRow]:
-    for model in models:
-        model_push_counter = None
-        if not no_progress_bar:
-            count = counts.get(model.name)
-            model_push_counter = tqdm.tqdm(desc=model.name, ascii=True, total=count, leave=False)
-
-        if model.page and model.page.by:
-            rows = _read_rows_by_pages(
-                context,
-                model,
-                metadata,
-                limit,
-                stop_on_error,
-                push_counter,
-                model_push_counter,
-                incremental,
-                page_model,
-                page,
-            )
-            for row in rows:
-                yield row
-
-        if model_push_counter is not None:
-            model_push_counter.close()
-
-
-def _read_model_data_by_page(
-    context: Context,
-    model: Model,
-    limit: int = None,
-    stop_on_error: bool = False,
-    page: ParamsPage = None,
-) -> Iterable[Dict[str, Any]]:
-
-    if limit is None:
-        query = None
-    else:
-        query = Expr('limit', limit)
-
-    stream = get_page(
-        context,
-        model,
-        model.backend,
-        page,
-        query,
-    )
-
-    if stop_on_error:
-        stream = peek(stream)
-    else:
-        try:
-            stream = peek(stream)
-        except Exception:
-            log.exception(f"Error when reading data from model {model.name}")
-            return
-
-    yield from stream
-
-
-def _rows_to_push_rows(
-    model: Model,
-    rows: Iterable[Dict[str, Any]]
-) -> Iterator[_PushRow]:
-    for row in rows:
-        yield _PushRow(model, row)
 
 
 def _read_rows_by_pages(
@@ -758,7 +693,7 @@ def _push_to_remote_spinta(
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> Iterator[_PushRow]:
     prefix = '{"_data":['
     suffix = ']}'
@@ -767,6 +702,10 @@ def _push_to_remote_spinta(
     ready: List[_PushRow] = []
 
     for row in rows:
+        if error_counter:
+            if error_counter.has_reached_max():
+                break
+
         data = fix_data_for_json(row.data)
         data = json.dumps(data, ensure_ascii=False)
         if ready and (
@@ -784,20 +723,32 @@ def _push_to_remote_spinta(
             )
             chunk = prefix
             ready = []
-        if row.send:
+        if not row.push and row.send:
             chunk += (',' if ready else '') + data
             ready.append(row)
 
     if ready:
-        yield from _send_and_receive(
-            client,
-            server,
-            ready,
-            chunk + suffix,
-            dry_run=dry_run,
-            stop_on_error=stop_on_error,
-            error_counter=error_counter
-        )
+        if error_counter:
+            if not error_counter.has_reached_max():
+                yield from _send_and_receive(
+                    client,
+                    server,
+                    ready,
+                    chunk + suffix,
+                    dry_run=dry_run,
+                    stop_on_error=stop_on_error,
+                    error_counter=error_counter
+                )
+        else:
+            yield from _send_and_receive(
+                client,
+                server,
+                ready,
+                chunk + suffix,
+                dry_run=dry_run,
+                stop_on_error=stop_on_error,
+                error_counter=error_counter
+            )
 
 
 def _send_and_receive(
@@ -808,7 +759,7 @@ def _send_and_receive(
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> Iterator[_PushRow]:
     if dry_run:
         recv = _send_data_dry_run(data)
@@ -848,7 +799,7 @@ def _send_request(
     *,
     stop_on_error: bool = False,
     ignore_errors: Optional[List[int]] = None,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> Tuple[Optional[int], Optional[Dict[str, Any]]]:
     data = data.encode('utf-8')
     if not ignore_errors:
@@ -858,7 +809,7 @@ def _send_request(
         resp = client.request(method, server, data=data)
     except IOError as e:
         if error_counter:
-            error_counter.count -= 1
+            error_counter.increase()
         log.error(
             (
                 "Error when sending and receiving data.%s\n"
@@ -876,7 +827,7 @@ def _send_request(
     except HTTPError:
         if resp.status_code not in ignore_errors:
             if error_counter:
-                error_counter.count -= 1
+                error_counter.increase()
             try:
                 recv = resp.json()
             except requests.JSONDecodeError:
@@ -1078,89 +1029,11 @@ def _init_push_state(
             sa.Column('data', sa.Text),
             *pagination_cols
         )
-        table.create(checkfirst=True)
-
-        if inspector.has_table(table.name):
-            columns = [col['name'] for col in inspector.get_columns(table.name)]
-            renamed = _rename_column(
-                engine,
-                table.name,
-                columns,
-                old_column_name='rev',
-                new_column_name='checksum'
-            )
-            if not renamed:
-                _add_column(
-                    engine,
-                    table.name,
-                    columns,
-                    sa.Column('checksum', sa.Unicode)
-                )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('revision', sa.Unicode)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('pushed', sa.DateTime)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('error', sa.Boolean)
-            )
-            _add_column(
-                engine,
-                table.name,
-                columns,
-                sa.Column('data', sa.Text)
-            )
-            for pg_col in pagination_cols:
-                _add_column(
-                    engine,
-                    table.name,
-                    columns,
-                    pg_col
-                )
+        migrate_table(engine, metadata, inspector, table, renames={
+            'rev': 'checksum',
+        })
 
     return engine, metadata
-
-
-def _add_column(
-    engine: sa.engine.Engine,
-    table: str,
-    columns: List[str],
-    column: sa.Column,
-):
-    column_type = column.type.compile(engine.dialect)
-    if column.name not in columns:
-        engine.execute('ALTER TABLE "%s" ADD COLUMN "%s" %s' % (
-            table,
-            column.name,
-            column_type
-        ))
-
-
-def _rename_column(
-    engine: sa.engine.Engine,
-    table: str,
-    columns: List[str],
-    old_column_name: str,
-    new_column_name: str
-) -> bool:  # return True if column was renamed
-    if old_column_name in columns and new_column_name not in columns:
-        engine.execute('ALTER TABLE "%s" RENAME COLUMN "%s" TO "%s"' % (
-            table,
-            old_column_name,
-            new_column_name
-        ))
-        return True
-    return False
 
 
 def _get_model_type(row: _PushRow) -> str:
@@ -1183,6 +1056,68 @@ def _get_data_checksum(data: dict):
 class _Saved(NamedTuple):
     revision: str
     checksum: str
+
+
+def _reset_pushed(
+    context: Context,
+    models: List[Model],
+    metadata: sa.MetaData,
+):
+    conn = context.get('push.state.conn')
+    for model in models:
+        table = metadata.tables[model.name]
+
+        # reset pushed so we could see which objects were deleted
+        conn.execute(
+            table.update().
+            values(pushed=None)
+        )
+
+
+def _check_push_state(
+    context: Context,
+    rows: Iterable[_PushRow],
+    metadata: sa.MetaData,
+):
+    conn = context.get('push.state.conn')
+
+    for model_type, group in itertools.groupby(rows, key=_get_model_type):
+        saved_rows = {}
+        if model_type:
+            table = metadata.tables[model_type]
+
+            query = sa.select([table.c.id, table.c.revision, table.c.checksum])
+            saved_rows = {
+                state[table.c.id]: _Saved(
+                    state[table.c.revision],
+                    state[table.c.checksum],
+                )
+                for state in conn.execute(query)
+            }
+
+        for row in group:
+            if row.send and not row.error and row.op != "delete":
+                _id = row.data['_id']
+                row.checksum = _get_data_checksum(row.data)
+                saved = saved_rows.get(_id)
+                if saved is None:
+                    row.op = "insert"
+                    row.saved = False
+                else:
+                    row.op = "patch"
+                    row.saved = True
+                    row.data['_revision'] = saved.revision
+                    if saved.checksum == row.checksum:
+                        conn.execute(
+                            table.update().
+                            where(table.c.id == _id).
+                            values(
+                                pushed=datetime.datetime.now()
+                            )
+                        )
+                        continue  # Nothing has changed.
+
+            yield row
 
 
 def _save_push_state(
@@ -1305,6 +1240,93 @@ def _save_page_values(
             yield row
 
 
+def _get_deleted_rows(
+    models: List[Model],
+    context: Context,
+    metadata: sa.MetaData,
+    no_progress_bar: bool = False,
+):
+    counts = (
+        _get_deleted_row_counts(
+            models,
+            context,
+            metadata
+        )
+    )
+    total_count = sum(counts.values())
+    if total_count > 0:
+        rows = _iter_deleted_rows(
+            models,
+            context,
+            metadata,
+            counts,
+            no_progress_bar
+        )
+        if not no_progress_bar:
+            rows = tqdm.tqdm(rows, 'PUSH DELETED', ascii=True, total=total_count)
+        for row in rows:
+            yield row
+
+
+def _get_deleted_row_counts(
+    models: List[Model],
+    context: Context,
+    metadata: sa.MetaData,
+) -> dict:
+    counts = {}
+    conn = context.get('push.state.conn')
+    for model in models:
+        table = metadata.tables[model.name]
+        row_count = conn.execute(
+            sa.select(sa.func.count(table.c.id)).
+            where(
+                table.c.pushed.is_(None) &
+                table.c.error.is_(False)
+            )
+        )
+        counts[model.name] = row_count.scalar()
+    return counts
+
+
+def _iter_deleted_rows(
+    models: List[Model],
+    context: Context,
+    metadata: sa.MetaData,
+    counts: Dict[str, int],
+    no_progress_bar: bool = False,
+) -> Iterable[_PushRow]:
+    conn = context.get('push.state.conn')
+
+    for model in models:
+        table = metadata.tables[model.name]
+        deleted_rows = conn.execute(
+            sa.select([table.c.id]).
+            where(
+                table.c.pushed.is_(None) &
+                table.c.error.is_(False)
+            )
+        )
+        if not no_progress_bar:
+            deleted_rows = tqdm.tqdm(
+                deleted_rows,
+                model.name,
+                ascii=True,
+                total=counts.get(model.name),
+                leave=False
+            )
+
+        yield from _prepare_deleted_rows(deleted_rows, model, table)
+
+
+def _prepare_deleted_rows(
+    rows,
+    model: Model,
+    table: sa.Table,
+) -> Iterable[ModelRow]:
+    for row in rows:
+        yield _prepare_deleted_row(model, row[table.c.id])
+
+
 def _prepare_deleted_row(
     model: Model,
     _id: str,
@@ -1338,7 +1360,7 @@ def _get_rows_with_errors(
     counts: Dict[str, int],
     retry: int,
     no_progress_bar: bool = False,
-    error_counter: _ErrorCounter = None
+    error_counter: ErrorCounter = None
 ):
     rows = _iter_rows_with_errors(
         client,
@@ -1383,7 +1405,7 @@ def _iter_rows_with_errors(
     metadata: sa.MetaData,
     counts: Dict[str, int],
     no_progress_bar: bool = False,
-    error_counter: _ErrorCounter = None,
+    error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
     conn = context.get('push.state.conn')
     for model in models:
@@ -1421,7 +1443,7 @@ def _prepare_rows_with_errors(
     rows,
     model: Model,
     table: sa.Table,
-    error_counter: _ErrorCounter = None
+    error_counter: ErrorCounter = None
 ) -> Iterable[ModelRow]:
     conn = context.get('push.state.conn')
     for row in rows:

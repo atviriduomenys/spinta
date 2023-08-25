@@ -103,13 +103,17 @@ async def getall(
         )
     else:
         select_tree = get_select_tree(context, action, params.select)
+        if action == Action.SEARCH:
+            reserved = ['_type', '_id', '_revision', '_base']
+        else:
+            reserved = ['_type', '_id', '_revision']
         prop_names = get_select_prop_names(
             context,
             model,
             model.properties,
             action,
             select_tree,
-            reserved=['_type', '_id', '_revision'],
+            reserved=reserved,
             include_denorm_props=False,
         )
         rows = (
@@ -651,4 +655,39 @@ async def changes(
         for row in rows
     )
 
+    return render(context, request, model, params, rows, action=action)
+
+
+@commands.summary.register(Context, Request, Model)
+async def summary(
+    context: Context,
+    request: Request,
+    model: Model,
+    *,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    commands.authorize(context, action, model)
+    backend = model.backend
+    prop = params.select[0]
+
+    accesslog: AccessLog = context.get('accesslog')
+    accesslog.request(
+        # XXX: Read operations does not have a transaction, but it
+        #      is needed for loging.
+        txn=str(uuid.uuid4()),
+        model=model.model_type(),
+        action=action.value,
+    )
+    if params.head:
+        rows = []
+    else:
+        args = {
+            "prop": prop
+        }
+        if params.query:
+            for item in params.query:
+                args[item["name"]] = item["args"]
+        rows = commands.summary(context, model, backend, args=args)
+    rows = log_response(context, rows)
     return render(context, request, model, params, rows, action=action)

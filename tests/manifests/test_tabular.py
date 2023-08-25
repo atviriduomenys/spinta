@@ -2,7 +2,8 @@ import pytest
 
 from spinta.exceptions import InvalidManifestFile, NoRefPropertyForDenormProperty, ReferencedPropertyNotFound
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.manifest import load_manifest
+from spinta.testing.manifest import load_manifest, compare_manifest
+from spinta.manifests.tabular.helpers import TabularManifestError
 
 
 def check(tmp_path, rc, table):
@@ -237,6 +238,160 @@ def test_time_type(tmp_path, rc):
     ''')
 
 
+def test_property_unique_add(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property            | type
+    example                             |
+                                        |
+      |   |   | City                    |
+      |   |   |   | prop_with_unique    | string unique
+      |   |   |   | prop_not_unique     | string
+    ''')
+
+
+def test_property_unique_add_wrong_type(tmp_path, rc):
+    with pytest.raises(TabularManifestError) as e:
+        check(tmp_path, rc, '''
+        d | r | b | m | property | type
+        datasets/gov/example     |
+          |   |   | City         |
+          |   |   |   | value    | string unikue
+        ''')
+    assert 'TabularManifestError' in str(e)
+
+
+def test_property_with_ref_unique(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+                             | prefix             | locn                 | http://www.w3.org/ns/locn#
+                             |                    | ogc                  | http://www.opengis.net/rdf#
+                             |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    |                      |
+      |   |   |   | name     | string unique      |                      | locn:geographicName
+                             |                    |                      |
+      |   |   | City         |                    |                      |
+                             | unique             | name, country        |
+      |   |   |   | name     | string             |                      | locn:geographicName
+      |   |   |   | country  | ref                | Country              |
+    ''')
+
+
+def test_property_with_multi_ref_unique(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+                             | prefix             | locn                 | http://www.w3.org/ns/locn#
+                             |                    | ogc                  | http://www.opengis.net/rdf#
+                             |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    |                      |
+      |   |   |   | name     | string unique      |                      | locn:geographicName
+                             |                    |                      |
+      |   |   | City         |                    |                      |
+                             | unique             | name, country        |
+                             | unique             | text                 |
+                             | unique             | another, text        |
+      |   |   |   | name     | string             |                      | locn:geographicName
+      |   |   |   | text     | string             |                      | locn:geographicName
+      |   |   |   | another  | string             |                      | locn:geographicName
+      |   |   |   | country  | ref                | Country              |
+    ''')
+
+
+def test_property_with_ref_with_unique(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+                             | prefix             | locn                 | http://www.w3.org/ns/locn#
+                             |                    | ogc                  | http://www.opengis.net/rdf#
+                             |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    |                      |
+      |   |   |   | name     | string unique      |                      | locn:geographicName
+                             |                    |                      |
+      |   |   | City         |                    |                      |
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      | locn:geographicName
+      |   |   |   | country  | ref                | Country              |
+    ''')
+
+
+def test_unique_prop_remove_when_model_ref_single(tmp_path, rc):
+    table = '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    | name                 |
+      |   |   |   | name     | string unique      |                      |
+                             |                    |                      |
+      |   |   | City         |                    | name                 |
+                             | unique             | name                 |   
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      |
+      |   |   |   | country  | ref                | Country              |
+    '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    assert manifest == '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    | name                 |
+      |   |   |   | name     | string             |                      |
+                             |                    |                      |
+      |   |   | City         |                    | name                 |
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      |
+      |   |   |   | country  | ref                | Country              |
+    '''
+
+
+def test_unique_prop_remove_when_model_ref_multi(tmp_path, rc):
+    table = '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    | name, id             |
+                             | unique             | name, id             |  
+      |   |   |   | name     | string             |                      |
+      |   |   |   | id       | string unique      |                      |
+                             |                    |                      |
+      |   |   | City         |                    | name, id             |
+                             | unique             | name, id             |   
+                             | unique             | name                 |   
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      |
+      |   |   |   | id       | string             |                      |
+      |   |   |   | country  | ref                | Country              |
+    '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    manifest = load_manifest(rc, tmp_path / 'manifest.csv')
+    assert manifest == '''
+    d | r | b | m | property | type               | ref                  | uri
+    datasets/gov/example     |                    |                      |
+      | data                 | postgresql         | default              |
+                             |                    |                      |
+      |   |   | Country      |                    | name, id             |
+      |   |   |   | name     | string             |                      |
+      |   |   |   | id       | string unique      |                      |
+                             |                    |                      |
+      |   |   | City         |                    | name, id             |
+                             | unique             | name                 |
+                             | unique             | country              |
+      |   |   |   | name     | string             |                      |
+      |   |   |   | id       | string             |                      |
+      |   |   |   | country  | ref                | Country              |
+    '''
+
+
 def test_with_denormalized_data(tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property               | type   | ref       | access
@@ -364,4 +519,92 @@ def test_end_marker(tmp_path, rc):
       |   |   |   | id         | integer |
       |   |   |   | name       | string  |
       |   |   |   | population | integer |
+    ''')
+
+
+def test_model_param_list(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source | prepare
+    datasets/gov/example       |         |         |        |
+                               |         |         |        |
+      |   |   | Location       |         |         |        |
+                               | param   | country |        | 'lt'
+                               |         |         |        | 'lv'
+                               |         |         |        | 'ee'
+      |   |   |   | id         | integer |         |        |
+      |   |   |   | name       | string  |         |        |
+      |   |   |   | population | integer |         |        |
+    ''')
+
+
+def test_model_param_list_with_source(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source | prepare
+    datasets/gov/example       |         |         |        |
+                               |         |         |        |
+      |   |   | Location       |         |         |        |
+                               | param   | country |        | 'lt'
+                               |         |         |        | 'lv'
+                               |         |         |        | 'ee'
+                               |         |         | es     |
+      |   |   |   | id         | integer |         |        |
+      |   |   |   | name       | string  |         |        |
+      |   |   |   | population | integer |         |        |
+    ''')
+
+
+def test_model_param_multiple(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source   | prepare
+    datasets/gov/example       |         |         |          |
+                               |         |         |          |
+      |   |   | Location       |         |         |          |
+                               | param   | country |          | 'lt'
+                               |         |         |          | 'lv'
+                               |         |         |          | 'ee'
+                               |         |         | es       |
+                               | param   | test    | Location | select(name)
+      |   |   |   | id         | integer |         |          |
+      |   |   |   | name       | string  |         |          |
+      |   |   |   | population | integer |         |          |
+    ''')
+
+
+def test_resource_param(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source   | prepare
+    datasets/gov/example       |         |         |          |
+      | resource1              |         | default |          | sql
+                               | param   | country |          | 'lt'
+                               |         |         |          |
+      |   |   | Location       |         |         |          |
+                               | param   | country |          | 'lt'
+                               |         |         |          | 'lv'
+                               |         |         |          | 'ee'
+                               |         |         | es       |
+                               | param   | test    | Location | select(name)
+      |   |   |   | id         | integer |         |          |
+      |   |   |   | name       | string  |         |          |
+      |   |   |   | population | integer |         |          |
+    ''')
+
+
+def test_resource_param_multiple(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source   | prepare
+    datasets/gov/example       |         |         |          |
+      | resource1              |         | default |          | sql
+                               | param   | country |          | 'lt'
+                               | param   | name    | Location | select(name)
+                               | param   | date    |          | range(station.start_time, station.end_time, freq: 'd')
+                               |         |         |          |
+      |   |   | Location       |         |         |          |
+                               | param   | country |          | 'lt'
+                               |         |         |          | 'lv'
+                               |         |         |          | 'ee'
+                               |         |         | es       |
+                               | param   | test    | Location | select(name)
+      |   |   |   | id         | integer |         |          |
+      |   |   |   | name       | string  |         |          |
+      |   |   |   | population | integer |         |          |
     ''')

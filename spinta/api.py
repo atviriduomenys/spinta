@@ -9,6 +9,7 @@ from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
+from starlette.responses import RedirectResponse
 from starlette.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
 from starlette.routing import Route, Mount
@@ -163,6 +164,21 @@ async def error(request, exc):
         )
 
 
+async def srid_check(request: Request):
+    from shapely.geometry import Point
+    from geoalchemy2.shape import from_shape
+    from spinta.backends.postgresql.types.geometry.helpers import get_osm_link
+
+    srid = request.path_params['srid']
+    x = request.path_params['x']
+    y = request.path_params['y']
+
+    point = Point(x, y)
+    wkb = from_shape(point, srid)
+    osm_link = get_osm_link(wkb, srid)
+    return RedirectResponse(url=osm_link)
+
+
 def init(context: Context):
     config = context.get('config')
 
@@ -170,7 +186,8 @@ def init(context: Context):
         Route('/robots.txt', robots, methods=['GET']),
         Route('/favicon.ico', favicon, methods=['GET']),
         Route('/version', version, methods=['GET']),
-        Route('/auth/token', auth_token, methods=['POST'])
+        Route('/auth/token', auth_token, methods=['POST']),
+        Route('/_srid/{srid:int}/{x:float}/{y:float}', srid_check, methods=['GET']),
     ]
 
     if config.docs_path:

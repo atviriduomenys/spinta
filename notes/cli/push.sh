@@ -67,31 +67,37 @@ tail -50 $BASEDIR/spinta.log
 
 # notes/spinta/client.sh    Configure client
 
-http GET "$SERVER/datasets/example/Continent"
-#| HTTP/1.1 404 Not Found
-#|
+http GET "$SERVER/datasets/external/Continent"
+#| HTTP/1.1 500 Internal Server Error
+#| 
 #| {
 #|     "errors": [
 #|         {
-#|             "code": "ModelNotFound",
-#|             "context": {
-#|                 "model": "datasets/example/Continent"
-#|             },
-#|             "message": "Model 'datasets/example/Continent' not found.",
-#|             "template": "Model {model!r} not found.",
-#|             "type": "system"
+#|             "code": "ProgrammingError",
+#|             "message": "
+#|                 (psycopg2.errors.UndefinedTable)
+#|                     relation "datasets/external/Continent" does not exist
+#|                 LINE 2
+#|                     FROM "datasets/external/Continent"
+#|                 SQL:
+#|                     SELECT
+#|                         "datasets/external/Continent"._id,
+#|                         "datasets/external/Continent"._revision,
+#|                         "datasets/external/Continent".id,
+#|                         "datasets/external/Continent".name
+#|                     FROM "datasets/external/Continent"
+#|             "
 #|         }
 #|     ]
 #| }
+# TODO: Show an 400 error, explaining, that source is not set.
 
 http GET "$SERVER/$DATASET/Country?format(ascii)"
-#| _type             _id                                   _revision  id  name       continent._id
-#| ----------------  ------------------------------------  ---------  --  ---------  ------------------------------------
-#| cli/push/Country  2b7f8f23-89d7-479c-8b4e-f86612d608e2  ∅          1   Lithuania  b2c20b7e-ba9e-4e84-989e-625201b219e5
-# TODO: continent._id should be 42
-#       https://github.com/atviriduomenys/spinta/issues/208
+#| _type             _id                                   _revision  id  name       continent.id
+#| ----------------  ------------------------------------  ---------  --  ---------  ------------
+#| cli/push/Country  f2c62384-1591-416c-8ed6-40a89c682e0f  ∅          1   Lithuania  42
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#| _type          _id                                   _revision  id  name     country._id
+#| _type          _id                                   _revision  id  name     country._id                         
 #| -------------  ------------------------------------  ---------  --  -------  ------------------------------------
 #| cli/push/City  31bfc6b7-7ad5-48ec-83e9-0e6841b5dd43  ∅          1   Vilnius  2b7f8f23-89d7-479c-8b4e-f86612d608e2
 
@@ -101,13 +107,9 @@ http GET "$SERVER/$DATASET/City?format(ascii)"
 # notes/postgres.sh         Show tables
 
 psql -h localhost -p 54321 -U admin spinta -c '\d "'$DATASET'/Country"'
-#|     Column     |            Type             | Collation | Nullable | Default
+#|     Column     |            Type             | Collation | Nullable | Default 
 #| ---------------+-----------------------------+-----------+----------+---------
-#|  continent._id | uuid                        |           |          |
-#| Foreign-key constraints:
-#|     "fk_cli/push/Country_continent._id" FOREIGN KEY ("continent._id") REFERENCES "datasets/external/Continent"(_id)
-# TODO: referece should not be created
-#       https://github.com/atviriduomenys/spinta/issues/208
+#|  continent.id  | integer                     |           |          |
 
 # Run server with internal mode
 test -n "$PID" && kill $PID
@@ -141,35 +143,77 @@ http GET "$SERVER/$DATASET/Country?format(ascii)"
 http GET "$SERVER/$DATASET/City?format(ascii)"
 
 poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
-#| (psycopg2.errors.ForeignKeyViolation) insert or update on table "cli/push/Country" violates foreign key constraint "fk_cli/push/Country_continent._id"
-# TODO: https://github.com/atviriduomenys/spinta/issues/208
+#| Traceback (most recent call last):
+#|   File "multipledispatch/dispatcher.py", line 269, in __call__
+#|     func = self._cache[types]
+#| KeyError: (<class 'spinta.backends.postgresql.commands.query.PgQueryBuilder'>, <class 'NoneType'>)
+#|
+#| During handling of the above exception, another exception occurred:
+#|
+#| Traceback (most recent call last):
+#|   File "/spinta/core/ufuncs.py", line 216, in call
+#|     return ufunc(self, *args, **kwargs)
+#|   File "multipledispatch/dispatcher.py", line 273, in __call__
+#|     raise NotImplementedError(
+#| NotImplementedError: Could not find signature for select: <PgQueryBuilder, NoneType>
+#|
+#| During handling of the above exception, another exception occurred:
+#|
+#| Traceback (most recent call last):
+#|   File "/spinta/cli/helpers/data.py", line 51, in count_rows
+#|     count = _get_row_count(context, model)
+#|   File "/spinta/cli/helpers/data.py", line 36, in _get_row_count
+#|     for data in stream:
+#|   File "/spinta/backends/postgresql/commands/read.py", line 51, in getall
+#|     expr = env.resolve(query)
+#|   File "/spinta/backends/postgresql/commands/query.py", line 285, in select
+#|     selected = env.call('select', arg)
+#|   File "/spinta/core/ufuncs.py", line 218, in call
+#|     raise UnknownMethod(expr=str(Expr(name, *args, **kwargs)), name=name)
+#| spinta.exceptions.UnknownMethod: Unknown method 'select' with args select(null).
+#|   Context:
+#|     expr: select(null)
+#|     name: select
+# TODO: https://github.com/atviriduomenys/spinta/issues/394
+
+poetry run spinta push $BASEDIR/manifest.csv -o test@localhost -d $DATASET
+#| PUSH: 100%|#| 2/2 [00:00<00:00, 445.04it/s]
 
 # Push state database tables should be updates to a new schema
 sqlite3 $BASEDIR/push/localhost.db '.schema'
 #| CREATE TABLE IF NOT EXISTS "cli/push/Country" (
-#|     "id"        VARCHAR NOT NULL PRIMARY KEY,
-#|     "checksum"  VARCHAR,
-#|     "pushed"    DATETIME,
-#|     "revision"  VARCHAR,
-#|     "error"     BOOLEAN,
-#|     "data"      TEXT
+#|     id        VARCHAR NOT NULL PRIMARY KEY,
+#|     checksum  VARCHAR,
+#|     pushed    DATETIME,
+#|     revision  VARCHAR,
+#|     error     BOOLEAN,
+#|     data      TEXT
 #| );
 #| CREATE TABLE IF NOT EXISTS "cli/push/City" (
-#|     "id"        VARCHAR NOT NULL PRIMARY KEY,
-#|     "checksum"  VARCHAR,
-#|     "pushed"    DATETIME,
-#|     "revision"  VARCHAR,
-#|     "error"     BOOLEAN,
-#|     "data"      TEXT
+#|     id        VARCHAR NOT NULL PRIMARY KEY,
+#|     checksum  VARCHAR,
+#|     pushed    DATETIME,
+#|     revision  VARCHAR,
+#|     error     BOOLEAN,
+#|     data      TEXT
+#| );
+#| CREATE TABLE IF NOT EXISTS "datasets/external/Continent" (
+#|     id        VARCHAR NOT NULL,
+#|     checksum  VARCHAR,
+#|     revision  VARCHAR,
+#|     pushed    DATETIME,
+#|     error     BOOLEAN,
+#|     data      TEXT,
+#|     PRIMARY KEY (id)
 #| );
 
 http GET "$SERVER/$DATASET/Country?format(ascii)"
-#| _type             _id                                   _revision                             id  name
+#| _type             _id                                   _revision                             id  name     
 #| ----------------  ------------------------------------  ------------------------------------  --  ---------
 #| cli/push/Country  f2c62384-1591-416c-8ed6-40a89c682e0f  dee21e6a-afe4-4b00-8333-9dd85afa951b  1   Lithuania
 
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#| _type          _id                                   _revision                             id  name     country._id
+#| _type          _id                                   _revision                             id  name     country._id                         
 #| -------------  ------------------------------------  ------------------------------------  --  -------  ------------------------------------
 #| cli/push/City  820f9c83-8654-4a72-9c71-7958a492b41f  fc41d0f5-a3b4-4079-b32e-f6fbb4c5c809  1   Vilnius  f2c62384-1591-416c-8ed6-40a89c682e0f
 
@@ -233,14 +277,14 @@ sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/Country";'
 #| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+------+
 
 http GET "$SERVER/$DATASET/Country?format(ascii)"
-#| _type             _id                                   _revision                             id  name
+#| _type             _id                                   _revision                             id  name     
 #| ----------------  ------------------------------------  ------------------------------------  --  ---------
 #| cli/push/Country  f2c62384-1591-416c-8ed6-40a89c682e0f  dee21e6a-afe4-4b00-8333-9dd85afa951b  1   Lithuania
 http GET "$SERVER/$DATASET/City?format(ascii)"
 # Vilnius was deleted, indeed.
 
 http GET "$SERVER/$DATASET/City/:changes?select(_op,_created,_id,name)&format(ascii)"
-#| _op     _created                    _id                                   name
+#| _op     _created                    _id                                   name   
 #| ------  --------------------------  ------------------------------------  -------
 #| insert  2023-03-13T09:48:26.643939  820f9c83-8654-4a72-9c71-7958a492b41f  Vilnius
 #| delete  2023-03-13T09:53:30.487053  820f9c83-8654-4a72-9c71-7958a492b41f  ∅
@@ -285,11 +329,11 @@ sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/Country";'
 #| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+------+
 
 http GET "$SERVER/$DATASET/Country?format(ascii)"
-#| _type             _id                                   _revision                             id  name
+#| _type             _id                                   _revision                             id  name     
 #| ----------------  ------------------------------------  ------------------------------------  --  ---------
 #| cli/push/Country  f2c62384-1591-416c-8ed6-40a89c682e0f  dee21e6a-afe4-4b00-8333-9dd85afa951b  1   Lithuania
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#| _type          _id                                   _revision                             id  name    country._id
+#| _type          _id                                   _revision                             id  name    country._id                         
 #| -------------  ------------------------------------  ------------------------------------  --  ------  ------------------------------------
 #| cli/push/City  2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd  0d87e54b-a29c-42f6-8bbe-8c9984bab00d  2   Kaunas  f2c62384-1591-416c-8ed6-40a89c682e0f
 
@@ -315,14 +359,14 @@ sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
 #| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+------+
 
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#| _type          _id                                   _revision                             id  name    country._id
+#| _type          _id                                   _revision                             id  name    country._id                         
 #| -------------  ------------------------------------  ------------------------------------  --  ------  ------------------------------------
 #| cli/push/City  2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd  0d87e54b-a29c-42f6-8bbe-8c9984bab00d  2   Kaunas  f2c62384-1591-416c-8ed6-40a89c682e0f
 #| cli/push/City  820f9c83-8654-4a72-9c71-7958a492b41f  7e054b5d-06b8-43ae-a891-2bf8840c0a1d  1   Vilniu  f2c62384-1591-416c-8ed6-40a89c682e0f\
 #|                                                                                                s
 
 http GET "$SERVER/$DATASET/City/:changes?select(_op,_created,_id,name)&format(ascii)"
-#| _op     _created                    _id                                   name
+#| _op     _created                    _id                                   name   
 #| ------  --------------------------  ------------------------------------  -------
 #| insert  2023-03-13T09:48:26.643939  820f9c83-8654-4a72-9c71-7958a492b41f  Vilnius
 #| delete  2023-03-13T09:53:30.487053  820f9c83-8654-4a72-9c71-7958a492b41f  ∅
@@ -360,22 +404,22 @@ sqlite3 $BASEDIR/db.sqlite "SELECT * FROM cities;"
 # Try to push with a 404 response code
 poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
 #| PUSH: 100%|#######| 4/4 [00:00<00:00, 703.68it/s]
-#|     ERROR: Error when sending and receiving data.
+#|     ERROR: Error when sending and receiving data.                                                                                                                  
 #|     Server response (status=404):
 #| RETRY #1: 100%|###| 1/1 [00:00<00:00, 463.05it/s]
-#|     ERROR: Error when sending and receiving data.
+#|     ERROR: Error when sending and receiving data.                                                                                                                  
 #|     Server response (status=404):
 #| RETRY #2: 100%|###| 1/1 [00:00<00:00, 532.47it/s]
-#|     ERROR: Error when sending and receiving data.
+#|     ERROR: Error when sending and receiving data.                                                                                                                  
 #|     Server response (status=404):
 #| RETRY #3: 100%|###| 1/1 [00:00<00:00, 647.77it/s]
-#|     ERROR: Error when sending and receiving data.
+#|     ERROR: Error when sending and receiving data.                                                                                                                  
 #|     Server response (status=404):
 #| RETRY #4: 100%|###| 1/1 [00:00<00:00, 627.23it/s]
-#|     ERROR: Error when sending and receiving data.
+#|     ERROR: Error when sending and receiving data.                                                                                                                  
 #|     Server response (status=404):
 #| RETRY #5: 100%|###| 1/1 [00:00<00:00, 691.79it/s]
-#|     ERROR: Error when sending and receiving data.
+#|     ERROR: Error when sending and receiving data.                                                                                                                  
 #|     Server response (status=404):
 
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
@@ -400,10 +444,10 @@ sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
 poetry run spinta push $BASEDIR/manifest.csv -o test@localhost --max-errors 2
 #| PUSH: 100%|#########| 4/4 [00:00<00:00, 681.75it/s]
 #| RETRY #1: 100%|#####| 1/1 [00:00<00:00, 342.53it/s]
-#|     ERROR: Error when sending and receiving data.
+#|     ERROR: Error when sending and receiving data.                                                                                                                                                                                                                 
 #|     Server response (status=404):
 #| RETRY #2: 100%|#####| 1/1 [00:00<00:00, 610.44it/s]
-#|     ERROR: Error when sending and receiving data.
+#|     ERROR: Error when sending and receiving data.                                                                                                                                                                                                                 
 #|     Server response (status=404):
 
 sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
@@ -448,7 +492,7 @@ sqlite3 $BASEDIR/push/localhost.db 'SELECT * FROM "cli/push/City";'
 #| +--------------------------------------+------------------------------------------+----------------------------+--------------------------------------+-------+------+
 
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#| _type          _id                                   _revision                             id  name     country._id
+#| _type          _id                                   _revision                             id  name     country._id                         
 #| -------------  ------------------------------------  ------------------------------------  --  -------  ------------------------------------
 #| cli/push/City  2a6da1e8-45f9-4b07-ac3c-91b48a90bdcd  0d87e54b-a29c-42f6-8bbe-8c9984bab00d  2   Kaunas   f2c62384-1591-416c-8ed6-40a89c682e0f
 #| cli/push/City  820f9c83-8654-4a72-9c71-7958a492b41f  7e054b5d-06b8-43ae-a891-2bf8840c0a1d  1   Vilnius  f2c62384-1591-416c-8ed6-40a89c682e0f
@@ -471,7 +515,7 @@ poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
 #| PUSH: 100%|######| 4/4 [00:00<00:00, 710.63it/s]
 
 http GET "$SERVER/$DATASET/City?format(ascii)"
-#| _type          _id                                   _revision                             id  name        country._id
+#| _type          _id                                   _revision                             id  name        country._id                         
 #| -------------  ------------------------------------  ------------------------------------  --  ----------  ------------------------------------
 #| cli/push/City  820f9c83-8654-4a72-9c71-7958a492b41f  7e054b5d-06b8-43ae-a891-2bf8840c0a1d  1   Vilnius     f2c62384-1591-416c-8ed6-40a89c682e0f
 #| cli/push/City  c3dc2dad-944a-4eb7-bdad-2a0ddf4fb971  057c6f7a-d32c-46bb-9a70-c23deb6fbfa4  3   Klaipėda    f2c62384-1591-416c-8ed6-40a89c682e0f
@@ -479,7 +523,7 @@ http GET "$SERVER/$DATASET/City?format(ascii)"
 #|                                                                                                dated)
 
 http GET "$SERVER/$DATASET/City/:changes?select(_op,_created,_id,name)&format(ascii)"
-#| _op     _created                    _id                                   name
+#| _op     _created                    _id                                   name      
 #| ------  --------------------------  ------------------------------------  ----------
 #| insert  2023-03-13T09:48:26.643939  820f9c83-8654-4a72-9c71-7958a492b41f  Vilnius
 #| delete  2023-03-13T09:53:30.487053  820f9c83-8654-4a72-9c71-7958a492b41f  ∅

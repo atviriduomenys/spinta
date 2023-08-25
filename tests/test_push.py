@@ -15,7 +15,8 @@ from requests import PreparedRequest
 from responses import POST
 from responses import RequestsMock
 
-from spinta.cli.push import _PushRow, _ErrorCounter
+from spinta.cli.helpers.errors import ErrorCounter
+from spinta.cli.push import _PushRow, _reset_pushed, _read_rows, _iter_deleted_rows, _get_deleted_row_counts
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
@@ -23,8 +24,41 @@ from spinta.cli.push import _send_request
 from spinta.cli.push import _push
 from spinta.cli.push import _State
 from spinta.core.config import RawConfig
+from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.data import listdata
+from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.tabular import create_tabular_manifest
+from tests.datasets.test_sql import create_rc, configure_remote_server
+
+
+@pytest.fixture(scope='module')
+def geodb():
+    with create_sqlite_db({
+        'salis': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('kodas', sa.Text),
+            sa.Column('pavadinimas', sa.Text),
+        ],
+        'miestas': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('pavadinimas', sa.Text),
+            sa.Column('salis', sa.Integer, sa.ForeignKey("salis.kodas"), nullable=False),
+        ],
+    }) as db:
+        db.write('salis', [
+            {'id': 0, 'kodas': 'lt', 'pavadinimas': 'Lietuva'},
+            {'id': 1, 'kodas': 'lv', 'pavadinimas': 'Latvija'},
+            {'id': 2, 'kodas': 'ee', 'pavadinimas': 'Estija'},
+        ])
+        db.write('miestas', [
+            {'id': 0, 'salis': 'lt', 'pavadinimas': 'Vilnius'},
+            {'id': 1, 'salis': 'lv', 'pavadinimas': 'Ryga'},
+            {'id': 2, 'salis': 'ee', 'pavadinimas': 'Talinas'},
+        ])
+        yield db
 
 
 @pytest.mark.skip('datasets')
@@ -437,6 +471,78 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     )]
 
 
+def test_push_delete_with_dependent_objects(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    table = '''
+     d | r | b | m  | property         | type   | ref                     | source     | access
+     datasets/gov/deleteTest           |        |                         |            |
+       | data                          | sql    |                         |            |
+       |   |                           |        |                         |            |
+       |   |   | Country               |        | code                    | salis      | open
+       |   |   |    | name             | string |                         | pavadinimas|
+       |   |   |    | code             | string |                         | kodas      |
+       |   |   |    |                  |        |                         |            |
+       |   |   | City                  |        | name                    | miestas    | open
+       |   |   |    | name             | string |                         | pavadinimas|
+       |   |   |    | country          | ref    | Country                 | salis      |
+    '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteTest',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('datasets/gov/deleteTest/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/Country')
+    assert len(listdata(resp)) == 3
+
+    remote.app.authmodel('datasets/gov/deleteTest/City', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/City')
+    assert len(listdata(resp)) == 3
+
+    conn = geodb.engine.connect()
+
+    conn.execute(geodb.tables['salis'].delete().where(geodb.tables['salis'].c.id == 2))
+    conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 2))
+    conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 1))
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteTest',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+        '--stop-on-error'
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('datasets/gov/deleteTest/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/Country')
+    assert len(listdata(resp)) == 2
+
+    remote.app.authmodel('datasets/gov/deleteTest/City', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/City')
+    assert len(listdata(resp)) == 1
+
+
 def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
     context, manifest = load_manifest_and_context(rc, '''
     m | property | type   | access
@@ -487,6 +593,8 @@ def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
         rev_before,
         False,
     )]
+
+    _reset_pushed(context, models, state.metadata)
 
     rows = [
         _PushRow(model, {
@@ -622,7 +730,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     server = 'https://example.com/'
     responses.add(POST, server, status=409, body='Conflicting value')
 
-    error_counter = _ErrorCounter(1)
+    error_counter = ErrorCounter(1)
     _push(
         context,
         client,
@@ -637,7 +745,7 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     query = sa.select([table.c.id, table.c.revision, table.c.error])
     assert list(conn.execute(query)) == [(_id1, rev, True)]
 
-    error_counter = _ErrorCounter(2)
+    error_counter = ErrorCounter(2)
     _push(
         context,
         client,
@@ -653,6 +761,56 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
     assert list(conn.execute(query)) == [
         (_id1, rev, True),
         (_id2, None, True)
+    ]
+
+
+def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
+    context, manifest = load_manifest_and_context(rc, '''
+           m | property | type   | access
+           City         |        |
+             | name     | string | open
+           ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    sqlite.init({
+        'City': [
+            sa.Column('id', sa.Unicode, primary_key=True),
+            sa.Column('rev', sa.Unicode),
+            sa.Column('pushed', sa.DateTime)
+        ],
+    })
+
+    table = sqlite.tables[model.name]
+    conn = sqlite.engine.connect()
+
+    _id = '4d741843-4e94-4890-81d9-5af7c5b5989a'
+    rev = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    pushed = datetime.datetime.now()
+    conn.execute(
+        table.insert().
+        values(
+            id=_id,
+            rev=rev,
+            pushed=pushed
+        )
+    )
+
+    state = _State(*_init_push_state(sqlite.dsn, models))
+    conn = state.engine.connect()
+    table = state.metadata.tables[model.name]
+
+    query = sa.select([
+        table.c.id,
+        table.c.checksum,
+        table.c.pushed,
+        table.c.revision,
+        table.c.error,
+        table.c.data,
+    ])
+    assert list(conn.execute(query)) == [
+        (_id, rev, pushed, None, None, None),
     ]
 
 

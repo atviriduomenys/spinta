@@ -10,6 +10,8 @@ from typing import Tuple
 from typing import TypeVar
 from typing import TypedDict
 from typing import Union
+from typing import overload
+from decimal import Decimal
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
@@ -29,10 +31,12 @@ from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
 from spinta.exceptions import PropertyNotFound
 from spinta.exceptions import UnknownMethod
+from spinta.exceptions import UnableToCast
 from spinta.types.datatype import DataType
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
+from spinta.types.datatype import Integer
 from spinta.types.file.components import FileData
 from spinta.ufuncs.components import ForeignProperty
 from spinta.core.ufuncs import Unresolved
@@ -972,24 +976,61 @@ def file(env: SqlResultBuilder, expr: Expr) -> FileData:
     }
 
 
+@overload
 @ufunc.resolver(SqlQueryBuilder)
 def cast(env: SqlQueryBuilder) -> Expr:
     return Expr('cast')
 
 
+@overload
 @ufunc.resolver(SqlResultBuilder)
 def cast(env: SqlResultBuilder) -> Any:
     return env.call('cast', env.prop.dtype, env.this)
 
 
+@overload
 @ufunc.resolver(SqlResultBuilder, String, int)
 def cast(env: SqlResultBuilder, dtype: String, value: int) -> str:
     return str(value)
 
 
+@overload
 @ufunc.resolver(SqlResultBuilder, String, type(None))
 def cast(env: SqlResultBuilder, dtype: String, value: Optional[Any]) -> str:
     return ''
+
+
+@overload
+@ufunc.resolver(SqlResultBuilder, Integer, Decimal)
+def cast(env: SqlResultBuilder, dtype: Integer, value: Decimal) -> int:
+    return env.call('cast', dtype, float(value))
+
+
+@overload
+@ufunc.resolver(SqlResultBuilder, Integer, float)
+def cast(env: SqlResultBuilder, dtype: Integer, value: float) -> int:
+    if value % 1 > 0:
+        raise UnableToCast(dtype, value=value, type=dtype.name)
+    else:
+        return int(value)
+
+
+@overload
+@ufunc.resolver(SqlQueryBuilder, Bind, Bind)
+def point(env: SqlQueryBuilder, x: Bind, y: Bind) -> Expr:
+    return Expr(
+        'point',
+        env.call('select', x, nested=True),
+        env.call('select', y, nested=True),
+    )
+
+
+@overload
+@ufunc.resolver(SqlResultBuilder, Selected, Selected)
+def point(env: SqlResultBuilder, x: Selected, y: Selected) -> Expr:
+    x = env.data[x.item]
+    y = env.data[y.item]
+    return f'POINT ({x} {y})'
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr)

@@ -3,8 +3,198 @@
 Changes
 #######
 
-0.1.47 (unreleased)
+0.1.56 (unreleased)
 ===================
+
+
+0.1.55 (2023-08-18)
+===================
+
+New features:
+
+- Summary for numeric and date types (`#452`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/452
+
+- Summary for geometry types (`#451`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/451
+
+Bug fixes:
+
+- Fixed error on `_id>"UUID"` (`#490`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/490
+
+
+- Fixed an error with unique constraints (`#500`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/500
+
+
+0.1.53 (2023-08-01)
+===================
+
+New features:
+
+- Add support for RDF as manifest format (`#336`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/336
+
+- Add support for XML as manifest format (`#89`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/89
+
+Improvements:
+
+- Delete push target objects in correct order (`#458`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/458
+
+Bug fixes:
+
+- Add support for Oracle RAW type (`#493`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/493
+
+
+0.1.52 (2023-06-21)
+===================
+
+Improvements:
+
+- Recognize Oracle ROWID data type.
+
+
+0.1.51 (2023-06-20)
+===================
+
+New features:
+
+- Add support for `param` dimension (`#210`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/210
+
+- Spinta inspect now supports JSON data as schema source (`#98`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/98
+
+
+Improvements:
+
+- Recognize CHAR and BYTES data types (`#469`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/469
+
+
+- Allow writing data to models with base (`#205`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/205
+
+
+Bug fixes:
+
+- Fix spint push with ref type set to level 3 or below (`#460`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/460
+
+
+- Automatically add unique constraints for all primary keys specified in
+  model.ref (`#371`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/371
+
+
+
+0.1.50 (2023-05-22)
+===================
+
+New features:
+
+- Add support for reading data from models with base (`#273`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/273
+
+- Add support for `unique` constraints in tabular manifests (`#148`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/148
+
+Improvements:
+
+- Much better implementation for updating manifest files from SQL as data
+  source (`#346`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/364
+
+- Show better error messages on foreign key constraint errors (`#363`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/363
+
+- Return a non-zero error code if `spinta push` command fails with an error
+  (`#423`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/423
+
+- Add support for older SQLite versions (`#411`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/411
+
+Bug fixes:
+
+- Correctly handle level 3 references, when referenced model does not have a
+  primary key or property references a non-primary key (`#400`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/400
+
+- WIPE command now works on tables with long names (`#431`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/431
+
+
+0.1.49 (2023-04-19)
+===================
+
+Bug fixes:
+
+- Fix issue with order of axes in geometry properties (`#410`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/410
+
+
+- Fix write operations models containing geometry properties (`#417`__,
+  `#418`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/417
+  __ https://github.com/atviriduomenys/spinta/issues/418
+
+
+0.1.48 (2023-04-14)
+===================
+
+Bug fixes:
+
+- Fix issue with dask/pandas version incompatibility (`dask/dask#10164`__).
+
+  __ https://github.com/dask/dask/issues/10164
+
+
+0.1.47 (2023-03-27)
+===================
+
+Improvements:
+
+- Add support for `point(x,y)` and `cast()` functions for sql backend
+  (`#407`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/407
+
+Bug fixes:
+
+- Error when loading manifest from XLSX file, where level is read as integer
+  (`#405`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/405
+
 
 
 0.1.46 (2023-03-21)

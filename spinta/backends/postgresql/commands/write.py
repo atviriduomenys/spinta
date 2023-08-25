@@ -1,12 +1,14 @@
-from typing import AsyncIterator, cast
+from typing import AsyncIterator
 
-import sqlalchemy as sa
-from spinta import commands
+from sqlalchemy import exc
+from spinta import commands, exceptions
+from spinta.commands import create_exception
 from spinta.types.datatype import Denorm
 from spinta.utils.data import take
 from spinta.components import Context, Model, DataItem, DataSubItem
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.sqlalchemy import utcnow
+
 
 @commands.insert.register(Context, Model, PostgreSQL)
 async def insert(
@@ -20,20 +22,40 @@ async def insert(
     transaction = context.get('transaction')
     connection = transaction.connection
     table = backend.get_table(model)
+
+    # Need to set specific amount of max errors, to prevent memory problems
+    max_error_count = 100
+    error_list = []
+    savepoint_transaction_start = connection.begin_nested()
+    rollback_full = False
     async for data in dstream:
-        patch = commands.before_write(context, model, backend, data=data)
-        # TODO: Refactor this to insert batches with single query.
-        qry = table.insert().values(
-            _id=patch['_id'],
-            _revision=patch['_revision'],
-            _txn=transaction.id,
-            _created=utcnow(),
-        )
-        connection.execute(qry, patch)
-
-        commands.after_write(context, model, backend, data=data)
-
+        try:
+            savepoint = connection.begin_nested()
+            patch = commands.before_write(context, model, backend, data=data)
+            # TODO: Refactor this to insert batches with single query.
+            qry = table.insert().values(
+                _id=patch['_id'],
+                _revision=patch['_revision'],
+                _txn=transaction.id,
+                _created=utcnow(),
+            )
+            connection.execute(qry, patch)
+            commands.after_write(context, model, backend, data=data)
+        except exc.DatabaseError as error:
+            rollback_full = True
+            savepoint.rollback()
+            exception = create_exception(data, error)
+            error_list.append(exception)
+            data.error = exception
+            if len(error_list) >= max_error_count:
+                yield data
+                savepoint_transaction_start.rollback()
+                raise exceptions.MultipleErrors(error_list)
         yield data
+
+    if rollback_full:
+        savepoint_transaction_start.rollback()
+        raise exceptions.MultipleErrors(error_list)
 
 
 @commands.update.register(Context, Model, PostgreSQL)
@@ -49,31 +71,49 @@ async def update(
     connection = transaction.connection
     table = backend.get_table(model)
 
+    # Need to set specific amount of max errors, to prevent memory problems
+    max_error_count = 100
+    error_list = []
+    savepoint_transaction_start = connection.begin_nested()
+    rollback_full = False
     async for data in dstream:
         if not data.patch:
             yield data
             continue
-
-        pk = data.saved['_id']
-        patch = commands.before_write(context, model, backend, data=data)
-        result = connection.execute(
-            table.update().
-            where(table.c._id == pk).
-            where(table.c._revision == data.saved['_revision']).
-            values(patch)
-        )
-
-        if result.rowcount == 0:
-            raise Exception(f"Update failed, {model} with {pk} not found.")
-        elif result.rowcount > 1:
-            raise Exception(
-                f"Update failed, {model} with {pk} has found and update "
-                f"{result.rowcount} rows."
+        try:
+            savepoint = connection.begin_nested()
+            pk = data.saved['_id']
+            patch = commands.before_write(context, model, backend, data=data)
+            result = connection.execute(
+                table.update().
+                where(table.c._id == pk).
+                where(table.c._revision == data.saved['_revision']).
+                values(patch)
             )
+            if result.rowcount == 0:
+                raise Exception(f"Update failed, {model} with {pk} not found.")
+            elif result.rowcount > 1:
+                raise Exception(
+                    f"Update failed, {model} with {pk} has found and update "
+                    f"{result.rowcount} rows."
+                )
+            commands.after_write(context, model, backend, data=data)
+        except exc.DatabaseError as error:
+            rollback_full = True
+            savepoint.rollback()
+            exception = create_exception(data, error)
+            error_list.append(exception)
+            data.error = exception
 
-        commands.after_write(context, model, backend, data=data)
-
+            if len(error_list) >= max_error_count:
+                yield data
+                savepoint_transaction_start.rollback()
+                raise exceptions.MultipleErrors(error_list)
         yield data
+
+    if rollback_full:
+        savepoint_transaction_start.rollback()
+        raise exceptions.MultipleErrors(error_list)
 
 
 @commands.delete.register(Context, Model, PostgreSQL)
@@ -88,14 +128,37 @@ async def delete(
     transaction = context.get('transaction')
     connection = transaction.connection
     table = backend.get_table(model)
+
+    # Need to set specific amount of max errors, to prevent memory problems
+    max_error_count = 100
+    error_list = []
+    savepoint_transaction_start = connection.begin_nested()
+    rollback_full = False
     async for data in dstream:
-        commands.before_write(context, model, backend, data=data)
-        connection.execute(
-            table.delete().
-            where(table.c._id == data.saved['_id'])
-        )
-        commands.after_write(context, model, backend, data=data)
+        try:
+            savepoint = connection.begin_nested()
+            commands.before_write(context, model, backend, data=data)
+            connection.execute(
+                table.delete().
+                where(table.c._id == data.saved['_id'])
+            )
+            commands.after_write(context, model, backend, data=data)
+        except exc.DatabaseError as error:
+            rollback_full = True
+            savepoint.rollback()
+            exception = create_exception(data, error)
+            error_list.append(exception)
+            data.error = exception
+
+            if len(error_list) >= max_error_count:
+                yield data
+                savepoint_transaction_start.rollback()
+                raise exceptions.MultipleErrors(error_list)
         yield data
+
+    if rollback_full:
+        savepoint_transaction_start.rollback()
+        raise exceptions.MultipleErrors(error_list)
 
 
 @commands.before_write.register(Context, Model, PostgreSQL)
@@ -136,5 +199,3 @@ def after_write(
     for key in take(data.patch or {}):
         prop = model.properties[key]
         commands.after_write(context, prop.dtype, backend, data=data[key])
-
-

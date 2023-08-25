@@ -1,3 +1,6 @@
+import re
+from datetime import datetime
+import pathlib
 from typing import Any
 from typing import Dict
 from typing import List, Iterable, Optional
@@ -15,6 +18,7 @@ from spinta.datasets.components import Entity
 from spinta.datasets.components import Resource
 from spinta.dimensions.enum.helpers import load_enums
 from spinta.dimensions.prefix.helpers import load_prefixes
+from spinta.exceptions import ManifestFileDoesNotExist
 from spinta.exceptions import UnknownKeyMap
 from spinta.manifests.components import ManifestSchema
 from spinta.nodes import get_node
@@ -303,11 +307,164 @@ def dataset_to_schema(dataset: Dataset) -> ManifestSchema:
 
 
 def detect_manifest_from_path(rc: RawConfig, path: str) -> Type[Manifest]:
-    for type_ in rc.keys('components', 'manifests'):
+    for name in rc.keys('components', 'manifests'):
         Manifest_: Type[Manifest] = rc.get(
-            'components', 'manifests', type_,
+            'components', 'manifests', name,
             cast=importstr,
         )
         if Manifest_.detect_from_path(path):
             return Manifest_
-    raise ValueError(f"Can't find manifest type matching given path {path!r}")
+    raise ValueError(
+        f"Can't find manifest type matching given path {path!r}"
+    )
+
+
+def get_manifest_from_type(rc: RawConfig, type_: str) -> Type[Manifest]:
+    for name in rc.keys('components', 'manifests'):
+        Manifest_: Type[Manifest] = rc.get(
+            'components', 'manifests', name,
+            cast=importstr,
+        )
+        if Manifest_.type == type_:
+            return Manifest_
+    raise ValueError(
+        f"Can't find manifest component matching given type {type_!r}"
+    )
+
+
+def check_manifest_path(manifest: Manifest, path: str) -> None:
+    if (
+        not path.startswith(('http://', 'https://')) and
+        not pathlib.Path(path).exists()
+    ):
+        raise ManifestFileDoesNotExist(manifest, path=path)
+
+
+class TypeDetector:
+    _binary_pattern = re.compile('[01]+')
+
+    def __init__(self):
+        self._values = set()
+        self.type = ""
+        self.unique = True
+        self.required = True
+
+    def get_type(self) -> str:
+        value = self.type
+        if self.type == "":
+            value = "string"
+        return value
+
+    def detect(self, value: Any) -> None:
+        self._process_for_unique(value)
+        self._process_for_required(value)
+
+        if value is not None and value != "":
+            str_value = str(value)
+            if self.type in self._key_list:
+                self._type_detector_priority[self.type](self, str_value)
+
+            if self.type == "":
+                for key in self._key_list[self._highest_type_level:]:
+                    self._type_detector_priority[key](self, str_value)
+                    if self.type != "":
+                        current_level_index = self._key_list.index(self.type)
+                        if current_level_index > self._highest_type_level:
+                            self._highest_type_level = current_level_index
+                        break
+
+    def _process_for_unique(self, value: Any):
+        if self.unique:
+            if value in self._values:
+                self.unique = False
+            else:
+                self._values.add(value)
+
+    def _process_for_required(self, value: Any):
+        if self.required:
+            if value is None:
+                self.required = False
+            elif value == '':
+                self.required = False
+
+    def _assert_boolean(self, value: str):
+        if value in ["0", "1", "true", "false"]:
+            self.type = "boolean"
+        else:
+            self.type = ""
+
+    def _assert_number(self, value: str):
+        if value.strip("-").replace(".", "", 1).isnumeric():
+            self.type = "number"
+        else:
+            self.type = ""
+
+    def _assert_integer(self, value: str):
+        if value.strip("-").isnumeric():
+            self.type = "integer"
+        else:
+            self.type = ""
+
+    def _assert_binary(self, value: str):
+        match = self._binary_pattern.fullmatch(value)
+        if match:
+            self.type = "binary"
+        else:
+            self.type = ""
+
+    def _assert_date(self, value: str):
+        try:
+            datetime.strptime(value, '%Y-%m-%d')
+            self.type = "date"
+        except:
+            self.type = ""
+
+    def _assert_datetime(self, value: str):
+        try:
+            dt_str = value
+            datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+            self.type = "datetime"
+        except:
+            self.type = ""
+
+    def _assert_time(self, value: str):
+        formats = [
+            '%H:%M:%S.%f%z',
+            '%H:%M:%S.%f',
+            '%H:%M:%S%z',
+            '%H:%M:%S',
+            '%H:%M%z',
+            '%H:%M'
+        ]
+        new_type = ""
+        for time_format in formats:
+            try:
+                datetime.strptime(value, time_format)
+                new_type = "time"
+                break
+            except:
+                continue
+        self.type = new_type
+
+    def _assert_url(self, value: str):
+        if value.startswith(("http://", "https://")):
+            self.type = "url"
+        else:
+            self.type = ""
+
+    def _assert_string(self, value: str):
+        self.type = "string"
+
+    _type_detector_priority = {
+        "boolean": _assert_boolean,
+        "binary": _assert_binary,
+        "integer": _assert_integer,
+        "number": _assert_number,
+        "time": _assert_time,
+        "date": _assert_date,
+        "datetime": _assert_datetime,
+        "url": _assert_url,
+        "string": _assert_string
+    }
+    _key_list = list(_type_detector_priority.keys())
+    _highest_type_level = 0

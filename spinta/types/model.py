@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 from typing import Optional
-from typing import Tuple
+from typing import Union
 from typing import overload
 
 import itertools
@@ -45,6 +45,7 @@ from spinta.types.namespace import load_namespace_from_name
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
+from spinta.types.datatype import Ref
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -105,6 +106,17 @@ def load(
         load_node(context, model.base, base)
         model.base.model = model
         commands.load(context, model.base, base, manifest)
+    if model.unique:
+        unique_properties = []
+        for unique_set in model.unique:
+            prop_set = []
+            for prop_name in unique_set:
+                if "." in prop_name:
+                    prop_name = prop_name.split(".")[0]
+                prop_set.append(model.properties[prop_name])
+            if prop_set:
+                unique_properties.append(prop_set)
+        model.unique = unique_properties
 
     if model.external:
         external: dict = model.external
@@ -191,7 +203,7 @@ def link(context: Context, base: Base):
     base.pk = [
         base.parent.properties[pk]
         for pk in base.pk
-    ]
+    ] if base.pk else []
 
 
 @load.register(Context, Property, dict, Manifest)
@@ -236,7 +248,11 @@ def load(
     else:
         prop.external = NA
     commands.load(context, prop.dtype, data, manifest)
-
+    if prop.model.unique:
+        if isinstance(prop.dtype, Ref):
+            if '.id' not in prop.name:
+                prop.model.unique = [list(map(lambda val: val.replace(
+                    prop.name, prop.name + '._id'), val)) for val in prop.model.unique]
     unit: Optional[str] = prop.enum
     if unit is None:
         prop.given.enum = None
@@ -254,14 +270,17 @@ def load(
     return prop
 
 
-def load_level(component: Component, given_level):
+def load_level(
+    component: Component,
+    given_level: Union[Level, int, str],
+):
     if given_level:
         if isinstance(given_level, Level):
             level = given_level
         else:
-            if given_level.isnumeric():
+            if isinstance(given_level, str) and given_level.isdigit():
                 given_level = int(given_level)
-            else:
+            if not isinstance(given_level, int):
                 raise InvalidLevel(component, level=given_level)
             level = enum_by_value(component, 'level', Level, given_level)
     else:
