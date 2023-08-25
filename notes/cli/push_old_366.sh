@@ -117,7 +117,7 @@ poetry run spinta run &>> $BASEDIR/spinta.log &; PID=$!
 tail -50 $BASEDIR/spinta.log
 
 # notes/spinta/client.sh    Configure client
-# notes/spinta/push.sh      Configure client
+# notes/spinta/push_old_366.sh      Configure client
 
 # Create push state table using an old schema
 rm $BASEDIR/push/localhost.db
