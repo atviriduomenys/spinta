@@ -344,6 +344,14 @@ def _read_rows(
         error_counter=error_counter,
     )
 
+    yield PUSH_NOW
+    yield from _get_deleted_rows(
+        models,
+        context,
+        state.metadata,
+        no_progress_bar=no_progress_bar,
+    )
+
     for i in range(1, retry_count + 1):
         yield PUSH_NOW
         counts = (
@@ -632,6 +640,7 @@ def _read_rows_by_pages(
 
                 if delete_cond:
                     yield from _get_delete_rows(
+                        context,
                         model,
                         model_table,
                         row,
@@ -659,8 +668,16 @@ def _read_rows_by_pages(
                 model_push_counter.update(1)
 
         if state_row:
+            conn = context.get('push.state.conn')
             for state_row in itertools.chain([state_row], state_rows):
-                yield _prepare_deleted_row(model, state_row[model_table.c.id])
+                conn.execute(
+                    (
+                        sa.update(model_table).where(model_table.c.id == state_row["id"]).values(pushed=None)
+                    )
+                )
+
+                #state_row["pushed"] = None
+                #_prepare_deleted_row(model, state_row[model_table.c.id])
 
 
 def _get_state_rows(
@@ -697,6 +714,7 @@ def _get_state_rows(
 
 
 def _get_delete_rows(
+    context: Context,
     model: Model,
     table: sa.Table,
     row: _PushRow,
@@ -705,7 +723,12 @@ def _get_delete_rows(
     delete_cond: bool,
 ):
     while state_row and delete_cond:
-        yield _prepare_deleted_row(model, state_row[table.c.id])
+        conn = context.get('push.state.conn')
+        conn.execute(
+            (
+                sa.update(table).where(table.c.id == state_row["id"]).values(pushed=None)
+            )
+        )
 
         state_row = next(rows, None)
         if state_row:
@@ -1305,6 +1328,34 @@ def _save_page_values(
                         )
                         saved = True
 
+            yield row
+
+
+def _get_deleted_rows(
+    models: List[Model],
+    context: Context,
+    metadata: sa.MetaData,
+    no_progress_bar: bool = False,
+):
+    counts = (
+        _get_deleted_row_counts(
+            models,
+            context,
+            metadata
+        )
+    )
+    total_count = sum(counts.values())
+    if total_count > 0:
+        rows = _iter_deleted_rows(
+            models,
+            context,
+            metadata,
+            counts,
+            no_progress_bar
+        )
+        if not no_progress_bar:
+            rows = tqdm.tqdm(rows, 'PUSH DELETED', ascii=True, total=total_count)
+        for row in rows:
             yield row
 
 
