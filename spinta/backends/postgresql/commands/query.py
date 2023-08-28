@@ -480,6 +480,21 @@ COMPARE = [
     'contains',
 ]
 
+COMPARE_EQUATIONS = [
+    'eq',
+    'ne',
+    'lt',
+    'le',
+    'gt',
+    'ge',
+]
+
+COMPARE_STRING = [
+    'eq',
+    'startswith',
+    'contains',
+]
+
 
 @ufunc.resolver(PgQueryBuilder, Bind, object, names=COMPARE)
 def compare(env, op, field, value):
@@ -494,7 +509,7 @@ def _get_from_flatprops(model: Model, prop: str):
         raise exceptions.FieldNotInResource(model, property=prop)
 
 
-@ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=['ne', 'lt', 'le', 'gt', 'ge'])
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=COMPARE_EQUATIONS)
 def compare(env, op, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
     cond = _sa_compare(op, column, value)
@@ -524,24 +539,56 @@ def compare(env, op: str, fpr: ForeignProperty, value: Any):
 
 @ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=COMPARE)
 def compare(env, op, dtype, value):
-    if value:
-        value = str(value)
-        try:
-            uuid.UUID(value)
-        except ValueError:
-            raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
+    value = str(value)
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
 
-        column = env.backend.get_column(env.table, dtype.prop)
-        cond = _sa_compare(op, column, value)
-        return _prepare_condition(env, dtype.prop, cond)
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, (Integer, String, Date, DateTime), object, names=['eq', 'ne', 'lt', 'le', 'gt', 'ge'])
+COMPARE_PAGE_DTYPES = (
+    Integer,
+    String,
+    Date,
+    DateTime,
+    Number
+)
+
+
+@ufunc.resolver(PgQueryBuilder, String, str, names=COMPARE_STRING)
 def compare(env, op, dtype, value):
-    if value:
-        column = env.backend.get_column(env.table, dtype.prop)
-        cond = _sa_compare(op, column, value)
-        return _prepare_condition(env, dtype.prop, cond)
+    if op in ('startswith', 'contains'):
+        _ensure_non_empty(op, value)
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, (Integer, Number), (int, float), names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, DateTime, str, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.datetime.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, Date, str, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.date.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
 
 
 @ufunc.resolver(PgQueryBuilder, DataType, type(None))
@@ -582,20 +629,7 @@ def _ensure_non_empty(op, s):
         raise EmptyStringSearch(op=op)
 
 
-@ufunc.resolver(PgQueryBuilder, String, str, names=[
-    'eq', 'startswith', 'contains'
-])
-def compare(env, op, dtype, value):
-    if op in ('startswith', 'contains'):
-        _ensure_non_empty(op, value)
-    column = env.backend.get_column(env.table, dtype.prop)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
-@ufunc.resolver(PgQueryBuilder, ForeignProperty, String, str, names=[
-    'eq', 'startswith', 'contains',
-])
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, String, str, names=COMPARE_STRING)
 def compare(
     env: PgQueryBuilder,
     op: str,
@@ -611,9 +645,7 @@ def compare(
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, PrimaryKey, str, names=[
-    'eq', 'startswith', 'contains',
-])
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, str, names=COMPARE_STRING)
 def compare(env, op, dtype, value):
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
@@ -621,18 +653,7 @@ def compare(env, op, dtype, value):
     return _sa_compare(op, column, value)
 
 
-@ufunc.resolver(PgQueryBuilder, (Integer, Number), (int, float), names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
-def compare(env, op, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
-@ufunc.resolver(PgQueryBuilder, ForeignProperty, (Integer, Number), (int, float), names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, (Integer, Number), (int, float), names=COMPARE_EQUATIONS)
 def compare(
     env: PgQueryBuilder,
     op: str,
@@ -646,19 +667,7 @@ def compare(
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, DateTime, str, names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
-def compare(env, op, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
-    value = datetime.datetime.fromisoformat(value)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
-@ufunc.resolver(PgQueryBuilder, ForeignProperty, DateTime, str, names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, DateTime, str, names=COMPARE_EQUATIONS)
 def compare(
     env: PgQueryBuilder,
     op: str,
@@ -673,19 +682,7 @@ def compare(
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, Date, str, names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
-def compare(env, op, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
-    value = datetime.date.fromisoformat(value)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
-@ufunc.resolver(PgQueryBuilder, ForeignProperty, Date, str, names=[
-    'eq', 'lt', 'le', 'gt', 'ge',
-])
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, Date, str, names=COMPARE_EQUATIONS)
 def compare(
     env: PgQueryBuilder,
     op: str,
@@ -710,9 +707,7 @@ def lower(env, recurse):
     return Recurse([env.call('lower', arg) for arg in recurse.args])
 
 
-@ufunc.resolver(PgQueryBuilder, Lower, str, names=[
-    'eq', 'startswith', 'contains',
-])
+@ufunc.resolver(PgQueryBuilder, Lower, str, names=COMPARE_EQUATIONS)
 def compare(env, op, fn, value):
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
@@ -871,9 +866,7 @@ def ne(
     return _ne_compare(env, dtype.prop, column, value)
 
 
-@ufunc.resolver(PgQueryBuilder, Array, (object, type(None)), names=[
-    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
-])
+@ufunc.resolver(PgQueryBuilder, Array, (object, type(None)), names=COMPARE)
 def compare(env, op, dtype, value):
     return env.call(op, dtype.items.dtype, value)
 
@@ -962,9 +955,7 @@ def recurse(env, field):
         raise exceptions.FieldNotInResource(env.model, property=field.name)
 
 
-@ufunc.resolver(PgQueryBuilder, Recurse, object, names=[
-    'eq', 'ne', 'lt', 'le', 'gt', 'ge', 'contains', 'startswith',
-])
+@ufunc.resolver(PgQueryBuilder, Recurse, object, names=COMPARE)
 def recurse(env, op, recurse, value):
     return env.call('or', [
         env.call(op, arg, value)

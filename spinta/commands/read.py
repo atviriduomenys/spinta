@@ -331,28 +331,29 @@ def _get_pagination_compare_query(
             else:
                 op = 'gt'
 
-        if compare:
-            compare = {
-                'name': 'and',
-                'args': [
-                    compare,
-                    {
-                        'name': op,
-                        'args': [{
-                            'name': 'bind',
-                            'args': [page_by.prop.name]
-                        }, page_by.value]
-                    }
-                ]
-            }
-        else:
-            compare = {
-                'name': op,
-                'args': [{
-                    'name': 'bind',
-                    'args': [page_by.prop.name]
-                }, page_by.value]
-            }
+        if page_by.value:
+            if compare:
+                compare = {
+                    'name': 'and',
+                    'args': [
+                        compare,
+                        {
+                            'name': op,
+                            'args': [{
+                                'name': 'bind',
+                                'args': [page_by.prop.name]
+                            }, page_by.value]
+                        }
+                    ]
+                }
+            else:
+                compare = {
+                    'name': op,
+                    'args': [{
+                        'name': 'bind',
+                        'args': [page_by.prop.name]
+                    }, page_by.value]
+                }
     if compare:
         compare = asttoexpr(compare)
 
