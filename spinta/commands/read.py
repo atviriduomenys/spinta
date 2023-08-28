@@ -232,10 +232,11 @@ def _get_pagination_sort_query(
             name = 'negative'
         else:
             name = 'bind'
-        sort_args.append(asttoexpr({
-            'name': name,
-            'args': [page_by.prop.name]
-        }))
+        if not (isinstance(model.backend, ExternalBackend) and not page_by.prop.external.name):
+            sort_args.append(asttoexpr({
+                'name': name,
+                'args': [page_by.prop.name]
+            }))
 
     if sort_args:
         sort = {
