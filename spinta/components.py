@@ -488,12 +488,14 @@ class PageBy:
 
 
 class Page:
+    is_enabled: bool
     by: Dict[str, PageBy]
     size: int
 
     def __init__(self):
         self.by = {}
         self.size = None
+        self.is_enabled = True
 
     def add_prop(self, by: str, prop: Property, value: Any = None):
         self.by[by] = PageBy(prop, value)

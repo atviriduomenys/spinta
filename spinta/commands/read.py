@@ -11,7 +11,7 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, Page, ParamsPage
+from spinta.components import Context, Node, Action, UrlParams, ParamsPage
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr, asttoexpr
@@ -62,7 +62,7 @@ async def getall(
     if params.head:
         rows = []
     else:
-        if not params.count and backend.paginated and model.page and model.page.by:
+        if not params.count and backend.paginated and model.page and model.page.by and model.page.is_enabled:
             if params.limit:
                 rows = paginate(context, model, backend, params.page, expr, params.limit)
             else:

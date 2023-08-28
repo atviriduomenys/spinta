@@ -46,6 +46,7 @@ from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
 from spinta.types.datatype import Ref
+from spinta.datasets.components import ExternalBackend
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -194,6 +195,10 @@ def link(context: Context, model: Model):
     # Link model properties.
     for prop in model.properties.values():
         commands.link(context, prop)
+
+    # Disable page if external backend and model.ref not given
+    if isinstance(model.backend, ExternalBackend) and ((model.external and not model.external.name) or not model.external):
+        model.page.is_enabled = False
 
 
 @overload
