@@ -550,15 +550,6 @@ def compare(env, op, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
-COMPARE_PAGE_DTYPES = (
-    Integer,
-    String,
-    Date,
-    DateTime,
-    Number
-)
-
-
 @ufunc.resolver(PgQueryBuilder, String, str, names=COMPARE_STRING)
 def compare(env, op, dtype, value):
     if op in ('startswith', 'contains'):
@@ -707,7 +698,7 @@ def lower(env, recurse):
     return Recurse([env.call('lower', arg) for arg in recurse.args])
 
 
-@ufunc.resolver(PgQueryBuilder, Lower, str, names=COMPARE_EQUATIONS)
+@ufunc.resolver(PgQueryBuilder, Lower, str, names=COMPARE_STRING)
 def compare(env, op, fn, value):
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
