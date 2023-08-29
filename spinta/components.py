@@ -497,6 +497,16 @@ class Page:
         self.size = None
         self.is_enabled = True
 
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.is_enabled = self.is_enabled
+        result.size = self.size
+        result.by = {}
+        for by, page_by in self.by.items():
+            result.by[by] = PageBy(page_by.prop, page_by.value)
+        return result
+
     def add_prop(self, by: str, prop: Property, value: Any = None):
         self.by[by] = PageBy(prop, value)
 

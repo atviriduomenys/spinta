@@ -11,7 +11,7 @@ from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, ParamsPage
+from spinta.components import Context, Node, Action, UrlParams, ParamsPage, Page
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr, asttoexpr
@@ -140,15 +140,16 @@ def get_page(
     model: Model,
     backend: Backend,
     page: ParamsPage,
+    model_page: Page,
     expr: Expr,
 ) -> Iterator[ObjectData]:
     config = context.get('config')
     page_size = config.push_page_size
     if page:
-        size = page.size or model.page.size or page_size or 1000
-        model.page.update_values_from_params_page(page)
+        size = page.size or model_page.size or page_size or 1000
+        model_page.update_values_from_params_page(page)
     else:
-        size = model.page.size or page_size or 1000
+        size = model_page.size or page_size or 1000
     query = _get_pagination_sort_query(model, expr)
 
     count = 0
@@ -156,17 +157,17 @@ def get_page(
     end_loop = False
     while not end_loop:
         page_query = _get_pagination_limit_query(size - count, query)
-        page_query = _get_pagination_compare_query(model, page_query, depth)
+        page_query = _get_pagination_compare_query(model_page, page_query, depth)
 
         rows = commands.getall(context, model, backend, query=page_query)
         for row in rows:
             count += 1
-            model.page.update_values_from_row(row)
+            model_page.update_values_from_row(row)
             yield row
 
-        if count < size and depth < len(model.page.by) - 1:
+        if count < size and depth < len(model_page.by) - 1:
             depth += 1
-            model.page.clear_till_depth(depth)
+            model_page.clear_till_depth(depth)
         else:
             end_loop = True
 
@@ -195,7 +196,7 @@ def paginate(
     end_loop = False
     while not end_loop:
         page_query = _get_pagination_limit_query(size - count, query)
-        page_query = _get_pagination_compare_query(model, page_query, depth)
+        page_query = _get_pagination_compare_query(model.page, page_query, depth)
 
         rows = commands.getall(context, model, backend, query=page_query)
         for row in rows:
@@ -314,21 +315,18 @@ def _get_pagination_select_query(
 
 
 def _get_pagination_compare_query(
-    model: Model,
+    model_page: Page,
     expr: Union[Expr, None],
     depth: int = 0
 ) -> Union[Expr, None]:
     compare = {}
-    for i, (by, page_by) in enumerate(reversed(model.page.by.items())):
+    for i, (by, page_by) in enumerate(reversed(model_page.by.items())):
         eq_op = i > depth
-        if by.startswith('-'):
-            if eq_op:
-                op = 'ne'
-            else:
-                op = 'lt'
+        if eq_op:
+            op = 'eq'
         else:
-            if eq_op:
-                op = 'eq'
+            if by.startswith('-'):
+                op = 'lt'
             else:
                 op = 'gt'
 

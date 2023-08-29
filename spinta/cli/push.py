@@ -7,6 +7,7 @@ import itertools
 import json
 import logging
 import pathlib
+from copy import deepcopy
 
 import pprintpp
 import time
@@ -36,13 +37,12 @@ from spinta import spyna
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow, count_rows
 from spinta.cli.helpers.data import ensure_data_dir
-from spinta.cli.helpers.data import iter_model_rows
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.commands.read import get_page
-from spinta.components import Action, ParamsPage
+from spinta.components import Action, ParamsPage, Page
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
@@ -508,6 +508,7 @@ def _iter_model_rows(
 def _read_model_data_by_page(
     context: Context,
     model: Model,
+    model_page: Page,
     limit: int = None,
     stop_on_error: bool = False,
     page: ParamsPage = None,
@@ -523,6 +524,7 @@ def _read_model_data_by_page(
         model,
         model.backend,
         page,
+        model_page,
         query,
     )
 
@@ -536,6 +538,98 @@ def _read_model_data_by_page(
             return
 
     yield from stream
+
+
+class _PushState:
+    data_rows: Any
+    state_rows: Any
+    data_row: Any
+    state_row: Any
+    total_count: int
+    data_push_count = int
+    state_push_count = int
+    page_size: int
+    push_model: Model
+    push_model_table: sa.Table
+    limit: int
+    update_counter: bool
+
+    def __init__(self, page_size: int, model: Model, model_table: sa.Table, limit: int):
+        self.page_size = page_size
+        self.total_count = 0
+        self.data_push_count = 0
+        self.state_push_count = 0
+        self.push_model = model
+        self.push_model_table = model_table
+        self.limit = limit
+        self.update_counter = True
+
+    def next_data_row(self):
+        self.data_row = next(self.data_rows, None)
+        return self.data_row
+
+    def next_state_row(self):
+        self.state_row = next(self.state_rows, None)
+        return self.state_row
+
+    def reset_rows(self, context: Context, stop_on_error: bool):
+        self.state_rows = _get_state_rows(
+            context,
+            deepcopy(self.push_model.page),
+            self.push_model_table,
+            self.page_size
+        )
+        self.data_rows = _read_model_data_by_page(
+            context,
+            self.push_model,
+            deepcopy(self.push_model.page),
+            self.limit,
+            stop_on_error
+        )
+        self.data_push_count = 0
+        self.state_push_count = 0
+        self.next_data_row()
+        self.next_state_row()
+
+    def count_limit(self):
+        if self.limit:
+            if self.total_count >= self.limit:
+                return True
+            self.total_count += 1
+        return False
+
+    def process_update(self, row):
+        row.op = 'patch'
+        row.saved = True
+        row.data['_revision'] = self.state_row[self.push_model_table.c.revision]
+        return_row = None
+        if self.state_row[self.push_model_table.c.checksum] != row.checksum:
+            return_row = row
+
+        self.data_push_count += 1
+        self.state_push_count += 1
+        _update_model_page_with_new(self.push_model.page, self.push_model_table, data_row=self.data_row)
+        self.next_state_row()
+        self.next_data_row()
+
+        return return_row
+
+    def process_delete(self, conn):
+        conn.execute(
+            sa.update(self.push_model_table).where(self.push_model_table.c.id == self.state_row["id"]).values(pushed=None)
+        )
+
+        self.state_push_count += 1
+        self.next_state_row()
+        _update_model_page_with_new(self.push_model.page, self.push_model_table, state_row=self.state_row)
+        self.update_counter = False
+
+    def process_insert(self, row):
+        self.data_push_count += 1
+        _update_model_page_with_new(self.push_model.page, self.push_model_table, data_row=self.data_row)
+        self.next_data_row()
+
+        return row
 
 
 def _read_rows_by_pages(
@@ -552,6 +646,11 @@ def _read_rows_by_pages(
 ) -> Iterator[_PushRow]:
     conn = context.get('push.state.conn')
     table = metadata.tables['_page']
+    config = context.get('config')
+
+    page_size = config.push_page_size
+    size = model.page.size or page_size or 1000
+
     if incremental:
         if (
             page and
@@ -580,177 +679,222 @@ def _read_rows_by_pages(
     model_table = metadata.tables[model.name]
     state_rows = _get_state_rows(
         context,
-        model,
+        deepcopy(model.page),
         model_table,
+        size
     )
-
-    push_page = False
+    rows = _read_model_data_by_page(
+        context,
+        model,
+        deepcopy(model.page),
+        limit,
+        stop_on_error
+    )
+    total_count = 0
+    data_push_count = 0
+    state_push_count = 0
+    data_row = next(rows, None)
     state_row = next(state_rows, None)
+
     while True:
-        if limit is not None and limit <= 0:
+        if limit:
+            if total_count >= limit:
+                break
+            total_count += 1
+
+        update_counter = True
+
+        if data_push_count >= size or state_push_count >= size:
+            state_rows = _get_state_rows(
+                context,
+                deepcopy(model.page),
+                model_table,
+                size
+            )
+            rows = _read_model_data_by_page(
+                context,
+                model,
+                deepcopy(model.page),
+                limit,
+                stop_on_error
+            )
+
+            data_push_count = 0
+            state_push_count = 0
+            data_row = next(rows, None)
+            state_row = next(state_rows, None)
+
+        if data_row is None and state_row is None:
             break
 
-        rows = _read_model_data_by_page(
-            context,
-            model,
-            limit,
-            stop_on_error
-        )
-        peek = next(rows, None)
-        if peek is None:
-            break
-
-        rows = itertools.chain([peek], rows)
-        for i, row in enumerate(rows):
-            if limit is not None:
-                limit -= 1
-
-            if i == 0 and push_page:
-                row = _PushRow(model, row, push=True)
-            else:
-                push_page = True
-                row = _PushRow(model, row)
-
-            push_row = True
+        if data_row and state_row:
+            row = _PushRow(model, data_row)
             row.op = 'insert'
             row.checksum = _get_data_checksum(row.data)
 
-            if state_row:
-                delete_cond = None
-                patch_cond = None
-                for by, page_by in model.page.by.items():
-                    state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
-                    source_val = page_by.value
+            equals = _compare_data_with_state_rows(data_row, state_row, model_table, model.page)
+            if equals:
+                row.op = 'patch'
+                row.saved = True
+                row.data['_revision'] = state_row[model_table.c.revision]
+                if state_row[model_table.c.checksum] != row.checksum:
+                    yield row
 
-                    if state_val is not None and source_val is not None:
-                        if by.startswith('-'):
-                            compare = state_val > source_val
-                        else:
-                            compare = state_val < source_val
+                data_push_count += 1
+                state_push_count += 1
+                _update_model_page_with_new(model.page, model_table, data_row=data_row)
+                data_row = next(rows, None)
+                state_row = next(state_rows, None)
 
-                        if delete_cond is not None:
-                            delete_cond = delete_cond and compare
-                        else:
-                            delete_cond = compare
-
-                        if patch_cond is not None:
-                            patch_cond = patch_cond and state_val == source_val
-                        else:
-                            patch_cond = state_val == source_val
-
+            else:
+                delete_cond = _compare_for_delete_row(state_row, data_row, model_table, model.page)
                 if delete_cond:
-                    yield from _get_delete_rows(
-                        context,
-                        model,
-                        model_table,
-                        row,
-                        state_rows,
-                        state_row,
-                        delete_cond,
+                    conn.execute(
+                        sa.update(model_table).where(model_table.c.id == state_row["id"]).values(pushed=None)
                     )
-                    state_row = next(state_rows, None)
-                    push_row = False
 
-                elif patch_cond:
-                    row.op = 'patch'
-                    row.saved = True
-                    row.data['_revision'] = state_row[model_table.c.revision]
-                    if state_row[model_table.c.checksum] == row.checksum:
-                        push_row = False
+                    state_push_count += 1
                     state_row = next(state_rows, None)
+                    _update_model_page_with_new(model.page, model_table, state_row=state_row)
+                    update_counter = False
+                else:
+                    yield row
 
-            if push_row:
+                    data_push_count += 1
+                    _update_model_page_with_new(model.page, model_table, data_row=data_row)
+                    data_row = next(rows, None)
+        else:
+            if data_row:
+                row = _PushRow(model, data_row)
+                row.op = 'insert'
+                row.checksum = _get_data_checksum(row.data)
                 yield row
 
+                data_push_count += 1
+                _update_model_page_with_new(model.page, model_table, data_row=data_row)
+                data_row = next(rows, None)
+            else:
+                conn.execute(
+                    sa.update(model_table).where(model_table.c.id == state_row["id"]).values(pushed=None)
+                )
+
+                state_push_count += 1
+                _update_model_page_with_new(model.page, model_table, state_row=state_row)
+                state_row = next(state_rows, None)
+                update_counter = False
+
+        if update_counter:
             if push_counter:
                 push_counter.update(1)
             if model_push_counter:
                 model_push_counter.update(1)
 
-        if state_row:
-            conn = context.get('push.state.conn')
-            for state_row in itertools.chain([state_row], state_rows):
-                conn.execute(
-                    (
-                        sa.update(model_table).where(model_table.c.id == state_row["id"]).values(pushed=None)
-                    )
-                )
 
-                #state_row["pushed"] = None
-                #_prepare_deleted_row(model, state_row[model_table.c.id])
+def _update_model_page_with_new(
+    model_page: Page,
+    model_table: sa.Table,
+    state_row: Any = None,
+    data_row: Any = None,
+):
+    for by, page_by in model_page.by.items():
+        val = None
+        if state_row:
+            val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
+        elif data_row:
+            val = data_row.get(page_by.prop.name, None)
+        model_page.update_value(by, val)
+
+
+def _compare_for_delete_row(
+    state_row: Any,
+    data_row: Any,
+    model_table: sa.Table,
+    page: Page,
+):
+    delete_cond = False
+
+    for by, page_by in page.by.items():
+        state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
+        data_val = data_row.get(page_by.prop.name, None)
+
+        if state_val is not None and data_val is not None:
+            if by.startswith('-'):
+                compare = state_val > data_val
+            else:
+                compare = state_val < data_val
+
+            if state_val != data_val:
+                delete_cond = compare
+                break
+    return delete_cond
+
+
+def _compare_data_with_state_rows(
+    data_row: Any,
+    state_row: Any,
+    model_table: sa.Table,
+    page: Page
+):
+    equals = True
+    for by, page_by in page.by.items():
+        state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
+        data_val = data_row.get(page_by.prop.name, None)
+        if state_val != data_val:
+            equals = False
+            break
+    return equals
 
 
 def _get_state_rows(
     context: Context,
-    model: Model,
+    model_page: Page,
     table: sa.Table,
+    size: int
 ) -> sa.engine.LegacyCursorResult:
     conn = context.get('push.state.conn')
 
-    where = []
-    order_by = []
-    for by, page_by in model.page.by.items():
-        if by.startswith('-'):
-            if page_by.value:
-                where.append(table.c[f"page.{page_by.prop.name}"] < page_by.value)
-            order_by.append(sa.desc(table.c[f"page.{page_by.prop.name}"]))
-        else:
-            if page_by.value:
-                where.append(table.c[f"page.{page_by.prop.name}"] > page_by.value)
+    count = 0
+    depth = 0
+    end_loop = False
+    while not end_loop:
+        where = []
+        order_by = []
+        limit = size - count
+        for page_by in model_page.by.values():
             order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
 
-    if where:
-        state_rows = conn.execute(
-            sa.select([table]).
-            where(*where).
-            order_by(*order_by)
-        )
-    else:
-        state_rows = conn.execute(
-            sa.select([table]).
-            order_by(*order_by)
-        )
-    return state_rows
-
-
-def _get_delete_rows(
-    context: Context,
-    model: Model,
-    table: sa.Table,
-    row: _PushRow,
-    rows: sa.engine.LegacyCursorResult,
-    state_row: sa.engine.LegacyRow,
-    delete_cond: bool,
-):
-    while state_row and delete_cond:
-        conn = context.get('push.state.conn')
-        conn.execute(
-            (
-                sa.update(table).where(table.c.id == state_row["id"]).values(pushed=None)
-            )
-        )
-
-        state_row = next(rows, None)
-        if state_row:
-            for by, page_by in model.page.by.items():
-                state_val = state_row[table.c[f"page.{page_by.prop.name}"]]
-                source_val = page_by.value
-
-                if state_val is not None and source_val is not None:
+        for i, (by, page_by) in enumerate(reversed(model_page.by.items())):
+            eq_op = i > depth
+            if page_by.value:
+                if eq_op:
+                    where.append(table.c[f"page.{page_by.prop.name}"] == page_by.value)
+                else:
                     if by.startswith('-'):
-                        compare = state_val > source_val
+                        where.append(table.c[f"page.{page_by.prop.name}"] < page_by.value)
                     else:
-                        compare = state_val < source_val
+                        where.append(table.c[f"page.{page_by.prop.name}"] > page_by.value)
+        if where:
+            state_rows = conn.execute(
+                sa.select([table]).
+                where(*where).
+                order_by(*order_by).limit(limit)
+            )
+        else:
+            state_rows = conn.execute(
+                sa.select([table]).
+                order_by(*order_by).limit(limit)
+            )
 
-                    if delete_cond is not None:
-                        delete_cond = delete_cond and compare
-                    else:
-                        delete_cond = compare
-    row.op = 'patch'
-    row.saved = True
-    row.data['_revision'] = state_row[table.c.revision]
-    if state_row[table.c.checksum] != row.checksum:
-        yield row
+        for row in state_rows:
+            count += 1
+            _update_model_page_with_new(model_page, table, state_row=row)
+            yield row
+
+        if count < size and depth < len(model_page.by) - 1:
+            depth += 1
+            model_page.clear_till_depth(depth)
+        else:
+            end_loop = True
 
 
 def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
