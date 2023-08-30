@@ -66,7 +66,7 @@ async def getall(
             if params.limit:
                 rows = paginate(context, model, backend, params.page, expr, params.limit)
             else:
-                rows = get_page(context, model, backend, params.page, expr)
+                rows = get_page(context, model, backend, params.page, model.page, expr)
         else:
             rows = commands.getall(context, model, backend, query=expr)
 
