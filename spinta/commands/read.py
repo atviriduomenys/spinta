@@ -152,24 +152,20 @@ def get_page(
         size = model_page.size or page_size or 1000
     query = _get_pagination_sort_query(model, expr)
 
-    count = 0
-    depth = 0
-    end_loop = False
-    while not end_loop:
-        page_query = _get_pagination_limit_query(size - count, query)
-        page_query = _get_pagination_compare_query(model_page, page_query, depth)
+    while True:
+        finished = True
+        page_query = _get_pagination_limit_query(size, query)
+        page_query = _get_pagination_compare_query(model_page, page_query)
 
         rows = commands.getall(context, model, backend, query=page_query)
         for row in rows:
-            count += 1
+            if finished:
+                finished = False
             model_page.update_values_from_row(row)
             yield row
 
-        if count < size and depth < len(model_page.by) - 1:
-            depth += 1
-            model_page.clear_till_depth(depth)
-        else:
-            end_loop = True
+        if finished:
+            break
 
 
 def paginate(
@@ -191,33 +187,25 @@ def paginate(
     query = _get_pagination_select_query(model, query)
 
     true_count = 0
-    count = 0
-    depth = 0
-    end_loop = False
-    while not end_loop:
-        page_query = _get_pagination_limit_query(size - count, query)
-        page_query = _get_pagination_compare_query(model.page, page_query, depth)
+    finished = True
+    while True:
+        page_query = _get_pagination_limit_query(size, query)
+        page_query = _get_pagination_compare_query(model.page, page_query)
 
         rows = commands.getall(context, model, backend, query=page_query)
         for row in rows:
+            if finished:
+                finished = False
             if limit and true_count >= limit:
-                end_loop = True
+                finished = True
                 break
 
-            count += 1
             true_count += 1
             model.page.update_values_from_row(row)
             yield row
 
-        if not end_loop:
-            if depth < len(model.page.by) - 1:
-                depth += 1
-                model.page.clear_till_depth(depth)
-            elif limit and count >= size and true_count < limit:
-                count = 0
-                depth = 0
-            else:
-                end_loop = True
+        if finished:
+            break
 
 
 def _get_pagination_sort_query(
@@ -317,49 +305,66 @@ def _get_pagination_select_query(
 def _get_pagination_compare_query(
     model_page: Page,
     expr: Union[Expr, None],
-    depth: int = 0
 ) -> Union[Expr, None]:
-    compare = {}
-    for i, (by, page_by) in enumerate(reversed(model_page.by.items())):
-        eq_op = i > depth
-        if eq_op:
-            op = 'eq'
-        else:
-            if by.startswith('-'):
-                op = 'lt'
-            else:
-                op = 'gt'
-
+    item_count = len(model_page.by.keys())
+    where_list = []
+    for i in range(item_count):
+        where_list.append([])
+    for i, (by, page_by) in enumerate(model_page.by.items()):
         if page_by.value:
+            for n in range(item_count):
+                if n >= i:
+                    if n == i:
+                        if by.startswith('-'):
+                            where_list[n].append(('lt', page_by))
+                        else:
+                            where_list[n].append(('gt', page_by))
+                    else:
+                        where_list[n].append(('eq', page_by))
+
+    where_compare = {}
+    for where in where_list:
+        compare = {}
+        for item in where:
             if compare:
                 compare = {
                     'name': 'and',
                     'args': [
                         compare,
                         {
-                            'name': op,
+                            'name': item[0],
                             'args': [{
                                 'name': 'bind',
-                                'args': [page_by.prop.name]
-                            }, page_by.value]
+                                'args': [item[1].prop.name]
+                            }, item[1].value]
                         }
                     ]
                 }
             else:
                 compare = {
-                    'name': op,
+                    'name': item[0],
                     'args': [{
                         'name': 'bind',
-                        'args': [page_by.prop.name]
-                    }, page_by.value]
+                        'args': [item[1].prop.name]
+                    }, item[1].value]
                 }
-    if compare:
-        compare = asttoexpr(compare)
+        if where_compare:
+            where_compare = {
+                'name': 'or',
+                'args': [
+                    where_compare,
+                    compare
+                ]
+            }
+        else:
+            where_compare = compare
 
-    if expr and compare:
-        query = merge_formulas(expr, compare)
+    if where_compare:
+        where_compare = asttoexpr(where_compare)
+    if expr and where_compare:
+        query = merge_formulas(expr, where_compare)
     else:
-        query = compare or expr or None
+        query = where_compare or expr or None
     return query
 
 

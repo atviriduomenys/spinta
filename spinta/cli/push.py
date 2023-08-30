@@ -662,8 +662,8 @@ def _read_rows_by_pages(
                     )
 
                     state_push_count += 1
-                    state_row = next(state_rows, None)
                     _update_model_page_with_new(model.page, model_table, state_row=state_row)
+                    state_row = next(state_rows, None)
                     update_counter = False
                 else:
                     yield row
@@ -706,11 +706,12 @@ def _update_model_page_with_new(
 ):
     for by, page_by in model_page.by.items():
         val = None
-        if state_row:
-            val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
-        elif data_row:
-            val = data_row.get(page_by.prop.name, None)
-        model_page.update_value(by, val)
+        if state_row or data_row:
+            if state_row:
+                val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
+            elif data_row:
+                val = data_row.get(page_by.prop.name, None)
+            model_page.update_value(by, page_by.prop, val)
 
 
 def _compare_for_delete_row(
@@ -761,48 +762,37 @@ def _get_state_rows(
 ) -> sa.engine.LegacyCursorResult:
     conn = context.get('push.state.conn')
 
-    count = 0
-    depth = 0
-    end_loop = False
-    while not end_loop:
-        where = []
-        order_by = []
-        limit = size - count
-        for page_by in model_page.by.values():
-            order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
+    order_by = []
 
-        for i, (by, page_by) in enumerate(reversed(model_page.by.items())):
-            eq_op = i > depth
-            if page_by.value:
-                if eq_op:
-                    where.append(table.c[f"page.{page_by.prop.name}"] == page_by.value)
-                else:
-                    if by.startswith('-'):
-                        where.append(table.c[f"page.{page_by.prop.name}"] < page_by.value)
-                    else:
-                        where.append(table.c[f"page.{page_by.prop.name}"] > page_by.value)
-        if where:
-            state_rows = conn.execute(
+    for page_by in model_page.by.values():
+        order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
+
+    while True:
+        finished = True
+        from_cond = _construct_where_condition_from_page(model_page, table)
+
+        if from_cond is not None:
+            deleted_rows = conn.execute(
                 sa.select([table]).
-                where(*where).
-                order_by(*order_by).limit(limit)
+                where(
+                    from_cond
+                ).order_by(*order_by).limit(size)
             )
         else:
-            state_rows = conn.execute(
-                sa.select([table]).
-                order_by(*order_by).limit(limit)
+            deleted_rows = conn.execute(
+                sa.select([table])
+                .order_by(*order_by).limit(size)
             )
 
-        for row in state_rows:
-            count += 1
-            _update_model_page_with_new(model_page, table, state_row=row)
+        for row in deleted_rows:
+            if finished:
+                finished = False
+            for by, page_by in model_page.by.items():
+                model_page.update_value(by, page_by.prop, row[f"page.{page_by.prop.name}"])
             yield row
 
-        if count < size and depth < len(model_page.by) - 1:
-            depth += 1
-            model_page.clear_till_depth(depth)
-        else:
-            end_loop = True
+        if finished:
+            break
 
 
 def _prepare_rows_for_push(rows: Iterable[_PushRow]) -> Iterator[_PushRow]:
@@ -1150,16 +1140,18 @@ def _init_push_state(
         'string': sa.Text,
         'date': sa.Date,
         'datetime': sa.DateTime,
+        'time': sa.Time,
         'integer': sa.Integer,
+        'number': sa.Numeric
     }
 
     for model in models:
         pagination_cols = []
         if model.page and model.page.by and model.backend.paginated:
             for page_by in model.page.by.values():
-                type = types.get(page_by.prop.dtype.name, sa.Text)
+                _type = types.get(page_by.prop.dtype.name, sa.Text)
                 pagination_cols.append(
-                    sa.Column(f"page.{page_by.prop.name}", type)
+                    sa.Column(f"page.{page_by.prop.name}", _type, index=True)
                 )
 
         table = sa.Table(
@@ -1420,11 +1412,24 @@ def _get_deleted_row_counts(
     conn = context.get('push.state.conn')
     for model in models:
         table = metadata.tables[model.name]
+        required_condition = sa.and_(
+            table.c.pushed.is_(None),
+            table.c.error.is_(False)
+        )
+
+        where_cond = _construct_where_condition_to_page(model.page, table)
+        if where_cond is not None:
+            where_cond = sa.and_(
+                where_cond,
+                required_condition
+            )
+        else:
+            where_cond = required_condition
+
         row_count = conn.execute(
             sa.select(sa.func.count(table.c.id)).
             where(
-                table.c.pushed.is_(None) &
-                table.c.error.is_(False)
+                where_cond
             )
         )
         counts[model.name] = row_count.scalar()
@@ -1438,36 +1443,180 @@ def _iter_deleted_rows(
     counts: Dict[str, int],
     no_progress_bar: bool = False,
 ) -> Iterable[_PushRow]:
-    conn = context.get('push.state.conn')
     models = reversed(models)
+    config = context.get('config')
+    page_size = config.push_page_size
     for model in models:
+        size = model.page.size or page_size or 1000
         table = metadata.tables[model.name]
-        deleted_rows = conn.execute(
-            sa.select([table.c.id]).
-            where(
-                table.c.pushed.is_(None) &
-                table.c.error.is_(False)
-            )
-        )
+        total = counts.get(model.name)
+
+        rows = _get_deleted_rows_with_page(context, model.page, table, size)
         if not no_progress_bar:
-            deleted_rows = tqdm.tqdm(
-                deleted_rows,
+            rows = tqdm.tqdm(
+                rows,
                 model.name,
                 ascii=True,
-                total=counts.get(model.name),
+                total=total,
                 leave=False
             )
 
-        yield from _prepare_deleted_rows(deleted_rows, model, table)
+        for row in rows:
+            yield _prepare_deleted_row(model, row[table.c.id])
 
 
-def _prepare_deleted_rows(
-    rows,
-    model: Model,
+def _construct_where_condition_to_page(
+    page: Page,
+    table: sa.Table
+):
+    item_count = len(page.by.keys())
+    where_list = []
+    for i in range(item_count):
+        where_list.append([])
+    for i, (by, page_by) in enumerate(page.by.items()):
+        if page_by.value:
+            for n in range(item_count):
+                if n >= i:
+                    if n == i:
+                        if n == item_count - 1:
+                            if by.startswith('-'):
+                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] >= page_by.value)
+                            else:
+                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] <= page_by.value)
+                        else:
+                            if by.startswith('-'):
+                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] > page_by.value)
+                            else:
+                                where_list[n].append(table.c[f"page.{page_by.prop.name}"] < page_by.value)
+                    else:
+                        where_list[n].append(table.c[f"page.{page_by.prop.name}"] == page_by.value)
+
+    where_condition = None
+    for where in where_list:
+        condition = None
+        for item in where:
+            if condition is not None:
+                condition = sa.and_(
+                    condition,
+                    item
+                )
+            else:
+                condition = item
+        if where_condition is not None:
+            where_condition = sa.or_(
+                where_condition,
+                condition
+            )
+        else:
+            where_condition = condition
+
+    return where_condition
+
+
+def _construct_where_condition_from_page(
+    page: Page,
+    table: sa.Table
+):
+    item_count = len(page.by.keys())
+    where_list = []
+    for i in range(item_count):
+        where_list.append([])
+    for i, (by, page_by) in enumerate(page.by.items()):
+        if page_by.value:
+            for n in range(item_count):
+                if n >= i:
+                    if n == i:
+                        if by.startswith('-'):
+                            where_list[n].append(table.c[f"page.{page_by.prop.name}"] < page_by.value)
+                        else:
+                            where_list[n].append(table.c[f"page.{page_by.prop.name}"] > page_by.value)
+                    else:
+                        where_list[n].append(table.c[f"page.{page_by.prop.name}"] == page_by.value)
+
+    where_condition = None
+    for where in where_list:
+        condition = None
+        for item in where:
+            if condition is not None:
+                condition = sa.and_(
+                    condition,
+                    item
+                )
+            else:
+                condition = item
+        if where_condition is not None:
+            where_condition = sa.or_(
+                where_condition,
+                condition
+            )
+        else:
+            where_condition = condition
+
+    return where_condition
+
+
+def _get_deleted_rows_with_page(
+    context: Context,
+    model_page: Page,
     table: sa.Table,
-) -> Iterable[ModelRow]:
-    for row in rows:
-        yield _prepare_deleted_row(model, row[table.c.id])
+    size: int,
+) -> sa.engine.LegacyCursorResult:
+    conn = context.get('push.state.conn')
+
+    order_by = []
+
+    for page_by in model_page.by.values():
+        order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
+
+    from_page = Page()
+    from_page.update_values_from_page(model_page)
+    from_page.clear()
+
+    required_where_cond = sa.and_(
+        table.c.pushed.is_(None),
+        table.c.error.is_(False)
+    )
+    while True:
+        finished = True
+        from_cond = _construct_where_condition_from_page(from_page, table)
+        to_cond = _construct_where_condition_to_page(model_page, table)
+
+        where_cond = None
+        if from_cond is not None:
+            where_cond = from_cond
+        if to_cond is not None:
+            if where_cond is not None:
+                sa.and_(
+                    where_cond,
+                    to_cond
+                )
+            else:
+                where_cond = to_cond
+
+        if where_cond is not None:
+            where_cond = sa.and_(
+                required_where_cond,
+                where_cond
+            )
+        else:
+            where_cond = required_where_cond
+
+        deleted_rows = conn.execute(
+            sa.select([table]).
+            where(
+                where_cond
+            ).order_by(*order_by).limit(size)
+        )
+
+        for row in deleted_rows:
+            if finished:
+                finished = False
+            for by, page_by in from_page.by.items():
+                from_page.update_value(by, page_by.prop, row[f"page.{page_by.prop.name}"])
+            yield row
+
+        if finished:
+            break
 
 
 def _prepare_deleted_row(
@@ -1551,32 +1700,41 @@ def _iter_rows_with_errors(
     error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
     conn = context.get('push.state.conn')
+    config = context.get('config')
+    page_size = config.push_page_size
     for model in models:
+        size = model.page.size or page_size or 1000
         table = metadata.tables[model.name]
-        rows = conn.execute(
-            sa.select([table.c.id, table.c.checksum, table.c.data]).
-            where(
-                table.c.error.is_(True)
-            )
-        )
-        if not no_progress_bar:
-            rows = tqdm.tqdm(
-                rows,
-                model.name,
-                ascii=True,
-                total=counts.get(model.name),
-                leave=False
-            )
+        left = counts.get(model.name)
+        total = counts.get(model.name)
 
-        yield from _prepare_rows_with_errors(
-            client,
-            server,
-            context,
-            rows,
-            model,
-            table,
-            error_counter
-        )
+        while left > 0:
+            rows = conn.execute(
+                sa.select([table.c.id, table.c.checksum, table.c.data]).
+                where(
+                    table.c.error.is_(True)
+                ).limit(size).offset(total - left)
+            )
+            left -= size
+
+            if not no_progress_bar:
+                rows = tqdm.tqdm(
+                    rows,
+                    model.name,
+                    ascii=True,
+                    total=total,
+                    leave=False
+                )
+
+            yield from _prepare_rows_with_errors(
+                client,
+                server,
+                context,
+                rows,
+                model,
+                table,
+                error_counter
+            )
 
 
 def _prepare_rows_with_errors(

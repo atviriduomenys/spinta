@@ -510,16 +510,18 @@ class Page:
     def add_prop(self, by: str, prop: Property, value: Any = None):
         self.by[by] = PageBy(prop, value)
 
-    def update_value(self, by: str, value: Any):
+    def update_value(self, by: str, prop: Property, value: Any):
+        if by not in self.by:
+            self.by[by] = PageBy(prop)
         self.by[by].value = value
 
     def set_values_from_list(self, values: list):
         if len(values) != len(self.by.values()):
             raise InvalidPageParameterCount(properties=list(self.by.keys()))
 
-        for i, key in enumerate(self.by.keys()):
+        for i, (by, page_by) in enumerate(self.by.items()):
             if i + 1 <= len(values):
-                self.update_value(key, values[i])
+                self.update_value(by, page_by.prop, values[i])
 
     def clear(self):
         for item in self.by.values():
@@ -533,14 +535,19 @@ class Page:
     def update_values_from_row(self, row: dict):
         row = fix_data_for_json(row)
         for by, page_by in self.by.items():
-            self.update_value(by, row.get(page_by.prop.name))
+            self.update_value(by, page_by.prop, row.get(page_by.prop.name))
 
     def update_values_from_params_page(self, page: ParamsPage):
         if page.values:
             if len(page.values) != len(self.by):
                 raise InvalidPageParameterCount(properties=list(self.by.keys()))
             for i, (by, page_by) in enumerate(self.by.items()):
-                self.update_value(by, page.values[i])
+                self.update_value(by, page_by.prop, page.values[i])
+
+    def update_values_from_page(self, page: Page):
+        self.clear()
+        for by, page_by in page.by.items():
+            self.update_value(by, page_by.prop, page_by.value)
 
 
 class ParamsPage:
