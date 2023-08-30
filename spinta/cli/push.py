@@ -1679,10 +1679,23 @@ def _get_rows_with_errors_counts(
     conn = context.get('push.state.conn')
     for model in models:
         table = metadata.tables[model.name]
+        required_condition = sa.and_(
+            table.c.error.is_(True)
+        )
+
+        where_cond = _construct_where_condition_to_page(model.page, table)
+        if where_cond is not None:
+            where_cond = sa.and_(
+                where_cond,
+                required_condition
+            )
+        else:
+            where_cond = required_condition
+
         row_count = conn.execute(
             sa.select(sa.func.count(table.c.id)).
             where(
-                table.c.error.is_(True)
+                where_cond
             )
         )
         counts[model.name] = row_count.scalar()
@@ -1699,42 +1712,96 @@ def _iter_rows_with_errors(
     no_progress_bar: bool = False,
     error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
-    conn = context.get('push.state.conn')
+
     config = context.get('config')
     page_size = config.push_page_size
+
     for model in models:
         size = model.page.size or page_size or 1000
         table = metadata.tables[model.name]
-        left = counts.get(model.name)
-        total = counts.get(model.name)
 
-        while left > 0:
-            rows = conn.execute(
-                sa.select([table.c.id, table.c.checksum, table.c.data]).
-                where(
-                    table.c.error.is_(True)
-                ).limit(size).offset(total - left)
-            )
-            left -= size
+        rows = _get_deleted_rows_with_page(context, model.page, table, size)
 
-            if not no_progress_bar:
-                rows = tqdm.tqdm(
-                    rows,
-                    model.name,
-                    ascii=True,
-                    total=total,
-                    leave=False
-                )
-
-            yield from _prepare_rows_with_errors(
-                client,
-                server,
-                context,
+        if not no_progress_bar:
+            rows = tqdm.tqdm(
                 rows,
-                model,
-                table,
-                error_counter
+                model.name,
+                ascii=True,
+                total=counts.get(model.name),
+                leave=False
             )
+
+        yield from _prepare_rows_with_errors(
+            client,
+            server,
+            context,
+            rows,
+            model,
+            table,
+            error_counter
+        )
+
+
+def _get_error_rows_with_page(
+    context: Context,
+    model_page: Page,
+    table: sa.Table,
+    size: int
+):
+    conn = context.get('push.state.conn')
+    order_by = []
+
+    for page_by in model_page.by.values():
+        order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
+
+    from_page = Page()
+    from_page.update_values_from_page(model_page)
+    from_page.clear()
+
+    required_where_cond = sa.and_(
+        table.c.error.is_(True)
+    )
+    while True:
+        finished = True
+        from_cond = _construct_where_condition_from_page(from_page, table)
+        to_cond = _construct_where_condition_to_page(model_page, table)
+
+        where_cond = None
+        if from_cond is not None:
+            where_cond = from_cond
+        if to_cond is not None:
+            if where_cond is not None:
+                sa.and_(
+                    where_cond,
+                    to_cond
+                )
+            else:
+                where_cond = to_cond
+
+        if where_cond is not None:
+            where_cond = sa.and_(
+                required_where_cond,
+                where_cond
+            )
+        else:
+            where_cond = required_where_cond
+
+        rows = conn.execute(
+            sa.select([table]).
+            where(
+                where_cond
+            ).order_by(*order_by).limit(size)
+        )
+
+        for row in rows:
+            if finished:
+                finished = False
+            for by, page_by in from_page.by.items():
+                from_page.update_value(by, page_by.prop, row[f"page.{page_by.prop.name}"])
+            yield row
+
+        if finished:
+            break
 
 
 def _prepare_rows_with_errors(
