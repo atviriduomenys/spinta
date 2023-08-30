@@ -187,8 +187,9 @@ def paginate(
     query = _get_pagination_select_query(model, query)
 
     true_count = 0
-    finished = True
+
     while True:
+        finished = True
         page_query = _get_pagination_limit_query(size, query)
         page_query = _get_pagination_compare_query(model.page, page_query)
 
