@@ -310,9 +310,11 @@ def _push(
 
     if state and not dry_run:
         rows = _save_push_state(context, rows, state.metadata)
-        rows = _save_page_values(context, rows, state.metadata)
 
     _push_rows(rows, stop_on_error, error_counter)
+
+    if state and not not dry_run:
+        _save_page_values(context, models, state.metadata)
 
 
 def _read_rows(
@@ -1320,13 +1322,13 @@ def _save_push_state(
 
 def _save_page_values(
     context: Context,
-    rows: Iterable[_PushRow],
+    models: List[Model],
     metadata: sa.MetaData,
 ):
     conn = context.get('push.state.conn')
     page_table = metadata.tables['_page']
 
-    for model, group in itertools.groupby(rows, key=_get_model):
+    for model in models:
         pagination_props = []
         saved = False
         if model.page and model.page.by:
@@ -1340,39 +1342,35 @@ def _save_page_values(
             if page_row is not None:
                 saved = True
 
-        for row in group:
-            if pagination_props:
-                data = fix_data_for_json(row.data)
-                value = {}
-                for page_by in pagination_props:
-                    if data.get(page_by.prop.name) is not None:
-                        value.update({
-                            page_by.prop.name: data.get(page_by.prop.name)
-                        })
-                if value:
-                    value = json.dumps(value)
-                    if saved:
-                        conn.execute(
-                            page_table.update().
-                            where(
-                                (page_table.c.model == model.name)
-                            ).
-                            values(
-                                value=value
-                            )
+        if pagination_props:
+            value = {}
+            for page_by in pagination_props:
+                print(page_by.prop, page_by.value)
+                if page_by.value is not None:
+                    value.update({
+                        page_by.prop.name: page_by.value
+                    })
+            if value:
+                value = json.dumps(value)
+                if saved:
+                    conn.execute(
+                        page_table.update().
+                        where(
+                            (page_table.c.model == model.name)
+                        ).
+                        values(
+                            value=value
                         )
-                    else:
-                        conn.execute(
-                            page_table.insert().
-                            values(
-                                model=model.name,
-                                property=','.join([page_by.prop.name for page_by in pagination_props]),
-                                value=value
-                            )
+                    )
+                else:
+                    conn.execute(
+                        page_table.insert().
+                        values(
+                            model=model.name,
+                            property=','.join([page_by.prop.name for page_by in pagination_props]),
+                            value=value
                         )
-                        saved = True
-
-            yield row
+                    )
 
 
 def _get_deleted_rows(
