@@ -62,7 +62,7 @@ async def getall(
     if params.head:
         rows = []
     else:
-        if not params.count and backend.paginated and model.page and model.page.by and model.page.is_enabled:
+        if not params.count and backend.paginated and model.page and model.page.by and model.page.is_enabled and not params.sort:
             if params.limit:
                 rows = paginate(context, model, backend, params.page, expr, params.limit)
             else:
