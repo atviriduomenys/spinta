@@ -834,6 +834,7 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
     table = state.metadata.tables[model.name]
     page_table = state.metadata.tables['_page']
 
+    model.page.by["_id"].value = _id
     rows = [
         _PushRow(model, {
             '_type': model.name,

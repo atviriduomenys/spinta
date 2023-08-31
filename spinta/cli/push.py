@@ -1345,7 +1345,6 @@ def _save_page_values(
         if pagination_props:
             value = {}
             for page_by in pagination_props:
-                print(page_by.prop, page_by.value)
                 if page_by.value is not None:
                     value.update({
                         page_by.prop.name: page_by.value
