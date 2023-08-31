@@ -311,10 +311,13 @@ def _push(
     if state and not dry_run:
         rows = _save_push_state(context, rows, state.metadata)
 
-    _push_rows(rows, stop_on_error, error_counter)
-
-    if state and not not dry_run:
-        _save_page_values(context, models, state.metadata)
+    try:
+        _push_rows(rows, stop_on_error, error_counter)
+    except:
+        raise
+    finally:
+        if state and not dry_run:
+            _save_page_values(context, models, state.metadata)
 
 
 def _read_rows(
@@ -1333,7 +1336,6 @@ def _save_page_values(
         saved = False
         if model.page and model.page.by:
             pagination_props = model.page.by.values()
-
             page_row = conn.execute(
                 sa.select(page_table.c.model)
                 .where(page_table.c.model == model.name)
