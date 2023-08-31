@@ -516,22 +516,6 @@ def compare(env, op, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, DataType, object, names=COMPARE)
-def compare(env, op, dtype, value):
-    raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
-
-
-@ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType, object, names=COMPARE)
-def compare(
-    env: PgQueryBuilder,
-    op: str,
-    fpr: ForeignProperty,
-    dtype: DataType,
-    value: Any,
-):
-    raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
-
-
 @ufunc.resolver(PgQueryBuilder, ForeignProperty, object, names=COMPARE)
 def compare(env, op: str, fpr: ForeignProperty, value: Any):
     return env.call(op, fpr, fpr.right.dtype, value)
@@ -550,8 +534,9 @@ def compare(env, op, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, String, str, names=COMPARE_STRING)
+@ufunc.resolver(PgQueryBuilder, String, str, names=COMPARE)
 def compare(env, op, dtype, value):
+
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
     column = env.backend.get_column(env.table, dtype.prop)
@@ -580,6 +565,22 @@ def compare(env, op, dtype, value):
     value = datetime.date.fromisoformat(value)
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, DataType, object, names=COMPARE)
+def compare(env, op, dtype, value):
+    raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
+
+
+@ufunc.resolver(PgQueryBuilder, ForeignProperty, DataType, object, names=COMPARE)
+def compare(
+    env: PgQueryBuilder,
+    op: str,
+    fpr: ForeignProperty,
+    dtype: DataType,
+    value: Any,
+):
+    raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
 
 
 @ufunc.resolver(PgQueryBuilder, DataType, type(None))
