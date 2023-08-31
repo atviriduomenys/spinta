@@ -592,3 +592,7 @@ class InvalidRequestQuery(UserError):
 
 class InvalidPageParameterCount(UserError):
     template = "Parameter 'page' requires {properties} to be entered."
+
+
+class InfiniteLoopWithPagination(BaseError):
+    template = "Pagination values has cause infinite loop while fetching data."

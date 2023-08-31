@@ -35,7 +35,7 @@ from typer import echo
 from spinta import exceptions
 from spinta import spyna
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.data import ModelRow, count_rows
+from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data
 from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.store import prepare_manifest
@@ -50,6 +50,7 @@ from spinta.components import Model
 from spinta.components import Store
 from spinta.core.context import configure_context
 from spinta.core.ufuncs import Expr
+from spinta.exceptions import InfiniteLoopWithPagination
 from spinta.manifests.components import Manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
@@ -490,7 +491,7 @@ def _iter_model_rows(
             count = counts.get(model.name)
             model_push_counter = tqdm.tqdm(desc=model.name, ascii=True, total=count, leave=False)
 
-        if model.page and model.page.by:
+        if model.page and model.page.is_enabled and model.page.by:
             rows = _read_rows_by_pages(
                 context,
                 model,
@@ -505,6 +506,15 @@ def _iter_model_rows(
             )
             for row in rows:
                 yield row
+        else:
+            stream = read_model_data(
+                context,
+                model,
+                limit,
+                stop_on_error
+            )
+            for item in stream:
+                yield _PushRow(model, item)
 
         if model_push_counter is not None:
             model_push_counter.close()
@@ -771,7 +781,7 @@ def _get_state_rows(
 
     for page_by in model_page.by.values():
         order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
-
+    last_value = None
     while True:
         finished = True
         from_cond = _construct_where_condition_from_page(model_page, table)
@@ -788,10 +798,18 @@ def _get_state_rows(
                 sa.select([table])
                 .order_by(*order_by).limit(size)
             )
-
+        first_value = None
         for row in deleted_rows:
             if finished:
                 finished = False
+
+            if first_value is None:
+                first_value = row
+                if first_value == last_value:
+                    raise InfiniteLoopWithPagination()
+                else:
+                    last_value = first_value
+
             for by, page_by in model_page.by.items():
                 model_page.update_value(by, page_by.prop, row[f"page.{page_by.prop.name}"])
             yield row
@@ -1334,7 +1352,7 @@ def _save_page_values(
     for model in models:
         pagination_props = []
         saved = False
-        if model.page and model.page.by:
+        if model.page and model.page.is_enabled and model.page.by:
             pagination_props = model.page.by.values()
             page_row = conn.execute(
                 sa.select(page_table.c.model)
@@ -1416,7 +1434,10 @@ def _get_deleted_row_counts(
             table.c.error.is_(False)
         )
 
-        where_cond = _construct_where_condition_to_page(model.page, table)
+        if model.page and model.page.is_enabled and model.page.by:
+            where_cond = _construct_where_condition_to_page(model.page, table)
+        else:
+            where_cond = None
         if where_cond is not None:
             where_cond = sa.and_(
                 where_cond,
@@ -1444,13 +1465,23 @@ def _iter_deleted_rows(
 ) -> Iterable[_PushRow]:
     models = reversed(models)
     config = context.get('config')
+    conn = context.get('push.state.conn')
     page_size = config.push_page_size
     for model in models:
         size = model.page.size or page_size or 1000
         table = metadata.tables[model.name]
         total = counts.get(model.name)
 
-        rows = _get_deleted_rows_with_page(context, model.page, table, size)
+        if model.page and model.page.is_enabled and model.page.by:
+            rows = _get_deleted_rows_with_page(context, model.page, table, size)
+        else:
+            rows = conn.execute(
+                sa.select([table.c.id]).
+                where(
+                    table.c.pushed.is_(None) &
+                    table.c.error.is_(False)
+                )
+            )
         if not no_progress_bar:
             rows = tqdm.tqdm(
                 rows,
@@ -1575,6 +1606,7 @@ def _get_deleted_rows_with_page(
         table.c.pushed.is_(None),
         table.c.error.is_(False)
     )
+    last_value = None
     while True:
         finished = True
         from_cond = _construct_where_condition_from_page(from_page, table)
@@ -1606,10 +1638,18 @@ def _get_deleted_rows_with_page(
                 where_cond
             ).order_by(*order_by).limit(size)
         )
-
+        first_value = None
         for row in deleted_rows:
             if finished:
                 finished = False
+
+            if first_value is None:
+                first_value = row
+                if first_value == last_value:
+                    raise InfiniteLoopWithPagination()
+                else:
+                    last_value = first_value
+
             for by, page_by in from_page.by.items():
                 from_page.update_value(by, page_by.prop, row[f"page.{page_by.prop.name}"])
             yield row
@@ -1681,8 +1721,10 @@ def _get_rows_with_errors_counts(
         required_condition = sa.and_(
             table.c.error.is_(True)
         )
-
-        where_cond = _construct_where_condition_to_page(model.page, table)
+        if model.page and model.page.is_enabled and model.page.by:
+            where_cond = _construct_where_condition_to_page(model.page, table)
+        else:
+            where_cond = None
         if where_cond is not None:
             where_cond = sa.and_(
                 where_cond,
@@ -1711,7 +1753,7 @@ def _iter_rows_with_errors(
     no_progress_bar: bool = False,
     error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
-
+    conn = context.get('push.state.conn')
     config = context.get('config')
     page_size = config.push_page_size
 
@@ -1719,8 +1761,15 @@ def _iter_rows_with_errors(
         size = model.page.size or page_size or 1000
         table = metadata.tables[model.name]
 
-        rows = _get_deleted_rows_with_page(context, model.page, table, size)
-
+        if model.page and model.page.is_enabled and model.page.by:
+            rows = _get_deleted_rows_with_page(context, model.page, table, size)
+        else:
+            rows = conn.execute(
+                sa.select([table.c.id, table.c.checksum, table.c.data]).
+                where(
+                    table.c.error.is_(True)
+                )
+            )
         if not no_progress_bar:
             rows = tqdm.tqdm(
                 rows,
@@ -1760,6 +1809,7 @@ def _get_error_rows_with_page(
     required_where_cond = sa.and_(
         table.c.error.is_(True)
     )
+    last_value = None
     while True:
         finished = True
         from_cond = _construct_where_condition_from_page(from_page, table)
@@ -1791,10 +1841,18 @@ def _get_error_rows_with_page(
                 where_cond
             ).order_by(*order_by).limit(size)
         )
-
+        first_value = None
         for row in rows:
             if finished:
                 finished = False
+
+            if first_value is None:
+                first_value = row
+                if first_value == last_value:
+                    raise InfiniteLoopWithPagination()
+                else:
+                    last_value = first_value
+
             for by, page_by in from_page.by.items():
                 from_page.update_value(by, page_by.prop, row[f"page.{page_by.prop.name}"])
             yield row

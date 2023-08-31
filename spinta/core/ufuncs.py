@@ -8,6 +8,7 @@ from typing import Dict
 from typing import TYPE_CHECKING
 from typing import Tuple
 
+from spinta.core.enums import Access
 from spinta.dispatcher import Command
 from spinta import spyna
 from spinta.exceptions import UnknownMethod, FieldNotInResource
@@ -312,6 +313,7 @@ class LoadBuilder(Env):
     model: Model
 
     def load_page(self):
+        from spinta.types.datatype import Integer, Number, String, Date, Time, DateTime
         args = ['_id']
         kwargs = {}
         if self.model.external and self.model.external.resource:
@@ -326,6 +328,8 @@ class LoadBuilder(Env):
                     args = self.model.given.pkeys
                 else:
                     args = [self.model.given.pkeys]
+            if '_id' in args:
+                args.remove('_id')
         self.model.page.by = {}
         for arg in args:
             key = arg
@@ -344,3 +348,12 @@ class LoadBuilder(Env):
             else:
                 raise FieldNotInResource(self.model, property=arg)
         self.model.page.size = kwargs.get('size', None)
+
+        # Disable page if given properties are not possible to access
+        for page_by in self.model.page.by.values():
+            if page_by.prop.access != Access.open:
+                self.model.page.is_enabled = False
+                break
+            elif not isinstance(page_by.prop.dtype, (Integer, Number, String, Date, DateTime, Time)):
+                self.model.page.is_enabled = False
+                break

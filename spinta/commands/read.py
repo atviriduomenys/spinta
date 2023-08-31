@@ -22,7 +22,7 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
-from spinta.exceptions import UnavailableSubresource
+from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
@@ -152,15 +152,25 @@ def get_page(
         size = model_page.size or page_size or 1000
     query = _get_pagination_sort_query(model, expr)
 
+    last_value = None
     while True:
         finished = True
         page_query = _get_pagination_limit_query(size, query)
         page_query = _get_pagination_compare_query(model_page, page_query)
 
         rows = commands.getall(context, model, backend, query=page_query)
+        first_value = None
         for row in rows:
             if finished:
                 finished = False
+
+            if first_value is None:
+                first_value = row
+                if first_value == last_value:
+                    raise InfiniteLoopWithPagination()
+                else:
+                    last_value = first_value
+
             model_page.update_values_from_row(row)
             yield row
 
@@ -188,18 +198,27 @@ def paginate(
 
     true_count = 0
 
+    last_value = None
     while True:
         finished = True
         page_query = _get_pagination_limit_query(size, query)
         page_query = _get_pagination_compare_query(model.page, page_query)
 
         rows = commands.getall(context, model, backend, query=page_query)
+        first_value = None
         for row in rows:
             if finished:
                 finished = False
             if limit and true_count >= limit:
                 finished = True
                 break
+
+            if first_value is None:
+                first_value = row
+                if first_value == last_value:
+                    raise InfiniteLoopWithPagination()
+                else:
+                    last_value = first_value
 
             true_count += 1
             model.page.update_values_from_row(row)
