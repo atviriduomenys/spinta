@@ -617,7 +617,6 @@ def getall(
     backend: Backend,
     *,
     query: Expr = None,
-    ignore_auth: bool = False
 ) -> Iterator[ObjectData]:
     pass
 

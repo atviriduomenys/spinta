@@ -74,12 +74,11 @@ def getall(
     backend: Sql,
     *,
     query: Expr = None,
-    ignore_auth: bool = False
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
+    config = context.get('config')
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
-
     # Merge user passed query with query set in manifest.
     query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
@@ -93,7 +92,7 @@ def getall(
 
         env = builder.init(backend, table)
         env.update(params=params)
-        env.ignore_auth = ignore_auth
+        env.ignore_auth = config.ignore_auth
         expr = env.resolve(query)
         where = env.execute(expr)
         qry = env.build(where)

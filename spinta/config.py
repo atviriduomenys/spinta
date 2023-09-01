@@ -209,6 +209,9 @@ CONFIG = {
     # Limit of objects in the page
     'push_page_size': None,
 
+    # Used when wanting to ignore auth requirements for fetching data (in case properties are private, used for push)
+    'ignore_auth': False,
+
     'environments': {
         'dev': {
             'keymaps.default': {

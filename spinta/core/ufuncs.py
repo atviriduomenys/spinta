@@ -351,9 +351,6 @@ class LoadBuilder(Env):
 
         # Disable page if given properties are not possible to access
         for page_by in self.model.page.by.values():
-            # if page_by.prop.access != Access.open:
-            #     self.model.page.is_enabled = False
-            #     break
             if not isinstance(page_by.prop.dtype, (Integer, Number, String, Date, DateTime, Time)):
                 self.model.page.is_enabled = False
                 break

@@ -141,8 +141,7 @@ def get_page(
     backend: Backend,
     page: ParamsPage,
     model_page: Page,
-    expr: Expr,
-    ignore_auth: bool = False
+    expr: Expr
 ) -> Iterator[ObjectData]:
     config = context.get('config')
     page_size = config.push_page_size
@@ -159,7 +158,7 @@ def get_page(
         page_query = _get_pagination_limit_query(size, query)
         page_query = _get_pagination_compare_query(model_page, page_query)
 
-        rows = commands.getall(context, model, backend, query=page_query, ignore_auth=ignore_auth)
+        rows = commands.getall(context, model, backend, query=page_query)
         first_value = None
         for row in rows:
             if finished:

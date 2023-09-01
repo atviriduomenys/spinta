@@ -187,6 +187,9 @@ def push(
 
         error_counter = ErrorCounter(max_count=max_error_count)
 
+        # Set this to read all rows (including private)
+        config.ignore_auth = True
+
         rows = _read_rows(
             context,
             client,
@@ -544,8 +547,7 @@ def _read_model_data_by_page(
         model.backend,
         page,
         model_page,
-        query,
-        True
+        query
     )
 
     if stop_on_error:

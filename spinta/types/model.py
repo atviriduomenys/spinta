@@ -26,6 +26,7 @@ from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
 from spinta.core.ufuncs import LoadBuilder
+from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -197,8 +198,13 @@ def link(context: Context, model: Model):
         commands.link(context, prop)
 
     # Disable page if external backend and model.ref not given
-    if isinstance(model.backend, ExternalBackend) and ((model.external and not model.external.name) or not model.external):
-        model.page.is_enabled = False
+    if isinstance(model.backend, ExternalBackend):
+        if (model.external and not model.external.name) or not model.external:
+            model.page.is_enabled = False
+        else:
+            # Currently only supported external backend is SQL
+            if not isinstance(model.backend, Sql):
+                model.page.is_enabled = False
 
 
 @overload
