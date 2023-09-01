@@ -74,6 +74,7 @@ def getall(
     backend: Sql,
     *,
     query: Expr = None,
+    ignore_auth: bool = False
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
     builder = SqlQueryBuilder(context)
@@ -92,6 +93,7 @@ def getall(
 
         env = builder.init(backend, table)
         env.update(params=params)
+        env.ignore_auth = ignore_auth
         expr = env.resolve(query)
         where = env.execute(expr)
         qry = env.build(where)

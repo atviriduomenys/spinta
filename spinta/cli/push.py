@@ -514,6 +514,10 @@ def _iter_model_rows(
                 stop_on_error
             )
             for item in stream:
+                if push_counter:
+                    push_counter.update(1)
+                if model_push_counter:
+                    model_push_counter.update(1)
                 yield _PushRow(model, item)
 
         if model_push_counter is not None:
@@ -541,6 +545,7 @@ def _read_model_data_by_page(
         page,
         model_page,
         query,
+        True
     )
 
     if stop_on_error:
