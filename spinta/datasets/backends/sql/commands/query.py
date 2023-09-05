@@ -38,6 +38,8 @@ from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.types.datatype import Integer
 from spinta.types.file.components import FileData
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_selected_list, \
+    merge_with_page_sort, merge_with_page_limit
 from spinta.ufuncs.components import ForeignProperty
 from spinta.core.ufuncs import Unresolved
 from spinta.utils.data import take
@@ -115,7 +117,7 @@ class SqlFrom:
         return self.joins[fpr.name]
 
 
-class SqlQueryBuilder(Env):
+class SqlQueryBuilder(BaseQueryBuilder):
     backend: Sql
     model: Model
     table: sa.Table
@@ -140,6 +142,7 @@ class SqlQueryBuilder(Env):
             sort=[],
             limit=None,
             offset=None,
+            page=QueryPage()
         )
 
     def build(self, where):
@@ -147,18 +150,20 @@ class SqlQueryBuilder(Env):
             # If select list was not explicitly given by client, then select all
             # properties.
             self.call('select', Expr('select'))
-
-        qry = sa.select(self.columns)
+        merged_selected = merge_with_page_selected_list(self.columns, self.page)
+        merged_sorted = merge_with_page_sort(self.sort, self.page)
+        merged_limit = merge_with_page_limit(self.limit, self.page)
+        qry = sa.select(merged_selected)
         qry = qry.select_from(self.joins.from_)
 
         if where is not None:
             qry = qry.where(where)
 
-        if self.sort:
-            qry = qry.order_by(*self.sort)
+        if merged_sorted:
+            qry = qry.order_by(*merged_sorted)
 
-        if self.limit is not None:
-            qry = qry.limit(self.limit)
+        if merged_limit is not None:
+            qry = qry.limit(merged_limit)
 
         if self.offset is not None:
             qry = qry.offset(self.offset)

@@ -1,4 +1,5 @@
 import uuid
+from copy import deepcopy
 from typing import overload, Optional, Iterator, Union, List, Tuple
 from pathlib import Path
 
@@ -7,11 +8,12 @@ from starlette.responses import Response
 from starlette.responses import FileResponse
 
 from spinta import commands
+from spinta.auth import authorized
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, ParamsPage, Page
+from spinta.components import Context, Node, Action, UrlParams, ParamsPage, Page, PageBy
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr, asttoexpr
@@ -22,7 +24,7 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
-from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination
+from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, FieldNotInResource
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
@@ -42,6 +44,30 @@ async def getall(
     commands.authorize(context, action, model)
 
     backend = model.backend
+    copy_page = prepare_page_for_get_all(context, model, params)
+
+    if params.select:
+        for selected_ast in params.select:
+            for selected in selected_ast['args']:
+                if isinstance(selected, str):
+                    if selected in model.properties.keys():
+                        if not authorized(context, model.properties[selected], Action.SEARCH):
+                            raise FieldNotInResource(model, property=selected)
+                    else:
+                        raise FieldNotInResource(model, property=selected)
+    if params.sort:
+        for sort_ast in params.sort:
+            if sort_ast['name'] == 'negative':
+                sort_ast = sort_ast['args'][0]
+            for sort in sort_ast['args']:
+                if isinstance(sort, str):
+                    if sort in model.properties.keys():
+                        if not authorized(context, model.properties[sort], Action.SEARCH):
+                            raise FieldNotInResource(model, property=sort)
+                    else:
+                        raise FieldNotInResource(model, property=sort)
+
+    is_page_enabled = not params.count and backend.paginated and copy_page and copy_page and copy_page.is_enabled
 
     if isinstance(backend, ExternalBackend):
         # XXX: `add_count` is a hack, because, external backends do not
@@ -62,11 +88,8 @@ async def getall(
     if params.head:
         rows = []
     else:
-        if not params.count and backend.paginated and model.page and model.page.by and model.page.is_enabled and not params.sort:
-            if params.limit:
-                rows = paginate(context, model, backend, params.page, expr, params.limit)
-            else:
-                rows = get_page(context, model, backend, params.page, model.page, expr)
+        if is_page_enabled:
+            rows = get_page(context, model, backend, copy_page, expr, params.limit)
         else:
             rows = commands.getall(context, model, backend, query=expr)
 
@@ -130,85 +153,77 @@ async def getall(
         )
 
     rows = log_response(context, rows)
-    model.page.clear()
 
     return render(context, request, model, params, rows, action=action)
+
+
+# XXX: params.sort handle should be moved to BaseQueryBuilder, AST should be handled by Env.
+# Issue: in order to create correct WHERE, we need to have finalized Page, currently we combine sort properties with page here.
+def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
+    if model.page:
+        copied = deepcopy(model.page)
+        copied.clear()
+
+        config = context.get('config')
+        page_size = config.push_page_size
+        size = params.page and params.page.size or copied.size or page_size or 1000
+        copied.size = size
+
+        if params.sort:
+            new_order = {}
+            for sort_ast in params.sort:
+                negative = False
+                if sort_ast['name'] == 'negative':
+                    negative = True
+                    sort_ast = sort_ast['args'][0]
+                for sort in sort_ast['args']:
+                    if isinstance(sort, str):
+                        if sort in model.properties.keys():
+                            by = sort if not negative else f'-{sort}'
+                            new_order[by] = PageBy(model.properties[sort])
+
+            for key, page_by in copied.by.items():
+                reversed_key = key[1:] if key.startswith("-") else f'-{key}'
+                if key not in new_order and reversed_key not in new_order:
+                    new_order[key] = page_by
+
+            copied.by = new_order
+
+        if params.page:
+            copied.update_values_from_params_page(params.page)
+
+        return copied
 
 
 def get_page(
     context: Context,
     model: Model,
     backend: Backend,
-    page: ParamsPage,
     model_page: Page,
-    expr: Expr
+    expr: Expr,
+    limit: Optional[int] = None
 ) -> Iterator[ObjectData]:
     config = context.get('config')
     page_size = config.push_page_size
-    if page:
-        size = page.size or model_page.size or page_size or 1000
-        model_page.update_values_from_params_page(page)
-    else:
-        size = model_page.size or page_size or 1000
-    query = _get_pagination_sort_query(model, expr)
-
-    last_value = None
-    while True:
-        finished = True
-        page_query = _get_pagination_limit_query(size, query)
-        page_query = _get_pagination_compare_query(model_page, page_query)
-
-        rows = commands.getall(context, model, backend, query=page_query)
-        first_value = None
-        for row in rows:
-            if finished:
-                finished = False
-
-            if first_value is None:
-                first_value = row
-                if first_value == last_value:
-                    raise InfiniteLoopWithPagination()
-                else:
-                    last_value = first_value
-
-            model_page.update_values_from_row(row)
-            yield row
-
-        if finished:
-            break
-
-
-def paginate(
-    context: Context,
-    model: Model,
-    backend: Backend,
-    page: ParamsPage,
-    expr: Optional[Expr],
-    limit: Optional[int],
-) -> Iterator[ObjectData]:
-    config = context.get('config')
-    page_size = config.push_page_size
-    if page:
-        size = page.size or model.page.size or page_size or 1000
-        model.page.update_values_from_params_page(page)
-    else:
-        size = model.page.size or page_size or 1000
-    query = _get_pagination_sort_query(model, expr)
-    query = _get_pagination_select_query(model, query)
+    model_page.size = model_page.size or page_size or 1000
 
     true_count = 0
 
     last_value = None
     while True:
         finished = True
-        page_query = _get_pagination_limit_query(size, query)
-        page_query = _get_pagination_compare_query(model.page, page_query)
-
-        rows = commands.getall(context, model, backend, query=page_query)
+        query = merge_formulas(expr, asttoexpr({
+            'name': 'page',
+            'args': [
+                model_page
+            ]
+        }))
+        rows = commands.getall(context, model, backend, query=query)
         first_value = None
         for row in rows:
             if finished:
                 finished = False
+
             if limit and true_count >= limit:
                 finished = True
                 break
@@ -221,46 +236,11 @@ def paginate(
                     last_value = first_value
 
             true_count += 1
-            model.page.update_values_from_row(row)
+            model_page.update_values_from_row(row)
             yield row
 
         if finished:
             break
-
-
-def _get_pagination_sort_query(
-    model: Model,
-    expr: Union[Expr, None],
-) -> Union[Expr, None]:
-    sort_by = model.page.by
-    sort_args = []
-    sort = {}
-
-    for by, page_by in sort_by.items():
-        if by.startswith('-'):
-            name = 'negative'
-        else:
-            name = 'bind'
-        if not (isinstance(model.backend, ExternalBackend) and not page_by.prop.external.name):
-            sort_args.append(asttoexpr({
-                'name': name,
-                'args': [page_by.prop.name]
-            }))
-
-    if sort_args:
-        sort = {
-            'name': 'sort',
-            'args': sort_args
-        }
-        sort = asttoexpr(sort)
-
-    if expr and sort:
-        updated, query = _update_expr_args(expr, 'sort', sort_args)
-        if not updated:
-            query = merge_formulas(query, sort)
-    else:
-        query = sort or expr or None
-    return query
 
 
 def _update_expr_args(
@@ -287,105 +267,6 @@ def _update_expr_args(
                     break
     expr.args = tuple(expr.args)
     return updated, expr
-
-
-def _get_pagination_limit_query(
-    size: int,
-    expr: Union[Expr, None],
-) -> Union[Expr, None]:
-    limit = asttoexpr({
-        'name': 'limit',
-        'args': [size]
-    })
-    if expr:
-        updated, query = _update_expr_args(expr, 'limit', [size], override=True)
-        if not updated:
-            query = merge_formulas(query, limit)
-    else:
-        query = limit
-    return query
-
-
-def _get_pagination_select_query(
-    model: Model,
-    expr: Union[Expr, None],
-) -> Union[Expr, None]:
-    if expr:
-        select_args = []
-        for page_by in model.page.by.values():
-            select_args.append(asttoexpr({
-                'name': 'bind',
-                'args': [page_by.prop.name]
-            }))
-        if select_args:
-            _, expr = _update_expr_args(expr, 'select', select_args)
-    return expr
-
-
-def _get_pagination_compare_query(
-    model_page: Page,
-    expr: Union[Expr, None],
-) -> Union[Expr, None]:
-    item_count = len(model_page.by.keys())
-    where_list = []
-    for i in range(item_count):
-        where_list.append([])
-    for i, (by, page_by) in enumerate(model_page.by.items()):
-        if page_by.value:
-            for n in range(item_count):
-                if n >= i:
-                    if n == i:
-                        if by.startswith('-'):
-                            where_list[n].append(('lt', page_by))
-                        else:
-                            where_list[n].append(('gt', page_by))
-                    else:
-                        where_list[n].append(('eq', page_by))
-
-    where_compare = {}
-    for where in where_list:
-        compare = {}
-        for item in where:
-            if compare:
-                compare = {
-                    'name': 'and',
-                    'args': [
-                        compare,
-                        {
-                            'name': item[0],
-                            'args': [{
-                                'name': 'bind',
-                                'args': [item[1].prop.name]
-                            }, item[1].value]
-                        }
-                    ]
-                }
-            else:
-                compare = {
-                    'name': item[0],
-                    'args': [{
-                        'name': 'bind',
-                        'args': [item[1].prop.name]
-                    }, item[1].value]
-                }
-        if where_compare:
-            where_compare = {
-                'name': 'or',
-                'args': [
-                    where_compare,
-                    compare
-                ]
-            }
-        else:
-            where_compare = compare
-
-    if where_compare:
-        where_compare = asttoexpr(where_compare)
-    if expr and where_compare:
-        query = merge_formulas(expr, where_compare)
-    else:
-        query = where_compare or expr or None
-    return query
 
 
 @overload

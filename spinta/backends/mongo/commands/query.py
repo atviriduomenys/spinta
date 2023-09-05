@@ -11,10 +11,11 @@ import pymongo
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.core.ufuncs import ufunc
-from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Bind
 from spinta.exceptions import EmptyStringSearch
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, \
+    merge_with_page_selected_dict, merge_with_page_sort, merge_with_page_limit
 from spinta.utils.data import take
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
@@ -31,7 +32,7 @@ from spinta.types.datatype import Object
 from spinta.backends.mongo.components import Mongo
 
 
-class MongoQueryBuilder(Env):
+class MongoQueryBuilder(BaseQueryBuilder):
 
     def init(self, backend: Mongo, table: pymongo.collection.Collection):
         return self(
@@ -41,6 +42,7 @@ class MongoQueryBuilder(Env):
             sort=[],
             limit=None,
             offset=None,
+            page=QueryPage()
         )
 
     def build(self, where: list):
@@ -48,11 +50,15 @@ class MongoQueryBuilder(Env):
             self.call('select', Expr('select'))
 
         select = []
-        for sel in self.select.values():
+        merged_selected = merge_with_page_selected_dict(self.select, self.page)
+        merged_sorted = merge_with_page_sort(self.sort, self.page)
+        merged_limit = merge_with_page_limit(self.limit, self.page)
+        for sel in merged_selected.values():
             if isinstance(sel.item, list):
                 select += sel.item
             else:
                 select.append(sel.item)
+
         select = {k: 1 for k in select}
         select['_id'] = 0
         select['__id'] = 1
@@ -62,11 +68,11 @@ class MongoQueryBuilder(Env):
 
         cursor = self.table.find(where, select)
 
-        if self.sort:
-            cursor = cursor.sort(self.sort)
+        if merged_sorted:
+            cursor = cursor.sort(merged_sorted)
 
-        if self.limit is not None:
-            cursor = cursor.limit(self.limit)
+        if merged_limit is not None:
+            cursor = cursor.limit(merged_limit)
 
         if self.offset is not None:
             cursor = cursor.skip(self.offset)

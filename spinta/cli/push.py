@@ -533,7 +533,6 @@ def _read_model_data_by_page(
     model_page: Page,
     limit: int = None,
     stop_on_error: bool = False,
-    page: ParamsPage = None,
 ) -> Iterable[Dict[str, Any]]:
 
     if limit is None:
@@ -545,9 +544,9 @@ def _read_model_data_by_page(
         context,
         model,
         model.backend,
-        page,
         model_page,
-        query
+        query,
+        limit
     )
 
     if stop_on_error:

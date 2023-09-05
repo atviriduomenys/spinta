@@ -12,15 +12,16 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 from spinta import exceptions
-from spinta.auth import authorized
 from spinta.backends import get_property_base_model
-from spinta.core.ufuncs import Env, ufunc
+from spinta.core.ufuncs import ufunc
 from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
-from spinta.components import Action, Model, Property
+from spinta.components import Model, Property
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_selected_dict, \
+    merge_with_page_sort, merge_with_page_limit
 from spinta.utils.data import take
 from spinta.types.datatype import DataType, ExternalRef, Inherit
 from spinta.types.datatype import Array
@@ -38,7 +39,7 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.components import BackendFeatures
 
 
-class PgQueryBuilder(Env):
+class PgQueryBuilder(BaseQueryBuilder):
     backend: PostgreSQL
 
     def init(self, backend: PostgreSQL, table: sa.Table):
@@ -53,6 +54,7 @@ class PgQueryBuilder(Env):
             limit=None,
             offset=None,
             aggregate=False,
+            page=QueryPage()
         )
 
     def build(self, where):
@@ -66,7 +68,10 @@ class PgQueryBuilder(Env):
                 self.table.c['_id'],
                 self.table.c['_revision'],
             ]
-        for sel in self.select.values():
+        merged_selected = merge_with_page_selected_dict(self.select, self.page)
+        merged_sorted = merge_with_page_sort(self.sort, self.page)
+        merged_limit = merge_with_page_limit(self.limit, self.page)
+        for sel in merged_selected.values():
             items = sel.item if isinstance(sel.item, list) else [sel.item]
             for item in items:
                 if item is not None and item not in select:
@@ -78,11 +83,11 @@ class PgQueryBuilder(Env):
         if where is not None:
             qry = qry.where(where)
 
-        if self.sort:
-            qry = qry.order_by(*self.sort)
+        if merged_sorted:
+            qry = qry.order_by(*merged_sorted)
 
-        if self.limit is not None:
-            qry = qry.limit(self.limit)
+        if merged_limit is not None:
+            qry = qry.limit(merged_limit)
 
         if self.offset is not None:
             qry = qry.offset(self.offset)
@@ -312,10 +317,7 @@ def select(env, arg):
 
 def _get_property_for_select(env: PgQueryBuilder, name: str):
     prop = env.model.properties.get(name)
-    if prop and authorized(env.context, prop, Action.SEARCH):
-        return prop
-    else:
-        raise FieldNotInResource(env.model, property=name)
+    return prop
 
 
 @dataclasses.dataclass
@@ -536,7 +538,6 @@ def compare(env, op, dtype, value):
 
 @ufunc.resolver(PgQueryBuilder, String, str, names=COMPARE)
 def compare(env, op, dtype, value):
-
     if op in ('startswith', 'contains'):
         _ensure_non_empty(op, value)
     column = env.backend.get_column(env.table, dtype.prop)
