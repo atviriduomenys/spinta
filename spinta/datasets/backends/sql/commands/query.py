@@ -129,7 +129,6 @@ class SqlQueryBuilder(BaseQueryBuilder):
     resolved: Dict[str, Selected]
     selected: Dict[str, Selected] = None
     params: ResolvedParams
-    ignore_auth = False
 
     def init(self, backend: Sql, table: sa.Table):
         return self(
@@ -546,7 +545,7 @@ def select(env: SqlQueryBuilder, expr: Expr):
             env.selected[key] = env.call('select', arg)
     else:
         for prop in take(['_id', all], env.model.properties).values():
-            if authorized(env.context, prop, Action.GETALL) or env.ignore_auth:
+            if authorized(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call('select', prop)
 
     if not env.columns:
@@ -595,7 +594,7 @@ def _get_property_for_select(
         #      should be called with a different env class?
         #      tag:resolving_private_properties_in_prepare_context
         nested or
-        authorized(env.context, prop, Action.SEARCH) or env.ignore_auth
+        authorized(env.context, prop, Action.SEARCH)
     ):
         return prop
     else:
@@ -782,7 +781,7 @@ def select(
 def select(env: SqlQueryBuilder, fpr: ForeignProperty, item: Bind):
     model = fpr.right.prop.model
     prop = model.flatprops.get(item.name)
-    if prop and authorized(env.context, prop, Action.SEARCH) or env.ignore_auth:
+    if prop and authorized(env.context, prop, Action.SEARCH):
         return env.call('select', fpr, prop)
     else:
         raise PropertyNotFound(model, property=item.name)
@@ -890,7 +889,7 @@ def join_table_on(
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def join_table_on(env: SqlQueryBuilder, item: Bind):
     prop = env.model.flatprops.get(item.name)
-    if not prop or not authorized(env.context, prop, Action.SEARCH) or env.ignore_auth:
+    if not prop or not authorized(env.context, prop, Action.SEARCH):
         raise PropertyNotFound(env.model, property=item.name)
     return env.call('join_table_on', prop)
 

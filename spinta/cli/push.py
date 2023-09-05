@@ -34,6 +34,7 @@ from typer import echo
 
 from spinta import exceptions
 from spinta import spyna
+from spinta.auth import authorized
 from spinta.cli.helpers.auth import require_auth
 from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data
 from spinta.cli.helpers.data import ensure_data_dir
@@ -42,7 +43,7 @@ from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.commands.read import get_page
-from spinta.components import Action, ParamsPage, Page
+from spinta.components import Action, Page
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
@@ -50,7 +51,7 @@ from spinta.components import Model
 from spinta.components import Store
 from spinta.core.context import configure_context
 from spinta.core.ufuncs import Expr
-from spinta.exceptions import InfiniteLoopWithPagination
+from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush
 from spinta.manifests.components import Manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
@@ -186,9 +187,6 @@ def push(
             context.attach('push.state.conn', state.engine.begin)
 
         error_counter = ErrorCounter(max_count=max_error_count)
-
-        # Set this to read all rows (including private)
-        config.ignore_auth = True
 
         rows = _read_rows(
             context,
@@ -489,6 +487,8 @@ def _iter_model_rows(
     page: Any = None,
 ) -> Iterator[ModelRow]:
     for model in models:
+        _authorize_model_properties(context, model)
+
         model_push_counter = None
         if not no_progress_bar:
             count = counts.get(model.name)
@@ -525,6 +525,12 @@ def _iter_model_rows(
 
         if model_push_counter is not None:
             model_push_counter.close()
+
+
+def _authorize_model_properties(context: Context, model: Model):
+    for prop in model.properties.values():
+        if not authorized(context, prop, Action.UPSERT):
+            raise UnauthorizedPropertyPush(prop)
 
 
 def _read_model_data_by_page(

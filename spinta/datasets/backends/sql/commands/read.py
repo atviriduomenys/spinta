@@ -76,7 +76,6 @@ def getall(
     query: Expr = None,
 ) -> Iterator[ObjectData]:
     conn = context.get(f'transaction.{backend.name}')
-    config = context.get('config')
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
     # Merge user passed query with query set in manifest.
@@ -92,7 +91,6 @@ def getall(
 
         env = builder.init(backend, table)
         env.update(params=params)
-        env.ignore_auth = config.ignore_auth
         expr = env.resolve(query)
         where = env.execute(expr)
         qry = env.build(where)

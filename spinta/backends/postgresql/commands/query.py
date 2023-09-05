@@ -12,6 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 from spinta import exceptions
+from spinta.auth import authorized
 from spinta.backends import get_property_base_model
 from spinta.core.ufuncs import ufunc
 from spinta.core.ufuncs import Bind, Negative as Negative_
@@ -19,7 +20,7 @@ from spinta.core.ufuncs import Expr
 from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
-from spinta.components import Model, Property
+from spinta.components import Model, Property, Action
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_selected_dict, \
     merge_with_page_sort, merge_with_page_limit
 from spinta.utils.data import take
@@ -317,7 +318,10 @@ def select(env, arg):
 
 def _get_property_for_select(env: PgQueryBuilder, name: str):
     prop = env.model.properties.get(name)
-    return prop
+    if prop and authorized(env.context, prop, Action.SEARCH):
+        return prop
+    else:
+        raise FieldNotInResource(env.model, property=name)
 
 
 @dataclasses.dataclass

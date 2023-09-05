@@ -83,7 +83,6 @@ def load(context: Context, config: Config) -> Config:
     config.docs_path = rc.get('docs_path', default=None)
     config.always_show_id = rc.get('always_show_id', default=False)
     config.push_page_size = rc.get('push_page_size', default=None, cast=int)
-    config.ignore_auth = rc.get('ignore_auth', default=False, cast=bool)
     config.root = rc.get('root', default=None)
     if config.root is not None:
         config.root = config.root.strip().strip('/')

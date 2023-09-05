@@ -596,3 +596,8 @@ class InvalidPageParameterCount(UserError):
 
 class InfiniteLoopWithPagination(BaseError):
     template = "Pagination values has cause infinite loop while fetching data."
+
+
+class UnauthorizedPropertyPush(UserError):
+    code = 403
+    template = "You do not have permission to push this property."

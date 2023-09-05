@@ -46,27 +46,6 @@ async def getall(
     backend = model.backend
     copy_page = prepare_page_for_get_all(context, model, params)
 
-    if params.select:
-        for selected_ast in params.select:
-            for selected in selected_ast['args']:
-                if isinstance(selected, str):
-                    if selected in model.properties.keys():
-                        if not authorized(context, model.properties[selected], Action.SEARCH):
-                            raise FieldNotInResource(model, property=selected)
-                    else:
-                        raise FieldNotInResource(model, property=selected)
-    if params.sort:
-        for sort_ast in params.sort:
-            if sort_ast['name'] == 'negative':
-                sort_ast = sort_ast['args'][0]
-            for sort in sort_ast['args']:
-                if isinstance(sort, str):
-                    if sort in model.properties.keys():
-                        if not authorized(context, model.properties[sort], Action.SEARCH):
-                            raise FieldNotInResource(model, property=sort)
-                    else:
-                        raise FieldNotInResource(model, property=sort)
-
     is_page_enabled = not params.count and backend.paginated and copy_page and copy_page and copy_page.is_enabled
 
     if isinstance(backend, ExternalBackend):
