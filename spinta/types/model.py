@@ -17,7 +17,7 @@ from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, Component
+from spinta.components import Action, Component, PageBy
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -205,6 +205,10 @@ def link(context: Context, model: Model):
             # Currently only supported external backend is SQL
             if not isinstance(model.backend, Sql):
                 model.page.is_enabled = False
+    else:
+        # Add _id to internal, if it's not added
+        if '_id' not in model.page.by and '-_id' not in model.page.by:
+            model.page.by['_id'] = PageBy(model.properties["_id"])
 
 
 @overload
