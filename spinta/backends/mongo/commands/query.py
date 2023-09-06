@@ -49,7 +49,7 @@ class MongoQueryBuilder(BaseQueryBuilder):
             self.call('select', Expr('select'))
 
         select = []
-        merged_selected = merge_with_page_selected_list(list(self.select.values), self.page)
+        merged_selected = merge_with_page_selected_list(list(self.select.values()), self.page)
         merged_sorted = merge_with_page_sort(self.sort, self.page)
         merged_limit = merge_with_page_limit(self.limit, self.page)
         for sel in merged_selected:

@@ -218,6 +218,7 @@ def _link_model_page(model: Model):
                 model.page.by['_id'] = PageBy(model.properties["_id"])
     if not model.page.is_enabled:
         del model.properties['_page']
+        del model.flatprops['_page']
 
 
 @overload
