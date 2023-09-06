@@ -230,7 +230,7 @@ def prepare_data_for_response(
     prop_names: List[str],
 ) -> dict:
     value = value.copy()
-    reserved = get_model_reserved_props(action)
+    reserved = get_model_reserved_props(action, model)
 
     available_prefixes = _get_available_prefixes(model)
 

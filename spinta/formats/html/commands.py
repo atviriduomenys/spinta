@@ -53,13 +53,16 @@ from spinta.utils.nestedstruct import flatten
 from spinta.utils.schema import NotAvailable
 
 
-def _get_model_reserved_props(action: Action) -> List[str]:
+def _get_model_reserved_props(action: Action, model: Model) -> List[str]:
     if action == Action.GETALL:
-        return ['_id', '_page']
+        reserved = ['_id']
     elif action == action.SEARCH:
-        return ['_id', '_page', '_base']
+        reserved = ['_id', '_base']
     else:
-        return get_model_reserved_props(action)
+        return get_model_reserved_props(action, model)
+    if model.page.is_enabled:
+        reserved.append('_page')
+    return reserved
 
 
 def _render_check(request: Request, data: Dict[str, Any] = None):
@@ -195,7 +198,7 @@ def _get_model_tabular_header(
     if model.name == '_ns':
         reserved = get_ns_reserved_props(action)
     else:
-        reserved = _get_model_reserved_props(action)
+        reserved = _get_model_reserved_props(action, model)
     return get_model_tabular_header(
         context,
         model,
@@ -300,7 +303,7 @@ def prepare_data_for_response(
         else:
             value['name'] = _ModelName(value['name'])
 
-    reserved = _get_model_reserved_props(action)
+    reserved = _get_model_reserved_props(action, model)
 
     data = {
         prop.name: commands.prepare_dtype_for_response(

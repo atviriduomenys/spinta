@@ -105,9 +105,11 @@ async def getall(
     else:
         select_tree = get_select_tree(context, action, params.select)
         if action == Action.SEARCH:
-            reserved = ['_type', '_id', '_page', '_revision', '_base']
+            reserved = ['_type', '_id', '_revision', '_base']
         else:
-            reserved = ['_type', '_id', '_page', '_revision']
+            reserved = ['_type', '_id', '_revision']
+        if model.page.is_enabled:
+            reserved.append('_page')
         prop_names = get_select_prop_names(
             context,
             model,
