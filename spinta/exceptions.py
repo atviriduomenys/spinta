@@ -591,7 +591,11 @@ class InvalidRequestQuery(UserError):
 
 
 class InvalidPageParameterCount(UserError):
-    template = "Parameter 'page' requires {properties} to be entered."
+    template = "Parameter 'page' only accepts one of page key and page size attributes."
+
+
+class InvalidPageKey(UserError):
+    template = "Given '{key}' page key is invalid."
 
 
 class InfiniteLoopWithPagination(BaseError):

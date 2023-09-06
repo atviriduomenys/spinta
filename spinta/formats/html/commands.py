@@ -55,9 +55,9 @@ from spinta.utils.schema import NotAvailable
 
 def _get_model_reserved_props(action: Action) -> List[str]:
     if action == Action.GETALL:
-        return ['_id']
+        return ['_id', '_page']
     elif action == action.SEARCH:
-        return ['_id', '_base']
+        return ['_id', '_page', '_base']
     else:
         return get_model_reserved_props(action)
 

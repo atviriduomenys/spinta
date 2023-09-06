@@ -286,13 +286,13 @@ def flat_select_to_nested(select: Optional[List[str]]) -> SelectTree:
 
 def get_model_reserved_props(action: Action) -> List[str]:
     if action == Action.GETALL:
-        return ['_type', '_id', '_revision']
+        return ['_type', '_id', '_page', '_revision']
     elif action == Action.SEARCH:
-        return ['_type', '_id', '_revision', '_base']
+        return ['_type', '_id', '_page', '_revision', '_base']
     elif action == Action.CHANGES:
         return ['_cid', '_created', '_op', '_id', '_txn', '_revision']
     else:
-        return ['_type', '_id', '_revision']
+        return ['_type', '_id', '_page', '_revision']
 
 
 def get_ns_reserved_props(action: Action) -> List[str]:

@@ -542,16 +542,19 @@ def select(env: SqlQueryBuilder, expr: Expr):
     env.selected = {}
     if args:
         for key, arg in args:
-            env.selected[key] = env.call('select', arg)
+            selected = env.call('select', arg)
+            if selected is not None:
+                env.selected[key] = selected
     else:
         for prop in take(['_id', all], env.model.properties).values():
             if authorized(env.context, prop, Action.GETALL):
                 env.selected[prop.place] = env.call('select', prop)
 
-    if not env.columns:
-        raise RuntimeError(
-            f"{expr} didn't added anything to select list."
-        )
+    if not (len(args) == 1 and args[0][0] == '_page'):
+        if not env.columns:
+            raise RuntimeError(
+                f"{expr} didn't added anything to select list."
+            )
 
 
 @ufunc.resolver(SqlQueryBuilder, object)
@@ -562,6 +565,8 @@ def select(env: SqlQueryBuilder, value: Any) -> Selected:
 
 @ufunc.resolver(SqlQueryBuilder, Bind)
 def select(env: SqlQueryBuilder, item: Bind, *, nested: bool = False):
+    if item.name == '_page':
+        return None
     prop = _get_property_for_select(env, item.name, nested=nested)
     return env.call('select', prop)
 

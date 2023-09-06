@@ -1,6 +1,6 @@
 import uuid
 from copy import deepcopy
-from typing import overload, Optional, Iterator, Union, List, Tuple
+from typing import overload, Optional, Iterator, List, Tuple
 from pathlib import Path
 
 from starlette.requests import Request
@@ -8,12 +8,11 @@ from starlette.responses import Response
 from starlette.responses import FileResponse
 
 from spinta import commands
-from spinta.auth import authorized
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
 from spinta.compat import urlparams_to_expr
-from spinta.components import Context, Node, Action, UrlParams, ParamsPage, Page, PageBy
+from spinta.components import Context, Node, Action, UrlParams, Page, PageBy
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Expr, asttoexpr
@@ -24,7 +23,7 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
-from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, FieldNotInResource
+from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
@@ -106,9 +105,9 @@ async def getall(
     else:
         select_tree = get_select_tree(context, action, params.select)
         if action == Action.SEARCH:
-            reserved = ['_type', '_id', '_revision', '_base']
+            reserved = ['_type', '_id', '_page', '_revision', '_base']
         else:
-            reserved = ['_type', '_id', '_revision']
+            reserved = ['_type', '_id', '_page', '_revision']
         prop_names = get_select_prop_names(
             context,
             model,
@@ -168,8 +167,8 @@ def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
 
             copied.by = new_order
 
-        if params.page:
-            copied.update_values_from_params_page(params.page)
+        if params.page and params.page.key:
+            copied.update_values_from_page_key(params.page.key)
 
         return copied
 

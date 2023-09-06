@@ -1,4 +1,5 @@
-from typing import Any
+import base64
+import json
 
 from spinta.components import Page
 from spinta.core.ufuncs import Env
@@ -21,13 +22,8 @@ class BaseQueryBuilder(Env):
     page: QueryPage
 
 
-def merge_with_page_selected_dict(select: dict, page: QueryPage):
-    merged_selected = select or {}
-    if page.select:
-        for key, item in page.select.items():
-            if key not in merged_selected:
-                merged_selected[key] = item
-    return merged_selected
+def encode_page_values(env: BaseQueryBuilder, row: dict):
+    return base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in env.page.page_.by.values()]).encode('ascii'))
 
 
 def merge_with_page_selected_list(select: list, page: QueryPage):

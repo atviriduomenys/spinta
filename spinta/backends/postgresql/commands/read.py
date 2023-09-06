@@ -1,5 +1,3 @@
-import base64
-import json
 from typing import overload
 from typing import Iterator
 
@@ -11,6 +9,7 @@ from spinta.components import Model
 from spinta.exceptions import NotFoundError
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.ufuncs.basequerybuilder.components import encode_page_values
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.backends.postgresql.commands.query import PgQueryBuilder
 
@@ -58,13 +57,12 @@ def getall(
     result = conn.execute(qry)
 
     for row in result:
-
+        converted = flat_dicts_to_nested(dict(row))
         res = {
             '_type': model.model_type(),
-            '_page': base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in env.page.page_.by.values()]).encode('ascii'))
+            **converted
         }
-        converted = flat_dicts_to_nested(dict(row))
-        for key in env.selected.keys():
-            res[key] = converted[key]
-        row = commands.cast_backend_to_python(context, model, backend, row)
-        yield row
+        if model.page.is_enabled:
+            res['_page'] = encode_page_values(env, row)
+        res = commands.cast_backend_to_python(context, model, backend, res)
+        yield res

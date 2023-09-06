@@ -14,12 +14,11 @@ from spinta.core.ufuncs import ufunc
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Bind
 from spinta.exceptions import EmptyStringSearch
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, \
-    merge_with_page_selected_dict, merge_with_page_sort, merge_with_page_limit
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
 from spinta.utils.data import take
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
-from spinta.components import Action, Model, Property
+from spinta.components import Action, Model, Property, Page
 from spinta.types.datatype import DataType
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import String
@@ -50,10 +49,10 @@ class MongoQueryBuilder(BaseQueryBuilder):
             self.call('select', Expr('select'))
 
         select = []
-        merged_selected = merge_with_page_selected_dict(self.select, self.page)
+        merged_selected = merge_with_page_selected_list(list(self.select.values), self.page)
         merged_sorted = merge_with_page_sort(self.sort, self.page)
         merged_limit = merge_with_page_limit(self.limit, self.page)
-        for sel in merged_selected.values():
+        for sel in merged_selected:
             if isinstance(sel.item, list):
                 select += sel.item
             else:
@@ -174,7 +173,8 @@ def select(env, expr):
     else:
         env.call('select', Star())
 
-    assert env.select, args
+    if not (len(args) == 1 and args[0][0] == '_page'):
+        assert env.select, args
 
 
 @ufunc.resolver(MongoQueryBuilder, Star)
@@ -189,6 +189,8 @@ def select(env, arg: Star) -> None:
 
 @ufunc.resolver(MongoQueryBuilder, Bind)
 def select(env, field):
+    if field.name == '_page':
+        return None
     prop = env.model.flatprops.get(field.name)
     if prop and authorized(env.context, prop, Action.SEARCH):
         return env.call('select', prop.dtype)
@@ -207,6 +209,15 @@ def select(env, dtype):
     table = env.backend.get_table(env.model)
     column = env.backend.get_column(table, dtype.prop, select=True)
     return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(MongoQueryBuilder, Page)
+def select(env, page):
+    return_selected = []
+    for item in page.by.values():
+        selected = env.call('select', item.prop.dtype)
+        return_selected.append(selected)
+    return return_selected
 
 
 @ufunc.resolver(MongoQueryBuilder, int)

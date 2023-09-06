@@ -197,18 +197,27 @@ def link(context: Context, model: Model):
     for prop in model.properties.values():
         commands.link(context, prop)
 
-    # Disable page if external backend and model.ref not given
-    if isinstance(model.backend, ExternalBackend):
-        if (model.external and not model.external.name) or not model.external:
-            model.page.is_enabled = False
-        else:
-            # Currently only supported external backend is SQL
-            if not isinstance(model.backend, Sql):
-                model.page.is_enabled = False
+    _link_model_page(model)
+
+
+def _link_model_page(model: Model):
+    if not model.backend.paginated:
+        model.page.is_enabled = False
     else:
-        # Add _id to internal, if it's not added
-        if '_id' not in model.page.by and '-_id' not in model.page.by:
-            model.page.by['_id'] = PageBy(model.properties["_id"])
+        # Disable page if external backend and model.ref not given
+        if isinstance(model.backend, ExternalBackend):
+            if (model.external and not model.external.name) or not model.external:
+                model.page.is_enabled = False
+            else:
+                # Currently only supported external backend is SQL
+                if not isinstance(model.backend, Sql):
+                    model.page.is_enabled = False
+        else:
+            # Add _id to internal, if it's not added
+            if '_id' not in model.page.by and '-_id' not in model.page.by:
+                model.page.by['_id'] = PageBy(model.properties["_id"])
+    if not model.page.is_enabled:
+        del model.properties['_page']
 
 
 @overload

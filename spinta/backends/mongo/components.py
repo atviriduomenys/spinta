@@ -22,6 +22,7 @@ class Mongo(Backend):
             'db': {'type': 'string', 'required': True},
         },
     }
+    paginated = True
 
     features = {
         BackendFeatures.WRITE,

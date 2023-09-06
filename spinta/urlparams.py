@@ -20,7 +20,8 @@ from spinta.components import UrlParams, Version
 from spinta.commands import is_object_id
 from spinta import exceptions
 from spinta import spyna
-from spinta.exceptions import ModelNotFound
+from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
+from spinta.utils.encoding import is_url_safe_base64
 
 
 @prepare.register(Context, UrlParams, Version, Request)
@@ -183,14 +184,22 @@ def _prepare_urlparams_from_path(params: UrlParams):
             params.action = Action.CHECK
         elif name == 'page':
             params.page = ParamsPage()
-            is_sort_attr = True
+            is_sort_attr = False
+            key_given = False
             for arg in args:
                 if isinstance(arg, dict):
-                    is_sort_attr = False
-                if is_sort_attr:
-                    params.page.values.append(arg)
-                elif arg['name'] == 'bind' and 'size' in arg['args']:
-                    params.page.size = arg['args'][1]
+                    if is_sort_attr:
+                        raise InvalidPageParameterCount()
+                    if arg['name'] == 'bind' and 'size' in arg['args']:
+                        params.page.size = arg['args'][1]
+                        is_sort_attr = True
+                else:
+                    if key_given:
+                        raise InvalidPageParameterCount()
+                    if not is_url_safe_base64(bytes(arg, 'ascii')):
+                        raise InvalidPageKey(key=arg)
+                    params.page.key = arg
+                    key_given = True
         else:
             if params.query is None:
                 params.query = []

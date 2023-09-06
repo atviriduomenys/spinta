@@ -1,5 +1,3 @@
-import base64
-import json
 import logging
 from typing import Any
 from typing import Iterator
@@ -16,7 +14,7 @@ from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
-from spinta.datasets.helpers import get_enum_filters, isexpr
+from spinta.datasets.helpers import get_enum_filters
 from spinta.datasets.helpers import get_ref_filters
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
@@ -24,6 +22,7 @@ from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.exceptions import ValueNotInEnum
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
+from spinta.ufuncs.basequerybuilder.components import encode_page_values
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
@@ -98,9 +97,11 @@ def getall(
 
         for row in conn.execute(qry):
             res = {
-                '_type': model.model_type(),
-                '_page': base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in env.page.page_.by.values()]).encode('ascii'))
+                '_type': model.model_type()
             }
+            if model.page.is_enabled:
+                res['_page'] = encode_page_values(env, row)
+
             for key, sel in env.selected.items():
                 val = _get_row_value(context, row, sel)
                 if sel.prop:

@@ -16,9 +16,7 @@ import pathlib
 from typing import Type
 from typing import TypedDict
 
-from spinta.exceptions import InvalidPageParameterCount
-from spinta.utils.json import fix_data_for_json
-
+from spinta.exceptions import InvalidPageParameterCount, InvalidPageKey
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
@@ -535,19 +533,11 @@ class Page:
                 item.value = None
 
     def update_values_from_page_key(self, key: str):
-        decoded = base64.urlsafe_b64decode(key)
-        loaded = json.loads(decoded)
+        loaded = decode_page_values(key)
         if len(loaded) != len(self.by):
-            raise Exception("DOESNT MATCH")
+            raise InvalidPageKey(key=key)
         for i, (by, page_by) in enumerate(self.by.items()):
             self.update_value(by, page_by.prop, loaded[i])
-
-    def update_values_from_params_page(self, page: ParamsPage):
-        if page.values:
-            if len(page.values) != len(self.by):
-                raise InvalidPageParameterCount(properties=list(self.by.keys()))
-            for i, (by, page_by) in enumerate(self.by.items()):
-                self.update_value(by, page_by.prop, page.values[i])
 
     def update_values_from_page(self, page: Page):
         self.clear()
@@ -555,12 +545,17 @@ class Page:
             self.update_value(by, page_by.prop, page_by.value)
 
 
+def decode_page_values(encoded: Any):
+    decoded = base64.urlsafe_b64decode(encoded)
+    return json.loads(decoded)
+
+
 class ParamsPage:
-    values: list
+    key: str
     size: int
 
     def __init__(self):
-        self.values = []
+        self.key = ""
         self.size = None
 
 

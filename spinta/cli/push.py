@@ -1,4 +1,3 @@
-import base64
 import datetime
 import hashlib
 import textwrap
@@ -44,7 +43,7 @@ from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.commands.read import get_page
-from spinta.components import Action, Page
+from spinta.components import Action, Page, decode_page_values
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
@@ -749,7 +748,7 @@ def _compare_for_delete_row(
     delete_cond = False
 
     if '_page' in data_row:
-        decoded = _decode_page_values(data_row['_page'])
+        decoded = decode_page_values(data_row['_page'])
         for i, (by, page_by) in enumerate(page.by.items()):
             state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
             data_val = decoded[i]
@@ -775,7 +774,7 @@ def _compare_data_with_state_rows(
     page: Page
 ):
     equals = True
-    decoded = _decode_page_values(data_row.get("_page"))
+    decoded = decode_page_values(data_row.get("_page"))
     for i, (by, page_by) in enumerate(page.by.items()):
         state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
         data_val = decoded[i]
@@ -1312,7 +1311,7 @@ def _save_push_state(
         table = metadata.tables[row.data['_type']]
 
         if row.model.page and row.model.page.by and '_page' in row.data:
-            loaded = _decode_page_values(row.data['_page'])
+            loaded = decode_page_values(row.data['_page'])
             page = {
                 f"page.{page_by.prop.name}": loaded[i]
                 for i, page_by in enumerate(row.model.page.by.values())
@@ -1982,8 +1981,3 @@ def _load_page_from_dict(model: Model, values: dict):
         prop = model.properties.get(key)
         if prop:
             model.page.add_prop(key, prop, item)
-
-
-def _decode_page_values(encoded: Any):
-    decoded = base64.urlsafe_b64decode(encoded)
-    return json.loads(decoded)

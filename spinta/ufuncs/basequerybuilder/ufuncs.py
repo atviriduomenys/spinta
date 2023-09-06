@@ -13,9 +13,6 @@ def _page(env, expr):
     if isinstance(page, Page):
         for by, page_by in page.by.items():
             sorted_ = env.call('sort', Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
-            selected = env.call('select', page_by.prop)
-            if selected:
-                env.page.select.append(selected)
             if sorted_ is not None:
                 env.page.sort.append(sorted_)
         env.page.page_ = page

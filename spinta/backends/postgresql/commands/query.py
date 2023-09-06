@@ -21,8 +21,7 @@ from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Model, Property, Action, Page
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_selected_dict, \
-    merge_with_page_sort, merge_with_page_limit
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
 from spinta.utils.data import take
 from spinta.types.datatype import DataType, ExternalRef, Inherit
 from spinta.types.datatype import Array
@@ -69,10 +68,10 @@ class PgQueryBuilder(BaseQueryBuilder):
                 self.table.c['_id'],
                 self.table.c['_revision'],
             ]
-        merged_selected = merge_with_page_selected_dict(self.select, self.page)
+        merged_selected = merge_with_page_selected_list(list(self.select.values()), self.page)
         merged_sorted = merge_with_page_sort(self.sort, self.page)
         merged_limit = merge_with_page_limit(self.limit, self.page)
-        for sel in merged_selected.values():
+        for sel in merged_selected:
             items = sel.item if isinstance(sel.item, list) else [sel.item]
             for item in items:
                 if item is not None and item not in select:
@@ -295,7 +294,8 @@ def select(env, expr):
     else:
         env.call('select', Star())
 
-    assert env.select, args
+    if not (len(args) == 1 and args[0][0] == '_page'):
+        assert env.select, args
 
 
 @ufunc.resolver(PgQueryBuilder, Star)
@@ -312,6 +312,8 @@ def select(env, arg: Star) -> None:
 def select(env, arg):
     if arg.name == '_type':
         return Selected(None, env.model.properties['_type'])
+    if arg.name == '_page':
+        return None
     prop = _get_property_for_select(env, arg.name)
     return env.call('select', prop.dtype)
 
