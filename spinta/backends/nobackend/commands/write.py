@@ -1,8 +1,11 @@
 from typing import AsyncIterator
 
+from starlette.requests import Request
+
 from spinta import commands
+from spinta.types.datatype import File, DataType
 from spinta.backends.helpers import get_table_name
-from spinta.components import Context, Model, DataItem, DataSubItem
+from spinta.components import Context, Model, DataItem, Action, UrlParams, DataSubItem
 from spinta.backends.nobackend.components import NoBackend
 from spinta.exceptions import BackendNotGiven
 
@@ -44,3 +47,17 @@ async def delete(
 ):
     table = get_table_name(model)
     raise BackendNotGiven(table)
+
+
+@commands.push.register(Context, Request, File, NoBackend)
+async def push(
+    context: Context,
+    request: Request,
+    dtype: File,
+    backend: NoBackend,
+    *,
+    action: Action,
+    params: UrlParams,
+):
+    prop = dtype.prop
+    raise BackendNotGiven(model=prop.model.model_type())
