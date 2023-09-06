@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -532,10 +534,13 @@ class Page:
             if i < depth:
                 item.value = None
 
-    def update_values_from_row(self, row: dict):
-        row = fix_data_for_json(row)
-        for by, page_by in self.by.items():
-            self.update_value(by, page_by.prop, row.get(page_by.prop.name))
+    def update_values_from_page_key(self, key: str):
+        decoded = base64.urlsafe_b64decode(key)
+        loaded = json.loads(decoded)
+        if len(loaded) != len(self.by):
+            raise Exception("DOESNT MATCH")
+        for i, (by, page_by) in enumerate(self.by.items()):
+            self.update_value(by, page_by.prop, loaded[i])
 
     def update_values_from_params_page(self, page: ParamsPage):
         if page.values:

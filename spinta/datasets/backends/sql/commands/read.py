@@ -1,3 +1,5 @@
+import base64
+import json
 import logging
 from typing import Any
 from typing import Iterator
@@ -79,7 +81,6 @@ def getall(
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
     # Merge user passed query with query set in manifest.
-    query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
 
@@ -98,6 +99,7 @@ def getall(
         for row in conn.execute(qry):
             res = {
                 '_type': model.model_type(),
+                '_page': base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in env.page.page_.by.values()]).encode('ascii'))
             }
             for key, sel in env.selected.items():
                 val = _get_row_value(context, row, sel)

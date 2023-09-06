@@ -20,7 +20,7 @@ from spinta.core.ufuncs import Expr
 from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
-from spinta.components import Model, Property, Action
+from spinta.components import Model, Property, Action, Page
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_selected_dict, \
     merge_with_page_sort, merge_with_page_limit
 from spinta.utils.data import take
@@ -430,6 +430,15 @@ def select(env, dtype):
     column = table.c[dtype.prop_name]
     column = column.label(f"{dtype.base_prop.name}.{dtype.prop_name}")
     return Selected(column, dtype.base_prop)
+
+
+@ufunc.resolver(PgQueryBuilder, Page)
+def select(env, page):
+    return_selected = []
+    for item in page.by.values():
+        selected = env.call('select', item.prop.dtype)
+        return_selected.append(selected)
+    return return_selected
 
 
 @ufunc.resolver(PgQueryBuilder, int)

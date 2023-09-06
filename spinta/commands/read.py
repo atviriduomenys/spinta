@@ -215,7 +215,8 @@ def get_page(
                     last_value = first_value
 
             true_count += 1
-            model_page.update_values_from_row(row)
+            if '_page' in row:
+                model_page.update_values_from_page_key(row['_page'])
             yield row
 
         if finished:

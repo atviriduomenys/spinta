@@ -16,12 +16,12 @@ from decimal import Decimal
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
 
+from spinta import exceptions
 from spinta.auth import authorized
-from spinta.components import Action
+from spinta.components import Action, Page
 from spinta.components import Model
 from spinta.components import Property
 from spinta.core.ufuncs import Bind
-from spinta.core.ufuncs import Env
 from spinta.core.ufuncs import Expr
 from spinta.core.ufuncs import Negative
 from spinta.core.ufuncs import ufunc
@@ -645,6 +645,16 @@ def select(env: SqlQueryBuilder, dtype: DataType) -> Selected:
     )
 
 
+@ufunc.resolver(SqlQueryBuilder, Page)
+def select(env: SqlQueryBuilder, page: Page) -> List[sa.Column]:
+    table = env.backend.get_table(env.model)
+    return_selected = []
+    for item in page.by.values():
+        column = env.backend.get_column(table, item.prop, select=True)
+        return_selected.append(column)
+    return return_selected
+
+
 @ufunc.resolver(SqlQueryBuilder, DataType, object)
 def select(env: SqlQueryBuilder, dtype: DataType, prep: Any) -> Selected:
     if isinstance(prep, str):
@@ -927,6 +937,37 @@ def sort(env: SqlQueryBuilder, expr: Expr):
         env.sort.append(column)
 
 
+@ufunc.resolver(SqlQueryBuilder, Bind)
+def sort(env, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call('asc', prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, Negative)
+def sort(env, field):
+    prop = _get_from_flatprops(env.model, field.name)
+    return env.call('desc', prop.dtype)
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def asc(env, dtype):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return column.asc()
+
+
+@ufunc.resolver(SqlQueryBuilder, DataType)
+def desc(env, dtype):
+    column = env.backend.get_column(env.table, dtype.prop)
+    return column.desc()
+
+
+def _get_from_flatprops(model: Model, prop: str):
+    if prop in model.flatprops:
+        return model.flatprops[prop]
+    else:
+        raise exceptions.FieldNotInResource(model, property=prop)
+
+
 @ufunc.resolver(SqlQueryBuilder, int)
 def limit(env: SqlQueryBuilder, n: int):
     env.limit = n
@@ -1035,21 +1076,3 @@ def point(env: SqlResultBuilder, x: Selected, y: Selected) -> Expr:
     x = env.data[x.item]
     y = env.data[y.item]
     return f'POINT ({x} {y})'
-
-
-@ufunc.resolver(SqlQueryBuilder, Expr)
-def page(
-    env: SqlQueryBuilder,
-    expr: Expr,
-    size: int = None
-):
-    pass
-
-
-@ufunc.resolver(SqlQueryBuilder, Bind)
-def page(
-    env: SqlQueryBuilder,
-    sort_by: Bind,
-    size: int = None
-):
-    pass

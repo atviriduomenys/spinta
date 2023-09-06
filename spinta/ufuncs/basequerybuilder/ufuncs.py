@@ -10,28 +10,37 @@ def _page(env, expr):
     if len(expr.args) != 1:
         raise Exception
     page = expr.args[0]
-
     if isinstance(page, Page):
         for by, page_by in page.by.items():
-            selected = env.call('select', page_by.prop.dtype)
             sorted_ = env.call('sort', Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name))
-            if selected is not None:
-                env.page.select[page_by.prop.name] = selected
+            selected = env.call('select', page_by.prop)
+            if selected:
+                env.page.select.append(selected)
             if sorted_ is not None:
                 env.page.sort.append(sorted_)
-
+        env.page.page_ = page
+        env.page.select = env.call('select', page)
         env.page.size = page.size
         return env.resolve(_get_pagination_compare_query(page))
+
+
+def filter_page_values(page: Page):
+    new_page = Page()
+    for by, page_by in page.by.items():
+        if page_by.value:
+            new_page.by[by] = page_by
+    return new_page
 
 
 def _get_pagination_compare_query(
     model_page: Page,
 ) -> Union[Expr, None]:
-    item_count = len(model_page.by.keys())
+    filtered = filter_page_values(model_page)
+    item_count = len(filtered.by.keys())
     where_list = []
     for i in range(item_count):
         where_list.append([])
-    for i, (by, page_by) in enumerate(model_page.by.items()):
+    for i, (by, page_by) in enumerate(filtered.by.items()):
         if page_by.value:
             for n in range(item_count):
                 if n >= i:

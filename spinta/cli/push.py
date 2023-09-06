@@ -1,3 +1,4 @@
+import base64
 import datetime
 import hashlib
 import textwrap
@@ -7,7 +8,7 @@ import itertools
 import json
 import logging
 import pathlib
-from copy import deepcopy
+from copy import deepcopy, copy
 
 import pprintpp
 import time
@@ -54,6 +55,7 @@ from spinta.core.ufuncs import Expr
 from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush
 from spinta.manifests.components import Manifest
 from spinta.types.namespace import sort_models_by_refs
+from spinta.ufuncs.basequerybuilder.ufuncs import filter_page_values
 from spinta.utils.data import take
 from spinta.utils.itertools import peek
 from spinta.utils.json import fix_data_for_json
@@ -487,7 +489,6 @@ def _iter_model_rows(
     page: Any = None,
 ) -> Iterator[ModelRow]:
     for model in models:
-        _authorize_model_properties(context, model)
 
         model_push_counter = None
         if not no_progress_bar:
@@ -731,14 +732,12 @@ def _update_model_page_with_new(
     state_row: Any = None,
     data_row: Any = None,
 ):
-    for by, page_by in model_page.by.items():
-        val = None
-        if state_row or data_row:
-            if state_row:
-                val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
-            elif data_row:
-                val = data_row.get(page_by.prop.name, None)
+    if state_row:
+        for by, page_by in model_page.by.items():
+            val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
             model_page.update_value(by, page_by.prop, val)
+    elif data_row:
+        model_page.update_values_from_page_key(data_row['_page'])
 
 
 def _compare_for_delete_row(
@@ -749,19 +748,23 @@ def _compare_for_delete_row(
 ):
     delete_cond = False
 
-    for by, page_by in page.by.items():
-        state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
-        data_val = data_row.get(page_by.prop.name, None)
+    if '_page' in data_row:
+        decoded = _decode_page_values(data_row['_page'])
+        for i, (by, page_by) in enumerate(page.by.items()):
+            state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
+            data_val = decoded[i]
+            if state_val is not None and data_val is not None:
 
-        if state_val is not None and data_val is not None:
-            if by.startswith('-'):
-                compare = state_val > data_val
-            else:
-                compare = state_val < data_val
+                if by.startswith('-'):
+                    compare = state_val > data_val
+                else:
+                    compare = state_val < data_val
 
-            if state_val != data_val:
-                delete_cond = compare
-                break
+                if state_val != data_val:
+                    delete_cond = compare
+                    break
+    else:
+        delete_cond = True
     return delete_cond
 
 
@@ -772,9 +775,10 @@ def _compare_data_with_state_rows(
     page: Page
 ):
     equals = True
-    for by, page_by in page.by.items():
+    decoded = _decode_page_values(data_row.get("_page"))
+    for i, (by, page_by) in enumerate(page.by.items()):
         state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
-        data_val = data_row.get(page_by.prop.name, None)
+        data_val = decoded[i]
         if state_val != data_val:
             equals = False
             break
@@ -791,27 +795,30 @@ def _get_state_rows(
 
     order_by = []
 
-    for page_by in model_page.by.values():
-        order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
+    for by, page_by in model_page.by.items():
+        if by.startswith('-'):
+            order_by.append(sa.desc(table.c[f"page.{page_by.prop.name}"]))
+        else:
+            order_by.append(sa.asc(table.c[f"page.{page_by.prop.name}"]))
     last_value = None
     while True:
         finished = True
         from_cond = _construct_where_condition_from_page(model_page, table)
 
         if from_cond is not None:
-            deleted_rows = conn.execute(
+            rows = conn.execute(
                 sa.select([table]).
                 where(
                     from_cond
                 ).order_by(*order_by).limit(size)
             )
         else:
-            deleted_rows = conn.execute(
+            rows = conn.execute(
                 sa.select([table])
                 .order_by(*order_by).limit(size)
             )
         first_value = None
-        for row in deleted_rows:
+        for row in rows:
             if finished:
                 finished = False
 
@@ -875,7 +882,12 @@ def _push_to_remote_spinta(
                 break
 
         data = fix_data_for_json(row.data)
-        data = json.dumps(data, ensure_ascii=False)
+        tmp = data
+        if '_page' in data:
+            tmp = copy(data)
+            tmp.pop('_page')
+        data = json.dumps(tmp, ensure_ascii=False)
+
         if ready and (
             len(chunk) + len(data) + slen > chunk_size or
             row.push
@@ -1299,11 +1311,13 @@ def _save_push_state(
     for row in rows:
         table = metadata.tables[row.data['_type']]
 
-        if row.model.page and row.model.page.by:
+        if row.model.page and row.model.page.by and '_page' in row.data:
+            loaded = _decode_page_values(row.data['_page'])
             page = {
-                f"page.{page_by.prop.name}": row.data.get(page_by.prop.name)
-                for page_by in row.model.page.by.values()
+                f"page.{page_by.prop.name}": loaded[i]
+                for i, page_by in enumerate(row.model.page.by.values())
             }
+            row.data.pop('_page')
         else:
             page = {}
 
@@ -1559,11 +1573,12 @@ def _construct_where_condition_from_page(
     page: Page,
     table: sa.Table
 ):
-    item_count = len(page.by.keys())
+    filtered = filter_page_values(page)
+    item_count = len(filtered.by.keys())
     where_list = []
     for i in range(item_count):
         where_list.append([])
-    for i, (by, page_by) in enumerate(page.by.items()):
+    for i, (by, page_by) in enumerate(filtered.by.items()):
         if page_by.value:
             for n in range(item_count):
                 if n >= i:
@@ -1967,3 +1982,8 @@ def _load_page_from_dict(model: Model, values: dict):
         prop = model.properties.get(key)
         if prop:
             model.page.add_prop(key, prop, item)
+
+
+def _decode_page_values(encoded: Any):
+    decoded = base64.urlsafe_b64decode(encoded)
+    return json.loads(decoded)

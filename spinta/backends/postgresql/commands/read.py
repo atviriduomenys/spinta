@@ -1,3 +1,5 @@
+import base64
+import json
 from typing import overload
 from typing import Iterator
 
@@ -56,10 +58,13 @@ def getall(
     result = conn.execute(qry)
 
     for row in result:
-        row = flat_dicts_to_nested(dict(row))
-        row = {
+
+        res = {
             '_type': model.model_type(),
-            **row,
+            '_page': base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in env.page.page_.by.values()]).encode('ascii'))
         }
+        converted = flat_dicts_to_nested(dict(row))
+        for key in env.selected.keys():
+            res[key] = converted[key]
         row = commands.cast_backend_to_python(context, model, backend, row)
         yield row

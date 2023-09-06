@@ -1,22 +1,24 @@
 from typing import Any
 
+from spinta.components import Page
 from spinta.core.ufuncs import Env
 
 
 class QueryPage:
+    page_: Page
     size: int
-    select: dict
+    select: list
     sort: list
 
     def __init__(self):
         self.size = 0
-        self.select = {}
+        self.select = []
         self.sort = []
+        self.page_ = Page()
 
 
 class BaseQueryBuilder(Env):
     page: QueryPage
-    where: Any
 
 
 def merge_with_page_selected_dict(select: dict, page: QueryPage):
@@ -30,10 +32,10 @@ def merge_with_page_selected_dict(select: dict, page: QueryPage):
 
 def merge_with_page_selected_list(select: list, page: QueryPage):
     merged_selected = select or []
-    if page.select:
-        for item in page.select.values():
-            if item not in merged_selected:
-                merged_selected.append(item)
+    if page.select is not None:
+        for select in page.select:
+            if select not in merged_selected:
+                merged_selected.append(select)
     return merged_selected
 
 
