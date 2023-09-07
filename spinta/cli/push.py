@@ -1277,9 +1277,9 @@ def _check_push_state(
                                 pushed=datetime.datetime.now()
                             )
                         )
-                    # Skip if no changes, but only if not paginated, since pagination already skips those
-                    if '_page' not in row.data:
-                        continue
+                        # Skip if no changes, but only if not paginated, since pagination already skips those
+                        if '_page' not in row.data:
+                            continue
             yield row
 
 

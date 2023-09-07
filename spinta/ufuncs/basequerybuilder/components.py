@@ -3,6 +3,7 @@ import json
 
 from spinta.components import Page
 from spinta.core.ufuncs import Env
+from spinta.datasets.components import ExternalBackend
 
 
 class QueryPage:
@@ -23,7 +24,10 @@ class BaseQueryBuilder(Env):
 
 
 def encode_page_values(env: BaseQueryBuilder, row: dict):
-    return base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in env.page.page_.by.values()]).encode('ascii'))
+    if isinstance(env.model.backend, ExternalBackend):
+        return base64.urlsafe_b64encode(json.dumps([row[item.prop.external.name] for item in env.page.page_.by.values()]).encode('ascii'))
+    else:
+        return base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in env.page.page_.by.values()]).encode('ascii'))
 
 
 def merge_with_page_selected_list(select: list, page: QueryPage):
