@@ -1,3 +1,4 @@
+import base64
 import datetime
 import hashlib
 import json
@@ -16,14 +17,16 @@ from responses import POST
 from responses import RequestsMock
 
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.push import _PushRow, _reset_pushed, _read_rows, _iter_deleted_rows, _get_deleted_row_counts
+from spinta.cli.push import _PushRow, _reset_pushed
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
 from spinta.cli.push import _send_request
 from spinta.cli.push import _push
 from spinta.cli.push import _State
+from spinta.components import Model
 from spinta.core.config import RawConfig
+from spinta.datasets.components import ExternalBackend
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
@@ -32,6 +35,13 @@ from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
 from tests.datasets.test_sql import create_rc, configure_remote_server
+
+
+def encode_page_values_for_testing(model: Model, row: dict):
+    if isinstance(model.backend, ExternalBackend):
+        return base64.urlsafe_b64encode(json.dumps([row[item.prop.external.name] for item in model.page.by.values()]).encode('ascii'))
+    else:
+        return base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in model.page.by.values()]).encode('ascii'))
 
 
 @pytest.fixture(scope='module')
@@ -523,7 +533,6 @@ def test_push_delete_with_dependent_objects(
     conn.execute(geodb.tables['salis'].delete().where(geodb.tables['salis'].c.id == 2))
     conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 2))
     conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 1))
-
     result = cli.invoke(localrc, [
         'push',
         '-d', 'datasets/gov/deleteTest',
@@ -838,6 +847,9 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
     rows = [
         _PushRow(model, {
             '_type': model.name,
+            '_page': encode_page_values_for_testing(model, {
+                '_id': _id
+            }),
             '_id': _id,
             'name': 'Vilnius',
         }, op="insert"),
