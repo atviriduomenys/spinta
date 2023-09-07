@@ -3,6 +3,7 @@ from typing import Union
 from spinta.components import Page
 from spinta.core.ufuncs import ufunc, Expr, asttoexpr, Negative, Bind
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder
+from spinta.ufuncs.helpers import merge_formulas
 
 
 @ufunc.resolver(BaseQueryBuilder, Expr, name='page')
@@ -91,3 +92,12 @@ def _get_pagination_compare_query(
 
     query = where_compare or None
     return query
+
+
+def add_page_expr(expr: Expr, page: Page):
+    return merge_formulas(expr, asttoexpr({
+        'name': 'page',
+        'args': [
+            page
+        ]
+    }))

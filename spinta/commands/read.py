@@ -27,7 +27,7 @@ from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
-from spinta.ufuncs.helpers import merge_formulas
+from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.utils.data import take
 
 
@@ -192,12 +192,7 @@ def get_page(
     last_value = None
     while True:
         finished = True
-        query = merge_formulas(expr, asttoexpr({
-            'name': 'page',
-            'args': [
-                model_page
-            ]
-        }))
+        query = add_page_expr(expr, model_page)
         rows = commands.getall(context, model, backend, query=query)
         first_value = None
         for row in rows:

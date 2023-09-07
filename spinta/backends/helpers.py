@@ -121,7 +121,6 @@ def select_model_props(
     Any,
     SelectTree,
 ]]:
-    print(reserved)
     yield from select_props(
         model,
         reserved,

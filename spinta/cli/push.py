@@ -189,6 +189,8 @@ def push(
 
         error_counter = ErrorCounter(max_count=max_error_count)
 
+        _update_page_values_for_models(context, state.metadata, models, incremental, page_model, page)
+
         rows = _read_rows(
             context,
             client,
@@ -199,10 +201,7 @@ def push(
             stop_on_error=stop_on_error,
             retry_count=retry_count,
             no_progress_bar=no_progress_bar,
-            error_counter=error_counter,
-            incremental=incremental,
-            page_model=page_model,
-            page=page,
+            error_counter=error_counter
         )
 
         _push(
@@ -222,6 +221,29 @@ def push(
 
         if error_counter.has_errors():
             raise Exit(code=1)
+
+
+def _update_page_values_for_models(context: Context, metadata: sa.MetaData, models: List[Model], incremental: bool, page_model: str, page: list):
+    conn = context.get('push.state.conn')
+    table = metadata.tables['_page']
+    for model in models:
+        if model.page.is_enabled:
+            if incremental:
+                if (
+                    page and
+                    page_model and
+                    page_model == model.name
+                ):
+                    model.page.set_values_from_list(page)
+                else:
+                    page = conn.execute(
+                        sa.select([table.c.value]).
+                        where(
+                            table.c.model == model.name
+                        )
+                    ).scalar()
+                    values = json.loads(page) if page else {}
+                    _load_page_from_dict(model, values)
 
 
 class _State(NamedTuple):
@@ -310,7 +332,6 @@ def _push(
         dry_run=dry_run,
         error_counter=error_counter,
     )
-
     if state and not dry_run:
         rows = _save_push_state(context, rows, state.metadata)
 
@@ -334,10 +355,7 @@ def _read_rows(
     stop_on_error: bool = False,
     retry_count: int = 5,
     no_progress_bar: bool = False,
-    error_counter: ErrorCounter = None,
-    incremental: bool = False,
-    page_model: str = None,
-    page: Any = None,
+    error_counter: ErrorCounter = None
 ) -> Iterator[_PushRow]:
     yield from _get_model_rows(
         context,
@@ -346,9 +364,6 @@ def _read_rows(
         limit,
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
-        incremental=incremental,
-        page_model=page_model,
-        page=page,
         error_counter=error_counter,
     )
 
@@ -434,9 +449,6 @@ def _get_model_rows(
     *,
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
-    incremental: bool = False,
-    page_model: str = None,
-    page: Any = None,
     error_counter: ErrorCounter = None
 ) -> Iterator[_PushRow]:
     counts = (
@@ -462,9 +474,6 @@ def _get_model_rows(
         stop_on_error=stop_on_error,
         no_progress_bar=no_progress_bar,
         push_counter=push_counter,
-        incremental=incremental,
-        page_model=page_model,
-        page=page,
     )
     for row in rows:
         yield row
@@ -483,9 +492,6 @@ def _iter_model_rows(
     stop_on_error: bool = False,
     no_progress_bar: bool = False,
     push_counter: tqdm.tqdm = None,
-    incremental: bool = False,
-    page_model: str = None,
-    page: Any = None,
 ) -> Iterator[ModelRow]:
     for model in models:
 
@@ -503,9 +509,6 @@ def _iter_model_rows(
                 stop_on_error,
                 push_counter,
                 model_push_counter,
-                incremental,
-                page_model,
-                page,
             )
             for row in rows:
                 yield row
@@ -575,42 +578,13 @@ def _read_rows_by_pages(
     stop_on_error: bool = False,
     push_counter: tqdm.tqdm = None,
     model_push_counter: tqdm.tqdm = None,
-    incremental: bool = False,
-    page_model: str = None,
-    page: List = None,
 ) -> Iterator[_PushRow]:
     conn = context.get('push.state.conn')
-    table = metadata.tables['_page']
     config = context.get('config')
 
     page_size = config.push_page_size
     size = model.page.size or page_size or 1000
 
-    if incremental:
-        if (
-            page and
-            page_model and
-            page_model == model.name
-        ):
-            model.page.set_values_from_list(page)
-        else:
-            page = conn.execute(
-                sa.select([table.c.value]).
-                where(
-                    table.c.model == model.name
-                )
-            ).scalar()
-            values = json.loads(page) if page else {}
-            _load_page_from_dict(model, values)
-    else:
-        # reset page value
-        conn.execute(
-            table.update().
-            values(value=None).
-            where(
-                table.c.model == model.name
-            )
-        )
     model_table = metadata.tables[model.name]
     state_rows = _get_state_rows(
         context,
@@ -667,12 +641,12 @@ def _read_rows_by_pages(
             row.op = 'insert'
             row.checksum = _get_data_checksum(row.data)
 
-            equals = _compare_data_with_state_rows(data_row, state_row, model_table, model.page)
+            equals = _compare_data_with_state_rows(data_row, state_row, model_table)
             if equals:
                 row.op = 'patch'
                 row.saved = True
                 row.data['_revision'] = state_row[model_table.c.revision]
-                if state_row[model_table.c.checksum] != row.checksum:
+                if state_row[model_table.c.checksum] != row.checksum or not _compare_data_with_state_row_keys(data_row, state_row, model_table, model.page):
                     yield row
 
                 data_push_count += 1
@@ -752,22 +726,29 @@ def _compare_for_delete_row(
         for i, (by, page_by) in enumerate(page.by.items()):
             state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
             data_val = decoded[i]
+            compare = True
             if state_val is not None and data_val is not None:
-
                 if by.startswith('-'):
                     compare = state_val > data_val
                 else:
                     compare = state_val < data_val
-
-                if state_val != data_val:
-                    delete_cond = compare
-                    break
+            if state_val != data_val:
+                delete_cond = compare
+                break
     else:
         delete_cond = True
     return delete_cond
 
 
 def _compare_data_with_state_rows(
+    data_row: Any,
+    state_row: Any,
+    model_table: sa.Table,
+):
+    return data_row["_id"] == state_row[model_table.c["id"]]
+
+
+def _compare_data_with_state_row_keys(
     data_row: Any,
     state_row: Any,
     model_table: sa.Table,
@@ -1296,8 +1277,9 @@ def _check_push_state(
                                 pushed=datetime.datetime.now()
                             )
                         )
-                        continue  # Nothing has changed.
-
+                    # Skip if no changes, but only if not paginated, since pagination already skips those
+                    if '_page' not in row.data:
+                        continue
             yield row
 
 

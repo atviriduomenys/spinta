@@ -19,6 +19,7 @@ from spinta.components import Context
 from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek
 
@@ -32,6 +33,8 @@ def _get_row_count(
     model: components.Model,
 ) -> int:
     query = Expr('select', Expr('count'))
+    if model.page.is_enabled:
+        query = add_page_expr(query, model.page)
     stream = commands.getall(context, model, model.backend, query=query)
     for data in stream:
         return data['count()']
