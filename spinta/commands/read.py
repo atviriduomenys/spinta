@@ -98,7 +98,7 @@ async def getall(
                     data=row,
                     action=action,
                 )
-                for key, val in row.items()
+                for key, val in row.items() if key in props
             }
             for row in rows
         )
