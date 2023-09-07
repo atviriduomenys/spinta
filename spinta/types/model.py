@@ -201,7 +201,7 @@ def link(context: Context, model: Model):
 
 
 def _link_model_page(model: Model):
-    if not model.backend.paginated:
+    if not model.backend or not model.backend.paginated:
         model.page.is_enabled = False
     else:
         # Disable page if external backend and model.ref not given

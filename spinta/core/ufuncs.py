@@ -313,7 +313,7 @@ class LoadBuilder(Env):
     model: Model
 
     def load_page(self):
-        from spinta.types.datatype import Integer, Number, String, Date, Time, DateTime, PrimaryKey
+
         args = ['_id']
         kwargs = {}
         if self.model.external and self.model.external.resource:
@@ -351,6 +351,11 @@ class LoadBuilder(Env):
 
         # Disable page if given properties are not possible to access
         for page_by in self.model.page.by.values():
-            if not isinstance(page_by.prop.dtype, (Integer, Number, String, Date, DateTime, Time, PrimaryKey)):
+            if not isinstance(page_by.prop.dtype, get_allowed_page_property_types()):
                 self.model.page.is_enabled = False
                 break
+
+
+def get_allowed_page_property_types():
+    from spinta.types.datatype import Integer, Number, String, Date, Time, DateTime, PrimaryKey
+    return Integer, Number, String, Date, DateTime, Time, PrimaryKey

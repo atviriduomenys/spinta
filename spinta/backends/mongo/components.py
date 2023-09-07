@@ -22,7 +22,8 @@ class Mongo(Backend):
             'db': {'type': 'string', 'required': True},
         },
     }
-    paginated = True
+    # Currently disabled, issues with test_sort
+    paginated = False
 
     features = {
         BackendFeatures.WRITE,

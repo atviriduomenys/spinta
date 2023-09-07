@@ -602,6 +602,10 @@ class InfiniteLoopWithPagination(BaseError):
     template = "Pagination values has cause infinite loop while fetching data."
 
 
+class DuplicateRowWhilePaginating(BaseError):
+    template = "Encountered a duplicate row with page key: '{key}'"
+
+
 class UnauthorizedPropertyPush(UserError):
     code = 403
     template = "You do not have permission to push this property."

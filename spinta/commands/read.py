@@ -15,7 +15,7 @@ from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Node, Action, UrlParams, Page, PageBy
 from spinta.components import Model
 from spinta.components import Property
-from spinta.core.ufuncs import Expr, asttoexpr
+from spinta.core.ufuncs import Expr, get_allowed_page_property_types
 from spinta.datasets.components import ExternalBackend
 from spinta.renderer import render
 from spinta.types.datatype import Integer
@@ -23,10 +23,11 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
-from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination
+from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, DuplicateRowWhilePaginating
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
+from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder
 from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.utils.data import take
 
@@ -137,40 +138,51 @@ async def getall(
     return render(context, request, model, params, rows, action=action)
 
 
-# XXX: params.sort handle should be moved to BaseQueryBuilder, AST should be handled by Env.
+# XXX: params.sort handle should be moved to BaseQueryBuilder, AST should be handled by Env, this only supports basic sort arguments, that ar Positive, Negative or Bind.
 # Issue: in order to create correct WHERE, we need to have finalized Page, currently we combine sort properties with page here.
 def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
     if model.page:
         copied = deepcopy(model.page)
         copied.clear()
 
-        config = context.get('config')
-        page_size = config.push_page_size
-        size = params.page and params.page.size or copied.size or page_size or 1000
-        copied.size = size
+        if copied.is_enabled:
+            config = context.get('config')
+            page_size = config.push_page_size
+            size = params.page and params.page.size or copied.size or page_size or 1000
+            copied.size = size
 
-        if params.sort:
-            new_order = {}
-            for sort_ast in params.sort:
-                negative = False
-                if sort_ast['name'] == 'negative':
-                    negative = True
-                    sort_ast = sort_ast['args'][0]
-                for sort in sort_ast['args']:
-                    if isinstance(sort, str):
-                        if sort in model.properties.keys():
-                            by = sort if not negative else f'-{sort}'
-                            new_order[by] = PageBy(model.properties[sort])
+            if params.sort:
+                new_order = {}
+                for sort_ast in params.sort:
+                    negative = False
+                    if sort_ast['name'] == 'negative':
+                        negative = True
+                        sort_ast = sort_ast['args'][0]
+                    elif sort_ast['name'] == 'positive':
+                        sort_ast = sort_ast['args'][0]
+                    for sort in sort_ast['args']:
+                        if isinstance(sort, str):
+                            if sort in model.properties.keys():
+                                by = sort if not negative else f'-{sort}'
+                                prop = model.properties[sort]
+                                if isinstance(prop.dtype, get_allowed_page_property_types()):
+                                    new_order[by] = PageBy(prop)
+                                else:
+                                    copied.is_enabled = False
+                                    break
+                        else:
+                            copied.is_enabled = False
+                            break
 
-            for key, page_by in copied.by.items():
-                reversed_key = key[1:] if key.startswith("-") else f'-{key}'
-                if key not in new_order and reversed_key not in new_order:
-                    new_order[key] = page_by
+                for key, page_by in copied.by.items():
+                    reversed_key = key[1:] if key.startswith("-") else f'-{key}'
+                    if key not in new_order and reversed_key not in new_order:
+                        new_order[key] = page_by
 
-            copied.by = new_order
+                copied.by = new_order
 
-        if params.page and params.page.key:
-            copied.update_values_from_page_key(params.page.key)
+            if params.page and params.page.key:
+                copied.update_values_from_page_key(params.page.key)
 
         return copied
 
@@ -195,7 +207,12 @@ def get_page(
         query = add_page_expr(expr, model_page)
         rows = commands.getall(context, model, backend, query=query)
         first_value = None
+        previous_value = None
         for row in rows:
+            if previous_value is not None:
+                if previous_value == row:
+                    raise DuplicateRowWhilePaginating(row['_page'])
+            previous_value = row
             if finished:
                 finished = False
 

@@ -32,7 +32,7 @@ def encode_page_values(env: BaseQueryBuilder, row: dict):
 
 def merge_with_page_selected_list(select: list, page: QueryPage):
     merged_selected = select or []
-    if page.select is not None:
+    if page.page_.is_enabled and page.select is not None:
         for select in page.select:
             if select not in merged_selected:
                 merged_selected.append(select)
@@ -41,13 +41,13 @@ def merge_with_page_selected_list(select: list, page: QueryPage):
 
 def merge_with_page_sort(sort: list, page: QueryPage):
     merged_sort = sort or []
-    if page.sort:
+    if page.page_.is_enabled and page.sort:
         merged_sort = page.sort
     return merged_sort
 
 
 def merge_with_page_limit(limit: int, page: QueryPage):
-    if page and page.size:
+    if page and page.size and page.page_.is_enabled:
         if limit and limit < page.size:
             return limit
         return page.size
