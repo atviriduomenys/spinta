@@ -58,10 +58,11 @@ def test_getall(rc: RawConfig):
         'LEFT OUTER JOIN "example/Country" AS "example/Country_1"'
         ' ON "example/City"."country._id" = "example/Country_1"._id'
     )
-
+    page = rows[0]['_page']
     assert rows == [
         {
             '_id': '3aed7394-18da-4c17-ac29-d501d5dd0ed7',
+            '_page': page,
             '_revision': '9f308d61-5401-4bc2-a9da-bc9de85ad91d',
             '_type': 'example/City',
             'country': {'name': 'Lithuania'},

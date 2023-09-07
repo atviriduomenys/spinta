@@ -24,24 +24,15 @@ from spinta.cli.push import _init_push_state
 from spinta.cli.push import _send_request
 from spinta.cli.push import _push
 from spinta.cli.push import _State
-from spinta.components import Model
 from spinta.core.config import RawConfig
-from spinta.datasets.components import ExternalBackend
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.data import listdata
+from spinta.testing.data import listdata, encode_page_values_for_testing
 from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.tabular import create_tabular_manifest
 from tests.datasets.test_sql import create_rc, configure_remote_server
-
-
-def encode_page_values_for_testing(model: Model, row: dict):
-    if isinstance(model.backend, ExternalBackend):
-        return base64.urlsafe_b64encode(json.dumps([row[item.prop.external.name] for item in model.page.by.values()]).encode('ascii'))
-    else:
-        return base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in model.page.by.values()]).encode('ascii'))
 
 
 @pytest.fixture(scope='module')

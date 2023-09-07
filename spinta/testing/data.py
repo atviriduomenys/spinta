@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 import operator
 from textwrap import indent
 from typing import Any
@@ -15,6 +17,8 @@ import httpx
 import requests
 from pprintpp import pformat
 
+from spinta.components import Model
+from spinta.datasets.components import ExternalBackend
 from spinta.formats.html.components import Cell
 from spinta.testing.client import TestClient
 from spinta.utils.data import take
@@ -246,4 +250,11 @@ def send(
 
     else:
         return _obj_from_dict(result)
+
+
+def encode_page_values_for_testing(model: Model, row: dict):
+    if isinstance(model.backend, ExternalBackend):
+        return base64.urlsafe_b64encode(json.dumps([row[item.prop.external.name] for item in model.page.by.values()]).encode('ascii'))
+    else:
+        return base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in model.page.by.values()]).encode('ascii'))
 
