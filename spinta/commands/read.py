@@ -145,6 +145,8 @@ def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
         copied = deepcopy(model.page)
         copied.clear()
 
+        if params.page:
+            copied.is_enabled = params.page.is_enabled
         if copied.is_enabled:
             config = context.get('config')
             page_size = config.push_page_size

@@ -21,6 +21,7 @@ from spinta.commands import is_object_id
 from spinta import exceptions
 from spinta import spyna
 from spinta.exceptions import ModelNotFound, InvalidPageParameterCount, InvalidPageKey
+from spinta.utils.config import asbool
 from spinta.utils.encoding import is_url_safe_base64
 
 
@@ -185,14 +186,20 @@ def _prepare_urlparams_from_path(params: UrlParams):
         elif name == 'page':
             params.page = ParamsPage()
             is_sort_attr = False
+            is_disabled = False
             key_given = False
             for arg in args:
                 if isinstance(arg, dict):
                     if is_sort_attr:
                         raise InvalidPageParameterCount()
+                    elif is_disabled:
+                        raise InvalidPageParameterCount()
                     if arg['name'] == 'bind' and 'size' in arg['args']:
                         params.page.size = arg['args'][1]
                         is_sort_attr = True
+                    elif arg['name'] == 'bind' and 'disable' in arg['args']:
+                        params.page.is_enabled = asbool(arg['args'][1])
+                        is_disabled = True
                 else:
                     if key_given:
                         raise InvalidPageParameterCount()

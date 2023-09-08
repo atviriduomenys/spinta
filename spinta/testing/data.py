@@ -258,3 +258,6 @@ def encode_page_values_for_testing(model: Model, row: dict):
     else:
         return base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in model.page.by.values()]).encode('ascii'))
 
+
+def encode_page_values_manually(row: dict):
+    return base64.urlsafe_b64encode(json.dumps(list(row.values())).encode('ascii'))

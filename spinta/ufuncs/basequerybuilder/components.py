@@ -106,8 +106,8 @@ def encode_page_values(env: BaseQueryBuilder, row: dict):
         return base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in env.page.page_.by.values()]).encode('ascii'))
 
 
-def merge_with_page_selected_list(select: list, page: QueryPage):
-    merged_selected = select or []
+def merge_with_page_selected_list(select_list: list, page: QueryPage):
+    merged_selected = select_list or []
     if page.page_.is_enabled and page.select is not None:
         for select in page.select:
             if select not in merged_selected:

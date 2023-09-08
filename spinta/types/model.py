@@ -218,12 +218,14 @@ def _link_model_page(model: Model):
                 model.page.by.pop('-_id')
             if len(model.page.by) == 0:
                 for prop in model.properties.values():
-                    if prop.external and prop.external.name:
+                    if prop.external and prop.external.name and not prop.name.startswith('_'):
                         model.page.update_value(prop.name, prop, None)
         else:
             # Add _id to internal, if it's not added
             if '_id' not in model.page.by and '-_id' not in model.page.by:
                 model.page.by['_id'] = PageBy(model.properties["_id"])
+        if len(model.page.by) == 0:
+            model.page.is_enabled = False
     if not model.page.is_enabled:
         del model.properties['_page']
         del model.flatprops['_page']

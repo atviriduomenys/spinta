@@ -331,6 +331,11 @@ class Selected:
     item: Any
     prop: Property = None
 
+    def __eq__(self, other):
+        if isinstance(other, Selected):
+            return self.prop == other.prop
+        return False
+
 
 @ufunc.resolver(PgQueryBuilder, DataType)
 def select(env, dtype):

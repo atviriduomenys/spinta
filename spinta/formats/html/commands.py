@@ -49,6 +49,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
+from spinta.utils.encoding import is_url_safe_base64
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.schema import NotAvailable
 
@@ -456,6 +457,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
+    if is_url_safe_base64(value):
+        value = value.decode('ascii')
     return Cell(value)
 
 

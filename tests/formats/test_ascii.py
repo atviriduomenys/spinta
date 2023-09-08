@@ -109,30 +109,30 @@ async def test_export_multiple_types(rc: RawConfig):
         '\n'
         '\n'
         'Table: example/A\n'
-        '---------  ---  ---------  -----\n'
-        '_type      _id  _revision  value\n'
-        'example/A  ∅    ∅          1\n'
-        'example/A  ∅    ∅          2\n'
-        'example/A  ∅    ∅          3\n'
-        '---------  ---  ---------  -----\n'
+        '---------  ---  ---------  -----  -----\n'
+        '_type      _id  _revision  _page  value\n'
+        'example/A  ∅    ∅          ∅      1\n'
+        'example/A  ∅    ∅          ∅      2\n'
+        'example/A  ∅    ∅          ∅      3\n'
+        '---------  ---  ---------  -----  -----\n'
         '\n'
         '\n'
         'Table: example/B\n'
-        '---------  ---  ---------  -----\n'
-        '_type      _id  _revision  value\n'
-        'example/B  ∅    ∅          1\n'
-        'example/B  ∅    ∅          2\n'
-        'example/B  ∅    ∅          3\n'
-        '---------  ---  ---------  -----\n'
+        '---------  ---  ---------  -----  -----\n'
+        '_type      _id  _revision  _page  value\n'
+        'example/B  ∅    ∅          ∅      1\n'
+        'example/B  ∅    ∅          ∅      2\n'
+        'example/B  ∅    ∅          ∅      3\n'
+        '---------  ---  ---------  -----  -----\n'
         '\n'
         '\n'
         'Table: example/C\n'
-        '---------  ---  ---------  -----\n'
-        '_type      _id  _revision  value\n'
-        'example/C  ∅    ∅          1\n'
-        'example/C  ∅    ∅          2\n'
-        'example/C  ∅    ∅          3\n'
-        '---------  ---  ---------  -----\n'
+        '---------  ---  ---------  -----  -----\n'
+        '_type      _id  _revision  _page  value\n'
+        'example/C  ∅    ∅          ∅      1\n'
+        'example/C  ∅    ∅          ∅      2\n'
+        'example/C  ∅    ∅          ∅      3\n'
+        '---------  ---  ---------  -----  -----\n'
     )
 
 
@@ -256,10 +256,10 @@ async def test_ascii_getone(
         '',
         '',
         'Table: example/City',
-        '------------  ------------------------------------  ------------------------------------  -------',
-        '_type         _id                                   _revision                             name   ',
-        'example/City  19e4f199-93c5-40e5-b04e-a575e81ac373  b6197bb7-3592-4cdb-a61c-5a618f44950c  Vilnius',
-        '------------  ------------------------------------  ------------------------------------  -------',
+        '------------  ------------------------------------  ------------------------------------  -----  -------',
+        '_type         _id                                   _revision                             _page  name   ',
+        'example/City  19e4f199-93c5-40e5-b04e-a575e81ac373  b6197bb7-3592-4cdb-a61c-5a618f44950c  ∅      Vilnius',
+        '------------  ------------------------------------  ------------------------------------  -----  -------',
     ]
 
 

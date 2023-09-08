@@ -553,10 +553,12 @@ def decode_page_values(encoded: Any):
 class ParamsPage:
     key: str
     size: int
+    is_enabled: bool
 
     def __init__(self):
         self.key = ""
         self.size = None
+        self.is_enabled = True
 
 
 class Model(MetaData):

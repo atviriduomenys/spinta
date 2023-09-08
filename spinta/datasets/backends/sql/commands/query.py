@@ -208,6 +208,11 @@ class Selected:
     def __repr__(self):
         return self.debug()
 
+    def __eq__(self, other):
+        if isinstance(other, Selected):
+            return self.item == other.item and self.prop == other.prop and self.prep == other.prep
+        return False
+
     def debug(self, indent: str = ''):
         prop = self.prop.place if self.prop else 'None'
         if isinstance(self.prep, Selected):

@@ -591,7 +591,7 @@ class InvalidRequestQuery(UserError):
 
 
 class InvalidPageParameterCount(UserError):
-    template = "Parameter 'page' only accepts one of page key and page size attributes."
+    template = "Parameter 'page' only accepts one of page key, size, or disable attributes."
 
 
 class InvalidPageKey(UserError):
