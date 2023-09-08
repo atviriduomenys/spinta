@@ -61,6 +61,8 @@ class LoadBuilder(Env):
         page_given = False
         if self.model.external and self.model.external.prepare:
             resolved = self.resolve(self.model.external.prepare)
+            if not isinstance(resolved, list):
+                resolved = [resolved]
             for item in resolved:
                 if isinstance(item, Page):
                     page = item
