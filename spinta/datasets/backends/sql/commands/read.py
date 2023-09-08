@@ -80,6 +80,7 @@ def getall(
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
     # Merge user passed query with query set in manifest.
+    query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
 

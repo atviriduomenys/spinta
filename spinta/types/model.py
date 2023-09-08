@@ -25,7 +25,6 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
-from spinta.core.ufuncs import LoadBuilder
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
@@ -43,6 +42,7 @@ from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
 from spinta.types.namespace import load_namespace_from_name
+from spinta.ufuncs.basequerybuilder.components import LoadBuilder
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA

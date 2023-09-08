@@ -15,7 +15,7 @@ from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Node, Action, UrlParams, Page, PageBy
 from spinta.components import Model
 from spinta.components import Property
-from spinta.core.ufuncs import Expr, get_allowed_page_property_types
+from spinta.core.ufuncs import Expr
 from spinta.datasets.components import ExternalBackend
 from spinta.renderer import render
 from spinta.types.datatype import Integer
@@ -27,7 +27,7 @@ from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
-from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder
+from spinta.ufuncs.basequerybuilder.components import get_allowed_page_property_types
 from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.utils.data import take
 

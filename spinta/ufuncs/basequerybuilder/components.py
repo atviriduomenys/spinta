@@ -1,9 +1,11 @@
 import base64
 import json
+from typing import Any
 
-from spinta.components import Page
-from spinta.core.ufuncs import Env
+from spinta.components import Page, PageBy, Model
+from spinta.core.ufuncs import Env, Negative, Bind, Expr
 from spinta.datasets.components import ExternalBackend
+from spinta.exceptions import FieldNotInResource
 
 
 class QueryPage:
@@ -21,6 +23,79 @@ class QueryPage:
 
 class BaseQueryBuilder(Env):
     page: QueryPage
+
+
+class LoadBuilder(Env):
+    model: Model
+
+    def resolve(self, expr: Any):
+        if not isinstance(expr, Expr):
+            # Expression is already resolved, return resolved value.
+            return expr
+
+        if expr.name in self._resolvers:
+            ufunc = self._resolvers[expr.name]
+
+        else:
+            args, kwargs = expr.resolve(self)
+            return self.default_resolver(expr, *args, **kwargs)
+
+        if ufunc.autoargs:
+            # Resolve arguments automatically.
+            args, kwargs = expr.resolve(self)
+            try:
+                return ufunc(self, *args, **kwargs)
+            except NotImplementedError:
+                return self.default_resolver(expr, *args, **kwargs)
+
+        else:
+            # Resolve arguments manually.
+            try:
+                return ufunc(self, expr)
+            except NotImplementedError:
+                print(expr.todict())
+                pass
+
+    def load_page(self):
+        page = Page()
+        page_given = False
+        if self.model.external and self.model.external.prepare:
+            resolved = self.resolve(self.model.external.prepare)
+            for item in resolved:
+                if isinstance(item, Page):
+                    page = item
+                    page_given = True
+                    break
+        if not page_given:
+            args = ['_id']
+            if self.model.given.pkeys:
+                if isinstance(self.model.given.pkeys, list):
+                    args = self.model.given.pkeys
+                else:
+                    args = [self.model.given.pkeys]
+                if '_id' in args:
+                    args.remove('_id')
+            for arg in args:
+                key = arg
+                if arg in self.model.properties:
+                    prop = self.model.properties[arg]
+                    page.by.update({
+                        key: PageBy(prop)
+                    })
+                else:
+                    raise FieldNotInResource(self.model, property=arg)
+
+        # Disable page if given properties are not possible to access
+        for page_by in page.by.values():
+            if not isinstance(page_by.prop.dtype, get_allowed_page_property_types()):
+                page.is_enabled = False
+                break
+        self.model.page = page
+
+
+def get_allowed_page_property_types():
+    from spinta.types.datatype import Integer, Number, String, Date, Time, DateTime, PrimaryKey
+    return Integer, Number, String, Date, DateTime, Time, PrimaryKey
 
 
 def encode_page_values(env: BaseQueryBuilder, row: dict):
