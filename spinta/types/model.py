@@ -212,6 +212,14 @@ def _link_model_page(model: Model):
                 # Currently only supported external backend is SQL
                 if not isinstance(model.backend, Sql):
                     model.page.is_enabled = False
+            if '_id' in model.page.by:
+                model.page.by.pop('_id')
+            if '-_id' in model.page.by:
+                model.page.by.pop('-_id')
+            if len(model.page.by) == 0:
+                for prop in model.properties.values():
+                    if prop.external and prop.external.name:
+                        model.page.update_value(prop.name, prop, None)
         else:
             # Add _id to internal, if it's not added
             if '_id' not in model.page.by and '-_id' not in model.page.by:

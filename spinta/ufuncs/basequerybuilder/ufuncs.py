@@ -1,7 +1,7 @@
 from typing import Union
 
 from spinta.components import Page, Property, PageBy
-from spinta.core.ufuncs import ufunc, Expr, asttoexpr, Negative, Bind, ShortExpr, Positive, Pair
+from spinta.core.ufuncs import ufunc, Expr, asttoexpr, Negative, Bind, Positive, Pair
 from spinta.exceptions import FieldNotInResource
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, LoadBuilder
 from spinta.ufuncs.helpers import merge_formulas
@@ -20,7 +20,6 @@ def paginate(env, expr):
         env.page.page_ = page
         env.page.select = env.call('select', page)
         env.page.size = page.size
-        print(expr)
         return env.resolve(_get_pagination_compare_query(page))
 
 
