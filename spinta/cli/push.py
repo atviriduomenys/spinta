@@ -51,7 +51,7 @@ from spinta.components import Model
 from spinta.components import Store
 from spinta.core.context import configure_context
 from spinta.core.ufuncs import Expr
-from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush
+from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush, InvalidPushWithPageParameterCount
 from spinta.manifests.components import Manifest
 from spinta.types.namespace import sort_models_by_refs
 from spinta.ufuncs.basequerybuilder.ufuncs import filter_page_values
@@ -234,7 +234,11 @@ def _update_page_values_for_models(context: Context, metadata: sa.MetaData, mode
                     page_model and
                     page_model == model.name
                 ):
-                    model.page.set_values_from_list(page)
+                    if len(page) != len(model.page.by.values()):
+                        raise InvalidPushWithPageParameterCount(model, properties=list(model.page.by.keys()))
+
+                    for i, (by, page_by) in enumerate(model.page.by.items()):
+                        model.page.update_value(by, page_by.prop, page[i])
                 else:
                     page = conn.execute(
                         sa.select([table.c.value]).

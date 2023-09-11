@@ -515,14 +515,6 @@ class Page:
             self.by[by] = PageBy(prop)
         self.by[by].value = value
 
-    def set_values_from_list(self, values: list):
-        if len(values) != len(self.by.values()):
-            raise InvalidPageParameterCount(properties=list(self.by.keys()))
-
-        for i, (by, page_by) in enumerate(self.by.items()):
-            if i + 1 <= len(values):
-                self.update_value(by, page_by.prop, values[i])
-
     def clear(self):
         for item in self.by.values():
             item.value = None

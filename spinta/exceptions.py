@@ -594,6 +594,10 @@ class InvalidPageParameterCount(UserError):
     template = "Parameter 'page' only accepts one of page key, size, or disable attributes."
 
 
+class InvalidPushWithPageParameterCount(UserError):
+    template = "Given push page property count does not match model required properties: {properties}."
+
+
 class InvalidPageKey(UserError):
     template = "Given '{key}' page key is invalid."
 

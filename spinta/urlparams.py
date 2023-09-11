@@ -198,7 +198,7 @@ def _prepare_urlparams_from_path(params: UrlParams):
                         params.page.size = arg['args'][1]
                         is_sort_attr = True
                     elif arg['name'] == 'bind' and 'disable' in arg['args']:
-                        params.page.is_enabled = asbool(arg['args'][1])
+                        params.page.is_enabled = not asbool(arg['args'][1])
                         is_disabled = True
                 else:
                     if key_given:
