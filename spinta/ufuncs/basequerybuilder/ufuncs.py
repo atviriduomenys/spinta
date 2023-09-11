@@ -2,7 +2,7 @@ from typing import Union
 
 from spinta.components import Page, Property, PageBy
 from spinta.core.ufuncs import ufunc, Expr, asttoexpr, Negative, Bind, Positive, Pair
-from spinta.exceptions import FieldNotInResource
+from spinta.exceptions import FieldNotInResource, InvalidArgumentInExpression
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, LoadBuilder
 from spinta.ufuncs.helpers import merge_formulas
 
@@ -10,7 +10,7 @@ from spinta.ufuncs.helpers import merge_formulas
 @ufunc.resolver(BaseQueryBuilder, Expr, name='paginate')
 def paginate(env, expr):
     if len(expr.args) != 1:
-        raise Exception
+        raise InvalidArgumentInExpression(arguments=expr.args, expr='paginate')
     page = expr.args[0]
     if isinstance(page, Page):
         for by, page_by in page.by.items():
@@ -21,6 +21,8 @@ def paginate(env, expr):
         env.page.select = env.call('select', page)
         env.page.size = page.size
         return env.resolve(_get_pagination_compare_query(page))
+    else:
+        raise InvalidArgumentInExpression(arguments=expr.args, expr='paginate')
 
 
 @ufunc.resolver(BaseQueryBuilder, Expr, name='page')
@@ -42,7 +44,7 @@ def page_(env, expr):
                 if res[0] == 'size' and isinstance(res[1], int):
                     page.size = res[1]
                 else:
-                    raise Exception
+                    raise InvalidArgumentInExpression(arguments=res[0], expr='page')
     else:
         page.is_enabled = False
     return page
