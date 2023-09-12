@@ -22,13 +22,14 @@ from spinta.dimensions.prefix.components import UriPrefix
 from spinta.formats.components import Format
 from spinta.formats.html.helpers import get_model_link
 from spinta.formats.rdf.components import Rdf
-from spinta.types.datatype import DataType
+from spinta.types.datatype import DataType, PageType
 from spinta.types.datatype import File
 from spinta.types.datatype import Ref
 from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
+from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NotAvailable
 
 RDF = "rdf"
@@ -295,6 +296,23 @@ def prepare_dtype_for_response(
     return _create_element(
         name=data['_elem_name'],
         text=str(value)
+    )
+
+
+@commands.prepare_dtype_for_response.register(Context, Rdf, PageType, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Rdf,
+    dtype: PageType,
+    value: list,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None
+):
+    return _create_element(
+        name=data['_elem_name'],
+        text=encode_page_values(value).decode('ascii')
     )
 
 

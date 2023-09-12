@@ -91,7 +91,7 @@ def test_getall_pagination_disabled(rc: RawConfig, postgresql: str, request: Fix
         "value": resp_2["value"],
         "_id": resp_2["_id"]
     }
-    encoded_page = encode_page_values_manually(encoded_page).decode("ascii")
+    encoded_page = encode_page_values_manually(encoded_page)
     response = app.get(f'/example/getall/test/Test?page({encoded_page}, disable: true)')
     json_response = response.json()
     assert len(json_response["_data"]) == 5
@@ -115,7 +115,7 @@ def test_getall_pagination_enabled(rc: RawConfig, postgresql: str, request: Fixt
         "value": resp_2["value"],
         "_id": resp_2["_id"]
     }
-    encoded_page = encode_page_values_manually(encoded_page).decode("ascii")
+    encoded_page = encode_page_values_manually(encoded_page)
     response = app.get(f'/example/getall/test/Test?page("{encoded_page}")')
     json_response = response.json()
     assert len(json_response["_data"]) == 2

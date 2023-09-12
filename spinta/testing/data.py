@@ -253,4 +253,4 @@ def send(
 
 
 def encode_page_values_manually(row: dict):
-    return base64.urlsafe_b64encode(json.dumps(list(row.values())).encode('ascii'))
+    return base64.urlsafe_b64encode(json.dumps(list(row.values())).encode('ascii')).decode('ascii')

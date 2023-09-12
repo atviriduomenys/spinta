@@ -317,7 +317,7 @@ def test_file_type_list(
             {
                 'value': encode_page_values_manually({
                     '_id': _id
-                }).decode('ascii'),
+                }),
             },
             {
                 'value': 'Lithuania',
