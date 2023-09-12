@@ -184,7 +184,7 @@ def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
 
                 copied.by = new_order
 
-            if params.page and params.page.key:
+            if params.page and params.page.values:
                 copied.update_values_from_list(params.page.values)
 
         return copied

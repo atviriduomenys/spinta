@@ -466,7 +466,7 @@ def prepare_dtype_for_response(
 def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
-    dtype: Binary,
+    dtype: PageType,
     value: list,
     *,
     data: Dict[str, Any],
