@@ -9,7 +9,7 @@ import urllib.parse
 from starlette.requests import Request
 
 from spinta.commands import prepare
-from spinta.components import Action, ParamsPage
+from spinta.components import Action, ParamsPage, decode_page_values
 from spinta.components import Config
 from spinta.components import Context, Node
 from spinta.components import Model
@@ -205,7 +205,7 @@ def _prepare_urlparams_from_path(params: UrlParams):
                         raise InvalidPageParameterCount()
                     if not is_url_safe_base64(bytes(arg, 'ascii')):
                         raise InvalidPageKey(key=arg)
-                    params.page.key = arg
+                    params.page.values = decode_page_values(arg)
                     key_given = True
         else:
             if params.query is None:

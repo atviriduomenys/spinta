@@ -16,7 +16,7 @@ import pathlib
 from typing import Type
 from typing import TypedDict
 
-from spinta.exceptions import InvalidPageParameterCount, InvalidPageKey
+from spinta.exceptions import InvalidPageKey, InvalidPushWithPageParameterCount
 from spinta import exceptions
 from spinta.dimensions.lang.components import LangData
 from spinta.units.components import Unit
@@ -531,6 +531,13 @@ class Page:
         for i, (by, page_by) in enumerate(self.by.items()):
             self.update_value(by, page_by.prop, loaded[i])
 
+    def update_values_from_list(self, values: list):
+        if len(values) != len(self.by.values()):
+            raise InvalidPushWithPageParameterCount(properties=list(self.by.keys()))
+
+        for i, (by, page_by) in enumerate(self.by.items()):
+            self.update_value(by, page_by.prop, values[i])
+
     def update_values_from_page(self, page: Page):
         self.clear()
         for by, page_by in page.by.items():
@@ -543,12 +550,12 @@ def decode_page_values(encoded: Any):
 
 
 class ParamsPage:
-    key: str
+    values: List[Any]
     size: int
     is_enabled: bool
 
     def __init__(self):
-        self.key = ""
+        self.key = []
         self.size = None
         self.is_enabled = True
 

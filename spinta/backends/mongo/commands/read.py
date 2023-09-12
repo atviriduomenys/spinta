@@ -12,7 +12,7 @@ from spinta.types.datatype import File, Object
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.mongo.components import Mongo
 from spinta.backends.mongo.commands.query import MongoQueryBuilder
-from spinta.ufuncs.basequerybuilder.components import encode_page_values
+from spinta.ufuncs.basequerybuilder.components import get_page_values
 
 
 @overload
@@ -120,5 +120,5 @@ def getall(
             row['_id'] = row.pop('__id')
         row['_type'] = model.model_type()
         if model.page.is_enabled:
-            row['_page'] = encode_page_values(env, row)
+            row['_page'] = get_page_values(env, row)
         yield commands.cast_backend_to_python(context, model, backend, row)

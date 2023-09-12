@@ -43,7 +43,7 @@ from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.commands.read import get_page
-from spinta.components import Action, Page, decode_page_values
+from spinta.components import Action, Page
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
@@ -234,11 +234,7 @@ def _update_page_values_for_models(context: Context, metadata: sa.MetaData, mode
                     page_model and
                     page_model == model.name
                 ):
-                    if len(page) != len(model.page.by.values()):
-                        raise InvalidPushWithPageParameterCount(model, properties=list(model.page.by.keys()))
-
-                    for i, (by, page_by) in enumerate(model.page.by.items()):
-                        model.page.update_value(by, page_by.prop, page[i])
+                    model.page.update_values_from_list(page)
                 else:
                     page = conn.execute(
                         sa.select([table.c.value]).
@@ -714,7 +710,7 @@ def _update_model_page_with_new(
             val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
             model_page.update_value(by, page_by.prop, val)
     elif data_row:
-        model_page.update_values_from_page_key(data_row['_page'])
+        model_page.update_values_from_list(data_row['_page'])
 
 
 def _compare_for_delete_row(
@@ -726,7 +722,7 @@ def _compare_for_delete_row(
     delete_cond = False
 
     if '_page' in data_row:
-        decoded = decode_page_values(data_row['_page'])
+        decoded = data_row['_page']
         for i, (by, page_by) in enumerate(page.by.items()):
             state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
             data_val = decoded[i]
@@ -759,7 +755,7 @@ def _compare_data_with_state_row_keys(
     page: Page
 ):
     equals = True
-    decoded = decode_page_values(data_row.get("_page"))
+    decoded = data_row.get("_page")
     for i, (by, page_by) in enumerate(page.by.items()):
         state_val = state_row[model_table.c[f"page.{page_by.prop.name}"]]
         data_val = decoded[i]
@@ -1297,7 +1293,7 @@ def _save_push_state(
         table = metadata.tables[row.data['_type']]
 
         if row.model.page and row.model.page.by and '_page' in row.data:
-            loaded = decode_page_values(row.data['_page'])
+            loaded = row.data['_page']
             page = {
                 f"page.{page_by.prop.name}": loaded[i]
                 for i, page_by in enumerate(row.model.page.by.values())

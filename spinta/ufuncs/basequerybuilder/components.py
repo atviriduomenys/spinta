@@ -99,11 +99,11 @@ def get_allowed_page_property_types():
     return Integer, Number, String, Date, DateTime, Time, PrimaryKey
 
 
-def encode_page_values(env: BaseQueryBuilder, row: dict):
+def get_page_values(env: BaseQueryBuilder, row: dict):
     if isinstance(env.model.backend, ExternalBackend):
-        return base64.urlsafe_b64encode(json.dumps([row[item.prop.external.name] for item in env.page.page_.by.values()]).encode('ascii'))
+        return [row[item.prop.external.name] for item in env.page.page_.by.values()]
     else:
-        return base64.urlsafe_b64encode(json.dumps([row[item.prop.name] for item in env.page.page_.by.values()]).encode('ascii'))
+        return [row[item.prop.name] for item in env.page.page_.by.values()]
 
 
 def merge_with_page_selected_list(select_list: list, page: QueryPage):

@@ -36,7 +36,7 @@ from spinta.formats.html.helpers import get_model_link
 from spinta.formats.html.helpers import get_output_formats
 from spinta.formats.html.helpers import get_template_context
 from spinta.formats.html.helpers import short_id
-from spinta.types.datatype import Array, ExternalRef
+from spinta.types.datatype import Array, ExternalRef, PageType
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -49,7 +49,7 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import Binary
 from spinta.types.datatype import JSON
 from spinta.types.datatype import Inherit
-from spinta.utils.encoding import is_url_safe_base64
+from spinta.utils.encoding import is_url_safe_base64, encode_page_values
 from spinta.utils.nestedstruct import flatten
 from spinta.utils.schema import NotAvailable
 
@@ -459,6 +459,21 @@ def prepare_dtype_for_response(
 ):
     if is_url_safe_base64(value):
         value = value.decode('ascii')
+    return Cell(value)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, PageType, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: Binary,
+    value: list,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    value = encode_page_values(value).decode('ascii')
     return Cell(value)
 
 

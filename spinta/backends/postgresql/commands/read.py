@@ -9,7 +9,7 @@ from spinta.components import Model
 from spinta.exceptions import NotFoundError
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.ufuncs.basequerybuilder.components import encode_page_values
+from spinta.ufuncs.basequerybuilder.components import get_page_values
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.backends.postgresql.commands.query import PgQueryBuilder
 
@@ -63,6 +63,6 @@ def getall(
             **converted
         }
         if model.page.is_enabled:
-            res['_page'] = encode_page_values(env, row)
+            res['_page'] = get_page_values(env, row)
         res = commands.cast_backend_to_python(context, model, backend, res)
         yield res

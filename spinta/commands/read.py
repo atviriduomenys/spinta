@@ -30,6 +30,7 @@ from spinta.typing import ObjectData
 from spinta.ufuncs.basequerybuilder.components import get_allowed_page_property_types
 from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.utils.data import take
+from spinta.utils.encoding import encode_page_values
 
 
 @commands.getall.register(Context, Model, Request)
@@ -184,7 +185,7 @@ def prepare_page_for_get_all(context: Context, model: Model, params: UrlParams):
                 copied.by = new_order
 
             if params.page and params.page.key:
-                copied.update_values_from_page_key(params.page.key)
+                copied.update_values_from_list(params.page.values)
 
         return copied
 
@@ -213,7 +214,7 @@ def get_page(
         for row in rows:
             if previous_value is not None:
                 if previous_value == row:
-                    raise DuplicateRowWhilePaginating(row['_page'])
+                    raise DuplicateRowWhilePaginating(key=encode_page_values(row['_page']))
             previous_value = row
             if finished:
                 finished = False
@@ -231,7 +232,7 @@ def get_page(
 
             true_count += 1
             if '_page' in row:
-                model_page.update_values_from_page_key(row['_page'])
+                model_page.update_values_from_list(row['_page'])
             yield row
 
         if finished:

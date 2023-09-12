@@ -116,6 +116,7 @@ CONFIG = {
             'denorm': 'spinta.types.datatype:Denorm',
             '_external_ref': 'spinta.types.datatype:ExternalRef',
             'inherit': 'spinta.types.datatype:Inherit',
+            'page': 'spinta.types.datatype:PageType'
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',

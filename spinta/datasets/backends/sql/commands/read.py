@@ -22,7 +22,7 @@ from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.exceptions import ValueNotInEnum
 from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
-from spinta.ufuncs.basequerybuilder.components import encode_page_values
+from spinta.ufuncs.basequerybuilder.components import get_page_values
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
@@ -101,7 +101,7 @@ def getall(
                 '_type': model.model_type()
             }
             if model.page.is_enabled:
-                res['_page'] = encode_page_values(env, row)
+                res['_page'] = get_page_values(env, row)
 
             for key, sel in env.selected.items():
                 val = _get_row_value(context, row, sel)
