@@ -8,7 +8,7 @@ from spinta.testing.tabular import create_tabular_manifest
 from tests.datasets.test_sql import configure_remote_server, create_rc
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def geodb():
     with create_sqlite_db({
         'salis': [
@@ -384,7 +384,7 @@ def test_push_pagination_without_incremental(
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
-    paginated             |          |          |             |       |
+    paginated/without             |          |          |             |       |
       | db                   | sql      |          |             |       |
       |   |   |   |          |          |          |             |       |
       |   |   | Country      |          | id       | salis       | 4     |
@@ -404,7 +404,7 @@ def test_push_pagination_without_incremental(
     assert remote.url == 'https://example.com/'
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'paginated',
+        '-d', 'paginated/without',
         '-o', remote.url,
         '--credentials', remote.credsfile
     ])
@@ -417,7 +417,7 @@ def test_push_pagination_without_incremental(
 
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'paginated',
+        '-d', 'paginated/without',
         '-o', remote.url,
         '--credentials', remote.credsfile
     ])
@@ -436,7 +436,7 @@ def test_push_pagination_incremental_with_page_valid(
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
-    paginated             |          |          |             |       |
+    paginated/valid             |          |          |             |       |
       | db                   | sql      |          |             |       |
       |   |   |   |          |          |          |             |       |
       |   |   | Country      |          | id       | salis       | 4     |
@@ -456,11 +456,11 @@ def test_push_pagination_incremental_with_page_valid(
     assert remote.url == 'https://example.com/'
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'paginated',
+        '-d', 'paginated/valid',
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--incremental',
-        '--model', 'paginated/Country',
+        '--model', 'paginated/valid/Country',
         '--page', '2'
     ])
     assert result.exit_code == 0
@@ -472,11 +472,11 @@ def test_push_pagination_incremental_with_page_valid(
 
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'paginated',
+        '-d', 'paginated/valid',
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--incremental',
-        '--model', 'paginated/Country',
+        '--model', 'paginated/valid/Country',
         '--page', '2'
     ])
     assert result.exit_code == 0
@@ -494,7 +494,7 @@ def test_push_pagination_incremental_with_page_invalid(
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
     d | r | b | m | property | type     | ref      | source      | level | access
-    paginated             |          |          |             |       |
+    paginated/invalid             |          |          |             |       |
       | db                   | sql      |          |             |       |
       |   |   |   |          |          |          |             |       |
       |   |   | Country      |          | id       | salis       | 4     |
@@ -514,11 +514,11 @@ def test_push_pagination_incremental_with_page_invalid(
     assert remote.url == 'https://example.com/'
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'paginated',
+        '-d', 'paginated/invalid',
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--incremental',
-        '--model', 'paginated/Country',
+        '--model', 'paginated/invalid/Country',
         '--page', '2',
         '--page', 'test'
     ], fail=False)
