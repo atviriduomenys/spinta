@@ -49,6 +49,7 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.utils.data import take
+from spinta.utils.encoding import is_url_safe_base64
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -728,7 +729,10 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    return base64.b64encode(value).decode('ascii')
+    if is_url_safe_base64(value):
+        return value.decode('ascii')
+    else:
+        return base64.b64encode(value).decode('ascii')
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, (dict, type(None)))

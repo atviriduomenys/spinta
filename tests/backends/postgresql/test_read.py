@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 from spinta import commands
 from spinta import spyna
-from spinta.components import Context
+from spinta.components import Context, decode_page_values
 from spinta.auth import AdminToken
 from spinta.testing.client import create_test_client
 from spinta.testing.data import encode_page_values_manually
@@ -116,6 +116,6 @@ def test_getall_pagination_enabled(rc: RawConfig, postgresql: str, request: Fixt
         "_id": resp_2["_id"]
     }
     encoded_page = encode_page_values_manually(encoded_page).decode("ascii")
-    response = app.get(f'/example/getall/test/Test?page({encoded_page})')
+    response = app.get(f'/example/getall/test/Test?page("{encoded_page}")')
     json_response = response.json()
     assert len(json_response["_data"]) == 2
