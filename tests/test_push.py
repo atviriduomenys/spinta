@@ -27,7 +27,7 @@ from spinta.cli.push import _State
 from spinta.core.config import RawConfig
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
-from spinta.testing.data import listdata, encode_page_values_for_testing
+from spinta.testing.data import listdata
 from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
@@ -838,14 +838,11 @@ def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
     rows = [
         _PushRow(model, {
             '_type': model.name,
-            '_page': encode_page_values_for_testing(model, {
-                '_id': _id
-            }),
+            '_page': [_id],
             '_id': _id,
             'name': 'Vilnius',
         }, op="insert"),
     ]
-
     client = requests.Session()
     server = 'https://example.com/'
     responses.add(

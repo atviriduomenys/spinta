@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 from spinta import commands
 from spinta import spyna
-from spinta.components import Context, decode_page_values
+from spinta.components import Context
 from spinta.auth import AdminToken
 from spinta.testing.client import create_test_client
 from spinta.testing.data import encode_page_values_manually
