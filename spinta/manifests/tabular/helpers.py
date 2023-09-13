@@ -632,7 +632,8 @@ class PropertyReader(TabularReader):
                 result = '.'.join(split)
             else:
                 result = row['source']
-
+        if result == '':
+            return
         self._append_prepare(row, result)
 
     def release(self, reader: TabularReader = None) -> bool:

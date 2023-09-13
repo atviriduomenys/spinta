@@ -608,3 +608,31 @@ def test_resource_param_multiple(tmp_path, rc):
       |   |   |   | name       | string  |         |          |
       |   |   |   | population | integer |         |          |
     ''')
+
+
+def test_multiline_prepare(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source   | prepare
+    datasets/gov/example       |         |         |          |
+                               |         |         |          |
+      |   |   | Location       |         |         |          |
+      |   |   |   | id         | integer |         |          |
+      |   |   |   | name       | string  |         |          | cast()
+                               |         |         | 'namas'  | swap('Namas')
+                               |         |         |          | swap('kiemas', 'Kiemas')
+      |   |   |   | population | integer |         |          |
+    ''')
+
+
+def test_multiline_prepare_without_given_prepare(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source   | prepare
+    datasets/gov/example       |         |         |          |
+                               |         |         |          |
+      |   |   | Location       |         |         |          |
+      |   |   |   | id         | integer |         |          |
+      |   |   |   | name       | string  |         |          |
+                               |         |         | 'namas'  | swap('Namas')
+                               |         |         |          | swap('kiemas', 'Kiemas')
+      |   |   |   | population | integer |         |          |
+    ''')
