@@ -547,6 +547,13 @@ class PropertyGiven:
     access: str = None
     enum: str = None
     unit: str = None
+    prepare: List[PrepareGiven] = []
+
+
+class PrepareGiven(TypedDict):
+    appended: bool
+    source: str
+    prepare: str
 
 
 class Property(Node):
@@ -592,6 +599,7 @@ class Property(Node):
         'units': {'type': 'string'},
         'lang': {'type': 'object'},
         'comments': {},
+        'prepare_given': {'required': False}
     }
 
     def __init__(self):

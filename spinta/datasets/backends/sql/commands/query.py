@@ -932,9 +932,16 @@ def offset(env: SqlQueryBuilder, n: int):
     env.offset = n
 
 
-@ufunc.resolver(SqlQueryBuilder, Property, object, object)
-def swap(env: SqlQueryBuilder, prop: Property, old: Any, new: Any) -> Any:
-    return Expr('swap', old, new)
+@ufunc.resolver(SqlQueryBuilder, Expr)
+def swap(env: SqlQueryBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return Expr('swap', *args, **kwargs)
+
+
+@ufunc.resolver(SqlResultBuilder, Expr)
+def swap(env: SqlResultBuilder, expr: Expr):
+    args, kwargs = expr.resolve(env)
+    return env.call('swap', *args, *kwargs)
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr)

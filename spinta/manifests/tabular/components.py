@@ -10,6 +10,7 @@ from typing import Literal
 from typing import Optional
 from typing import TypedDict
 
+from spinta.components import PrepareGiven
 from spinta.dimensions.lang.components import LangData
 from spinta.manifests.components import Manifest
 
@@ -220,6 +221,7 @@ class PropertyRow(TypedDict, total=False):
     units: str
     required: bool
     unique: bool
+    prepare_given: List[PrepareGiven]
 
 
 class PropertyExternalRow(TypedDict, total=False):
