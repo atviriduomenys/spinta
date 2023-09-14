@@ -1805,7 +1805,7 @@ def datasets_to_tabular(
         else:
             separator = False
 
-        if model.base and (not base or model.base.name != base.name):
+        if model.base and (not base or not is_base_same(model.base, base)):
             base = model.base
             yield from _base_to_tabular(model.base)
         elif base and not model.base:
@@ -1830,6 +1830,10 @@ def datasets_to_tabular(
         )
         for resource in dataset.resources.values():
             yield from _resource_to_tabular(resource)
+
+
+def is_base_same(a: Base, b: Base):
+    return a.name == b.name and a.level == b.level and a.pk == b.pk
 
 
 def torow(keys, values) -> ManifestRow:

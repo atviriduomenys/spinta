@@ -449,3 +449,31 @@ def test_end_marker(tmp_path, rc):
       |   |   |   | name       | string  |
       |   |   |   | population | integer |
     ''')
+
+
+def test_with_same_base(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref      | level
+    datasets/gov/example       |         |          |
+                               |         |          |
+      |   |   | Base           |         |          |
+      |   |   |   | id         | integer |          |
+                               |         |          |
+      |   | Base               |         |          |
+      |   |   | Location       |         |          |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       | string  |          |
+      |   |   |   | population | integer |          |
+                               |         |          |
+      |   | Location           |         | name     | 4
+      |   |   | City           |         | name     |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       |         |          |
+      |   |   |   | population |         |          |
+                               |         |          |
+      |   | Location           |         | name     | 3
+      |   |   | Village        |         | name     |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       |         |          |
+      |   |   |   | population |         |          |
+    ''')
