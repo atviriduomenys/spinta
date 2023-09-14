@@ -103,3 +103,30 @@ def test_prepare_base_no_level(rc: RawConfig):
         'PrimaryKeyConstraint',
         'ForeignKeyConstraint'
     ])
+
+
+def test_prepare_model_ref_unique_constraint(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref       | level | access
+    example                    |         |           |       |
+      |   |   | Continent      |         | id        | 4     |
+      |   |   |   | id         | integer |           | 3     | open
+      |   |   |   | name       | string  |           | 3     | open
+      |   |   | Country        |         | id, name  | 4     |
+      |   |   |   | id         | integer |           | 3     | open
+      |   |   |   | name       | string  |           | 3     | open
+    ''')
+    model_single_unique = manifest.models['example/Continent']
+    backend = model_single_unique.backend
+    commands.prepare(context, backend, model_single_unique)
+    table = backend.get_table(model_single_unique)
+    assert any(
+        [table.c['id']] == list(constraint.columns) for constraint in table.constraints if
+        type(constraint).__name__ == 'UniqueConstraint')
+
+    model_multiple_unique = manifest.models['example/Country']
+    commands.prepare(context, backend, model_multiple_unique)
+    table = backend.get_table(model_multiple_unique)
+    assert any(
+        [table.c['id'], table.c['name']] == list(constraint.columns) for constraint in table.constraints if
+        type(constraint).__name__ == 'UniqueConstraint')

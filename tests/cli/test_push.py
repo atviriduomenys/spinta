@@ -2,6 +2,7 @@ import pytest
 import sqlalchemy as sa
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db
 from spinta.testing.tabular import create_tabular_manifest
 from tests.datasets.test_sql import configure_remote_server, create_rc
@@ -14,12 +15,20 @@ def geodb():
             sa.Column('id', sa.Integer, primary_key=True),
             sa.Column('kodas', sa.Text),
             sa.Column('pavadinimas', sa.Text),
+        ],
+        'cities': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name', sa.Text),
+            sa.Column('country', sa.Integer),
         ]
     }) as db:
         db.write('salis', [
-            {'kodas': 'lt', 'pavadinimas': 'Lietuva'},
-            {'kodas': 'lv', 'pavadinimas': 'Latvija'},
-            {'kodas': 'ee', 'pavadinimas': 'Estija'},
+            {'kodas': 'lt', 'pavadinimas': 'Lietuva', 'id': 1},
+            {'kodas': 'lv', 'pavadinimas': 'Latvija', 'id': 2},
+            {'kodas': 'ee', 'pavadinimas': 'Estija', 'id': 3},
+        ])
+        db.write('cities', [
+            {'name': 'Vilnius', 'country': 2},
         ])
         yield db
 
@@ -208,3 +217,104 @@ def test_push_error_exit_code_with_bad_resource(
     ], fail=False)
     assert result.exit_code == 1
 
+
+def test_push_ref_with_level_3(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    level3dataset             |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | City         |          | id       | cities      | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name     | string   |          | name        | 4     | open
+      |   |   |   | country  | ref      | Country  | country     | 3     | open
+      |   |   |   |          |          |          |             |       |
+      |   |   | Country      |          | id       | salis       | 4     |
+      |   |   |   | code     | string   |          | kodas       | 4     | open
+      |   |   |   | name     | string   |          | pavadinimas | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'level3dataset',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('level3dataset/City', ['getall', 'search'])
+    resp_city = remote.app.get('level3dataset/City')
+
+    assert resp_city.status_code == 200
+    assert listdata(resp_city, 'name') == ['Vilnius']
+    assert len(listdata(resp_city, 'id', 'name', 'country')) == 1
+    assert 'id' in listdata(resp_city, 'country')[0].keys()
+
+
+def test_push_ref_with_level_4(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    level4dataset             |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | City         |          | id       | cities      | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name     | string   |          | name        | 4     | open
+      |   |   |   | country  | ref      | Country  | country     | 4     | open
+      |   |   |   |          |          |          |             |       |
+      |   |   | Country      |          | id       | salis       | 4     |
+      |   |   |   | code     | string   |          | kodas       | 4     | open
+      |   |   |   | name     | string   |          | pavadinimas | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'level4dataset',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('level4dataset/City', ['getall', 'search'])
+    resp_city = remote.app.get('level4dataset/City')
+
+    assert resp_city.status_code == 200
+    assert listdata(resp_city, 'name') == ['Vilnius']
+    assert len(listdata(resp_city, 'id', 'name', 'country')) == 1
+    assert '_id' in listdata(resp_city, 'country')[0].keys()

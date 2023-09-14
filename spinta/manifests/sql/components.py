@@ -10,6 +10,9 @@ class SqlManifest(Manifest):
 
     @staticmethod
     def detect_from_path(path: str) -> bool:
-        url = sa.engine.make_url(path)
-        url.get_dialect()
-        return True
+        try:
+            url = sa.engine.make_url(path)
+            url.get_dialect()
+            return True
+        except:
+            return False

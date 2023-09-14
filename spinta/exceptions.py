@@ -161,8 +161,6 @@ def _render_template(error: BaseError):
         return error.template.format(**context)
 
 
-
-
 class MultipleErrors(Exception):
 
     def __init__(self, errors: Iterable[BaseError]):
@@ -568,9 +566,25 @@ class UnableToCast(UserError):
     template = "Unable to cast {value} to {type} type."
 
 
+class NotImplementedFeature(BaseError):
+    template = "{feature} is not implemented yet."
+
+
 class ReferencedObjectNotFound(UserError):
     template = "Referenced object {id!r} not found."
 
 
 class ReferringObjectFound(UserError):
-    template = "Object {id!r} is still being referenced in table {model!r}"
+    template = "Object {id!r} is still being referenced in table {model!r}."
+
+
+class CompositeUniqueConstraint(UserError):
+    template = "Given values for composition of properties ({properties}) already exist."
+
+
+class UnknownRequestQuery(UserError):
+    template = "Request '{request}' does not support '{query}' query."
+
+
+class InvalidRequestQuery(UserError):
+    template = "Query '{query}' requires '{format}' format."

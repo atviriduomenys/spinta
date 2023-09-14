@@ -13,8 +13,9 @@ from typing import overload
 from starlette.requests import Request
 from starlette.responses import Response
 
+from spinta.exceptions import BaseError
 from spinta.typing import ObjectData
-from spinta.components import Node
+from spinta.components import Node, DataItem
 from spinta.components import UrlParams
 from spinta.components import Version
 from spinta.dispatcher import command
@@ -958,3 +959,49 @@ def merge(
 @command()
 def merge(*args) -> None:
     """Merge new manifest into old."""
+
+
+@command()
+def create_exception(
+    data_item: DataItem,
+    error: Exception
+) -> BaseError:
+    """
+        Creates Spinta Exception from normal error
+    """
+
+
+@overload
+def summary(
+    context: Context,
+    request: Request,
+    model: Model,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    pass
+
+
+@overload
+def summary(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    **kwargs
+):
+    pass
+
+
+@overload
+def summary(
+    context: Context,
+    dtype: DataType,
+    backend: Backend,
+    **kwargs
+):
+    pass
+
+
+@command()
+def summary(*args) -> None:
+    """Create summary for property"""
