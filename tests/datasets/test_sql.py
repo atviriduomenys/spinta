@@ -286,30 +286,27 @@ def test_filter_join_ne_array_value(rc, tmp_path, geodb):
     ]
 
 
-@pytest.mark.skip('todo')
 def test_filter_multi_column_pk(rc, tmp_path, geodb):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
-    id | d | r | b | m | property | source      | prepare            | type   | ref           | level | access | uri | title   | description
-       | datasets/gov/example     |             |                    |        |               |       |        |     | Example |
-       |   | data                 |             |                    | sql    |               |       |        |     | Data    |
-       |   |   |                  |             |                    |        |               |       |        |     |         |
-       |   |   |   | country      | salis       |                    |        | id,code       |       |        |     | Country |
-       |   |   |   |   | id       | id          |                    | string |               | 3     | open   |     | Code    |
-       |   |   |   |   | code     | kodas       |                    | string |               | 3     | open   |     | Code    |
-       |   |   |   |   | name     | pavadinimas |                    | string |               | 3     | open   |     | Name    |
-       |   |   |                  |             |                    |        |               |       |        |     |         |
-       |   |   |   | city         | miestas     | country.code!='ee' |        | name          |       |        |     | City    |
-       |   |   |   |   | name     | pavadinimas |                    | string |               | 3     | open   |     | Name    |
-       |   |   |   |   | country  | salis       |                    | ref    | country[code] | 4     | open   |     | Country |
+    id | d | r | b | m | property | source      | prepare            | type    | ref            | level | access | uri | title   | description
+       | keymap                   |             |                    |         |                |       |        |     | Example |
+       |   | data                 |             |                    | sql     |                |       |        |     | Data    |
+       |   |   |                  |             |                    |         |                |       |        |     |         |
+       |   |   |   | Country      | salis       |                    |         | id             |       |        |     | Country |
+       |   |   |   |   | id       | id          |                    | integer |                | 3     | open   |     | Code    |
+       |   |   |   |   | code     | kodas       |                    | string  |                | 3     | open   |     | Code    |
+       |   |   |   |   | name     | pavadinimas |                    | string  |                | 3     | open   |     | Name    |
+       |   |   |                  |             |                    |         |                |       |        |     |         |
+       |   |   |   | City         | miestas     | country.code!='ee' |         | name           |       |        |     | City    |
+       |   |   |   |   | name     | pavadinimas |                    | string  |                | 3     | open   |     | Name    |
+       |   |   |   |   | country  | salis       |                    | ref     | Country[code]  | 4     | open   |     | Country |
     '''))
-
     app = create_client(rc, tmp_path, geodb)
 
-    resp = app.get('/datasets/gov/example/country')
-    codes = dict(listdata(resp, '_id', 'code'))
-
-    resp = app.get('/datasets/gov/example/city?sort(name)')
-    data = listdata(resp, 'country._id', 'name', sort='name')
+    resp_country = app.get('keymap/Country')
+    codes = dict(listdata(resp_country, '_id', 'code'))
+    resp_city = app.get('keymap/City?sort(name)')
+    data = listdata(resp_city, 'country._id', 'name', sort='name')
     data = [(codes.get(country), city) for country, city in data]
     assert data == [
         ('lv', 'Ryga'),

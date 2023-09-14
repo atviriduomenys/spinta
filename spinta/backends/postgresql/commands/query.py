@@ -493,6 +493,13 @@ def _get_from_flatprops(model: Model, prop: str):
         raise exceptions.FieldNotInResource(model, property=prop)
 
 
+@ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=['ne', 'lt', 'le', 'gt', 'ge'])
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
 @ufunc.resolver(PgQueryBuilder, DataType, object, names=COMPARE)
 def compare(env, op, dtype, value):
     raise exceptions.InvalidValue(dtype, op=op, arg=type(value).__name__)
@@ -553,7 +560,7 @@ def _ensure_non_empty(op, s):
 
 
 @ufunc.resolver(PgQueryBuilder, String, str, names=[
-    'eq', 'startswith', 'contains',
+    'eq', 'startswith', 'contains'
 ])
 def compare(env, op, dtype, value):
     if op in ('startswith', 'contains'):

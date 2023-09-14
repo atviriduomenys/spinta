@@ -1264,3 +1264,77 @@ def test_delete_batch(
             }
         ]
     }
+
+
+def test_get_gt_ge_lt_le_ne(app):
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('/datasets/json/rinkimai', ['insert', 'upsert', 'search'])
+
+    resp = app.post('/datasets/json/rinkimai', json={'_data': [
+        {
+            '_id': '3ba54cb1-2099-49c8-9b6e-629f6ad60a3b',
+            '_op': 'upsert',
+            '_type': 'datasets/json/rinkimai',
+            '_where': f'id="1"',
+            'id': '1',
+            'pavadinimas': 'Rinkimai 1',
+        },
+        {
+            '_id': '1e4fff26-0082-4ce8-87b8-dd8abf7fadae',
+            '_op': 'upsert',
+            '_type': 'datasets/json/rinkimai',
+            '_where': f'id="2"',
+            'id': '2',
+            'pavadinimas': 'Rinkimai 2',
+        },
+        {
+            '_id': '7109da99-6c02-49bf-97aa-a602e23b6659',
+            '_op': 'upsert',
+            '_type': 'datasets/json/rinkimai',
+            '_where': f'id="3"',
+            'id': '3',
+            'pavadinimas': 'Rinkimai 3',
+        },
+        {
+            '_id': '959e8881-9d84-4b44-a0e8-31183aac0de6',
+            '_op': 'upsert',
+            '_type': 'datasets/json/rinkimai',
+            '_where': f'id="4"',
+            'id': '4',
+            'pavadinimas': 'Rinkimai 4',
+        },
+        {
+            '_id': '24e613cc-3b3d-4075-96dd-093f2edbdf08',
+            '_op': 'upsert',
+            '_type': 'datasets/json/rinkimai',
+            '_where': f'id="5"',
+            'id': '5',
+            'pavadinimas': 'Rinkimai 5',
+        },
+    ]})
+    # FIXME: Status code on multiple objects must be 207.
+    assert resp.status_code == 200, resp.json()
+
+    eq_id_for_gt_ge = resp.json()['_data'][0]['_id']
+    request_line = '/datasets/json/rinkimai?_id>"{0}"'.format(eq_id_for_gt_ge)
+    resp = app.get(request_line)
+    assert len(resp.json()['_data']) == 2
+
+    request_line = '/datasets/json/rinkimai?_id>="{0}"'.format(eq_id_for_gt_ge)
+    resp = app.get(request_line)
+
+    assert len(resp.json()['_data']) == 3
+
+    eq_id_for_gt_ge = resp.json()['_data'][1]['_id']
+    request_line = '/datasets/json/rinkimai?_id<="{0}"'.format(eq_id_for_gt_ge)
+    resp = app.get(request_line)
+
+    assert len(resp.json()['_data']) == 4
+
+    request_line = '/datasets/json/rinkimai?_id<"{0}"'.format(eq_id_for_gt_ge)
+    resp = app.get(request_line)
+    assert len(resp.json()['_data']) == 3
+
+    request_line = '/datasets/json/rinkimai?_id!="{0}"'.format(eq_id_for_gt_ge)
+    resp = app.get(request_line)
+    assert len(resp.json()['_data']) == 4
