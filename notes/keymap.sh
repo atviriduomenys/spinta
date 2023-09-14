@@ -39,27 +39,25 @@ sqlite3 $BASEDIR/db.sqlite "SELECT * FROM cities;"
 
 
 cat > $BASEDIR/manifest.txt <<EOF
-d | r | b | m | property     | type    | ref           | source       | access
-$DATASET                     |         |               |              |
-  | db                       | sql     |               | sqlite:///$BASEDIR/db.sqlite |
-  |   |   | Country          |         | id            | countries    |
-  |   |   |   | id           | integer |               | id           | open
-  |   |   |   | code         | string  |               | code         | open
-  |   |   |   | name         | string  |               | name         | open
-  |   |   | City             |         | name          | cities       |
-  |   |   |   | name         | string  |               | name         | open
-  |   |   |   | country      | ref     | Country       | country_id   | open
-  |   |   |   | country_code | ref     | Country[code] | country_code | open
-  |   |   |   | country_name | ref     | Country[name] | country_name | open
+d | r | b | m | property          | type    | ref                | source                       | prepare                   | access
+$DATASET                          |         |                    |                              |                           |
+  | db                            | sql     |                    | sqlite:///$BASEDIR/db.sqlite |                           |
+  |   |   | Country               |         | id                 | countries                    |                           |
+  |   |   |   | id                | integer |                    | id                           |                           | open
+  |   |   |   | code              | string  |                    | code                         |                           | open
+  |   |   |   | name              | string  |                    | name                         |                           | open
+  |   |   | City                  |         | name               | cities                       |                           |
+  |   |   |   | name              | string  |                    | name                         |                           | open
+  |   |   |   | country           | ref     | Country            | country_id                   |                           | open
+  |   |   |   | country_code      | ref     | Country[code]      | country_code                 |                           | open
+  |   |   |   | country_name      | ref     | Country[name]      | country_name                 |                           | open
+  |   |   |   | country_composite | ref     | Country[code,name] |                              | country_code,country_name | open
 EOF
 poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
 cat $BASEDIR/manifest.csv
 poetry run spinta show
 
-
-rm $BASEDIR/keymap.db
-
-
+test -e $BASEDIR/keymap.db && rm $BASEDIR/keymap.db
 test -n "$PID" && kill $PID
 poetry run spinta run --mode external $BASEDIR/manifest.csv &>> $BASEDIR/spinta.log &; PID=$!
 tail -50 $BASEDIR/spinta.log
@@ -84,6 +82,11 @@ http GET "$SERVER/$DATASET/City?select(_id,country_code)&format(ascii)"
 
 http GET "$SERVER/$DATASET/City?select(_id,country_name)&format(ascii)"
 #| _id                                   country_name._id                    
+#| ------------------------------------  ------------------------------------
+#| 1cf0595b-85e7-4ba3-9a38-87197482d7ae  0a8198af-a55a-4c98-a783-43b23e60aaff
+
+http GET "$SERVER/$DATASET/City?select(_id,country_composite)&format(ascii)"
+#| _id                                   country_composite._id                    
 #| ------------------------------------  ------------------------------------
 #| 1cf0595b-85e7-4ba3-9a38-87197482d7ae  0a8198af-a55a-4c98-a783-43b23e60aaff
 
