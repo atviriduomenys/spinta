@@ -468,7 +468,7 @@ def test_push_ref_with_level_no_source_status_code_400_check(
     assert listdata(resp, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': 2})
 
     # Configure local server with SQL backend
-    localrc = create_rc(rc, tmp_path, geodb)
+    localrc = create_rc(rc, tmp_path, geodb, 'external')
 
     # Configure remote server
     remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
@@ -483,7 +483,7 @@ def test_push_ref_with_level_no_source_status_code_400_check(
         '--no-progress-bar',
     ])
     assert result.exit_code == 0
-    remote.app.authmodel('leveldataset/Country', ['getall', 'search'])
-    resp_city = remote.app.get('leveldataset/Country')
+    remote.app.authmodel('leveldataset/countries/Country', ['getall', 'search'])
+    resp_city = remote.app.get('leveldataset/countries/Country')
 
     assert resp_city.status_code == 400

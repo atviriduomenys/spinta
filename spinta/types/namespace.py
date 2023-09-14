@@ -243,11 +243,8 @@ def traverse_ns_models(
 ):
     models = (ns.models or {})
     for model in models.values():
-        if _model_matches_params(context, model, action, dataset_, resource, internal):
-            if source_check:
-                if model.backend and not isinstance(model.backend, NoBackend):
-                    yield model
-            else:
+        if not (source_check and isinstance(model.backend, NoBackend)):
+            if _model_matches_params(context, model, action, dataset_, resource, internal):
                 yield model
     for ns_ in ns.names.values():
         if not internal and ns_.name.startswith('_'):
@@ -259,6 +256,7 @@ def traverse_ns_models(
             dataset_,
             resource,
             internal=internal,
+            source_check=source_check
         )
 
 

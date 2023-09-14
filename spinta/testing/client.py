@@ -224,6 +224,7 @@ def configure_remote_server(
                 'type': 'tabular',
                 'path': str(tmp_path / 'remote.csv'),
                 'backend': 'default',
+                'mode': local_rc.get('manifests', 'default', 'mode')
             },
         },
         'backends': ['default'],
@@ -245,7 +246,7 @@ def configure_remote_server(
     )
 
 
-def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite) -> RawConfig:
+def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite, mode: str = 'internal') -> RawConfig:
     return rc.fork({
         'manifests': {
             'default': {
@@ -253,6 +254,7 @@ def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite) -> RawConfig:
                 'path': str(tmp_path / 'manifest.csv'),
                 'backend': 'sql',
                 'keymap': 'default',
+                'mode': mode
             },
         },
         'backends': {
