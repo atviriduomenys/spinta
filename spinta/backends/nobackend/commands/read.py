@@ -1,4 +1,3 @@
-from spinta.backends.helpers import get_table_name
 from spinta.backends.nobackend.components import NoBackend
 from spinta.exceptions import BackendNotGiven
 from spinta import commands
@@ -15,8 +14,7 @@ def getall(
     *,
     query: Expr = None,
 ):
-    table = get_table_name(model)
-    raise BackendNotGiven(table)
+    raise BackendNotGiven(model)
 
 
 @commands.getone.register(Context, Model, NoBackend)
@@ -27,8 +25,7 @@ def getone(
     *,
     id_: str,
 ):
-    table = get_table_name(model)
-    raise BackendNotGiven(table)
+    raise BackendNotGiven(model)
 
 
 @commands.changes.register(Context, Model, NoBackend)
@@ -41,5 +38,4 @@ def changes(
     limit: int = 100,
     offset: int = -10,
 ):
-    table = get_table_name(model)
-    raise BackendNotGiven(table)
+    raise BackendNotGiven(model)

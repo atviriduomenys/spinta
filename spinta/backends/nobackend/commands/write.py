@@ -3,9 +3,8 @@ from typing import AsyncIterator
 from starlette.requests import Request
 
 from spinta import commands
-from spinta.types.datatype import File, DataType
-from spinta.backends.helpers import get_table_name
-from spinta.components import Context, Model, DataItem, Action, UrlParams, DataSubItem
+from spinta.types.datatype import File
+from spinta.components import Context, Model, DataItem, Action, UrlParams
 from spinta.backends.nobackend.components import NoBackend
 from spinta.exceptions import BackendNotGiven
 
@@ -19,8 +18,7 @@ async def insert(
     dstream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
 ):
-    table = get_table_name(model)
-    raise BackendNotGiven(table)
+    raise BackendNotGiven(model)
 
 
 @commands.update.register(Context, Model, NoBackend)
@@ -32,8 +30,7 @@ async def update(
     dstream: dict,
     stop_on_error: bool = True,
 ):
-    table = get_table_name(model)
-    raise BackendNotGiven(table)
+    raise BackendNotGiven(model)
 
 
 @commands.delete.register(Context, Model, NoBackend)
@@ -45,8 +42,7 @@ async def delete(
     dstream: AsyncIterator[DataItem],
     stop_on_error: bool = True,
 ):
-    table = get_table_name(model)
-    raise BackendNotGiven(table)
+    raise BackendNotGiven(model)
 
 
 @commands.push.register(Context, Request, File, NoBackend)
@@ -60,4 +56,4 @@ async def push(
     params: UrlParams,
 ):
     prop = dtype.prop
-    raise BackendNotGiven(model=prop.model.model_type())
+    raise BackendNotGiven(prop.model)

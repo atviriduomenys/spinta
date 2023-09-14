@@ -591,4 +591,4 @@ class InvalidRequestQuery(UserError):
 
 
 class BackendNotGiven(UserError):
-    template = "Model {model} does not have a backend or resource set, this means model is external or you simple set a backend in configuration."
+    template = "Model is operating in external mode, yet it does not have assigned backend to it."

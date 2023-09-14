@@ -10,6 +10,7 @@ from spinta import commands
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
+from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Node, Action, UrlParams
 from spinta.components import Model
@@ -21,7 +22,7 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
-from spinta.exceptions import UnavailableSubresource
+from spinta.exceptions import UnavailableSubresource, BackendNotGiven
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.utils.data import take
@@ -38,6 +39,8 @@ async def getall(
 ) -> Response:
     commands.authorize(context, action, model)
     backend = model.backend
+    if isinstance(backend, NoBackend):
+        raise BackendNotGiven(model)
     if isinstance(backend, ExternalBackend):
         # XXX: `add_count` is a hack, because, external backends do not
         #      support it yet.

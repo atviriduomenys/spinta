@@ -163,20 +163,16 @@ def link(context: Context, model: Model):
         else:
             model.backend = model.manifest.store.backends[model.backend]
     elif (
+        model.mode == Mode.external and
         model.external and
         model.external.resource and
         model.external.resource.backend
     ):
         model.backend = model.external.resource.backend
+    elif model.mode == Mode.external:
+        model.backend = NoBackend()
     else:
         model.backend = model.manifest.backend
-
-    if model.mode == Mode.external:
-        if not isinstance(model.backend, ExternalBackend):
-            model.backend = NoBackend()
-    else:
-        if isinstance(model.backend, ExternalBackend):
-            model.backend = NoBackend()
 
     if model.external and model.external.dataset:
         link_access_param(model, itertools.chain(

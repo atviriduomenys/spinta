@@ -442,7 +442,8 @@ def test_push_ref_with_level_no_source_status_code_400_check(
     cli: SpintaCliRunner,
     responses,
     tmp_path,
-    sqlite: Sqlite,
+    geodb,
+    request
 ):
     table = '''
     d | r | b | m | property | type    | ref                             | source         | level | access
@@ -459,30 +460,30 @@ def test_push_ref_with_level_no_source_status_code_400_check(
       |   |   |   | name     | string  |                                 |                | 2     | open
     '''
 
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
 
-    sqlite.init({
-        'salis': [
-            sa.Column('id', sa.Integer, primary_key=True),
-            sa.Column('kodas', sa.Text),
-            sa.Column('pavadinimas', sa.Text),
-        ],
-        'cities': [
-            sa.Column('id', sa.Integer, primary_key=True),
-            sa.Column('name', sa.Text),
-            sa.Column('country', sa.Integer),
-        ]
-    })
+    app = create_client(rc, tmp_path, geodb)
+    app.authmodel('leveldataset', ['getall'])
+    resp = app.get('leveldataset/City')
+    assert listdata(resp, 'id', 'name', 'country')[0] == (1, 'Vilnius', {'code': 2})
 
-    sqlite.write('salis', [
-            {'kodas': 'lt', 'pavadinimas': 'Lietuva', 'id': 1},
-            {'kodas': 'lv', 'pavadinimas': 'Latvija', 'id': 2},
-            {'kodas': 'ee', 'pavadinimas': 'Estija', 'id': 3},
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
     ])
-    sqlite.write('cities', [{'name': 'Vilnius', 'country': 2}])
+    assert result.exit_code == 0
+    remote.app.authmodel('leveldataset/Country', ['getall', 'search'])
+    resp_city = remote.app.get('leveldataset/Country')
 
-    app = create_client(rc, tmp_path, sqlite)
-    app.authmodel('leveldataset/countries', ['getall'])
-    resp = app.get('leveldataset/countries/Country')
-
-    assert resp.status_code == 400
+    assert resp_city.status_code == 400

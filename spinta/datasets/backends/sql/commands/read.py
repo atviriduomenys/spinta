@@ -88,8 +88,6 @@ def getall(
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
     for params in iterparams(context, model):
         table = model.external.name.format(**params)
-        if isinstance(backend, NoBackend):
-            raise BackendNotGiven(name=table)
         table = backend.get_table(model, table)
 
         env = builder.init(backend, table)
