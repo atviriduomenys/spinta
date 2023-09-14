@@ -588,3 +588,4 @@ class UnknownRequestQuery(UserError):
 
 class InvalidRequestQuery(UserError):
     template = "Query '{query}' requires '{format}' format."
+    
