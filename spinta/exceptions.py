@@ -161,8 +161,6 @@ def _render_template(error: BaseError):
         return error.template.format(**context)
 
 
-
-
 class MultipleErrors(Exception):
 
     def __init__(self, errors: Iterable[BaseError]):
@@ -582,3 +580,12 @@ class ReferringObjectFound(UserError):
 
 class CompositeUniqueConstraint(UserError):
     template = "Given values for composition of properties ({properties}) already exist."
+
+
+class UnknownRequestQuery(UserError):
+    template = "Request '{request}' does not support '{query}' query."
+
+
+class InvalidRequestQuery(UserError):
+    template = "Query '{query}' requires '{format}' format."
+    
