@@ -632,7 +632,7 @@ class PropertyReader(TabularReader):
                 result = '.'.join(split)
             else:
                 result = row['source']
-        if result == '':
+        if not result:
             return
         self._append_prepare(row, result)
 
@@ -1761,16 +1761,17 @@ def _property_to_tabular(
 
 def _prepare_to_tabular(data, prop):
     prep_rows = []
-    data['prepare'] = ''
-    for prep in prop.given.prepare:
-        if prep['appended']:
-            prep_rows.append(torow(DATASET, {
-                'source': prep['source'],
-                'prepare': prep['prepare']
-            }))
-        else:
-            if prop.external:
-                data['prepare'] = prep['prepare']
+    if prop.given.prepare:
+        data['prepare'] = ''
+        for prep in prop.given.prepare:
+            if prep['appended']:
+                prep_rows.append(torow(DATASET, {
+                    'source': prep['source'],
+                    'prepare': prep['prepare']
+                }))
+            else:
+                if prop.external:
+                    data['prepare'] = prep['prepare']
     return data, prep_rows
 
 
