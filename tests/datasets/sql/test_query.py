@@ -125,34 +125,6 @@ def test_unresolved_getattr(rc: RawConfig):
 
 
 def test_join_aliases(rc: RawConfig):
-    print(_build(rc, '''
-    d | r | b | m | property | type   | ref     | source     | prepare          | access
-    example                  |        |         |            |                  |
-      | data                 | sql    |         |            |                  |
-      |   |                  |        |         |            |                  |
-      |   |   | Planet       |        | id      | PLANET     | code = 'er'      |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | code     | string |         | CODE       |                  | open
-      |   |   |   | name     | string |         | NAME       |                  | open
-      |   |                  |        |         |            |                  |
-      |   |   | Country      |        | id      | COUNTRY    | code = 'lt'      |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | code     | string |         | CODE       |                  | open
-      |   |   |   | name     | string |         | NAME       |                  | open
-      |   |   |   | planet   | ref    | Planet  | PLANET_ID  |                  | open
-      |   |                  |        |         |            |                  |
-      |   |   | City         |        | id      | CITY       | name = 'Vilnius' |
-      |   |   |   | id       | string |         | ID         |                  | open
-      |   |   |   | name     | string |         | NAME       |                  | open
-      |   |   |   | country  | ref    | Country | COUNTRY_ID |                  | open
-      |   |   |   | planet   | ref    | Planet  | PLANET_ID  |                  | open
-      |   |                  |        |         |            |                  |
-      |   |   | Street       |        | name    | STREET     |                  |
-      |   |   |   | name     | string |         | NAME       |                  | open
-      |   |   |   | city     | ref    | City    | CITY_ID    |                  | open
-      |   |   |   | country  | ref    | Country | COUNTRY_ID |                  | open
-      |   |   |   | planet   | ref    | Planet  | PLANET_ID  |                  | open
-    ''', 'example/Street'))
     assert _build(rc, '''
     d | r | b | m | property | type   | ref     | source     | prepare          | access
     example                  |        |         |            |                  |
