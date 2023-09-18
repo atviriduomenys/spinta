@@ -129,30 +129,6 @@ def _generate_pk_for_row(model: Model, row: dict, keymap, pk_val: Any):
     return pk
 
 
-# def _generate_all_possible_variations(model: Model, row: dict, pk: Any):
-#     if pk:
-#         allowed_properties = []
-#         for name in sorted(model.properties.keys()):
-#             if not name.startswith("_"):
-#                 allowed_properties.append(name)
-#
-#         given_key = ''
-#         if model.external and not model.external.unknown_primary_key:
-#             disallowed_keys = []
-#             for key in model.external.pkeys:
-#                 disallowed_keys.append(key.name)
-#             joined = '_'.join(disallowed_keys)
-#             given_key = f'{model.model_type()}.{joined}'
-#
-#         ps = powerset(allowed_properties)
-#         for combination in ps:
-#             if combination:
-#                 joined = '_'.join(combination)
-#                 key = f'{model.model_type()}.{joined}'
-#                 if key != given_key:
-#                     yield key, _extract_values_from_row(row, combination)
-
-
 def _extract_values_from_row(row: dict, keys: list):
     return_list = []
     for key in keys:

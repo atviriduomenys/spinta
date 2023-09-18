@@ -19,6 +19,7 @@ from spinta.components import Context
 from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.types.datatype import Inherit
 from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek
 
@@ -101,7 +102,7 @@ def _filter_allowed_props_for_model(model: Model) -> (dict, bool):
         allowed_props = model.properties
         for name, prop in model.base.parent.properties.items():
             if not name.startswith('_'):
-                if name in allowed_props:
+                if name in allowed_props and isinstance(allowed_props[name].dtype, Inherit):
                     allowed_props.pop(name)
         return allowed_props, True
     return model.properties, False
