@@ -100,7 +100,7 @@ def getall(
                 val = _get_row_value(context, row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = generate_pk_for_row(model, row, keymap, val)
+                        val = generate_pk_for_row(sel.prop.model, row, keymap, val)
                     elif isinstance(sel.prop.dtype, Ref):
                         val = handle_ref_key_assignment(keymap, val, sel.prop)
                 res[key] = val
