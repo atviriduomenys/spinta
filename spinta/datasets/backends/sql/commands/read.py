@@ -5,10 +5,10 @@ from typing import Iterator
 from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
-from spinta.components import Context, Property
+from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.helpers import handle_ref_key_assignment
+from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row
 from spinta.typing import ObjectData
 from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
@@ -96,43 +96,14 @@ def getall(
             res = {
                 '_type': model.model_type(),
             }
-            pk = None
             for key, sel in env.selected.items():
                 val = _get_row_value(context, row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        pk = _generate_pk_for_row(model, row, keymap, val)
-                        val = pk
+                        val = generate_pk_for_row(model, row, keymap, val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        val = handle_ref_key_assignment(keymap, val, sel.prop, pk)
+                        val = handle_ref_key_assignment(keymap, val, sel.prop)
                 res[key] = val
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res
-
-
-def _generate_pk_for_row(model: Model, row: dict, keymap, pk_val: Any):
-    pk = None
-    if model.base:
-        pk_val_base = _extract_values_from_row(row, model.base.pk)
-        joined = '_'.join(pk.name for pk in model.base.pk)
-        key = f'{model.base.parent.model_type()}.{joined}'
-        pk = keymap.encode(key, pk_val_base)
-
-    pk = keymap.encode(model.model_type(), pk_val, pk)
-    if pk and model.required_keymap_properties:
-        for combination in model.required_keymap_properties:
-            joined = '_'.join(combination)
-            key = f'{model.model_type()}.{joined}'
-            val = _extract_values_from_row(row, combination)
-            keymap.encode(key, val, pk)
-    return pk
-
-
-def _extract_values_from_row(row: dict, keys: list):
-    return_list = []
-    for key in keys:
-        if isinstance(key, Property):
-            key = key.name
-        return_list.append(row[key])
-    return return_list
