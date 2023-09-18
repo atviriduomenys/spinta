@@ -11,7 +11,6 @@ from typing import Tuple
 
 import tqdm
 
-import spinta.components
 from spinta import commands
 from spinta import components
 from spinta.cli.helpers.errors import ErrorCounter
@@ -33,8 +32,6 @@ def _get_row_count(
     model: components.Model,
 ) -> int:
     query = Expr('select', Expr('count'))
-    if isinstance(model, spinta.components.Base):
-        model = model.model
     stream = commands.getall(context, model, model.backend, query=query)
     for data in stream:
         return data['count()']
@@ -80,9 +77,6 @@ def _read_model_data(
     else:
         query = Expr('limit', limit)
 
-    if isinstance(model, spinta.components.Base):
-        model = model.model
-
     stream = commands.getall(context, model, model.backend, query=query)
 
     if stop_on_error:
@@ -94,7 +88,31 @@ def _read_model_data(
             log.exception(f"Error when reading data from model {model.name}")
             return
 
-    yield from stream
+    prop_filer, needs_filtering = _filter_allowed_props_for_model(model)
+
+    for item in stream:
+        if needs_filtering:
+            item = _filter_dict_by_keys(prop_filer, item)
+        yield item
+
+
+def _filter_allowed_props_for_model(model: Model) -> (dict, bool):
+    if model.base:
+        allowed_props = model.properties
+        for name, prop in model.base.parent.properties.items():
+            if not name.startswith('_'):
+                if name in allowed_props:
+                    allowed_props.pop(name)
+        return allowed_props, True
+    return model.properties, False
+
+
+def _filter_dict_by_keys(dict1: dict, dict2: dict) -> dict:
+    result = {}
+    for key in dict1:
+        if key in dict2:
+            result[key] = dict2[key]
+    return result
 
 
 def iter_model_rows(

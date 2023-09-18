@@ -5,7 +5,7 @@ from typing import Iterator
 from sqlalchemy.engine.row import RowProxy
 
 from spinta import commands
-from spinta.components import Context
+from spinta.components import Context, Property
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.helpers import handle_ref_key_assignment
@@ -25,7 +25,7 @@ from spinta.types.datatype import Ref
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
-import sqlalchemy as sa
+
 
 log = logging.getLogger(__name__)
 
@@ -96,12 +96,13 @@ def getall(
             res = {
                 '_type': model.model_type(),
             }
+            pk = None
             for key, sel in env.selected.items():
                 val = _get_row_value(context, row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = keymap.encode(sel.prop.model.model_type(), val)
-                        pk = val
+                        pk = _generate_pk_for_row(model, row, keymap, val)
+                        val = pk
                     elif isinstance(sel.prop.dtype, Ref):
                         val = handle_ref_key_assignment(keymap, val, sel.prop, pk)
                 res[key] = val
@@ -110,3 +111,52 @@ def getall(
             yield res
 
 
+def _generate_pk_for_row(model: Model, row: dict, keymap, pk_val: Any):
+    pk = None
+    if model.base:
+        pk_val_base = _extract_values_from_row(row, model.base.pk)
+        joined = '_'.join(pk.name for pk in model.base.pk)
+        key = f'{model.base.parent.model_type()}.{joined}'
+        pk = keymap.encode(key, pk_val_base)
+
+    pk = keymap.encode(model.model_type(), pk_val, pk)
+    if pk and model.required_keymap_properties:
+        for combination in model.required_keymap_properties:
+            joined = '_'.join(combination)
+            key = f'{model.model_type()}.{joined}'
+            val = _extract_values_from_row(row, combination)
+            keymap.encode(key, val, pk)
+    return pk
+
+
+# def _generate_all_possible_variations(model: Model, row: dict, pk: Any):
+#     if pk:
+#         allowed_properties = []
+#         for name in sorted(model.properties.keys()):
+#             if not name.startswith("_"):
+#                 allowed_properties.append(name)
+#
+#         given_key = ''
+#         if model.external and not model.external.unknown_primary_key:
+#             disallowed_keys = []
+#             for key in model.external.pkeys:
+#                 disallowed_keys.append(key.name)
+#             joined = '_'.join(disallowed_keys)
+#             given_key = f'{model.model_type()}.{joined}'
+#
+#         ps = powerset(allowed_properties)
+#         for combination in ps:
+#             if combination:
+#                 joined = '_'.join(combination)
+#                 key = f'{model.model_type()}.{joined}'
+#                 if key != given_key:
+#                     yield key, _extract_values_from_row(row, combination)
+
+
+def _extract_values_from_row(row: dict, keys: list):
+    return_list = []
+    for key in keys:
+        if isinstance(key, Property):
+            key = key.name
+        return_list.append(row[key])
+    return return_list

@@ -50,7 +50,7 @@ from spinta.components import Model
 from spinta.components import Store
 from spinta.core.context import configure_context
 from spinta.manifests.components import Manifest
-from spinta.types.namespace import sort_models_by_refs
+from spinta.types.namespace import sort_models_by_refs, sort_models_by_base
 from spinta.utils.data import take
 from spinta.utils.json import fix_data_for_json
 from spinta.utils.nestedstruct import flatten
@@ -164,9 +164,9 @@ def push(
         _attach_keymaps(context, store)
 
         from spinta.types.namespace import traverse_ns_models
-
         models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
         models = sort_models_by_refs(models)
+        models = sort_models_by_base(models)
         models = list(reversed(list(models)))
 
         if state:

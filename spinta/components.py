@@ -492,6 +492,8 @@ class Model(MetaData):
     base: Base = None
     uri: str = None
 
+    required_keymap_properties = []
+
     schema = {
         'keymap': {'type': 'string'},
         'backend': {'type': 'string'},
@@ -532,6 +534,7 @@ class Model(MetaData):
         self.leafprops = {}
         self.given = ModelGiven()
         self.params = {}
+        self.required_keymap_properties = []
 
     def model_type(self):
         return self.name
@@ -541,6 +544,12 @@ class Model(MetaData):
             return self.name.split('/')[-1]
         else:
             return self.name
+
+    def add_keymap_property_combination(self, given_props: List[Property]):
+        given_props.sort(key=lambda x: x.name)
+        extract_names = list([prop.name for prop in given_props])
+        if extract_names not in self.required_keymap_properties:
+            self.required_keymap_properties.append(extract_names)
 
 
 class PropertyGiven:

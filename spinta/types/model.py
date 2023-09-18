@@ -199,6 +199,7 @@ def link(context: Context, base: Base):
         base.parent.properties[pk]
         for pk in base.pk
     ] if base.pk else []
+    base.parent.add_keymap_property_combination(base.pk)
 
 
 @load.register(Context, Property, dict, Manifest)

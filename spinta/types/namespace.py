@@ -240,15 +240,10 @@ def traverse_ns_models(
     *,
     internal: bool = False,
 ):
-    models = (ns.manifest.models or {})
+    models = (ns.models or {})
     for model in models.values():
-        if _model_matches_params(context, model, action, dataset_, resource, internal, True if model.base else False):
-            if model.base:
-                tmp_model_base_list = [model, model.base]
-                for tmp_model in tmp_model_base_list:
-                    yield tmp_model
-            else:
-                yield model
+        if _model_matches_params(context, model, action, dataset_, resource, internal):
+            yield model
     for ns_ in ns.names.values():
         if not internal and ns_.name.startswith('_'):
             continue
@@ -269,10 +264,7 @@ def _model_matches_params(
     dataset_: Optional[str] = None,
     resource: Optional[str] = None,
     internal: bool = False,
-    base: bool = False
 ):
-    if base:
-        return True
 
     if not internal and model.name.startswith('_'):
         return False
@@ -450,8 +442,32 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
             yield models[name]
 
 
+def sort_models_by_base(models: Iterable[Model]) -> Iterator[Model]:
+    models = {model.model_type(): model for model in models}
+    graph = collections.defaultdict(set)
+    for name, model in models.items():
+        graph[''].add(name)
+        for base in iter_model_base(model):
+            ref = base.model_type()
+            if ref in models:
+                graph[ref].add(name)
+    graph = toposort(graph)
+    seen = {''}
+    for group in graph:
+        for name in sorted(group):
+            if name in seen:
+                continue
+            seen.add(name)
+            yield models[name]
+
+
+def iter_model_base(model: Model) -> Iterator[Model]:
+    if model.base:
+        yield from iter_model_base(model.base.parent)
+        yield model.base.parent
+
+
 def iter_model_refs(model: Model) -> Iterator[Ref]:
-    if not isinstance(model, spinta.components.Base):
-        for prop in model.properties.values():
-            if prop.dtype.name == 'ref':
-                yield prop.dtype
+    for prop in model.properties.values():
+        if prop.dtype.name == 'ref':
+            yield prop.dtype
