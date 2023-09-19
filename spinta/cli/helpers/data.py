@@ -92,15 +92,14 @@ def read_model_data(
             log.exception(f"Error when reading data from model {model.name}")
             return
 
-    prop_filer, needs_filtering = _filter_allowed_props_for_model(model)
-
+    prop_filer, needs_filtering = filter_allowed_props_for_model(model)
     for item in stream:
         if needs_filtering:
-            item = _filter_dict_by_keys(prop_filer, item)
+            item = filter_dict_by_keys(prop_filer, item)
         yield item
 
 
-def _filter_allowed_props_for_model(model: Model) -> (dict, bool):
+def filter_allowed_props_for_model(model: Model) -> (dict, bool):
     if model.base:
         allowed_props = model.properties
         for name, prop in model.base.parent.properties.items():
@@ -111,7 +110,7 @@ def _filter_allowed_props_for_model(model: Model) -> (dict, bool):
     return model.properties, False
 
 
-def _filter_dict_by_keys(dict1: dict, dict2: dict) -> dict:
+def filter_dict_by_keys(dict1: dict, dict2: dict) -> dict:
     result = {}
     for key in dict1:
         if key in dict2:
