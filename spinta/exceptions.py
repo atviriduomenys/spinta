@@ -588,4 +588,37 @@ class UnknownRequestQuery(UserError):
 
 class InvalidRequestQuery(UserError):
     template = "Query '{query}' requires '{format}' format."
-    
+
+
+class InvalidPageParameterCount(UserError):
+    template = "Parameter 'page' only accepts one of page key, size, or disable attributes."
+
+
+class InvalidPushWithPageParameterCount(UserError):
+    template = "Given push page property count does not match model required properties: {properties}."
+
+
+class InvalidPageKey(UserError):
+    template = "Given '{key}' page key is invalid."
+
+
+class InfiniteLoopWithPagination(BaseError):
+    template = "Pagination values has cause infinite loop while fetching data."
+
+
+class DuplicateRowWhilePaginating(BaseError):
+    template = "Encountered a duplicate row with page key: '{key}'"
+
+
+class UnauthorizedPropertyPush(UserError):
+    code = 403
+    template = "You do not have permission to push this property."
+
+
+class InvalidArgumentInExpression(BaseError):
+    template = "Invalid {arguments} arguments given to {expr} expression."
+
+
+class BackendNotGiven(UserError):
+    template = "Model is operating in external mode, yet it does not have assigned backend to it."
+

@@ -31,6 +31,7 @@ from spinta.testing.context import TestContext
 from spinta.testing.context import create_test_context
 from spinta.auth import create_client_file
 from spinta.testing.config import create_config_path
+from spinta.testing.datasets import Sqlite
 
 
 def create_test_client(
@@ -196,3 +197,78 @@ def get_html_tree(resp: requests.Response) -> Union[
     lxml.html.HtmlMixin,
 ]:
     return lxml.html.fromstring(resp.text)
+
+
+def configure_remote_server(
+    cli,
+    local_rc: RawConfig,
+    rc: RawConfig,
+    tmp_path: pathlib.Path,
+    responses,
+    remove_source: bool = True
+):
+    invoke_props = [
+        'copy',
+        '--access', 'open',
+        '-o', tmp_path / 'remote.csv',
+        tmp_path / 'manifest.csv',
+    ]
+    if remove_source:
+        invoke_props.append('--no-source')
+    cli.invoke(local_rc, invoke_props)
+
+    # Create remote server with PostgreSQL backend
+    remote_rc = rc.fork({
+        'manifests': {
+            'default': {
+                'type': 'tabular',
+                'path': str(tmp_path / 'remote.csv'),
+                'backend': 'default',
+                'mode': local_rc.get('manifests', 'default', 'mode')
+            },
+        },
+        'backends': ['default'],
+    })
+    return create_remote_server(
+        remote_rc,
+        tmp_path,
+        responses,
+        scopes=[
+            'spinta_set_meta_fields',
+            'spinta_getone',
+            'spinta_getall',
+            'spinta_search',
+            'spinta_insert',
+            'spinta_patch',
+            'spinta_delete',
+        ],
+        credsfile=True,
+    )
+
+
+def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite, mode: str = 'internal') -> RawConfig:
+    return rc.fork({
+        'manifests': {
+            'default': {
+                'type': 'tabular',
+                'path': str(tmp_path / 'manifest.csv'),
+                'backend': 'sql',
+                'keymap': 'default',
+                'mode': mode
+            },
+        },
+        'backends': {
+            'sql': {
+                'type': 'sql',
+                'dsn': db.dsn,
+            },
+        },
+        # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
+        'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
+    })
+
+
+def create_client(rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite):
+    rc = create_rc(rc, tmp_path, geodb)
+    context = create_test_context(rc)
+    return create_test_client(context)

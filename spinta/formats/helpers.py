@@ -132,7 +132,7 @@ def get_model_tabular_header(
             if model.name == '_ns':
                 reserved = get_ns_reserved_props(action)
             else:
-                reserved = get_model_reserved_props(action)
+                reserved = get_model_reserved_props(action, model)
         select = get_select_tree(context, action, params.select)
         if model.name == '_ns':
             names = get_select_prop_names(

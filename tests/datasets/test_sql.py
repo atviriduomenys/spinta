@@ -14,17 +14,15 @@ from responses import RequestsMock
 
 from spinta.client import add_client_credentials
 from spinta.core.config import RawConfig
+from spinta.utils.schema import NA
+from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.data import listdata
-from spinta.testing.client import create_test_client
-from spinta.testing.context import create_test_context
+from spinta.testing.client import create_client, create_rc, configure_remote_server
 from spinta.testing.datasets import Sqlite
 from spinta.testing.datasets import create_sqlite_db
-from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.utils import error
-from spinta.testing.client import create_remote_server
-from spinta.utils.schema import NA
 
 
 @pytest.fixture(scope='module')
@@ -40,6 +38,11 @@ def geodb():
             sa.Column('pavadinimas', sa.Text),
             sa.Column('salis', sa.Text),
         ],
+        'cities': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name', sa.Text),
+            sa.Column('country', sa.Integer),
+        ]
     }) as db:
         db.write('salis', [
             {'kodas': 'lt', 'pavadinimas': 'Lietuva'},
@@ -51,80 +54,10 @@ def geodb():
             {'salis': 'lv', 'pavadinimas': 'Ryga'},
             {'salis': 'ee', 'pavadinimas': 'Talinas'},
         ])
+        db.write('cities', [
+            {'name': 'Vilnius', 'country': 2},
+        ])
         yield db
-
-
-def create_rc(rc: RawConfig, tmp_path: pathlib.Path, db: Sqlite) -> RawConfig:
-    return rc.fork({
-        'manifests': {
-            'default': {
-                'type': 'tabular',
-                'path': str(tmp_path / 'manifest.csv'),
-                'backend': 'sql',
-                'keymap': 'default',
-            },
-        },
-        'backends': {
-            'sql': {
-                'type': 'sql',
-                'dsn': db.dsn,
-            },
-        },
-        # tests/config/clients/3388ea36-4a4f-4821-900a-b574c8829d52.yml
-        'default_auth_client': '3388ea36-4a4f-4821-900a-b574c8829d52',
-    })
-
-
-def configure_remote_server(
-    cli,
-    local_rc: RawConfig,
-    rc: RawConfig,
-    tmp_path: pathlib.Path,
-    responses,
-    remove_source: bool = True
-):
-    invoke_props = [
-        'copy',
-        '--access', 'open',
-        '-o', tmp_path / 'remote.csv',
-        tmp_path / 'manifest.csv',
-    ]
-    if remove_source:
-        invoke_props.append('--no-source')
-    cli.invoke(local_rc, invoke_props)
-
-    # Create remote server with PostgreSQL backend
-    remote_rc = rc.fork({
-        'manifests': {
-            'default': {
-                'type': 'tabular',
-                'path': str(tmp_path / 'remote.csv'),
-                'backend': 'default',
-            },
-        },
-        'backends': ['default'],
-    })
-    return create_remote_server(
-        remote_rc,
-        tmp_path,
-        responses,
-        scopes=[
-            'spinta_set_meta_fields',
-            'spinta_getone',
-            'spinta_getall',
-            'spinta_search',
-            'spinta_insert',
-            'spinta_patch',
-            'spinta_delete',
-        ],
-        credsfile=True,
-    )
-
-
-def create_client(rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite):
-    rc = create_rc(rc, tmp_path, geodb)
-    context = create_test_context(rc)
-    return create_test_client(context)
 
 
 def test_filter(rc, tmp_path, geodb):

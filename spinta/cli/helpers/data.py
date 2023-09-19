@@ -19,6 +19,7 @@ from spinta.components import Context
 from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
+from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
 from spinta.types.datatype import Inherit
 from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek
@@ -33,6 +34,8 @@ def _get_row_count(
     model: components.Model,
 ) -> int:
     query = Expr('select', Expr('count'))
+    if model.page.is_enabled:
+        query = add_page_expr(query, model.page)
     stream = commands.getall(context, model, model.backend, query=query)
     for data in stream:
         return data['count()']
@@ -66,7 +69,7 @@ def count_rows(
     return counts
 
 
-def _read_model_data(
+def read_model_data(
     context: components.Context,
     model: components.Model,
     limit: int = None,
@@ -126,7 +129,7 @@ def iter_model_rows(
     no_progress_bar: bool = False,
 ) -> Iterator[ModelRow]:
     for model in models:
-        rows = _read_model_data(context, model, limit, stop_on_error)
+        rows = read_model_data(context, model, limit, stop_on_error)
         if not no_progress_bar:
             count = counts.get(model.name)
             rows = tqdm.tqdm(rows, model.name, ascii=True, total=count, leave=False)
