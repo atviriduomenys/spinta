@@ -291,8 +291,6 @@ def simple_data_check(
         raise exceptions.NotImplementedFeature(prop, feature="Ability to indirectly modify base parameters")
 
 
-
-
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
 def complex_data_check(
     context: Context,

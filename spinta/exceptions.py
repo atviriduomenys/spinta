@@ -617,3 +617,8 @@ class UnauthorizedPropertyPush(UserError):
 
 class InvalidArgumentInExpression(BaseError):
     template = "Invalid {arguments} arguments given to {expr} expression."
+
+
+class BackendNotGiven(UserError):
+    template = "Model is operating in external mode, yet it does not have assigned backend to it."
+

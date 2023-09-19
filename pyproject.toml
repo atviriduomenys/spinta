@@ -60,6 +60,7 @@ frictionless = {extras = ["sql"], version = "^3.48.0"}
 sqlparse = "^0.4.3"
 pprintpp = "^0.4.0"
 rdflib = '^6.3.2'
+numpy = '1.24.4'
 
 # CLI tool
 click = "^8.1.3"

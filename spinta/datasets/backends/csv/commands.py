@@ -169,7 +169,7 @@ def getall(
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = keymap.encode(sel.prop.model.model_type(), val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        val = handle_ref_key_assignment(keymap, val, sel.prop)
+                        val = handle_ref_key_assignment(keymap, val, sel.prop, None)
                 res[key] = val
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res

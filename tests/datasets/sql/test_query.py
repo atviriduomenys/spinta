@@ -38,6 +38,8 @@ def _qry(qry: Select, indent: int = 4) -> str:
 def _get_sql_type(dtype: DataType) -> Type[TypeEngine]:
     if isinstance(dtype, Ref):
         return _get_sql_type(dtype.refprops[0].dtype)
+    if dtype.name == 'integer':
+        return sa.Integer
     if dtype.name == 'string':
         return sa.Text
     if dtype.name == 'boolean':
@@ -123,7 +125,7 @@ def test_unresolved_getattr(rc: RawConfig):
     ''', 'example/City') == '''
     SELECT
       "CITY"."NAME",
-      "CITY"."COUNTRY"
+      "COUNTRY_1"."NAME" AS "NAME_1"
     FROM "CITY"
     LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_1" ON "CITY"."COUNTRY" = "COUNTRY_1"."NAME"
     WHERE "COUNTRY_1"."DEMOCRATIC"
@@ -161,24 +163,24 @@ def test_join_aliases(rc: RawConfig):
     ''', 'example/Street') == '''
     SELECT
       "STREET"."NAME",
-      "STREET"."CITY_ID",
-      "STREET"."COUNTRY_ID",
-      "STREET"."PLANET_ID"
+      "CITY_1"."ID",
+      "COUNTRY_1"."ID" AS "ID_1",
+      "PLANET_1"."ID" AS "ID_2"
     FROM "STREET"
     LEFT OUTER JOIN "CITY" AS "CITY_1" ON "STREET"."CITY_ID" = "CITY_1"."ID"
-    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_1" ON "CITY_1"."COUNTRY_ID" = "COUNTRY_1"."ID"
-    LEFT OUTER JOIN "PLANET" AS "PLANET_1" ON "COUNTRY_1"."PLANET_ID" = "PLANET_1"."ID"
-    LEFT OUTER JOIN "PLANET" AS "PLANET_2" ON "CITY_1"."PLANET_ID" = "PLANET_2"."ID"
-    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_2" ON "STREET"."COUNTRY_ID" = "COUNTRY_2"."ID"
-    LEFT OUTER JOIN "PLANET" AS "PLANET_3" ON "COUNTRY_2"."PLANET_ID" = "PLANET_3"."ID"
-    LEFT OUTER JOIN "PLANET" AS "PLANET_4" ON "STREET"."PLANET_ID" = "PLANET_4"."ID"
+    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_2" ON "CITY_1"."COUNTRY_ID" = "COUNTRY_2"."ID"
+    LEFT OUTER JOIN "PLANET" AS "PLANET_2" ON "COUNTRY_2"."PLANET_ID" = "PLANET_2"."ID"
+    LEFT OUTER JOIN "PLANET" AS "PLANET_3" ON "CITY_1"."PLANET_ID" = "PLANET_3"."ID"
+    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_1" ON "STREET"."COUNTRY_ID" = "COUNTRY_1"."ID"
+    LEFT OUTER JOIN "PLANET" AS "PLANET_4" ON "COUNTRY_1"."PLANET_ID" = "PLANET_4"."ID"
+    LEFT OUTER JOIN "PLANET" AS "PLANET_1" ON "STREET"."PLANET_ID" = "PLANET_1"."ID"
     WHERE ("CITY_1"."NAME" IS NULL OR "CITY_1"."NAME" = :NAME_1)
-      AND ("COUNTRY_1"."CODE" IS NULL OR "COUNTRY_1"."CODE" = :CODE_1)
-      AND ("PLANET_1"."CODE" IS NULL OR "PLANET_1"."CODE" = :CODE_2)
-      AND ("PLANET_2"."CODE" IS NULL OR "PLANET_2"."CODE" = :CODE_3)
-      AND ("COUNTRY_2"."CODE" IS NULL OR "COUNTRY_2"."CODE" = :CODE_4)
-      AND ("PLANET_3"."CODE" IS NULL OR "PLANET_3"."CODE" = :CODE_5)
-      AND ("PLANET_4"."CODE" IS NULL OR "PLANET_4"."CODE" = :CODE_6)
+      AND ("COUNTRY_2"."CODE" IS NULL OR "COUNTRY_2"."CODE" = :CODE_1)
+      AND ("PLANET_2"."CODE" IS NULL OR "PLANET_2"."CODE" = :CODE_2)
+      AND ("PLANET_3"."CODE" IS NULL OR "PLANET_3"."CODE" = :CODE_3)
+      AND ("COUNTRY_1"."CODE" IS NULL OR "COUNTRY_1"."CODE" = :CODE_4)
+      AND ("PLANET_4"."CODE" IS NULL OR "PLANET_4"."CODE" = :CODE_5)
+      AND ("PLANET_1"."CODE" IS NULL OR "PLANET_1"."CODE" = :CODE_6)
     '''
 
 
@@ -218,6 +220,25 @@ def test_group_2(rc: RawConfig):
     FROM "COUNTRY"
     WHERE ("COUNTRY"."CODE" IS NULL OR "COUNTRY"."CODE" = :CODE_1)
       AND ("COUNTRY"."NAME" IS NULL OR "COUNTRY"."NAME")
+    '''
+
+
+def test_explicit_ref(rc: RawConfig):
+    assert _build(rc, '''
+    d | r | b | m | property   | type    | ref           | source     | access
+    example                    |         |               |            |
+      |   |   | Country        |         | id            | COUNTRY    |
+      |   |   |   | id         | integer |               | ID         | open
+      |   |   |   | code       | string  |               | NAME       | open
+      |   |   | City           |         | name          | CITY       |
+      |   |   |   | name       | string  |               | NAME       | open
+      |   |   |   | country    | ref     | Country[code] | COUNTRY_ID | open
+    ''', 'example/City') == '''
+    SELECT
+      "CITY"."NAME",
+      "COUNTRY_1"."ID"
+    FROM "CITY"
+    LEFT OUTER JOIN "COUNTRY" AS "COUNTRY_1" ON "CITY"."COUNTRY_ID" = "COUNTRY_1"."NAME"
     '''
 
 

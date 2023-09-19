@@ -11,6 +11,7 @@ from spinta import commands
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import Backend
+from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Node, Action, UrlParams, Page, PageBy
 from spinta.components import Model
@@ -23,7 +24,7 @@ from spinta.types.datatype import Object
 from spinta.types.datatype import File
 from spinta.accesslog import AccessLog
 from spinta.accesslog import log_response
-from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, DuplicateRowWhilePaginating
+from spinta.exceptions import UnavailableSubresource, InfiniteLoopWithPagination, DuplicateRowWhilePaginating, BackendNotGiven
 from spinta.exceptions import ItemDoesNotExist
 from spinta.types.datatype import DataType
 from spinta.typing import ObjectData
@@ -43,10 +44,11 @@ async def getall(
     params: UrlParams,
 ) -> Response:
     commands.authorize(context, action, model)
-
     backend = model.backend
-    copy_page = prepare_page_for_get_all(context, model, params)
+    if isinstance(backend, NoBackend):
+        raise BackendNotGiven(model)
 
+    copy_page = prepare_page_for_get_all(context, model, params)
     is_page_enabled = not params.count and backend.paginated and copy_page and copy_page and copy_page.is_enabled
 
     if isinstance(backend, ExternalBackend):
