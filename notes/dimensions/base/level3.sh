@@ -52,6 +52,32 @@ poetry run spinta show
 #|     return self._index[key]
 #|            ~~~~~~~~~~~^^^^^
 #| KeyError: 'id'
+# TODO: Error is caused by Country.id, which is inherited, but also used as
+#       Country's primary key. If model has a base, then model's model.ref must
+#       be an inherited property, because in order to join model and base, a
+#       property from base must be used.
+
+cat > $BASEDIR/manifest.txt <<EOF
+d | r | b | m | property | type    | ref     | level | access
+$DATASET                 |         |         |       |
+  |   |   | Location     |         | id      | 4     |
+  |   |   |   | id       | integer |         | 4     | open
+  |   |   |   | name     | string  |         | 4     | open
+  |   |   |   |          |         |         |       |     
+  |   | Location         |         | id      | 4     |
+  |   |   | Country      |         | id      | 4     |
+  |   |   |   | id       | integer |         | 4     | open
+  |   |   |   | name     | string  |         | 4     | open
+  |   |   |   |          |         |         |       |     
+  |   | Location         |         | name    | 3     |
+  |   |   | City         |         | id      | 4     |
+  |   |   |   | id       | integer |         | 4     | open
+  |   |   |   | name     | string  |         | 4     | open
+  |   |   |   | country  | ref     | Country | 4     | open
+EOF
+poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
+cat $BASEDIR/manifest.csv
+poetry run spinta show
 
 poetry run spinta bootstrap
 psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
@@ -67,6 +93,7 @@ psql -h localhost -p 54321 -U admin spinta -c '\d "'$DATASET'/Country"'
 #|  name      | text                        |           |          | 
 #| Indexes:
 #|     "dimensions/base/level3/Country_pkey" PRIMARY KEY, btree (_id)
+#|     "dimensions/base/level3/Country_id_key" UNIQUE CONSTRAINT, btree (id)
 #|     "ix_dimensions/base/level3/Country__txn" btree (_txn)
 #| Foreign-key constraints:
 #|     "fk_dimensions/base/level3/Location_id"
@@ -91,11 +118,38 @@ psql -h localhost -p 54321 -U admin spinta -c '\d "'$DATASET'/City"'
 #|  country._id | uuid                        |           |          | 
 #| Indexes:
 #|     "dimensions/base/level3/City_pkey" PRIMARY KEY, btree (_id)
+#|     "dimensions/base/level3/City_id_key" UNIQUE CONSTRAINT, btree (id)
 #|     "ix_dimensions/base/level3/City__txn" btree (_txn)
 #| Foreign-key constraints:
 #|     "fk_dimensions/base/level3/City_country._id"
 #|         FOREIGN KEY ("country._id")
 #|         REFERENCES "dimensions/base/level3/Country"(_id)
-#|     "fk_dimensions/base/level3/Location_id"
-#|         FOREIGN KEY (_id)
-#|         REFERENCES "dimensions/base/level3/Location"(_id)
+
+# notes/spinta/server.sh    Run server
+# notes/spinta/client.sh    Configure client
+
+LTU=37f3be0c-6533-48d5-8ee5-4fab07ad18ae
+VLN=9dc732fb-7df2-454c-8bf1-04e35d5f651b
+
+http POST "$SERVER/$DATASET/Location" $AUTH _id=$LTU name=Lithuania
+http POST "$SERVER/$DATASET/Location" $AUTH _id=$VLN name=Vilnius
+
+http POST "$SERVER/$DATASET/Country" $AUTH _id=$LTU name=Lithuania
+http POST "$SERVER/$DATASET/City" $AUTH _id=$VLN 'country[_id]'=$LTU name=Vilnius
+
+
+http GET "$SERVER/$DATASET/Location?format(ascii)"
+#| id  name     
+#| --  ---------
+#| ∅   Lithuania
+#| ∅   Vilnius
+
+http GET "$SERVER/$DATASET/Country?format(ascii)"
+#| id  name     
+#| --  ---------
+#| ∅   Lithuania
+
+http GET "$SERVER/$DATASET/City?format(ascii)"
+#| id  name     country._id                         
+#| --  -------  ------------------------------------
+#| ∅   Vilnius  37f3be0c-6533-48d5-8ee5-4fab07ad18ae
