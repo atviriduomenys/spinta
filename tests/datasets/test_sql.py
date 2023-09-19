@@ -2669,7 +2669,7 @@ def test_swap_multi_with_multi_lines(rc, tmp_path, geodb):
        |   |   |                  |             |        |         |        |
        |   |   |   | country      | salis       |        | code    | open   |
        |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT')
-       |   |   |   |   |          | 'lv'        |        |         |        | swap('LV')
+       |   |   |   |   |          | lv        |        |         |        | swap('LV')
        |   |   |   |   | name     | pavadinimas | string |         |        |
     '''))
 
@@ -2691,7 +2691,7 @@ def test_swap_multi_with_multi_lines_all_to_same(rc, tmp_path, geodb):
        |   |   |                  |             |        |         |        |
        |   |   |   | country      | salis       |        | code    | open   |
        |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'CODE')
-       |   |   |   |   |          | 'lv'        |        |         |        | swap('CODE')
+       |   |   |   |   |          | lv          |        |         |        | swap('CODE')
        |   |   |   |   |          |             |        |         |        | swap('ee', 'CODE')
        |   |   |   |   | name     | pavadinimas | string |         |        |
     '''))
