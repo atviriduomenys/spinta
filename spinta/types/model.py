@@ -45,6 +45,8 @@ from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
 from spinta.types.datatype import Ref
+from spinta.backends.nobackend.components import NoBackend
+from spinta.datasets.components import ExternalBackend
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -167,6 +169,8 @@ def link(context: Context, model: Model):
         model.external.resource.backend
     ):
         model.backend = model.external.resource.backend
+    elif model.mode == Mode.external:
+        model.backend = NoBackend()
     else:
         model.backend = model.manifest.backend
 
@@ -261,7 +265,6 @@ def load(
         prop.unit = unit
     else:
         prop.given.enum = unit
-
     return prop
 
 

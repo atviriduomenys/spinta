@@ -588,4 +588,8 @@ class UnknownRequestQuery(UserError):
 
 class InvalidRequestQuery(UserError):
     template = "Query '{query}' requires '{format}' format."
+
     
+class BackendNotGiven(UserError):
+    template = "Model is operating in external mode, yet it does not have assigned backend to it."
+
