@@ -26,6 +26,7 @@ from spinta.types.datatype import Ref
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
+import sqlalchemy as sa
 
 log = logging.getLogger(__name__)
 
@@ -79,23 +80,19 @@ def getall(
     conn = context.get(f'transaction.{backend.name}')
     builder = SqlQueryBuilder(context)
     builder.update(model=model)
-
     # Merge user passed query with query set in manifest.
     query = merge_formulas(model.external.prepare, query)
     query = merge_formulas(query, get_enum_filters(context, model))
     query = merge_formulas(query, get_ref_filters(context, model))
-
     keymap: KeyMap = context.get(f'keymap.{model.keymap.name}')
     for params in iterparams(context, model):
         table = model.external.name.format(**params)
         table = backend.get_table(model, table)
-
         env = builder.init(backend, table)
         env.update(params=params)
         expr = env.resolve(query)
         where = env.execute(expr)
         qry = env.build(where)
-
         for row in conn.execute(qry):
             res = {
                 '_type': model.model_type(),
@@ -105,8 +102,9 @@ def getall(
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
                         val = keymap.encode(sel.prop.model.model_type(), val)
+                        pk = val
                     elif isinstance(sel.prop.dtype, Ref):
-                        val = handle_ref_key_assignment(keymap, val, sel.prop)
+                        val = handle_ref_key_assignment(keymap, val, sel.prop, pk)
                 res[key] = val
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)

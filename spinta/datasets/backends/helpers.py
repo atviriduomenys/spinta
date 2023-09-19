@@ -5,9 +5,9 @@ from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import NotImplementedFeature
 
 
-def handle_ref_key_assignment(keymap: KeyMap, value: Any, prop: Property) -> dict:
+def handle_ref_key_assignment(keymap: KeyMap, value: Any, prop: Property, pk) -> dict:
     if not prop.level or prop.level.value > 3:
-        val = keymap.encode(prop.dtype.model.model_type(), value)
+        val = keymap.encode(prop.dtype.model.model_type(), value, pk)
         val = {'_id': val}
     else:
         if len(prop.dtype.refprops) > 1 and not prop.model.external.unknown_primary_key:

@@ -3,8 +3,33 @@
 Changes
 #######
 
-0.1.54 (unreleased)
+0.1.56 (unreleased)
 ===================
+
+
+0.1.55 (2023-08-18)
+===================
+
+New features:
+
+- Summary for numeric and date types (`#452`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/452
+
+- Summary for geometry types (`#451`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/451
+
+Bug fixes:
+
+- Fixed error on `_id>"UUID"` (`#490`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/490
+
+
+- Fixed an error with unique constraints (`#500`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/500
 
 
 0.1.53 (2023-08-01)
