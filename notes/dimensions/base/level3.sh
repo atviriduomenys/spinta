@@ -26,6 +26,32 @@ EOF
 poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
 cat $BASEDIR/manifest.csv
 poetry run spinta show
+#| Traceback (most recent call last):
+#|   File "spinta/cli/show.py", line 24, in show
+#|     store = prepare_manifest(context, verbose=False)
+#|             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#|   File "spinta/cli/helpers/store.py", line 138, in prepare_manifest
+#|     commands.prepare(context, store.manifest)
+#|   File "spinta/manifests/commands/init.py", line 14, in prepare
+#|     commands.prepare(context, backend, manifest)
+#|   File "spinta/backends/postgresql/commands/init.py", line 27, in prepare
+#|     commands.prepare(context, backend, model)
+#|   File "spinta/backends/postgresql/commands/init.py", line 61, in prepare
+#|     main_table = sa.Table(
+#|                  ^^^^^^^^^
+#|   File "sqlalchemy/sql/schema.py", line 3259, in _set_parent
+#|     for col in self._col_expressions(table):
+#|                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#|   File "sqlalchemy/sql/schema.py", line 3253, in _col_expressions
+#|     return [
+#|            ^
+#|   File "sqlalchemy/sql/schema.py", line 3254, in <listcomp>
+#|     table.c[col] if isinstance(col, util.string_types) else col
+#|     ~~~~~~~^^^^^
+#|   File "sqlalchemy/sql/base.py", line 1192, in __getitem__
+#|     return self._index[key]
+#|            ~~~~~~~~~~~^^^^^
+#| KeyError: 'id'
 
 poetry run spinta bootstrap
 psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
