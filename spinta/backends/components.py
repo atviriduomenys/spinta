@@ -43,6 +43,8 @@ class Backend:
     # manifest back to its original form.
     config: Dict[str, Any]
 
+    paginated: bool = False
+
     def __repr__(self):
         return (
             f'<{self.__class__.__module__}.{self.__class__.__name__}'

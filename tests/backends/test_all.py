@@ -1,7 +1,4 @@
-import pathlib
-
 import pytest
-
 from spinta.testing.utils import get_error_codes, get_error_context
 
 
@@ -124,24 +121,30 @@ def test_update_get(model, app):
     # Get all objects from database.
     resp = app.get(f'/{model}')
     data = resp.json()
+    page = None
+    if '_page' in data['_data'][0]:
+        page = data['_data'][0]['_page']
+    result = {
+        '_type': model,
+        '_id': id_,
+        '_revision': revision,
+        'notes': [],
+        'report_type': None,
+        'status': '13',
+        'update_time': None,
+        'valid_from_date': None,
+        'count': None,
+        'operating_licenses': [],
+        'sync': {
+            'sync_revision': None,
+            'sync_resources': [],
+        },
+    }
+    if page:
+        result['_page'] = page
     assert data == {
         '_data': [
-            {
-                '_type': model,
-                '_id': id_,
-                '_revision': revision,
-                'notes': [],
-                'report_type': None,
-                'status': '13',
-                'update_time': None,
-                'valid_from_date': None,
-                'count': None,
-                'operating_licenses': [],
-                'sync': {
-                    'sync_revision': None,
-                    'sync_resources': [],
-                },
-            },
+            result
         ]
     }
 

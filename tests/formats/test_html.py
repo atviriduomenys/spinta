@@ -28,6 +28,7 @@ from spinta.formats.html.helpers import short_id
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import create_test_client
+from spinta.testing.data import encode_page_values_manually
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
@@ -314,6 +315,11 @@ def test_file_type_list(
                 'value': short_id(_id),
             },
             {
+                'value': encode_page_values_manually({
+                    '_id': _id
+                }),
+            },
+            {
                 'value': 'Lithuania',
             },
             {
@@ -586,6 +592,7 @@ def test_recursive_refs(rc: RawConfig):
             '_id': '262f6c72-4284-4d26-b9b0-e282bfe46a46',
             '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
             '_type': 'example/Category',
+            '_page': b'encoded',
             'name': 'Leaf',
             'parent': {
                 '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
@@ -607,6 +614,9 @@ def test_recursive_refs(rc: RawConfig):
             value='example/Category',
             link=None,
             color=None,
+        ),
+        '_page': Cell(
+            value=b'encoded'
         ),
         'name': Cell(value='Leaf', link=None, color=None),
         'parent._id': Cell(

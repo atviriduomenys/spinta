@@ -6,11 +6,10 @@ from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_client, create_rc, configure_remote_server
 from spinta.testing.data import listdata
 from spinta.testing.datasets import create_sqlite_db
-from spinta.testing.datasets import Sqlite
 from spinta.testing.tabular import create_tabular_manifest
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def geodb():
     with create_sqlite_db({
         'salis': [
@@ -487,3 +486,208 @@ def test_push_ref_with_level_no_source_status_code_400_check(
     resp_city = remote.app.get('leveldataset/countries/Country')
 
     assert resp_city.status_code == 400
+
+
+def test_push_pagination_incremental(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    paginated             |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   |   |          |          |          |             |       |
+      |   |   | Country      |          | id       | salis       | 4     |
+      |   |   |   | code     | string   |          | kodas       | 4     | open
+      |   |   |   | name     | string   |          | pavadinimas | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'paginated',
+        '-o', remote.url,
+        '--credentials', remote.credsfile
+    ])
+    assert result.exit_code == 0
+    assert 'PUSH: 100%|##########| 3/3' in result.stderr
+
+    geodb.write('salis', [
+        {'kodas': 'test', 'pavadinimas': 'Test', 'id': 10},
+    ])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'paginated',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--incremental'
+    ])
+    assert result.exit_code == 0
+    assert 'PUSH: 100%|##########| 1/1' in result.stderr
+
+
+def test_push_pagination_without_incremental(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    paginated/without             |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   |   |          |          |          |             |       |
+      |   |   | Country      |          | id       | salis       | 4     |
+      |   |   |   | code     | string   |          | kodas       | 4     | open
+      |   |   |   | name     | string   |          | pavadinimas | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'paginated/without',
+        '-o', remote.url,
+        '--credentials', remote.credsfile
+    ])
+    assert result.exit_code == 0
+    assert 'PUSH: 100%|##########| 3/3' in result.stderr
+
+    geodb.write('salis', [
+        {'kodas': 'test', 'pavadinimas': 'Test', 'id': 10},
+    ])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'paginated/without',
+        '-o', remote.url,
+        '--credentials', remote.credsfile
+    ])
+    assert result.exit_code == 0
+    assert 'PUSH: 100%|##########| 4/4' in result.stderr
+
+
+def test_push_pagination_incremental_with_page_valid(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    paginated/valid             |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   |   |          |          |          |             |       |
+      |   |   | Country      |          | id       | salis       | 4     |
+      |   |   |   | code     | string   |          | kodas       | 4     | open
+      |   |   |   | name     | string   |          | pavadinimas | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'paginated/valid',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--incremental',
+        '--model', 'paginated/valid/Country',
+        '--page', '2'
+    ])
+    assert result.exit_code == 0
+    assert 'PUSH: 100%|##########| 1/1' in result.stderr
+
+    geodb.write('salis', [
+        {'kodas': 'test', 'pavadinimas': 'Test', 'id': 10},
+    ])
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'paginated/valid',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--incremental',
+        '--model', 'paginated/valid/Country',
+        '--page', '2'
+    ])
+    assert result.exit_code == 0
+    assert 'PUSH: 100%|##########| 2/2' in result.stderr
+
+
+def test_push_pagination_incremental_with_page_invalid(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    paginated/invalid             |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   |   |          |          |          |             |       |
+      |   |   | Country      |          | id       | salis       | 4     |
+      |   |   |   | code     | string   |          | kodas       | 4     | open
+      |   |   |   | name     | string   |          | pavadinimas | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'paginated/invalid',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--incremental',
+        '--model', 'paginated/invalid/Country',
+        '--page', '2',
+        '--page', 'test'
+    ], fail=False)
+    assert result.exit_code == 1

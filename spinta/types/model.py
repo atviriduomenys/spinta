@@ -17,7 +17,7 @@ from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, Component
+from spinta.components import Action, Component, PageBy
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -25,6 +25,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -41,6 +42,7 @@ from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
 from spinta.types.namespace import load_namespace_from_name
+from spinta.ufuncs.basequerybuilder.components import LoadBuilder
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
@@ -138,6 +140,10 @@ def load(
         model.external = None
         model.given.pkeys = []
 
+    builder = LoadBuilder(context)
+    builder.update(model=model)
+    builder.load_page()
+
     return model
 
 
@@ -193,6 +199,35 @@ def link(context: Context, model: Model):
     # Link model properties.
     for prop in model.properties.values():
         commands.link(context, prop)
+
+    _link_model_page(model)
+
+
+def _link_model_page(model: Model):
+    if not model.backend or not model.backend.paginated:
+        model.page.is_enabled = False
+    else:
+        # Disable page if external backend and model.ref not given
+        if isinstance(model.backend, ExternalBackend):
+            if (model.external and not model.external.name) or not model.external:
+                model.page.is_enabled = False
+            else:
+                # Currently only supported external backend is SQL
+                if not isinstance(model.backend, Sql):
+                    model.page.is_enabled = False
+            if '_id' in model.page.by:
+                model.page.by.pop('_id')
+            if '-_id' in model.page.by:
+                model.page.by.pop('-_id')
+        else:
+            # Add _id to internal, if it's not added
+            if '_id' not in model.page.by and '-_id' not in model.page.by:
+                model.page.by['_id'] = PageBy(model.properties["_id"])
+        if len(model.page.by) == 0:
+            model.page.is_enabled = False
+    if not model.page.is_enabled:
+        del model.properties['_page']
+        del model.flatprops['_page']
 
 
 @overload

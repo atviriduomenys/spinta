@@ -26,17 +26,24 @@ def _cleaned_context(
     resp: TestClientResponse,
     *,
     data: bool = True,
+    remove_page: bool = True
 ) -> Dict[str, Any]:
     context = resp.context.copy()
+    page_index = None
+    if remove_page:
+        if 'header' in context and '_page' in context['header']:
+            page_index = context['header'].index('_page')
+            context['header'].remove('_page')
+
     if 'data' in context:
         context['data'] = [
-            [cell.as_dict() for cell in row]
+            [cell.as_dict() for i, cell in enumerate(row) if not remove_page or page_index is None or i != page_index]
             for row in cast(List[List[Cell]], resp.context['data'])
         ]
     if 'row' in context:
         context['row'] = [
             (name, cell.as_dict())
-            for name, cell in cast(Tuple[str, Cell], context['row'])
+            for name, cell in cast(Tuple[str, Cell], context['row']) if not remove_page or name != '_page'
         ]
 
     if data:

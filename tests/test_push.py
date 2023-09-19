@@ -1,3 +1,4 @@
+import base64
 import datetime
 import hashlib
 import json
@@ -16,7 +17,7 @@ from responses import POST
 from responses import RequestsMock
 
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.push import _PushRow, _reset_pushed, _read_rows, _iter_deleted_rows, _get_deleted_row_counts
+from spinta.cli.push import _PushRow, _reset_pushed
 from spinta.cli.push import _get_row_for_error
 from spinta.cli.push import _map_sent_and_recv
 from spinta.cli.push import _init_push_state
@@ -262,7 +263,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        }),
+        }, op='insert'),
     ]
 
     client = requests.Session()
@@ -321,7 +322,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        })
+        }, op='insert')
     ]
 
     client = requests.Session()
@@ -373,9 +374,10 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
     rows = [
         _PushRow(model, {
             '_type': model.name,
+            '_revision': rev_before,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        }),
+        }, op='patch', saved=True),
     ]
 
     client = requests.Session()
@@ -443,9 +445,10 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     rows = [
         _PushRow(model, {
             '_type': model.name,
+            '_revision': rev_before,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        }),
+        }, op='patch', saved=True),
     ]
 
     client = requests.Session()
@@ -521,7 +524,6 @@ def test_push_delete_with_dependent_objects(
     conn.execute(geodb.tables['salis'].delete().where(geodb.tables['salis'].c.id == 2))
     conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 2))
     conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 1))
-
     result = cli.invoke(localrc, [
         'push',
         '-d', 'datasets/gov/deleteTest',
@@ -716,12 +718,12 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
             '_id': _id1,
             '_revision': conflicting_rev,
             'name': 'Vilnius',
-        }),
+        }, op='patch', saved=True),
         _PushRow(model, {
             '_type': model.name,
             '_id': _id2,
             'name': 'Vilnius',
-        }),
+        }, op='insert'),
     ]
 
     client = requests.Session()
@@ -810,3 +812,68 @@ def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
     assert list(conn.execute(query)) == [
         (_id, rev, pushed, None, None, None),
     ]
+
+
+def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+       m | property | type   | access
+       City         |        |
+         | name     | string | open
+       ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    rev = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    _id = '4d741843-4e94-4890-81d9-5af7c5b5989a'
+
+    table = state.metadata.tables[model.name]
+    page_table = state.metadata.tables['_page']
+
+    model.page.by["_id"].value = _id
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_page': [_id],
+            '_id': _id,
+            'name': 'Vilnius',
+        }, op="insert"),
+    ]
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': _id,
+                '_revision': rev,
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'insert',
+            '_type': model.name,
+            '_id': _id,
+            'name': 'Vilnius',
+        },)],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+    )
+
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c['page._id']])
+    assert list(conn.execute(query)) == [(_id, rev, False, _id)]
+
+    query = sa.select([page_table.c.model, page_table.c.property, page_table.c.value])
+    assert list(conn.execute(query)) == [(model.name, '_id', '{"_id": "' + _id + '"}')]
