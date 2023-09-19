@@ -699,26 +699,34 @@ def select(env: SqlQueryBuilder, dtype: Ref, prep: Any) -> Selected:
 
 @ufunc.resolver(SqlQueryBuilder, Ref)
 def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
-    if '_id' not in env.selected:
-        if dtype.model.get_name_without_ns() == dtype.prop.name.capitalize():
+    if dtype.model.external and dtype.model.external.name:
+        if '_id' not in env.selected:
+            if dtype.model.get_name_without_ns() == dtype.prop.name.capitalize():
+                fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
+                return Selected(
+                    prop=dtype.model.properties['_id'],
+                    prep=env.call('select', fpr, fpr.right.prop),
+                )
+            else:
+                table = env.backend.get_table(dtype.prop.model)
+                column = env.backend.get_column(table, dtype.prop.model.properties[dtype.prop.name], select=True)
+                return Selected(
+                    item=env.add_column(column),
+                    prop=dtype.prop.model.properties[dtype.prop.name],
+                    prep=env.call('select', dtype, dtype.prop)
+                )
+        else:
             fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
             return Selected(
-                prop=dtype.model.properties['_id'],
+                prop=dtype.prop,
                 prep=env.call('select', fpr, fpr.right.prop),
             )
-        else:
-            table = env.backend.get_table(dtype.prop.model)
-            column = env.backend.get_column(table, dtype.prop.model.properties[dtype.prop.name], select=True)
-            return Selected(
-                item=env.add_column(column),
-                prop=dtype.prop.model.properties[dtype.prop.name],
-                prep=env.call('select', dtype, dtype.prop)
-            )
     else:
-        fpr = ForeignProperty(None, dtype, dtype.model.properties['_id'].dtype)
+        table = env.backend.get_table(env.model)
+        column = env.backend.get_column(table, dtype.prop, select=True)
         return Selected(
+            item=env.add_column(column),
             prop=dtype.prop,
-            prep=env.call('select', fpr, fpr.right.prop),
         )
 
 
