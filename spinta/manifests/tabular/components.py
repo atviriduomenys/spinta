@@ -154,6 +154,7 @@ class BaseRow(TypedDict, total=False):
     model: str
     pk: List[str]
     lang: LangData
+    level: str
 
 
 class ParamRow(TypedDict):

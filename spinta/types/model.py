@@ -141,7 +141,7 @@ def load(
 
 @load.register(Context, Base, dict, Manifest)
 def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
-    pass
+    load_level(base, data['level'])
 
 
 @overload
