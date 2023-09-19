@@ -29,9 +29,11 @@ def handle_ref_key_assignment(keymap: KeyMap, value: Any, prop: Property) -> dic
 def generate_pk_for_row(model: Model, row: dict, keymap, pk_val: Any):
     pk = None
     if model.base:
-        pk_val_base = _extract_values_from_row(row, model.base.pk)
-        joined = '_'.join(pk.name for pk in model.base.pk)
-        key = f'{model.base.parent.model_type()}.{joined}'
+        pk_val_base = _extract_values_from_row(row, model.base.pk or model.base.parent.external.pkeys)
+        key = model.base.parent.model_type()
+        if model.base.pk:
+            joined = '_'.join(pk.name for pk in model.base.pk)
+            key = f'{key}.{joined}'
         pk = keymap.encode(key, pk_val_base)
 
     pk = keymap.encode(model.model_type(), pk_val, pk)
@@ -50,4 +52,6 @@ def _extract_values_from_row(row: dict, keys: list):
         if isinstance(key, Property):
             key = key.name
         return_list.append(row[key])
+    if len(return_list) == 1:
+        return_list = return_list[0]
     return return_list

@@ -9,6 +9,32 @@ from tests.datasets.test_sql import configure_remote_server, create_rc
 
 
 @pytest.fixture(scope='module')
+def base_geodb():
+    with create_sqlite_db({
+        'city': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('code', sa.Text),
+            sa.Column('name', sa.Text),
+            sa.Column('location', sa.Text),
+        ],
+        'location': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('name', sa.Text),
+            sa.Column('code', sa.Text),
+        ]
+    }) as db:
+        db.write('location', [
+            {'code': 'lt', 'name': 'Vilnius', 'id': 1},
+            {'code': 'lv', 'name': 'Ryga', 'id': 2},
+            {'code': 'ee', 'name': 'Talin', 'id': 3},
+        ])
+        db.write('city', [
+            {'id': 2, 'name': 'Ryga', 'code': 'lv', 'location': 'Latvia'},
+        ])
+        yield db
+
+
+@pytest.fixture(scope='module')
 def geodb():
     with create_sqlite_db({
         'salis': [
@@ -318,3 +344,123 @@ def test_push_ref_with_level_4(
     assert listdata(resp_city, 'name') == ['Vilnius']
     assert len(listdata(resp_city, 'id', 'name', 'country')) == 1
     assert '_id' in listdata(resp_city, 'country')[0].keys()
+
+
+def test_push_with_base(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    base_geodb
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    level4basedataset            |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | Location     |          | id       | location    | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name     | string   |          | name        | 4     | open
+      |   |   |   | code     | string   |          | code        | 4     | open
+      |   |   |   |          |          |          |             |       |
+      |   | Location |           |          |          |          |             |       |
+      |   |   | City         |          | id       | city        | 4     |
+      |   |   |   | code     |    |          | code        | 4     | open
+      |   |   |   | name     |    |          | name        | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | location | string   |          | location    | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, base_geodb)
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'level4basedataset',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+
+    assert result.exit_code == 0
+    remote.app.authmodel('level4basedataset/Location', ['getall', 'search'])
+    resp_location = remote.app.get('level4basedataset/Location')
+
+    locations = listdata(resp_location, '_id', 'id')
+    ryga_id = None
+    for _id, id in locations:
+        if id == 2:
+            ryga_id = _id
+            break
+
+    remote.app.authmodel('level4basedataset/City', ['getall', 'search'])
+    resp_city = remote.app.get('level4basedataset/City')
+    assert resp_city.status_code == 200
+    assert listdata(resp_city, '_id', 'name') == [(ryga_id, 'Ryga')]
+    assert len(listdata(resp_city, 'id', 'name', 'location', 'code')) == 1
+
+
+def test_push_with_base_different_ref(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    request,
+    base_geodb
+):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    d | r | b | m | property | type     | ref      | source      | level | access
+    level4basedatasetref           |          |          |             |       |
+      | db                   | sql      |          |             |       |
+      |   |   | Location     |          | id       | location    | 4     |
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | name     | string   |          | name        | 4     | open
+      |   |   |   | code     | string   |          | code        | 4     | open
+      |   |   |   |          |          |          |             |       |
+      |   | Location |           |          |          | name     |             | 3     |
+      |   |   | City         |          | id       | city        | 4     |
+      |   |   |   | code     |    |          | code        | 4     | open
+      |   |   |   | name     |    |          | name        | 4     | open
+      |   |   |   | id       | integer  |          | id          | 4     | open
+      |   |   |   | location | string   |          | location    | 4     | open
+    '''))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, base_geodb)
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'level4basedatasetref',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+
+    assert result.exit_code == 0
+    remote.app.authmodel('level4basedatasetref/Location', ['getall', 'search'])
+    resp_location = remote.app.get('level4basedatasetref/Location')
+
+    locations = listdata(resp_location, '_id', 'name')
+    ryga_id = None
+    for _id, name in locations:
+        if name == 'Ryga':
+            ryga_id = _id
+            break
+
+    remote.app.authmodel('level4basedatasetref/City', ['getall', 'search'])
+    resp_city = remote.app.get('level4basedatasetref/City')
+    assert resp_city.status_code == 200
+    assert listdata(resp_city, '_id', 'name') == [(ryga_id, 'Ryga')]
+    assert len(listdata(resp_city, 'id', 'name', 'location', 'code')) == 1
