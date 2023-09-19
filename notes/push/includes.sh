@@ -56,31 +56,26 @@ http GET "$SERVER/$DATASET/City?limit(5)&format(ascii)"
 #| push/includes/City  1cacb9c9-4350-4df2-8b5b-678c5669d731  ∅          ∅      1   Vilnius  lt
 
 http GET "$SERVER/$DATASET/countries/Country?format(ascii)"
-#| HTTP/1.1 500 Internal Server Error
+#| HTTP/1.1 400 Bad Request
 #| 
 #| {
 #|     "errors": [
 #|         {
-#|             "code": "ProgrammingError",
-#|             "message": "
-#|                 (psycopg2.errors.UndefinedTable)
-#|                     relation push/includes/countries/Country does not exist
-#| 
-#|                 LINE 2:
-#|                     FROM push/includes/countries/Country
-#| 
-#|                 SQL:
-#|                     SELECT
-#|                         push/includes/countries/Country._id,
-#|                         push/includes/countries/Country._revision,
-#|                         push/includes/countries/Country.code,
-#|                         push/includes/countries/Country.name
-#|                     FROM push/includes/countries/Country
-#|             "
+#|             "code": "BackendNotGiven",
+#|             "context": {
+#|                 "component": "spinta.components.Model",
+#|                 "dataset": "push/includes/countries",
+#|                 "entity": "",
+#|                 "manifest": "default",
+#|                 "model": "push/includes/countries/Country",
+#|                 "schema": "11"
+#|             },
+#|             "message": "Model is operating in external mode, yet it does not have assigned backend to it.",
+#|             "template": "Model is operating in external mode, yet it does not have assigned backend to it.",
+#|             "type": "model"
 #|         }
 #|     ]
 #| }
-# FIXME: In external mode, this should return 400 error, because source is not set, so we can't get data.
 
 # notes/spinta/server.sh    Run migrations
 
@@ -99,48 +94,11 @@ http GET "$SERVER/$DATASET/City?limit(5)&format(ascii)"
 http GET "$SERVER/$DATASET/countries/Country?format(ascii)"
 
 poetry run spinta push $BASEDIR/manifest.csv -o test@localhost
-#| 2023-08-03 17:21:56,569 ERROR: Error on _get_row_count({model.name}).
-#| Traceback (most recent call last):
-#|   File "multipledispatch/dispatcher.py", line 269, in __call__
-#|     func = self._cache[types]
-#|            ~~~~~~~~~~~^^^^^^^
-#| KeyError: (<class 'spinta.backends.postgresql.commands.query.PgQueryBuilder'>, <class 'NoneType'>)
-#| 
-#| During handling of the above exception, another exception occurred:
-#| 
-#| Traceback (most recent call last):
-#|   File "/home/sirex/dev/data/spinta/spinta/core/ufuncs.py", line 216, in call
-#|     return ufunc(self, *args, **kwargs)
-#|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#|   File "multipledispatch/dispatcher.py", line 273, in __call__
-#|     raise NotImplementedError(
-#| NotImplementedError: Could not find signature for select: <PgQueryBuilder, NoneType>
-#| 
-#| During handling of the above exception, another exception occurred:
-#| 
-#| Traceback (most recent call last):
-#|   File "/home/sirex/dev/data/spinta/spinta/cli/helpers/data.py", line 51, in count_rows
-#|     count = _get_row_count(context, model)
-#|             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#|   File "/home/sirex/dev/data/spinta/spinta/cli/helpers/data.py", line 36, in _get_row_count
-#|     for data in stream:
-#|   File "/home/sirex/dev/data/spinta/spinta/backends/postgresql/commands/read.py", line 51, in getall
-#|     expr = env.resolve(query)
-#|            ^^^^^^^^^^^^^^^^^^
-#|   File "/home/sirex/dev/data/spinta/spinta/core/ufuncs.py", line 242, in resolve
-#|     return ufunc(self, expr)
-#|            ^^^^^^^^^^^^^^^^^
-#|   File "multipledispatch/dispatcher.py", line 278, in __call__
-#|     return func(*args, **kwargs)
-#|            ^^^^^^^^^^^^^^^^^^^^^
-#|   File "/home/sirex/dev/data/spinta/spinta/backends/postgresql/commands/query.py", line 285, in select
-#|     selected = env.call('select', arg)
-#|                ^^^^^^^^^^^^^^^^^^^^^^^
-#|   File "/home/sirex/dev/data/spinta/spinta/core/ufuncs.py", line 218, in call
-#|     raise UnknownMethod(expr=str(Expr(name, *args, **kwargs)), name=name)
-#| spinta.exceptions.UnknownMethod: Unknown method 'select' with args select(null).
-#|   Context:
-#|     expr: select(null)
-#|     name: select
-#| 
-#| PUSH: 100%|#############| 1/1 [00:00<00:00, 308.38it/s]
+#| PUSH: 100%|###| 1/1 [00:00<00:00, 167.01it/s]
+
+http GET "$SERVER/$DATASET/City?limit(5)&format(ascii)"
+#| id  name     country.code
+#| --  -------  ------------
+#| 1   Vilnius  lt
+http GET "$SERVER/$DATASET/countries/Country?format(ascii)"
+# (no data)
