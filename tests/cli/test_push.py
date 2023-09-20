@@ -849,20 +849,20 @@ def test_push_with_base_level_3(
     base_geodb
 ):
     create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
-    d | r | b | m | property | type     | ref      | source      | level | access
-    level4basedatasetref           |          |          |             |       |
-      | db                   | sql      |          |             |       |
-      |   |   | Location     |          | id       | location    | 4     |
-      |   |   |   | id       | integer  |          | id          | 4     | open
-      |   |   |   | name     | string   |          | name        | 4     | open
-      |   |   |   | code     | string   |          | code        | 4     | open
-      |   |   |   |          |          |          |             |       |
-      |   | Location |           |          |          | name     |             | 3     |
-      |   |   | City         |          | id       | city        | 4     |
-      |   |   |   | code     |    |          | code        | 4     | open
-      |   |   |   | name     |    |          | name        | 4     | open
-      |   |   |   | id       | integer  |          | id          | 4     | open
-      |   |   |   | location | string   |          | location    | 4     | open
+    d | r | base     | m | property | type     | ref      | source      | level | access
+    level3basedataset               |          |          |             |       |
+      | db           |   |          | sql      |          |             |       |
+      |   |          | Location     |          | id       | location    | 4     |
+      |   |          |   | id       | integer  |          | id          | 4     | open
+      |   |          |   | name     | string   |          | name        | 4     | open
+      |   |          |   | code     | string   |          | code        | 4     | open
+      |   |          |   |          |          |          |             |       |
+      |   | Location |   |          |          | name     |             | 3     |
+      |   |          | City         |          | id       | city        | 4     |
+      |   |          |   | code     |          |          | code        | 4     | open
+      |   |          |   | name     | string   |          | name        | 4     | open
+      |   |          |   | id       | integer  |          | id          | 4     | open
+      |   |          |   | location | string   |          | location    | 4     | open
     '''))
 
     # Configure local server with SQL backend
@@ -875,15 +875,15 @@ def test_push_with_base_level_3(
     assert remote.url == 'https://example.com/'
     result = cli.invoke(localrc, [
         'push',
-        '-d', 'level4basedatasetref',
+        '-d', 'level3basedataset',
         '-o', remote.url,
         '--credentials', remote.credsfile,
         '--no-progress-bar',
     ])
 
     assert result.exit_code == 0
-    remote.app.authmodel('level4basedatasetref/Location', ['getall', 'search'])
-    resp_location = remote.app.get('level4basedatasetref/Location')
+    remote.app.authmodel('level3basedataset/Location', ['getall', 'search'])
+    resp_location = remote.app.get('level3basedataset/Location')
 
     locations = listdata(resp_location, '_id', 'name')
     ryga_id = None
@@ -892,8 +892,9 @@ def test_push_with_base_level_3(
             ryga_id = _id
             break
 
-    remote.app.authmodel('level4basedatasetref/City', ['getall', 'search'])
-    resp_city = remote.app.get('level4basedatasetref/City')
+    remote.app.authmodel('level3basedataset/City', ['getall', 'search'])
+    resp_city = remote.app.get('level3basedataset/City')
     assert resp_city.status_code == 200
-    assert listdata(resp_city, '_id', 'name') == [(ryga_id, 'Ryga')]
+    assert listdata(resp_city, 'name') == ['Ryga']
+    assert listdata(resp_city, '_id') != [ryga_id]
     assert len(listdata(resp_city, 'id', 'name', 'location', 'code')) == 1
