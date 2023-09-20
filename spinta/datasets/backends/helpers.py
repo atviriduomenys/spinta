@@ -1,6 +1,7 @@
 from typing import Any
 
 from spinta.components import Property, Model
+from spinta.datasets.enums import Level
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.exceptions import NotImplementedFeature
 
@@ -28,7 +29,7 @@ def handle_ref_key_assignment(keymap: KeyMap, value: Any, prop: Property) -> dic
 
 def generate_pk_for_row(model: Model, row: dict, keymap, pk_val: Any):
     pk = None
-    if model.base:
+    if model.base and ((model.base.level and model.base.level >= Level.identifiable) or not model.base.level):
         pk_val_base = _extract_values_from_row(row, model.base.pk or model.base.parent.external.pkeys)
         key = model.base.parent.model_type()
         if model.base.pk:
