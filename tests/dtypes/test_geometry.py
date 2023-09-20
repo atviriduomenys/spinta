@@ -158,6 +158,7 @@ def test_geometry_html(rc: RawConfig):
         accept='text/html',
         data={
             '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
+            '_page': b'encoded',
             '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
             'name': 'Vilnius',
             'coordinates': 'POLYGON',
@@ -168,6 +169,9 @@ def test_geometry_html(rc: RawConfig):
             value='19e4f199',
             link='/example/City/19e4f199-93c5-40e5-b04e-a575e81ac373',
             color=None,
+        ),
+        '_page': Cell(
+            value=b'encoded'
         ),
         'name': Cell(
             value='Vilnius',
@@ -393,7 +397,6 @@ def test_geometry_delete(
     resp = app.post(f'/{model}', json={
         "point": "Point(50 50)"
     })
-    print(resp.json().get("_id"))
     assert resp.status_code == 201
 
     resp = app.delete(f'/{model}/{resp.json().get("_id")}')

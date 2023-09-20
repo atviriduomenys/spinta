@@ -238,6 +238,22 @@ def test_time_type(tmp_path, rc):
     ''')
 
 
+def test_explicit_ref(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type       | ref
+    datasets/gov/example     |            |
+      | data                 | postgresql | default
+                             |            |
+      |   |   | Country      |            | id
+      |   |   |   | id       | integer    |
+      |   |   |   | code     | string     |
+      |   |   |   | name     | string     |
+                             |            |
+      |   |   | City         |            | name
+      |   |   |   | name     | string     |
+      |   |   |   | country  | ref        | Country[code]
+      ''')
+
 def test_property_unique_add(tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property            | type
@@ -519,6 +535,34 @@ def test_end_marker(tmp_path, rc):
       |   |   |   | id         | integer |
       |   |   |   | name       | string  |
       |   |   |   | population | integer |
+    ''')
+
+
+def test_with_same_base(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref      | level
+    datasets/gov/example       |         |          |
+                               |         |          |
+      |   |   | Base           |         |          |
+      |   |   |   | id         | integer |          |
+                               |         |          |
+      |   | Base               |         |          |
+      |   |   | Location       |         |          |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       | string  |          |
+      |   |   |   | population | integer |          |
+                               |         |          |
+      |   | Location           |         | name     | 4
+      |   |   | City           |         | name     |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       |         |          |
+      |   |   |   | population |         |          |
+                               |         |          |
+      |   | Location           |         | name     | 3
+      |   |   | Village        |         | name     |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       |         |          |
+      |   |   |   | population |         |          |
     ''')
 
 

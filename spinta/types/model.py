@@ -17,7 +17,7 @@ from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, Component
+from spinta.components import Action, Component, PageBy
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -25,6 +25,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -41,10 +42,13 @@ from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
 from spinta.types.namespace import load_namespace_from_name
+from spinta.ufuncs.basequerybuilder.components import LoadBuilder
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
 from spinta.types.datatype import Ref
+from spinta.backends.nobackend.components import NoBackend
+from spinta.datasets.components import ExternalBackend
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -136,12 +140,16 @@ def load(
         model.external = None
         model.given.pkeys = []
 
+    builder = LoadBuilder(context)
+    builder.update(model=model)
+    builder.load_page()
+
     return model
 
 
 @load.register(Context, Base, dict, Manifest)
 def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
-    pass
+    load_level(base, data['level'])
 
 
 @overload
@@ -167,6 +175,8 @@ def link(context: Context, model: Model):
         model.external.resource.backend
     ):
         model.backend = model.external.resource.backend
+    elif model.mode == Mode.external:
+        model.backend = NoBackend()
     else:
         model.backend = model.manifest.backend
 
@@ -190,6 +200,35 @@ def link(context: Context, model: Model):
     for prop in model.properties.values():
         commands.link(context, prop)
 
+    _link_model_page(model)
+
+
+def _link_model_page(model: Model):
+    if not model.backend or not model.backend.paginated:
+        model.page.is_enabled = False
+    else:
+        # Disable page if external backend and model.ref not given
+        if isinstance(model.backend, ExternalBackend):
+            if (model.external and not model.external.name) or not model.external:
+                model.page.is_enabled = False
+            else:
+                # Currently only supported external backend is SQL
+                if not isinstance(model.backend, Sql):
+                    model.page.is_enabled = False
+            if '_id' in model.page.by:
+                model.page.by.pop('_id')
+            if '-_id' in model.page.by:
+                model.page.by.pop('-_id')
+        else:
+            # Add _id to internal, if it's not added
+            if '_id' not in model.page.by and '-_id' not in model.page.by:
+                model.page.by['_id'] = PageBy(model.properties["_id"])
+        if len(model.page.by) == 0:
+            model.page.is_enabled = False
+    if not model.page.is_enabled:
+        del model.properties['_page']
+        del model.flatprops['_page']
+
 
 @overload
 @commands.link.register(Context, Base)
@@ -198,7 +237,7 @@ def link(context: Context, base: Base):
     base.pk = [
         base.parent.properties[pk]
         for pk in base.pk
-    ]
+    ] if base.pk else []
 
 
 @load.register(Context, Property, dict, Manifest)
@@ -261,7 +300,6 @@ def load(
         prop.unit = unit
     else:
         prop.given.enum = unit
-
     return prop
 
 
