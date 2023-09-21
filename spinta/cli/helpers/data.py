@@ -20,6 +20,7 @@ from spinta.components import DataStream
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
 from spinta.ufuncs.basequerybuilder.ufuncs import add_page_expr
+from spinta.types.datatype import Inherit
 from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek
 
@@ -91,7 +92,30 @@ def read_model_data(
             log.exception(f"Error when reading data from model {model.name}")
             return
 
-    yield from stream
+    prop_filer, needs_filtering = filter_allowed_props_for_model(model)
+    for item in stream:
+        if needs_filtering:
+            item = filter_dict_by_keys(prop_filer, item)
+        yield item
+
+
+def filter_allowed_props_for_model(model: Model) -> (dict, bool):
+    if model.base:
+        allowed_props = model.properties
+        for name, prop in model.base.parent.properties.items():
+            if not name.startswith('_'):
+                if name in allowed_props and isinstance(allowed_props[name].dtype, Inherit):
+                    allowed_props.pop(name)
+        return allowed_props, True
+    return model.properties, False
+
+
+def filter_dict_by_keys(dict1: dict, dict2: dict) -> dict:
+    result = {}
+    for key in dict1:
+        if key in dict2:
+            result[key] = dict2[key]
+    return result
 
 
 def iter_model_rows(

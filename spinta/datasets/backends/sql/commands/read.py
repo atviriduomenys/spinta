@@ -9,7 +9,7 @@ from spinta.backends.nobackend.components import NoBackend
 from spinta.components import Context
 from spinta.components import Model
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.helpers import handle_ref_key_assignment
+from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row
 from spinta.typing import ObjectData
 from spinta.datasets.backends.sql.commands.query import Selected
 from spinta.datasets.backends.sql.commands.query import SqlQueryBuilder
@@ -27,7 +27,7 @@ from spinta.ufuncs.basequerybuilder.components import get_page_values
 from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.utils.schema import NA
-import sqlalchemy as sa
+
 
 log = logging.getLogger(__name__)
 
@@ -105,10 +105,9 @@ def getall(
                 val = _get_row_value(context, row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = keymap.encode(sel.prop.model.model_type(), val)
-                        pk = val
+                        val = generate_pk_for_row(sel.prop.model, row, keymap, val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        val = handle_ref_key_assignment(keymap, val, sel.prop, pk)
+                        val = handle_ref_key_assignment(keymap, val, sel.prop)
                 res[key] = val
             res = flat_dicts_to_nested(res)
             res = commands.cast_backend_to_python(context, model, backend, res)

@@ -36,7 +36,8 @@ from spinta import exceptions
 from spinta import spyna
 from spinta.auth import authorized
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data
+from spinta.cli.helpers.data import ModelRow, count_rows, read_model_data, filter_allowed_props_for_model, \
+    filter_dict_by_keys
 from spinta.cli.helpers.data import ensure_data_dir
 from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.store import prepare_manifest
@@ -53,7 +54,7 @@ from spinta.core.context import configure_context
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush, InvalidPushWithPageParameterCount
 from spinta.manifests.components import Manifest
-from spinta.types.namespace import sort_models_by_refs
+from spinta.types.namespace import sort_models_by_refs, sort_models_by_base
 from spinta.ufuncs.basequerybuilder.ufuncs import filter_page_values
 from spinta.utils.data import take
 from spinta.utils.itertools import peek
@@ -185,6 +186,7 @@ def push(
 
         models = traverse_ns_models(context, ns, Action.SEARCH, dataset, source_check=True)
         models = sort_models_by_refs(models)
+        models = sort_models_by_base(models)
         models = list(reversed(list(models)))
 
         if state:
@@ -573,7 +575,11 @@ def _read_model_data_by_page(
             log.exception(f"Error when reading data from model {model.name}")
             return
 
-    yield from stream
+    prop_filer, needs_filtering = filter_allowed_props_for_model(model)
+    for item in stream:
+        if needs_filtering:
+            item = filter_dict_by_keys(prop_filer, item)
+        yield item
 
 
 def _read_rows_by_pages(

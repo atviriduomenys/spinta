@@ -238,6 +238,8 @@ def link(context: Context, base: Base):
         base.parent.properties[pk]
         for pk in base.pk
     ] if base.pk else []
+    if (base.level and base.level >= Level.identifiable) or not base.level:
+        base.parent.add_keymap_property_combination(base.pk)
 
 
 @load.register(Context, Property, dict, Manifest)

@@ -17,6 +17,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from toposort import toposort
 
+import spinta.components
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
@@ -268,6 +269,7 @@ def _model_matches_params(
     resource: Optional[str] = None,
     internal: bool = False,
 ):
+
     if not internal and model.name.startswith('_'):
         return False
 
@@ -442,6 +444,31 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
                 continue
             seen.add(name)
             yield models[name]
+
+
+def sort_models_by_base(models: Iterable[Model]) -> Iterator[Model]:
+    models = {model.model_type(): model for model in models}
+    graph = collections.defaultdict(set)
+    for name, model in models.items():
+        graph[''].add(name)
+        for base in iter_model_base(model):
+            ref = base.model_type()
+            if ref in models:
+                graph[ref].add(name)
+    graph = toposort(graph)
+    seen = {''}
+    for group in graph:
+        for name in sorted(group):
+            if name in seen:
+                continue
+            seen.add(name)
+            yield models[name]
+
+
+def iter_model_base(model: Model) -> Iterator[Model]:
+    if model.base:
+        yield from iter_model_base(model.base.parent)
+        yield model.base.parent
 
 
 def iter_model_refs(model: Model) -> Iterator[Ref]:
