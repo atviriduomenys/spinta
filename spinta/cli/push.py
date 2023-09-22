@@ -44,7 +44,7 @@ from spinta.cli.helpers.store import prepare_manifest
 from spinta.client import get_access_token
 from spinta.client import get_client_credentials
 from spinta.commands.read import get_page
-from spinta.components import Action, Page
+from spinta.components import Action, Page, Property
 from spinta.components import Config
 from spinta.components import Context
 from spinta.components import Mode
@@ -52,10 +52,11 @@ from spinta.components import Model
 from spinta.components import Store
 from spinta.core.context import configure_context
 from spinta.core.ufuncs import Expr
+from spinta.datasets.enums import Level
 from spinta.datasets.keymaps.synchronize import sync_keymap
 from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush
 from spinta.manifests.components import Manifest
-from spinta.types.namespace import sort_models_by_ref_and_base
+from spinta.types.namespace import sort_models_by_ref_and_base, iter_model_refs
 from spinta.ufuncs.basequerybuilder.ufuncs import filter_page_values
 from spinta.utils.data import take
 from spinta.utils.itertools import peek
@@ -195,8 +196,9 @@ def push(
 
         all_models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
         all_models = sort_models_by_ref_and_base(list(all_models))
-
-        sync_keymap(context, manifest.keymap, client, creds.server, all_models, error_counter=error_counter, no_progress_bar=no_progress_bar, full_sync=synchronize)
+        if not synchronize:
+            all_models = list(_filter_model_external_models(all_models))
+        sync_keymap(context, manifest.keymap, client, creds.server, all_models, error_counter=error_counter, no_progress_bar=no_progress_bar)
         _update_page_values_for_models(context, state.metadata, models, incremental, page_model, page)
 
         rows = _read_rows(
@@ -229,6 +231,31 @@ def push(
 
         if error_counter.has_errors():
             raise Exit(code=1)
+
+
+def _filter_model_external_models(models: List[Model]):
+    required_models = []
+    for model in models:
+        if model.external and model.external.name:
+            if model.base:
+                if model.base.parent not in required_models:
+                    if _should_be_added_to_required_list(model.base.parent, True):
+                        required_models.append(model.base.parent)
+            for ref in iter_model_refs(model):
+                if ref.model not in required_models:
+                    if _should_be_added_to_required_list(ref.prop, True):
+                        required_models.append(ref.model)
+    for model in models:
+        if model in required_models:
+            yield model
+
+
+def _should_be_added_to_required_list(prop: Property, only_internal: bool):
+    if not prop.level or prop.level > Level.open:
+        if only_internal:
+            return not prop.external or prop.external and not prop.external.name
+        return True
+    return False
 
 
 def _update_page_values_for_models(context: Context, metadata: sa.MetaData, models: List[Model], incremental: bool, page_model: str, page: list):

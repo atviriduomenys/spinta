@@ -11,15 +11,14 @@ import tqdm
 from spinta.utils.response import get_request
 
 
-def sync_keymap(context: Context, keymap: KeyMap, client, server: str, models: List[Model], error_counter: ErrorCounter, no_progress_bar: bool, full_sync: bool):
+def sync_keymap(context: Context, keymap: KeyMap, client, server: str, models: List[Model], error_counter: ErrorCounter, no_progress_bar: bool):
     counters = {}
     if not no_progress_bar:
         counters = {
             '_total': tqdm.tqdm(desc='SYNCHRONIZING KEYMAP', ascii=True)
         }
-    subset = [model for model in models if full_sync or (not full_sync and (not model.external or (model.external and not model.external.name)))]
     with keymap as km:
-        for model in subset:
+        for model in models:
             model_keymaps = [model.model_type()]
             for combination in model.required_keymap_properties:
                 model_keymaps.append(f'{model.model_type()}.{"_".join(combination)}')
