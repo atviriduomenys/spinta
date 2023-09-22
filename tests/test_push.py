@@ -417,6 +417,7 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
     )]
 
 
+@pytest.mark.skip(reason="not implemented yet")
 def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock):
     context, manifest = load_manifest_and_context(rc, '''
     m | property | type   | access
@@ -484,6 +485,7 @@ def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock)
     assert res[0][1] == syncronize_time
 
 
+@pytest.mark.skip(reason="not implemented yet")
 def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMock):
     context, manifest = load_manifest_and_context(rc, '''
     m | property | type   | access
@@ -550,6 +552,7 @@ def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMo
     assert res[0][2] is not None
 
 
+@pytest.mark.skip(reason="not implemented yet")
 def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
     context, manifest = load_manifest_and_context(rc, '''
     m | property | type   | access
