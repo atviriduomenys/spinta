@@ -33,6 +33,7 @@ from spinta.components import Model
 from spinta.components import Namespace
 from spinta.components import Node
 from spinta.components import UrlParams
+from spinta.datasets.enums import Level
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.renderer import render
@@ -463,6 +464,35 @@ def sort_models_by_base(models: Iterable[Model]) -> Iterator[Model]:
                 continue
             seen.add(name)
             yield models[name]
+
+
+def _topological_sort(model: Model, visited: dict, stack: list, dependencies: dict):
+    visited[model.model_type()] = True
+    for neighbor in dependencies[model.model_type()]:
+        if not visited[neighbor.model_type()]:
+            _topological_sort(neighbor, visited, stack, dependencies)
+    stack.append(model)
+
+
+def sort_models_by_ref_and_base(models: List[Model]):
+    dependencies = collections.defaultdict(list)
+    for model in models:
+        if model.base and (model.base.level and model.base.level > Level.open or not model.base.level):
+            if model.base.parent in models:
+                dependencies[model.model_type()].append(model.base.parent)
+        for ref in iter_model_refs(model):
+            if ref.prop.level and ref.prop.level > Level.open or not ref.prop.level:
+                if ref.model in models:
+                    dependencies[model.model_type()].append(ref.model)
+
+    visited = {model.model_type(): False for model in models}
+    stack = []
+
+    for model in models:
+        if not visited[model.model_type()]:
+            _topological_sort(model, visited, stack, dependencies)
+
+    return stack
 
 
 def iter_model_base(model: Model) -> Iterator[Model]:

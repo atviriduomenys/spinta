@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, Any
 
 from spinta.components import Component
@@ -10,4 +11,13 @@ class KeyMap(Component):
         raise NotImplementedError
 
     def decode(self, name: str, key: str) -> object:
+        raise NotImplementedError
+
+    def get_sync_data(self, name: str) -> object:
+        raise NotImplementedError
+
+    def update_sync_data(self, name: str, cid: Any, time: datetime):
+        raise NotImplementedError
+
+    def synchronize(self, name: str, value: Any, primary_key: str):
         raise NotImplementedError

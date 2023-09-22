@@ -52,9 +52,10 @@ from spinta.components import Model
 from spinta.components import Store
 from spinta.core.context import configure_context
 from spinta.core.ufuncs import Expr
-from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush, InvalidPushWithPageParameterCount
+from spinta.datasets.keymaps.synchronize import sync_keymap
+from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush
 from spinta.manifests.components import Manifest
-from spinta.types.namespace import sort_models_by_refs, sort_models_by_base
+from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.ufuncs.basequerybuilder.ufuncs import filter_page_values
 from spinta.utils.data import take
 from spinta.utils.itertools import peek
@@ -181,20 +182,21 @@ def push(
 
         _attach_backends(context, store, manifest)
         _attach_keymaps(context, store)
+        error_counter = ErrorCounter(max_count=max_error_count)
 
         from spinta.types.namespace import traverse_ns_models
 
         models = traverse_ns_models(context, ns, Action.SEARCH, dataset, source_check=True)
-        models = sort_models_by_refs(models)
-        models = sort_models_by_base(models)
-        models = list(reversed(list(models)))
+        models = sort_models_by_ref_and_base(list(models))
 
         if state:
             state = _State(*_init_push_state(state, models))
             context.attach('push.state.conn', state.engine.begin)
 
-        error_counter = ErrorCounter(max_count=max_error_count)
+        all_models = traverse_ns_models(context, ns, Action.SEARCH, dataset)
+        all_models = sort_models_by_ref_and_base(list(all_models))
 
+        sync_keymap(context, manifest.keymap, client, creds.server, all_models, error_counter=error_counter, no_progress_bar=no_progress_bar, full_sync=synchronize)
         _update_page_values_for_models(context, state.metadata, models, incremental, page_model, page)
 
         rows = _read_rows(
@@ -223,7 +225,6 @@ def push(
             dry_run=dry_run,
             stop_on_error=stop_on_error,
             error_counter=error_counter,
-            synchronize=synchronize
         )
 
         if error_counter.has_errors():
@@ -319,13 +320,12 @@ def _push(
     dry_run: bool = False,              # do not send or write anything
     stop_on_error: bool = False,        # raise error immediately
     error_counter: ErrorCounter = None,
-    synchronize: bool = False
 ) -> None:
     if stop_time:
         rows = _add_stop_time(rows, stop_time)
 
     if state:
-        rows = _check_push_state(context, rows, state.metadata, synchronize)
+        rows = _check_push_state(context, rows, state.metadata)
 
     rows = _prepare_rows_for_push(rows)
 
@@ -1201,7 +1201,6 @@ def _init_push_state(
             sa.Column('pushed', sa.DateTime),
             sa.Column('error', sa.Boolean),
             sa.Column('data', sa.Text),
-            sa.Column('synchronize', sa.DateTime),
             *pagination_cols
         )
         migrate_table(engine, metadata, inspector, table, renames={
@@ -1231,7 +1230,6 @@ def _get_data_checksum(data: dict):
 class _Saved(NamedTuple):
     revision: str
     checksum: str
-    synchronize: str
 
 
 def _reset_pushed(
@@ -1253,8 +1251,7 @@ def _reset_pushed(
 def _check_push_state(
     context: Context,
     rows: Iterable[_PushRow],
-    metadata: sa.MetaData,
-    synchronize: bool = False
+    metadata: sa.MetaData
 ):
     conn = context.get('push.state.conn')
 
@@ -1263,12 +1260,11 @@ def _check_push_state(
         if model_type:
             table = metadata.tables[model_type]
 
-            query = sa.select([table.c.id, table.c.revision, table.c.checksum, table.c.synchronize])
+            query = sa.select([table.c.id, table.c.revision, table.c.checksum])
             saved_rows = {
                 state[table.c.id]: _Saved(
                     state[table.c.revision],
                     state[table.c.checksum],
-                    state[table.c.synchronize]
                 )
                 for state in conn.execute(query)
             }
@@ -1296,16 +1292,6 @@ def _check_push_state(
                         # Skip if no changes, but only if not paginated, since pagination already skips those
                         if '_page' not in row.data:
                             continue
-                    elif (synchronize and saved.checksum != row.checksum) or saved.synchronize is None:
-                        conn.execute(
-                            table.update().
-                            where(table.c.id == _id).
-                            values(
-                                checksum=row.checksum,
-                                pushed=datetime.datetime.now(),
-                                synchronize=datetime.datetime.now()
-                            )
-                        )
 
             yield row
 

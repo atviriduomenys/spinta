@@ -3,34 +3,40 @@ from typing import Any
 from spinta.components import Property, Model
 from spinta.datasets.enums import Level
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.exceptions import NotImplementedFeature
+from spinta.types.datatype import Ref
 
 
-def handle_ref_key_assignment(keymap: KeyMap, value: Any, prop: Property) -> dict:
-    if not prop.level or prop.level.value > 3:
-        val = keymap.encode(prop.dtype.model.model_type(), value)
+def handle_ref_key_assignment(keymap: KeyMap, value: Any, ref: Ref) -> dict:
+    keymap_name = ref.model.model_type()
+
+    if not (ref.model.external and ref.model.external.name):
+        if ref.refprops != ref.model.external.pkeys:
+            keymap_name = f'{keymap_name}.{"_".join(prop.name for prop in ref.refprops)}'
+
+    if not isinstance(value, tuple):
+        value = [value]
+    else:
+        value = list(value)
+
+    if len(value) != len(ref.refprops):
+        raise Exception("DOESNT MATCH COUNT")
+
+    if not ref.prop.level or ref.prop.level.value > 3:
+        if len(value) == 1:
+            value = value[0]
+        val = keymap.encode(keymap_name, value)
         val = {'_id': val}
     else:
-        if len(prop.dtype.refprops) > 1 and not prop.model.external.unknown_primary_key:
-            raise NotImplementedFeature(prop, feature="Ability to have multiple refprops")
-        if len(prop.dtype.refprops) == 1:
-            val = {
-                prop.dtype.refprops[0].name: value
-            }
-        elif not prop.model.external.unknown_primary_key and prop.model.external.pkeys:
-            val = {
-                prop.model.external.pkeys[0].name: value
-            }
-        else:
-            val = keymap.encode(prop.dtype.model.model_type(), value)
-            val = {'_id': val}
+        val = {}
+        for i, prop in enumerate(ref.refprops):
+            val[prop.name] = value[i]
     return val
 
 
 def generate_pk_for_row(model: Model, row: dict, keymap, pk_val: Any):
     pk = None
     if model.base and ((model.base.level and model.base.level >= Level.identifiable) or not model.base.level):
-        pk_val_base = _extract_values_from_row(row, model.base.pk or model.base.parent.external.pkeys)
+        pk_val_base = extract_values_from_row(row, model.base.pk or model.base.parent.external.pkeys)
         key = model.base.parent.model_type()
         if model.base.pk:
             joined = '_'.join(pk.name for pk in model.base.pk)
@@ -42,12 +48,12 @@ def generate_pk_for_row(model: Model, row: dict, keymap, pk_val: Any):
         for combination in model.required_keymap_properties:
             joined = '_'.join(combination)
             key = f'{model.model_type()}.{joined}'
-            val = _extract_values_from_row(row, combination)
+            val = extract_values_from_row(row, combination)
             keymap.encode(key, val, pk)
     return pk
 
 
-def _extract_values_from_row(row: dict, keys: list):
+def extract_values_from_row(row: dict, keys: list):
     return_list = []
     for key in keys:
         if isinstance(key, Property):
