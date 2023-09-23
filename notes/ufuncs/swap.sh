@@ -23,28 +23,24 @@ $DATASET            |         |     |                               |           
   |   |City         |         | id  | cities                        |                 | 4     |
   |   |  | id       | integer |     | id                            |                 | 4     | open
   |   |  | name     | string  |     | name                          |                 | 4     | open
-  |   |  |          |         |     | Vėlnius                       | swap("Vilnius") | 4     | open
-  |   |  |          |         |     | Vilna                         | swap("Vilnius") | 4     | open
-  |   |  |          |         |     | Kauna                         | swap("Kaunas")  | 4     | open
+  |   |  |          |         |     | Vėlnius                       | swap("Vilnius") |       |     
+  |   |  |          |         |     | Vilna                         | swap("Vilnius") |       |     
+  |   |  |          |         |     | Kauna                         | swap("Kaunas")  |       |     
 EOF
 poetry run spinta copy $BASEDIR/manifest.txt -o $BASEDIR/manifest.csv
-#| lark/parser_frontends.py:106 in parse                                                                                            │
-#| 
-#|   103 │   │   chosen_start = self._verify_start(start)
-#|   104 │   │   stream = text if self.skip_lexer else LexerThread(self.lexer, text)
-#|   105 │   │   kw = {} if on_error is None else {'on_error': on_error}
-#| ❱ 106 │   │   return self.parser.parse(stream, chosen_start, **kw)
-#|   107 │
-#|   108 │   def parse_interactive(self, text=None, start=None):
-#|   109 │   │   chosen_start = self._verify_start(start)
-#| 
-#| ╭──────────────────────────────────────── locals ────────────────────────────────────────╮
-#| │         text = 'swap(Vėlnius, "Vilnius").swap(Vilna, "Vilnius").swap(Kauna, "Kaunas")' │
-#| ╰────────────────────────────────────────────────────────────────────────────────────────╯
-#| UnexpectedCharacters: No terminal matches 'ė' in the current parser context, at line 1 col 7
-#| 
-#| swap(Vėlnius, "Vilnius").swap(Vilna, "Vilnius"
-#|       ^
-# FIXME: Values coming from `source` must be enclosed with quoates.
 cat $BASEDIR/manifest.csv
 poetry run spinta show
+
+# Run server with external mode (read from db.sqlite directly)
+test -n "$PID" && kill $PID
+poetry run spinta run --mode external $BASEDIR/manifest.csv &>> $BASEDIR/spinta.log &; PID=$!
+tail -50 $BASEDIR/spinta.log
+
+# notes/spinta/client.sh    Configure client
+
+http GET "$SERVER/$DATASET/City?format(ascii)"
+#| _type             _id                                   _revision  id  name   
+#| ----------------  ------------------------------------  ---------  --  -------
+#| ufuncs/swap/City  c81430b7-d214-414a-a3a1-f5f6087b09e4  ∅          1   Vilnius
+#| ufuncs/swap/City  d8ac4016-a8fd-493f-9bf4-63150c8ce9fa  ∅          2   Vilnius
+#| ufuncs/swap/City  8c9a6563-e203-4806-ae18-ed69de3e5831  ∅          3   Vilnius
