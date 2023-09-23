@@ -2547,3 +2547,90 @@ def test_point(
 
     resp = app.get(f'/{dataset}/Data')
     assert listdata(resp) == [(1, 'POINT (4.0 2.0)')]
+
+
+def test_swap_single(rc, tmp_path, geodb):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | type   | ref     | access | prepare
+       | datasets/gov/example     |             |        |         |        |
+       |   | data                 |             | sql    |         |        |
+       |   |   |                  |             |        |         |        |
+       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT')
+       |   |   |   |   | name     | pavadinimas | string |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb)
+
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('LT', 'Lietuva'),
+        ('ee', 'Estija'),
+        ('lv', 'Latvija')
+    ]
+
+
+def test_swap_multi_with_dot(rc, tmp_path, geodb):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | type   | ref     | access | prepare
+       | datasets/gov/example     |             |        |         |        |
+       |   | data                 |             | sql    |         |        |
+       |   |   |                  |             |        |         |        |
+       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT').swap('lv', 'LV')
+       |   |   |   |   | name     | pavadinimas | string |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb)
+
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('LT', 'Lietuva'),
+        ('LV', 'Latvija'),
+        ('ee', 'Estija')
+    ]
+
+
+def test_swap_multi_with_multi_lines(rc, tmp_path, geodb):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | type   | ref     | access | prepare
+       | datasets/gov/example     |             |        |         |        |
+       |   | data                 |             | sql    |         |        |
+       |   |   |                  |             |        |         |        |
+       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'LT')
+       |   |   |   |   |          | lv        |        |         |        | swap('LV')
+       |   |   |   |   | name     | pavadinimas | string |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb)
+
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('LT', 'Lietuva'),
+        ('LV', 'Latvija'),
+        ('ee', 'Estija')
+    ]
+
+
+def test_swap_multi_with_multi_lines_all_to_same(rc, tmp_path, geodb):
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable('''
+    id | d | r | b | m | property | source      | type   | ref     | access | prepare
+       | datasets/gov/example     |             |        |         |        |
+       |   | data                 |             | sql    |         |        |
+       |   |   |                  |             |        |         |        |
+       |   |   |   | country      | salis       |        | code    | open   |
+       |   |   |   |   | code     | kodas       | string |         |        | swap('lt', 'CODE')
+       |   |   |   |   |          | lv          |        |         |        | swap('CODE')
+       |   |   |   |   |          |             |        |         |        | swap('ee', 'CODE')
+       |   |   |   |   | name     | pavadinimas | string |         |        |
+    '''))
+
+    app = create_client(rc, tmp_path, geodb)
+
+    resp = app.get('/datasets/gov/example/country')
+    assert listdata(resp, 'code', 'name') == [
+        ('CODE', 'Estija'),
+        ('CODE', 'Latvija'),
+        ('CODE', 'Lietuva')
+    ]

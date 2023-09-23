@@ -253,6 +253,9 @@ def load(
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
+
+    if 'prepare_given' in data and data['prepare_given']:
+        prop.given.prepare = data['prepare_given']
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
@@ -261,6 +264,8 @@ def load(
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
+    if prop.prepare_given:
+        prop.given.prepare = prop.prepare_given
     load_level(prop, prop.level)
 
     if data['type'] is None:
