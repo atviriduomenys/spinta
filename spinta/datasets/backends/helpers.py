@@ -12,7 +12,7 @@ def handle_ref_key_assignment(keymap: KeyMap, env: Env, value: Any, ref: Ref) ->
     if ref.refprops != ref.model.external.pkeys:
         keymap_name = f'{keymap_name}.{"_".join(prop.name for prop in ref.refprops)}'
 
-    if not isinstance(value, tuple):
+    if not isinstance(value, (tuple, list)):
         value = [value]
     else:
         value = list(value)
@@ -21,9 +21,9 @@ def handle_ref_key_assignment(keymap: KeyMap, env: Env, value: Any, ref: Ref) ->
     for prop in ref.refprops:
         if isinstance(prop.dtype, Array) and env:
             items = env.resolve(prop.external.prepare)
-            prop_count_mapping[ref.prop.name] = len(items)
+            prop_count_mapping[prop.name] = len(items)
         else:
-            prop_count_mapping[ref.prop.name] = 1
+            prop_count_mapping[prop.name] = 1
     if len(value) != sum(item for item in prop_count_mapping.values()):
         raise Exception("DOESNT MATCH COUNT")
 

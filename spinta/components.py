@@ -639,7 +639,6 @@ class Model(MetaData):
             return self.name
 
     def add_keymap_property_combination(self, given_props: List[Property]):
-        given_props.sort(key=lambda x: x.name)
         extract_names = list([prop.name for prop in given_props])
         if extract_names not in self.required_keymap_properties:
             self.required_keymap_properties.append(extract_names)

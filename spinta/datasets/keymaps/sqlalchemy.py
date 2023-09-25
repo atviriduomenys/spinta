@@ -59,7 +59,11 @@ class SqlAlchemyKeyMap(KeyMap):
 
     def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
         # Make value msgpack serializable.
-        value, hashed = _hash_value(value)
+        hash_return = _hash_value(value)
+        if hash_return is None:
+            return None
+        else:
+            value, hashed = hash_return
 
         tmp_name = None
         if '.' in name:
@@ -116,7 +120,11 @@ class SqlAlchemyKeyMap(KeyMap):
 
     def synchronize(self, name: str, value: Any, primary_key: str):
         table = self.get_table(name)
-        value, hashed = _hash_value(value)
+        hash_return = _hash_value(value)
+        if hash_return is None:
+            return None
+        else:
+            value, hashed = hash_return
         query = insert(table).values(key=primary_key, hash=hashed, value=value)
         query = query.on_conflict_do_update(
             index_elements=[table.c.key],
