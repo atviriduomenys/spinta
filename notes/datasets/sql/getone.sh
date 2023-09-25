@@ -54,31 +54,31 @@ http GET "$SERVER/$DATASET/City/47cb18cb-77e7-4216-852d-122c9214a3af"
 #|     ]
 #| }
 tail -100 $BASEDIR/spinta.log
-Traceback (most recent call last):
-  File "multipledispatch/dispatcher.py", line 269, in __call__
-    func = self._cache[types]
-           ~~~~~~~~~~~^^^^^^^
-KeyError: (
-    <class 'spinta.components.Context'>,
-    <class 'spinta.components.Model'>,
-    <class 'spinta.datasets.backends.sql.components.Sql'>,
-)
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "gspinta/api.py", line 95, in homepage
-    return await create_http_response(context, params, request)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "gspinta/utils/response.py", line 129, in create_http_response
-    return await commands.getone(
-           ^^^^^^^^^^^^^^^^^^^^^^
-  File "gspinta/commands/read.py", line 301, in getone
-    resp = await commands.getone(
-           ^^^^^^^^^^^^^^^^^^^^^^
-  File "gspinta/commands/read.py", line 354, in getone
-    data = commands.getone(context, model, backend, id_=params.pk)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "multipledispatch/dispatcher.py", line 273, in __call__
-    raise NotImplementedError(
-NotImplementedError: Could not find signature for getone: <Context, Model, Sql>
+#| Traceback (most recent call last):
+#|   File "multipledispatch/dispatcher.py", line 269, in __call__
+#|     func = self._cache[types]
+#|            ~~~~~~~~~~~^^^^^^^
+#| KeyError: (
+#|     <class 'spinta.components.Context'>,
+#|     <class 'spinta.components.Model'>,
+#|     <class 'spinta.datasets.backends.sql.components.Sql'>,
+#| )
+#| 
+#| During handling of the above exception, another exception occurred:
+#| 
+#| Traceback (most recent call last):
+#|   File "gspinta/api.py", line 95, in homepage
+#|     return await create_http_response(context, params, request)
+#|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#|   File "gspinta/utils/response.py", line 129, in create_http_response
+#|     return await commands.getone(
+#|            ^^^^^^^^^^^^^^^^^^^^^^
+#|   File "gspinta/commands/read.py", line 301, in getone
+#|     resp = await commands.getone(
+#|            ^^^^^^^^^^^^^^^^^^^^^^
+#|   File "gspinta/commands/read.py", line 354, in getone
+#|     data = commands.getone(context, model, backend, id_=params.pk)
+#|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#|   File "multipledispatch/dispatcher.py", line 273, in __call__
+#|     raise NotImplementedError(
+#| NotImplementedError: Could not find signature for getone: <Context, Model, Sql>
