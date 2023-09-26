@@ -11,29 +11,29 @@ import tqdm
 from spinta.utils.response import get_request
 
 
-def sync_keymap(context: Context, keymap: KeyMap, client, server: str, models: List[Model], error_counter: ErrorCounter, no_progress_bar: bool):
+def sync_keymap(context: Context, keymap: KeyMap, client, server: str, models: List[Model], error_counter: ErrorCounter, no_progress_bar: bool, reset_cid: bool):
     counters = {}
     if not no_progress_bar:
         counters = {
             '_total': tqdm.tqdm(desc='SYNCHRONIZING KEYMAP', ascii=True)
         }
-    with keymap as km:
-        for model in models:
-            model_keymaps = [model.model_type()]
-            for combination in model.required_keymap_properties:
-                model_keymaps.append(f'{model.model_type()}.{"_".join(combination)}')
 
-            primary_keys = model.external.pkeys
-            for key in primary_keys:
-                is_authorized = authorized(context, key, action=Action.SEARCH)
-                if not is_authorized:
-                    raise Exception("Unauthorized to sync keymap")
+    for model in models:
+        model_keymaps = [model.model_type()]
+        for combination in model.required_keymap_properties:
+            model_keymaps.append(f'{model.model_type()}.{"_".join(combination)}')
+        primary_keys = model.external.pkeys
+        for key in primary_keys:
+            is_authorized = authorized(context, key, action=Action.SEARCH)
+            if not is_authorized:
+                raise Exception("Unauthorized to sync keymap")
 
-            # Get min cid (in case new model was added, or models are out of sync)
-            sync_cid = 0
-            initial = True
+        # Get min cid (in case new model was added, or models are out of sync)
+        sync_cid = 0
+        initial = True
+        if not reset_cid:
             for keymap_name in model_keymaps:
-                cid = km.get_sync_data(keymap_name)
+                cid = keymap.get_sync_data(keymap_name)
                 if not cid:
                     sync_cid = 0
                     break
@@ -44,37 +44,37 @@ def sync_keymap(context: Context, keymap: KeyMap, client, server: str, models: L
                     else:
                         sync_cid = min(sync_cid, cid)
 
-            url = f'{server}/{model.name}/:changes'
-            if sync_cid:
-                url = f'{url}/{sync_cid+1}'
-            status_code, resp = get_request(
-                client,
-                url,
-                ignore_errors=[404],
-                error_counter=error_counter,
-            )
-            if status_code == 200:
-                data = resp['_data']
+        url = f'{server}/{model.model_type()}/:changes'
+        if sync_cid:
+            url = f'{url}/{sync_cid+1}'
+        status_code, resp = get_request(
+            client,
+            url,
+            ignore_errors=[404],
+            error_counter=error_counter,
+        )
+        if status_code == 200:
+            data = resp['_data']
 
-                if not no_progress_bar:
-                    model_counters = {}
-                    for keymap_name in model_keymaps:
-                        model_counters[keymap_name] = tqdm.tqdm(desc=keymap_name, ascii=True)
-                    counters[model.model_type()] = model_counters
-
-                for row in data:
-                    if row['_op'] == 'insert':
-                        sync_model_insert(km, model, row, primary_keys, counters)
-                    elif row['_op'] == 'patch' or row['_op'] == 'update':
-                        sync_model_update(km, model, row, counters)
-                    sync_cid = row['_cid']
-
+            if not no_progress_bar:
+                model_counters = {}
                 for keymap_name in model_keymaps:
-                    km.update_sync_data(keymap_name, sync_cid, datetime.datetime.now())
+                    model_counters[keymap_name] = tqdm.tqdm(desc=keymap_name, ascii=True)
+                counters[model.model_type()] = model_counters
 
-                if model.model_type() in counters:
-                    for counter in counters[model.model_type()].values():
-                        counter.close()
+            for row in data:
+                if row['_op'] == 'insert':
+                    sync_model_insert(keymap, model, row, primary_keys, counters)
+                elif row['_op'] == 'patch' or row['_op'] == 'update':
+                    sync_model_update(keymap, model, row, counters)
+                sync_cid = row['_cid']
+
+            for keymap_name in model_keymaps:
+                keymap.update_sync_data(keymap_name, sync_cid, datetime.datetime.now())
+
+            if model.model_type() in counters:
+                for counter in counters[model.model_type()].values():
+                    counter.close()
 
     if '_total' in counters:
         counters['_total'].close()
@@ -129,7 +129,7 @@ def sync_model_insert(keymap: KeyMap, model: Model, row: dict, primary_keys: Lis
         for combination in model.required_keymap_properties:
             joined = '_'.join(combination)
             key = f'{model.model_type()}.{joined}'
-            val = extract_values_from_row(row, combination)
+            val = extract_values_from_row(row, model, combination)
             keymap.synchronize(key, val, row['_id'])
             if model.model_type() in counters and key in counters[model.model_type()]:
                 counters[model.model_type()][key].update(1)

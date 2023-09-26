@@ -133,6 +133,11 @@ class SqlAlchemyKeyMap(KeyMap):
         )
         self.conn.execute(query)
 
+    def first_time_sync(self) -> bool:
+        table = self.get_table('_synchronize')
+        count = self.conn.execute(sa.func.count(table.c.model)).scalar()
+        return count == 0
+
 
 def _hash_value(value):
     if isinstance(value, (list, tuple)):
