@@ -51,7 +51,7 @@ class SqlAlchemyKeyMap(KeyMap):
                 table = sa.Table(
                     name, self.metadata,
                     sa.Column('key', sa.Text, primary_key=True),
-                    sa.Column('hash', sa.Text, unique=True),
+                    sa.Column('hash', sa.Text, unique=True, index=True),
                     sa.Column('value', sa.LargeBinary),
                 )
             table.create(checkfirst=True)
@@ -125,13 +125,22 @@ class SqlAlchemyKeyMap(KeyMap):
             return None
         else:
             value, hashed = hash_return
-        query = insert(table).values(key=primary_key, hash=hashed, value=value)
-        query = query.on_conflict_do_update(
-            index_elements=[table.c.key],
-            set_=dict(hash=hashed, value=value),
-            where=table.c.hash != hashed and table.c.value != value
-        )
-        self.conn.execute(query)
+
+        where_condition = sa.or_(table.c.key == primary_key, table.c.hash == hashed)
+        select_query = sa.select([sa.func.count()]).select_from(table).where(where_condition)
+        count = self.conn.execute(select_query).scalar()
+        should_insert = True
+        if count == 1:
+            should_insert = False
+            update_query = sa.update(table).values(key=primary_key, hash=hashed, value=value).where(where_condition)
+            self.conn.execute(update_query)
+        else:
+            delete_query = sa.delete(table).where(where_condition)
+            self.conn.execute(delete_query)
+
+        if should_insert:
+            query = insert(table).values(key=primary_key, hash=hashed, value=value)
+            self.conn.execute(query)
 
     def first_time_sync(self) -> bool:
         table = self.get_table('_synchronize')

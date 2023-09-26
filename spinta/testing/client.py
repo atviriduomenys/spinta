@@ -18,7 +18,7 @@ from pytest import FixtureRequest
 from lxml.etree import _Element
 from requests import PreparedRequest
 
-from responses import RequestsMock
+from responses import RequestsMock, GET
 from responses import POST
 
 from spinta import auth
@@ -121,6 +121,11 @@ def create_remote_server(
 
     responses.add_callback(
         POST, re.compile(re.escape(url) + r'.*'),
+        callback=remote,
+        content_type='application/json',
+    )
+    responses.add_callback(
+        GET, re.compile(re.escape(url) + r'.*' + ':changes'),
         callback=remote,
         content_type='application/json',
     )
@@ -241,6 +246,7 @@ def configure_remote_server(
             'spinta_insert',
             'spinta_patch',
             'spinta_delete',
+            'spinta_changes'
         ],
         credsfile=True,
     )

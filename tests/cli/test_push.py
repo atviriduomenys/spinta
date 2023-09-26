@@ -898,3 +898,77 @@ def test_push_with_base_level_3(
     assert listdata(resp_city, 'name') == ['Ryga']
     assert listdata(resp_city, '_id') != [ryga_id]
     assert len(listdata(resp_city, 'id', 'name', 'location', 'code')) == 1
+
+
+def test_push_sync(
+    postgresql,
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    table = '''
+        d | r | b | m | property | type    | ref                             | source         | level | access
+        leveldataset             |         |                                 |                |       |
+          | db                   | sql     |                                 |                |       |
+          |   |   | City         |         | id                              | cities         | 4     |
+          |   |   |   | id       | integer |                                 | id             | 4     | open
+          |   |   |   | name     | string  |                                 | name           | 2     | open
+          |   |   |   | country  | ref     | /leveldataset/countries/Country | country        | 4     | open
+          |   |   |   |          |         |                                 |                |       |
+        leveldataset/countries   |         |                                 |                |       |
+          |   |   | Country      |         | code                            |                | 4     |
+          |   |   |   | code     | integer |                                 |                | 4     | open
+          |   |   |   | name     | string  |                                 |                | 2     | open
+        '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    # Configure remote server
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    # Push data from local to remote.
+    assert remote.url == 'https://example.com/'
+    remote.app.authmodel('leveldataset/countries/Country', ['insert', 'wipe'])
+    resp = remote.app.post('https://example.com/leveldataset/countries/Country', json={
+        'code': 2
+    })
+    country_id = resp.json()['_id']
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--sync',
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+    remote.app.authmodel('leveldataset/City', ['getall', 'search', 'wipe'])
+    resp_city = remote.app.get('leveldataset/City')
+    city_id = listdata(resp_city, '_id')[0]
+
+    assert resp_city.status_code == 200
+    assert listdata(resp_city, 'name') == ['Vilnius']
+    assert listdata(resp_city, '_id', 'id', 'name', 'country')[0] == (city_id, 1, 'Vilnius', {'_id': country_id})
+
+    # Reset data
+    remote.app.delete('https://example.com/leveldataset/countries/City/:wipe')
+    # Configure local server with SQL backend
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    result = cli.invoke(localrc, [
+        'push',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+    resp_city = remote.app.get('leveldataset/City')
+
+    assert resp_city.status_code == 200
+    assert listdata(resp_city, 'name') == ['Vilnius']
+    assert listdata(resp_city, '_id', 'id', 'name', 'country')[0] == (city_id, 1, 'Vilnius', {'_id': country_id})
