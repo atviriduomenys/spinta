@@ -4,6 +4,7 @@ from spinta.components import Property, Model
 from spinta.core.ufuncs import Env
 from spinta.datasets.enums import Level
 from spinta.datasets.keymaps.components import KeyMap
+from spinta.exceptions import GivenValueCountMissmatch
 from spinta.types.datatype import Ref, Array
 
 
@@ -24,8 +25,9 @@ def handle_ref_key_assignment(keymap: KeyMap, env: Env, value: Any, ref: Ref) ->
             prop_count_mapping[prop.name] = len(items)
         else:
             prop_count_mapping[prop.name] = 1
-    if len(value) != sum(item for item in prop_count_mapping.values()):
-        raise Exception("DOESNT MATCH COUNT")
+    expected_count = sum(item for item in prop_count_mapping.values())
+    if len(value) != expected_count:
+        raise GivenValueCountMissmatch(given_count=len(value), expected_count=expected_count)
 
     if not ref.prop.level or ref.prop.level.value > 3:
         if len(value) == 1:

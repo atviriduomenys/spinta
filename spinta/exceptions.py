@@ -622,3 +622,11 @@ class InvalidArgumentInExpression(BaseError):
 class BackendNotGiven(UserError):
     template = "Model is operating in external mode, yet it does not have assigned backend to it."
 
+
+class UnauthorizedKeymapSync(UserError):
+    code = 403
+    template = "You do not have permission to sync this model's keymap."
+
+
+class GivenValueCountMissmatch(BaseError):
+    template = "While assigning ref values {given_count} were given, while {expected_count} were expected."

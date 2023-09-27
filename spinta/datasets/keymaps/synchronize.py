@@ -8,6 +8,7 @@ from spinta.datasets.backends.helpers import extract_values_from_row
 from spinta.datasets.keymaps.components import KeyMap
 import tqdm
 
+from spinta.exceptions import UnauthorizedKeymapSync
 from spinta.utils.response import get_request
 
 
@@ -26,7 +27,7 @@ def sync_keymap(context: Context, keymap: KeyMap, client, server: str, models: L
         for key in primary_keys:
             is_authorized = authorized(context, key, action=Action.SEARCH)
             if not is_authorized:
-                raise Exception("Unauthorized to sync keymap")
+                raise UnauthorizedKeymapSync(model)
 
         # Get min cid (in case new model was added, or models are out of sync)
         sync_cid = 0
