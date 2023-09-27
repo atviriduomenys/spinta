@@ -911,14 +911,14 @@ def test_push_sync(
 ):
     table = '''
         d | r | b | m | property | type    | ref                             | source         | level | access
-        leveldataset             |         |                                 |                |       |
+        syncdataset             |         |                                 |                |       |
           | db                   | sql     |                                 |                |       |
           |   |   | City         |         | id                              | cities         | 4     |
           |   |   |   | id       | integer |                                 | id             | 4     | open
           |   |   |   | name     | string  |                                 | name           | 2     | open
-          |   |   |   | country  | ref     | /leveldataset/countries/Country | country        | 4     | open
+          |   |   |   | country  | ref     | /syncdataset/countries/Country | country        | 4     | open
           |   |   |   |          |         |                                 |                |       |
-        leveldataset/countries   |         |                                 |                |       |
+        syncdataset/countries   |         |                                 |                |       |
           |   |   | Country      |         | code                            |                | 4     |
           |   |   |   | code     | integer |                                 |                | 4     | open
           |   |   |   | name     | string  |                                 |                | 2     | open
@@ -934,8 +934,8 @@ def test_push_sync(
 
     # Push data from local to remote.
     assert remote.url == 'https://example.com/'
-    remote.app.authmodel('leveldataset/countries/Country', ['insert', 'wipe'])
-    resp = remote.app.post('https://example.com/leveldataset/countries/Country', json={
+    remote.app.authmodel('syncdataset/countries/Country', ['insert', 'wipe'])
+    resp = remote.app.post('https://example.com/syncdataset/countries/Country', json={
         'code': 2
     })
     country_id = resp.json()['_id']
@@ -947,8 +947,8 @@ def test_push_sync(
         '--no-progress-bar',
     ])
     assert result.exit_code == 0
-    remote.app.authmodel('leveldataset/City', ['getall', 'search', 'wipe'])
-    resp_city = remote.app.get('leveldataset/City')
+    remote.app.authmodel('syncdataset/City', ['getall', 'search', 'wipe'])
+    resp_city = remote.app.get('syncdataset/City')
     city_id = listdata(resp_city, '_id')[0]
 
     assert resp_city.status_code == 200
@@ -956,7 +956,7 @@ def test_push_sync(
     assert listdata(resp_city, '_id', 'id', 'name', 'country')[0] == (city_id, 1, 'Vilnius', {'_id': country_id})
 
     # Reset data
-    remote.app.delete('https://example.com/leveldataset/countries/City/:wipe')
+    remote.app.delete('https://example.com/syncdataset/countries/City/:wipe')
     # Configure local server with SQL backend
     localrc = create_rc(rc, tmp_path, geodb)
 
@@ -967,7 +967,7 @@ def test_push_sync(
         '--no-progress-bar',
     ])
     assert result.exit_code == 0
-    resp_city = remote.app.get('leveldataset/City')
+    resp_city = remote.app.get('syncdataset/City')
 
     assert resp_city.status_code == 200
     assert listdata(resp_city, 'name') == ['Vilnius']
