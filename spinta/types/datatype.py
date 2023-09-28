@@ -110,7 +110,6 @@ class DateTime(DataType):
 class String(DataType):
     schema = {
         'enum': {'type': 'array'},
-        'ref': {'type': 'string'},
     }
 
     def load(self, value: Any):
@@ -184,21 +183,15 @@ class Ref(DataType):
             'type': 'array',
             'items': {'type': 'string'},
         },
-        'enum': {'type': 'array'},
-        'ref': {'type': 'string'}
+        'enum': {'type': 'array'}
     }
 
+
 class BackRef(DataType):
-    model: Model
     schema = {
         'model': {'type': 'string'},
         'property': {'type': 'string'},
         'secondary': {'type': 'string'},
-        'ref': {'type': 'string'},
-        'refprops': {
-            'type': 'array',
-            'items': {'type': 'string'},
-        },
     }
 
 
@@ -212,11 +205,6 @@ class Generic(DataType):
 class Array(DataType):
     schema = {
         'items': {},
-        'model': {'type': 'string'},
-        'refprops': {
-            'type': 'array',
-            'items': {'type': 'string'},
-        },
     }
 
     items: Property = None

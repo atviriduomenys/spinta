@@ -31,31 +31,18 @@ def prepare(context: Context, backend: PostgreSQL, manifest: Manifest):
 @commands.prepare.register(Context, PostgreSQL, Model)
 def prepare(context: Context, backend: PostgreSQL, model: Model):
     columns = []
-    model_to_not_create = '' # if model of manifest has type array props
     for prop in model.properties.values():
         # FIXME: _revision should has its own type and on database column type
         #        should bet received from get_primary_key_type() command.
-        if isinstance(prop.dtype, Ref):
-            model_to_not_create += prop.name.capitalize()
-        if (prop.name.startswith('_') or ('[]' in prop.name and prop.dtype.name == 'ref')) and prop.name not in ('_id', '_revision'):
+        if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):
             continue
-        if isinstance(prop.dtype, BackRef):
-            if not model.manifest.models.get(''.join([prop.dtype.model,
-                                                         prop.dtype.prop.model.name.replace(model.ns.name + '/', '')])):
-                column = commands.prepare(context, backend, prop)
-            else:
-                continue
-        else:
-            column = commands.prepare(context, backend, prop)
+
+        column = commands.prepare(context, backend, prop)
+
         if isinstance(column, list):
             columns.extend(column)
         elif column is not None:
             columns.append(column)
-
-    if split_by_uppercase(model.name) and split_by_uppercase(model_to_not_create):
-        if split_by_uppercase(model.name) == split_by_uppercase(model_to_not_create) or \
-            split_by_uppercase(model.name) == sorted(split_by_uppercase(model_to_not_create)):
-            return
 
     if model.unique:
         for constraint in model.unique:

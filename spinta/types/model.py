@@ -261,6 +261,7 @@ def load(
         prop.unit = unit
     else:
         prop.given.enum = unit
+    prop.given.name = prop.given_name if prop.given_name else prop.name
     return prop
 
 
@@ -362,7 +363,7 @@ def load(context: Context, model: Model, data: dict) -> dict:
     # check that given data does not have more keys, than model's schema
     non_hidden_keys = []
     for key, prop in model.properties.items():
-        if not prop.hidden or prop.dtype.name == 'backref':
+        if not prop.hidden:
             non_hidden_keys.append(key)
 
     unknown_props = set(data.keys()) - set(non_hidden_keys)

@@ -384,18 +384,8 @@ def select(env, dtype, leaf):
 @ufunc.resolver(PgQueryBuilder, Ref)
 def select(env, dtype):
     table = env.backend.get_table(env.model)
-    if '[]' in dtype.prop.name:
-        column = table.c['_id']
-    else:
-        column = table.c[dtype.prop.place + '._id']
+    column = table.c[dtype.prop.place + '._id']
     return Selected(column, dtype.prop)
-
-
-@ufunc.resolver(PgQueryBuilder, BackRef)
-def select(env, dtype):
-    table = env.backend.get_table(env.model)
-    column = table.c['_id']
-    return Selected(column, dtype.prop.model.flatprops[dtype.prop.name])
 
 
 @ufunc.resolver(PgQueryBuilder, ExternalRef)

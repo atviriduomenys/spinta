@@ -566,19 +566,32 @@ class PropertyReader(TabularReader):
     enums: Set[str]
 
     def read(self, row: Dict[str, str]) -> None:
-        self.name = row['property']
+        is_prop_array: bool = False
+        given_name = row['property']
+        if row['property'].endswith('[]'):
+            self.name = row['property'][:-2]
+            is_prop_array = True
+        else:
+            self.name = row['property']
+
         if self.state.model is None:
             context = self.state.stack[-1]
             self.error(
                 f"Property {self.name!r} must be defined in a model context. "
                 f"Now it is defined in {context.name!r} {context.type} context."
             )
-
-        if row['property'] in self.state.model.data['properties']:
-            self.error(
-                f"Property {self.name!r} with the same name is already "
-                f"defined for this {self.state.model.name!r} model."
-            )
+        existing_prop = None
+        if self.name in self.state.model.data['properties']:
+            existing_prop = self.state.model.data['properties'][self.name]
+            should_error = True
+            if is_prop_array and existing_prop['type'] == 'array':
+                if not existing_prop['items']:
+                    should_error = False
+            if should_error:
+                self.error(
+                    f"Property {self.name!r} with the same name is already "
+                    f"defined for this {self.state.model.name!r} model."
+                )
         dtype = _get_type_repr(row['type'])
         dtype = _parse_dtype_string(dtype)
         if dtype['error']:
@@ -589,7 +602,7 @@ class PropertyReader(TabularReader):
         if self.state.base and not dtype['type']:
             dtype['type'] = 'inherit'
 
-        self.data = {
+        new_data = {
             'type': dtype['type'],
             'type_args': dtype['type_args'],
             'prepare': _parse_spyna(self, row[PREPARE]),
@@ -600,26 +613,39 @@ class PropertyReader(TabularReader):
             'description': row['description'],
             'required': dtype['required'],
             'unique': dtype['unique'],
+            'given_name': given_name
         }
         dataset = self.state.dataset.data if self.state.dataset else None
+        if dataset or row['source']:
+            new_data['external'] = {
+                'name': row['source'],
+                'prepare': new_data.pop('prepare'),
+            }
+
+        custom_data = new_data.copy() if is_prop_array else new_data
         if row['ref']:
-            if row['type'] in ('ref', 'backref', 'generic', 'array'):
+            if row['type'] in ('ref', 'backref', 'generic'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
-                self.data['model'] = get_relative_model_name(dataset, ref_model)
-                self.data['refprops'] = ref_props
+                custom_data['model'] = get_relative_model_name(dataset, ref_model)
+                custom_data['refprops'] = ref_props
             else:
                 # TODO: Detect if ref is a unit or an enum.
-                self.data['enum'] = row['ref']
-        if dataset or row['source']:
-            self.data['external'] = {
-                'name': row['source'],
-                'prepare': self.data.pop('prepare'),
-            }
-        # Denormalized form
-        if "." in self.name and not self.data['type']:
-            self.data['type'] = 'denorm'
+                custom_data['enum'] = row['ref']
 
-        self.state.model.data['properties'][row['property']] = self.data
+        # Denormalized form
+        if "." in self.name and not new_data['type']:
+            new_data['type'] = 'denorm'
+        if existing_prop and existing_prop['type'] == 'array':
+            existing_prop['items'] = custom_data.copy()
+        else:
+            if is_prop_array:
+                new_data['items'] = custom_data.copy()
+                new_data['type'] = 'array'
+            elif new_data['type'] == 'array':
+                new_data['items'] = {}
+
+            self.data = new_data
+            self.state.model.data['properties'][self.name] = self.data
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
@@ -1669,11 +1695,11 @@ def _property_to_tabular(
     if prop.name.startswith('_'):
         return
 
-    if prop.access < access:
+    if prop.access and prop.access < access:
         return
 
     data = {
-        'property': prop.place,
+        'property': prop.given.name,
         'type': _get_type_repr(prop.dtype),
         'level': prop.level.value if prop.level else "",
         'access': prop.given.access,
@@ -1695,6 +1721,13 @@ def _property_to_tabular(
         elif prop.external:
             data['source'] = prop.external.name
             data['prepare'] = unparse(prop.external.prepare or NA)
+    yield_array_row = None
+    if isinstance(prop.dtype, Array):
+        yield_array_row = prop.dtype.items
+        if prop.given.name == prop.dtype.items.given.name:
+            yield from _property_to_tabular(yield_array_row, external=external, access=access, order_by=order_by)
+            return
+
     if isinstance(prop.dtype, Ref):
         model = prop.model
         if model.external and model.external.dataset:
@@ -1709,14 +1742,7 @@ def _property_to_tabular(
                 data['ref'] += f'[{rkeys}]'
         else:
             data['ref'] = prop.dtype.model.name
-    elif isinstance(prop.dtype, (BackRef, Array)) and not prop.dtype.refprops:
-        if prop.model.external.dataset and prop.dtype.model:
-            print(prop.model.external.dataset.name, prop.dtype.model)
-            data['ref'] = get_relative_model_name(prop.model.external.dataset.name + '/', prop.dtype.model)
-    elif isinstance(prop.dtype, Array):
-        if prop.model.external.dataset and prop.dtype.model:
-            data['ref'] = get_relative_model_name(prop.model.external.dataset.name + '/', prop.dtype.model) + str(
-                prop.dtype.refprops).replace("'", '')
+
     elif prop.enum is not None:
         data['ref'] = prop.given.enum
     elif prop.unit is not None:
@@ -1731,6 +1757,8 @@ def _property_to_tabular(
         access=access,
         order_by=order_by,
     )
+    if yield_array_row:
+        yield from _property_to_tabular(yield_array_row, external=external, access=access, order_by=order_by)
 
 
 def _model_to_tabular(

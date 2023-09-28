@@ -220,6 +220,7 @@ class PropertyRow(TypedDict, total=False):
     units: str
     required: bool
     unique: bool
+    given_name: str
 
 
 class PropertyExternalRow(TypedDict, total=False):

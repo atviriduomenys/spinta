@@ -547,6 +547,7 @@ class PropertyGiven:
     access: str = None
     enum: str = None
     unit: str = None
+    name: str = None
 
 
 class Property(Node):
@@ -592,6 +593,7 @@ class Property(Node):
         'units': {'type': 'string'},
         'lang': {'type': 'object'},
         'comments': {},
+        'given_name': {'type': 'string'}
     }
 
     def __init__(self):
