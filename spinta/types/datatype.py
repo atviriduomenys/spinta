@@ -186,12 +186,19 @@ class Ref(DataType):
         'enum': {'type': 'array'},
     }
 
+
 class BackRef(DataType):
+    model: Model
+    refprop: Property
+
     schema = {
         'model': {'type': 'string'},
-        'property': {'type': 'string'},
-        'secondary': {'type': 'string'},
+        'refprop': {'type': 'string'},
     }
+
+
+class ArrayBackRef(BackRef):
+    pass
 
 
 class Generic(DataType):

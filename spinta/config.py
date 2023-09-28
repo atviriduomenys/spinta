@@ -107,6 +107,7 @@ CONFIG = {
             'spatial': 'spinta.types.geometry.components:Spatial',
             'ref': 'spinta.types.datatype:Ref',
             'backref': 'spinta.types.datatype:BackRef',
+            'array_backref': 'spinta.types.datatype:ArrayBackRef',
             'generic': 'spinta.types.datatype:Generic',
             'array': 'spinta.types.datatype:Array',
             'object': 'spinta.types.datatype:Object',

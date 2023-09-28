@@ -23,7 +23,7 @@ from spinta.exceptions import FieldNotInResource
 from spinta.components import Model, Property, Action, Page
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
 from spinta.utils.data import take
-from spinta.types.datatype import DataType, ExternalRef, Inherit
+from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef
 from spinta.types.datatype import Array
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -257,6 +257,12 @@ def getattr_(env, dtype, attr):
 
 
 @ufunc.resolver(PgQueryBuilder, Ref, Bind, name='getattr')
+def getattr_(env, dtype, attr):
+    prop = dtype.model.properties[attr.name]
+    return ForeignProperty(None, dtype.prop, prop)
+
+
+@ufunc.resolver(PgQueryBuilder, BackRef, Bind, name='getattr')
 def getattr_(env, dtype, attr):
     prop = dtype.model.properties[attr.name]
     return ForeignProperty(None, dtype.prop, prop)
