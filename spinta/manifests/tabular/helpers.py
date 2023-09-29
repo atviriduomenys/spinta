@@ -30,7 +30,7 @@ from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
-from spinta.components import Context, Base
+from spinta.components import Context, Base, PrepareGiven
 from spinta.datasets.components import Resource
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
@@ -372,7 +372,8 @@ class BaseReader(TabularReader):
                 'pk': (
                     [x.strip() for x in row['ref'].split(',')]
                     if row['ref'] else []
-                )
+                ),
+                'level': row['level']
             }
 
     def release(self, reader: TabularReader = None) -> bool:
@@ -423,6 +424,7 @@ class ModelReader(TabularReader):
                 'name': base.name,
                 'parent': base.data['model'],
                 'pk': base.data['pk'],
+                'level': base.data['level']
             } if base and base.data else None,
             'level': row['level'],
             'access': row['access'],
@@ -605,7 +607,7 @@ class PropertyReader(TabularReader):
         new_data = {
             'type': dtype['type'],
             'type_args': dtype['type_args'],
-            'prepare': _parse_spyna(self, row[PREPARE]),
+            'prepare': row[PREPARE],
             'level': row['level'],
             'access': row['access'],
             'uri': row['uri'],
@@ -613,25 +615,32 @@ class PropertyReader(TabularReader):
             'description': row['description'],
             'required': dtype['required'],
             'unique': dtype['unique'],
-            'given_name': given_name
+            'given_name': given_name,
+            'prepare_given': [],
         }
         dataset = self.state.dataset.data if self.state.dataset else None
-        if dataset or row['source']:
-            new_data['external'] = {
-                'name': row['source'],
-                'prepare': new_data.pop('prepare'),
-            }
 
         custom_data = new_data.copy() if is_prop_array else new_data
+        if row['prepare']:
+            custom_data['prepare_given'].append(
+                PrepareGiven(
+                    appended=False,
+                    source='',
+                    prepare=row['prepare']
+                )
+            )
         if row['ref']:
-            if row['type'] in ('ref', 'backref', 'generic'):
+            if dtype['type'] in ('ref', 'backref', 'generic'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
                 custom_data['model'] = get_relative_model_name(dataset, ref_model)
                 custom_data['refprops'] = ref_props
             else:
                 # TODO: Detect if ref is a unit or an enum.
                 custom_data['enum'] = row['ref']
-
+        if dataset or row['source']:
+            custom_data['external'] = {
+                'name': row['source'],
+            }
         # Denormalized form
         if "." in self.name and not new_data['type']:
             new_data['type'] = 'denorm'
@@ -646,6 +655,23 @@ class PropertyReader(TabularReader):
 
             self.data = new_data
             self.state.model.data['properties'][self.name] = self.data
+
+    def append(self, row: Dict[str, str]) -> None:
+        result = row['prepare']
+
+        if row['source']:
+            if result:
+                split = result.split('.')
+                formula = split[0]
+                split_formula = formula.split('(')
+                reconstructed = f'{split_formula[0]}("{row["source"]}", {"(".join(split_formula[1:])}'
+                split[0] = reconstructed
+                result = '.'.join(split)
+            else:
+                result = row['source']
+        if not result:
+            return
+        self._append_prepare(row, result)
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
@@ -662,7 +688,27 @@ class PropertyReader(TabularReader):
         self.state.prop = self
 
     def leave(self) -> None:
+        self._parse_prepare()
+        if 'external' in self.data:
+            self.data['external']['prepare'] = self.data.pop('prepare')
+
         self.state.prop = None
+
+    def _parse_prepare(self):
+        if "prepare" in self.data:
+            self.data["prepare"] = _parse_spyna(self, self.data["prepare"])
+
+    def _append_prepare(self, row: Dict[str, str], prepare: str):
+        if "prepare" in self.data:
+            prep = self.data["prepare"]
+            self.data["prepare"] = f'{prep}.{prepare}' if prep else prepare
+        self.data['prepare_given'].append(
+            PrepareGiven(
+                appended=True,
+                source=row['source'],
+                prepare=row['prepare']
+            )
+        )
 
 
 class AppendReader(TabularReader):
@@ -1677,7 +1723,8 @@ def _base_to_tabular(
     base: Base,
 ) -> Iterator[ManifestRow]:
     data = {
-        'base': base.name
+        'base': base.name,
+        'level': base.level.value if base.level else "",
     }
     if base.pk:
         data['ref'] = ', '.join([pk.place for pk in base.pk])
@@ -1747,8 +1794,9 @@ def _property_to_tabular(
         data['ref'] = prop.given.enum
     elif prop.unit is not None:
         data['ref'] = prop.given.unit
-
+    data, prepare_rows = _prepare_to_tabular(data, prop)
     yield torow(DATASET, data)
+    yield from prepare_rows
     yield from _comments_to_tabular(prop.comments, access=access)
     yield from _lang_to_tabular(prop.lang)
     yield from _enums_to_tabular(
@@ -1759,6 +1807,22 @@ def _property_to_tabular(
     )
     if yield_array_row:
         yield from _property_to_tabular(yield_array_row, external=external, access=access, order_by=order_by)
+
+
+def _prepare_to_tabular(data, prop):
+    prep_rows = []
+    if prop.given.prepare:
+        data['prepare'] = ''
+        for prep in prop.given.prepare:
+            if prep['appended']:
+                prep_rows.append(torow(DATASET, {
+                    'source': prep['source'],
+                    'prepare': prep['prepare']
+                }))
+            else:
+                if prop.external:
+                    data['prepare'] = prep['prepare']
+    return data, prep_rows
 
 
 def _model_to_tabular(
@@ -1894,7 +1958,7 @@ def datasets_to_tabular(
         else:
             separator = False
 
-        if model.base and (not base or model.base.name != base.name):
+        if model.base and (not base or not is_base_same(model.base, base)):
             base = model.base
             yield from _base_to_tabular(model.base)
         elif base and not model.base:
@@ -1919,6 +1983,10 @@ def datasets_to_tabular(
         )
         for resource in dataset.resources.values():
             yield from _resource_to_tabular(resource)
+
+
+def is_base_same(a: Base, b: Base):
+    return a.name == b.name and a.level == b.level and a.pk == b.pk
 
 
 def torow(keys, values) -> ManifestRow:

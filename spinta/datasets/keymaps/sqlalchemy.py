@@ -15,6 +15,7 @@ from spinta.components import Config
 from spinta.components import Context
 from spinta.core.config import RawConfig
 from spinta.datasets.keymaps.components import KeyMap
+from sqlalchemy.dialects.sqlite import insert
 
 
 class SqlAlchemyKeyMap(KeyMap):
@@ -47,7 +48,7 @@ class SqlAlchemyKeyMap(KeyMap):
             table.create(checkfirst=True)
         return self.metadata.tables[name]
 
-    def encode(self, name: str, value: object) -> Optional[str]:
+    def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
         # Make value msgpack serializable.
         if isinstance(value, (list, tuple)):
             value = [_encode_value(k) for k in value if k is not None]
@@ -58,24 +59,37 @@ class SqlAlchemyKeyMap(KeyMap):
                 return None
             value = _encode_value(value)
 
-        # Get value hash.
-        value = msgpack.dumps(value, strict_types=True)
-        hash = hashlib.sha1(value).hexdigest()
+        tmp_name = None
+        if '.' in name:
+            tmp_name = name.split('.')[0]
 
-        # Try to find key by value hash.
         table = self.get_table(name)
-        query = sa.select([table.c.key]).where(table.c.hash == hash)
-        key = self.conn.execute(query).scalar()
-        if key is None:
+        value = msgpack.dumps(value, strict_types=True)
+        hashed_value = hashlib.sha1(value).hexdigest()
 
-            # Create new key.
+        if primary_key is not None:
+            primary_key_table = self.get_table(tmp_name if tmp_name else name)
+            query = sa.select([primary_key_table.c.key]).where(primary_key_table.c.key == primary_key)
+        else:
+            query = sa.select([table.c.key]).where(table.c.hash == hashed_value)
+        key = self.conn.execute(query).scalar()
+
+        if primary_key:
+            stmt = insert(table).values(
+                key=primary_key,
+                hash=hashed_value,
+                value=value
+            )
+            stmt = stmt.on_conflict_do_nothing()
+            self.conn.execute(stmt)
+            return primary_key
+        if key is None:
             key = str(uuid.uuid4())
             self.conn.execute(table.insert(), {
                 'key': key,
-                'hash': hash,
+                'hash': hashed_value,
                 'value': value,
             })
-
         return key
 
     def decode(self, name: str, key: str) -> object:

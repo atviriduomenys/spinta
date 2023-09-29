@@ -17,12 +17,14 @@ from starlette.requests import Request
 from starlette.responses import Response
 from toposort import toposort
 
+import spinta.components
 from spinta import commands
 from spinta import exceptions
 from spinta.auth import authorized
 from spinta.backends.helpers import get_select_prop_names
 from spinta.backends.helpers import get_select_tree
 from spinta.backends.components import BackendFeatures
+from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Action
 from spinta.components import Config
@@ -238,11 +240,13 @@ def traverse_ns_models(
     resource: Optional[str] = None,
     *,
     internal: bool = False,
+    source_check: bool = False
 ):
     models = (ns.models or {})
     for model in models.values():
-        if _model_matches_params(context, model, action, dataset_, resource, internal):
-            yield model
+        if not (source_check and isinstance(model.backend, NoBackend)):
+            if _model_matches_params(context, model, action, dataset_, resource, internal):
+                yield model
     for ns_ in ns.names.values():
         if not internal and ns_.name.startswith('_'):
             continue
@@ -253,6 +257,7 @@ def traverse_ns_models(
             dataset_,
             resource,
             internal=internal,
+            source_check=source_check
         )
 
 
@@ -264,6 +269,7 @@ def _model_matches_params(
     resource: Optional[str] = None,
     internal: bool = False,
 ):
+
     if not internal and model.name.startswith('_'):
         return False
 
@@ -438,6 +444,31 @@ def sort_models_by_refs(models: Iterable[Model]) -> Iterator[Model]:
                 continue
             seen.add(name)
             yield models[name]
+
+
+def sort_models_by_base(models: Iterable[Model]) -> Iterator[Model]:
+    models = {model.model_type(): model for model in models}
+    graph = collections.defaultdict(set)
+    for name, model in models.items():
+        graph[''].add(name)
+        for base in iter_model_base(model):
+            ref = base.model_type()
+            if ref in models:
+                graph[ref].add(name)
+    graph = toposort(graph)
+    seen = {''}
+    for group in graph:
+        for name in sorted(group):
+            if name in seen:
+                continue
+            seen.add(name)
+            yield models[name]
+
+
+def iter_model_base(model: Model) -> Iterator[Model]:
+    if model.base:
+        yield from iter_model_base(model.base.parent)
+        yield model.base.parent
 
 
 def iter_model_refs(model: Model) -> Iterator[Ref]:

@@ -4,14 +4,13 @@ git checkout master
 git pull
 
 git tag -l -n1 | sort -h | tail -n5
-export CURRENT_VERSION=0.1.52
-export NEXT_VERSION=0.1.53
-export FUTURE_VERSION=0.1.54
+export CURRENT_VERSION=0.1.54
+export NEXT_VERSION=0.1.55
+export FUTURE_VERSION=0.1.56
 
 head CHANGES.rst
 
 # Check what was changed and update CHANGES.rst
-xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION..master
 xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...master
 # Update CHANGES.rst
 
@@ -19,7 +18,7 @@ docker-compose ps
 docker-compose up -d
 unset SPINTA_CONFIG
 poetry run pytest -vvx --tb=short tests
-#| 1232 passed, 34 skipped, 8 warnings in 203.33s (0:03:23)
+#| 1307 passed, 34 skipped, 17 warnings in 208.44s (0:03:28)
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -66,7 +65,7 @@ tree ~/.config/spinta/
 poetry run spinta genkeys
 
 # Add default client
-cat ~/.config/spinta/clients/test.yml
+cat ~/.config/spinta/clients/default.yml
 poetry run spinta client add -n default --add-secret --scope - <<EOF
 spinta_getone
 spinta_getall
@@ -113,8 +112,7 @@ test -n "$PID" && kill $PID
 unset SPINTA_CONFIG
 cd -
 docker-compose down
-deactivate
-
+exit
 
 ed pyproject.toml <<EOF
 /^version = /c

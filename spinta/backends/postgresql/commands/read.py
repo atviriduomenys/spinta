@@ -9,6 +9,7 @@ from spinta.components import Model
 from spinta.exceptions import NotFoundError
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.ufuncs.basequerybuilder.components import get_page_values
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.backends.postgresql.commands.query import PgQueryBuilder
 
@@ -56,10 +57,12 @@ def getall(
     result = conn.execute(qry)
 
     for row in result:
-        row = flat_dicts_to_nested(dict(row))
-        row = {
+        converted = flat_dicts_to_nested(dict(row))
+        res = {
             '_type': model.model_type(),
-            **row,
+            **converted
         }
-        row = commands.cast_backend_to_python(context, model, backend, row)
-        yield row
+        if model.page.is_enabled:
+            res['_page'] = get_page_values(env, row)
+        res = commands.cast_backend_to_python(context, model, backend, res)
+        yield res

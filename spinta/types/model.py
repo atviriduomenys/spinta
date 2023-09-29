@@ -18,7 +18,7 @@ from spinta.auth import authorized
 from spinta.commands import authorize
 from spinta.commands import check
 from spinta.commands import load
-from spinta.components import Action, Component
+from spinta.components import Action, Component, PageBy
 from spinta.components import Base
 from spinta.components import Context
 from spinta.components import Mode
@@ -26,6 +26,7 @@ from spinta.components import Model
 from spinta.components import Property
 from spinta.core.access import link_access_param
 from spinta.core.access import load_access_param
+from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.enums import Level
 from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.components import EnumValue
@@ -42,10 +43,13 @@ from spinta.nodes import get_node
 from spinta.nodes import load_model_properties
 from spinta.nodes import load_node
 from spinta.types.namespace import load_namespace_from_name
+from spinta.ufuncs.basequerybuilder.components import LoadBuilder
 from spinta.units.helpers import is_unit
 from spinta.utils.enums import enum_by_value
 from spinta.utils.schema import NA
 from spinta.types.datatype import Ref
+from spinta.backends.nobackend.components import NoBackend
+from spinta.datasets.components import ExternalBackend
 
 if TYPE_CHECKING:
     from spinta.datasets.components import Attribute
@@ -73,10 +77,12 @@ def load(
     load_node(context, model, data)
     model.lang = load_lang_data(context, model.lang)
     model.comments = load_comments(model, model.comments)
+
     if model.keymap:
         model.keymap = manifest.store.keymaps[model.keymap]
     else:
         model.keymap = manifest.keymap
+
     manifest.add_model_endpoint(model)
     _load_namespace_from_model(context, manifest, model)
     load_access_param(model, data.get('access'), itertools.chain(
@@ -85,6 +91,7 @@ def load(
     ))
     load_level(model, model.level)
     load_model_properties(context, model, Property, data.get('properties'))
+
     # XXX: Maybe it is worth to leave possibility to override _id access?
     model.properties['_id'].access = model.access
 
@@ -135,13 +142,17 @@ def load(
         model.external = None
         model.given.pkeys = []
 
+    builder = LoadBuilder(context)
+    builder.update(model=model)
+    builder.load_page()
+
     return model
 
 
 @overload
 @commands.load.register(Context, Base, dict, Manifest)
 def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
-    pass
+    load_level(base, data['level'])
 
 
 @overload
@@ -167,6 +178,8 @@ def link(context: Context, model: Model):
         model.external.resource.backend
     ):
         model.backend = model.external.resource.backend
+    elif model.mode == Mode.external:
+        model.backend = NoBackend()
     else:
         model.backend = model.manifest.backend
 
@@ -190,6 +203,35 @@ def link(context: Context, model: Model):
     for prop in model.properties.values():
         commands.link(context, prop)
 
+    _link_model_page(model)
+
+
+def _link_model_page(model: Model):
+    if not model.backend or not model.backend.paginated:
+        model.page.is_enabled = False
+    else:
+        # Disable page if external backend and model.ref not given
+        if isinstance(model.backend, ExternalBackend):
+            if (model.external and not model.external.name) or not model.external:
+                model.page.is_enabled = False
+            else:
+                # Currently only supported external backend is SQL
+                if not isinstance(model.backend, Sql):
+                    model.page.is_enabled = False
+            if '_id' in model.page.by:
+                model.page.by.pop('_id')
+            if '-_id' in model.page.by:
+                model.page.by.pop('-_id')
+        else:
+            # Add _id to internal, if it's not added
+            if '_id' not in model.page.by and '-_id' not in model.page.by:
+                model.page.by['_id'] = PageBy(model.properties["_id"])
+        if len(model.page.by) == 0:
+            model.page.is_enabled = False
+    if not model.page.is_enabled:
+        del model.properties['_page']
+        del model.flatprops['_page']
+
 
 @overload
 @commands.link.register(Context, Base)
@@ -199,9 +241,11 @@ def link(context: Context, base: Base):
         base.parent.properties[pk]
         for pk in base.pk
     ] if base.pk else []
+    if (base.level and base.level >= Level.identifiable) or not base.level:
+        base.parent.add_keymap_property_combination(base.pk)
 
 
-@commands.load.register(Context, Property, dict, Manifest)
+@load.register(Context, Property, dict, Manifest)
 def load(
     context: Context,
     prop: Property,
@@ -212,6 +256,9 @@ def load(
     prop.type = 'property'
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
+
+    if 'prepare_given' in data and data['prepare_given']:
+        prop.given.prepare = data['prepare_given']
     parents = list(itertools.chain(
         [prop.model, prop.model.ns],
         prop.model.ns.parents(),
@@ -220,6 +267,8 @@ def load(
     prop.enums = load_enums(context, [prop] + parents, prop.enums)
     prop.lang = load_lang_data(context, prop.lang)
     prop.comments = load_comments(prop, prop.comments)
+    if prop.prepare_given:
+        prop.given.prepare = prop.prepare_given
     load_level(prop, prop.level)
 
     if data['type'] is None:
@@ -357,8 +406,7 @@ def _load_property_external(
     return external
 
 
-@overload
-@commands.load.register(Context, Model, dict)
+@load.register(Context, Model, dict)
 def load(context: Context, model: Model, data: dict) -> dict:
     # check that given data does not have more keys, than model's schema
     non_hidden_keys = []
@@ -376,17 +424,17 @@ def load(context: Context, model: Model, data: dict) -> dict:
     result = {}
     for name, prop in model.properties.items():
         value = data.get(name, NA)
-        value = commands.load(context, prop.dtype, value)
+        value = load(context, prop.dtype, value)
         if value is not NA:
             result[name] = value
     return result
 
 
 @overload
-@commands.load.register(Context, Property, object)
+@load.register(Context, Property, object)
 def load(context: Context, prop: Property, value: object) -> object:
     value = _prepare_prop_data(prop.name, value)
-    value[prop.name] = commands.load(context, prop.dtype, value[prop.name])
+    value[prop.name] = load(context, prop.dtype, value[prop.name])
     return value
 
 
