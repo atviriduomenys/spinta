@@ -52,9 +52,12 @@ from spinta.components import Model
 from spinta.components import Store
 from spinta.core.context import configure_context
 from spinta.core.ufuncs import Expr
-from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush, InvalidPushWithPageParameterCount
+from spinta.datasets.enums import Level
+from spinta.datasets.keymaps.synchronize import sync_keymap
+from spinta.exceptions import InfiniteLoopWithPagination, UnauthorizedPropertyPush
 from spinta.manifests.components import Manifest
-from spinta.types.namespace import sort_models_by_refs, sort_models_by_base
+from spinta.types.datatype import Ref
+from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.ufuncs.basequerybuilder.ufuncs import filter_page_values
 from spinta.utils.data import take
 from spinta.utils.itertools import peek
@@ -130,6 +133,9 @@ def push(
     page_model: str = Option(None, '--model', help=(
         "Model of the page value."
     )),
+    synchronize: bool = Option(False, '--sync', help=(
+        "Update push sync state, in {data_path}/push/{remote}.db"
+    )),
 ):
     """Push data to external data store"""
     if chunk_size:
@@ -155,6 +161,7 @@ def push(
     if not state:
         ensure_data_dir(config.data_path / 'push')
         state = config.data_path / 'push' / f'{creds.remote}.db'
+
     state = f'sqlite:///{state}'
 
     manifest = store.manifest
@@ -177,20 +184,33 @@ def push(
 
         _attach_backends(context, store, manifest)
         _attach_keymaps(context, store)
+        error_counter = ErrorCounter(max_count=max_error_count)
 
         from spinta.types.namespace import traverse_ns_models
 
         models = traverse_ns_models(context, ns, Action.SEARCH, dataset, source_check=True)
-        models = sort_models_by_refs(models)
-        models = sort_models_by_base(models)
-        models = list(reversed(list(models)))
+        models = sort_models_by_ref_and_base(list(models))
 
         if state:
             state = _State(*_init_push_state(state, models))
             context.attach('push.state.conn', state.engine.begin)
 
-        error_counter = ErrorCounter(max_count=max_error_count)
+        with manifest.keymap as km:
+            first_time = km.first_time_sync()
+            if first_time:
+                synchronize = True
 
+            dependant_models = extract_dependant_nodes(models, not synchronize)
+            sync_keymap(
+                context=context,
+                keymap=km,
+                client=client,
+                server=creds.server,
+                models=dependant_models,
+                error_counter=error_counter,
+                no_progress_bar=no_progress_bar,
+                reset_cid=synchronize
+            )
         _update_page_values_for_models(context, state.metadata, models, incremental, page_model, page)
 
         rows = _read_rows(
@@ -203,7 +223,7 @@ def push(
             stop_on_error=stop_on_error,
             retry_count=retry_count,
             no_progress_bar=no_progress_bar,
-            error_counter=error_counter
+            error_counter=error_counter,
         )
 
         _push(
@@ -223,6 +243,29 @@ def push(
 
         if error_counter.has_errors():
             raise Exit(code=1)
+
+
+def extract_dependant_nodes(models: List[Model], filter_pushed: bool):
+    extracted_models = [] if filter_pushed else models.copy()
+    for model in models:
+        if model.base:
+            if not model.base.level or model.base.level > Level.open:
+                if model.base.parent not in extracted_models:
+                    if filter_pushed and not (model.base.parent in models):
+                        extracted_models.append(model.base.parent)
+                    elif not filter_pushed:
+                        extracted_models.append(model.base.parent)
+
+        for prop in model.properties.values():
+            if isinstance(prop.dtype, Ref):
+                if not prop.level or prop.level > Level.open:
+                    if prop.dtype.model not in extracted_models:
+                        if filter_pushed and not (prop.dtype.model in models):
+                            extracted_models.append(prop.dtype.model)
+                        elif not filter_pushed:
+                            extracted_models.append(prop.dtype.model)
+
+    return extracted_models
 
 
 def _update_page_values_for_models(context: Context, metadata: sa.MetaData, models: List[Model], incremental: bool, page_model: str, page: list):
@@ -313,7 +356,7 @@ def _push(
     chunk_size: Optional[int] = None,   # split into chunks of given size in bytes
     dry_run: bool = False,              # do not send or write anything
     stop_on_error: bool = False,        # raise error immediately
-    error_counter: ErrorCounter = None
+    error_counter: ErrorCounter = None,
 ) -> None:
     if stop_time:
         rows = _add_stop_time(rows, stop_time)
@@ -357,7 +400,7 @@ def _read_rows(
     stop_on_error: bool = False,
     retry_count: int = 5,
     no_progress_bar: bool = False,
-    error_counter: ErrorCounter = None
+    error_counter: ErrorCounter = None,
 ) -> Iterator[_PushRow]:
     yield from _get_model_rows(
         context,
@@ -1245,7 +1288,7 @@ def _reset_pushed(
 def _check_push_state(
     context: Context,
     rows: Iterable[_PushRow],
-    metadata: sa.MetaData,
+    metadata: sa.MetaData
 ):
     conn = context.get('push.state.conn')
 
@@ -1286,6 +1329,7 @@ def _check_push_state(
                         # Skip if no changes, but only if not paginated, since pagination already skips those
                         if '_page' not in row.data:
                             continue
+
             yield row
 
 
