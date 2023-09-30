@@ -4,9 +4,9 @@ git checkout master
 git pull
 
 git tag -l -n1 | sort -h | tail -n5
-export CURRENT_VERSION=0.1.54
-export NEXT_VERSION=0.1.55
-export FUTURE_VERSION=0.1.56
+export CURRENT_VERSION=0.1.55
+export NEW_VERSION=0.1.56
+export FUTURE_VERSION=0.1.57
 
 head CHANGES.rst
 
@@ -17,8 +17,10 @@ xdg-open https://github.com/atviriduomenys/spinta/compare/$CURRENT_VERSION...mas
 docker-compose ps
 docker-compose up -d
 unset SPINTA_CONFIG
+test -n "$PID" && kill $PID
+
 poetry run pytest -vvx --tb=short tests
-#| 1307 passed, 34 skipped, 17 warnings in 208.44s (0:03:28)
+#| 1353 passed, 36 skipped, 87 warnings in 258.83s (0:04:18)
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -27,19 +29,19 @@ xdg-open var/changes.html
 poetry shell
 
 # Configure Spinta server instance
-INSTANCE=releases/$NEXT_VERSION
-BASEDIR=var/instances/$INSTANCE
+INSTANCE=releases/$NEW_VERSION
+BASEDIR=$PWD/var/instances/$INSTANCE
 mkdir -p $BASEDIR
 cat $BASEDIR/config.yml
 cat > $BASEDIR/config.yml <<EOF
 env: production
-data_path: $PWD/$BASEDIR
+data_path: $BASEDIR
 default_auth_client: default
 
 keymaps:
   default:
     type: sqlalchemy
-    dsn: sqlite:///$PWD/$BASEDIR/keymap.db
+    dsn: sqlite:///$BASEDIR/keymap.db
 
 backends:
   default:
@@ -50,14 +52,14 @@ manifest: default
 manifests:
   default:
     type: csv
-    path: $PWD/$BASEDIR/manifest.csv
+    path: $BASEDIR/manifest.csv
     backend: default
     keymap: default
     mode: internal
 
 accesslog:
   type: file
-  file: $PWD/$BASEDIR/accesslog.json
+  file: $BASEDIR/accesslog.json
 EOF
 export SPINTA_CONFIG=$BASEDIR/config.yml
 
@@ -106,23 +108,102 @@ tail -50 $BASEDIR/spinta.log
 http :8000
 http :8000/version
 
-xdg-open http://localhost:8000/datasets/gov
+# Run some smoke tests
+
+SERVER=:8000
+CLIENT=test
+SECRET=secret
+SCOPES=(
+    spinta_set_meta_fields
+    spinta_getone
+    spinta_getall
+    spinta_search
+    spinta_changes
+    spinta_insert
+    spinta_upsert
+    spinta_update
+    spinta_patch
+    spinta_delete
+    spinta_wipe
+)
+TOKEN=$(
+    http \
+        -a $CLIENT:$SECRET \
+        -f $SERVER/auth/token \
+        grant_type=client_credentials \
+        scope="$SCOPES" \
+    | jq -r .access_token
+)
+AUTH="Authorization: Bearer $TOKEN"
+echo $AUTH
+
+http POST :8000/datasets/gov/rc/ar/adresai/Adresas $AUTH <<EOF
+{
+    "_id": "264ae0f9-53eb-496b-a07c-ce1b9cbe510c",
+    "tipas": 2,
+    "aob_kodas": 190557457,
+    "aob_data_nuo": "2018-12-07"
+}
+EOF
+http POST :8000/datasets/gov/rc/jar/formos_statusai/Forma $AUTH <<EOF
+{
+    "_id": "c7fda07b-1689-42d3-8412-24d375f01bcb",
+    "kodas": 950,
+    "pavadinimas": "Biudžetinė įstaiga",
+    "pav_ilgas": "Biudžetinė įstaiga",
+    "name": "Budget Institution",
+    "tipas": "Viešasis",
+    "type": "Public"
+}
+EOF
+http POST :8000/datasets/gov/rc/jar/formos_statusai/Statusas $AUTH <<EOF
+{
+    "_id": "5ef6b364-a5ff-47fb-8600-ff859214ef85",
+    "kodas": 0,
+    "pavadinimas": "Teisinis statusas neįregistruotas",
+    "name": "No legal proceedings"
+}
+EOF
+http POST :8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo $AUTH <<EOF
+{
+    "_id": "cf8e5cfd-32b3-4f24-a89b-e7c94bbd1c36",
+    "ja_kodas": 188772433,
+    "ja_pavadinimas": "Informacinės visuomenės plėtros komitetas",
+    "pilnas_adresas": "Vilnius, Konstitucijos pr. 15-89",
+    "reg_data": "2001-08-01",
+    "stat_data": "2001-08-01",
+    "forma": {"_id": "c7fda07b-1689-42d3-8412-24d375f01bcb"},
+    "statusas": {"_id": "5ef6b364-a5ff-47fb-8600-ff859214ef85"},
+    "adresas": {"_id": "264ae0f9-53eb-496b-a07c-ce1b9cbe510c"}
+}
+EOF
+
+http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)&format(json)"
+
+http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)&format(csv)"
+
+http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)&format(ascii)"
+
+http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)&format(rdf)"
+
+http GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo/:changes"
+
+xdg-open http://localhost:8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo
 
 test -n "$PID" && kill $PID
 unset SPINTA_CONFIG
-cd -
-docker-compose down
 exit
+docker-compose down
 
 ed pyproject.toml <<EOF
 /^version = /c
-version = "$NEXT_VERSION"
+version = "$NEW_VERSION"
 .
 wq
 EOF
 ed CHANGES.rst <<EOF
 /unreleased/c
-$NEXT_VERSION ($(date +%Y-%m-%d))
+$NEW_VERSION ($(date +%Y-%m-%d))
 .
 wq
 EOF
@@ -131,10 +212,10 @@ git diff
 poetry build
 poetry publish
 xdg-open https://pypi.org/project/spinta/
-git commit -a -m "Releasing version $NEXT_VERSION"
+git commit -a -m "Releasing version $NEW_VERSION"
 git push origin master
-git tag -a $NEXT_VERSION -m "Releasing version $NEXT_VERSION"
-git push origin $NEXT_VERSION
+git tag -a $NEW_VERSION -m "Releasing version $NEW_VERSION"
+git push origin $NEW_VERSION
 
 ed pyproject.toml <<EOF
 /^version = /c
