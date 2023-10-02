@@ -115,6 +115,7 @@ def _format_property(prop: Property) -> Property:
     else:
         prop.name = _format_property_name(prop)
         prop.place = _format_property_place(prop)
+        prop.given.name = prop.name
         return prop
 
 
