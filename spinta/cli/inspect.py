@@ -664,6 +664,7 @@ def _merge_model_properties(
         for o, n in prop:
             if n:
                 n = copy(n)
+                n.given = copy(n.given)
             if o:
                 deduplicator(o.basename)
             if n and not o:
