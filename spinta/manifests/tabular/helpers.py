@@ -1734,7 +1734,7 @@ def _property_to_tabular(
     if prop.name.startswith('_'):
         return
 
-    if prop.access and prop.access < access:
+    if prop.access is not None and prop.access < access:
         return
 
     data = {
