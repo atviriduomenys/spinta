@@ -537,8 +537,7 @@ async def read_existing_data(
                     id_=data.given['_where']['args'][1],
                 )]
             else:
-                query = [data.given['_where'], {'name': 'expand', 'args': []}]
-                query = {'name': 'and', 'args': query}
+                query = data.given['_where']
                 query = asttoexpr(query)
                 rows = commands.getall(
                     context,
