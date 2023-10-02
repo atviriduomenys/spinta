@@ -73,7 +73,10 @@ async def getall(
         if is_page_enabled:
             rows = get_page(context, model, backend, copy_page, expr, params.limit, default_expand=False)
         else:
-            rows = commands.getall(context, model, backend, query=expr, default_expand=False)
+            if backend.support_expand:
+                rows = commands.getall(context, model, backend, query=expr, default_expand=False)
+            else:
+                rows = commands.getall(context, model, backend, query=expr)
 
     if params.count:
         # XXX: Quick and dirty hack. Functions should be handled properly.
@@ -211,7 +214,10 @@ def get_page(
     while True:
         finished = True
         query = add_page_expr(expr, model_page)
-        rows = commands.getall(context, model, backend, query=query, default_expand=default_expand)
+        if backend.support_expand:
+            rows = commands.getall(context, model, backend, query=query, default_expand=default_expand)
+        else:
+            rows = commands.getall(context, model, backend, query=query)
         first_value = None
         previous_value = None
         for row in rows:
