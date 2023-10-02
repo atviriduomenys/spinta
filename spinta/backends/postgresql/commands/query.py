@@ -370,10 +370,11 @@ def select(env, dtype):
     columns = []
     for prop in take(dtype.properties).values():
         sel = env.call('select', prop.dtype)
-        if isinstance(sel.item, list):
-            columns += sel.item
-        else:
-            columns += [sel.item]
+        if sel is not None:
+            if isinstance(sel.item, list):
+                columns += sel.item
+            else:
+                columns += [sel.item]
     return Selected(columns, dtype.prop)
 
 
