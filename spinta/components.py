@@ -839,6 +839,8 @@ class UrlParams:
 
     page: Optional[ParamsPage] = None
 
+    expand: Optional[List[str]] = None
+
     def changed_parsetree(self, change):
         ptree = {x['name']: x['args'] for x in (self.parsetree or [])}
         ptree.update(change)

@@ -26,6 +26,16 @@ def paginate(env, expr):
         raise InvalidArgumentInExpression(arguments=expr.args, expr='paginate')
 
 
+@ufunc.resolver(BaseQueryBuilder, Expr, name='expand')
+def expand(env, expr):
+    env.expand = []
+    if expr.args:
+        for arg in expr.args:
+            resolved = env.resolve(arg)
+            selected = env.call('select', resolved)
+            env.expand.append(selected.prop)
+
+
 @ufunc.resolver(BaseQueryBuilder, Expr, name='page')
 def page_(env, expr):
     pass

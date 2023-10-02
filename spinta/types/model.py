@@ -61,8 +61,7 @@ def _load_namespace_from_model(context: Context, manifest: Manifest, model: Mode
     model.ns = ns
 
 
-@overload
-@commands.load.register(Context, Model, dict, Manifest)
+@load.register(Context, Model, dict, Manifest)
 def load(
     context: Context,
     model: Model,
@@ -149,8 +148,7 @@ def load(
     return model
 
 
-@overload
-@commands.load.register(Context, Base, dict, Manifest)
+@load.register(Context, Base, dict, Manifest)
 def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
     load_level(base, data['level'])
 
@@ -430,7 +428,6 @@ def load(context: Context, model: Model, data: dict) -> dict:
     return result
 
 
-@overload
 @load.register(Context, Property, object)
 def load(context: Context, prop: Property, value: object) -> object:
     value = _prepare_prop_data(prop.name, value)

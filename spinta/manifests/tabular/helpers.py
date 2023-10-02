@@ -648,8 +648,11 @@ class PropertyReader(TabularReader):
             existing_prop['items'] = custom_data.copy()
         else:
             if is_prop_array:
-                new_data['items'] = custom_data.copy()
-                new_data['type'] = 'array'
+                new_data = {
+                    'type': 'array',
+                    'given_name': given_name,
+                    'items': custom_data.copy()
+                }
             elif new_data['type'] == 'array':
                 new_data['items'] = {}
 

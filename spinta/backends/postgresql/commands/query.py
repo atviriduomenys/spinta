@@ -73,10 +73,11 @@ class PgQueryBuilder(BaseQueryBuilder):
         merged_sorted = merge_with_page_sort(self.sort, self.page)
         merged_limit = merge_with_page_limit(self.limit, self.page)
         for sel in merged_selected:
-            items = sel.item if isinstance(sel.item, list) else [sel.item]
-            for item in items:
-                if item is not None and item not in select:
-                    select.append(item)
+            if sel is not None:
+                items = sel.item if isinstance(sel.item, list) else [sel.item]
+                for item in items:
+                    if item is not None and item not in select:
+                        select.append(item)
         qry = sa.select(select)
 
         qry = qry.select_from(self.from_)
@@ -341,6 +342,7 @@ class Selected:
 @ufunc.resolver(PgQueryBuilder, DataType)
 def select(env, dtype):
     table = env.backend.get_table(env.model)
+
     if dtype.prop.list is None:
         column = env.backend.get_column(table, dtype.prop, select=True)
     else:
@@ -349,6 +351,18 @@ def select(env, dtype):
         #      stored on the main table.
         column = env.backend.get_column(table, dtype.prop.list, select=True)
     return Selected(column, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, Array)
+def select(env, dtype):
+    table = env.backend.get_table(env.model)
+    if env.expand is not None:
+        if dtype.prop in env.expand or not env.expand:
+            if dtype.prop.list is None:
+                column = env.backend.get_column(table, dtype.prop, select=True)
+            else:
+                column = env.backend.get_column(table, dtype.prop.list, select=True)
+            return Selected(column, dtype.prop)
 
 
 @ufunc.resolver(PgQueryBuilder, Object)
