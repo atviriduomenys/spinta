@@ -14,7 +14,6 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers import get_pg_name
 from spinta.backends.postgresql.helpers import get_column_name
 from spinta.backends.postgresql.helpers.changes import get_changes_table
-from spinta.manifests.tabular.helpers import split_by_uppercase
 from spinta.datasets.enums import Level
 
 

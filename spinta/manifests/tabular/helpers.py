@@ -551,17 +551,6 @@ def _get_type_repr(dtype: [DataType, str]):
         return f'{dtype}{args}{required}{unique}'
 
 
-def split_by_uppercase(model_name):
-    result = ''
-    for ch in model_name:
-        if ch.isupper():
-            result += " " + ch
-        else:
-            result += ch
-    result = result.split()
-    return [r.lower() for r in result if '/' not in r]
-
-
 class PropertyReader(TabularReader):
     type: str = 'property'
     data: PropertyRow

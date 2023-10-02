@@ -671,6 +671,7 @@ def _merge_model_properties(
                 n.model = old
                 n.name = name
                 n.place = name
+                n.given.name = name
             commands.merge(context, manifest, o, n, has_manifest_priority)
 
 
