@@ -1763,7 +1763,7 @@ def _property_to_tabular(
     yield_array_row = None
     if isinstance(prop.dtype, Array):
         yield_array_row = prop.dtype.items
-        if prop.given.name == prop.dtype.items.given.name:
+        if prop.dtype.items and prop.given.name == prop.dtype.items.given.name:
             yield from _property_to_tabular(yield_array_row, external=external, access=access, order_by=order_by)
             return
 
