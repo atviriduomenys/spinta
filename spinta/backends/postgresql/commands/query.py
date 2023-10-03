@@ -587,14 +587,6 @@ def compare(env, op, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, DateTime, datetime.date, names=COMPARE_EQUATIONS)
-def compare(env, op, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
-    value = datetime.datetime.combine(value, datetime.time.min)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
 @ufunc.resolver(PgQueryBuilder, Date, str, names=COMPARE_EQUATIONS)
 def compare(env, op, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
@@ -610,14 +602,6 @@ def compare(env, op, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
-@ufunc.resolver(PgQueryBuilder, Date, datetime.datetime, names=COMPARE_EQUATIONS)
-def compare(env, op, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
-    value = value.date()
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
 @ufunc.resolver(PgQueryBuilder, Time, str, names=COMPARE_EQUATIONS)
 def compare(env, op, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
@@ -629,14 +613,6 @@ def compare(env, op, dtype, value):
 @ufunc.resolver(PgQueryBuilder, Time, datetime.time, names=COMPARE_EQUATIONS)
 def compare(env, op, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
-    cond = _sa_compare(op, column, value)
-    return _prepare_condition(env, dtype.prop, cond)
-
-
-@ufunc.resolver(PgQueryBuilder, Time, datetime.datetime, names=COMPARE_EQUATIONS)
-def compare(env, op, dtype, value):
-    column = env.backend.get_column(env.table, dtype.prop)
-    value = value.time()
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, dtype.prop, cond)
 
