@@ -47,6 +47,7 @@ class DataType(Component):
     choices: dict = None
     backend: Backend = None
     prop: Property = None
+    expandable: bool = False
 
     def __repr__(self):
         return f'<{self.prop.name}:{self.name}>'
@@ -208,7 +209,7 @@ class Array(DataType):
     }
 
     items: Property = None
-
+    expandable = True
     def load(self, value: Any):
         if value is None or value is NA:
             return value

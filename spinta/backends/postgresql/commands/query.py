@@ -74,7 +74,7 @@ class PgQueryBuilder(BaseQueryBuilder):
         merged_limit = merge_with_page_limit(self.limit, self.page)
         for sel in merged_selected:
             if sel is not None:
-                if isinstance(sel.prop.dtype, Array):
+                if sel.prop and sel.prop.dtype.expandable:
                     if self.expand is None or self.expand and sel.prop not in self.expand:
                         continue
                 items = sel.item if isinstance(sel.item, list) else [sel.item]
