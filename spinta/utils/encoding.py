@@ -1,6 +1,8 @@
 import base64
 import json
 
+from spinta.utils.json import fix_data_for_json
+
 
 def is_url_safe_base64(s):
     try:
@@ -10,4 +12,4 @@ def is_url_safe_base64(s):
 
 
 def encode_page_values(values: list):
-    return base64.urlsafe_b64encode(json.dumps(values).encode('ascii'))
+    return base64.urlsafe_b64encode(json.dumps(fix_data_for_json(values)).encode('ascii'))
