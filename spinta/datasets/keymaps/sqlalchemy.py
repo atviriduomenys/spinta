@@ -180,6 +180,8 @@ def configure(context: Context, keymap: SqlAlchemyKeyMap):
     dsn = rc.get('keymaps', keymap.name, 'dsn', required=True)
     ensure_data_dir(config.data_path)
     dsn = dsn.format(data_dir=config.data_path)
+    if dsn.startswith('sqlite:///'):
+        dsn = dsn.replace('sqlite:///', 'sqlite+spinta_sqlite:///')
     keymap.dsn = dsn
 
 
