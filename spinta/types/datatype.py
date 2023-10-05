@@ -190,6 +190,7 @@ class Ref(DataType):
 class BackRef(DataType):
     model: Model
     refprop: Property
+    explicit: bool = False
 
     schema = {
         'model': {'type': 'string'},

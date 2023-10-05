@@ -118,6 +118,28 @@ class PgQueryBuilder(BaseQueryBuilder):
 
         return self.joins[fpr.name]
 
+    def get_backref_joined_table(self, prop: ForeignProperty) -> sa.Table:
+        for fpr in prop.chain:
+            if fpr.name in self.joins:
+                continue
+
+            if len(fpr.chain) > 1:
+                ltable = self.joins[fpr.chain[-2].name]
+            else:
+                ltable = self.backend.get_table(fpr.left.model)
+            lmodel = fpr.left.model
+            lrkey = self.backend.get_column(ltable, lmodel.properties['_id'])
+
+            rmodel = fpr.right.model
+            rtable = self.backend.get_table(rmodel).alias()
+            rpkey = self.backend.get_column(rtable, fpr.right)
+
+            condition = lrkey == rpkey
+            self.joins[fpr.name] = rtable
+            self.from_ = self.from_.outerjoin(rtable, condition)
+
+        return self.joins[fpr.name]
+
     def get_joined_base_table(self, model: Model, prop: str):
         inherit_model = model
         base_model = get_property_base_model(inherit_model, prop)
@@ -419,6 +441,19 @@ def select(env, dtype):
         column = table.c[f"{dtype.prop.place}.{prop.place}"]
         columns.append(column)
     return Selected(columns, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, BackRef)
+def select(env, dtype):
+    fpr = ForeignProperty(
+        None,
+        left=dtype.prop,
+        right=dtype.refprop,
+    )
+    table = env.get_backref_joined_table(fpr)
+    column = table.c[fpr.right.model.properties['_id'].name]
+    column = column.label(dtype.prop.name)
+    return Selected(column, fpr.right)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)

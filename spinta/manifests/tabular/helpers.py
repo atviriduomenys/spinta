@@ -43,7 +43,7 @@ from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
-from spinta.exceptions import MultipleErrors
+from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
@@ -74,7 +74,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef
+from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -607,7 +607,13 @@ class PropertyReader(TabularReader):
             if dtype['type'] in ('ref', 'backref', 'generic'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
                 self.data['model'] = get_relative_model_name(dataset, ref_model)
-                self.data['refprops'] = ref_props
+                if dtype['type'] == 'backref':
+                    if len(ref_props) > 1:
+                        raise InvalidBackRefReferenceAmount(backref=self.name)
+                    if len(ref_props) == 1:
+                        self.data['refprop'] = ref_props[0]
+                else:
+                    self.data['refprops'] = ref_props
             else:
                 # TODO: Detect if ref is a unit or an enum.
                 self.data['enum'] = row['ref']
@@ -1743,6 +1749,18 @@ def _property_to_tabular(
             if rkeys and pkeys != rkeys:
                 rkeys = ', '.join([p.place for p in rkeys])
                 data['ref'] += f'[{rkeys}]'
+        else:
+            data['ref'] = prop.dtype.model.name
+    elif isinstance(prop.dtype, BackRef):
+        model = prop.model
+        if model.external and model.external.dataset:
+            data['ref'] = to_relative_model_name(
+                prop.dtype.model,
+                model.external.dataset,
+            )
+            rkey = prop.dtype.refprop.place
+            if prop.dtype.explicit:
+                data['ref'] += f'[{rkey}]'
         else:
             data['ref'] = prop.dtype.model.name
     elif prop.enum is not None:

@@ -622,3 +622,18 @@ class InvalidArgumentInExpression(BaseError):
 class BackendNotGiven(UserError):
     template = "Model is operating in external mode, yet it does not have assigned backend to it."
 
+
+class NotSupportedBackRefType(UserError):
+    template = "Property {prop_name!r} of type {prop_type!r} is not supported with backref."
+
+
+class MultipleBackRefReferencesFound(UserError):
+    template = "Model {model!r} contains multiple references to backref, please specify which one to use."
+
+
+class NoBackRefReferencesFound(UserError):
+    template = "Model {model!r} does not contain any suitable properties for backref."
+
+
+class InvalidBackRefReferenceAmount(UserError):
+    template = "Backref {backref!r} can only reference one property."
