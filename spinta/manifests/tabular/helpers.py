@@ -640,6 +640,7 @@ class PropertyReader(TabularReader):
                 new_data = {
                     'type': 'array',
                     'given_name': given_name,
+                    'access': custom_data['access'],
                     'items': custom_data.copy()
                 }
             elif new_data['type'] == 'array':
