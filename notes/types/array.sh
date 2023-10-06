@@ -74,10 +74,16 @@ EOF
 #|     "name": "Lithuania"
 #| }
 
+psql -h localhost -p 54321 -U admin spinta -c 'SELECT * FROM "'$DATASET'/Country";'
+#|                  _txn                 |          _created          | _updated |                 _id                  |              _revision               |   name    |                     languages                     
+#| --------------------------------------+----------------------------+----------+--------------------------------------+--------------------------------------+-----------+---------------------------------------------------
+#|  a8072b1c-3261-46a6-9e3c-6425e18345cd | 2023-10-06 04:11:36.217247 |          | d73306fb-4ee5-483d-9bad-d86f98e1869c | 545e40c6-0be4-4a29-9c7b-4ac4fb2ae256 | Lithuania | [{"_id": "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"}]
+
 psql -h localhost -p 54321 -U admin spinta -c 'SELECT * FROM "'$DATASET'/Country/:list/languages";'
 #|                  _txn                 |                 _rid                 | languages._id 
 #| --------------------------------------+--------------------------------------+---------------
 #|  d16de594-ba6a-485d-b411-7289ff286757 | d73306fb-4ee5-483d-9bad-d86f98e1869c | 
+# TODO: `languages._id` should have c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0 value.
 
 
 SGS=328cfde7-2365-4625-bf72-e9b3038e12ac

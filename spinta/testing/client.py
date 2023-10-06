@@ -184,6 +184,11 @@ class TestClient(starlette.testclient.TestClient):
             'Authorization': f'Bearer {token}'
         })
 
+    def unauthorize(self):
+        self._scopes = []
+        if 'Authorization' in self.headers:
+            del self.headers['Authorization']
+
     def getdata(self, *args, **kwargs):
         resp = self.get(*args, **kwargs)
         assert resp.status_code == 200, f'status_code: {resp.status_code}, response: {resp.text}'
