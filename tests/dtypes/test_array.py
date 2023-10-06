@@ -38,14 +38,19 @@ def test_getall_level4(rc, postgresql: str, request: FixtureRequest):
         ]
     })
 
+    result = app.get('/example/lvl4/Country')
+    assert result.json()['_data'][0]['cities'] == []
+
+    result = app.get('/example/lvl4/Country?expand()')
+    assert result.json()['_data'][0]['cities'] == [
+        {'_id': vilnius_id},
+        {'_id': kaunas_id},
+    ]
+
     result = app.get(f'/example/lvl4/Country/{lietuva_id}')
     assert result.json()['cities'] == [
-        {
-            '_id': vilnius_id
-        },
-        {
-            '_id': kaunas_id
-        }
+        {'_id': vilnius_id},
+        {'_id': kaunas_id},
     ]
 
 
@@ -84,14 +89,19 @@ def test_getall_level3(rc, postgresql: str, request: FixtureRequest):
         ]
     })
 
+    result = app.get('/example/lvl3/Country')
+    assert result.json()['_data'][0]['cities'] == []
+
+    result = app.get('/example/lvl3/Country?expand()')
+    assert result.json()['_data'][0]['cities'] == [
+        {'name': 'Vilnius'},
+        {'name': 'Kaunas'},
+    ]
+
     result = app.get(f'/example/lvl3/Country/{lietuva_id}')
     assert result.json()['cities'] == [
-        {
-            'name': 'Vilnius'
-        },
-        {
-            'name': 'Kaunas'
-        }
+        {'name': 'Vilnius'},
+        {'name': 'Kaunas'},
     ]
 
 
@@ -121,4 +131,51 @@ def test_getall_simple_type(rc, postgresql: str, request: FixtureRequest):
     assert result.json()['cities'] == [
         'Vilnius',
         'Kaunas'
+    ]
+
+
+def test_array_auth(rc, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property    | type    | ref      | access
+    example/dtypes/array        |         |          |
+                                |         |          |
+      |   |   | Language        |         |          |
+      |   |   |   | name        | string  |          | open
+                                |         |          |
+      |   |   | Country         |         |          |
+      |   |   |   | name        | string  |          | open
+      |   |   |   | languages[] | ref     | Language | open
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/dtypes/array', ['insert', 'getone', 'getall'])
+
+    LIT = "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"
+    app.post('example/dtypes/array/Language', json={
+        '_id': LIT,
+        'name': 'Lithuanian',
+    })
+
+    LT = 'd73306fb-4ee5-483d-9bad-d86f98e1869c'
+    app.post('example/dtypes/array/Country', json={
+        '_id': LT,
+        'name': 'Lithuania',
+        'languages': [
+            {'_id': LIT}
+        ]
+    })
+
+    app.unauthorize()
+
+    result = app.get('/example/dtypes/array/Country')
+    assert result.json()['_data'][0]['languages'] == []
+
+    result = app.get('/example/dtypes/array/Country?expand()')
+    assert result.json()['_data'][0]['languages'] == [
+        {'_id': LIT},
+    ]
+
+    result = app.get(f'/example/dtypes/array/Country/{LT}')
+    assert result.json()['languages'] == [
+        {'_id': LIT},
     ]
