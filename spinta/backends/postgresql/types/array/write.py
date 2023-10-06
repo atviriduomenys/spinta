@@ -105,11 +105,10 @@ def _update_lists_table(
 
 
 def _get_list_column_name(place, name):
-    # if place == name:
-    #     return place.split('.')[-1]
-    # else:
-    #     return name[len(place) + 1:]
-    return name
+    if place == name:
+        return place.split('.')[-1]
+    else:
+        return name[len(place) + 1:]
 
 
 

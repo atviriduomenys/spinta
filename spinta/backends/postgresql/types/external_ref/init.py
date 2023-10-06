@@ -14,6 +14,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: ExternalRef):
         for prop in dtype.refprops:
             original_place = prop.place
             prop.place = f"{dtype.prop.place}.{prop.place}"
+            if dtype.prop.list and dtype.prop.place == dtype.prop.list.place:
+                prop.place = original_place
             column = commands.prepare(
                 context,
                 backend,
@@ -28,6 +30,8 @@ def prepare(context: Context, backend: PostgreSQL, dtype: ExternalRef):
 
     else:
         column_name = get_column_name(dtype.prop) + '._id'
+        if dtype.prop.list and dtype.prop.place == dtype.prop.list.place:
+            column_name = '_id'
         column_type = commands.get_primary_key_type(context, backend)
         return sa.Column(
             column_name,

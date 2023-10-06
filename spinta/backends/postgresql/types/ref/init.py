@@ -31,6 +31,8 @@ def get_pg_foreign_key(
     model_name: str,
     column_type: TypeEngine) -> List[Union[sa.Column, sa.Constraint]]:
     column_name = get_column_name(prop) + '._id'
+    if prop.list and prop.place == prop.list.place:
+        column_name = '_id'
     nullable = not prop.dtype.required
     return [
         sa.Column(
