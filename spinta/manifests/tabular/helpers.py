@@ -650,21 +650,22 @@ class PropertyReader(TabularReader):
             self.state.model.data['properties'][self.name] = self.data
 
     def append(self, row: Dict[str, str]) -> None:
-        result = row['prepare']
+        if not row['property']:
+            result = row['prepare']
 
-        if row['source']:
-            if result:
-                split = result.split('.')
-                formula = split[0]
-                split_formula = formula.split('(')
-                reconstructed = f'{split_formula[0]}("{row["source"]}", {"(".join(split_formula[1:])}'
-                split[0] = reconstructed
-                result = '.'.join(split)
-            else:
-                result = row['source']
-        if not result:
-            return
-        self._append_prepare(row, result)
+            if row['source']:
+                if result:
+                    split = result.split('.')
+                    formula = split[0]
+                    split_formula = formula.split('(')
+                    reconstructed = f'{split_formula[0]}("{row["source"]}", {"(".join(split_formula[1:])}'
+                    split[0] = reconstructed
+                    result = '.'.join(split)
+                else:
+                    result = row['source']
+            if not result:
+                return
+            self._append_prepare(row, result)
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (

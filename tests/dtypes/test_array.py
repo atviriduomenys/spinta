@@ -134,10 +134,10 @@ def test_getall_simple_type(rc, postgresql: str, request: FixtureRequest):
     ]
 
 
-def test_array_auth(rc, postgresql: str, request: FixtureRequest):
+def test_array_shortcut_inherit_access_open(rc, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(rc, '''
     d | r | b | m | property    | type    | ref      | access
-    example/dtypes/array        |         |          |
+    example/dtypes/array/open        |         |          |
                                 |         |          |
       |   |   | Language        |         |          |
       |   |   |   | name        | string  |          | open
@@ -148,16 +148,16 @@ def test_array_auth(rc, postgresql: str, request: FixtureRequest):
     ''', backend=postgresql, request=request)
     app = create_test_client(context)
     app.authorize(['spinta_set_meta_fields'])
-    app.authmodel('example/dtypes/array', ['insert', 'getone', 'getall'])
+    app.authmodel('example/dtypes/array/open', ['insert', 'getone', 'getall'])
 
     LIT = "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"
-    app.post('example/dtypes/array/Language', json={
+    app.post('example/dtypes/array/open/Language', json={
         '_id': LIT,
         'name': 'Lithuanian',
     })
 
     LT = 'd73306fb-4ee5-483d-9bad-d86f98e1869c'
-    app.post('example/dtypes/array/Country', json={
+    app.post('example/dtypes/array/open/Country', json={
         '_id': LT,
         'name': 'Lithuania',
         'languages': [
@@ -165,17 +165,55 @@ def test_array_auth(rc, postgresql: str, request: FixtureRequest):
         ]
     })
 
-    app.unauthorize()
-
-    result = app.get('/example/dtypes/array/Country')
+    result = app.get('/example/dtypes/array/open/Country')
     assert result.json()['_data'][0]['languages'] == []
 
-    result = app.get('/example/dtypes/array/Country?expand()')
+    result = app.get('/example/dtypes/array/open/Country?expand()')
     assert result.json()['_data'][0]['languages'] == [
         {'_id': LIT},
     ]
 
-    result = app.get(f'/example/dtypes/array/Country/{LT}')
+    result = app.get(f'/example/dtypes/array/open/Country/{LT}')
     assert result.json()['languages'] == [
         {'_id': LIT},
     ]
+
+
+def test_array_shortcut_inherit_access_private(rc, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property    | type    | ref      | access
+    example/dtypes/array/private        |         |          |
+                                |         |          |
+      |   |   | Language        |         |          |
+      |   |   |   | name        | string  |          | open
+                                |         |          |
+      |   |   | Country         |         |          |
+      |   |   |   | name        | string  |          | open
+      |   |   |   | languages[] | ref     | Language | private
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authorize(['spinta_set_meta_fields'])
+    app.authmodel('example/dtypes/array/private', ['insert', 'getone', 'getall'])
+
+    LIT = "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"
+    app.post('example/dtypes/array/private/Language', json={
+        '_id': LIT,
+        'name': 'Lithuanian',
+    })
+
+    LT = 'd73306fb-4ee5-483d-9bad-d86f98e1869c'
+    app.post('example/dtypes/array/private/Country', json={
+        '_id': LT,
+        'name': 'Lithuania',
+        'languages': [
+            {'_id': LIT}
+        ]
+    })
+    result = app.get('/example/dtypes/array/private/Country')
+    assert 'languages' not in result.json()['_data'][0]
+
+    result = app.get('/example/dtypes/array/private/Country?expand()')
+    assert 'languages' not in result.json()['_data'][0]
+
+    result = app.get(f'/example/dtypes/array/private/Country/{LT}')
+    assert 'languages' not in result.json()

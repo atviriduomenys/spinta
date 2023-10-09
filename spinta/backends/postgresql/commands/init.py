@@ -48,17 +48,12 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
             prop_list = []
             for prop in constraint:
                 name = prop.name
-                append_name = True
                 if isinstance(prop.dtype, Ref):
                     if prop.level is None or prop.level > Level.open:
                         name = f'{name}._id'
-                    else:
-                        append_name = False
-                        for ref_prop in prop.dtype.refprops:
-                            name = f'{name}.{ref_prop.name}'
-                            prop_list.append(name)
-                if append_name:
-                    prop_list.append(name)
+                    elif prop.dtype:
+                        name = f'{name}.{prop.dtype.refprops[0].name}'
+                prop_list.append(name)
 
             columns.append(sa.UniqueConstraint(*prop_list))
 

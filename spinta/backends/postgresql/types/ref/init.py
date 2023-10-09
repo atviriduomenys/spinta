@@ -44,5 +44,7 @@ def get_pg_foreign_key(
         sa.ForeignKeyConstraint(
             [column_name], [f'{table_name}._id'],
             name=get_pg_name(f'fk_{model_name}_{column_name}'),
+            ondelete='CASCADE' if prop.list else None,
+            onupdate='CASCADE' if prop.list else None
         ),
     ]
