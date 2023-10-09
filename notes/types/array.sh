@@ -32,6 +32,25 @@ psql -h localhost -p 54321 -U admin spinta -c '\dt "'$DATASET'"*'
 #|  public | types/array/Country/:list/languages | table | admin
 #|  public | types/array/Language                | table | admin
 
+psql -h localhost -p 54321 -U admin spinta -c '\d "'$DATASET'/Country/:list/languages"'
+#| Table "public.types/array/Country/:list/languages"
+#|  Column | Type | Collation | Nullable | Default 
+#| --------+------+-----------+----------+---------
+#|  _txn   | uuid |           |          | 
+#|  _rid   | uuid |           |          | 
+#|  _id    | uuid |           |          | 
+#| Indexes:
+#|     "ix_types/array/Country/:list/languages__txn" btree (_txn)
+#| Foreign-key constraints:
+#|     "fk_types/array/Country__id"
+#|         FOREIGN KEY (_id)
+#|             REFERENCES "types/array/Language"(_id)
+#|                 ON UPDATE CASCADE ON DELETE CASCADE
+#|     "types/array/Country/:list/languages__rid_fkey"
+#|         FOREIGN KEY (_rid)
+#|             REFERENCES "types/array/Country"(_id)
+#|                 ON DELETE CASCADE
+
 # notes/spinta/server.sh    Run server
 # notes/spinta/client.sh    Configure client
 
@@ -80,10 +99,9 @@ psql -h localhost -p 54321 -U admin spinta -c 'SELECT * FROM "'$DATASET'/Country
 #|  a8072b1c-3261-46a6-9e3c-6425e18345cd | 2023-10-06 04:11:36.217247 |          | d73306fb-4ee5-483d-9bad-d86f98e1869c | 545e40c6-0be4-4a29-9c7b-4ac4fb2ae256 | Lithuania | [{"_id": "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"}]
 
 psql -h localhost -p 54321 -U admin spinta -c 'SELECT * FROM "'$DATASET'/Country/:list/languages";'
-#|                  _txn                 |                 _rid                 | languages._id 
-#| --------------------------------------+--------------------------------------+---------------
-#|  d16de594-ba6a-485d-b411-7289ff286757 | d73306fb-4ee5-483d-9bad-d86f98e1869c | 
-# TODO: `languages._id` should have c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0 value.
+#|                  _txn                 |                 _rid                 |                 _id                  
+#| --------------------------------------+--------------------------------------+--------------------------------------
+#|  f97f5e0d-9122-4974-ac5b-6316f2fb0da3 | d73306fb-4ee5-483d-9bad-d86f98e1869c | c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0
 
 
 SGS=328cfde7-2365-4625-bf72-e9b3038e12ac
@@ -123,9 +141,8 @@ http GET "$SERVER/$DATASET/Country"
 #|             "_page": "WyJkNzMzMDZmYi00ZWU1LTQ4M2QtOWJhZC1kODZmOThlMTg2OWMiXQ==",
 #|             "_revision": "7ac9981c-2158-4ac9-8f8e-7849ee194ec8",
 #|             "_type": "types/array/Country",
+#|             "languages": [],
 #|             "name": "Lithuania"
-# FIXME: Here I expect to see:
-#        "languages": []
 #|         }
 #|     ]
 #| }
@@ -178,89 +195,86 @@ http GET "$SERVER/$DATASET/Country?expand()"
 #|             "_page": "WyJkNzMzMDZmYi00ZWU1LTQ4M2QtOWJhZC1kODZmOThlMTg2OWMiXQ==",
 #|             "_revision": "7ac9981c-2158-4ac9-8f8e-7849ee194ec8",
 #|             "_type": "types/array/Country",
+#|             "languages": [
+#|                 {"_id": "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"},
+#|                 {"_id": "328cfde7-2365-4625-bf72-e9b3038e12ac"}
+#|             ],
 #|             "name": "Lithuania"
-# FIXME: Here I expect to see:
-#        "languages": [
-#            {"_id": "$LIT"},
-#            {"_id": "$SGS"}
-#        ]
 #|         }
 #|     ]
 #| }
 
 http GET "$SERVER/$DATASET/Country?expand(languages)"
-#| HTTP/1.1 400 Bad Request
-#| 
 #| {
-#|     "errors": [
+#|     "_data": [
 #|         {
-#|             "code": "FieldNotInResource",
-#|             "context": {
-#|                 "component": "spinta.components.Model",
-#|                 "dataset": "types/array",
-#|                 "entity": "",
-#|                 "manifest": "default",
-#|                 "model": "types/array/Country",
-#|                 "property": "languages",
-#|                 "schema": "7"
-#|             },
-#|             "message": "Unknown property 'languages'.",
-#|             "template": "Unknown property {property!r}.",
-#|             "type": "model"
+#|             "_id": "d73306fb-4ee5-483d-9bad-d86f98e1869c",
+#|             "_page": "WyJkNzMzMDZmYi00ZWU1LTQ4M2QtOWJhZC1kODZmOThlMTg2OWMiXQ==",
+#|             "_revision": "0433647b-54f4-4266-a1f9-99fab75dec9c",
+#|             "_type": "types/array/Country",
+#|             "languages": [
+#|                 {"_id": "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"},
+#|                 {"_id": "328cfde7-2365-4625-bf72-e9b3038e12ac"}
+#|             ],
+#|             "name": "Lithuania"
 #|         }
 #|     ]
 #| }
-# TODO: `expand(languages)` should work.
 
 
 http GET "$SERVER/$DATASET/Country?format(ascii)"
-#| name     
-#| ---------
-#| Lithuania
-# FIXME: `languages[]` sould be shown here.
+#| name       languages[]._id
+#| ---------  ---------------
+#| Lithuania  ∅
 
 
 http GET "$SERVER/$DATASET/Country?expand()&format(rdf)"
-#| <?xml version="1.0" encoding="UTF-8"?>
-#| <Rdf xml:base="http://localhost:8000/">
-#|   <Description about="/types/array/Country/d73306fb-4ee5-483d-9bad-d86f98e1869c" type="types/array/Country" version="7ac9981c-2158-4ac9-8f8e-7849ee194ec8">
-#|     <_page>WyJkNzMzMDZmYi00ZWU1LTQ4M2QtOWJhZC1kODZmOThlMTg2OWMiXQ==</_page>
-#|     <name>Lithuania</name>
-# FIXME: Here I expect to see:
-#        <languages rdf:resource="/types/array/Language/$LIT" />
-#        <languages rdf:resource="/types/array/Language/$SGS" />
-#|   </Description>
-#| </Rdf>
-
+#| HTTP/1.1 200 OK
+#| 
+#| http: LogLevel.ERROR: ChunkedEncodingError: ("Connection broken: InvalidChunkLength(got length b'', 0 bytes read)", InvalidChunkLength(got length b'', 0 bytes read))
+# FIXME: RDF-XML export does not work.
+tail -50 $BASEDIR/spinta.log
+#| Traceback (most recent call last):
+#|   File "spinta/formats/rdf/commands.py", line 218, in _stream
+#|     yield _prepare_for_print(model, row)
+#|           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#|   File "spinta/formats/rdf/commands.py", line 160, in _prepare_for_print
+#|     elem = _create_model_element(model, data)
+#|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#|   File "spinta/formats/rdf/commands.py", line 148, in _create_model_element
+#|     return _create_element(
+#|            ^^^^^^^^^^^^^^^^
+#|   File "spinta/formats/rdf/commands.py", line 119, in _create_element
+#|     elem.append(child)
+#| TypeError: Argument 'element' has incorrect type (expected lxml.etree._Element, got list)
+# FIXME: Fix array support for RDF format.
 
 http GET "$SERVER/$DATASET/Country/:changes"
 #| {
 #|     "_data": [
 #|         {
 #|             "_cid": 1,
-#|             "_created": "2023-10-04T12:06:16.907090",
+#|             "_created": "2023-10-09T07:33:50.112187",
 #|             "_id": "d73306fb-4ee5-483d-9bad-d86f98e1869c",
 #|             "_op": "insert",
-#|             "_revision": "fa4dd99f-a782-4d13-9480-0a258a9d0790",
-#|             "_txn": "95a21aec-cd77-42fa-b0f1-dde4c00e6292",
+#|             "_revision": "e3e3d736-143a-4d80-87f5-eb0fafb4280c",
+#|             "_txn": "f97f5e0d-9122-4974-ac5b-6316f2fb0da3",
+#|             "languages": [
+#|                 {"_id": "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"}
+#|             ],
 #|             "name": "Lithuania"
-# FIXME: Languages should be shown here:
-#          "languages": [
-#              {"_id": "$LIT"}
-#          ]
 #|         },
 #|         {
 #|             "_cid": 2,
-#|             "_created": "2023-10-04T12:12:08.114911",
+#|             "_created": "2023-10-09T07:35:29.477286",
 #|             "_id": "d73306fb-4ee5-483d-9bad-d86f98e1869c",
 #|             "_op": "patch",
-#|             "_revision": "7ac9981c-2158-4ac9-8f8e-7849ee194ec8",
-#|             "_txn": "bc01d1d0-8611-4f45-a1e7-6665a10b26ff"
-# FIXME: Languages should be shown here:
-#          "languages": [
-#              {"_id": "$LIT"},
-#              {"_id": "$SGS"}
-#          ]
+#|             "_revision": "0433647b-54f4-4266-a1f9-99fab75dec9c",
+#|             "_txn": "25341cb7-0eb8-4611-9e00-2b4333df82bb",
+#|             "languages": [
+#|                 {"_id": "c8e4cd60-0b15-4b23-a691-09cdf2ebd9c0"},
+#|                 {"_id": "328cfde7-2365-4625-bf72-e9b3038e12ac"}
+#|             ]
 #|         }
 #|     ]
 #| }
@@ -295,8 +309,4 @@ psql -h localhost -p 54321 -U admin spinta -c 'SELECT * FROM "'$DATASET'/Country
 #| ------+------+---------------
 #| (0 rows)
 
-
 http DELETE "$SERVER/$DATASET/:wipe" $AUTH
-
-
-
