@@ -1,8 +1,8 @@
 import base64
 import json
-from typing import Any
+from typing import Any, List
 
-from spinta.components import Page, PageBy, Model
+from spinta.components import Page, PageBy, Model, Property
 from spinta.core.ufuncs import Env, Negative, Bind, Expr
 from spinta.datasets.components import ExternalBackend
 from spinta.exceptions import FieldNotInResource
@@ -23,6 +23,7 @@ class QueryPage:
 
 class BaseQueryBuilder(Env):
     page: QueryPage
+    expand: List[Property] = None
 
 
 class LoadBuilder(Env):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import List
 from typing import Optional
 from typing import Union
@@ -239,7 +240,8 @@ def link(context: Context, base: Base):
         for pk in base.pk
     ] if base.pk else []
     if (base.level and base.level >= Level.identifiable) or not base.level:
-        base.parent.add_keymap_property_combination(base.pk)
+        if base.pk and base.pk != base.parent.external.pkeys:
+            base.parent.add_keymap_property_combination(base.pk)
 
 
 @load.register(Context, Property, dict, Manifest)
@@ -307,6 +309,7 @@ def load(
         prop.unit = unit
     else:
         prop.given.enum = unit
+    prop.given.name = prop.given_name if prop.given_name else prop.name
     return prop
 
 

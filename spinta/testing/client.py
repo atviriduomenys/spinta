@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable, Tuple
 from typing import Dict
 from typing import Optional, List, Union
 
@@ -18,7 +18,7 @@ from pytest import FixtureRequest
 from lxml.etree import _Element
 from requests import PreparedRequest
 
-from responses import RequestsMock
+from responses import RequestsMock, CallbackResponse, _URLPatternType, FalseBool
 from responses import POST
 
 from spinta import auth
@@ -119,10 +119,15 @@ def create_remote_server(
             scopes=scopes,
         )
 
-    responses.add_callback(
-        POST, re.compile(re.escape(url) + r'.*'),
-        callback=remote,
-        content_type='application/json',
+    responses._registry.add(
+        CustomCallbackResponse(
+            url=re.compile(re.escape(url) + r'.*'),
+            method=POST,
+            callback=remote,
+            content_type='application/json',
+            match_querystring=FalseBool(),
+            match=(),
+        )
     )
 
     return RemoteServer(
@@ -184,6 +189,11 @@ class TestClient(starlette.testclient.TestClient):
             'Authorization': f'Bearer {token}'
         })
 
+    def unauthorize(self):
+        self._scopes = []
+        if 'Authorization' in self.headers:
+            del self.headers['Authorization']
+
     def getdata(self, *args, **kwargs):
         resp = self.get(*args, **kwargs)
         assert resp.status_code == 200, f'status_code: {resp.status_code}, response: {resp.text}'
@@ -241,6 +251,7 @@ def configure_remote_server(
             'spinta_insert',
             'spinta_patch',
             'spinta_delete',
+            'spinta_changes'
         ],
         credsfile=True,
     )
@@ -272,3 +283,28 @@ def create_client(rc: RawConfig, tmp_path: pathlib.Path, geodb: Sqlite):
     rc = create_rc(rc, tmp_path, geodb)
     context = create_test_context(rc)
     return create_test_client(context)
+
+
+class CustomCallbackResponse(CallbackResponse):
+    def __init__(
+        self,
+        method: str,
+        url: _URLPatternType,
+        callback: Callable[[Any], Any],
+        stream: Optional[bool] = None,
+        content_type: Optional[str] = "text/plain",
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(method, url, callback, stream, content_type, **kwargs)
+
+    def matches(self, request: "PreparedRequest") -> Tuple[bool, str]:
+        self.method = request.method
+
+        if not self._url_matches(self.url, str(request.url)):
+            return False, "URL does not match"
+
+        valid, reason = self._req_attr_matches(self.match, request)
+        if not valid:
+            return False, reason
+
+        return True, ""

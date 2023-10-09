@@ -3,8 +3,40 @@
 Changes
 #######
 
-0.1.56 (unreleased)
+0.1.57 (unreleased)
 ===================
+
+
+0.1.56 (2023-09-30)
+===================
+
+New features:
+
+- Pagination, this should enable possibility to push large amounts of data
+  (`#366`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/366
+
+- Push models using bases (`#346`__, `#391`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/346
+  __ https://github.com/atviriduomenys/spinta/issues/391
+
+- Sync push state from push target (`#289`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/289
+
+- Add support for non-primary key refs in push (`#345`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/345
+
+- Push models with external dependencies (`#394`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/394
+
+- `swap()` function (`#508`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/508
 
 
 0.1.55 (2023-08-18)

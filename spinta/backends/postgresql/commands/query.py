@@ -23,7 +23,7 @@ from spinta.exceptions import FieldNotInResource
 from spinta.components import Model, Property, Action, Page
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
 from spinta.utils.data import take
-from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef
+from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time
 from spinta.types.datatype import Array
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -72,10 +72,14 @@ class PgQueryBuilder(BaseQueryBuilder):
         merged_sorted = merge_with_page_sort(self.sort, self.page)
         merged_limit = merge_with_page_limit(self.limit, self.page)
         for sel in merged_selected:
-            items = sel.item if isinstance(sel.item, list) else [sel.item]
-            for item in items:
-                if item is not None and item not in select:
-                    select.append(item)
+            if sel is not None:
+                if sel.prop and sel.prop.dtype.expandable:
+                    if self.expand is None or self.expand and sel.prop not in self.expand:
+                        continue
+                items = sel.item if isinstance(sel.item, list) else [sel.item]
+                for item in items:
+                    if item is not None and item not in select:
+                        select.append(item)
         qry = sa.select(select)
 
         qry = qry.select_from(self.from_)
@@ -368,6 +372,7 @@ class Selected:
 @ufunc.resolver(PgQueryBuilder, DataType)
 def select(env, dtype):
     table = env.backend.get_table(env.model)
+
     if dtype.prop.list is None:
         column = env.backend.get_column(table, dtype.prop, select=True)
     else:
@@ -383,10 +388,11 @@ def select(env, dtype):
     columns = []
     for prop in take(dtype.properties).values():
         sel = env.call('select', prop.dtype)
-        if isinstance(sel.item, list):
-            columns += sel.item
-        else:
-            columns += [sel.item]
+        if sel is not None:
+            if isinstance(sel.item, list):
+                columns += sel.item
+            else:
+                columns += [sel.item]
     return Selected(columns, dtype.prop)
 
 
@@ -621,10 +627,39 @@ def compare(env, op, dtype, value):
     return _prepare_condition(env, dtype.prop, cond)
 
 
+@ufunc.resolver(PgQueryBuilder, DateTime, datetime.datetime, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
 @ufunc.resolver(PgQueryBuilder, Date, str, names=COMPARE_EQUATIONS)
 def compare(env, op, dtype, value):
     column = env.backend.get_column(env.table, dtype.prop)
     value = datetime.date.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, Date, datetime.date, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, Time, str, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
+    value = datetime.time.fromisoformat(value)
+    cond = _sa_compare(op, column, value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
+@ufunc.resolver(PgQueryBuilder, Time, datetime.time, names=COMPARE_EQUATIONS)
+def compare(env, op, dtype, value):
+    column = env.backend.get_column(env.table, dtype.prop)
     cond = _sa_compare(op, column, value)
     return _prepare_condition(env, dtype.prop, cond)
 

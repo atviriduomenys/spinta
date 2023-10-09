@@ -639,7 +639,6 @@ class Model(MetaData):
             return self.name
 
     def add_keymap_property_combination(self, given_props: List[Property]):
-        given_props.sort(key=lambda x: x.name)
         extract_names = list([prop.name for prop in given_props])
         if extract_names not in self.required_keymap_properties:
             self.required_keymap_properties.append(extract_names)
@@ -649,6 +648,7 @@ class PropertyGiven:
     access: str = None
     enum: str = None
     unit: str = None
+    name: str = None
     prepare: List[PrepareGiven] = []
 
 
@@ -701,7 +701,8 @@ class Property(Node):
         'units': {'type': 'string'},
         'lang': {'type': 'object'},
         'comments': {},
-        'prepare_given': {'required': False}
+        'given_name': {'type': 'string'},
+        'prepare_given': {'required': False},
     }
 
     def __init__(self):
@@ -836,6 +837,8 @@ class UrlParams:
     query: List[Dict[str, Any]] = None
 
     page: Optional[ParamsPage] = None
+
+    expand: Optional[List[str]] = None
 
     def changed_parsetree(self, change):
         ptree = {x['name']: x['args'] for x in (self.parsetree or [])}

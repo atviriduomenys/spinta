@@ -624,6 +624,18 @@ def getall(
 @overload
 def getall(
     context: Context,
+    model: Model,
+    backend: Backend,
+    *,
+    query: Expr = None,
+    default_expand: bool = True
+) -> Iterator[ObjectData]:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
     external: Entity,
     backend: ExternalBackend,
     *,

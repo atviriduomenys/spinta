@@ -222,6 +222,7 @@ class PropertyRow(TypedDict, total=False):
     units: str
     required: bool
     unique: bool
+    given_name: str
     prepare_given: List[PrepareGiven]
 
 

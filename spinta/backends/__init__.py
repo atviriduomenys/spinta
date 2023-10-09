@@ -592,7 +592,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    assert isinstance(value, (str, int, float, bool, type(None))), (
+    assert isinstance(value, (str, int, float, bool, type(None), list)), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
         f"model={dtype.prop.model!r}, dtype={dtype!r}"

@@ -33,7 +33,7 @@ class DataType(Component):
         'required': {'type': 'bool', 'default': False},
         'default': {'default': None},
         'prepare': {'type': 'spyna', 'default': None},
-        'choices': {},
+        'choices': {}
     }
 
     type: str
@@ -47,6 +47,7 @@ class DataType(Component):
     choices: dict = None
     backend: Backend = None
     prop: Property = None
+    expandable: bool = False
 
     def __repr__(self):
         return f'<{self.prop.name}:{self.name}>'
@@ -183,7 +184,7 @@ class Ref(DataType):
             'type': 'array',
             'items': {'type': 'string'},
         },
-        'enum': {'type': 'array'},
+        'enum': {'type': 'array'}
     }
 
 
@@ -215,7 +216,7 @@ class Array(DataType):
     }
 
     items: Property = None
-
+    expandable = True
     def load(self, value: Any):
         if value is None or value is NA:
             return value
