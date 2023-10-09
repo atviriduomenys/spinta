@@ -200,7 +200,10 @@ class BackRef(DataType):
 
 
 class ArrayBackRef(BackRef):
-    pass
+    expandable = True
+
+    def get_type_repr(self):
+        return "backref"
 
 
 class Generic(DataType):

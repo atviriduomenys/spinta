@@ -10,6 +10,7 @@ from typing import Optional
 import sqlalchemy as sa
 
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import array_agg
 
 from spinta import exceptions
 from spinta.auth import authorized
@@ -54,7 +55,8 @@ class PgQueryBuilder(BaseQueryBuilder):
             limit=None,
             offset=None,
             aggregate=False,
-            page=QueryPage()
+            page=QueryPage(),
+            group_by=[]
         )
 
     def build(self, where):
@@ -96,6 +98,8 @@ class PgQueryBuilder(BaseQueryBuilder):
         if self.offset is not None:
             qry = qry.offset(self.offset)
 
+        if self.group_by:
+            qry = qry.group_by(*self.group_by)
         return qry
 
     def default_resolver(self, expr, *args, **kwargs):
@@ -140,6 +144,7 @@ class PgQueryBuilder(BaseQueryBuilder):
 
             condition = lrkey == rpkey
             self.joins[fpr.name] = rtable
+            self.group_by.append(lrkey)
             self.from_ = self.from_.outerjoin(rtable, condition)
 
         return self.joins[fpr.name]
@@ -457,9 +462,9 @@ def select(env, dtype):
         right=dtype.refprop,
     )
     table = env.get_backref_joined_table(fpr)
-    column = table.c[fpr.right.model.properties['_id'].name]
-    column = column.label(dtype.prop.name)
-    return Selected(column, fpr.right)
+    column = array_agg(sa.func.json_build_object("_id", table.c[fpr.right.model.properties['_id'].name]))
+    column = column.label(f'{dtype.prop.name}')
+    return Selected(column, fpr.left)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)

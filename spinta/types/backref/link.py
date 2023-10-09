@@ -2,12 +2,11 @@ from spinta import commands
 from spinta.components import Context, Model
 from spinta.exceptions import ModelReferenceNotFound, ModelReferenceKeyNotFound, NotSupportedBackRefType, \
     MultipleBackRefReferencesFound, NoBackRefReferencesFound
-from spinta.types.datatype import BackRef, Ref
+from spinta.types.datatype import BackRef, Ref, Array, ArrayBackRef
 from spinta.types.helpers import set_dtype_backend
 
 
-@commands.link.register(Context, BackRef)
-def link(context: Context, dtype: BackRef) -> None:
+def _link_backref(context: Context, dtype: BackRef):
     set_dtype_backend(dtype)
     backref_model = dtype.prop.model.name if isinstance(dtype.prop.model, Model) else dtype.prop.model
     backref_target_model = dtype.model.name if isinstance(dtype.model, Model) else dtype.model
@@ -37,9 +36,27 @@ def link(context: Context, dtype: BackRef) -> None:
                 if backref_model == target_model:
                     dtype.refprop = prop
                     count += 1
+            elif isinstance(prop.dtype, Array):
+                if prop.dtype.items and isinstance(prop.dtype.items.dtype, Ref):
+                    target_model = prop.dtype.items.dtype.model.name if isinstance(prop.dtype.items.dtype.model, Model) else prop.dtype.items.dtype.model
+                    if backref_model == target_model:
+                        dtype.refprop = prop
+                        count += 1
 
         if count == 0:
             raise NoBackRefReferencesFound(dtype, model=dtype.model.name)
         elif count > 1:
             raise MultipleBackRefReferencesFound(dtype, model=dtype.model.name)
 
+
+@commands.link.register(Context, BackRef)
+def link(context: Context, dtype: BackRef) -> None:
+    _link_backref(context, dtype)
+
+    # x to one relationship need to add unique
+    dtype.refprop.dtype.unique = True
+
+
+@commands.link.register(Context, ArrayBackRef)
+def link(context: Context, dtype: ArrayBackRef):
+    _link_backref(context, dtype)

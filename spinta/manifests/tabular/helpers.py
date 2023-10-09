@@ -74,7 +74,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, Array
+from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -525,8 +525,8 @@ def _get_type_repr(dtype: [DataType, str]):
         if dtype.type_args:
             args = ', '.join(dtype.type_args)
             args = f'({args})'
-        return f'{dtype.name}{args}{required}{unique}' if not isinstance(dtype, (Denorm, Inherit, ExternalRef)
-                                                                         ) else dtype.get_type_repr()
+        dtype_name = dtype.name if not isinstance(dtype, (Denorm, Inherit, ExternalRef, ArrayBackRef)) else dtype.get_type_repr()
+        return f'{dtype_name}{args}{required}{unique}'
     else:
         args = ''
         required = ' required' if 'required' in dtype else ''
@@ -558,10 +558,13 @@ class PropertyReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         is_prop_array: bool = False
+        does_prop_support_array: bool = False
         given_name = row['property']
         if row['property'].endswith('[]'):
             self.name = row['property'][:-2]
-            is_prop_array = True
+            does_prop_support_array = True
+            if row['type'] != 'backref':
+                is_prop_array = True
         else:
             self.name = row['property']
 
@@ -575,7 +578,7 @@ class PropertyReader(TabularReader):
         if self.name in self.state.model.data['properties']:
             existing_prop = self.state.model.data['properties'][self.name]
             should_error = True
-            if is_prop_array and existing_prop['type'] == 'array':
+            if is_prop_array:
                 if not existing_prop['items']:
                     should_error = False
             if should_error:
@@ -642,13 +645,16 @@ class PropertyReader(TabularReader):
         if existing_prop and existing_prop['type'] == 'array':
             existing_prop['items'] = custom_data.copy()
         else:
-            if is_prop_array:
-                new_data = {
-                    'type': 'array',
-                    'given_name': given_name,
-                    'access': custom_data['access'],
-                    'items': custom_data.copy()
-                }
+            if does_prop_support_array:
+                if is_prop_array:
+                    new_data = {
+                        'type': 'array',
+                        'given_name': given_name,
+                        'access': custom_data['access'],
+                        'items': custom_data.copy()
+                    }
+                else:
+                    new_data['type'] = 'array_backref'
             elif new_data['type'] == 'array':
                 new_data['items'] = {}
 

@@ -36,7 +36,7 @@ from spinta.formats.html.helpers import get_model_link
 from spinta.formats.html.helpers import get_output_formats
 from spinta.formats.html.helpers import get_template_context
 from spinta.formats.html.helpers import short_id
-from spinta.types.datatype import Array, ExternalRef, PageType
+from spinta.types.datatype import Array, ExternalRef, PageType, BackRef
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -694,3 +694,48 @@ def prepare_dtype_for_response(
         select=select,
     )
     return res
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, BackRef, tuple)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: BackRef,
+    value: tuple,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, tuple]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, BackRef, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: BackRef,
+    value: list,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, list]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, BackRef, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: BackRef,
+    value: type(None),
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, type(None)]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
