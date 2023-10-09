@@ -100,6 +100,11 @@ def _format_property_name(prop: Property) -> str:
     return to_property_name(prop.name, is_ref)
 
 
+def _format_property_given_name(prop: Property) -> str:
+    is_ref = isinstance(prop.dtype, Ref)
+    return to_property_name(prop.given.name, is_ref)
+
+
 def _format_property_place(prop: Property) -> str:
     is_ref = isinstance(prop.dtype, Ref)
     place = prop.place.split('.')
@@ -115,6 +120,7 @@ def _format_property(prop: Property) -> Property:
     else:
         prop.name = _format_property_name(prop)
         prop.place = _format_property_place(prop)
+        prop.given.name = _format_property_given_name(prop)
         return prop
 
 

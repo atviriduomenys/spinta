@@ -10,6 +10,7 @@ from spinta.exceptions import NotFoundError
 from spinta.exceptions import ItemDoesNotExist
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.ufuncs.basequerybuilder.components import get_page_values
+from spinta.ufuncs.helpers import merge_formulas
 from spinta.utils.nestedstruct import flat_dicts_to_nested
 from spinta.backends.postgresql.commands.query import PgQueryBuilder
 
@@ -41,9 +42,15 @@ def getall(
     backend: PostgreSQL,
     *,
     query: Expr = None,
+    default_expand: bool = True
 ) -> Iterator[ObjectData]:
     assert isinstance(query, (Expr, type(None))), query
     connection = context.get('transaction').connection
+
+    if default_expand:
+        query = merge_formulas(
+            query, Expr('expand')
+        )
 
     builder = PgQueryBuilder(context)
     builder.update(model=model)

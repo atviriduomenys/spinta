@@ -44,6 +44,7 @@ class Backend:
     config: Dict[str, Any]
 
     paginated: bool = False
+    support_expand: bool = False
 
     def __repr__(self):
         return (

@@ -7,8 +7,8 @@ from typing import Set
 import itertools
 
 
-def flatten(value, sep='.'):
-    value, lists = _flatten(value, sep)
+def flatten(value, sep='.', array_sep='[]'):
+    value, lists = _flatten(value, sep, array_sep)
 
     if value is None:
         for k, vals in lists:
@@ -29,18 +29,22 @@ def flatten(value, sep='.'):
         yield value
 
 
-def _flatten(value, sep, key=()):
+def _flatten(value, sep, array_sep, key=()):
     if isinstance(value, dict):
         data = {}
         lists = []
         for k, v in value.items():
-            v, more = _flatten(v, sep, key + (k,))
+            v, more = _flatten(v, sep, array_sep, key + (k,))
             data.update(v or {})
             lists += more
         return data, lists
 
     elif isinstance(value, (list, Iterator)):
         if value:
+            if len(key) > 0:
+                key = list(key)
+                key[-1] = f'{key[-1]}{array_sep}'
+                key = tuple(key)
             return None, [(key, value)]
         else:
             return None, []

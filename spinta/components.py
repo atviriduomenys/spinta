@@ -648,6 +648,7 @@ class PropertyGiven:
     access: str = None
     enum: str = None
     unit: str = None
+    name: str = None
     prepare: List[PrepareGiven] = []
 
 
@@ -700,7 +701,8 @@ class Property(Node):
         'units': {'type': 'string'},
         'lang': {'type': 'object'},
         'comments': {},
-        'prepare_given': {'required': False}
+        'given_name': {'type': 'string'},
+        'prepare_given': {'required': False},
     }
 
     def __init__(self):
@@ -835,6 +837,8 @@ class UrlParams:
     query: List[Dict[str, Any]] = None
 
     page: Optional[ParamsPage] = None
+
+    expand: Optional[List[str]] = None
 
     def changed_parsetree(self, change):
         ptree = {x['name']: x['args'] for x in (self.parsetree or [])}

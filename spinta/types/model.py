@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import List
 from typing import Optional
 from typing import Union
@@ -308,6 +309,7 @@ def load(
         prop.unit = unit
     else:
         prop.given.enum = unit
+    prop.given.name = prop.given_name if prop.given_name else prop.name
     return prop
 
 

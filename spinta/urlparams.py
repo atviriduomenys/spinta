@@ -207,6 +207,11 @@ def _prepare_urlparams_from_path(params: UrlParams):
                         raise InvalidPageKey(key=arg)
                     params.page.values = decode_page_values(arg)
                     key_given = True
+        elif name == 'expand':
+            if params.expand is None:
+                params.expand = args
+            else:
+                params.expand += args
         else:
             if params.query is None:
                 params.query = []

@@ -1,5 +1,4 @@
 from typing import overload
-
 import sqlalchemy as sa
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -7,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from spinta import commands
 from spinta.components import Context, Model
 from spinta.manifests.components import Manifest
-from spinta.types.datatype import DataType, PrimaryKey, Ref
+from spinta.types.datatype import DataType, PrimaryKey, Ref, BackRef
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.constants import UNSUPPORTED_TYPES
@@ -36,7 +35,9 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         #        should bet received from get_primary_key_type() command.
         if prop.name.startswith('_') and prop.name not in ('_id', '_revision'):
             continue
+
         column = commands.prepare(context, backend, prop)
+
         if isinstance(column, list):
             columns.extend(column)
         elif column is not None:
@@ -50,9 +51,10 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
                 if isinstance(prop.dtype, Ref):
                     if prop.level is None or prop.level > Level.open:
                         name = f'{name}._id'
-                    else:
+                    elif prop.dtype:
                         name = f'{name}.{prop.dtype.refprops[0].name}'
                 prop_list.append(name)
+
             columns.append(sa.UniqueConstraint(*prop_list))
 
     # Create main table.
@@ -66,7 +68,6 @@ def prepare(context: Context, backend: PostgreSQL, model: Model):
         *columns,
     )
     backend.add_table(main_table, model)
-
     # Create changes table.
     changelog_table = get_changes_table(context, backend, model)
     backend.add_table(changelog_table, model, TableType.CHANGELOG)
