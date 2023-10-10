@@ -36,7 +36,7 @@ from spinta.formats.html.helpers import get_model_link
 from spinta.formats.html.helpers import get_output_formats
 from spinta.formats.html.helpers import get_template_context
 from spinta.formats.html.helpers import short_id
-from spinta.types.datatype import Array, ExternalRef, PageType, BackRef
+from spinta.types.datatype import Array, ExternalRef, PageType, BackRef, ArrayBackRef
 from spinta.types.datatype import DataType
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -696,33 +696,63 @@ def prepare_dtype_for_response(
     return res
 
 
-@commands.prepare_dtype_for_response.register(Context, Html, BackRef, tuple)
+@commands.prepare_dtype_for_response.register(Context, Html, ArrayBackRef, tuple)
 def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
-    dtype: BackRef,
+    dtype: ArrayBackRef,
     value: tuple,
     *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
-    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, tuple]
+    super_ = commands.prepare_dtype_for_response[Context, Format, ArrayBackRef, tuple]
     return super_(context, fmt, dtype, value, data=data, action=action, select=select)
 
 
-@commands.prepare_dtype_for_response.register(Context, Html, BackRef, list)
+@commands.prepare_dtype_for_response.register(Context, Html, ArrayBackRef, list)
 def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
-    dtype: BackRef,
+    dtype: ArrayBackRef,
     value: list,
     *,
     data: Dict[str, Any],
     action: Action,
     select: dict = None,
 ):
-    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, list]
+    super_ = commands.prepare_dtype_for_response[Context, Format, ArrayBackRef, list]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, ArrayBackRef, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: ArrayBackRef,
+    value: type(None),
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, ArrayBackRef, type(None)]
+    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+
+
+@commands.prepare_dtype_for_response.register(Context, Html, BackRef, dict)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Html,
+    dtype: BackRef,
+    value: dict,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, dict]
     return super_(context, fmt, dtype, value, data=data, action=action, select=select)
 
 

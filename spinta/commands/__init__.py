@@ -1017,3 +1017,53 @@ def summary(
 @command()
 def summary(*args) -> None:
     """Create summary for property"""
+
+
+@overload
+def find_backref_ref(
+    prop: Model,
+    backref_model: str
+):
+    pass
+
+
+@overload
+def find_backref_ref(
+    prop: Property,
+    backref_model: str
+):
+    pass
+
+
+@overload
+def find_backref_ref(
+    dtype: DataType,
+    backref_model: str
+):
+    pass
+
+
+@command()
+def find_backref_ref(
+    prop: Any,
+    backref_model: str
+):
+    pass
+
+
+@overload
+def get_column(
+    backend: Backend,
+    dtype: DataType,
+    **kwargs
+):
+    pass
+
+
+@command()
+def get_column(
+    backend: Backend,
+    prop: Property,
+    **kwargs
+):
+    pass
