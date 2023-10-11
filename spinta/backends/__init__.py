@@ -1157,7 +1157,6 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    print("CALLED ?")
     return []
 
 
@@ -1172,7 +1171,6 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    print("CALLED", value)
     if value is None:
         value = {'_id': None}
 

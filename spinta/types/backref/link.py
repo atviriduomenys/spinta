@@ -72,10 +72,10 @@ def _link_backref(context: Context, dtype: BackRef):
         dtype.explicit = True
 
     count = 0
-    result = commands.find_backref_ref(dtype.model, backref_model, given_refprop)
-    if result is None:
+    result = list(commands.find_backref_ref(dtype.model, backref_model, given_refprop))
+    if not result:
         if given_refprop is not None:
-            raise NoReferencesFound(dtype, ref=given_refprop, model=dtype.model)
+            raise NoReferencesFound(dtype, prop_name=given_refprop, model=dtype.model)
         raise NoBackRefReferencesFound(dtype, model=dtype.model.name)
     for prop in result:
         if count < 1:
