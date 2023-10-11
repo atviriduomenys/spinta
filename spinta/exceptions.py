@@ -632,8 +632,8 @@ class GivenValueCountMissmatch(BaseError):
     template = "While assigning ref values {given_count} were given, while {expected_count} were expected."
 
 
-class NotSupportedBackRefType(UserError):
-    template = "Property {prop_name!r} of type {prop_type!r} is not supported with backref."
+class NoReferencesFound(UserError):
+    template = "Property {prop_name!r} of type 'Ref' was not found."
 
 
 class MultipleBackRefReferencesFound(UserError):

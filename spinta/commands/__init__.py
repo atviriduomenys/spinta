@@ -1022,7 +1022,8 @@ def summary(*args) -> None:
 @overload
 def find_backref_ref(
     prop: Model,
-    backref_model: str
+    backref_model: str,
+    given_ref: str
 ):
     pass
 
@@ -1030,7 +1031,8 @@ def find_backref_ref(
 @overload
 def find_backref_ref(
     prop: Property,
-    backref_model: str
+    backref_model: str,
+    given_ref: str
 ):
     pass
 
@@ -1038,7 +1040,8 @@ def find_backref_ref(
 @overload
 def find_backref_ref(
     dtype: DataType,
-    backref_model: str
+    backref_model: str,
+    given_ref: object
 ):
     pass
 
@@ -1046,7 +1049,8 @@ def find_backref_ref(
 @command()
 def find_backref_ref(
     prop: Any,
-    backref_model: str
+    backref_model: str,
+    given_ref: object
 ):
     pass
 

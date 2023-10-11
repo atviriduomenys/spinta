@@ -1823,7 +1823,7 @@ def _property_to_tabular(
         access=access,
         order_by=order_by,
     )
-    if yield_array_row:
+    if yield_array_row is not None:
         yield from _property_to_tabular(yield_array_row, external=external, access=access, order_by=order_by)
 
 
