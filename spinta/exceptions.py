@@ -646,3 +646,7 @@ class NoBackRefReferencesFound(UserError):
 
 class InvalidBackRefReferenceAmount(UserError):
     template = "Backref {backref!r} can only reference one property."
+
+
+class CannotModifyBackRefProp(UserError):
+    template = "It is impossible to directly set or modify Backref property."

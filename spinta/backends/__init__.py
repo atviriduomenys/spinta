@@ -291,6 +291,19 @@ def simple_data_check(
         raise exceptions.NotImplementedFeature(prop, feature="Ability to indirectly modify base parameters")
 
 
+@commands.simple_data_check.register(Context, DataItem, BackRef, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: BackRef,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if value is not NA:
+        raise exceptions.CannotModifyBackRefProp(dtype)
+
+
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
 def complex_data_check(
     context: Context,
