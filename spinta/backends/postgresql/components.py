@@ -108,8 +108,8 @@ class PostgreSQL(Backend):
         else:
             return self.tables.get(name)
 
-    def get_column(self, table: sa.Table, prop: Property, *, select=False) -> Union[sa.Column, List[sa.Column]]:
-        if prop.list is not None:
+    def get_column(self, table: sa.Table, prop: Property, *, select=False, override_table: bool = True) -> Union[sa.Column, List[sa.Column]]:
+        if prop.list is not None and override_table:
             table = self.get_table(prop.list, TableType.LIST)
         column = commands.get_column(self, prop, table=table)
         return column

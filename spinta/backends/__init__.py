@@ -768,8 +768,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value is None:
-        value = {'_id': None}
+    if value is None or all(val is None for val in value.values()):
+        return None
 
     if select and select != {'*': {}}:
         names = get_select_prop_names(
@@ -832,8 +832,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value is None:
-        return {}
+    if value is None or all(val is None for val in value.values()):
+        return None
 
     if select and select != {'*': {}}:
         names = get_select_prop_names(
@@ -1109,8 +1109,8 @@ def prepare_dtype_for_response(
 ) -> list:
     return_values = []
     for value in rows:
-        if value is None:
-            value = {'_id': None}
+        if value is None or all(val is None for val in value.values()):
+            continue
 
         if select and select != {'*': {}}:
             names = get_select_prop_names(
@@ -1171,8 +1171,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value is None:
-        value = {'_id': None}
+    if value is None or all(val is None for val in value.values()):
+        return None
 
     if select and select != {'*': {}}:
         names = get_select_prop_names(

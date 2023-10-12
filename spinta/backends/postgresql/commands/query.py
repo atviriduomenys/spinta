@@ -127,8 +127,7 @@ class PgQueryBuilder(BaseQueryBuilder):
 
         return self.joins[fpr.name]
 
-    def get_backref_joined_table(self, prop: ForeignProperty) -> sa.Table:
-        alt_tables = {}
+    def get_backref_joined_table(self, prop: ForeignProperty) -> (sa.Table, sa.Table):
         for fpr in prop.chain:
             if fpr.name in self.joins:
                 continue
@@ -138,19 +137,17 @@ class PgQueryBuilder(BaseQueryBuilder):
             else:
                 ltable = self.backend.get_table(fpr.left.model)
             lrkey = self.backend.get_column(ltable, fpr.left)
-            rmodel = fpr.right.model
 
             condition = None
             tmp_condition = None
             tmp_table = self.backend.get_table(fpr.right).alias()
-            alt_tables[fpr.name] = tmp_table
 
             if fpr.right.list is not None:
-                rtable = self.backend.get_table(fpr.right, TableType.LIST)
+                rtable = self.backend.get_table(fpr.right, TableType.LIST).alias()
                 tmp_condition = rtable.c['_rid'] == tmp_table.c['_id']
             else:
-                rtable = self.backend.get_table(rmodel).alias()
-            rpkey = self.backend.get_column(rtable, fpr.right)
+                rtable = tmp_table
+            rpkey = self.backend.get_column(rtable, fpr.right, override_table=False)
 
             if isinstance(lrkey, list) and isinstance(rpkey, list):
                 if len(lrkey) == len(rpkey):
@@ -165,16 +162,17 @@ class PgQueryBuilder(BaseQueryBuilder):
                 raise Exception("TYPE DOESNT MATCH")
             else:
                 condition = lrkey == rpkey
-            self.joins[fpr.name] = rtable
+            self.joins[fpr.name] = tmp_table
 
             col = ltable.c['_id']
-            self.group_by.append(col)
+            if col not in self.group_by:
+                self.group_by.append(col)
 
             self.from_ = self.from_.outerjoin(rtable, condition)
             if tmp_condition is not None:
                 self.from_ = self.from_.outerjoin(tmp_table, tmp_condition)
 
-        return self.joins[fpr.name], alt_tables[fpr.name]
+        return self.joins[fpr.name]
 
     def get_joined_base_table(self, model: Model, prop: str):
         inherit_model = model
@@ -488,17 +486,16 @@ def select(env, dtype):
         left=dtype.prop,
         right=dtype.refprop,
     )
-    table, alt_table = env.get_backref_joined_table(fpr)
+    table = env.get_backref_joined_table(fpr)
     refprop = dtype.refprop
     if refprop.level is None or refprop.level > Level.open:
-        column_name = fpr.right.model.properties['_id'].name if fpr.right.list is None else '_rid'
+        column_name = fpr.right.model.properties['_id'].name
         column = table.c[column_name]
         column = column.label(f'{dtype.prop.name}._id')
         env.group_by.append(column)
         return Selected(column, fpr.left)
     else:
         columns = []
-        table = alt_table if alt_table is not None else env.backend.get_table(fpr.right)
         for prop in dtype.refprop.dtype.refprops:
             column_name = prop.name
             column = table.c[column_name]
@@ -515,16 +512,15 @@ def select(env, dtype):
         left=dtype.prop,
         right=dtype.refprop,
     )
-    table, alt_table = env.get_backref_joined_table(fpr)
+    table = env.get_backref_joined_table(fpr)
     refprop = dtype.refprop
     if refprop.level is None or refprop.level > Level.open:
-        column_name = fpr.right.model.properties['_id'].name if fpr.right.list is None else '_rid'
+        column_name = fpr.right.model.properties['_id'].name
         column = array_agg(sa.func.json_build_object("_id", table.c[column_name]))
         column = column.label(dtype.prop.name)
         return Selected(column, fpr.left)
     else:
         columns = []
-        table = alt_table if alt_table is not None else env.backend.get_table(fpr.right)
         for prop in dtype.refprop.dtype.refprops:
             column_name = prop.name
             columns.append(column_name)
