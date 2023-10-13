@@ -9,6 +9,19 @@ from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import error
 
 
+def are_lists_of_dicts_equal(list1, list2):
+    # Check if the lengths of the lists are the same
+    if len(list1) != len(list2):
+        return False
+
+    # Convert each list of dictionaries to a set
+    set1 = {frozenset(d.items()) for d in list1}
+    set2 = {frozenset(d.items()) for d in list2}
+
+    # Compare the sets
+    return set1 == set2
+
+
 def test_backref_one_to_one_level_4(
     rc: RawConfig,
     postgresql: str,
@@ -438,19 +451,19 @@ def test_backref_many_to_one_level_4(
     result = app.get('example/dtypes/backref/mto/level4/Language?expand()')
     assert result.status_code == 200
     result_json = result.json()['_data']
-    assert result_json[0]['country'] == [
+    assert are_lists_of_dicts_equal(result_json[0]['country'], [
         {
             '_id': lithuania_id
         }
-    ]
-    assert result_json[1]['country'] == [
+    ])
+    assert are_lists_of_dicts_equal(result_json[1]['country'], [
         {
             '_id': england_id
         },
         {
             '_id': us_id
         }
-    ]
+    ])
     assert result_json[2]['country'] == []
 
 
@@ -530,13 +543,13 @@ def test_backref_many_to_one_level_3(
     result = app.get('example/dtypes/backref/mto/level3/Language?expand()')
     assert result.status_code == 200
     result_json = result.json()['_data']
-    assert result_json[0]['country'] == [
+    assert are_lists_of_dicts_equal(result_json[0]['country'], [
         {
             'id': 0,
             'name': "Lithuania"
         }
-    ]
-    assert result_json[1]['country'] == [
+    ])
+    assert are_lists_of_dicts_equal(result_json[1]['country'], [
         {
             'id': 1,
             'name': "England"
@@ -545,7 +558,7 @@ def test_backref_many_to_one_level_3(
             'id': 2,
             'name': 'US'
         }
-    ]
+    ])
     assert result_json[2]['country'] == []
 
 
@@ -629,25 +642,25 @@ def test_backref_many_to_many_level_4(
     result = app.get('example/dtypes/backref/mtm/level4/Language?expand()')
     assert result.status_code == 200
     result_json = result.json()['_data']
-    assert result_json[0]['country'] == [
+    assert are_lists_of_dicts_equal(result_json[0]['country'], [
         {
             '_id': lithuania_id
         }
-    ]
+    ])
 
-    assert result_json[1]['country'] == [
+    assert are_lists_of_dicts_equal(result_json[1]['country'], [
         {
             '_id': lithuania_id
         },
         {
             '_id': poland_id
         }
-    ]
-    assert result_json[2]['country'] == [
+    ])
+    assert are_lists_of_dicts_equal(result_json[2]['country'], [
         {
             '_id': poland_id
         }
-    ]
+    ])
     assert result_json[3]['country'] == []
 
 
@@ -735,14 +748,14 @@ def test_backref_many_to_many_level_3(
     result = app.get('example/dtypes/backref/mtm/level3/Language?expand()')
     assert result.status_code == 200
     result_json = result.json()['_data']
-    assert result_json[0]['country'] == [
+    assert are_lists_of_dicts_equal(result_json[0]['country'], [
         {
             'id': 0,
             'name': 'Lithuania'
         }
-    ]
+    ])
 
-    assert result_json[1]['country'] == [
+    assert are_lists_of_dicts_equal(result_json[1]['country'], [
         {
             'id': 0,
             'name': 'Lithuania'
@@ -751,13 +764,13 @@ def test_backref_many_to_many_level_3(
             'id': 1,
             'name': 'Poland'
         }
-    ]
-    assert result_json[2]['country'] == [
+    ])
+    assert are_lists_of_dicts_equal(result_json[2]['country'], [
         {
             'id': 1,
             'name': 'Poland'
         }
-    ]
+    ])
     assert result_json[3]['country'] == []
 
 
@@ -842,25 +855,25 @@ def test_backref_x_to_many_expand(
     result = app.get('example/dtypes/backref/xtm/expand/Language?expand()')
     assert result.status_code == 200
     result_json = result.json()['_data']
-    assert result_json[0]['country'] == [
+    assert are_lists_of_dicts_equal(result_json[0]['country'], [
         {
             '_id': lithuania_id
         }
-    ]
+    ])
 
-    assert result_json[1]['country'] == [
+    assert are_lists_of_dicts_equal(result_json[1]['country'], [
         {
             '_id': lithuania_id
         },
         {
             '_id': poland_id
         }
-    ]
-    assert result_json[2]['country'] == [
+    ])
+    assert are_lists_of_dicts_equal(result_json[2]['country'], [
         {
             '_id': poland_id
         }
-    ]
+    ])
 
 
 def test_backref_error_modify_backref_insert(
@@ -1061,33 +1074,32 @@ def test_backref_multiple_same(
     result = app.get('example/dtypes/backref/multiple/same/Language?expand()')
     assert result.status_code == 200
     result_json = result.json()['_data']
-    assert result_json[0]['country_primary'] == [
+    assert are_lists_of_dicts_equal(result_json[0]['country_primary'], [
         {
             '_id': lithuania_id
         }
-    ]
+    ])
     assert result_json[0]['country_secondary'] == []
 
-    assert result_json[1]['country_primary'] == [
+    assert are_lists_of_dicts_equal(result_json[1]['country_primary'], [
         {
             '_id': poland_id
         }
-    ]
-    assert result_json[1]['country_secondary'] == [
+    ])
+    assert are_lists_of_dicts_equal(result_json[1]['country_secondary'], [
         {
             '_id': lithuania_id
         }
-    ]
+    ])
 
     assert result_json[2]['country_primary'] == []
-    assert result_json[2]['country_secondary'] == [
+    assert are_lists_of_dicts_equal(result_json[2]['country_secondary'], [
         {
             '_id': poland_id
         }
-    ]
+    ])
 
 
-@pytest.mark.skip("Need to fix cartesian product with multiple left joins")
 def test_backref_multiple_all_types(
     rc: RawConfig,
     postgresql: str,
@@ -1240,55 +1252,84 @@ def test_backref_multiple_all_types(
     assert result.status_code == 200
     result_json = result.json()['_data']
 
+    # Lithuanian
     assert result_json[0]['country_0'] == {
         '_id': lithuania_0_id
     }
-    assert result_json[0]['country_1'] == [
+    assert are_lists_of_dicts_equal(result_json[0]['country_1'], [
         {
             '_id': lithuania_0_id
         },
         {
             '_id': lithuania_1_id
         }
-    ]
-    assert result_json[0]['country_0_array'] == [
-        {
-            '_id': lithuania_0_id
-        }
-    ]
-    assert result_json[0]['country_1_array'] == [
+    ])
+    assert result_json[0]['country_0_array'] == {
+        '_id': lithuania_0_id
+    }
+    assert are_lists_of_dicts_equal(result_json[0]['country_1_array'], [
         {
             '_id': lithuania_0_id
         },
         {
             '_id': lithuania_1_id
         }
-    ]
-    raise Exception
-    # assert result_json[0]['country_primary'] == [
-    #     {
-    #         '_id': lithuania_id
-    #     }
-    # ]
-    # assert result_json[0]['country_secondary'] == []
-    #
-    # assert result_json[1]['country_primary'] == [
-    #     {
-    #         '_id': poland_id
-    #     }
-    # ]
-    # assert result_json[1]['country_secondary'] == [
-    #     {
-    #         '_id': lithuania_id
-    #     }
-    # ]
-    #
-    # assert result_json[2]['country_primary'] == []
-    # assert result_json[2]['country_secondary'] == [
-    #     {
-    #         '_id': poland_id
-    #     }
-    # ]
+    ])
+
+    # English
+    assert result_json[1]['country_0'] == {
+        '_id': poland_0_id
+    }
+    assert are_lists_of_dicts_equal(result_json[1]['country_1'], [
+        {
+            '_id': poland_0_id
+        },
+        {
+            '_id': poland_1_id
+        }
+    ])
+    assert result_json[1]['country_0_array'] == {
+        '_id': poland_0_id
+    }
+
+    assert are_lists_of_dicts_equal(result_json[1]['country_1_array'], [
+        {
+            '_id': lithuania_0_id
+        },
+        {
+            '_id': lithuania_1_id
+        },
+        {
+            '_id': poland_0_id
+        },
+        {
+            '_id': poland_1_id
+        }
+    ])
+
+    # Russian
+    assert result_json[2]['country_0'] == {
+        '_id': poland_1_id
+    }
+    assert result_json[2]['country_1'] == []
+    assert result_json[2]['country_0_array'] == {
+        '_id': poland_1_id
+    }
+
+    assert are_lists_of_dicts_equal(result_json[2]['country_1_array'], [
+        {
+            '_id': lithuania_1_id
+        },
+        {
+            '_id': poland_0_id
+        }
+    ])
+
+    # Empty
+    assert result_json[3]['country_0'] is None
+    assert result_json[3]['country_1'] == []
+    assert result_json[3]['country_0_array'] is None
+    assert result_json[3]['country_1_array'] == []
 
 
 def test_backref_error_no_ref(
