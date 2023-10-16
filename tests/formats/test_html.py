@@ -446,12 +446,7 @@ def test_limit_iter(limit, exhausted, result):
     assert it.exhausted is exhausted
 
 
-@pytest.mark.parametrize('value, cell', [
-    (None, Cell('', link=None, color=Color.null)),
-    ({'_id': 'c634dbd8-416f-457d-8bda-5a6c35bbd5d6'},
-     Cell('c634dbd8', link='/example/Country/c634dbd8-416f-457d-8bda-5a6c35bbd5d6')),
-])
-def test_prepare_ref_for_response(rc: RawConfig, value, cell):
+def test_prepare_ref_for_response(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property   | type    | ref     | access
     example                    |         |         |
@@ -462,6 +457,8 @@ def test_prepare_ref_for_response(rc: RawConfig, value, cell):
       |   |   |   | country    | ref     | Country | open
     ''')
     fmt = Html()
+    value = {'_id': 'c634dbd8-416f-457d-8bda-5a6c35bbd5d6'}
+    cell = Cell('c634dbd8', link='/example/Country/c634dbd8-416f-457d-8bda-5a6c35bbd5d6')
     dtype = manifest.models['example/City'].properties['country'].dtype
     result = commands.prepare_dtype_for_response(
         context,
@@ -477,6 +474,35 @@ def test_prepare_ref_for_response(rc: RawConfig, value, cell):
     assert result['_id'].value == cell.value
     assert result['_id'].color == cell.color
     assert result['_id'].link == cell.link
+
+
+def test_prepare_ref_for_response_empty(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref     | access
+    example                    |         |         |
+      |   |   | Country        |         | name    |
+      |   |   |   | name       | string  |         | open
+      |   |   | City           |         | name    |
+      |   |   |   | name       | string  |         | open
+      |   |   |   | country    | ref     | Country | open
+    ''')
+    fmt = Html()
+    value = None
+    cell = Cell('', link=None, color=Color.null)
+    dtype = manifest.models['example/City'].properties['country'].dtype
+    result = commands.prepare_dtype_for_response(
+        context,
+        fmt,
+        dtype,
+        value,
+        data={},
+        action=Action.GETALL,
+        select=None,
+    )
+    assert result == cell
+    assert result.value == cell.value
+    assert result.color == cell.color
+    assert result.link == cell.link
 
 
 def test_select_id(rc: RawConfig):

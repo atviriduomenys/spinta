@@ -533,7 +533,10 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     super_ = commands.prepare_dtype_for_response[Context, Format, Ref, dict]
-    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    value = super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    if value is None:
+        return Cell('', color=Color.null)
+    return value
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, ExternalRef, (dict, str, type(None)))
@@ -548,7 +551,7 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     if value is None:
-        return {}
+        return Cell('', color=Color.null)
 
     if select and select != {'*': {}}:
         names = get_select_prop_names(
@@ -753,7 +756,10 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, dict]
-    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    value = super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    if value is None:
+        return Cell('', color=Color.null)
+    return value
 
 
 @commands.prepare_dtype_for_response.register(Context, Html, BackRef, type(None))
@@ -767,5 +773,5 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    super_ = commands.prepare_dtype_for_response[Context, Format, BackRef, type(None)]
-    return super_(context, fmt, dtype, value, data=data, action=action, select=select)
+    return Cell('', color=Color.null)
+
