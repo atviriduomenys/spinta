@@ -172,11 +172,6 @@ class PgQueryBuilder(BaseQueryBuilder):
         else:
             select_columns.append(initial_join_right_keys)
 
-        # if isinstance(right_keys, list):
-        #     select_columns.extend(right_keys)
-        # else:
-        #     select_columns.append(right_keys)
-
         if isinstance(left_keys, list) and isinstance(initial_join_right_keys, list):
             if len(left_keys) == len(initial_join_right_keys):
                 for i, key in enumerate(left_keys):

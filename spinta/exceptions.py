@@ -650,3 +650,7 @@ class InvalidBackRefReferenceAmount(UserError):
 
 class CannotModifyBackRefProp(UserError):
     template = "It is impossible to directly set or modify Backref property."
+
+
+class OneToManyBackRefNotSupported(UserError):
+    template = "One to many relationship is not supported by Backref."

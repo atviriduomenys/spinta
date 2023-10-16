@@ -112,12 +112,7 @@ def listdata(
             assert '_data' in data, pformat(data)
             data = data['_data']
 
-        keys = keys or sorted({
-            k
-            for d in flatten(data)
-            for k in d
-            if not k.startswith('_')
-        })
+        keys = get_keys_for_row(old_keys, data)
 
     # Clean data
     if full:

@@ -1,6 +1,7 @@
 from spinta import commands
 from spinta.components import Context, Model, Property
-from spinta.exceptions import ModelReferenceNotFound, MultipleBackRefReferencesFound, NoBackRefReferencesFound, NoReferencesFound
+from spinta.exceptions import ModelReferenceNotFound, MultipleBackRefReferencesFound, NoBackRefReferencesFound, \
+    NoReferencesFound, OneToManyBackRefNotSupported
 from spinta.types.datatype import BackRef, Ref, Array, ArrayBackRef, Object, Denorm, DataType
 from spinta.types.helpers import set_dtype_backend
 
@@ -90,7 +91,10 @@ def _link_backref(context: Context, dtype: BackRef):
 def link(context: Context, dtype: BackRef) -> None:
     _link_backref(context, dtype)
 
-    # x to one relationship need to add unique
+    if dtype.refprop.list is not None:
+        raise OneToManyBackRefNotSupported(dtype)
+
+    # relationship needs to add unique
     dtype.refprop.dtype.unique = True
 
 
