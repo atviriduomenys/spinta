@@ -2128,7 +2128,7 @@ def test_push_null_foreign_key(
         {
             'name': 'Ryga',
             'country._id': countries['Latvia'],
-            'embassy._id': None,
+            'embassy': None,
         },
         {
             'name': 'Vilnius',
@@ -2137,8 +2137,8 @@ def test_push_null_foreign_key(
         },
         {
             'name': 'Winterfell',
-            'country._id': None,
-            'embassy._id': None,
+            'country': None,
+            'embassy': None,
         },
     ]
 
@@ -2201,12 +2201,12 @@ def test_push_self_ref(
     cities = dict(listdata(resp, 'name', '_id'))
     assert listdata(resp, full=True) == [
         {
-            'name': 'Trakai',
-            'governance._id': cities['Vilnius'],
+            'name': 'Vilnius',
+            'governance': None,
         },
         {
-            'name': 'Vilnius',
-            'governance._id': None,
+            'name': 'Trakai',
+            'governance._id': cities['Vilnius'],
         },
     ]
 

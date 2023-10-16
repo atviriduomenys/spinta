@@ -25,6 +25,15 @@ from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten
 
 
+def get_keys_for_row(keys, row: dict):
+    return keys or sorted({
+        k
+        for d in flatten(row)
+        for k in d
+        if not k.startswith('_')
+    })
+
+
 def listdata(
     resp: Union[requests.Response, List[Dict[str, Any]]],
     *keys: Union[str, Callable[[], bool]],
@@ -71,7 +80,7 @@ def listdata(
         }
 
     """
-
+    old_keys = keys
     # Prepare data
     if isinstance(resp, list):
         data = resp
@@ -102,6 +111,7 @@ def listdata(
         else:
             assert '_data' in data, pformat(data)
             data = data['_data']
+
         keys = keys or sorted({
             k
             for d in flatten(data)
@@ -111,7 +121,7 @@ def listdata(
 
     # Clean data
     if full:
-        data = [take(keys, row) for row in data]
+        data = [take(get_keys_for_row(old_keys, row), row) for row in data]
     elif len(keys) == 1:
         k = keys[0]
         data = [take(k, row) for row in data]
