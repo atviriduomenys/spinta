@@ -5,21 +5,9 @@ from pytest import FixtureRequest
 from spinta.core.config import RawConfig
 from spinta.exceptions import NoBackRefReferencesFound, NoReferencesFound, MultipleBackRefReferencesFound
 from spinta.testing.client import create_test_client
+from spinta.testing.data import are_lists_of_dicts_equal
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.utils import error
-
-
-def are_lists_of_dicts_equal(list1, list2):
-    # Check if the lengths of the lists are the same
-    if len(list1) != len(list2):
-        return False
-
-    # Convert each list of dictionaries to a set
-    set1 = {frozenset(d.items()) for d in list1}
-    set2 = {frozenset(d.items()) for d in list2}
-
-    # Compare the sets
-    return set1 == set2
 
 
 def test_backref_one_to_one_level_4(

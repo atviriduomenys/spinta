@@ -254,3 +254,16 @@ def send(
 
 def encode_page_values_manually(row: dict):
     return base64.urlsafe_b64encode(json.dumps(list(row.values())).encode('ascii')).decode('ascii')
+
+
+def are_lists_of_dicts_equal(list1, list2):
+    # Check if the lengths of the lists are the same
+    if len(list1) != len(list2):
+        return False
+
+    # Convert each list of dictionaries to a set
+    set1 = {frozenset(d.items()) for d in list1}
+    set2 = {frozenset(d.items()) for d in list2}
+
+    # Compare the sets
+    return set1 == set2

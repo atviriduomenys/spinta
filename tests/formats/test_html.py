@@ -447,7 +447,7 @@ def test_limit_iter(limit, exhausted, result):
 
 
 @pytest.mark.parametrize('value, cell', [
-    ({'_id': None}, Cell('', link=None, color=Color.null)),
+    (None, Cell('', link=None, color=Color.null)),
     ({'_id': 'c634dbd8-416f-457d-8bda-5a6c35bbd5d6'},
      Cell('c634dbd8', link='/example/Country/c634dbd8-416f-457d-8bda-5a6c35bbd5d6')),
 ])
