@@ -580,7 +580,6 @@ async def summary(
 ) -> Response:
     commands.authorize(context, action, model)
     backend = model.backend
-    prop = params.select[0]
 
     accesslog: AccessLog = context.get('accesslog')
     accesslog.request(
@@ -593,12 +592,7 @@ async def summary(
     if params.head:
         rows = []
     else:
-        args = {
-            "prop": prop
-        }
-        if params.query:
-            for item in params.query:
-                args[item["name"]] = item["args"]
-        rows = commands.summary(context, model, backend, args=args)
+        expr = urlparams_to_expr(params)
+        rows = commands.summary(context, model, backend, expr)
     rows = log_response(context, rows)
     return render(context, request, model, params, rows, action=action)

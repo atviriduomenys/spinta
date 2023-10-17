@@ -825,6 +825,7 @@ class UrlParams:
     count: bool = False
     # In batch requests, return summary of what was done.
     summary: bool = False
+    bbox: Optional[List[float]] = None
     # In batch requests, continue execution even if some actions fail.
     fault_tolerant: bool = False
 
