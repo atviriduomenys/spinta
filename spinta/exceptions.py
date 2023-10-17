@@ -630,3 +630,7 @@ class UnauthorizedKeymapSync(UserError):
 
 class GivenValueCountMissmatch(BaseError):
     template = "While assigning ref values {given_count} were given, while {expected_count} were expected."
+
+
+class SummaryWithMultipleProperties(UserError):
+    template = "Summary with multiple properties is not supported."
