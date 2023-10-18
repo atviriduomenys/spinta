@@ -582,6 +582,7 @@ class Model(MetaData):
     comments: List[Comment] = None
     base: Base = None
     uri: str = None
+    uri_prop: Property = None
     page: Page = None
 
     required_keymap_properties = []
@@ -628,6 +629,7 @@ class Model(MetaData):
         self.params = {}
         self.required_keymap_properties = []
         self.page = Page()
+        self.uri_prop = None
 
     def model_type(self):
         return self.name

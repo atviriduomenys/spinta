@@ -29,7 +29,6 @@ from spinta.types.datatype import Date
 from spinta.types.datatype import Time
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Number
-from spinta.types.helpers import get_model_uri_property
 from spinta.utils.encoding import encode_page_values
 from spinta.utils.schema import NotAvailable
 
@@ -40,7 +39,8 @@ DESCRIPTION = "Description"
 
 def _get_available_prefixes(model: Model) -> dict:
     prefixes = {
-        RDF: "https://www.w3.org/1999/02/22-rdf-syntax-ns#"
+        RDF: "https://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        PAV: "http://purl.org/pav/"
     }
     if model.manifest.datasets.get(model.ns.name):
         manifest_prefixes = model.manifest.datasets.get(model.ns.name).prefixes
@@ -70,7 +70,7 @@ def _get_attributes(
     revision_name: Union[str, QName],
 ) -> Tuple[dict, dict]:
     attributes = {}
-    uri_prop = get_model_uri_property(model)
+    uri_prop = model.uri_prop
     about_uri = False
     if uri_prop is not None:
         if uri_prop.name in data:

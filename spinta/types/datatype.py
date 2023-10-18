@@ -293,6 +293,23 @@ def link(context: Context, dtype: DataType) -> None:
     set_dtype_backend(dtype)
 
 
+@load.register(Context, URI, dict, Manifest)
+def load(context: Context, dtype: URI, data: dict, manifest: Manifest) -> URI:
+    _load = commands.load[Context, DataType, dict, Manifest]
+    dtype: URI = _load(context, dtype, data, manifest)
+
+    prop = dtype.prop
+    model = prop.model
+    if model.uri is not None and prop.uri == model.uri:
+        if model.uri_prop is None:
+            model.uri_prop = prop
+            dtype.unique = True
+        else:
+            raise exceptions.TooManyModelUriProperties(dtype, uri_prop=model.uri_prop.name)
+
+    return dtype
+
+
 @load.register(Context, PrimaryKey, dict, Manifest)
 def load(context: Context, dtype: PrimaryKey, data: dict, manifest: Manifest) -> DataType:
     dtype.unique = True
