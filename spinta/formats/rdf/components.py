@@ -7,4 +7,5 @@ class Rdf(Format):
         'application/rdf+xml',
     }
     params = {}
+    prioritize_uri = True
 

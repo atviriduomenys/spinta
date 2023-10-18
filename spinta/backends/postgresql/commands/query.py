@@ -21,6 +21,7 @@ from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Model, Property, Action, Page
+from spinta.types.helpers import get_model_uri_property
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
 from spinta.utils.data import take
 from spinta.types.datatype import DataType, ExternalRef, Inherit, Time
@@ -403,8 +404,15 @@ def select(env, dtype, leaf):
 
 @ufunc.resolver(PgQueryBuilder, Ref)
 def select(env, dtype):
-    table = env.backend.get_table(env.model)
-    column = table.c[dtype.prop.place + '._id']
+    uri = get_model_uri_property(dtype.model)
+    if env.prioritize_uri and uri is not None:
+        fpr = ForeignProperty(None, dtype.prop, dtype.model.properties['_id'])
+        table = env.get_joined_table(fpr)
+        column = table.c[uri.place]
+        column = column.label(dtype.prop.place + '._uri')
+    else:
+        table = env.backend.get_table(env.model)
+        column = table.c[dtype.prop.place + '._id']
     return Selected(column, dtype.prop)
 
 

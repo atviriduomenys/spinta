@@ -4,3 +4,4 @@ class Format:
     params: dict
     # TODO: Should be false, by default.
     streamable: bool = True
+    prioritize_uri: bool = False

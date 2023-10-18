@@ -6,7 +6,16 @@ from spinta import exceptions
 from spinta.exceptions import BackendNotFound
 
 if TYPE_CHECKING:
-    from spinta.types.datatype import DataType
+    from spinta.types.datatype import DataType, URI
+
+
+def get_model_uri_property(self):
+    from spinta.types.datatype import URI
+    if self.uri is not None:
+        for prop in self.properties.values():
+            if isinstance(prop.dtype, URI) and prop.uri == self.uri:
+                return prop
+    return None
 
 
 def check_no_extra_keys(dtype: DataType, schema: Iterable, data: Iterable):
