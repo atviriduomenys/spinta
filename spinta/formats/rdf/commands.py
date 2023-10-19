@@ -39,7 +39,7 @@ DESCRIPTION = "Description"
 
 def _get_available_prefixes(model: Model) -> dict:
     prefixes = {
-        RDF: "https://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        RDF: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
         PAV: "http://purl.org/pav/"
     }
     if model.manifest.datasets.get(model.ns.name):
@@ -214,11 +214,11 @@ async def _stream(
 ):
     namespaces = []
     prefixes = _get_available_prefixes(model)
-    root_name = _get_attribute_name(RDF.capitalize(), RDF, prefixes)
+    root_name = _get_attribute_name(RDF.upper(), RDF, prefixes)
     for key, val in prefixes.items():
         namespaces.append(f'xmlns:{key}="{val}"')
     if request.base_url:
-        namespaces.append(f'xmlns:base="{str(request.base_url)}"')
+        namespaces.append(f'xmlns="{str(request.base_url)}"')
     if isinstance(root_name, QName):
         root_name = f"{RDF}:{root_name.localname}"
     namespaces = "\n ".join(namespaces)
