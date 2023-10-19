@@ -14,7 +14,7 @@ from spinta.core.config import RawConfig
 
 
 @pytest.mark.parametrize('query, header', [
-    ('', ['_type', '_id', '_revision', 'name', 'country._id']),
+    ('', ['_type', '_id', '_revision', '_page', 'name', 'country._id']),
     ('count()', ['count()']),
     ('select(_id)', ['_id']),
     ('select(_id, country)', ['_id', 'country._id']),

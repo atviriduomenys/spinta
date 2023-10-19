@@ -8,7 +8,7 @@ from dask.dataframe import DataFrame
 
 from spinta import commands
 from spinta.core.ufuncs import Expr
-from spinta.datasets.backends.helpers import handle_ref_key_assignment
+from spinta.datasets.backends.helpers import handle_ref_key_assignment, generate_pk_for_row
 from spinta.typing import ObjectData
 from spinta.components import Context
 from spinta.manifests.components import Manifest
@@ -167,9 +167,9 @@ def getall(
                 val = _get_row_value(context, row, sel)
                 if sel.prop:
                     if isinstance(sel.prop.dtype, PrimaryKey):
-                        val = keymap.encode(sel.prop.model.model_type(), val)
+                        val = generate_pk_for_row(model, row, keymap, val)
                     elif isinstance(sel.prop.dtype, Ref):
-                        val = handle_ref_key_assignment(keymap, val, sel.prop)
+                        val = handle_ref_key_assignment(keymap, None, val, sel.prop.dtype)
                 res[key] = val
             res = commands.cast_backend_to_python(context, model, backend, res)
             yield res

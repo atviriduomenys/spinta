@@ -1,3 +1,4 @@
+import base64
 import datetime
 import hashlib
 import json
@@ -24,9 +25,41 @@ from spinta.cli.push import _send_request
 from spinta.cli.push import _push
 from spinta.cli.push import _State
 from spinta.core.config import RawConfig
-from spinta.testing.datasets import Sqlite
+from spinta.manifests.tabular.helpers import striptable
+from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.data import listdata
+from spinta.testing.datasets import Sqlite, create_sqlite_db
 from spinta.testing.manifest import load_manifest
 from spinta.testing.manifest import load_manifest_and_context
+from spinta.testing.tabular import create_tabular_manifest
+from spinta.testing.client import create_rc, configure_remote_server
+
+
+@pytest.fixture(scope='module')
+def geodb():
+    with create_sqlite_db({
+        'salis': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('kodas', sa.Text),
+            sa.Column('pavadinimas', sa.Text),
+        ],
+        'miestas': [
+            sa.Column('id', sa.Integer, primary_key=True),
+            sa.Column('pavadinimas', sa.Text),
+            sa.Column('salis', sa.Integer, sa.ForeignKey("salis.kodas"), nullable=False),
+        ],
+    }) as db:
+        db.write('salis', [
+            {'id': 0, 'kodas': 'lt', 'pavadinimas': 'Lietuva'},
+            {'id': 1, 'kodas': 'lv', 'pavadinimas': 'Latvija'},
+            {'id': 2, 'kodas': 'ee', 'pavadinimas': 'Estija'},
+        ])
+        db.write('miestas', [
+            {'id': 0, 'salis': 'lt', 'pavadinimas': 'Vilnius'},
+            {'id': 1, 'salis': 'lv', 'pavadinimas': 'Ryga'},
+            {'id': 2, 'salis': 'ee', 'pavadinimas': 'Talinas'},
+        ])
+        yield db
 
 
 @pytest.mark.skip('datasets')
@@ -230,7 +263,7 @@ def test_push_state__create(rc: RawConfig, responses: RequestsMock):
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        }),
+        }, op='insert'),
     ]
 
     client = requests.Session()
@@ -289,7 +322,7 @@ def test_push_state__create_error(rc: RawConfig, responses: RequestsMock):
             '_type': model.name,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        })
+        }, op='insert')
     ]
 
     client = requests.Session()
@@ -341,9 +374,10 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
     rows = [
         _PushRow(model, {
             '_type': model.name,
+            '_revision': rev_before,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        }),
+        }, op='patch', saved=True),
     ]
 
     client = requests.Session()
@@ -383,6 +417,207 @@ def test_push_state__update(rc: RawConfig, responses: RequestsMock):
     )]
 
 
+@pytest.mark.skip(reason="not implemented yet")
+def test_push_state__update_without_sync(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    syncronize_time = datetime.datetime.now()
+
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id='4d741843-4e94-4890-81d9-5af7c5b5989a',
+        checksum='CHANGED',
+        pushed=datetime.datetime.now(),
+        error=False,
+        synchronize=syncronize_time
+    ))
+
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        }),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'patch',
+            '_type': model.name,
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
+        })],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+        syncronize=False
+    )
+
+    query = sa.select([table.c.id, table.c.synchronize])
+    res = list(conn.execute(query))
+
+    assert res[0][1] == syncronize_time
+
+
+@pytest.mark.skip(reason="not implemented yet")
+def test_push_state__update_sync_first_time(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id='4d741843-4e94-4890-81d9-5af7c5b5989a',
+        checksum='CHANGED',
+        pushed=datetime.datetime.now(),
+        error=False
+    ))
+
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        }),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'patch',
+            '_type': model.name,
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
+        })],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+        syncronize=False
+    )
+
+    query = sa.select([table.c.id, table.c.checksum, table.c.synchronize])
+    res = list(conn.execute(query))
+
+    assert res[0][1] != "CHANGED"
+    assert res[0][2] is not None
+
+
+@pytest.mark.skip(reason="not implemented yet")
+def test_push_state__update_sync(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+    m | property | type   | access
+    City         |        |
+      | name     | string | open
+    ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+    time_before_sync_push = datetime.datetime.now()
+    table = state.metadata.tables[model.name]
+    conn.execute(table.insert().values(
+        id='4d741843-4e94-4890-81d9-5af7c5b5989a',
+        checksum='CHANGED',
+        pushed=datetime.datetime.now(),
+        error=False,
+        synchronize=time_before_sync_push
+    ))
+
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+            'name': 'Vilnius',
+        }),
+    ]
+
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'patch',
+            '_type': model.name,
+            '_where': "eq(_id, '4d741843-4e94-4890-81d9-5af7c5b5989a')",
+        })],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+        syncronize=True
+    )
+
+    query = sa.select([table.c.id, table.c.checksum, table.c.synchronize])
+    res = list(conn.execute(query))
+
+    assert res[0][1] != "CHANGED"
+
+
 def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     context, manifest = load_manifest_and_context(rc, '''
     m | property | type   | access
@@ -411,9 +646,10 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
     rows = [
         _PushRow(model, {
             '_type': model.name,
+            '_revision': rev_before,
             '_id': '4d741843-4e94-4890-81d9-5af7c5b5989a',
             'name': 'Vilnius',
-        }),
+        }, op='patch', saved=True),
     ]
 
     client = requests.Session()
@@ -435,6 +671,77 @@ def test_push_state__update_error(rc: RawConfig, responses: RequestsMock):
         rev_before,
         True,
     )]
+
+
+def test_push_delete_with_dependent_objects(
+    postgresql,
+    rc,
+    cli: SpintaCliRunner,
+    responses,
+    tmp_path,
+    geodb,
+    request
+):
+    table = '''
+     d | r | b | m  | property         | type   | ref                     | source     | access
+     datasets/gov/deleteTest           |        |                         |            |
+       | data                          | sql    |                         |            |
+       |   |                           |        |                         |            |
+       |   |   | Country               |        | code                    | salis      | open
+       |   |   |    | name             | string |                         | pavadinimas|
+       |   |   |    | code             | string |                         | kodas      |
+       |   |   |    |                  |        |                         |            |
+       |   |   | City                  |        | name                    | miestas    | open
+       |   |   |    | name             | string |                         | pavadinimas|
+       |   |   |    | country          | ref    | Country                 | salis      |
+    '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', striptable(table))
+
+    localrc = create_rc(rc, tmp_path, geodb)
+
+    remote = configure_remote_server(cli, localrc, rc, tmp_path, responses, remove_source=False)
+    request.addfinalizer(remote.app.context.wipe_all)
+
+    assert remote.url == 'https://example.com/'
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteTest',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('datasets/gov/deleteTest/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/Country')
+    assert len(listdata(resp)) == 3
+
+    remote.app.authmodel('datasets/gov/deleteTest/City', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/City')
+    assert len(listdata(resp)) == 3
+
+    conn = geodb.engine.connect()
+
+    conn.execute(geodb.tables['salis'].delete().where(geodb.tables['salis'].c.id == 2))
+    conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 2))
+    conn.execute(geodb.tables['miestas'].delete().where(geodb.tables['miestas'].c.id == 1))
+    result = cli.invoke(localrc, [
+        'push',
+        '-d', 'datasets/gov/deleteTest',
+        '-o', remote.url,
+        '--credentials', remote.credsfile,
+        '--no-progress-bar',
+        '--stop-on-error'
+    ])
+    assert result.exit_code == 0
+
+    remote.app.authmodel('datasets/gov/deleteTest/Country', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/Country')
+    assert len(listdata(resp)) == 2
+
+    remote.app.authmodel('datasets/gov/deleteTest/City', ['getall'])
+    resp = remote.app.get('/datasets/gov/deleteTest/City')
+    assert len(listdata(resp)) == 1
 
 
 def test_push_state__delete(rc: RawConfig, responses: RequestsMock):
@@ -612,12 +919,12 @@ def test_push_state__max_errors(rc: RawConfig, responses: RequestsMock):
             '_id': _id1,
             '_revision': conflicting_rev,
             'name': 'Vilnius',
-        }),
+        }, op='patch', saved=True),
         _PushRow(model, {
             '_type': model.name,
             '_id': _id2,
             'name': 'Vilnius',
-        }),
+        }, op='insert'),
     ]
 
     client = requests.Session()
@@ -706,3 +1013,68 @@ def test_push_init_state(rc: RawConfig, sqlite: Sqlite):
     assert list(conn.execute(query)) == [
         (_id, rev, pushed, None, None, None),
     ]
+
+
+def test_push_state__paginate(rc: RawConfig, responses: RequestsMock):
+    context, manifest = load_manifest_and_context(rc, '''
+       m | property | type   | access
+       City         |        |
+         | name     | string | open
+       ''')
+
+    model = manifest.models['City']
+    models = [model]
+
+    state = _State(*_init_push_state('sqlite://', models))
+    conn = state.engine.connect()
+    context.set('push.state.conn', conn)
+
+    rev = 'f91adeea-3bb8-41b0-8049-ce47c7530bdc'
+    _id = '4d741843-4e94-4890-81d9-5af7c5b5989a'
+
+    table = state.metadata.tables[model.name]
+    page_table = state.metadata.tables['_page']
+
+    model.page.by["_id"].value = _id
+    rows = [
+        _PushRow(model, {
+            '_type': model.name,
+            '_page': [_id],
+            '_id': _id,
+            'name': 'Vilnius',
+        }, op="insert"),
+    ]
+    client = requests.Session()
+    server = 'https://example.com/'
+    responses.add(
+        POST, server,
+        json={
+            '_data': [{
+                '_type': model.name,
+                '_id': _id,
+                '_revision': rev,
+                'name': 'Vilnius',
+            }],
+        },
+        match=[_matcher({
+            '_op': 'insert',
+            '_type': model.name,
+            '_id': _id,
+            'name': 'Vilnius',
+        },)],
+    )
+
+    _push(
+        context,
+        client,
+        server,
+        models,
+        rows,
+        state=state,
+    )
+
+    query = sa.select([table.c.id, table.c.revision, table.c.error, table.c['page._id']])
+    assert list(conn.execute(query)) == [(_id, rev, False, _id)]
+
+    query = sa.select([page_table.c.model, page_table.c.property, page_table.c.value])
+    assert list(conn.execute(query)) == [(model.name, '_id', '{"_id": "' + _id + '"}')]

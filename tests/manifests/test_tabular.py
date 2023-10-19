@@ -2,7 +2,7 @@ import pytest
 
 from spinta.exceptions import InvalidManifestFile, ModelReferenceNotFound, ReferencedPropertyNotFound
 from spinta.testing.tabular import create_tabular_manifest
-from spinta.testing.manifest import load_manifest, compare_manifest
+from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
 
 
@@ -237,6 +237,22 @@ def test_time_type(tmp_path, rc):
       |   |   |   | prop     | time
     ''')
 
+
+def test_explicit_ref(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property | type       | ref
+    datasets/gov/example     |            |
+      | data                 | postgresql | default
+                             |            |
+      |   |   | Country      |            | id
+      |   |   |   | id       | integer    |
+      |   |   |   | code     | string     |
+      |   |   |   | name     | string     |
+                             |            |
+      |   |   | City         |            | name
+      |   |   |   | name     | string     |
+      |   |   |   | country  | ref        | Country[code]
+      ''')
 
 def test_property_unique_add(tmp_path, rc):
     check(tmp_path, rc, '''
@@ -519,6 +535,34 @@ def test_end_marker(tmp_path, rc):
     ''')
 
 
+def test_with_same_base(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref      | level
+    datasets/gov/example       |         |          |
+                               |         |          |
+      |   |   | Base           |         |          |
+      |   |   |   | id         | integer |          |
+                               |         |          |
+      |   | Base               |         |          |
+      |   |   | Location       |         |          |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       | string  |          |
+      |   |   |   | population | integer |          |
+                               |         |          |
+      |   | Location           |         | name     | 4
+      |   |   | City           |         | name     |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       |         |          |
+      |   |   |   | population |         |          |
+                               |         |          |
+      |   | Location           |         | name     | 3
+      |   |   | Village        |         | name     |
+      |   |   |   | id         |         |          |
+      |   |   |   | name       |         |          |
+      |   |   |   | population |         |          |
+    ''')
+
+
 def test_model_param_list(tmp_path, rc):
     check(tmp_path, rc, '''
     d | r | b | m | property   | type    | ref     | source | prepare
@@ -604,4 +648,127 @@ def test_resource_param_multiple(tmp_path, rc):
       |   |   |   | id         | integer |         |          |
       |   |   |   | name       | string  |         |          |
       |   |   |   | population | integer |         |          |
+    ''')
+
+
+def test_multiline_prepare(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source   | prepare
+    datasets/gov/example       |         |         |          |
+                               |         |         |          |
+      |   |   | Location       |         |         |          |
+      |   |   |   | id         | integer |         |          |
+      |   |   |   | name       | string  |         |          | cast()
+                               |         |         | 'namas'  | swap('Namas')
+                               |         |         |          | swap('kiemas', 'Kiemas')
+      |   |   |   | population | integer |         |          |
+    ''')
+
+
+def test_multiline_prepare_without_given_prepare(tmp_path, rc):
+    check(tmp_path, rc, '''
+    d | r | b | m | property   | type    | ref     | source   | prepare
+    datasets/gov/example       |         |         |          |
+                               |         |         |          |
+      |   |   | Location       |         |         |          |
+      |   |   |   | id         | integer |         |          |
+      |   |   |   | name       | string  |         |          |
+                               |         |         | 'namas'  | swap('Namas')
+                               |         |         |          | swap('kiemas', 'Kiemas')
+      |   |   |   | population | integer |         |          |
+    ''')
+
+
+@pytest.mark.skip('backref not implemented yet #96')
+def test_prop_array_backref(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type    | ref      | access
+        example                     |         |          |
+                                    |         |          |
+          |   |   | Language        |         |          |
+          |   |   |   | name        | string  |          | open
+          |   |   |   | countries[] | backref | Country  | open
+                                    |         |          |
+          |   |   | Country         |         |          |
+          |   |   |   | name        | string  |          | open
+          |   |   |   | languages[] | ref     | Language | open
+    ''')
+
+
+@pytest.mark.skip('backref not implemented yet #96')
+def test_prop_array_with_custom_backref(rc, tmp_path):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type                                       | ref
+        example                     |                                            |
+                                    |                                            |
+          |   |   | Language        |                                            |
+          |   |   |   | name        | string                                     |
+          |   |   |   | countries[] | backref                                    | Country
+                                    |                                            |
+          |   |   | Country         |                                            |
+          |   |   |   | name        | string                                     |
+          |   |   |   | languages   | array                                      | CountryLanguage[country, language]
+          |   |   |   | languages[] | ref                                        | Language
+                                    |                                            |
+          |   |   | CountryLanguage |                                            |
+          |   |   |   | language    | ref                                        | Language
+          |   |   |   | country     | ref                                        | Country
+    ''')
+
+
+@pytest.mark.skip('backref not implemented yet #96')
+def test_prop_array_with_custom_without_properties_backref(rc, tmp_path):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type                                       | ref
+        example                     |                                            |
+                                    |                                            |
+          |   |   | Language        |                                            |
+          |   |   |   | name        | string                                     |
+          |   |   |   | countries[] | backref                                    | Country
+                                    |                                            |
+          |   |   | Country         |                                            |
+          |   |   |   | name        | string                                     |
+          |   |   |   | languages   | array                                      | CountryLanguage
+          |   |   |   | languages[] | ref                                        | Language
+                                    |                                            |
+          |   |   | CountryLanguage |                                            |
+          |   |   |   | language    | ref                                        | Language
+          |   |   |   | country     | ref                                        | Country
+    ''')
+
+
+def test_prop_array_simple_type(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type    | ref      | access
+        example                     |         |          |
+                                    |         |          |
+          |   |   | Country         |         |          |
+          |   |   |   | name        | string  |          | open
+          |   |   |   | languages[] | string  |          | open
+    ''')
+
+
+def test_prop_array_ref_type(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type    | ref      | access
+        example                     |         |          |
+                                    |         |          |
+          |   |   | Language        |         |          |
+          |   |   |   | name        | string  |          | open
+                                    |         |          |
+          |   |   | Country         |         |          |
+          |   |   |   | name        | string  |          | open
+          |   |   |   | languages[] | ref     | Language | open
+    ''')
+
+
+def test_prop_array_customize_type(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property    | type    | ref      | access | title
+        example                     |         |          |        |
+                                    |         |          |        |
+          |   |   | Country         |         |          |        |
+          |   |   |   | name        | string  |          | open   |
+          |   |   |   | languages   | array   |          | open   | Array of languages
+          |   |   |   | languages[] | string  |          | open   | Correction
     ''')

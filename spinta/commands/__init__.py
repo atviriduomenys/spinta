@@ -624,6 +624,18 @@ def getall(
 @overload
 def getall(
     context: Context,
+    model: Model,
+    backend: Backend,
+    *,
+    query: Expr = None,
+    default_expand: bool = True
+) -> Iterator[ObjectData]:
+    pass
+
+
+@overload
+def getall(
+    context: Context,
     external: Entity,
     backend: ExternalBackend,
     *,
@@ -969,3 +981,39 @@ def create_exception(
     """
         Creates Spinta Exception from normal error
     """
+
+
+@overload
+def summary(
+    context: Context,
+    request: Request,
+    model: Model,
+    action: Action,
+    params: UrlParams,
+) -> Response:
+    pass
+
+
+@overload
+def summary(
+    context: Context,
+    model: Model,
+    backend: Backend,
+    **kwargs
+):
+    pass
+
+
+@overload
+def summary(
+    context: Context,
+    dtype: DataType,
+    backend: Backend,
+    **kwargs
+):
+    pass
+
+
+@command()
+def summary(*args) -> None:
+    """Create summary for property"""

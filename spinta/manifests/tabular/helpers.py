@@ -30,7 +30,7 @@ from spinta import commands
 from spinta import spyna
 from spinta.backends import Backend
 from spinta.backends.components import BackendOrigin
-from spinta.components import Context, Base
+from spinta.components import Context, Base, PrepareGiven
 from spinta.datasets.components import Resource
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.enum.components import EnumItem
@@ -74,7 +74,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef
+from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, Array
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -372,7 +372,8 @@ class BaseReader(TabularReader):
                 'pk': (
                     [x.strip() for x in row['ref'].split(',')]
                     if row['ref'] else []
-                )
+                ),
+                'level': row['level']
             }
 
     def release(self, reader: TabularReader = None) -> bool:
@@ -423,6 +424,7 @@ class ModelReader(TabularReader):
                 'name': base.name,
                 'parent': base.data['model'],
                 'pk': base.data['pk'],
+                'level': base.data['level']
             } if base and base.data else None,
             'level': row['level'],
             'access': row['access'],
@@ -555,16 +557,28 @@ class PropertyReader(TabularReader):
     enums: Set[str]
 
     def read(self, row: Dict[str, str]) -> None:
-        self.name = row['property']
+        is_prop_array: bool = False
+        given_name = row['property']
+        if row['property'].endswith('[]'):
+            self.name = row['property'][:-2]
+            is_prop_array = True
+        else:
+            self.name = row['property']
+
         if self.state.model is None:
             context = self.state.stack[-1]
             self.error(
                 f"Property {self.name!r} must be defined in a model context. "
                 f"Now it is defined in {context.name!r} {context.type} context."
             )
-
-        if row['property'] in self.state.model.data['properties']:
-            if str(row['property'] + '.') in self.state.model.data['properties'] and row['type'] != '':
+        existing_prop = None
+        if self.name in self.state.model.data['properties']:
+            existing_prop = self.state.model.data['properties'][self.name]
+            should_error = True
+            if is_prop_array and existing_prop['type'] == 'array':
+                if not existing_prop['items']:
+                    should_error = False
+            if should_error:
                 self.error(
                     f"Property {self.name!r} with the same name is already "
                     f"defined for this {self.state.model.name!r} model."
@@ -579,10 +593,10 @@ class PropertyReader(TabularReader):
         if self.state.base and not dtype['type']:
             dtype['type'] = 'inherit'
 
-        self.data = {
+        new_data = {
             'type': dtype['type'],
             'type_args': dtype['type_args'],
-            'prepare': _parse_spyna(self, row[PREPARE]),
+            'prepare': row[PREPARE],
             'level': row['level'],
             'access': row['access'],
             'uri': row['uri'],
@@ -590,76 +604,123 @@ class PropertyReader(TabularReader):
             'description': row['description'],
             'required': dtype['required'],
             'unique': dtype['unique'],
+            'given_name': given_name,
+            'prepare_given': [],
         }
         dataset = self.state.dataset.data if self.state.dataset else None
+
+        custom_data = new_data.copy() if is_prop_array else new_data
+        if row['prepare']:
+            custom_data['prepare_given'].append(
+                PrepareGiven(
+                    appended=False,
+                    source='',
+                    prepare=row['prepare']
+                )
+            )
         if row['ref']:
             if dtype['type'] in ('ref', 'backref', 'generic'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
-                self.data['model'] = get_relative_model_name(dataset, ref_model)
-                self.data['refprops'] = ref_props
+                custom_data['model'] = get_relative_model_name(dataset, ref_model)
+                custom_data['refprops'] = ref_props
             else:
                 # TODO: Detect if ref is a unit or an enum.
-                self.data['enum'] = row['ref']
+                custom_data['enum'] = row['ref']
         if dataset or row['source']:
-            self.data['external'] = {
+            custom_data['external'] = {
                 'name': row['source'],
-                'prepare': self.data.pop('prepare'),
             }
         # Denormalized form
-        if "." in self.name and not self.data['type']:
-            self.data['type'] = 'denorm'
-        if "." in self.name:
-            splited_denom_prop = self.name.split('.')
-            if splited_denom_prop[0] not in self.state.model.data['properties']:
-                self.state.model.data['properties'][splited_denom_prop[0]] = {}
-                self.state.model.data['properties'][splited_denom_prop[0]].update(self.data)
-                tmp_model = self.state.model.name
-                self.state.model.data['properties'][splited_denom_prop[0]].update({
-                    'type': 'ref',
-                    'properties': {
-                        splited_denom_prop[0]: {
-                            'id': {'type': 'string'},
-                            'type': row['type'] if row['type'] != '' else 'denorm',
-                            'model': tmp_model.strip(str(self.state.model.state.dataset.name) + '/')
-                        },
-                    },
-                })
-            else:
-                self.state.model.data['properties'][row['property']] = self.data
-            if splited_denom_prop[0] not in self.state.model.data['properties']:
-                if splited_denom_prop[1] not in self.state.model.data['properties'][splited_denom_prop[0]]:
-                    self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]].update({
-                    'type': dtype['type'],
-                    'properties': {
-                        splited_denom_prop[0]: {
-                            'id': {'type': 'string'},
-                            'type': row['type'] if row['type'] != '' else 'denorm',
-                            'model': tmp_model.strip(str(self.state.model.state.dataset.name) + '/')
-                        },
-                    },
-                })
-            else:
-                self.state.model.data['properties'][row['property']] = self.data
-            if splited_denom_prop[0] not in self.state.model.data['properties']:
-                if splited_denom_prop[1] in self.state.model.data['properties'][splited_denom_prop[0]] and len(
-                    splited_denom_prop) > 2:
-                    if splited_denom_prop[2] not in self.state.model.data['properties'][splited_denom_prop[0]][
-                        splited_denom_prop[1]]:
-                        self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]].update({
-                            'type': dtype['type'],
-                            'properties': {
-                                splited_denom_prop[0]: {
-                                    'id': {'type': 'string'},
-                                    'type': row['type'] if row['type'] != '' else 'denorm',
-                                    'model': tmp_model.strip(str(self.state.model.state.dataset.name) + '/')
-                                },
-                            },
-                })
-            else:
-                self.state.model.data['properties'][row['property']] = self.data
+        if "." in self.name and not new_data['type']:
+            new_data['type'] = 'denorm'
+
+        # if "." in self.name:
+        #     splited_denom_prop = self.name.split('.')
+        #     if splited_denom_prop[0] not in self.state.model.data['properties']:
+        #         self.state.model.data['properties'][splited_denom_prop[0]] = {}
+        #         self.state.model.data['properties'][splited_denom_prop[0]].update(self.data)
+        #         tmp_model = self.state.model.name
+        #         self.state.model.data['properties'][splited_denom_prop[0]].update({
+        #             'type': 'ref',
+        #             'properties': {
+        #                 splited_denom_prop[0]: {
+        #                     'id': {'type': 'string'},
+        #                     'type': row['type'] if row['type'] != '' else 'denorm',
+        #                     'model': tmp_model.strip(str(self.state.model.state.dataset.name) + '/')
+        #                 },
+        #             },
+        #         })
+        #     else:
+        #         self.state.model.data['properties'][row['property']] = self.data
+        #     if splited_denom_prop[0] not in self.state.model.data['properties']:
+        #         if splited_denom_prop[1] not in self.state.model.data['properties'][splited_denom_prop[0]]:
+        #             self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]].update({
+        #             'type': dtype['type'],
+        #             'properties': {
+        #                 splited_denom_prop[0]: {
+        #                     'id': {'type': 'string'},
+        #                     'type': row['type'] if row['type'] != '' else 'denorm',
+        #                     'model': tmp_model.strip(str(self.state.model.state.dataset.name) + '/')
+        #                 },
+        #             },
+        #         })
+        #     else:
+        #         self.state.model.data['properties'][row['property']] = self.data
+        #     if splited_denom_prop[0] not in self.state.model.data['properties']:
+        #         if splited_denom_prop[1] in self.state.model.data['properties'][splited_denom_prop[0]] and len(
+        #             splited_denom_prop) > 2:
+        #             if splited_denom_prop[2] not in self.state.model.data['properties'][splited_denom_prop[0]][
+        #                 splited_denom_prop[1]]:
+        #                 self.state.model.data['properties'][splited_denom_prop[0]][splited_denom_prop[1]].update({
+        #                     'type': dtype['type'],
+        #                     'properties': {
+        #                         splited_denom_prop[0]: {
+        #                             'id': {'type': 'string'},
+        #                             'type': row['type'] if row['type'] != '' else 'denorm',
+        #                             'model': tmp_model.strip(str(self.state.model.state.dataset.name) + '/')
+        #                         },
+        #                     },
+        #         })
+        #     else:
+        #         self.state.model.data['properties'][row['property']] = self.data
+        # else:
+        #     if row['property'] not in self.state.model.data['properties']:
+        #         self.state.model.data['properties'][row['property']] = self.data
+        #
+
+        if existing_prop and existing_prop['type'] == 'array':
+            existing_prop['items'] = custom_data.copy()
         else:
-            if row['property'] not in self.state.model.data['properties']:
-                self.state.model.data['properties'][row['property']] = self.data
+            if is_prop_array:
+                new_data = {
+                    'type': 'array',
+                    'given_name': given_name,
+                    'access': custom_data['access'],
+                    'items': custom_data.copy()
+                }
+            elif new_data['type'] == 'array':
+                new_data['items'] = {}
+
+            self.data = new_data
+            self.state.model.data['properties'][self.name] = self.data
+
+    def append(self, row: Dict[str, str]) -> None:
+        if not row['property']:
+            result = row['prepare']
+
+            if row['source']:
+                if result:
+                    split = result.split('.')
+                    formula = split[0]
+                    split_formula = formula.split('(')
+                    reconstructed = f'{split_formula[0]}("{row["source"]}", {"(".join(split_formula[1:])}'
+                    split[0] = reconstructed
+                    result = '.'.join(split)
+                else:
+                    result = row['source']
+            if not result:
+                return
+            self._append_prepare(row, result)
 
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(reader, (
@@ -676,7 +737,27 @@ class PropertyReader(TabularReader):
         self.state.prop = self
 
     def leave(self) -> None:
+        self._parse_prepare()
+        if 'external' in self.data:
+            self.data['external']['prepare'] = self.data.pop('prepare')
+
         self.state.prop = None
+
+    def _parse_prepare(self):
+        if "prepare" in self.data:
+            self.data["prepare"] = _parse_spyna(self, self.data["prepare"])
+
+    def _append_prepare(self, row: Dict[str, str], prepare: str):
+        if "prepare" in self.data:
+            prep = self.data["prepare"]
+            self.data["prepare"] = f'{prep}.{prepare}' if prep else prepare
+        self.data['prepare_given'].append(
+            PrepareGiven(
+                appended=True,
+                source=row['source'],
+                prepare=row['prepare']
+            )
+        )
 
 
 class AppendReader(TabularReader):
@@ -1354,7 +1435,9 @@ def load_ascii_tabular_manifest(
     commands.link(context, manifest)
 
 
-def get_relative_model_name(dataset: dict, name: str) -> str:
+def get_relative_model_name(dataset: [str, dict], name: str) -> str:
+    if isinstance(dataset, str):
+        return name.replace(dataset, '')
     if name.startswith('/'):
         return name[1:]
     elif dataset is None:
@@ -1689,7 +1772,8 @@ def _base_to_tabular(
     base: Base,
 ) -> Iterator[ManifestRow]:
     data = {
-        'base': base.name
+        'base': base.name,
+        'level': base.level.value if base.level else "",
     }
     if base.pk:
         data['ref'] = ', '.join([pk.place for pk in base.pk])
@@ -1707,11 +1791,11 @@ def _property_to_tabular(
     if prop.name.startswith('_'):
         return
 
-    if prop.access < access:
+    if prop.access is not None and prop.access < access:
         return
 
     data = {
-        'property': prop.place,
+        'property': prop.given.name,
         'type': _get_type_repr(prop.dtype),
         'level': prop.level.value if prop.level else "",
         'access': prop.given.access,
@@ -1733,6 +1817,13 @@ def _property_to_tabular(
         elif prop.external:
             data['source'] = prop.external.name
             data['prepare'] = unparse(prop.external.prepare or NA)
+    yield_array_row = None
+    if isinstance(prop.dtype, Array):
+        yield_array_row = prop.dtype.items
+        if prop.dtype.items and prop.given.name == prop.dtype.items.given.name:
+            yield from _property_to_tabular(yield_array_row, external=external, access=access, order_by=order_by)
+            return
+
     if isinstance(prop.dtype, Ref):
         model = prop.model
         if model.external and model.external.dataset:
@@ -1747,12 +1838,14 @@ def _property_to_tabular(
                 data['ref'] += f'[{rkeys}]'
         else:
             data['ref'] = prop.dtype.model.name
+
     elif prop.enum is not None:
         data['ref'] = prop.given.enum
     elif prop.unit is not None:
         data['ref'] = prop.given.unit
-
+    data, prepare_rows = _prepare_to_tabular(data, prop)
     yield torow(DATASET, data)
+    yield from prepare_rows
     yield from _comments_to_tabular(prop.comments, access=access)
     yield from _lang_to_tabular(prop.lang)
     yield from _enums_to_tabular(
@@ -1761,6 +1854,24 @@ def _property_to_tabular(
         access=access,
         order_by=order_by,
     )
+    if yield_array_row:
+        yield from _property_to_tabular(yield_array_row, external=external, access=access, order_by=order_by)
+
+
+def _prepare_to_tabular(data, prop):
+    prep_rows = []
+    if prop.given.prepare:
+        data['prepare'] = ''
+        for prep in prop.given.prepare:
+            if prep['appended']:
+                prep_rows.append(torow(DATASET, {
+                    'source': prep['source'],
+                    'prepare': prep['prepare']
+                }))
+            else:
+                if prop.external:
+                    data['prepare'] = prep['prepare']
+    return data, prep_rows
 
 
 def _model_to_tabular(
@@ -1896,7 +2007,7 @@ def datasets_to_tabular(
         else:
             separator = False
 
-        if model.base and (not base or model.base.name != base.name):
+        if model.base and (not base or not is_base_same(model.base, base)):
             base = model.base
             yield from _base_to_tabular(model.base)
         elif base and not model.base:
@@ -1921,6 +2032,10 @@ def datasets_to_tabular(
         )
         for resource in dataset.resources.values():
             yield from _resource_to_tabular(resource)
+
+
+def is_base_same(a: Base, b: Base):
+    return a.name == b.name and a.level == b.level and a.pk == b.pk
 
 
 def torow(keys, values) -> ManifestRow:
@@ -2076,7 +2191,7 @@ def _write_csv(
     rows: Iterator[ManifestRow],
     cols: List[ManifestColumn],
 ) -> None:
-    with path.open('w', newline='') as f:
+    with path.open('w') as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)

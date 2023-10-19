@@ -35,7 +35,7 @@ from spinta.components import Property
 from spinta.exceptions import ConflictingValue, RequiredProperty
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
-from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit
+from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -49,6 +49,7 @@ from spinta.types.datatype import PrimaryKey
 from spinta.types.datatype import Ref
 from spinta.types.datatype import String
 from spinta.utils.data import take
+from spinta.utils.encoding import encode_page_values
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -290,8 +291,6 @@ def simple_data_check(
         raise exceptions.NotImplementedFeature(prop, feature="Ability to indirectly modify base parameters")
 
 
-
-
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
 def complex_data_check(
     context: Context,
@@ -481,7 +480,7 @@ def prepare_data_for_response(
             prop_names,
             value,
             select,
-            get_model_reserved_props(action),
+            get_model_reserved_props(action, model),
         )
     }
 
@@ -593,7 +592,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    assert isinstance(value, (str, int, float, bool, type(None))), (
+    assert isinstance(value, (str, int, float, bool, type(None), list)), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
         f"model={dtype.prop.model!r}, dtype={dtype!r}"
@@ -729,6 +728,20 @@ def prepare_dtype_for_response(
     select: dict = None,
 ):
     return base64.b64encode(value).decode('ascii')
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, PageType, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: PageType,
+    value: list,
+    data: Dict[str, Any],
+    *,
+    action: Action,
+    select: dict = None,
+):
+    return encode_page_values(value).decode('ascii')
 
 
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, (dict, type(None)))

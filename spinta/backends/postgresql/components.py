@@ -36,6 +36,8 @@ class PostgreSQL(Backend):
     engine: Engine = None
     schema: sa.MetaData = None
     tables: Dict[str, sa.Table] = None
+    paginated: bool = True
+    support_expand = True
 
     @contextlib.contextmanager
     def transaction(self, write=False):

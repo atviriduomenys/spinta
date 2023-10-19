@@ -46,7 +46,8 @@ CONFIG = {
             'gsheets': 'spinta.manifests.tabular.components:GsheetsManifest',
             'sql': 'spinta.manifests.sql.components:SqlManifest',
             'memory': 'spinta.manifests.memory.components:MemoryManifest',
-            'json': 'spinta.manifests.dict.components:JsonManifest'
+            'json': 'spinta.manifests.dict.components:JsonManifest',
+            'xml': 'spinta.manifests.dict.components:XmlManifest'
         },
         'backends': {
             # In memory backends mostly usable in tests
@@ -115,6 +116,7 @@ CONFIG = {
             'denorm': 'spinta.types.datatype:Denorm',
             '_external_ref': 'spinta.types.datatype:ExternalRef',
             'inherit': 'spinta.types.datatype:Inherit',
+            'page': 'spinta.types.datatype:PageType'
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
@@ -204,6 +206,9 @@ CONFIG = {
     'root': None,
 
     'env': 'prod',
+
+    # Limit of objects in the page
+    'push_page_size': None,
 
     'environments': {
         'dev': {

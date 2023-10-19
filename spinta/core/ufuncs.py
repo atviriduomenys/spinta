@@ -8,13 +8,15 @@ from typing import Dict
 from typing import TYPE_CHECKING
 from typing import Tuple
 
+from spinta.core.enums import Access
 from spinta.dispatcher import Command
 from spinta import spyna
-from spinta.exceptions import UnknownMethod
+from spinta.exceptions import UnknownMethod, FieldNotInResource
 from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
-    from spinta.components import Context
+    from spinta.components import Context, Model
+from spinta.components import PageBy
 
 
 class Expr:
