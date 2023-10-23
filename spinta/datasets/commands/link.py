@@ -58,13 +58,3 @@ def link(context: Context, entity: Entity):
 @commands.link.register(Context, Attribute)
 def link(context: Context, attribute: Attribute):
     pass
-
-
-def link(context: Context, prop: Property):
-    if isinstance(prop.dtype, Partial):
-        if isinstance(prop.parent.dtype, Ref):
-            props = prop.dtype.properties
-            prop.dtype = prop.parent.dtype.models.properties[prop.name].copy()
-            prop.dtype.properties = props
-        else:
-            raise "Partial property can only exist on Ref"

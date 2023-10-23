@@ -221,7 +221,10 @@ class Array(DataType):
 
 
 class Partial(DataType):
-    pass
+    schema = {
+        'properties': {'type': 'object'},
+    }
+    properties: Dict[str, Property] = None
 
 
 class Object(DataType):
@@ -280,6 +283,10 @@ class ExternalRef(Ref):
 class Inherit(DataType):
     def get_type_repr(self):
         return ""
+
+
+class PartialArray(Array):
+    pass
 
 
 class PageType(DataType):

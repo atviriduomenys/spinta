@@ -134,6 +134,9 @@ def load_node(
     ...
 
 
+ARRAY_TYPES = ['array', 'partial_array']
+
+
 def load_node(
     context: Context,
     node: Union[Node, Component],
@@ -158,10 +161,8 @@ def load_node(
                     continue
             else:
                 raise exceptions.UnknownParameter(node, param=name)
-        try:
-            schema = node_schema[name]
-        except:
-            pass
+
+        schema = node_schema[name]
         if schema.get('parent'):
             attr = schema.get('attr', name)
             assert parent is not None, node
@@ -180,7 +181,7 @@ def load_node(
                 value = schema['factory']()
             else:
                 value = schema.get('default')
-        elif schema.get('type') == 'array':
+        elif schema.get('type') in ARRAY_TYPES:
             if not isinstance(value, list) and schema.get('force'):
                 value = [value]
         attr = schema.get('attr', name)
