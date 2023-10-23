@@ -74,7 +74,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, Array
+from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, Array, Object
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -604,7 +604,7 @@ class PropertyReader(TabularReader):
     def leave(self) -> None:
         self._parse_prepare()
         if 'external' in self.data:
-            self.data['external']['prepare'] = self.data.pop('prepare')
+            self.data['external']['prepare'] = self.data.pop('prepare') if 'prepare' in self.data else NA
 
         self.state.prop = None
 
@@ -730,6 +730,11 @@ def _combine_parent_with_prop(prop_name: str, prop: dict, parent_prop: dict, ful
             full_prop.clear()
             full_prop.update(prop)
     else:
+        if full_prop:
+            if prop['type'] in ALLOWED_ARRAY_TYPES and 'items' in full_prop:
+                prop['items'] = full_prop['items']
+            elif prop['type'] in ALLOWED_PARTIAL_TYPES and 'properties' in full_prop:
+                prop['properties'] = full_prop['properties']
         full_prop.update(prop)
     return return_name
 
@@ -773,15 +778,11 @@ def _get_parent_data_partial(reader: PropertyReader, given_row: dict, full_name:
         current_parent.update(_object_datatype_handler(reader, empty_partial_row))
     else:
         if current_parent['type'] in ALLOWED_ARRAY_TYPES:
-            if current_parent['items'] and current_parent['items']['type'] not in ALLOWED_PARTIAL_TYPES:
-                raise Exception()
-            elif not current_parent['items']:
+            if not current_parent['items']:
                 current_parent['items'].update(_object_datatype_handler(reader, empty_partial_row))
             current_parent = current_parent['items']
         elif current_parent['type'] in ALLOWED_PARTIAL_TYPES:
-            if name in current_parent['properties'] and current_parent['properties'][name]['type'] not in ALLOWED_PARTIAL_TYPES:
-                raise Exception()
-            elif name not in current_parent['properties']:
+            if name not in current_parent['properties']:
                 current_parent['properties'][name] = _object_datatype_handler(reader, empty_partial_row)
             current_parent = current_parent['properties'][name]
     return current_parent

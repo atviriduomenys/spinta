@@ -1,6 +1,7 @@
 import pytest
 
-from spinta.exceptions import InvalidManifestFile, ModelReferenceNotFound, ReferencedPropertyNotFound
+from spinta.exceptions import InvalidManifestFile, ModelReferenceNotFound, ReferencedPropertyNotFound, \
+    PartialTypeNotFound
 from spinta.testing.tabular import create_tabular_manifest
 from spinta.testing.manifest import load_manifest
 from spinta.manifests.tabular.helpers import TabularManifestError
@@ -429,7 +430,7 @@ def test_with_denormalized_data(tmp_path, rc):
     
     
 def test_with_denormalized_data_ref_error(tmp_path, rc):
-    with pytest.raises(ModelReferenceNotFound) as e:
+    with pytest.raises(PartialTypeNotFound) as e:
         check(tmp_path, rc, '''
         d | r | b | m | property               | type   | ref       | access
         example                                |        |           |
@@ -441,7 +442,6 @@ def test_with_denormalized_data_ref_error(tmp_path, rc):
           |   |   |   | name                   | string |           | open
           |   |   |   | country.name           |        |           | open
         ''')
-    assert e.value.message == "Model reference 'None' not found."
 
 
 def test_with_denormalized_data_undefined_error(tmp_path, rc):
@@ -772,3 +772,105 @@ def test_prop_array_customize_type(tmp_path, rc):
           |   |   |   | languages   | array   |          | open   | Array of languages
           |   |   |   | languages[] | string  |          | open   | Correction
     ''')
+
+
+def test_prop_multi_array(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property        | type    | ref      | access | title
+        example                         |         |          |        |
+                                        |         |          |        |
+          |   |   | Country             |         |          |        |
+          |   |   |   | name            | string  |          | open   |
+          |   |   |   | languages[][][] | string  |          | open   | Correction
+    ''')
+
+
+def test_prop_multi_array_specific(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property        | type    | ref      | access | title
+        example                         |         |          |        |
+                                        |         |          |        |
+          |   |   | Country             |         |          |        |
+          |   |   |   | name            | string  |          | open   |
+          |   |   |   | languages       | array   |          | open   | Correction T0
+          |   |   |   | languages[]     | array   |          | open   | Correction T1
+          |   |   |   | languages[][]   | array   |          | open   | Correction T2
+          |   |   |   | languages[][][] | string  |          | open   | Correction T3
+    ''')
+
+
+def test_prop_nested_denorm(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property        | type    | ref      | access | title
+        example                         |         |          |        |
+                                        |         |          |        |
+          |   |   | Language            |         |          |        |
+          |   |   |   | dialect         | string  |          | open   |
+                                        |         |          |        |
+          |   |   | Country             |         |          |        |
+          |   |   |   | name            | string  |          | open   |
+          |   |   |   | langs[]         | ref     | Language | open   |
+          |   |   |   | langs[].dialect |         |          | open   | Denorm
+    ''')
+
+
+def test_prop_multi_nested_denorm(tmp_path, rc):
+    check(tmp_path, rc, '''
+        d | r | b | m | property          | type    | ref      | access | title
+        example                           |         |          |        |
+                                          |         |          |        |
+          |   |   | Language              |         |          |        |
+          |   |   |   | dialect           | string  |          | open   |
+                                          |         |          |        |
+          |   |   | Country               |         |          |        |
+          |   |   |   | name              | string  |          | open   |
+          |   |   |   | langs             | array   |          | open   |
+          |   |   |   | langs[]           | array   |          | open   |
+          |   |   |   | langs[][]         | ref     | Language | open   |
+          |   |   |   | langs[][].dialect |         |          | open   |
+    ''')
+
+
+def test_prop_multi_nested_error_partial(tmp_path, rc):
+    with pytest.raises(PartialTypeNotFound) as e:
+        check(tmp_path, rc, '''
+            d | r | b | m | property          | type    | ref      | access | title
+            example                           |         |          |        |
+                                              |         |          |        |
+              |   |   | Language              |         |          |        |
+              |   |   |   | dialect           | string  |          | open   |
+                                              |         |          |        |
+              |   |   | Country               |         |          |        |
+              |   |   |   | name              | string  |          | open   |
+              |   |   |   | langs             | array   |          | open   |
+              |   |   |   | langs[][].dialect |         |          | open   |
+        ''')
+
+
+# TODO fix this, so write also works, now only read works
+def test_prop_multi_nested(tmp_path, rc):
+    table = '''
+            d | r | b | m | property                       | type    | ref      | access | title
+            example                                        |         |          |        |
+                                                           |         |          |        |
+              |   |   | Language                           |         |          |        |
+              |   |   |   | dialect                        | string  |          | open   |
+              |   |   |   | meta                           | object  |          | open   |
+              |   |   |   | meta.version                   | integer |          | open   |
+                                                           |         |          |        |
+              |   |   | Country                            |         |          |        |
+              |   |   |   | name                           | string  |          | open   |
+              |   |   |   | meta                           | object  |          | open   |
+              |   |   |   | meta.version                   | integer |          | open   |
+              |   |   |   | meta.old                       | object  |          | open   |
+              |   |   |   | meta.old.language              | ref     | Language | open   |
+              |   |   |   | meta.old.language.dialect      |         |          | open   |
+              |   |   |   | meta.old.language.meta.version |         |          | open   |
+              |   |   |   | meta.langs                     | array   |          | open   |
+              |   |   |   | meta.langs[]                   | array   |          | open   |
+              |   |   |   | meta.langs[][]                 | ref     | Language | open   |
+              |   |   |   | meta.langs[][].dialect         |         |          | open   |
+        '''
+    create_tabular_manifest(tmp_path / 'manifest.csv', table)
+    load_manifest(rc, tmp_path / 'manifest.csv')
+
