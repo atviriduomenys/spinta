@@ -632,5 +632,10 @@ class GivenValueCountMissmatch(BaseError):
     template = "While assigning ref values {given_count} were given, while {expected_count} were expected."
 
 
+class SummaryWithMultipleProperties(UserError):
+    template = "Summary with multiple properties is not supported."
+
+    
 class TooManyModelUriProperties(UserError):
     template = "Model already has {uri_prop!r} set as uri property."
+

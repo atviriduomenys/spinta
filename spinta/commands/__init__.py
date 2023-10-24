@@ -999,7 +999,7 @@ def summary(
     context: Context,
     model: Model,
     backend: Backend,
-    **kwargs
+    query: Expr
 ):
     pass
 

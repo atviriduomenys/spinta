@@ -177,6 +177,8 @@ def _prepare_urlparams_from_path(params: UrlParams):
             params.summary = True
             if args:
                 params.select = args
+        elif name == 'bbox':
+            params.bbox = args
         elif name == 'fault-tolerant':
             params.fault_tolerant = True
         elif name == 'wipe':
