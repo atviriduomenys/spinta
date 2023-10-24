@@ -39,3 +39,9 @@ def link(context: Context, dtype: Ref) -> None:
 
     if dtype.model.external and dtype.refprops != dtype.model.external.pkeys:
         dtype.model.add_keymap_property_combination(dtype.refprops)
+
+    if dtype.properties:
+        for denorm_prop in dtype.properties.values():
+            denorm_prop.model = dtype.model
+            commands.link(context, denorm_prop)
+

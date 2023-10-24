@@ -4,6 +4,7 @@ from sqlalchemy.dialects.sqlite.pysqlite import SQLiteDialect_pysqlite
 
 class SQLiteDialect_spinta_sqlite(SQLiteDialect_pysqlite):
     driver = 'spinta_sqlite'
+    supports_statement_cache = True
 
     @classmethod
     def dbapi(cls):

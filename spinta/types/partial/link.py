@@ -1,3 +1,5 @@
+from copy import copy
+
 from spinta import commands
 from spinta.components import Context
 from spinta.exceptions import PartialTypeNotFound
@@ -10,8 +12,14 @@ def link(context: Context, dtype: Partial):
     if prop.parent:
         if isinstance(prop.parent.dtype, Ref):
             props = prop.dtype.properties
-            prop.dtype = prop.parent.dtype.models.properties[prop.name].copy()
+            prop.dtype = copy(prop.parent.dtype.model.properties[prop.name].dtype)
             prop.dtype.properties = props
+            prop.given.name = ''
+
+            for partial_prop in props.values():
+                partial_prop.model = prop.parent.dtype.model
+                commands.link(context, partial_prop)
+
         else:
             raise PartialTypeNotFound(dtype)
     else:

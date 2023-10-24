@@ -871,10 +871,8 @@ def test_prop_multi_nested_multi_models(tmp_path, rc):
     ''')
 
 
-# TODO fix this, so write also works, now only read works and nested Denorm
-@pytest.mark.skip('Need to fix denorm with nested structure (when root object is not Ref type).')
 def test_prop_multi_nested(tmp_path, rc):
-    table = '''
+    check(tmp_path, rc, '''
             d | r | b | m | property                       | type    | ref      | access | title
             example                                        |         |          |        |
                                                            |         |          |        |
@@ -890,13 +888,11 @@ def test_prop_multi_nested(tmp_path, rc):
               |   |   |   | meta.old                       | object  |          | open   |
               |   |   |   | meta.old.language              | ref     | Language | open   |
               |   |   |   | meta.old.language.dialect      |         |          | open   |
-              |   |   |   | meta.old.language.meta.version |         |          | open   |
+              |   |   |   | meta.old.language.meta.version | integer |          | open   |
               |   |   |   | meta.langs                     | array   |          | open   |
               |   |   |   | meta.langs[]                   | array   |          | open   |
               |   |   |   | meta.langs[][]                 | ref     | Language | open   |
               |   |   |   | meta.langs[][].dialect         |         |          | open   |
-        '''
-    create_tabular_manifest(tmp_path / 'manifest.csv', table)
-    load_manifest(rc, tmp_path / 'manifest.csv')
+        ''')
 
 

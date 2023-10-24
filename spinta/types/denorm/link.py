@@ -25,7 +25,7 @@ def _get_denorm_prop(
     models = model.manifest.models
     name_parts = name.split('.', 1)
     name = name_parts[0]
-    properties = model.properties if not isinstance(prop.dtype, Object) else prop.dtype.properties
+    properties = prop.parent.dtype.model.properties if isinstance(prop.parent.dtype, Ref) else prop.parent.model.properties
     if len(name_parts) > 1:
         ref_prop = properties[name]
         while isinstance(ref_prop.dtype, Array):

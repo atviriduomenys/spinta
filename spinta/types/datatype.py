@@ -58,6 +58,12 @@ class DataType(Component):
     def get_bind_expr(self):
         return Expr('bind', self.prop.name)
 
+    def __copy__(self):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.__dict__.update(self.__dict__)
+        return result
+
 
 class PrimaryKey(DataType):
     pass
@@ -175,6 +181,8 @@ class Ref(DataType):
     refprops: List[Property]
     # True if ref column is set explicitly
     explicit: bool = False
+    # Denorm properties
+    properties: Dict[str, Property] = {}
 
     schema = {
         'model': {
@@ -184,7 +192,8 @@ class Ref(DataType):
             'type': 'array',
             'items': {'type': 'string'},
         },
-        'enum': {'type': 'array'}
+        'enum': {'type': 'array'},
+        'properties': {'type': 'object'},
     }
 
 
@@ -319,6 +328,43 @@ def _add_leaf_props(prop: Property) -> None:
     prop.model.leafprops[prop.name].append(prop)
 
 
+@load.register(Context, Partial, dict, Manifest)
+def load(context: Context, dtype: Partial, data: dict, manifest: Manifest) -> DataType:
+    props = {}
+    for name, params in (dtype.properties or {}).items():
+        place = dtype.prop.place + '.' + name
+        prop = dtype.prop.__class__()
+        prop.name = name
+        prop.place = place
+        prop.parent = dtype.prop
+        prop.model = dtype.prop.model
+        prop.list = dtype.prop.list
+        commands.load(context, prop, params, manifest)
+        dtype.prop.model.flatprops[place] = prop
+        props[name] = prop
+    dtype.properties = props
+    return dtype
+
+
+@load.register(Context, Ref, dict, Manifest)
+def load(context: Context, dtype: Ref, data: dict, manifest: Manifest) -> DataType:
+    props = {}
+    for name, params in (dtype.properties or {}).items():
+        place = dtype.prop.place + '.' + name
+        prop = dtype.prop.__class__()
+        prop.name = name
+        prop.place = place
+        prop.parent = dtype.prop
+        prop.model = dtype.prop.model
+        prop.list = dtype.prop.list
+        commands.load(context, prop, params, manifest)
+        dtype.prop.model.flatprops[place] = prop
+        props[name] = prop
+    dtype.properties = props
+    _add_leaf_props(dtype.prop)
+    return dtype
+
+
 @load.register(Context, Object, dict, Manifest)
 def load(context: Context, dtype: Object, data: dict, manifest: Manifest) -> DataType:
     props = {}
@@ -391,6 +437,27 @@ def load(
 
 @load.register(Context, Object, object)
 def load(context: Context, dtype: Object, value: object) -> dict:
+    # loads value into native python dict, including all dict's items
+    loaded_obj = dtype.load(value)
+
+    non_hidden_keys = []
+    for key, prop in dtype.properties.items():
+        if not prop.hidden:
+            non_hidden_keys.append(key)
+
+    # check that given obj does not have more keys, than dtype's schema
+    check_no_extra_keys(dtype, non_hidden_keys, loaded_obj)
+
+    new_loaded_obj = {}
+    for k, v in dtype.properties.items():
+        # only load value keys which are available in schema
+        if k in loaded_obj:
+            new_loaded_obj[k] = load(context, v.dtype, loaded_obj[k])
+    return new_loaded_obj
+
+
+@load.register(Context, Ref, object)
+def load(context: Context, dtype: Ref, value: object) -> dict:
     # loads value into native python dict, including all dict's items
     loaded_obj = dtype.load(value)
 
