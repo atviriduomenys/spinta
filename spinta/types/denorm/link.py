@@ -16,6 +16,7 @@ def link(context: Context, dtype: Denorm) -> None:
     )
 
 
+# TODO: Add better support for denorm when nested (with object type, etc.)
 def _get_denorm_prop(
     name: str,
     prop: Property,
@@ -44,7 +45,7 @@ def _get_denorm_prop(
                 )
         else:
             model = models[ref_prop.dtype.model.name] if isinstance(ref_prop.dtype, Ref) else model
-            denorm_prop = _get_denorm_prop(name_parts[1], ref_prop, model)
+            denorm_prop = _get_denorm_prop(name_parts[1], prop, model)
     else:
         if name not in properties:
             raise ReferencedPropertyNotFound(
