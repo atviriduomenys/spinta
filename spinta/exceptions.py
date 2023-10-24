@@ -654,3 +654,12 @@ class CannotModifyBackRefProp(UserError):
 
 class OneToManyBackRefNotSupported(UserError):
     template = "One to many relationship is not supported by Backref."
+
+    
+class SummaryWithMultipleProperties(UserError):
+    template = "Summary with multiple properties is not supported."
+
+    
+class TooManyModelUriProperties(UserError):
+    template = "Model already has {uri_prop!r} set as uri property."
+

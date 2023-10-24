@@ -509,8 +509,15 @@ def select(env, dtype, leaf):
 
 @ufunc.resolver(PgQueryBuilder, Ref)
 def select(env, dtype):
-    table = env.backend.get_table(env.model)
-    column = table.c[dtype.prop.place + '._id']
+    uri = dtype.model.uri_prop
+    if env.prioritize_uri and uri is not None:
+        fpr = ForeignProperty(None, dtype.prop, dtype.model.properties['_id'])
+        table = env.get_joined_table(fpr)
+        column = table.c[uri.place]
+        column = column.label(dtype.prop.place + '._uri')
+    else:
+        table = env.backend.get_table(env.model)
+        column = table.c[dtype.prop.place + '._id']
     return Selected(column, dtype.prop)
 
 
