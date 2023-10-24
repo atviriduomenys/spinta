@@ -4,9 +4,9 @@ git checkout master
 git pull
 
 git tag -l -n1 | sort -h | tail -n5
-export CURRENT_VERSION=0.1.55
-export NEW_VERSION=0.1.56
-export FUTURE_VERSION=0.1.57
+export CURRENT_VERSION=0.1.56
+export NEW_VERSION=0.1.57
+export FUTURE_VERSION=0.1.58
 
 head CHANGES.rst
 
@@ -19,8 +19,19 @@ docker-compose up -d
 unset SPINTA_CONFIG
 test -n "$PID" && kill $PID
 
+psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta_tests'
+psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta_tests'
+psql -h localhost -p 54321 -U admin spinta <<EOF
+BEGIN TRANSACTION;
+  CREATE EXTENSION IF NOT EXISTS postgis;
+  CREATE EXTENSION IF NOT EXISTS postgis_topology;
+  CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+  CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder;
+COMMIT;
+EOF
+
 poetry run pytest -vvx --tb=short tests
-#| 1353 passed, 36 skipped, 87 warnings in 258.83s (0:04:18)
+#| 1486 passed, 39 skipped, 203 warnings in 263.34s (0:04:23)
 
 poetry run rst2html.py CHANGES.rst var/changes.html
 xdg-open var/changes.html
@@ -85,10 +96,10 @@ cat get_data_gov_lt.in | xargs spinta copy -o $BASEDIR/manifest.csv
 spinta check
 
 # Reset database
+psql -h localhost -p 54321 -U admin postgres -c 'DROP DATABASE spinta'
+psql -h localhost -p 54321 -U admin postgres -c 'CREATE DATABASE spinta'
 psql -h localhost -p 54321 -U admin spinta <<EOF
 BEGIN TRANSACTION;
-  DROP SCHEMA "public" CASCADE;
-  CREATE SCHEMA "public";
   CREATE EXTENSION IF NOT EXISTS postgis;
   CREATE EXTENSION IF NOT EXISTS postgis_topology;
   CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
@@ -98,6 +109,9 @@ EOF
 
 # Run migrations
 spinta bootstrap
+
+export PAGER="cat"
+psql -h localhost -p 54321 -U admin spinta -c '\dt public.*'
 
 # Run server
 test -n "$PID" && kill $PID

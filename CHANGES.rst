@@ -3,14 +3,38 @@
 Changes
 #######
 
-0.1.57 (unreleased)
+0.1.57 (2023-10-24)
 ===================
 
 New features:
 
-- Add support for array type in tabular manifests (`#161`__).
+- Add support for array type (`#161`__).
 
   __ https://github.com/atviriduomenys/spinta/issues/161
+
+- Add support for backref type (`#96`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/96
+
+- Add support for XML resources (`#217`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/217
+
+- Add support for JSON resources (`#256`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/256
+
+- Add support for CSV resources (`#268`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/268
+
+
+Improvements:
+
+- Add support for custom subject URI in RDF/XML format (`#512`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/512
+
 
 Bug fixes:
 
@@ -21,6 +45,10 @@ Bug fixes:
 - Fix issue with old SQLite versions used for keymaps (`#518`__).
 
   __ https://github.com/atviriduomenys/spinta/issues/518
+
+- Fix summary bbox function with negative values (`#523`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/523
 
 
 0.1.56 (2023-09-30)
