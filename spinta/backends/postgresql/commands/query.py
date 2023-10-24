@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import List, Union, Any
+from typing import List, Union, Any, Tuple
 
 import datetime
 import dataclasses
@@ -10,6 +10,7 @@ from typing import Optional
 import sqlalchemy as sa
 
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import array_agg
 
 from spinta import exceptions
 from spinta.auth import authorized
@@ -17,13 +18,14 @@ from spinta.backends import get_property_base_model
 from spinta.core.ufuncs import ufunc
 from spinta.core.ufuncs import Bind, Negative as Negative_
 from spinta.core.ufuncs import Expr
+from spinta.datasets.enums import Level
 from spinta.exceptions import EmptyStringSearch, PropertyNotFound
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import FieldNotInResource
 from spinta.components import Model, Property, Action, Page
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, QueryPage, merge_with_page_sort, merge_with_page_limit, merge_with_page_selected_list
 from spinta.utils.data import take
-from spinta.types.datatype import DataType, ExternalRef, Inherit, Time
+from spinta.types.datatype import DataType, ExternalRef, Inherit, BackRef, Time, ArrayBackRef
 from spinta.types.datatype import Array
 from spinta.types.datatype import File
 from spinta.types.datatype import Object
@@ -34,7 +36,6 @@ from spinta.types.datatype import Number
 from spinta.types.datatype import DateTime
 from spinta.types.datatype import Date
 from spinta.types.datatype import PrimaryKey
-from spinta.types.datatype import BackRef
 from spinta.backends.constants import TableType
 from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.components import BackendFeatures
@@ -55,7 +56,8 @@ class PgQueryBuilder(BaseQueryBuilder):
             limit=None,
             offset=None,
             aggregate=False,
-            page=QueryPage()
+            page=QueryPage(),
+            group_by=[]
         )
 
     def build(self, where):
@@ -97,6 +99,8 @@ class PgQueryBuilder(BaseQueryBuilder):
         if self.offset is not None:
             qry = qry.offset(self.offset)
 
+        if self.group_by:
+            qry = qry.group_by(*self.group_by)
         return qry
 
     def default_resolver(self, expr, *args, **kwargs):
@@ -121,6 +125,102 @@ class PgQueryBuilder(BaseQueryBuilder):
             self.joins[fpr.name] = rtable
             self.from_ = self.from_.outerjoin(rtable, condition)
 
+        return self.joins[fpr.name]
+
+    def generate_backref_select(self, left: Property, right: Property, required_columns: List[Tuple[str, str]], aggregate: bool = False):
+        select_columns = []
+        group_by = []
+
+        left_table = self.backend.get_table(left.model)
+        left_keys = self.backend.get_column(left_table, left)
+
+        join_condition = None
+        right_table = self.backend.get_table(right)
+        right_list_table = None
+        list_join_condition = None
+        right_keys = self.backend.get_column(right_table, right, override_table=False)
+        right_list_keys = None
+        if right.list is not None:
+            right_list_table = self.backend.get_table(right, TableType.LIST)
+            list_join_condition = right_list_table.c['_rid'] == right_table.c['_id']
+            right_list_keys = self.backend.get_column(right_list_table, right)
+        from_ = right_list_table if right_list_table is not None else right_table
+        initial_join_right_keys = right_list_keys if right_list_keys is not None else right_keys
+
+        if aggregate:
+            json_columns = []
+            for col, label in required_columns:
+                json_columns.extend([col, right_table.c[col]])
+            column = array_agg(sa.func.json_build_object(*json_columns))
+            column = column.label(left.name)
+            select_columns.append(column)
+
+            if isinstance(initial_join_right_keys, list):
+                for key in initial_join_right_keys:
+                    group_by.append(key)
+            else:
+                group_by.append(initial_join_right_keys)
+
+        else:
+            for col, label in required_columns:
+                column = right_table.c[col]
+                column = column.label(label)
+                select_columns.append(column)
+
+        if isinstance(initial_join_right_keys, list):
+            select_columns.extend(initial_join_right_keys)
+        else:
+            select_columns.append(initial_join_right_keys)
+
+        if isinstance(left_keys, list) and isinstance(initial_join_right_keys, list):
+            if len(left_keys) == len(initial_join_right_keys):
+                for i, key in enumerate(left_keys):
+                    if join_condition is None:
+                        join_condition = key == initial_join_right_keys[i]
+                    else:
+                        join_condition = sa.and_(join_condition, key == initial_join_right_keys[i])
+            else:
+                raise Exception("DOESNT MATCH")
+        elif type(left_keys) != type(initial_join_right_keys):
+            raise Exception("TYPE DOESNT MATCH")
+        else:
+            join_condition = left_keys == initial_join_right_keys
+
+        from_ = from_.outerjoin(left_table, join_condition)
+        if list_join_condition is not None:
+            from_ = from_.outerjoin(right_table, list_join_condition)
+        stmt = sa.select(select_columns)
+        stmt = stmt.select_from(from_)
+        stmt = stmt.group_by(*group_by)
+        stmt = stmt.subquery()
+        return stmt
+
+    def get_backref_joined_table(self, prop: ForeignProperty, selector: sa.sql.expression) -> sa.sql.expression:
+        for fpr in prop.chain:
+            if fpr.name in self.joins:
+                continue
+            if len(fpr.chain) > 1:
+                ltable = self.joins[fpr.chain[-2].name]
+            else:
+                ltable = self.backend.get_table(fpr.left.model)
+            lrkey = self.backend.get_column(ltable, fpr.left)
+            rpkey = self.backend.get_column(selector, fpr.right, override_table=False)
+            condition = None
+            if isinstance(lrkey, list) and isinstance(rpkey, list):
+                if len(lrkey) == len(rpkey):
+                    for i, key in enumerate(lrkey):
+                        if condition is None:
+                            condition = key == rpkey[i]
+                        else:
+                            condition = sa.and_(condition, key == rpkey[i])
+                else:
+                    raise Exception("DOESNT MATCH")
+            elif type(lrkey) != type(rpkey):
+                raise Exception("TYPE DOESNT MATCH")
+            else:
+                condition = lrkey == rpkey
+            self.joins[fpr.name] = selector
+            self.from_ = self.from_.outerjoin(selector, condition)
         return self.joins[fpr.name]
 
     def get_joined_base_table(self, model: Model, prop: str):
@@ -262,6 +362,12 @@ def getattr_(env, dtype, attr):
 
 
 @ufunc.resolver(PgQueryBuilder, Ref, Bind, name='getattr')
+def getattr_(env, dtype, attr):
+    prop = dtype.model.properties[attr.name]
+    return ForeignProperty(None, dtype.prop, prop)
+
+
+@ufunc.resolver(PgQueryBuilder, BackRef, Bind, name='getattr')
 def getattr_(env, dtype, attr):
     prop = dtype.model.properties[attr.name]
     return ForeignProperty(None, dtype.prop, prop)
@@ -427,6 +533,63 @@ def select(env, dtype):
         column = table.c[f"{dtype.prop.place}.{prop.place}"]
         columns.append(column)
     return Selected(columns, dtype.prop)
+
+
+@ufunc.resolver(PgQueryBuilder, BackRef)
+def select(env, dtype):
+    fpr = ForeignProperty(
+        None,
+        left=dtype.prop,
+        right=dtype.refprop,
+    )
+    refprop = dtype.refprop
+    required_columns = []
+    return_columns = []
+    if refprop.level is None or refprop.level > Level.open:
+        column_name = fpr.right.model.properties['_id'].name
+        label = f'{dtype.prop.name}.{column_name}'
+        required_columns.append((column_name, label))
+        return_columns.append(label)
+    else:
+        required_columns = []
+        for prop in dtype.refprop.dtype.refprops:
+            column_name = prop.name
+            label = f'{dtype.prop.name}.{column_name}'
+            required_columns.append((column_name, label))
+            return_columns.append(label)
+    selector = env.generate_backref_select(dtype.prop, dtype.refprop, required_columns, False)
+    table = env.get_backref_joined_table(fpr, selector)
+    if len(return_columns) == 1:
+        column = table.c[return_columns[0]]
+        return Selected(column, fpr.left)
+    else:
+        collected_columns = []
+        for col in return_columns:
+            collected_columns.append(table.c[col])
+        return Selected(collected_columns, fpr.left)
+
+
+@ufunc.resolver(PgQueryBuilder, ArrayBackRef)
+def select(env, dtype):
+    fpr = ForeignProperty(
+        None,
+        left=dtype.prop,
+        right=dtype.refprop,
+    )
+    refprop = dtype.refprop
+    required_columns = []
+    if refprop.level is None or refprop.level > Level.open:
+        column_name = fpr.right.model.properties['_id'].name
+        required_columns.append((column_name, column_name))
+    else:
+        required_columns = []
+        for prop in dtype.refprop.dtype.refprops:
+            column_name = prop.name
+            required_columns.append((column_name, column_name))
+    selector = env.generate_backref_select(dtype.prop, dtype.refprop, required_columns, True)
+    table = env.get_backref_joined_table(fpr, selector)
+    column = table.c[dtype.prop.name]
+    return Selected(column, fpr.left)
 
 
 @ufunc.resolver(PgQueryBuilder, ForeignProperty)

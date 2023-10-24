@@ -26,6 +26,12 @@ def prepare(context: Context, backend: PostgreSQL, dtype: ExternalRef):
             elif column is not None:
                 columns.append(column)
             prop.place = original_place
+        if dtype.unique:
+            extracted_columns = [column for column in columns if isinstance(column, sa.Column)]
+            unique_constraint = sa.UniqueConstraint(
+                *extracted_columns
+            )
+            columns.append(unique_constraint)
         return columns
 
     else:

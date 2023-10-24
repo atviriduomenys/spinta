@@ -189,11 +189,21 @@ class Ref(DataType):
 
 
 class BackRef(DataType):
+    model: Model
+    refprop: Property
+    explicit: bool = False
+
     schema = {
         'model': {'type': 'string'},
-        'property': {'type': 'string'},
-        'secondary': {'type': 'string'},
+        'refprop': {'type': 'string'},
     }
+
+
+class ArrayBackRef(BackRef):
+    expandable = True
+
+    def get_type_repr(self):
+        return "backref"
 
 
 class Generic(DataType):

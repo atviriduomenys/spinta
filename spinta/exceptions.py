@@ -632,6 +632,30 @@ class GivenValueCountMissmatch(BaseError):
     template = "While assigning ref values {given_count} were given, while {expected_count} were expected."
 
 
+class NoReferencesFound(UserError):
+    template = "Property {prop_name!r} of type 'Ref' was not found."
+
+
+class MultipleBackRefReferencesFound(UserError):
+    template = "Model {model!r} contains multiple references to backref, please specify which one to use."
+
+
+class NoBackRefReferencesFound(UserError):
+    template = "Model {model!r} does not contain any suitable properties for backref."
+
+
+class InvalidBackRefReferenceAmount(UserError):
+    template = "Backref {backref!r} can only reference one property."
+
+
+class CannotModifyBackRefProp(UserError):
+    template = "It is impossible to directly set or modify Backref property."
+
+
+class OneToManyBackRefNotSupported(UserError):
+    template = "One to many relationship is not supported by Backref."
+
+    
 class SummaryWithMultipleProperties(UserError):
     template = "Summary with multiple properties is not supported."
 

@@ -43,7 +43,7 @@ from spinta.datasets.components import Dataset
 from spinta.dimensions.enum.components import Enums
 from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
-from spinta.exceptions import MultipleErrors
+from spinta.exceptions import MultipleErrors, InvalidBackRefReferenceAmount
 from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
@@ -74,7 +74,7 @@ from spinta.manifests.tabular.components import TabularFormat
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
-from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, Array
+from spinta.types.datatype import Ref, DataType, Denorm, Inherit, ExternalRef, BackRef, ArrayBackRef, Array
 from spinta.utils.data import take
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -525,8 +525,8 @@ def _get_type_repr(dtype: [DataType, str]):
         if dtype.type_args:
             args = ', '.join(dtype.type_args)
             args = f'({args})'
-        return f'{dtype.name}{args}{required}{unique}' if not isinstance(dtype, (Denorm, Inherit, ExternalRef)
-                                                                         ) else dtype.get_type_repr()
+        dtype_name = dtype.name if not isinstance(dtype, (Denorm, Inherit, ExternalRef, ArrayBackRef)) else dtype.get_type_repr()
+        return f'{dtype_name}{args}{required}{unique}'
     else:
         args = ''
         required = ' required' if 'required' in dtype else ''
@@ -558,10 +558,13 @@ class PropertyReader(TabularReader):
 
     def read(self, row: Dict[str, str]) -> None:
         is_prop_array: bool = False
+        does_prop_support_array: bool = False
         given_name = row['property']
         if row['property'].endswith('[]'):
             self.name = row['property'][:-2]
-            is_prop_array = True
+            does_prop_support_array = True
+            if row['type'] != 'backref':
+                is_prop_array = True
         else:
             self.name = row['property']
 
@@ -575,7 +578,7 @@ class PropertyReader(TabularReader):
         if self.name in self.state.model.data['properties']:
             existing_prop = self.state.model.data['properties'][self.name]
             should_error = True
-            if is_prop_array and existing_prop['type'] == 'array':
+            if is_prop_array:
                 if not existing_prop['items']:
                     should_error = False
             if should_error:
@@ -622,7 +625,13 @@ class PropertyReader(TabularReader):
             if dtype['type'] in ('ref', 'backref', 'generic'):
                 ref_model, ref_props = _parse_property_ref(row['ref'])
                 custom_data['model'] = get_relative_model_name(dataset, ref_model)
-                custom_data['refprops'] = ref_props
+                if dtype['type'] == 'backref':
+                    if len(ref_props) > 1:
+                        raise InvalidBackRefReferenceAmount(backref=self.name)
+                    if len(ref_props) == 1:
+                        custom_data['refprop'] = ref_props[0]
+                else:
+                    custom_data['refprops'] = ref_props
             else:
                 # TODO: Detect if ref is a unit or an enum.
                 custom_data['enum'] = row['ref']
@@ -636,13 +645,16 @@ class PropertyReader(TabularReader):
         if existing_prop and existing_prop['type'] == 'array':
             existing_prop['items'] = custom_data.copy()
         else:
-            if is_prop_array:
-                new_data = {
-                    'type': 'array',
-                    'given_name': given_name,
-                    'access': custom_data['access'],
-                    'items': custom_data.copy()
-                }
+            if does_prop_support_array:
+                if is_prop_array:
+                    new_data = {
+                        'type': 'array',
+                        'given_name': given_name,
+                        'access': custom_data['access'],
+                        'items': custom_data.copy()
+                    }
+                else:
+                    new_data['type'] = 'array_backref'
             elif new_data['type'] == 'array':
                 new_data['items'] = {}
 
@@ -1783,6 +1795,18 @@ def _property_to_tabular(
                 data['ref'] += f'[{rkeys}]'
         else:
             data['ref'] = prop.dtype.model.name
+    elif isinstance(prop.dtype, BackRef):
+        model = prop.model
+        if model.external and model.external.dataset:
+            data['ref'] = to_relative_model_name(
+                prop.dtype.model,
+                model.external.dataset,
+            )
+            rkey = prop.dtype.refprop.place
+            if prop.dtype.explicit:
+                data['ref'] += f'[{rkey}]'
+        else:
+            data['ref'] = prop.dtype.model.name
 
     elif prop.enum is not None:
         data['ref'] = prop.given.enum
@@ -1799,7 +1823,7 @@ def _property_to_tabular(
         access=access,
         order_by=order_by,
     )
-    if yield_array_row:
+    if yield_array_row is not None:
         yield from _property_to_tabular(yield_array_row, external=external, access=access, order_by=order_by)
 
 

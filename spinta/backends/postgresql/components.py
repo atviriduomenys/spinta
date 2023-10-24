@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 from typing import Union
 
 import contextlib
@@ -8,8 +8,7 @@ import uuid
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
 
-from spinta.backends.postgresql.helpers import get_column_name
-from spinta.types.datatype import Ref
+from spinta import commands
 from spinta.utils.schema import NA
 from spinta.components import Model, Property
 from spinta.backends.constants import TableType
@@ -17,7 +16,6 @@ from spinta.backends.components import Backend, BackendFeatures
 from spinta.backends.helpers import get_table_name
 from spinta.backends.postgresql.sqlalchemy import utcnow
 from spinta.exceptions import MultipleRowsFound, NotFoundError
-from spinta.exceptions import PropertyNotFound
 
 
 class PostgreSQL(Backend):
@@ -110,16 +108,11 @@ class PostgreSQL(Backend):
         else:
             return self.tables.get(name)
 
-    def get_column(self, table: sa.Table, prop: Property, *, select=False) -> sa.Column:
-        if prop.list is not None:
+    def get_column(self, table: sa.Table, prop: Property, *, select=False, override_table: bool = True) -> Union[sa.Column, List[sa.Column]]:
+        if prop.list is not None and override_table:
             table = self.get_table(prop.list, TableType.LIST)
-        column = get_column_name(prop)
-        if isinstance(prop.dtype, Ref):
-            # TODO: Move this into a command.
-            column += '._id'
-        if column not in table.c:
-            raise PropertyNotFound(prop.dtype)
-        return table.c[column]
+        column = commands.get_column(self, prop, table=table)
+        return column
 
     def query_nodes(self):
         return []
