@@ -1,10 +1,20 @@
 from typing import Union
 
 from spinta.components import Page, Property, PageBy
-from spinta.core.ufuncs import ufunc, Expr, asttoexpr, Negative, Bind, Positive, Pair
+from spinta.core.ufuncs import ufunc, Expr, asttoexpr, Negative, Bind, Positive, Pair, Env
 from spinta.exceptions import FieldNotInResource, InvalidArgumentInExpression
 from spinta.ufuncs.basequerybuilder.components import BaseQueryBuilder, LoadBuilder
 from spinta.ufuncs.helpers import merge_formulas
+
+
+@ufunc.resolver(Env, Expr, name='prioritize_uri')
+def prioritize_uri(env, expr):
+    pass
+
+
+@ufunc.resolver(BaseQueryBuilder, Expr, name='prioritize_uri')
+def prioritize_uri(env, expr):
+    env.prioritize_uri = True
 
 
 @ufunc.resolver(BaseQueryBuilder, Expr, name='paginate')
