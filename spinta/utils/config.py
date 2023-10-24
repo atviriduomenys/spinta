@@ -4,6 +4,7 @@ from typing import Union
 def asbool(s: Union[str, bool]) -> bool:
     if isinstance(s, bool):
         return s
+    s = s.lower()
     if s in ('true', '1', 'on', 'yes'):
         return True
     if s in ('false', '0', 'off', 'no', ''):

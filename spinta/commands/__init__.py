@@ -983,6 +983,11 @@ def create_exception(
     """
 
 
+@command()
+def spinta_to_np_dtype(dtype: DataType):
+    """Converts Spinta dtype to np.dtype"""
+
+
 @overload
 def summary(
     context: Context,

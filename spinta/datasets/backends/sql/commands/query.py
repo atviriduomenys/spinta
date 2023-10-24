@@ -29,7 +29,7 @@ from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.ufuncs.components import SqlResultBuilder
 from spinta.dimensions.enum.helpers import prepare_enum_value
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.exceptions import PropertyNotFound
+from spinta.exceptions import PropertyNotFound, SourceCannotBeList
 from spinta.exceptions import UnknownMethod
 from spinta.exceptions import UnableToCast
 from spinta.types.datatype import DataType
@@ -614,9 +614,7 @@ def _get_property_for_select(
 def select(env: SqlQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
-            # TODO: Should raise one of spinta.exceptions exception, with
-            #       property as a context.
-            raise ValueError("Source can't be a list, use prepare instead.")
+            raise SourceCannotBeList(prop)
         if prop.external.prepare is not NA:
             # If `prepare` formula is given, evaluate formula.
             if isinstance(prop.external.prepare, Expr):

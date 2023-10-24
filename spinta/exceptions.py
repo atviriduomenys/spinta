@@ -566,10 +566,6 @@ class UnableToCast(UserError):
     template = "Unable to cast {value} to {type} type."
 
 
-class NotImplementedFeature(BaseError):
-    template = "{feature} is not implemented yet."
-
-
 class ReferencedObjectNotFound(UserError):
     template = "Referenced object {id!r} not found."
 
@@ -580,6 +576,14 @@ class ReferringObjectFound(UserError):
 
 class CompositeUniqueConstraint(UserError):
     template = "Given values for composition of properties ({properties}) already exist."
+
+
+class NotImplementedFeature(BaseError):
+    template = "{feature} is not implemented yet."
+
+
+class SourceCannotBeList(BaseError):
+    template = "Source can't be a list, use prepare instead."
 
 
 class UnknownRequestQuery(UserError):
@@ -655,11 +659,11 @@ class CannotModifyBackRefProp(UserError):
 class OneToManyBackRefNotSupported(UserError):
     template = "One to many relationship is not supported by Backref."
 
-    
+
 class SummaryWithMultipleProperties(UserError):
     template = "Summary with multiple properties is not supported."
 
-    
+
 class TooManyModelUriProperties(UserError):
     template = "Model already has {uri_prop!r} set as uri property."
 
