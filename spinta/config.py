@@ -108,6 +108,7 @@ CONFIG = {
             'spatial': 'spinta.types.geometry.components:Spatial',
             'ref': 'spinta.types.datatype:Ref',
             'backref': 'spinta.types.datatype:BackRef',
+            'array_backref': 'spinta.types.datatype:ArrayBackRef',
             'generic': 'spinta.types.datatype:Generic',
             'array': 'spinta.types.datatype:Array',
             'object': 'spinta.types.datatype:Object',
@@ -117,6 +118,7 @@ CONFIG = {
             'denorm': 'spinta.types.datatype:Denorm',
             '_external_ref': 'spinta.types.datatype:ExternalRef',
             'inherit': 'spinta.types.datatype:Inherit',
+            'page': 'spinta.types.datatype:PageType'
         },
         'urlparams': {
             'component': 'spinta.urlparams:UrlParams',
@@ -206,6 +208,9 @@ CONFIG = {
     'root': None,
 
     'env': 'prod',
+
+    # Limit of objects in the page
+    'push_page_size': None,
 
     'environments': {
         'dev': {

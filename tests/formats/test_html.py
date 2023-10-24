@@ -28,6 +28,7 @@ from spinta.formats.html.helpers import short_id
 from spinta.testing.client import TestClient
 from spinta.testing.client import TestClientResponse
 from spinta.testing.client import create_test_client
+from spinta.testing.data import encode_page_values_manually
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.manifest import load_manifest_and_context
 from spinta.testing.request import render_data
@@ -314,6 +315,11 @@ def test_file_type_list(
                 'value': short_id(_id),
             },
             {
+                'value': encode_page_values_manually({
+                    '_id': _id
+                }),
+            },
+            {
                 'value': 'Lithuania',
             },
             {
@@ -440,12 +446,7 @@ def test_limit_iter(limit, exhausted, result):
     assert it.exhausted is exhausted
 
 
-@pytest.mark.parametrize('value, cell', [
-    ({'_id': None}, Cell('', link=None, color=Color.null)),
-    ({'_id': 'c634dbd8-416f-457d-8bda-5a6c35bbd5d6'},
-     Cell('c634dbd8', link='/example/Country/c634dbd8-416f-457d-8bda-5a6c35bbd5d6')),
-])
-def test_prepare_ref_for_response(rc: RawConfig, value, cell):
+def test_prepare_ref_for_response(rc: RawConfig):
     context, manifest = load_manifest_and_context(rc, '''
     d | r | b | m | property   | type    | ref     | access
     example                    |         |         |
@@ -456,6 +457,8 @@ def test_prepare_ref_for_response(rc: RawConfig, value, cell):
       |   |   |   | country    | ref     | Country | open
     ''')
     fmt = Html()
+    value = {'_id': 'c634dbd8-416f-457d-8bda-5a6c35bbd5d6'}
+    cell = Cell('c634dbd8', link='/example/Country/c634dbd8-416f-457d-8bda-5a6c35bbd5d6')
     dtype = manifest.models['example/City'].properties['country'].dtype
     result = commands.prepare_dtype_for_response(
         context,
@@ -471,6 +474,35 @@ def test_prepare_ref_for_response(rc: RawConfig, value, cell):
     assert result['_id'].value == cell.value
     assert result['_id'].color == cell.color
     assert result['_id'].link == cell.link
+
+
+def test_prepare_ref_for_response_empty(rc: RawConfig):
+    context, manifest = load_manifest_and_context(rc, '''
+    d | r | b | m | property   | type    | ref     | access
+    example                    |         |         |
+      |   |   | Country        |         | name    |
+      |   |   |   | name       | string  |         | open
+      |   |   | City           |         | name    |
+      |   |   |   | name       | string  |         | open
+      |   |   |   | country    | ref     | Country | open
+    ''')
+    fmt = Html()
+    value = None
+    cell = Cell('', link=None, color=Color.null)
+    dtype = manifest.models['example/City'].properties['country'].dtype
+    result = commands.prepare_dtype_for_response(
+        context,
+        fmt,
+        dtype,
+        value,
+        data={},
+        action=Action.GETALL,
+        select=None,
+    )
+    assert result == cell
+    assert result.value == cell.value
+    assert result.color == cell.color
+    assert result.link == cell.link
 
 
 def test_select_id(rc: RawConfig):
@@ -586,6 +618,7 @@ def test_recursive_refs(rc: RawConfig):
             '_id': '262f6c72-4284-4d26-b9b0-e282bfe46a46',
             '_revision': 'b6197bb7-3592-4cdb-a61c-5a618f44950c',
             '_type': 'example/Category',
+            '_page': b'encoded',
             'name': 'Leaf',
             'parent': {
                 '_id': '19e4f199-93c5-40e5-b04e-a575e81ac373',
@@ -607,6 +640,9 @@ def test_recursive_refs(rc: RawConfig):
             value='example/Category',
             link=None,
             color=None,
+        ),
+        '_page': Cell(
+            value=b'encoded'
         ),
         'name': Cell(value='Leaf', link=None, color=None),
         'parent._id': Cell(

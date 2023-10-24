@@ -97,7 +97,8 @@ def read_schema(manifest_type: DictFormat, path: str):
                 new_prop = dedup_prop(new_prop)
                 extra = {}
                 type_detector = prop["type_detector"]
-                if type_detector.get_type() == "ref":
+                prop_type = type_detector.get_type()
+                if prop_type == "ref":
                     if prop['name'] in dataset_structure["models"].keys():
                         model_name = _name_without_namespace(mapped_models[prop['name'], prop['extra']], mapping_meta, prefixes)
                         ref_model = f'{dataset_structure["dataset"]}/{model_name}'
@@ -106,8 +107,10 @@ def read_schema(manifest_type: DictFormat, path: str):
                     extra = {
                         'model': ref_model
                     }
+                elif prop_type == "array":
+                    extra['items'] = {}
                 converted_props[new_prop] = {
-                    'type': type_detector.get_type(),
+                    'type': prop_type,
                     'external': {
                         'name': prop["source"]
                     },

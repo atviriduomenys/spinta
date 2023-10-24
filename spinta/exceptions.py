@@ -585,11 +585,85 @@ class NotImplementedFeature(BaseError):
 class SourceCannotBeList(BaseError):
     template = "Source can't be a list, use prepare instead."
 
-    
+
 class UnknownRequestQuery(UserError):
     template = "Request '{request}' does not support '{query}' query."
 
 
 class InvalidRequestQuery(UserError):
     template = "Query '{query}' requires '{format}' format."
+
+
+class InvalidPageParameterCount(UserError):
+    template = "Parameter 'page' only accepts one of page key, size, or disable attributes."
+
+
+class InvalidPushWithPageParameterCount(UserError):
+    template = "Given push page property count does not match model required properties: {properties}."
+
+
+class InvalidPageKey(UserError):
+    template = "Given '{key}' page key is invalid."
+
+
+class InfiniteLoopWithPagination(BaseError):
+    template = "Pagination values has cause infinite loop while fetching data."
+
+
+class DuplicateRowWhilePaginating(BaseError):
+    template = "Encountered a duplicate row with page key: '{key}'"
+
+
+class UnauthorizedPropertyPush(UserError):
+    code = 403
+    template = "You do not have permission to push this property."
+
+
+class InvalidArgumentInExpression(BaseError):
+    template = "Invalid {arguments} arguments given to {expr} expression."
+
+
+class BackendNotGiven(UserError):
+    template = "Model is operating in external mode, yet it does not have assigned backend to it."
+
+
+class UnauthorizedKeymapSync(UserError):
+    code = 403
+    template = "You do not have permission to sync this model's keymap."
+
+
+class GivenValueCountMissmatch(BaseError):
+    template = "While assigning ref values {given_count} were given, while {expected_count} were expected."
+
+
+class NoReferencesFound(UserError):
+    template = "Property {prop_name!r} of type 'Ref' was not found."
+
+
+class MultipleBackRefReferencesFound(UserError):
+    template = "Model {model!r} contains multiple references to backref, please specify which one to use."
+
+
+class NoBackRefReferencesFound(UserError):
+    template = "Model {model!r} does not contain any suitable properties for backref."
+
+
+class InvalidBackRefReferenceAmount(UserError):
+    template = "Backref {backref!r} can only reference one property."
+
+
+class CannotModifyBackRefProp(UserError):
+    template = "It is impossible to directly set or modify Backref property."
+
+
+class OneToManyBackRefNotSupported(UserError):
+    template = "One to many relationship is not supported by Backref."
+
+
+class SummaryWithMultipleProperties(UserError):
+    template = "Summary with multiple properties is not supported."
+
+
+class TooManyModelUriProperties(UserError):
+    template = "Model already has {uri_prop!r} set as uri property."
 

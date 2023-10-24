@@ -39,7 +39,7 @@ from spinta.components import Property
 from spinta.exceptions import ConflictingValue, RequiredProperty
 from spinta.exceptions import NoItemRevision
 from spinta.formats.components import Format
-from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, Integer, Boolean
+from spinta.types.datatype import Array, ExternalRef, Denorm, Inherit, PageType, BackRef, ArrayBackRef, Integer, Boolean
 from spinta.types.datatype import Binary
 from spinta.types.datatype import DataType
 from spinta.types.datatype import Date
@@ -55,6 +55,7 @@ from spinta.types.datatype import String
 from spinta.types.geometry.components import Geometry
 from spinta.utils.config import asbool
 from spinta.utils.data import take
+from spinta.utils.encoding import encode_page_values
 from spinta.utils.nestedstruct import flatten_value
 from spinta.utils.schema import NA
 from spinta.utils.schema import NotAvailable
@@ -296,6 +297,17 @@ def simple_data_check(
         raise exceptions.NotImplementedFeature(prop, feature="Ability to indirectly modify base parameters")
 
 
+@commands.simple_data_check.register(Context, DataItem, BackRef, Property, Backend, object)
+def simple_data_check(
+    context: Context,
+    data: DataItem,
+    dtype: BackRef,
+    prop: Property,
+    backend: Backend,
+    value: object,
+) -> None:
+    if value is not NA:
+        raise exceptions.CannotModifyBackRefProp(dtype)
 
 
 @commands.complex_data_check.register(Context, DataItem, Model, Backend)
@@ -487,7 +499,7 @@ def prepare_data_for_response(
             prop_names,
             value,
             select,
-            get_model_reserved_props(action),
+            get_model_reserved_props(action, model),
         )
     }
 
@@ -599,7 +611,7 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    assert isinstance(value, (str, int, float, bool, type(None))), (
+    assert isinstance(value, (str, int, float, bool, type(None), list)), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
         f"model={dtype.prop.model!r}, dtype={dtype!r}"
@@ -751,6 +763,20 @@ def prepare_dtype_for_response(
     return value.wkt
 
 
+@commands.prepare_dtype_for_response.register(Context, Format, PageType, list)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: PageType,
+    value: list,
+    data: Dict[str, Any],
+    *,
+    action: Action,
+    select: dict = None,
+):
+    return encode_page_values(value).decode('ascii')
+
+
 @commands.prepare_dtype_for_response.register(Context, Format, Ref, (dict, type(None)))
 def prepare_dtype_for_response(
     context: Context,
@@ -762,8 +788,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value is None:
-        value = {'_id': None}
+    if value is None or all(val is None for val in value.values()):
+        return None
 
     if select and select != {'*': {}}:
         names = get_select_prop_names(
@@ -826,8 +852,8 @@ def prepare_dtype_for_response(
     action: Action,
     select: dict = None,
 ):
-    if value is None:
-        return {}
+    if value is None or all(val is None for val in value.values()):
+        return None
 
     if select and select != {'*': {}}:
         names = get_select_prop_names(
@@ -1089,6 +1115,131 @@ def prepare_dtype_for_response(
                 })
         return data
     return {}
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, ArrayBackRef, (list, tuple))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: ArrayBackRef,
+    rows: Iterable,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+) -> list:
+    return_values = []
+    for value in rows:
+        if value is None or all(val is None for val in value.values()):
+            continue
+
+        if select and select != {'*': {}}:
+            names = get_select_prop_names(
+                context,
+                dtype,
+                dtype.model.properties,
+                action,
+                select,
+                reserved=['_id'],
+            )
+        else:
+            names = value.keys()
+
+        data = {
+            prop.name: commands.prepare_dtype_for_response(
+                context,
+                fmt,
+                prop.dtype,
+                val,
+                data=data,
+                action=action,
+                select=sel,
+            )
+            for prop, val, sel in select_props(
+                dtype.model,
+                names,
+                dtype.model.properties,
+                value,
+                select,
+            )
+        }
+        return_values.append(data)
+    return return_values
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, ArrayBackRef, type(None))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: ArrayBackRef,
+    value: type(None),
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return []
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, BackRef, (dict, type(None)))
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: BackRef,
+    value: Optional[Dict[str, Any]],
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    if value is None or all(val is None for val in value.values()):
+        return None
+
+    if select and select != {'*': {}}:
+        names = get_select_prop_names(
+            context,
+            dtype,
+            dtype.model.properties,
+            action,
+            select,
+            reserved=['_id'],
+        )
+    else:
+        names = value.keys()
+
+    data = {
+        prop.name: commands.prepare_dtype_for_response(
+            context,
+            fmt,
+            prop.dtype,
+            val,
+            data=data,
+            action=action,
+            select=sel,
+        )
+        for prop, val, sel in select_props(
+            dtype.model,
+            names,
+            dtype.model.properties,
+            value,
+            select,
+        )
+    }
+
+    return data
+
+
+@commands.prepare_dtype_for_response.register(Context, Format, BackRef, str)
+def prepare_dtype_for_response(
+    context: Context,
+    fmt: Format,
+    dtype: BackRef,
+    value: str,
+    *,
+    data: Dict[str, Any],
+    action: Action,
+    select: dict = None,
+):
+    return {'_id': value}
 
 
 def get_property_base_model(model: Model, name: str):

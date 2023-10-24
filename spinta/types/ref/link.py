@@ -36,3 +36,6 @@ def link(context: Context, dtype: Ref) -> None:
         dtype.refprops = [*dtype.model.external.pkeys]
     else:
         dtype.refprops = [dtype.model.properties['_id']]
+
+    if dtype.model.external and dtype.refprops != dtype.model.external.pkeys:
+        dtype.model.add_keymap_property_combination(dtype.refprops)

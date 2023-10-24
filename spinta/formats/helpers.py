@@ -12,7 +12,7 @@ from spinta.components import Action
 from spinta.components import Context
 from spinta.components import Model
 from spinta.components import UrlParams
-from spinta.types.datatype import Array
+from spinta.types.datatype import Array, ArrayBackRef, BackRef
 from spinta.types.datatype import Inherit
 from spinta.types.datatype import ExternalRef
 from spinta.types.datatype import DataType
@@ -40,6 +40,13 @@ def _get_dtype_header(
     elif isinstance(dtype, Array):
         name_ = name + '[]'
         yield from _get_dtype_header(dtype.items.dtype, select, name_)
+
+    elif isinstance(dtype, ArrayBackRef):
+        name_ = name + '[]'
+        yield from _get_dtype_header(dtype.refprop.dtype, select, name_)
+
+    elif isinstance(dtype, BackRef):
+        yield from _get_dtype_header(dtype.refprop.dtype, select, name)
 
     elif isinstance(dtype, File):
         yield name + '._id'
@@ -132,7 +139,7 @@ def get_model_tabular_header(
             if model.name == '_ns':
                 reserved = get_ns_reserved_props(action)
             else:
-                reserved = get_model_reserved_props(action)
+                reserved = get_model_reserved_props(action, model)
         select = get_select_tree(context, action, params.select)
         if model.name == '_ns':
             names = get_select_prop_names(

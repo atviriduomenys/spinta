@@ -117,6 +117,9 @@ def _migrate_with_insert_from_select(
     table: sa.Table,
     renames: Optional[Dict[str, str]],
 ) -> None:
+    old_indexes = inspector.get_indexes(table.name)
+    for index in old_indexes:
+        op.drop_index(index.name, index.table_name)
     old_table_name = f'__{table.name}'
 
     # Recover from a possible previous failed migration, by checking if
