@@ -6,6 +6,22 @@ Changes
 0.1.57 (unreleased)
 ===================
 
+New features:
+
+- Add support for array type in tabular manifests (`#161`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/161
+
+Bug fixes:
+
+- Fixed pagination error with date types (`#516`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/516
+
+- Fix issue with old SQLite versions used for keymaps (`#518`__).
+
+  __ https://github.com/atviriduomenys/spinta/issues/518
+
 
 0.1.56 (2023-09-30)
 ===================

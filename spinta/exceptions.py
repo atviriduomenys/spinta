@@ -634,3 +634,8 @@ class GivenValueCountMissmatch(BaseError):
 
 class SummaryWithMultipleProperties(UserError):
     template = "Summary with multiple properties is not supported."
+
+    
+class TooManyModelUriProperties(UserError):
+    template = "Model already has {uri_prop!r} set as uri property."
+
