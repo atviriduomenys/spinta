@@ -13,14 +13,15 @@ def flatten(value, sep='.', array_sep='[]'):
     if value is None:
         for k, vals in lists:
             for v in vals:
-                yield from flatten(v, sep)
+                if v is not None:
+                    yield from flatten(v, sep)
 
     elif lists:
         keys, lists = zip(*lists)
         for vals in itertools.product(*lists):
             val = {
                 sep.join(k): v
-                for k, v in zip(keys, vals)
+                for k, v in zip(keys, vals) if v is not None
             }
             val.update(value)
             yield from flatten(val, sep)
@@ -34,9 +35,10 @@ def _flatten(value, sep, array_sep, key=()):
         data = {}
         lists = []
         for k, v in value.items():
-            v, more = _flatten(v, sep, array_sep, key + (k,))
-            data.update(v or {})
-            lists += more
+            if v is not None:
+                v, more = _flatten(v, sep, array_sep, key + (k,))
+                data.update(v or {})
+                lists += more
         return data, lists
 
     elif isinstance(value, (list, Iterator)):
@@ -45,12 +47,12 @@ def _flatten(value, sep, array_sep, key=()):
                 key = list(key)
                 key[-1] = f'{key[-1]}{array_sep}'
                 key = tuple(key)
-            return None, [(key, value)]
+            return None, [(key, value)] if value is not None else []
         else:
             return None, []
 
     else:
-        return {sep.join(key): value}, []
+        return {sep.join(key): value} if value is not None else {}, []
 
 
 def build_select_tree(select: List[str]) -> Dict[str, Set[Optional[str]]]:
