@@ -287,3 +287,98 @@ def test_rdf_get_with_uri_ref_rename(
                   f'  <dct:country rdf:resource="https://example.com/country/Lithuania"/>\n' \
                   f'</dcat:city>\n' \
                   f'</rdf:RDF>\n'
+
+
+def test_rdf_empty_ref(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access  | uri
+    example/rdf/ref              |        |         |         |
+      |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
+      |   |   |   |          |        | pav     |         | http://purl.org/pav/
+      |   |   |   |          |        | dcat    |         | http://www.dcat.com
+      |   |   |   |          |        | dct     |         | http://dct.com
+      |   |   | Country      |        | name    |         | 
+      |   |   |   | name     | string |         | open    | dct:name
+      |   |   | City         |        | name    |         | dcat:city
+      |   |   |   | name     | string |         | open    | dct:name
+      |   |   |   | country  | ref    | Country | open    | 
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/rdf', ['insert', 'getall'])
+
+    city = pushdata(app, '/example/rdf/ref/City', {
+        'name': 'Vilnius',
+    })
+
+    res = app.get("/example/rdf/ref/City/:format/rdf").text
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+                  f'<rdf:RDF\n' \
+                  f' xmlns:rdf="http://www.rdf.com"\n' \
+                  f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:dcat="http://www.dcat.com"\n' \
+                  f' xmlns:dct="http://dct.com"\n' \
+                  f' xmlns="https://testserver/">\n' \
+                  f'<dcat:city rdf:about="/example/rdf/ref/City/{city["_id"]}" rdf:type="example/rdf/ref/City" ' \
+                  f'pav:version="{city["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"name": city["name"], "_id": city["_id"]})}</_page>\n' \
+                  f'  <dct:name>{city["name"]}</dct:name>\n' \
+                  f'</dcat:city>\n' \
+                  f'</rdf:RDF>\n'
+
+
+def test_rdf_mixed_ref(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    context = bootstrap_manifest(rc, '''
+    d | r | b | m | property | type   | ref     | access  | uri
+    example/rdf/ref/multi              |        |         |         |
+      |   |   |   |          | prefix | rdf     |         | http://www.rdf.com
+      |   |   |   |          |        | pav     |         | http://purl.org/pav/
+      |   |   |   |          |        | dcat    |         | http://www.dcat.com
+      |   |   |   |          |        | dct     |         | http://dct.com
+      |   |   | Country      |        | name    |         | 
+      |   |   |   | name     | string |         | open    | dct:name
+      |   |   | City         |        | name    |         | dcat:city
+      |   |   |   | name     | string |         | open    | dct:name
+      |   |   |   | country  | ref    | Country | open    | 
+    ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/rdf', ['insert', 'getall'])
+
+    country = pushdata(app, '/example/rdf/ref/multi/Country', {
+        'name': 'Lithuania'
+    })
+    vilnius = pushdata(app, '/example/rdf/ref/multi/City', {
+        'name': 'Vilnius',
+        'country': {'_id': country.get('_id')}
+    })
+    ryga = pushdata(app, '/example/rdf/ref/multi/City', {
+        'name': 'Ryga',
+    })
+
+    res = app.get("/example/rdf/ref/multi/City/:format/rdf").text
+    assert res == f'<?xml version="1.0" encoding="UTF-8"?>\n'\
+                  f'<rdf:RDF\n' \
+                  f' xmlns:rdf="http://www.rdf.com"\n' \
+                  f' xmlns:pav="http://purl.org/pav/"\n' \
+                  f' xmlns:dcat="http://www.dcat.com"\n' \
+                  f' xmlns:dct="http://dct.com"\n' \
+                  f' xmlns="https://testserver/">\n' \
+                  f'<dcat:city rdf:about="/example/rdf/ref/multi/City/{ryga["_id"]}" rdf:type="example/rdf/ref/multi/City" ' \
+                  f'pav:version="{ryga["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"name": ryga["name"], "_id": ryga["_id"]})}</_page>\n' \
+                  f'  <dct:name>{ryga["name"]}</dct:name>\n' \
+                  f'</dcat:city>\n' \
+                  f'<dcat:city rdf:about="/example/rdf/ref/multi/City/{vilnius["_id"]}" rdf:type="example/rdf/ref/multi/City" ' \
+                  f'pav:version="{vilnius["_revision"]}">\n' \
+                  f'  <_page>{encode_page_values_manually({"name": vilnius["name"], "_id": vilnius["_id"]})}</_page>\n' \
+                  f'  <dct:name>{vilnius["name"]}</dct:name>\n' \
+                  f'  <country rdf:resource="/example/rdf/ref/multi/Country/{country["_id"]}"/>\n' \
+                  f'</dcat:city>\n' \
+                  f'</rdf:RDF>\n'

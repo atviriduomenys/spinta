@@ -413,6 +413,9 @@ def prepare_dtype_for_response(
     prefixes = data['_available_prefixes']
     attributes = {}
     children = []
+    if data_dict is None:
+        return None
+
     if len(data_dict) == 1 and '_id' in data_dict or '_uri' in data_dict:
         if '_uri' in data_dict:
             attributes[data['_resource_name']] = data_dict['_uri'].text

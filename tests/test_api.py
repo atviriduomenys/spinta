@@ -67,7 +67,6 @@ def test_version(app):
     assert resp.status_code == 200
     assert sorted(next(flatten(resp.json())).keys()) == [
         'api.version',
-        'build',
         'implementation.name',
         'implementation.version',
     ]

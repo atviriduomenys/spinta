@@ -17,8 +17,6 @@ import httpx
 import requests
 from pprintpp import pformat
 
-from spinta.components import Model
-from spinta.datasets.components import ExternalBackend
 from spinta.formats.html.components import Cell
 from spinta.testing.client import TestClient
 from spinta.utils.data import take
@@ -28,7 +26,7 @@ from spinta.utils.nestedstruct import flatten
 def get_keys_for_row(keys, row: dict):
     return keys or sorted({
         k
-        for d in flatten(row)
+        for d in flatten(row, omit_none=False)
         for k in d
         if not k.startswith('_')
     })
