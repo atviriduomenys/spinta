@@ -212,6 +212,7 @@ def load_model_properties(
         '_where': {'type': 'rql'},
         '_base': {'type': 'inherit'},
         '_page': {'type': 'page'},
+        '_uri': {'type': 'uri'},
         **data,
     }
 

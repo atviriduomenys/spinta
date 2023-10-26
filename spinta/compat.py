@@ -54,6 +54,12 @@ def urlparams_to_expr(
             for arg in params.expand
         ]})
 
+    if params.bbox is not None:
+        ast.append({'name': 'bbox', 'args': params.bbox})
+
+    if params.fmt.prioritize_uri:
+        ast.append({'name': 'prioritize_uri', 'args': []})
+
     if len(ast) == 0:
         ast = {
             'name': 'select',

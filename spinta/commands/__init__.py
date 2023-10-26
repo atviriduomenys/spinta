@@ -983,6 +983,11 @@ def create_exception(
     """
 
 
+@command()
+def spinta_to_np_dtype(dtype: DataType):
+    """Converts Spinta dtype to np.dtype"""
+
+
 @overload
 def summary(
     context: Context,
@@ -999,7 +1004,7 @@ def summary(
     context: Context,
     model: Model,
     backend: Backend,
-    **kwargs
+    query: Expr
 ):
     pass
 
@@ -1017,3 +1022,57 @@ def summary(
 @command()
 def summary(*args) -> None:
     """Create summary for property"""
+
+
+@overload
+def find_backref_ref(
+    prop: Model,
+    backref_model: str,
+    given_ref: str
+):
+    pass
+
+
+@overload
+def find_backref_ref(
+    prop: Property,
+    backref_model: str,
+    given_ref: str
+):
+    pass
+
+
+@overload
+def find_backref_ref(
+    dtype: DataType,
+    backref_model: str,
+    given_ref: object
+):
+    pass
+
+
+@command()
+def find_backref_ref(
+    prop: Any,
+    backref_model: str,
+    given_ref: object
+):
+    pass
+
+
+@overload
+def get_column(
+    backend: Backend,
+    dtype: DataType,
+    **kwargs
+):
+    pass
+
+
+@command()
+def get_column(
+    backend: Backend,
+    prop: Property,
+    **kwargs
+):
+    pass

@@ -2128,7 +2128,7 @@ def test_push_null_foreign_key(
         {
             'name': 'Ryga',
             'country._id': countries['Latvia'],
-            'embassy._id': None,
+            'embassy': None,
         },
         {
             'name': 'Vilnius',
@@ -2137,8 +2137,8 @@ def test_push_null_foreign_key(
         },
         {
             'name': 'Winterfell',
-            'country._id': None,
-            'embassy._id': None,
+            'country': None,
+            'embassy': None,
         },
     ]
 
@@ -2201,12 +2201,12 @@ def test_push_self_ref(
     cities = dict(listdata(resp, 'name', '_id'))
     assert listdata(resp, full=True) == [
         {
-            'name': 'Trakai',
-            'governance._id': cities['Vilnius'],
+            'name': 'Vilnius',
+            'governance': None,
         },
         {
-            'name': 'Vilnius',
-            'governance._id': None,
+            'name': 'Trakai',
+            'governance._id': cities['Vilnius'],
         },
     ]
 
@@ -2538,15 +2538,15 @@ def test_point(
     })
     sqlite.write('data', [{
         'id': 1,
-        'x': 4,
-        'y': 2,
+        'x': 4.5,
+        'y': 2.5,
     }])
 
     app = create_client(rc, tmp_path, sqlite)
     app.authmodel(dataset, ['getall'])
 
     resp = app.get(f'/{dataset}/Data')
-    assert listdata(resp) == [(1, 'POINT (4.0 2.0)')]
+    assert listdata(resp) == [(1, 'POINT (4.5 2.5)')]
 
 
 def test_swap_single(rc, tmp_path, geodb):

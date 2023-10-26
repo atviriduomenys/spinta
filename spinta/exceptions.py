@@ -582,6 +582,10 @@ class CompositeUniqueConstraint(UserError):
     template = "Given values for composition of properties ({properties}) already exist."
 
 
+class SourceCannotBeList(BaseError):
+    template = "Source can't be a list, use prepare instead."
+
+
 class UnknownRequestQuery(UserError):
     template = "Request '{request}' does not support '{query}' query."
 
@@ -634,3 +638,36 @@ class GivenValueCountMissmatch(BaseError):
 
 class PartialTypeNotFound(BaseError):
     template = "Partial type can only be used for ref type."
+
+
+class NoReferencesFound(UserError):
+    template = "Property {prop_name!r} of type 'Ref' was not found."
+
+
+class MultipleBackRefReferencesFound(UserError):
+    template = "Model {model!r} contains multiple references to backref, please specify which one to use."
+
+
+class NoBackRefReferencesFound(UserError):
+    template = "Model {model!r} does not contain any suitable properties for backref."
+
+
+class InvalidBackRefReferenceAmount(UserError):
+    template = "Backref {backref!r} can only reference one property."
+
+
+class CannotModifyBackRefProp(UserError):
+    template = "It is impossible to directly set or modify Backref property."
+
+
+class OneToManyBackRefNotSupported(UserError):
+    template = "One to many relationship is not supported by Backref."
+
+
+class SummaryWithMultipleProperties(UserError):
+    template = "Summary with multiple properties is not supported."
+
+
+class TooManyModelUriProperties(UserError):
+    template = "Model already has {uri_prop!r} set as uri property."
+

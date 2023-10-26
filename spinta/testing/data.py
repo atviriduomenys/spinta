@@ -17,12 +17,19 @@ import httpx
 import requests
 from pprintpp import pformat
 
-from spinta.components import Model
-from spinta.datasets.components import ExternalBackend
 from spinta.formats.html.components import Cell
 from spinta.testing.client import TestClient
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import flatten
+
+
+def get_keys_for_row(keys, row: dict):
+    return keys or sorted({
+        k
+        for d in flatten(row, omit_none=False)
+        for k in d
+        if not k.startswith('_')
+    })
 
 
 def listdata(
@@ -71,7 +78,7 @@ def listdata(
         }
 
     """
-
+    old_keys = keys
     # Prepare data
     if isinstance(resp, list):
         data = resp
@@ -102,16 +109,12 @@ def listdata(
         else:
             assert '_data' in data, pformat(data)
             data = data['_data']
-        keys = keys or sorted({
-            k
-            for d in flatten(data)
-            for k in d
-            if not k.startswith('_')
-        })
+
+        keys = get_keys_for_row(old_keys, data)
 
     # Clean data
     if full:
-        data = [take(keys, row) for row in data]
+        data = [take(get_keys_for_row(old_keys, row), row) for row in data]
     elif len(keys) == 1:
         k = keys[0]
         data = [take(k, row) for row in data]
@@ -254,3 +257,16 @@ def send(
 
 def encode_page_values_manually(row: dict):
     return base64.urlsafe_b64encode(json.dumps(list(row.values())).encode('ascii')).decode('ascii')
+
+
+def are_lists_of_dicts_equal(list1, list2):
+    # Check if the lengths of the lists are the same
+    if len(list1) != len(list2):
+        return False
+
+    # Convert each list of dictionaries to a set
+    set1 = {frozenset(d.items()) for d in list1}
+    set2 = {frozenset(d.items()) for d in list2}
+
+    # Compare the sets
+    return set1 == set2

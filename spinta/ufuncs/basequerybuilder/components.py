@@ -24,6 +24,7 @@ class QueryPage:
 class BaseQueryBuilder(Env):
     page: QueryPage
     expand: List[Property] = None
+    prioritize_uri: bool = False
 
 
 class LoadBuilder(Env):

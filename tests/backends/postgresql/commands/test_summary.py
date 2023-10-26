@@ -1634,6 +1634,78 @@ def test_summary_geometry_bbox_encapsulate_partial(rc: RawConfig, postgresql: st
     })
 
 
+def test_summary_geometry_bbox_negative(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    resp_10_20 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(10 20)'})
+    resp_40_80 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(40 80)'})
+    response = app.get('/example/summary/geometry/Test/:summary/value?bbox(-100, -100, 100, 100)')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'cluster': 2,
+        'centroid': 'POINT(0 0)',
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'cluster': 1,
+        'centroid': 'POINT(10 20)',
+        "_id": resp_10_20.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'cluster': 1,
+        'centroid': 'POINT(40 80)',
+        "_id": resp_40_80.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+
+
+def test_summary_geometry_bbox_with_srid(rc: RawConfig, postgresql: str, request: FixtureRequest):
+    context = bootstrap_manifest(rc, '''
+            d | r | b | m | property | type   | ref     | access  | uri
+            example/summary/geometry    |        |         |         |
+              |   |   | Test       |        |         |         | 
+              |   |   |   | value    | geometry(3346) |         | open    | 
+            ''', backend=postgresql, request=request)
+    app = create_test_client(context)
+    app.authmodel('example/summary/geometry', ['insert', 'getall', 'search'])
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    app.post('/example/summary/geometry/Test', json={'value': 'POINT(0 0)'})
+    resp_10_20 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(10 20)'})
+    resp_40_80 = app.post('/example/summary/geometry/Test', json={'value': 'POINT(40 80)'})
+    response = app.get('/example/summary/geometry/Test/:summary/value?bbox(0, 0, 100, 100)')
+    json_response = response.json()
+
+    assert len(json_response["_data"]) == 3
+    assert dict_equals(json_response["_data"][0], {
+        'cluster': 2,
+        'centroid': 'POINT(0 0)',
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][1], {
+        'cluster': 1,
+        'centroid': 'POINT(10 20)',
+        "_id": resp_10_20.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+    assert dict_equals(json_response["_data"][2], {
+        'cluster': 1,
+        'centroid': 'POINT(40 80)',
+        "_id": resp_40_80.json()["_id"],
+        '_type': 'example/summary/geometry/Test'
+    })
+
+
 def test_summary_geometry_bbox_bad_request(rc: RawConfig, postgresql: str, request: FixtureRequest):
     context = bootstrap_manifest(rc, '''
             d | r | b | m | property | type   | ref     | access  | uri

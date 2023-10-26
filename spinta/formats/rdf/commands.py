@@ -38,10 +38,13 @@ DESCRIPTION = "Description"
 
 
 def _get_available_prefixes(model: Model) -> dict:
-    prefixes = {}
+    prefixes = {
+        RDF: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        PAV: "http://purl.org/pav/"
+    }
     if model.manifest.datasets.get(model.ns.name):
-        prefixes = model.manifest.datasets.get(model.ns.name).prefixes
-        for key, val in prefixes.items():
+        manifest_prefixes = model.manifest.datasets.get(model.ns.name).prefixes
+        for key, val in manifest_prefixes.items():
             if isinstance(val, UriPrefix):
                 prefixes[key] = val.uri
     return prefixes
@@ -67,9 +70,17 @@ def _get_attributes(
     revision_name: Union[str, QName],
 ) -> Tuple[dict, dict]:
     attributes = {}
+    uri_prop = model.uri_prop
+    about_uri = False
+    if uri_prop is not None:
+        if uri_prop.name in data:
+            uri = data.pop(uri_prop.name)
+            if uri is not None and uri.text:
+                attributes[about_name] = uri.text
+                about_uri = True
     if '_id' in data:
         _id = data.pop('_id')
-        if _id is not None and _id.text:
+        if not about_uri and _id is not None and _id.text:
             attributes[about_name] = get_model_link(model, pk=_id.text)
     if '_type' in data:
         _type = data.pop('_type')
@@ -87,6 +98,8 @@ def _get_prefix_and_name(uri: str) -> Tuple[str, str]:
     if uri and ':' in uri:
         prefix = uri.split(':')[0]
         name = uri.split(':')[1]
+    elif uri:
+        name = uri
     return prefix, name
 
 
@@ -201,11 +214,11 @@ async def _stream(
 ):
     namespaces = []
     prefixes = _get_available_prefixes(model)
-    root_name = _get_attribute_name(RDF.capitalize(), RDF, prefixes)
+    root_name = _get_attribute_name(RDF.upper(), RDF, prefixes)
     for key, val in prefixes.items():
         namespaces.append(f'xmlns:{key}="{val}"')
     if request.base_url:
-        namespaces.append(f'xml:base="{str(request.base_url)}"')
+        namespaces.append(f'xmlns="{str(request.base_url)}"')
     if isinstance(root_name, QName):
         root_name = f"{RDF}:{root_name.localname}"
     namespaces = "\n ".join(namespaces)
@@ -388,7 +401,7 @@ def prepare_dtype_for_response(
 def prepare_dtype_for_response(
     context: Context,
     fmt: Rdf,
-    dtype: File,
+    dtype: Ref,
     value,
     *,
     data: Dict[str, Any],
@@ -400,9 +413,13 @@ def prepare_dtype_for_response(
     prefixes = data['_available_prefixes']
     attributes = {}
     children = []
+    if data_dict is None:
+        return None
 
-    if len(data_dict) == 1 and '_id' in data_dict:
-        if data_dict['_id'] is not None and data_dict['_id'].text:
+    if len(data_dict) == 1 and '_id' in data_dict or '_uri' in data_dict:
+        if '_uri' in data_dict:
+            attributes[data['_resource_name']] = data_dict['_uri'].text
+        else:
             attributes[data['_resource_name']] = get_model_link(
                 dtype.model,
                 pk=data_dict['_id'].text
