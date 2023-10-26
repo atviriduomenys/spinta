@@ -233,6 +233,10 @@ def _query_data(
         yield from commands.getall(context, model, model.backend, **kwargs)
 
 
+def check_if_model_has_backend_and_source(model: Model):
+    return not isinstance(model.backend, NoBackend) and (model.external and model.external.name)
+
+
 def traverse_ns_models(
     context: Context,
     ns: Namespace,
@@ -245,7 +249,7 @@ def traverse_ns_models(
 ):
     models = (ns.models or {})
     for model in models.values():
-        if not (source_check and isinstance(model.backend, NoBackend)):
+        if not (source_check and not check_if_model_has_backend_and_source(model)):
             if _model_matches_params(context, model, action, dataset_, resource, internal):
                 yield model
     for ns_ in ns.names.values():

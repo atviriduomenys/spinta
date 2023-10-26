@@ -199,8 +199,7 @@ def push(
             first_time = km.first_time_sync()
             if first_time:
                 synchronize = True
-
-            dependant_models = extract_dependant_nodes(models, not synchronize)
+            dependant_models = extract_dependant_nodes(context, models, not synchronize)
             sync_keymap(
                 context=context,
                 keymap=km,
@@ -245,7 +244,7 @@ def push(
             raise Exit(code=1)
 
 
-def extract_dependant_nodes(models: List[Model], filter_pushed: bool):
+def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed: bool):
     extracted_models = [] if filter_pushed else models.copy()
     for model in models:
         if model.base:
@@ -258,12 +257,13 @@ def extract_dependant_nodes(models: List[Model], filter_pushed: bool):
 
         for prop in model.properties.values():
             if isinstance(prop.dtype, Ref):
-                if not prop.level or prop.level > Level.open:
-                    if prop.dtype.model not in extracted_models:
-                        if filter_pushed and not (prop.dtype.model in models):
-                            extracted_models.append(prop.dtype.model)
-                        elif not filter_pushed:
-                            extracted_models.append(prop.dtype.model)
+                if authorized(context, prop, action=Action.SEARCH):
+                    if not prop.level or prop.level > Level.open:
+                        if prop.dtype.model not in extracted_models:
+                            if filter_pushed and not (prop.dtype.model in models):
+                                extracted_models.append(prop.dtype.model)
+                            elif not filter_pushed:
+                                extracted_models.append(prop.dtype.model)
 
     return extracted_models
 
